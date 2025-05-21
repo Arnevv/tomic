@@ -228,22 +228,6 @@ def run():
     hv30 = app.calculate_hv30()
     atr14 = app.calculate_atr14()
 
-    today_str = datetime.now().strftime("%Y%m%d")
-    export_dir = os.path.join("exports", today_str)
-    os.makedirs(export_dir, exist_ok=True)
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    filename = f"other_data_{symbol}_{timestamp}.csv"
-    filepath = os.path.join(export_dir, filename)
-
-    headers = ["Symbol", "SpotPrice", "HV_30", "ATR_14", "VIX"]
-    values = [symbol, app.spot_price, hv30, atr14, app.vix_price]
-
-    with open(filepath, mode="w", newline="") as file:
-        writer = csv.writer(file)
-        writer.writerow(headers)
-        writer.writerow(values)
-
-    print(f"✅ CSV opgeslagen als: {filepath}")
     print("⏳ Wachten op marketdata (10 seconden)...")
     time.sleep(10)
 
@@ -324,6 +308,24 @@ def run():
         )
     else:
         print("⚠️ Onvoldoende data voor skew-berekening.")
+        skew = None
+
+    today_str = datetime.now().strftime("%Y%m%d")
+    export_dir = os.path.join("exports", today_str)
+    os.makedirs(export_dir, exist_ok=True)
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    filename = f"other_data_{symbol}_{timestamp}.csv"
+    filepath = os.path.join(export_dir, filename)
+
+    headers = ["Symbol", "SpotPrice", "HV_30", "ATR_14", "VIX", "Skew"]
+    values = [symbol, app.spot_price, hv30, atr14, app.vix_price, skew]
+
+    with open(filepath, mode="w", newline="") as file:
+        writer = csv.writer(file)
+        writer.writerow(headers)
+        writer.writerow(values)
+
+    print(f"✅ CSV opgeslagen als: {filepath}")
 
     app.disconnect()
     time.sleep(1)
