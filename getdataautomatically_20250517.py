@@ -77,7 +77,7 @@ class IVDataCollector(EWrapper, EClient):
         print(f"📈 Spotprijs: {self.spot_price}")
 
         center = round(self.spot_price)
-        filtered_strikes = sorted([s for s in strikes if center - 80 <= s <= center + 80 and isinstance(s, (int, float))])
+        filtered_strikes = sorted([s for s in strikes if center - 100 <= s <= center + 100 and isinstance(s, (int, float))])
         print(f"🎯 Strikes rond {center}: {filtered_strikes[:10]} ... ({len(filtered_strikes)} totaal)")
         self.strikes = filtered_strikes
         self.trading_class = tradingClass
