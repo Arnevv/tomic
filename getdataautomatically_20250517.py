@@ -26,6 +26,9 @@ class IVDataCollector(EWrapper, EClient):
         self.option_params_ready = threading.Event()
         self.conId = None
         self.contract_details_ready = threading.Event()
+        self.all_strikes = []
+        self.strikes = []
+        self.center = None
 
     def nextValidId(self, orderId: int):
         self.reqMarketDataType(2)
@@ -77,16 +80,22 @@ class IVDataCollector(EWrapper, EClient):
         print(f"📈 Spotprijs: {self.spot_price}")
 
         center = round(self.spot_price)
-        filtered_strikes = sorted([s for s in strikes if center - 100 <= s <= center + 100 and isinstance(s, (int, float))])
+        self.center = center
+        self.all_strikes = sorted(s for s in strikes if isinstance(s, (int, float)))
+        filtered_strikes = [s for s in self.all_strikes if center - 100 <= s <= center + 100]
         print(f"🎯 Strikes rond {center}: {filtered_strikes[:10]} ... ({len(filtered_strikes)} totaal)")
-        self.strikes = filtered_strikes
+        self.strikes = sorted(filtered_strikes)
         self.trading_class = tradingClass
         self.option_params_ready.set()
 
         self.market_data = {}
         self.req_id_counter = 6000
+        self.request_option_market_data(self.strikes)
+        print(f"📡 Marketdata requests verzonden: {len(self.market_data)} opties")
+
+    def request_option_market_data(self, strikes):
         for expiry in self.expiries:
-            for strike in self.strikes:
+            for strike in strikes:
                 for right in ["C", "P"]:
                     contract = Contract()
                     contract.symbol = self.symbol
@@ -112,7 +121,31 @@ class IVDataCollector(EWrapper, EClient):
                         "iv": None
                     }
                     self.reqMktData(req_id, contract, "", True, False, [])
-        print(f"📡 Marketdata requests verzonden: {len(self.market_data)} opties")
+
+    def has_target_deltas(self):
+        valid = [
+            d for k, d in self.market_data.items()
+            if k not in self.invalid_contracts and d['delta'] is not None
+        ]
+        has_call = any(d['right'] == 'C' and d['delta'] > 0.25 for d in valid)
+        has_put = any(d['right'] == 'P' and d['delta'] < -0.25 for d in valid)
+        return has_call and has_put
+
+    def expand_strike_range_until_target(self, limit=300, step=50, wait=10):
+        expansion = 100
+        while not self.has_target_deltas() and expansion < limit:
+            expansion += step
+            new_strikes = [
+                s for s in self.all_strikes
+                if self.center - expansion <= s <= self.center + expansion
+                and s not in self.strikes
+            ]
+            if not new_strikes:
+                break
+            self.strikes.extend(sorted(new_strikes))
+            self.request_option_market_data(sorted(new_strikes))
+            print(f"🔄 Extra strikes tot ±{expansion} aangevraagd")
+            time.sleep(wait)
 
     def error(self, reqId: TickerId, errorCode: int, errorString: str):
         if errorCode == 200 and reqId in getattr(self, 'market_data', {}):
@@ -246,6 +279,8 @@ def run():
     print(f"✅ CSV opgeslagen als: {filepath}")
     print("⏳ Wachten op marketdata (10 seconden)...")
     time.sleep(10)
+
+    app.expand_strike_range_until_target(limit=300)
 
     valid_options = [
         d for k, d in app.market_data.items()
