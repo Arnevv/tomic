@@ -247,6 +247,30 @@ def run():
     print("⏳ Wachten op marketdata (10 seconden)...")
     time.sleep(10)
 
+    def count_incomplete():
+        return sum(
+            1 for k, d in app.market_data.items()
+            if k not in app.invalid_contracts and (
+                d['bid'] is None or d['ask'] is None or
+                d['delta'] is None or d['iv'] is None
+            )
+        )
+
+    total_options = len([k for k in app.market_data if k not in app.invalid_contracts])
+    incomplete = count_incomplete()
+    waited = 10
+    max_wait = 60
+    interval = 5
+    while incomplete > 0 and waited < max_wait:
+        print(f"⏳ {incomplete} van {total_options} opties niet compleet na {waited} seconden. Wachten...")
+        time.sleep(interval)
+        waited += interval
+        incomplete = count_incomplete()
+    if incomplete > 0:
+        print(f"⚠️ {incomplete} opties blijven incompleet na {waited} seconden. Berekeningen gaan verder met beschikbare data.")
+    else:
+        print(f"✅ Alle opties volledig na {waited} seconden.")
+
     valid_options = [
         d for k, d in app.market_data.items()
         if k not in app.invalid_contracts
