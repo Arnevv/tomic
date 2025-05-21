@@ -1,0 +1,18 @@
+# Python-bestanden
+__pycache__/
+*.pyc
+*.pyo
+*.log
+
+# Virtual environment
+.venv/
+
+# PyCharm IDE
+.idea/
+
+# CSV- en exportbestanden
+exports/
+*.csv
+
+# Backups
+Backups/
