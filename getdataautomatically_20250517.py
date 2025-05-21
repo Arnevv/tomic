@@ -259,15 +259,45 @@ def run():
     calls = [d for d in valid_options if d['right'] == 'C' and d['expiry'] == expiry]
     puts = [d for d in valid_options if d['right'] == 'P' and d['expiry'] == expiry]
 
-    def find_nearest_25d(options, target_delta):
-        return min(options, key=lambda x: abs(x['delta'] - target_delta), default=None)
+    def interpolate_iv_at_delta(options, target_delta):
+        """Zoekt twee opties waarvan de deltas het doel omringen en
+        interpoleert de IV lineair op de doel-delta.
 
-    call_25d = find_nearest_25d(calls, 0.25)
-    put_25d = find_nearest_25d(puts, -0.25)
+        Geeft de geïnterpoleerde IV en een benaderde strike terug.
 
-    if call_25d and put_25d:
-        skew = round(call_25d['iv'] - put_25d['iv'], 2)
-        print(f"📐 Skew (25d CALL - 25d PUT): {call_25d['iv']} - {put_25d['iv']} = {skew}")
+        De IV die we voor de skew-berekening gebruiken is dus niet direct van
+        een enkele optie, maar via delta-interpolatie afgeleid."""
+        if not options:
+            return None, None
+        sorted_opts = sorted(options, key=lambda x: x['delta'])
+        for i in range(len(sorted_opts) - 1):
+            d1, d2 = sorted_opts[i]['delta'], sorted_opts[i + 1]['delta']
+            if d1 is None or d2 is None:
+                continue
+            if (d1 <= target_delta <= d2) or (d2 <= target_delta <= d1):
+                iv1, iv2 = sorted_opts[i]['iv'], sorted_opts[i + 1]['iv']
+                k1, k2 = sorted_opts[i]['strike'], sorted_opts[i + 1]['strike']
+                if iv1 is None or iv2 is None:
+                    continue
+                if d1 == d2:
+                    weight = 0
+                else:
+                    weight = (target_delta - d1) / (d2 - d1)
+                iv = iv1 + weight * (iv2 - iv1)
+                strike = k1 + weight * (k2 - k1) if k1 is not None and k2 is not None else None
+                return iv, strike
+        nearest = min(sorted_opts, key=lambda x: abs(x['delta'] - target_delta))
+        return nearest['iv'], nearest.get('strike')
+
+    call_iv, call_strike = interpolate_iv_at_delta(calls, 0.25)
+    put_iv, put_strike = interpolate_iv_at_delta(puts, -0.25)
+
+    if call_iv is not None and put_iv is not None:
+        skew = round(call_iv - put_iv, 2)
+        print(
+            f"📐 Skew (25d CALL - 25d PUT): {call_iv:.4f} (strike ~ {call_strike}) - "
+            f"{put_iv:.4f} (strike ~ {put_strike}) = {skew}"
+        )
     else:
         print("⚠️ Onvoldoende data voor skew-berekening.")
 
