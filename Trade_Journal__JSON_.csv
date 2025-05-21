@@ -1,0 +1,2 @@
+TradeID,DatumIn,Symbool,Type,Expiry,Strikes,Richting,Qty,Premium,Plan,StopPct,Hedge,Reden,Status,DatumUit,Resultaat,Opmerkingen,AdjustmentHistory,Greeks.Delta,Greeks.Theta,Greeks.Gamma,Greeks.Vega
+T20240512A,2024-05-12,SPY,Put Credit Spread,2024-06-21,"[440, 430]",Bullish,-1,1.1,"IV>ATR, delta=10",20,OTM put 400,Mean-reversion play,Open,,,,[],,,,

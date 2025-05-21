@@ -1,0 +1,196 @@
+[
+  {
+    "TradeID": "1",
+    "DatumIn": "2025-05-12",
+    "DatumUit": null,
+    "Symbool": "SPY",
+    "Type": "Put Ratio Spread",
+    "Expiry": "2025-06-20",
+    "Richting": "sideways",
+    "Status": "Open",
+    "Premium": 3.65,
+    "EntryPrice": 3.65,
+    "ExitPrice": null,
+    "ReturnOnMargin": null,
+    "StopPct": 285,
+    "IV_Entry": 28.3,
+    "HV_Entry": 26.7,
+    "DaysInTrade": null,
+    "Plan": "  | Kenmerk           | Waarde                   |\n  |-------------------|--------------------------|\n  | Long put          | 545                      |\n  | Short puts (2x)   | 544                      |\n  | Netto premie      | $3.84                    |\n  | Max verlies       | \u2013$284.00                 |\n  | Verwachte waarde  | Winst bij zijwaarts      |\n| Greek               | Betekenis                                                                              |\n| ------------------- | -------------------------------------------------------------------------------------- |\n| \u2705 **Delta +0.144**  | Licht positief: je verdient bij een lichte stijging van SPY (of minder hard dalen)     |\n| \u26a0\ufe0f **Gamma \u20130.006** | Negatief: je verliest versneld als SPY hard crasht richting/onder 544                  |\n| \u26a0\ufe0f **Vega \u20130.457**  | Je verliest bij een stijging van implied volatility (je bent netto verkoper)           |\n| \u2705 **Theta +0.114**  | Tijd werkt in je voordeel: je verdient aan tijdsverloop (premieverlies van short puts) |",
+    "Reden": "Waarom dit werkt:\n- Je verkoopt dure puts (skew = \u20137.2%) \u2192 je verdient aan angst\n- Je zit op een strike die ruim onder spot ligt (~$581) \u2192 veel speelruimte\n- Je vangt ruime premie ($3.84) voor minimale afstand\n- Je maximeert winst bij een rustige daling richting short strike\n\n\u26a0\ufe0f Waarop letten:\n- Als SPY snel onder 544 daalt \u2192 begin actief te managen\n- Rond 538\u2013540 ligt de zone met maximale exposure\n- Voor expiratie: overweeg sluiten bij 70\u201380% winst of als trend draait.",
+    "Exitstrategie": "\u274c Sluiten bij verlies: als SPY onder ~540 zakt, ivm max pain zone\n\u2705 Winstnemen: als de premie is teruggelopen tot bijv. $1.00 (van de initi\u00eble $3.84)\n\ud83d\udfe1 Tijd-exit: 10 dagen voor expiratie als de setup nog werkt",
+    "Opmerkingen": "",
+    "Evaluatie": null,
+    "Resultaat": null,
+    "Legs": [
+      {
+        "strike": 544,
+        "type": "PUT",
+        "action": "SELL",
+        "qty": 1
+      },
+      {
+        "strike": 544,
+        "type": "PUT",
+        "action": "SELL",
+        "qty": 1
+      },
+      {
+        "strike": 545,
+        "type": "PUT",
+        "action": "BUY",
+        "qty": 1
+      }
+    ],
+    "Greeks": {
+      "Delta": 0.089,
+      "Theta": 0.081,
+      "Gamma": -0.004,
+      "Vega": -0.274
+    },
+    "Snapshots": [
+      {
+        "date": "2025-05-17",
+        "spot": 594.2,
+        "iv30": 14.7,
+        "iv_rank": 58.0,
+        "hv30": 19.1,
+        "vix": 17.24,
+        "atr14": 10.64,
+        "skew": -4.3,
+        "Greeks": {
+          "Delta": 0.089,
+          "Theta": 0.081,
+          "Gamma": -0.004,
+          "Vega": -0.274
+        },
+        "note": "\nDe markt is tegen mijn verwachting toch nog iets gestegen en de volatiliteit nam eerst nog iets toe. Nu lijkt die wel wat af te nemen. Nog steeds vertrouwen in een goede uitkomst"
+      }
+    ]
+  },
+  {
+    "TradeID": "2",
+    "DatumIn": "2025-05-17",
+    "DatumUit": "2025-05-18",
+    "Symbool": "spy",
+    "Type": "test",
+    "Expiry": "2025-06-20",
+    "Richting": "sideways",
+    "Status": "Gesloten",
+    "Premium": 1.0,
+    "EntryPrice": 1.0,
+    "ExitPrice": 2.0,
+    "ReturnOnMargin": 500.0,
+    "StopPct": 20,
+    "IV_Entry": 20.0,
+    "HV_Entry": 20.0,
+    "DaysInTrade": 1,
+    "Plan": "test",
+    "Reden": "test",
+    "Exitstrategie": "eruit als ...",
+    "Evaluatie": "IV was ... en de richting was ...\nDe effeasdlkfjas  asl;jaklj asdl;j d;aiwep\naljlasjdl lwkaidopl aklsjoepl x\nalkjwopeo lakjkslj dio l jlasjdijl lsdfjo",
+    "Resultaat": 500.0,
+    "Opmerkingen": "",
+    "Legs": [
+      {
+        "strike": 500.0,
+        "type": "CALL",
+        "action": "SELL",
+        "qty": 1
+      }
+    ],
+    "Greeks": {
+      "Delta": 0.6,
+      "Theta": 0.6,
+      "Gamma": 0.6,
+      "Vega": 0.6
+    },
+    "Snapshots": [
+      {
+        "date": "2025-05-17",
+        "spot": 588.0,
+        "iv30": 25.0,
+        "iv_rank": 25.0,
+        "hv30": 25.0,
+        "vix": 25.0,
+        "atr14": 5.0,
+        "skew": -4.2,
+        "Greeks": {
+          "Delta": 0.6,
+          "Theta": 0.6,
+          "Gamma": 0.6,
+          "Vega": 0.6
+        },
+        "note": ""
+      }
+    ]
+  },
+  {
+    "TradeID": "3",
+    "DatumIn": "2025-05-17",
+    "DatumUit": "2025-05-18",
+    "Symbool": "spy",
+    "Type": "test",
+    "Expiry": "2025-06-20",
+    "Richting": "test",
+    "Status": "Gesloten",
+    "Premium": 1.0,
+    "EntryPrice": 1.0,
+    "ExitPrice": 2.0,
+    "ReturnOnMargin": 250.0,
+    "StopPct": 20,
+    "IV_Entry": 20.0,
+    "HV_Entry": 30.0,
+    "IV_Rank": 25.0,
+    "VIX": 35.0,
+    "ATR_14": 5.0,
+    "Skew": -5.0,
+    "Spot": 500.0,
+    "DaysInTrade": 1,
+    "Plan": "plan",
+    "Reden": "reden",
+    "Exitstrategie": "exit",
+    "Evaluatie": "dit is de evaluatie",
+    "Resultaat": 500.0,
+    "Opmerkingen": "",
+    "Legs": [
+      {
+        "strike": 100.0,
+        "type": "CALL",
+        "action": "BUY",
+        "qty": 1
+      }
+    ],
+    "Greeks_Entry": {
+      "Delta": 1.0,
+      "Theta": 1.0,
+      "Gamma": 1.0,
+      "Vega": 1.0
+    },
+    "Snapshots": [
+      {
+        "date": "2025-05-17",
+        "spot": 501.0,
+        "iv30": 21.0,
+        "iv_rank": 26.0,
+        "hv30": 31.0,
+        "vix": 36.0,
+        "atr14": 7.0,
+        "skew": -7.0,
+        "Greeks": {
+          "Delta": 1.0,
+          "Theta": 1.0,
+          "Gamma": 1.0,
+          "Vega": 1.0
+        },
+        "note": "notitie"
+      }
+    ],
+    "Greeks": {
+      "Delta": 1.0,
+      "Theta": 1.0,
+      "Gamma": 1.0,
+      "Vega": 1.0
+    }
+  }
+]
