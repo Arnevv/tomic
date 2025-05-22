@@ -43,10 +43,10 @@
       }
     ],
     "Greeks": {
-      "Delta": 0.089,
-      "Theta": 0.081,
-      "Gamma": -0.004,
-      "Vega": -0.274
+      "Delta": 0.136,
+      "Theta": 0.147,
+      "Gamma": -0.005,
+      "Vega": -0.403
     },
     "Snapshots": [
       {
@@ -65,6 +65,23 @@
           "Vega": -0.274
         },
         "note": "\nDe markt is tegen mijn verwachting toch nog iets gestegen en de volatiliteit nam eerst nog iets toe. Nu lijkt die wel wat af te nemen. Nog steeds vertrouwen in een goede uitkomst"
+      },
+      {
+        "date": "2025-05-22",
+        "spot": 585.0,
+        "iv30": 16.8,
+        "iv_rank": 80.0,
+        "hv30": 17.7,
+        "vix": 20.7,
+        "atr14": 9.66,
+        "skew": -6.22,
+        "Greeks": {
+          "Delta": 0.136,
+          "Theta": 0.147,
+          "Gamma": -0.005,
+          "Vega": -0.403
+        },
+        "note": "De markt zakt zoals verwacht weer wat naar beneden. Ook is de VOL wat lager geworden, maar het is nog wat hoger dan verwacht. Dus de vega helpt me niet. "
       }
     ]
   },

@@ -21,7 +21,6 @@ def fetch_iv_rank(symbol: str = "SPY", timeout: int = 10) -> float:
         logging.error("Network error while fetching %s: %s", symbol, err)
         raise
 
-    # Search for a pattern like 'IV Rank 45%' or 'IV Rank 45.2'
     match = re.search(r"IV\s*Rank[^0-9]*([0-9]+(?:\.[0-9]+)?)", html, re.IGNORECASE)
     if not match:
         logging.error("IV Rank not found on page")
@@ -38,13 +37,9 @@ def fetch_iv_rank(symbol: str = "SPY", timeout: int = 10) -> float:
 def main() -> None:
     logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
 
-    symbol = None
-    if len(sys.argv) > 1:
-        symbol = sys.argv[1].strip().upper()
-    if not symbol:
-        symbol = input("Ticker (default SPY): ").strip().upper() or "SPY"
-
+    symbol = input("Ticker (default SPY): ").strip().upper() or "SPY"
     logging.info("Fetching IV Rank for %s", symbol)
+
     try:
         iv_rank = fetch_iv_rank(symbol)
         print(f"IV Rank for {symbol}: {iv_rank}")
