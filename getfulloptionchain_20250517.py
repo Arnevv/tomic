@@ -250,7 +250,7 @@ def main():
 
         timeout = time.time() + 30
         while any(
-            d.get("bid") is None and d.get("ask") is None and d.get("implied_vol") is None
+            d.get("bid") is None or d.get("ask") is None or d.get("implied_vol") is None
             for d in app.market_data.values()
         ) and time.time() < timeout:
             print("[Wachten] 📉 Nog geen volledige data voor sommige regels...")
@@ -259,13 +259,20 @@ def main():
         print("[Wait] Laatste 15 seconden voor eventuele vertraagde data...")
         time.sleep(15)
 
-        complete = sum(1 for d in app.market_data.values() if d["bid"] is not None and d["ask"] is not None)
+        complete = sum(
+            1 for d in app.market_data.values()
+            if d["bid"] is not None and d["ask"] is not None and d["implied_vol"] is not None
+               and all(d.get(f) is not None for f in app.greeks_fields)
+        )
         print(f"[Debug] ✅ Aantal volledig gevulde regels: {complete} van {len(app.market_data)}")
 
         retries = 2
         for attempt in range(retries):
-            incomplete = [k for k, d in app.market_data.items() if k not in app.invalid_contracts
-                          if d.get("bid") is None and d.get("ask") is None and d.get("implied_vol") is None]
+            incomplete = [
+                k for k, d in app.market_data.items() if k not in app.invalid_contracts
+                if d.get("bid") is None or d.get("ask") is None or d.get("implied_vol") is None
+                   or any(d.get(f) is None for f in app.greeks_fields)
+            ]
             if not incomplete:
                 break
             print(f"[Retry] 🔁 Poging {attempt + 1} voor {len(incomplete)} incomplete regels...")
