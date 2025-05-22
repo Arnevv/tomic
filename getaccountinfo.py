@@ -15,6 +15,8 @@ class IBApp(EWrapper, EClient):
         self.positions_data = []
         self.open_orders = []
         self.account_values = {}
+        self.req_id = 5000
+        self.req_id_to_index = {}
 
     def nextValidId(self, orderId: int):
         print("✅ Verbonden. OrderId:", orderId)
@@ -23,13 +25,24 @@ class IBApp(EWrapper, EClient):
         self.reqOpenOrders()
 
     def position(self, account: str, contract: Contract, position: float, avgCost: float):
+        idx = len(self.positions_data)
         self.positions_data.append({
             "symbol": contract.symbol,
             "secType": contract.secType,
             "exchange": contract.exchange,
             "position": position,
-            "avgCost": avgCost
+            "avgCost": avgCost,
+            "conId": contract.conId,
+            "localSymbol": contract.localSymbol,
+            "lastTradeDate": contract.lastTradeDateOrContractMonth,
+            "strike": contract.strike,
+            "right": contract.right,
+            "multiplier": contract.multiplier,
+            "currency": contract.currency
         })
+        self.reqPnLSingle(self.req_id, account, "", contract.conId)
+        self.req_id_to_index[self.req_id] = idx
+        self.req_id += 1
 
     def openOrder(self, orderId: OrderId, contract: Contract, order, orderState):
         self.open_orders.append({
@@ -46,6 +59,15 @@ class IBApp(EWrapper, EClient):
 
     def accountSummaryEnd(self, reqId: int):
         print("🔹 Accountoverzicht opgehaald.")
+
+    def pnlSingle(self, reqId: int, pos: int, dailyPnL: float, unrealizedPnL: float, realizedPnL: float, value: float):
+        idx = self.req_id_to_index.get(reqId)
+        if idx is not None and idx < len(self.positions_data):
+            self.positions_data[idx].update({
+                "dailyPnL": dailyPnL,
+                "unrealizedPnL": unrealizedPnL,
+                "realizedPnL": realizedPnL
+            })
 
     def positionEnd(self):
         print("🔹 Posities opgehaald.")
@@ -72,7 +94,7 @@ if __name__ == "__main__":
     api_thread = threading.Thread(target=run_loop, args=(app,), daemon=True)
     api_thread.start()
 
-    time.sleep(5)  # Geef tijd om alles op te halen
+    time.sleep(7)  # Geef tijd om alles op te halen
 
     print("\n📊 Account Balans:")
     for tag, value in app.account_values.items():
