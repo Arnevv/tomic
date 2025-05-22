@@ -123,7 +123,10 @@ class IBApp(EWrapper, EClient):
         self.expiries = regulars
         self.trading_class = tradingClass
         center = round(self.spot_price)
-        self.strikes = sorted([s for s in strikes if center - 70 <= s <= center + 70 and s % 1 == 0])
+        self.strikes = sorted(
+            s for s in strikes
+            if center - 100 <= s <= center + 100 and isinstance(s, (int, float))
+        )
         self.option_params_ready = True
         print(f"[Step 3] ✅ Drie reguliere expiries: {self.expiries}")
 
