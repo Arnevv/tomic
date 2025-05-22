@@ -36,7 +36,7 @@ def run_trade_management():
         elif sub == "c":
             run_script("journal_inspector_20250517.py")
         elif sub == "d":
-            run_script("close_trade_20250518.py")
+            run_script("close_trade.py")
         elif sub == "e":
             break
         else:
