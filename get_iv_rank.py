@@ -5,8 +5,8 @@ import urllib.request
 
 
 def fetch_iv_rank(symbol: str = "SPY") -> float:
-    """Fetch IV Rank for the given symbol from Optioncharts."""
-    url = f"https://optioncharts.io/options/{symbol}"
+    """Fetch IV Rank for the given symbol from Barchart."""
+    url = f"https://www.barchart.com/etfs-funds/quotes/{symbol}/volatility-charts"
     logging.debug("Requesting URL: %s", url)
 
     req = urllib.request.Request(
@@ -18,14 +18,14 @@ def fetch_iv_rank(symbol: str = "SPY") -> float:
         html = response.read().decode("utf-8", errors="ignore")
     logging.debug("Downloaded %d characters", len(html))
 
-    # Try patterns for 'IV30 % Rank' first, then generic 'IV Rank'
+    # Barchart displays "IV Rank:" followed by a percentage in a <strong> tag
     patterns = [
-        r"IV30\s*%?\s*Rank[^0-9]*([0-9]+(?:\.[0-9]+)?)",
+        r"IV\s*&nbsp;?Rank:</span>\s*<span><strong>([0-9]+(?:\.[0-9]+)?)%",
         r"IV\s*Rank[^0-9]*([0-9]+(?:\.[0-9]+)?)",
     ]
 
     for pat in patterns:
-        match = re.search(pat, html, re.IGNORECASE)
+        match = re.search(pat, html, re.IGNORECASE | re.DOTALL)
         if match:
             try:
                 iv = float(match.group(1))
