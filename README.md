@@ -31,7 +31,7 @@ python -m venv .venv
 source .venv/bin/activate  # Windows: .venv\Scripts\activate
 ```
 
-3. Installeer dependencies (optioneel):
+3. Installeer dependencies:
 
 ```bash
 pip install -r requirements.txt
