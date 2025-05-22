@@ -51,10 +51,11 @@ python controlpanel.py
 
 Of gebruik individuele modules:
 
-* `getaccountinfo_20250517.py`: Live portfolio-overzicht ophalen
-* `getfulloptionchain_20250517.py`: Optieketen + Greeks exporteren
-* `journal_updater_20250517.py`: Nieuwe trade aanmaken en loggen
-* `close_trade_20250518.py`: Trade afsluiten met evaluatie
+* `getaccountinfo.py`: Live portfolio-overzicht ophalen
+* `getonemarket.py`: Optieketen en marktdata voor een symbool
+* `getallmarkets.py`: Exporteert data voor meerdere symbolen
+* `journal_updater.py`: Nieuwe trade aanmaken en loggen
+* `close_trade.py`: Trade afsluiten met evaluatie
 
 ---
 
