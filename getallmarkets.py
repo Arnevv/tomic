@@ -10,6 +10,7 @@ import os
 import math
 import statistics
 from datetime import datetime
+from get_iv_rank import fetch_iv_metrics
 
 
 class CombinedApp(EWrapper, EClient):
@@ -284,6 +285,17 @@ def run(symbol):
     hv30 = app.calculate_hv30()
     atr14 = app.calculate_atr14()
 
+    try:
+        iv_data = fetch_iv_metrics(symbol)
+        iv_rank = iv_data.get("iv_rank")
+        implied_volatility = iv_data.get("implied_volatility")
+        iv_percentile = iv_data.get("iv_percentile")
+    except Exception as exc:
+        print(f"⚠️ IV metrics ophalen mislukt: {exc}")
+        iv_rank = None
+        implied_volatility = None
+        iv_percentile = None
+
     if not app.vix_event.wait(timeout=10):
         print("❌ VIX ophalen mislukt.")
         app.disconnect()
@@ -423,6 +435,9 @@ def run(symbol):
         "Skew",
         "Term_M1_M2",
         "Term_M1_M3",
+        "IV_Rank",
+        "Implied_Volatility",
+        "IV_Percentile",
     ]
     values_metrics = [
         symbol,
@@ -433,6 +448,9 @@ def run(symbol):
         skew,
         term_m1_m2,
         term_m1_m3,
+        iv_rank,
+        implied_volatility,
+        iv_percentile,
     ]
 
     with open(metrics_file, "w", newline="") as file:
