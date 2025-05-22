@@ -11,9 +11,9 @@ def run_dataexporter():
         print("3. Terug naar hoofdmenu")
         sub = input("Maak je keuze: ")
         if sub == "1":
-            run_script("getfulloptionchain_20250517.py")
+            run_script("getfulloptionchain.py")
         elif sub == "2":
-            run_script("getdata_20250517.py")
+            run_script("getdata.py")
         elif sub == "3":
             break
         else:
@@ -30,11 +30,11 @@ def run_trade_management():
         sub = input("Maak je keuze: ").strip().lower()
 
         if sub == "a":
-            run_script("journal_inspector_20250517.py")
+            run_script("journal_inspector.py")
         elif sub == "b":
-            run_script("journal_updater_20250517.py")
+            run_script("journal_updater.py")
         elif sub == "c":
-            run_script("journal_inspector_20250517.py")
+            run_script("journal_inspector.py")
         elif sub == "d":
             run_script("close_trade.py")
         elif sub == "e":
@@ -52,7 +52,7 @@ def main():
         keuze = input("Maak je keuze: ")
 
         if keuze == "1":
-            run_script("getaccountinfo_20250517.py")
+            run_script("getaccountinfo.py")
         elif keuze == "2":
             run_trade_management()
         elif keuze == "3":

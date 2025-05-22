@@ -46,7 +46,7 @@ pip install -r requirements.txt
 Start het hoofdscript met het controlpanel:
 
 ```bash
-python controlpanel_20250517.py
+python controlpanel.py
 ```
 
 Of gebruik individuele modules:
