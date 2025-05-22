@@ -1,19 +1,37 @@
 import subprocess
 
-def run_script(script_name):
-    subprocess.run(["python", script_name], check=True)
+def run_script(script_name, input_data=None):
+    subprocess.run(
+        ["python", script_name], check=True, text=True, input=input_data
+    )
 
 def run_dataexporter():
+    markets = [
+        "SPY",
+        "QQQ",
+        "IWM",
+        "DIA",
+        "VIX",
+        "AAPL",
+        "MSFT",
+        "GOOG",
+        "AMZN",
+        "TSLA",
+    ]
     while True:
         print("\n📤 DATAEXPORTER")
-        print("1. Export optiechain (getfulloptionchain.py)")
-        print("2. Export algemene data (getdata.py)")
+        print("1. Exporteer een specifiek symbool")
+        print("2. Exporteer alle markten")
         print("3. Terug naar hoofdmenu")
-        sub = input("Maak je keuze: ")
+        sub = input("Maak je keuze: ").strip()
         if sub == "1":
-            run_script("getfulloptionchain.py")
+            symbol = input("Welk symbool wil je exporteren? ").strip().upper()
+            if symbol:
+                run_script("getonemarket.py", input_data=symbol + "\n")
+            else:
+                print("❌ Geen geldig symbool ingevoerd")
         elif sub == "2":
-            run_script("getdata.py")
+            run_script("getallmarkets.py")
         elif sub == "3":
             break
         else:
