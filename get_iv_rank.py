@@ -2,21 +2,26 @@ import logging
 import re
 import sys
 import urllib.request
+from urllib.error import HTTPError, URLError
 
 
-def fetch_iv_rank(symbol: str = "SPY") -> float:
+def fetch_iv_rank(symbol: str = "SPY", timeout: int = 10) -> float:
     """Fetch IV Rank for the given symbol from MarketChameleon."""
     url = f"https://marketchameleon.com/Overview/{symbol}/Summary/"
-    logging.debug("Requesting URL: %s", url)
+    logging.debug("Requesting %s", url)
 
-    req = urllib.request.Request(
-        url,
-        headers={"User-Agent": "Mozilla/5.0"},
-    )
+    request = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
 
-    with urllib.request.urlopen(req) as response:
-        html = response.read().decode("utf-8", errors="ignore")
-    logging.debug("Downloaded %d characters", len(html))
+    try:
+        with urllib.request.urlopen(request, timeout=timeout) as response:
+            html = response.read().decode("utf-8", errors="ignore")
+            logging.debug("Received %d bytes of HTML", len(html))
+    except HTTPError as err:
+        logging.error("HTTP error while fetching %s: %s", symbol, err)
+        raise
+    except URLError as err:
+        logging.error("Network error while fetching %s: %s", symbol, err)
+        raise
 
     # Try patterns for 'IV30 % Rank' first, then generic 'IV Rank'
     patterns = [

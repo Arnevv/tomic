@@ -6,14 +6,14 @@ def run_script(script_name):
 def run_dataexporter():
     while True:
         print("\n📤 DATAEXPORTER")
-        print("1. Export optiechain (getfulloptionchain.py)")
-        print("2. Export algemene data (getdata.py)")
+        print("1. Exporteer een markt (getonemarket.py)")
+        print("2. Exporteer alle markten (getallmarkets.py)")
         print("3. Terug naar hoofdmenu")
         sub = input("Maak je keuze: ")
         if sub == "1":
-            run_script("getfulloptionchain.py")
+            run_script("getonemarket.py")
         elif sub == "2":
-            run_script("getdata.py")
+            run_script("getallmarkets.py")
         elif sub == "3":
             break
         else:
