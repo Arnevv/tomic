@@ -84,4 +84,4 @@ Dit project is uitsluitend bedoeld voor educatieve en persoonlijke trading-doele
 
 ## Licentie
 
-MIT-licentie
+[MIT License](LICENSE)
