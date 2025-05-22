@@ -297,6 +297,17 @@ def run():
         nearest = min(sorted_opts, key=lambda x: abs(x['delta'] - target_delta))
         return nearest['iv'], nearest.get('strike')
 
+    # Bereken 50-delta (ongeveer at-the-money) CALL IV per expiry
+    atm_call_ivs = []
+    for exp in app.expiries:
+        exp_calls = [d for d in valid_options if d['right'] == 'C' and d['expiry'] == exp]
+        iv, strike = interpolate_iv_at_delta(exp_calls, 0.50)
+        atm_call_ivs.append(iv)
+        if iv is not None:
+            print(f"📈 ATM IV {exp}: {iv:.4f} (strike ~ {strike})")
+        else:
+            print(f"⚠️ Geen ATM IV beschikbaar voor {exp}")
+
     call_iv, call_strike = interpolate_iv_at_delta(calls, 0.25)
     put_iv, put_strike = interpolate_iv_at_delta(puts, -0.25)
 
@@ -310,6 +321,16 @@ def run():
         print("⚠️ Onvoldoende data voor skew-berekening.")
         skew = None
 
+    m1 = atm_call_ivs[0] if len(atm_call_ivs) > 0 else None
+    m2 = atm_call_ivs[1] if len(atm_call_ivs) > 1 else None
+    m3 = atm_call_ivs[2] if len(atm_call_ivs) > 2 else None
+
+    term_m1_m2 = None if m1 is None or m2 is None else round(m2 - m1, 4)
+    term_m1_m3 = None if m1 is None or m3 is None else round(m3 - m1, 4)
+
+    print(f"📊 Term m1->m2: {term_m1_m2 if term_m1_m2 is not None else 'n.v.t.'}")
+    print(f"📊 Term m1->m3: {term_m1_m3 if term_m1_m3 is not None else 'n.v.t.'}")
+
     today_str = datetime.now().strftime("%Y%m%d")
     export_dir = os.path.join("exports", today_str)
     os.makedirs(export_dir, exist_ok=True)
@@ -317,8 +338,8 @@ def run():
     filename = f"other_data_{symbol}_{timestamp}.csv"
     filepath = os.path.join(export_dir, filename)
 
-    headers = ["Symbol", "SpotPrice", "HV_30", "ATR_14", "VIX", "Skew"]
-    values = [symbol, app.spot_price, hv30, atr14, app.vix_price, skew]
+    headers = ["Symbol", "SpotPrice", "HV_30", "ATR_14", "VIX", "Skew", "Term_M1_M2", "Term_M1_M3"]
+    values = [symbol, app.spot_price, hv30, atr14, app.vix_price, skew, term_m1_m2, term_m1_m3]
 
     with open(filepath, mode="w", newline="") as file:
         writer = csv.writer(file)
