@@ -10,6 +10,19 @@ import os
 import sys
 
 class IBApp(EWrapper, EClient):
+    def _progress_update(self, step=10):
+        completed = sum(
+            1
+            for d in self.market_data.values()
+            if d.get("bid") is not None
+            and d.get("ask") is not None
+            and d.get("implied_vol") is not None
+            and all(d.get(f) is not None for f in self.greeks_fields)
+        )
+        total = len(self.market_data)
+        if completed % step == 0 and completed != getattr(self, "_last_progress", 0) and completed > 0:
+            self._last_progress = completed
+            print(f"🔄 Gevulde opties: {completed}/{total}")
     def tickOptionComputation(self, reqId, tickType, tickAttrib, impliedVol,
                               delta, optPrice, pvDividend, gamma, vega, theta, undPrice):
         with self.lock:
@@ -19,6 +32,7 @@ class IBApp(EWrapper, EClient):
                 self.market_data[reqId]['gamma'] = gamma
                 self.market_data[reqId]['vega'] = vega
                 self.market_data[reqId]['theta'] = theta
+                self._progress_update()
     def __init__(self, symbol):
         EClient.__init__(self, self)
         self.symbol = symbol.upper()
@@ -46,6 +60,7 @@ class IBApp(EWrapper, EClient):
         self.invalid_contract_keys = set()
         self.received_contract_details = 0
         self.market_data_started = False
+        self._last_progress = 0
 
     def get_next_req_id(self):
         self.req_id_counter += 1
@@ -79,6 +94,7 @@ class IBApp(EWrapper, EClient):
                 elif tickType == 25: self.market_data[reqId]['gamma'] = price
                 elif tickType == 26: self.market_data[reqId]['vega'] = price
                 elif tickType == 27: self.market_data[reqId]['theta'] = price
+                self._progress_update()
 
     def contractDetails(self, reqId, details: ContractDetails):
         c = details.contract
