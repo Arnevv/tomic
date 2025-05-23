@@ -65,14 +65,14 @@ def generate_alerts(strategy):
     alerts = []
     if strategy.get("vega") is not None and strategy.get("IV_Rank") is not None:
         if strategy["vega"] < -30 and strategy["IV_Rank"] > 60:
-            alerts.append("\u26a0\ufe0f Short Vega in hoog vol klimaat (>60 IV Rank)")
+            alerts.append("⚠️ Short Vega in hoog vol klimaat (>60 IV Rank)")
     if strategy.get("unrealizedPnL") is not None:
         cost_basis = abs(strategy.get("cost_basis", 0))
         if cost_basis and strategy.get("theta") is not None:
             if strategy["unrealizedPnL"] > 0.7 * cost_basis and strategy["theta"] > 0:
-                alerts.append("\u2705 Overweeg winstnemen (>70% premie afgebouwd)")
+                alerts.append("✅ Overweeg winstnemen (>70% premie afgebouwd)")
     if strategy.get("delta") is not None and strategy["delta"] > 0.2:
-        alerts.append("\ud83d\udcc8 Positieve delta \u2014 trendgevoeligheid aanwezig")
+        alerts.append("📈 Positieve delta — trendgevoeligheid aanwezig")
     return alerts
 
 
@@ -100,17 +100,18 @@ def group_strategies(positions):
 
 def print_strategy(strategy):
     pnl = strategy.get("unrealizedPnL")
-    color = "\U0001F7E9" if pnl is not None and pnl >= 0 else "\U0001F7E5"
+    color = "🟩" if pnl is not None and pnl >= 0 else "🟥"
     print(f"{color} {strategy['symbol']} – {strategy['type']}")
     delta = strategy.get("delta")
     vega = strategy.get("vega")
     theta = strategy.get("theta")
     ivr = strategy.get("IV_Rank")
+    ivr_display = f"{ivr:.1f}" if ivr is not None else "n.v.t."
     print(
         f"→ Delta: {delta:+.2f} "
         f"Vega: {vega:+.1f} "
         f"Theta: {theta:+.1f} "
-        f"IV Rank: {ivr:.1f if ivr is not None else 'n.v.t.'}"
+        f"IV Rank: {ivr_display}"
     )
     if pnl is not None:
         print(f"→ PnL: {pnl:+.2f}")
