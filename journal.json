@@ -87,127 +87,63 @@
   },
   {
     "TradeID": "2",
-    "DatumIn": "2025-05-17",
-    "DatumUit": "2025-05-18",
-    "Symbool": "spy",
-    "Type": "test",
+    "DatumIn": "2025-05-22",
+    "DatumUit": null,
+    "Symbool": "GLD",
+    "Type": "Iron Condor",
     "Expiry": "2025-06-20",
-    "Richting": "sideways",
-    "Status": "Gesloten",
-    "Premium": 1.0,
-    "EntryPrice": 1.0,
-    "ExitPrice": 2.0,
-    "ReturnOnMargin": 500.0,
-    "StopPct": 20,
-    "IV_Entry": 20.0,
-    "HV_Entry": 20.0,
-    "DaysInTrade": 1,
-    "Plan": "test",
-    "Reden": "test",
-    "Exitstrategie": "eruit als ...",
-    "Evaluatie": "IV was ... en de richting was ...\nDe effeasdlkfjas  asl;jaklj asdl;j d;aiwep\naljlasjdl lwkaidopl aklsjoepl x\nalkjwopeo lakjkslj dio l jlasjdijl lsdfjo",
-    "Resultaat": 500.0,
+    "Richting": "Sideways",
+    "Status": "Open",
+    "Premium": 1.39,
+    "EntryPrice": 1.39,
+    "ExitPrice": null,
+    "ReturnOnMargin": null,
+    "StopPct": 361,
+    "IV_Entry": 20.3,
+    "HV_Entry": 26.83,
+    "IV_Rank": 92.0,
+    "VIX": 20.77,
+    "ATR_14": 7.09,
+    "Skew": 0.9,
+    "Spot": 303.52,
+    "DaysInTrade": null,
+    "Plan": "| Kenmerk           | Waarde                   |\n|-------------------|--------------------------|\n| Short put         | 290                      |\n| Long put          | 285                      |\n| Short call        | 320                      |\n| Long call         | 325                      |\n| Netto premie      | $1.39                    |\n| Max verlies       | \u2013$361.00                 |\n| Verwachte waarde  | Winst bij zijwaartse beweging tussen 290\u2013320   |\n\n| Greek               | Betekenis                                                                                   |\n|--------------------|---------------------------------------------------------------------------------------------|\n| \u2705 **Delta ~0.00**     | Neutraal: geen sterke directional bias                                                  |\n| \u2705 **Theta +0.02**     | Tijd werkt in je voordeel: je verdient aan tijdsverloop                                  |\n| \u26a0\ufe0f **Vega \u20130.11**      | Je verliest bij stijging van implied volatility (je bent netto verkoper)                |\n| \u2705 **Gamma ~0.00**     | Lage gamma = stabiele exposure zolang je binnen de winstzone blijft                     |",
+    "Reden": "Waarom dit werkt:\n- Je verkoopt dure optiepremies: IV Percentile = 90.0 \u2192 je profiteert van overprijsde opties\n- Je kiest strikes ruim buiten 1\u00d7 ATR (~\u00b114 punten) \u2192 veilige marge rond spot (303.85)\n- Je vangt een ruime premie ($1.39) terwijl de koers midden in de range zit (290\u2013320)\n- Je hebt een neutrale positie, dus beweging in beide richtingen wordt opgevangen\n- De implied volatility is relatief hoog (IV Rank 55.1), maar de skew is vlak \u2192 optimale balans",
+    "Exitstrategie": "\u274c Sluiten bij verlies:\n- Als GLD onder 289 of boven 321 sluit met momentum\n- Of als premie stijgt tot boven ~$2.50 (indicatie dat markt stress ervaart)\n\n\u2705 Winstnemen:\n- Bij terugkoop rond $0.30 of minder (~70\u201380% winst)\n- Als GLD in midden blijft zonder richting en premie snel verdampt\n\n\ud83d\udfe1 Tijd-exit:\n- Sluiten 5\u20137 dagen voor expiratie als de setup stabiel blijft\n- Evalueren op doorrollen naar nieuwe condor bij vergelijkbare IV-setup",
+    "Evaluatie": null,
+    "Resultaat": null,
     "Opmerkingen": "",
     "Legs": [
       {
-        "strike": 500.0,
+        "strike": 290.0,
+        "type": "PUT",
+        "action": "SELL",
+        "qty": 1
+      },
+      {
+        "strike": 285.0,
+        "type": "PUT",
+        "action": "BUY",
+        "qty": 1
+      },
+      {
+        "strike": 320.0,
         "type": "CALL",
         "action": "SELL",
         "qty": 1
-      }
-    ],
-    "Greeks": {
-      "Delta": 0.6,
-      "Theta": 0.6,
-      "Gamma": 0.6,
-      "Vega": 0.6
-    },
-    "Snapshots": [
+      },
       {
-        "date": "2025-05-17",
-        "spot": 588.0,
-        "iv30": 25.0,
-        "iv_rank": 25.0,
-        "hv30": 25.0,
-        "vix": 25.0,
-        "atr14": 5.0,
-        "skew": -4.2,
-        "Greeks": {
-          "Delta": 0.6,
-          "Theta": 0.6,
-          "Gamma": 0.6,
-          "Vega": 0.6
-        },
-        "note": ""
-      }
-    ]
-  },
-  {
-    "TradeID": "3",
-    "DatumIn": "2025-05-17",
-    "DatumUit": "2025-05-18",
-    "Symbool": "spy",
-    "Type": "test",
-    "Expiry": "2025-06-20",
-    "Richting": "test",
-    "Status": "Gesloten",
-    "Premium": 1.0,
-    "EntryPrice": 1.0,
-    "ExitPrice": 2.0,
-    "ReturnOnMargin": 250.0,
-    "StopPct": 20,
-    "IV_Entry": 20.0,
-    "HV_Entry": 30.0,
-    "IV_Rank": 25.0,
-    "VIX": 35.0,
-    "ATR_14": 5.0,
-    "Skew": -5.0,
-    "Spot": 500.0,
-    "DaysInTrade": 1,
-    "Plan": "plan",
-    "Reden": "reden",
-    "Exitstrategie": "exit",
-    "Evaluatie": "dit is de evaluatie",
-    "Resultaat": 500.0,
-    "Opmerkingen": "",
-    "Legs": [
-      {
-        "strike": 100.0,
+        "strike": 325.0,
         "type": "CALL",
         "action": "BUY",
         "qty": 1
       }
     ],
     "Greeks_Entry": {
-      "Delta": 1.0,
-      "Theta": 1.0,
-      "Gamma": 1.0,
-      "Vega": 1.0
-    },
-    "Snapshots": [
-      {
-        "date": "2025-05-17",
-        "spot": 501.0,
-        "iv30": 21.0,
-        "iv_rank": 26.0,
-        "hv30": 31.0,
-        "vix": 36.0,
-        "atr14": 7.0,
-        "skew": -7.0,
-        "Greeks": {
-          "Delta": 1.0,
-          "Theta": 1.0,
-          "Gamma": 1.0,
-          "Vega": 1.0
-        },
-        "note": "notitie"
-      }
-    ],
-    "Greeks": {
-      "Delta": 1.0,
-      "Theta": 1.0,
-      "Gamma": 1.0,
-      "Vega": 1.0
+      "Delta": 0.0,
+      "Theta": 0.02,
+      "Gamma": 0.0,
+      "Vega": -0.11
     }
   }
 ]
