@@ -471,7 +471,7 @@ def run():
                     data.get("strike"),
                     data.get("bid"),
                     data.get("ask"),
-                    data.get("iv"),
+                    round(data.get("iv"), 3) if data.get("iv") is not None else None,
                     round(data.get("delta"), 3) if data.get("delta") is not None else None,
                     round(data.get("gamma"), 3) if data.get("gamma") is not None else None,
                     round(data.get("vega"), 3) if data.get("vega") is not None else None,

@@ -145,5 +145,49 @@
       "Gamma": 0.0,
       "Vega": -0.11
     }
+  },
+  {
+    "TradeID": "3",
+    "DatumIn": "2025-05-23",
+    "DatumUit": null,
+    "Symbool": "CRM",
+    "Type": "test",
+    "Expiry": "2025-06-20",
+    "Richting": "bullish",
+    "Status": "Open",
+    "Premium": -5.0,
+    "EntryPrice": -5.0,
+    "ExitPrice": null,
+    "ReturnOnMargin": null,
+    "StopPct": 20,
+    "IV_Entry": 44.33,
+    "HV_Entry": 33.28,
+    "IV_Rank": 64.25,
+    "IV_Percentile": 87.0,
+    "VIX": 20.22,
+    "ATR_14": 6.05,
+    "Skew": -0.03,
+    "Spot": 282.59,
+    "DaysInTrade": null,
+    "Plan": "",
+    "Reden": "",
+    "Exitstrategie": "",
+    "Evaluatie": null,
+    "Resultaat": null,
+    "Opmerkingen": "",
+    "Legs": [
+      {
+        "strike": 300.0,
+        "type": "CALL",
+        "action": "BUY",
+        "qty": 1
+      }
+    ],
+    "Greeks_Entry": {
+      "Delta": 1.0,
+      "Theta": 1.0,
+      "Gamma": 1.0,
+      "Vega": 1.0
+    }
   }
 ]
