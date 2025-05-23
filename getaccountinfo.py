@@ -68,6 +68,9 @@ class IBApp(EWrapper, EClient):
 
         mkt_id = self.market_req_id
         self.market_req_map[mkt_id] = idx
+        if not getattr(contract, "exchange", None):
+            contract.exchange = "SMART"
+            contract.primaryExchange = "SMART"
         self.reqMktData(mkt_id, contract, "", True, False, [])
         self.market_req_id += 1
 
