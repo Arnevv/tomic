@@ -1,7 +1,9 @@
 import subprocess
 
-def run_script(script_name):
-    subprocess.run(["python", script_name], check=True)
+
+def run_script(script_name, *args):
+    """Run a Python script with optional arguments."""
+    subprocess.run(["python", script_name, *args], check=True)
 
 def run_dataexporter():
     while True:
@@ -52,7 +54,8 @@ def main():
         keuze = input("Maak je keuze: ")
 
         if keuze == "1":
-            run_script("getaccountinfo.py")
+            # Toon dashboard op basis van laatst opgeslagen posities
+            run_script("strategy_dashboard.py", "positions.json")
         elif keuze == "2":
             run_trade_management()
         elif keuze == "3":
