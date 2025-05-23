@@ -472,10 +472,10 @@ def run():
                     data.get("bid"),
                     data.get("ask"),
                     data.get("iv"),
-                    data.get("delta"),
-                    data.get("gamma"),
-                    data.get("vega"),
-                    data.get("theta"),
+                    round(data.get("delta"), 3) if data.get("delta") is not None else None,
+                    round(data.get("gamma"), 3) if data.get("gamma") is not None else None,
+                    round(data.get("vega"), 3) if data.get("vega") is not None else None,
+                    round(data.get("theta"), 3) if data.get("theta") is not None else None,
                 ]
             )
 
@@ -527,8 +527,10 @@ def run():
     put_iv, _ = interpolate_iv_at_delta(puts, -0.25)
 
     if call_iv is not None and put_iv is not None:
-        skew = round(call_iv - put_iv, 2)
-        print(f"📐 Skew (25d CALL - 25d PUT): {call_iv:.4f} - {put_iv:.4f} = {skew}")
+        skew = round((call_iv - put_iv) * 100, 2)
+        print(
+            f"📐 Skew (25d CALL - 25d PUT): {call_iv:.4f} - {put_iv:.4f} = {skew}"
+        )
     else:
         print("⚠️ Onvoldoende data voor skew-berekening.")
         skew = None
@@ -537,8 +539,12 @@ def run():
     m2 = atm_call_ivs[1] if len(atm_call_ivs) > 1 else None
     m3 = atm_call_ivs[2] if len(atm_call_ivs) > 2 else None
 
-    term_m1_m2 = None if m1 is None or m2 is None else round(m2 - m1, 4)
-    term_m1_m3 = None if m1 is None or m3 is None else round(m3 - m1, 4)
+    term_m1_m2 = (
+        None if m1 is None or m2 is None else round((m2 - m1) * 100, 2)
+    )
+    term_m1_m3 = (
+        None if m1 is None or m3 is None else round((m3 - m1) * 100, 2)
+    )
 
     print(f"📊 Term m1->m2: {term_m1_m2 if term_m1_m2 is not None else 'n.v.t.'}")
     print(f"📊 Term m1->m3: {term_m1_m3 if term_m1_m3 is not None else 'n.v.t.'}")
