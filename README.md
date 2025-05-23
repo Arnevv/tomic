@@ -12,6 +12,7 @@ Een Python-project voor het beheren, analyseren en afsluiten van optieposities v
 * Handmatig en scriptmatig beheren van trades in `journal.json`
 * Greeks-analyse per positie (Delta, Gamma, Theta, Vega)
 * Interactief Control Panel met toegang tot alle scripts
+* Dashboard dat legs groepeert tot strategieën met alerts
 
 ---
 
@@ -52,10 +53,12 @@ python controlpanel.py
 Of gebruik individuele modules:
 
 * `getaccountinfo.py`: Live portfolio-overzicht ophalen
+  (slaat posities op in `positions.json`)
 * `getonemarket.py`: Optieketen en marktdata voor een symbool
 * `getallmarkets.py`: Exporteert data voor meerdere symbolen
 * `journal_updater.py`: Nieuwe trade aanmaken en loggen
 * `close_trade.py`: Trade afsluiten met evaluatie
+* `strategy_dashboard.py`: Groepeert legs per strategie en toont alerts
 
 ---
 

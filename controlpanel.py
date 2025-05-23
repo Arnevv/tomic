@@ -14,6 +14,7 @@ def run_portfolio_overview():
         run_script("getaccountinfo.py")
     run_script("strategy_dashboard.py", "positions.json")
 
+
 def run_dataexporter():
     while True:
         print("\n📤 DATAEXPORTER")
@@ -29,6 +30,7 @@ def run_dataexporter():
             break
         else:
             print("❌ Ongeldige keuze")
+
 
 def run_trade_management():
     while True:
@@ -53,6 +55,7 @@ def run_trade_management():
         else:
             print("❌ Ongeldige keuze")
 
+
 def main():
     while True:
         print("\n=== TOMIC CONTROL PANEL ===")
@@ -73,6 +76,7 @@ def main():
             break
         else:
             print("❌ Ongeldige keuze.")
+
 
 if __name__ == "__main__":
     main()
