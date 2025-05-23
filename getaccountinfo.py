@@ -9,6 +9,7 @@ from datetime import datetime
 import math
 import statistics
 from get_iv_rank import fetch_iv_metrics
+import json
 
 import threading
 import time
@@ -272,6 +273,9 @@ if __name__ == "__main__":
         pos["IV_Rank"] = app.iv_rank_data.get(sym)
         pos["IV_Percentile"] = app.iv_rank_data.get(f"{sym}_pct")
         print(pos)
+
+    with open("positions.json", "w", encoding="utf-8") as f:
+        json.dump(app.positions_data, f, ensure_ascii=False, indent=2)
 
     print("\n📐 Portfolio Greeks:")
     for k, v in portfolio.items():
