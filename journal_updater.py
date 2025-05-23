@@ -2,6 +2,8 @@ import json
 from datetime import date
 from pathlib import Path
 
+from getonemarket import fetch_market_metrics
+
 journal_file = Path("journal.json")
 
 if not journal_file.exists():
@@ -127,17 +129,30 @@ def interactieve_trade_invoer():
         lijnen.append(regel)
     exitstrategie = "\n".join(lijnen)
 
-    print("\n📊 Vul marktdata in (gebruik altijd dezelfde bronnen):")
-    spot = float_prompt("  Spotprijs (https://marketchameleon.com/Overview/SPY/Summary): ")
-    iv_entry = float_prompt("  IV30 (https://marketchameleon.com/Overview/SPY/Summary): ")
-    iv_rank = float_prompt("  IV Rank (https://marketchameleon.com/Overview/SPY/Summary): ")
-    hv_entry = float_prompt("  HV30 (https://www.alphaquery.com/stock/SPY/volatility-option-statistics/30-day/historical-volatility): ")
-    vix = float_prompt("  VIX (https://www.barchart.com/stocks/quotes/$VIX/technical-analysis): ")
-    atr14 = float_prompt("  ATR(14) (https://www.barchart.com/etfs-funds/quotes/SPY/technical-analysis): ")
-    print("  Skew wordt berekend als: IV 25D call – IV 25D put (bijv. 12.8 – 17 = -4.2)")
-    iv_call = float_prompt("    IV 25D CALL: ")
-    iv_put = float_prompt("    IV 25D PUT: ")
-    skew = round(iv_call - iv_put, 2)
+    print("\n📊 Marktdata wordt automatisch opgehaald...")
+    try:
+        metrics = fetch_market_metrics(symbool)
+    except Exception as exc:
+        print(f"⚠️ Marktdata ophalen mislukt: {exc}")
+        metrics = {
+            "spot_price": None,
+            "hv30": None,
+            "atr14": None,
+            "vix": None,
+            "skew": None,
+            "iv_rank": None,
+            "implied_volatility": None,
+            "iv_percentile": None,
+        }
+
+    spot = metrics["spot_price"]
+    iv_entry = metrics["implied_volatility"]
+    iv_rank = metrics["iv_rank"]
+    hv_entry = metrics["hv30"]
+    vix = metrics["vix"]
+    atr14 = metrics["atr14"]
+    skew = metrics["skew"]
+    iv_percentile = metrics["iv_percentile"]
 
     print("\n📐 Vul de NETTO Greeks in van de hele positie bij entry (optioneel):")
     print("ℹ️ Dit zijn GEAGGREGEERDE waarden van de gehele trade, NIET per leg of strike")
@@ -163,6 +178,7 @@ def interactieve_trade_invoer():
         "IV_Entry": iv_entry,
         "HV_Entry": hv_entry,
         "IV_Rank": iv_rank,
+        "IV_Percentile": iv_percentile,
         "VIX": vix,
         "ATR_14": atr14,
         "Skew": skew,
