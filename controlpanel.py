@@ -56,15 +56,15 @@ def main():
 
         if keuze == "1":
             # Toon dashboard op basis van laatst opgeslagen posities
-            if not os.path.exists("positions.json"):
-                print("\u2139\ufe0f Positiebestand ontbreekt, haal portfolio op...")
+            if not os.path.exists("positions.json") or not os.path.exists("account_info.json"):
+                print("\u2139\ufe0f Positiebestand of accountinfo ontbreekt, haal portfolio op...")
                 try:
                     run_script("getaccountinfo.py")
                 except subprocess.CalledProcessError:
                     print("❌ Ophalen van portfolio mislukt")
                     continue
             try:
-                run_script("strategy_dashboard.py", "positions.json")
+                run_script("strategy_dashboard.py", "positions.json", "account_info.json")
             except subprocess.CalledProcessError:
                 print("❌ Dashboard kon niet worden gestart")
         elif keuze == "2":
