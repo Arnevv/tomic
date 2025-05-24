@@ -63,6 +63,11 @@ def calculate_trade_margin(symbol: str, expiry: str, legs: list,
         order.action = leg["action"]
         order.totalQuantity = leg["qty"]
         order.orderType = "MKT"
+        # Explicitly disable deprecated TWS attributes to avoid order
+        # rejection when submitting what-if orders for margin calculations.
+        # See https://ibkrcampus.com/campus/ibkr-api-page/twsapi-doc for details.
+        order.eTradeOnly = False
+        order.firmQuoteOnly = False
         order.whatIf = True
         app.margin = None
         app.event.clear()
