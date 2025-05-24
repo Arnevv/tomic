@@ -1,4 +1,5 @@
 import json
+import os
 import sys
 from collections import defaultdict
 from statistics import mean
@@ -6,6 +7,14 @@ from statistics import mean
 
 def load_positions(path: str):
     """Load positions JSON file and return as list."""
+    with open(path, "r", encoding="utf-8") as f:
+        return json.load(f)
+
+
+def load_account_info(path: str):
+    """Load account info JSON file and return as dict."""
+    if not os.path.exists(path):
+        return {}
     with open(path, "r", encoding="utf-8") as f:
         return json.load(f)
 
@@ -204,9 +213,21 @@ def main(argv=None):
     if argv is None:
         argv = sys.argv[1:]
     if not argv:
-        print("Gebruik: python strategy_dashboard.py positions.json")
+        print("Gebruik: python strategy_dashboard.py positions.json [account_info.json]")
         return
-    positions = load_positions(argv[0])
+    positions_file = argv[0]
+    account_file = argv[1] if len(argv) > 1 else "account_info.json"
+
+    positions = load_positions(positions_file)
+    account_info = load_account_info(account_file)
+
+    if account_info:
+        print("\ud83c\udfe6 Accountoverzicht:")
+        for key in ["NetLiquidation", "BuyingPower", "ExcessLiquidity"]:
+            if key in account_info:
+                print(f"{key}: {account_info[key]}")
+        print()
+
     strategies = group_strategies(positions)
     for s in strategies:
         print_strategy(s)
