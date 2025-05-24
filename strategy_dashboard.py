@@ -219,13 +219,19 @@ def generate_alerts(strategy):
             if strategy["unrealizedPnL"] > 0.7 * cost_basis and strategy["theta"] > 0:
                 alerts.append("✅ Overweeg winstnemen (>70% premie afgebouwd)")
 
-    # 🔹 Lage theta-efficiëntie waarschuwing
+    # 🔹 Theta-rendement analyse
     theta = strategy.get("theta")
     margin = abs(strategy.get("cost_basis", 0))
     if theta is not None and margin:
-        theta_efficiency = (theta / margin) * 100
-        if abs(theta_efficiency) < 0.5:
+        theta_efficiency = abs(theta / margin) * 100
+        if theta_efficiency < 0.5:
             alerts.append("⚠️ Lage theta-efficiëntie (<0.5%)")
+        elif theta_efficiency < 1.5:
+            alerts.append("🟡 Theta-efficiëntie acceptabel (0.5–1.5%)")
+        elif theta_efficiency < 2.5:
+            alerts.append("✅ Goede theta-efficiëntie (1.5–2.5%)")
+        else:
+            alerts.append("🟢 Ideale theta-efficiëntie (>=2.5%)")
 
     # 🔹 Eventueel aanvullen met trend/spotalerts later
     return alerts
@@ -352,8 +358,18 @@ def print_strategy(strategy, rule=None):
 
     margin = strategy.get("margin_used", 1000)
     if theta is not None and margin:
-        theta_efficiency = (theta / margin) * 100
-        print(f"→ Theta-rendement: {theta_efficiency:.2f}% per $1.000 margin")
+        theta_efficiency = abs(theta / margin) * 100
+        if theta_efficiency < 0.5:
+            rating = "⚠️ oninteressant"
+        elif theta_efficiency < 1.5:
+            rating = "🟡 acceptabel"
+        elif theta_efficiency < 2.5:
+            rating = "✅ goed"
+        else:
+            rating = "🟢 ideaal"
+        print(
+            f"→ Theta-rendement: {theta_efficiency:.2f}% per $1.000 margin - {rating}"
+        )
     alerts = strategy.get("alerts", [])
     # exit rule evaluation
     if rule:
