@@ -3,6 +3,7 @@ import os
 import sys
 from collections import defaultdict
 from statistics import mean
+from datetime import datetime
 
 
 def load_positions(path: str):
@@ -17,6 +18,26 @@ def load_account_info(path: str):
         return {}
     with open(path, "r", encoding="utf-8") as f:
         return json.load(f)
+
+
+def load_journal(path: str):
+    """Load journal JSON if available."""
+    if not os.path.exists(path):
+        return []
+    with open(path, "r", encoding="utf-8") as f:
+        return json.load(f)
+
+
+def parse_date(date_str: str):
+    """Parse a date in YYYYMMDD or YYYY-MM-DD format to a date object."""
+    if not date_str:
+        return None
+    for fmt in ("%Y-%m-%d", "%Y%m%d"):
+        try:
+            return datetime.strptime(date_str, fmt).date()
+        except ValueError:
+            continue
+    return None
 
 
 def determine_strategy_type(legs):
@@ -106,7 +127,7 @@ def generate_alerts(strategy):
     return alerts
 
 
-def group_strategies(positions):
+def group_strategies(positions, journal=None):
     grouped = defaultdict(list)
     for pos in positions:
         symbol = pos.get("symbol")
@@ -135,6 +156,29 @@ def group_strategies(positions):
         strat["spot"] = spot
         strat["margin_used"] = abs(strat.get("cost_basis", 0))
         strat["alerts"] = generate_alerts(strat)
+
+        exp_date = parse_date(expiry)
+        if exp_date:
+            strat["days_to_expiry"] = (exp_date - datetime.utcnow().date()).days
+        else:
+            strat["days_to_expiry"] = None
+
+        days_in_trade = None
+        if journal:
+            for trade in journal:
+                if (
+                    trade.get("Symbool") == symbol
+                    and parse_date(trade.get("Expiry")) == exp_date
+                ):
+                    if trade.get("DaysInTrade") is not None:
+                        days_in_trade = trade.get("DaysInTrade")
+                    else:
+                        d_in = parse_date(trade.get("DatumIn"))
+                        if d_in:
+                            days_in_trade = (datetime.utcnow().date() - d_in).days
+                    break
+        strat["days_in_trade"] = days_in_trade
+
         strategies.append(strat)
     return strategies
 
@@ -182,6 +226,15 @@ def print_strategy(strategy):
         f"Theta: {theta:+.3f} "
         f"IV Rank: {ivr_display}"
     )
+    days_line = []
+    dte = strategy.get("days_to_expiry")
+    dit = strategy.get("days_in_trade")
+    if dte is not None:
+        days_line.append(f"{dte}d tot exp")
+    if dit is not None:
+        days_line.append(f"{dit}d in trade")
+    if days_line:
+        print("→ " + " | ".join(days_line))
     if pnl is not None:
         print(f"→ PnL: {pnl:+.2f}")
     spot = strategy.get("spot", 0)
@@ -224,9 +277,11 @@ def main(argv=None):
         return
     positions_file = argv[0]
     account_file = argv[1] if len(argv) > 1 else "account_info.json"
+    journal_file = "journal.json"
 
     positions = load_positions(positions_file)
-    account_info = load_account_info(account_file)        
+    account_info = load_account_info(account_file)
+    journal = load_journal(journal_file)
         
     if account_info:
         print("🏦 Accountoverzicht:")
@@ -236,7 +291,7 @@ def main(argv=None):
     print()
 
 
-    strategies = group_strategies(positions)
+    strategies = group_strategies(positions, journal)
     for s in strategies:
         print_strategy(s)
 
