@@ -293,6 +293,22 @@ def group_strategies(positions, journal=None):
                     break
         strat["days_in_trade"] = days_in_trade
 
+        if strat.get("spot") is None and journal:
+            for trade in journal:
+                if (
+                    trade.get("Symbool") == symbol
+                    and parse_date(trade.get("Expiry")) == exp_date
+                ):
+                    spot = trade.get("Spot")
+                    if not spot:
+                        snaps = trade.get("Snapshots", [])
+                        for snap in reversed(snaps):
+                            if snap.get("spot") is not None:
+                                spot = snap["spot"]
+                                break
+                    strat["spot"] = spot
+                    break
+
         strategies.append(strat)
     return strategies
 

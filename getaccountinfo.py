@@ -224,6 +224,8 @@ class IBApp(EWrapper, EClient):
                 d["vega"] = vega
             if theta is not None:
                 d["theta"] = theta
+            if undPrice is not None:
+                d["underlyingPrice"] = undPrice
 
     def historicalData(self, reqId: int, bar):
         self.historical_data.append(bar)
