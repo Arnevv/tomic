@@ -222,7 +222,7 @@ def main(argv=None):
     account_info = load_account_info(account_file)        
         
     if account_info:
-    print("🏦 Accountoverzicht:")
+        print("🏦 Accountoverzicht:")
     for key in ["NetLiquidation", "BuyingPower", "ExcessLiquidity"]:
         if key in account_info:
             print(f"{key}: {account_info[key]}")
