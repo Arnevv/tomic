@@ -4,6 +4,7 @@ import sys
 from collections import defaultdict
 from statistics import mean
 from datetime import datetime, timezone
+import re
 
 
 def load_positions(path: str):
@@ -26,6 +27,38 @@ def load_journal(path: str):
         return []
     with open(path, "r", encoding="utf-8") as f:
         return json.load(f)
+
+
+def extract_exit_rules(path: str):
+    """Parse journal.json and return exit thresholds per trade."""
+    journal = load_journal(path)
+    rules = {}
+    for trade in journal:
+        sym = trade.get("Symbool")
+        expiry = trade.get("Expiry")
+        text = trade.get("Exitstrategie", "")
+        if not sym or not expiry or not text:
+            continue
+        rule = {"premium_entry": trade.get("Premium")}
+        txt = text.replace(",", ".")
+        m = re.search(r"onder\s*~?([0-9]+(?:\.[0-9]+)?)", txt, re.I)
+        if m:
+            rule["spot_below"] = float(m.group(1))
+        m = re.search(r"boven\s*~?([0-9]+(?:\.[0-9]+)?)", txt, re.I)
+        if m:
+            rule["spot_above"] = float(m.group(1))
+        m = re.search(r"\$([0-9]+(?:\.[0-9]+)?)", txt)
+        if m:
+            rule["premium_target"] = float(m.group(1))
+            if isinstance(rule.get("premium_entry"), (int, float)) and rule["premium_entry"]:
+                rule["target_profit_pct"] = (
+                    (rule["premium_entry"] - rule["premium_target"]) / rule["premium_entry"]
+                ) * 100
+        m = re.search(r"(\d+)\s*dagen", txt, re.I)
+        if m:
+            rule["days_before_expiry"] = int(m.group(1))
+        rules[(sym, expiry)] = rule
+    return rules
 
 
 def parse_date(date_str: str):
@@ -221,7 +254,7 @@ SYMBOL_MAP = {
 
 
 
-def print_strategy(strategy):
+def print_strategy(strategy, rule=None):
     pnl = strategy.get("unrealizedPnL")
     color = "🟩" if pnl is not None and pnl >= 0 else "🟥"
     print(f"{color} {strategy['symbol']} – {strategy['type']}")
@@ -259,6 +292,29 @@ def print_strategy(strategy):
         theta_efficiency = (theta / margin) * 100
         print(f"→ Theta-rendement: {theta_efficiency:.2f}% per $1.000 margin")
     alerts = strategy.get("alerts", [])
+    # exit rule evaluation
+    if rule:
+        spot = strategy.get("spot")
+        pnl = strategy.get("unrealizedPnL")
+        if spot is not None:
+            if rule.get("spot_below") is not None and spot < rule["spot_below"]:
+                alerts.append(
+                    f"🚨 Spot {spot:.2f} onder exitniveau {rule['spot_below']}"
+                )
+            if rule.get("spot_above") is not None and spot > rule["spot_above"]:
+                alerts.append(
+                    f"🚨 Spot {spot:.2f} boven exitniveau {rule['spot_above']}"
+                )
+        if (
+            pnl is not None
+            and rule.get("target_profit_pct") is not None
+            and rule.get("premium_entry")
+        ):
+            profit_pct = (pnl / (rule["premium_entry"] * 100)) * 100
+            if profit_pct >= rule["target_profit_pct"]:
+                alerts.append(
+                    f"🚨 PnL {profit_pct:.1f}% >= target {rule['target_profit_pct']:.1f}%"
+                )
     if alerts:
         for alert in alerts:
             print(alert)
@@ -298,6 +354,7 @@ def main(argv=None):
     positions = load_positions(positions_file)
     account_info = load_account_info(account_file)
     journal = load_journal(journal_file)
+    exit_rules = extract_exit_rules(journal_file)
         
     if account_info:
         print("🏦 Accountoverzicht:")
@@ -309,7 +366,8 @@ def main(argv=None):
 
     strategies = group_strategies(positions, journal)
     for s in strategies:
-        print_strategy(s)
+        rule = exit_rules.get((s["symbol"], s["expiry"]))
+        print_strategy(s, rule)
 
 
 if __name__ == "__main__":
