@@ -53,10 +53,7 @@ def aggregate_metrics(legs):
         for g in ["delta", "gamma", "vega", "theta"]:
             val = leg.get(g)
             if val is not None:
-                if g == "delta":
-                    metrics[g] += val * qty
-                else:
-                    metrics[g] += val * qty * mult
+                metrics[g] += val * qty
         if leg.get("unrealizedPnL") is not None:
             metrics["unrealizedPnL"] += leg["unrealizedPnL"]
         if leg.get("avgCost") is not None:
