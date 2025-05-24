@@ -115,13 +115,9 @@ class IBApp(EWrapper, EClient):
 
     def positionEnd(self):
         print("🔹 Posities opgehaald.")
-        for pos in self.positions_data:
-            print(pos)
 
     def openOrderEnd(self):
         print("🔹 Open orders opgehaald.")
-        for order in self.open_orders:
-            print(order)
 
     def tickPrice(self, reqId: TickerId, tickType: int, price: float, attrib):
         if reqId in self.market_req_map:
@@ -265,14 +261,12 @@ if __name__ == "__main__":
     for tag, value in app.account_values.items():
         print(f"{tag}: {value}")
 
-    print("\n📈 Portfolio Posities:")
     for pos in app.positions_data:
         sym = pos["symbol"]
         pos["HV30"] = app.hv_data.get(sym)
         pos["ATR14"] = app.atr_data.get(sym)
         pos["IV_Rank"] = app.iv_rank_data.get(sym)
         pos["IV_Percentile"] = app.iv_rank_data.get(f"{sym}_pct")
-        print(pos)
 
     with open("positions.json", "w", encoding="utf-8") as f:
         json.dump(app.positions_data, f, indent=2)
@@ -280,18 +274,12 @@ if __name__ == "__main__":
 
     with open("account_info.json", "w", encoding="utf-8") as f:
         json.dump(app.account_values, f, indent=2)
-    print("💾 Accountinfo opgeslagen in account_info.json")
-
-    with open("account_info.json", "w", encoding="utf-8") as f:
-        json.dump(app.account_values, f, indent=2)
-    print("\ud83d\udcbe Accountinfo opgeslagen in account_info.json")
+    print("💾 Accountinfo opgeslagen in account_info.json") 
 
     print("\n📐 Portfolio Greeks:")
     for k, v in portfolio.items():
         print(f"{k}: {round(v, 4)}")
 
-    print("\n📋 Openstaande Orders:")
-    for order in app.open_orders:
-        print(order)
+
 
     app.disconnect()
