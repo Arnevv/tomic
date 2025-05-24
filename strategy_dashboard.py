@@ -123,6 +123,14 @@ def generate_alerts(strategy):
             if strategy["unrealizedPnL"] > 0.7 * cost_basis and strategy["theta"] > 0:
                 alerts.append("✅ Overweeg winstnemen (>70% premie afgebouwd)")
 
+    # 🔹 Lage theta-efficiëntie waarschuwing
+    theta = strategy.get("theta")
+    margin = abs(strategy.get("cost_basis", 0))
+    if theta is not None and margin:
+        theta_efficiency = (theta / margin) * 100
+        if abs(theta_efficiency) < 0.5:
+            alerts.append("⚠️ Lage theta-efficiëntie (<0.5%)")
+
     # 🔹 Eventueel aanvullen met trend/spotalerts later
     return alerts
 
@@ -246,8 +254,12 @@ def print_strategy(strategy):
     if theta is not None and margin:
         theta_efficiency = (theta / margin) * 100
         print(f"→ Theta-rendement: {theta_efficiency:.2f}% per $1.000 margin")
-    for alert in strategy.get("alerts", []):
-        print(alert)
+    alerts = strategy.get("alerts", [])
+    if alerts:
+        for alert in alerts:
+            print(alert)
+    else:
+        print("ℹ️ Geen directe aandachtspunten gedetecteerd")
     print("📎 Leg-details:")
     for leg in sort_legs(strategy.get("legs", [])):
         side = "Long" if leg.get("position", 0) > 0 else "Short"
