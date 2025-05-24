@@ -3,7 +3,7 @@ import os
 import sys
 from collections import defaultdict
 from statistics import mean
-from datetime import datetime
+from datetime import datetime, timezone
 
 
 def load_positions(path: str):
@@ -159,7 +159,9 @@ def group_strategies(positions, journal=None):
 
         exp_date = parse_date(expiry)
         if exp_date:
-            strat["days_to_expiry"] = (exp_date - datetime.utcnow().date()).days
+            strat["days_to_expiry"] = (
+                exp_date - datetime.now(timezone.utc).date()
+            ).days
         else:
             strat["days_to_expiry"] = None
 
@@ -175,7 +177,9 @@ def group_strategies(positions, journal=None):
                     else:
                         d_in = parse_date(trade.get("DatumIn"))
                         if d_in:
-                            days_in_trade = (datetime.utcnow().date() - d_in).days
+                            days_in_trade = (
+                                datetime.now(timezone.utc).date() - d_in
+                            ).days
                     break
         strat["days_in_trade"] = days_in_trade
 
