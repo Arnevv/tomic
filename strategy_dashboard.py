@@ -53,7 +53,7 @@ def aggregate_metrics(legs):
         for g in ["delta", "gamma", "vega", "theta"]:
             val = leg.get(g)
             if val is not None:
-                metrics[g] += val * qty * mult
+                metrics[g] += val * qty
         if leg.get("unrealizedPnL") is not None:
             metrics["unrealizedPnL"] += leg["unrealizedPnL"]
         if leg.get("avgCost") is not None:
@@ -170,14 +170,16 @@ def print_strategy(strategy):
     color = "🟩" if pnl is not None and pnl >= 0 else "🟥"
     print(f"{color} {strategy['symbol']} – {strategy['type']}")
     delta = strategy.get("delta")
+    gamma = strategy.get("gamma")
     vega = strategy.get("vega")
     theta = strategy.get("theta")
     ivr = strategy.get("IV_Rank")
     ivr_display = f"{ivr:.1f}" if ivr is not None else "n.v.t."
     print(
-        f"→ Delta: {delta:+.2f} "
-        f"Vega: {vega:+.1f} "
-        f"Theta: {theta:+.1f} "
+        f"→ Delta: {delta:+.3f} "
+        f"Gamma: {gamma:+.3f} "
+        f"Vega: {vega:+.3f} "
+        f"Theta: {theta:+.3f} "
         f"IV Rank: {ivr_display}"
     )
     if pnl is not None:
@@ -200,12 +202,14 @@ def print_strategy(strategy):
         symbol = SYMBOL_MAP.get((right, 1 if leg.get("position", 0) > 0 else -1), "▫️")
         print(f"  {symbol} {right} {leg.get('strike')} ({side})")
         d = leg.get('delta')
+        g = leg.get('gamma')
         v = leg.get('vega')
         t = leg.get('theta')
         d_disp = f"{d:.3f}" if d is not None else "–"
-        v_disp = f"{v:.2f}" if v is not None else "–"
-        t_disp = f"{t:.2f}" if t is not None else "–"
-        print(f"    Delta: {d_disp} Vega: {v_disp} Theta: {t_disp}")
+        g_disp = f"{g:.3f}" if g is not None else "–"
+        v_disp = f"{v:.3f}" if v is not None else "–"
+        t_disp = f"{t:.3f}" if t is not None else "–"
+        print(f"    Delta: {d_disp} Gamma: {g_disp} Vega: {v_disp} Theta: {t_disp}")
     print()
 
 
