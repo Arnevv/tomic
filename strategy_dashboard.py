@@ -200,7 +200,10 @@ def print_strategy(strategy):
         side = "Long" if leg.get("position", 0) > 0 else "Short"
         right = leg.get("right") or leg.get("type")
         symbol = SYMBOL_MAP.get((right, 1 if leg.get("position", 0) > 0 else -1), "▫️")
-        print(f"  {symbol} {right} {leg.get('strike')} ({side})")
+
+        qty = abs(leg.get("position", 0))
+        print(f"  {symbol} {right} {leg.get('strike')} ({side}) - {qty} contract{'s' if qty != 1 else ''}")
+
         d = leg.get('delta')
         g = leg.get('gamma')
         v = leg.get('vega')
@@ -227,9 +230,9 @@ def main(argv=None):
         
     if account_info:
         print("🏦 Accountoverzicht:")
-    for key in ["NetLiquidation", "BuyingPower", "ExcessLiquidity"]:
-        if key in account_info:
-            print(f"{key}: {account_info[key]}")
+        for key in ["NetLiquidation", "BuyingPower", "ExcessLiquidity"]:
+            if key in account_info:
+                print(f"{key}: {account_info[key]}")
     print()
 
 
