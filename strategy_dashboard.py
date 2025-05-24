@@ -198,14 +198,32 @@ def generate_alerts(strategy):
     # 🔹 Delta-analyse
     delta = strategy.get("delta")
     if delta is not None:
-        if delta > 0.3:
-            alerts.append("📈 Sterk bullish (Delta > +0.30)")
-        elif delta > 0.15:
+        if delta >= 0.30:
+            alerts.append("📈 Sterk bullish (≥ +0.30)")
+        elif delta >= 0.15:
             alerts.append("📈 Licht bullish")
-        elif delta < -0.3:
-            alerts.append("📉 Sterk bearish (Delta < –0.30)")
-        elif delta < -0.15:
+        elif delta <= -0.30:
+            alerts.append("📉 Sterk bearish (≤ –0.30)")
+        elif delta <= -0.15:
             alerts.append("📉 Licht bearish")
+        else:
+            alerts.append("⚖️ Neutraal")
+
+    # Delta-dollar analyse
+    spot = strategy.get("spot")
+    legs = strategy.get("legs", [])
+    if spot and legs:
+        delta_dollar = sum(
+            (leg.get("delta") or 0)
+            * leg.get("position", 0)
+            * float(leg.get("multiplier") or 1)
+            * spot
+            for leg in legs
+        )
+        if abs(delta_dollar) > 15000:
+            alerts.append(
+                f"🚨 Delta-dollar blootstelling {delta_dollar:,.0f} > $15k"
+            )
 
     # 🔹 Vega en IV Rank-analyse
     vega = strategy.get("vega")
