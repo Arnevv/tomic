@@ -130,6 +130,32 @@ def group_strategies(positions):
     return strategies
 
 
+def sort_legs(legs):
+    """Return legs sorted by option type and position."""
+    type_order = {"P": 0, "C": 1}
+
+    def key(leg):
+        right = leg.get("right") or leg.get("type")
+        pos = leg.get("position", 0)
+        return (
+            type_order.get(right, 2),
+            0 if pos < 0 else 1,
+            leg.get("strike", 0),
+        )
+
+    return sorted(legs, key=key)
+
+
+# Mapping of leg characteristics to emoji symbols
+SYMBOL_MAP = {
+    ("P", -1): "🔴",  # short put
+    ("P", 1): "🔵",   # long put
+    ("C", -1): "🟡",  # short call
+    ("C", 1): "🟢",   # long call
+}
+
+
+
 def print_strategy(strategy):
     pnl = strategy.get("unrealizedPnL")
     color = "🟩" if pnl is not None and pnl >= 0 else "🟥"
@@ -159,9 +185,11 @@ def print_strategy(strategy):
     for alert in strategy.get("alerts", []):
         print(alert)
     print("📎 Leg-details:")
-    for leg in strategy.get("legs", []):
+    for leg in sort_legs(strategy.get("legs", [])):
         side = "Long" if leg.get("position", 0) > 0 else "Short"
-        print(f"  {leg.get('right')} {leg.get('strike')} ({side})")
+        right = leg.get("right") or leg.get("type")
+        symbol = SYMBOL_MAP.get((right, 1 if leg.get("position", 0) > 0 else -1), "▫️")
+        print(f"  {symbol} {right} {leg.get('strike')} ({side})")
         d = leg.get('delta')
         v = leg.get('vega')
         t = leg.get('theta')
