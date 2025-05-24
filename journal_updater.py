@@ -17,7 +17,7 @@ def float_prompt(prompt_tekst, default=None):
             return default
         try:
             return float(val)
-        except:
+        except ValueError:
             print("❌ Ongeldige invoer, gebruik bijv. 14.7")
 
 def get_next_trade_id(journal):
