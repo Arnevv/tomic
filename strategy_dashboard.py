@@ -219,14 +219,15 @@ def main(argv=None):
     account_file = argv[1] if len(argv) > 1 else "account_info.json"
 
     positions = load_positions(positions_file)
-    account_info = load_account_info(account_file)
-
+    account_info = load_account_info(account_file)        
+        
     if account_info:
-        print("🏦 Accountoverzicht:")
-        for key in ["NetLiquidation", "BuyingPower", "ExcessLiquidity"]:
-            if key in account_info:
-                print(f"{key}: {account_info[key]}")
-        print()
+    print("🏦 Accountoverzicht:")
+    for key in ["NetLiquidation", "BuyingPower", "ExcessLiquidity"]:
+        if key in account_info:
+            print(f"{key}: {account_info[key]}")
+    print()
+
 
     strategies = group_strategies(positions)
     for s in strategies:
