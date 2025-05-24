@@ -3,6 +3,7 @@ from datetime import date
 from pathlib import Path
 
 from getonemarket import fetch_market_metrics
+from margin_calc import calculate_trade_margin
 
 journal_file = Path("journal.json")
 
@@ -154,6 +155,14 @@ def interactieve_trade_invoer():
     skew = metrics["skew"]
     iv_percentile = metrics["iv_percentile"]
 
+    print("\n🧮 Benodigde margin wordt berekend...")
+    try:
+        init_margin = calculate_trade_margin(symbool, expiry, legs)
+        print(f"✅ Init margin: {init_margin}")
+    except Exception as exc:
+        print(f"⚠️ Marginberekening mislukt: {exc}")
+        init_margin = None
+
     print("\n📐 Vul de NETTO Greeks in van de hele positie bij entry (optioneel):")
     print("ℹ️ Dit zijn GEAGGREGEERDE waarden van de gehele trade, NIET per leg of strike")
     delta = float_prompt("  Delta: ", default=None)
@@ -174,6 +183,7 @@ def interactieve_trade_invoer():
         "EntryPrice": premium,
         "ExitPrice": None,
         "ReturnOnMargin": None,
+        "InitMargin": init_margin,
         "StopPct": stop_pct,
         "IV_Entry": iv_entry,
         "HV_Entry": hv_entry,
