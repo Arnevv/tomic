@@ -473,7 +473,6 @@ def run(symbol):
 if __name__ == "__main__":
     symbols = [
         "SPY",
-        "SPX",
         "DIA",
         "QQQ",
         "RUT",
