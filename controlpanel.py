@@ -10,9 +10,17 @@ def run_script(script_name, *args):
 def run_portfolio_overview():
     """Show the portfolio dashboard, fetching positions first if needed."""
     if not os.path.exists("positions.json"):
-        print("\U0001F4E5 Posities ophalen...")
-        run_script("getaccountinfo.py")
-    run_script("strategy_dashboard.py", "positions.json")
+        print("📥 Posities ophalen...")
+        try:
+            run_script("getaccountinfo.py")
+        except subprocess.CalledProcessError:
+            print("❌ Ophalen van portfolio mislukt")
+            return
+    try:
+        run_script("strategy_dashboard.py", "positions.json")
+    except subprocess.CalledProcessError:
+        print("❌ Dashboard kon niet worden gestart")
+
 
 def run_dataexporter():
     while True:
@@ -29,6 +37,7 @@ def run_dataexporter():
             break
         else:
             print("❌ Ongeldige keuze")
+
 
 def run_trade_management():
     while True:
@@ -53,6 +62,7 @@ def run_trade_management():
         else:
             print("❌ Ongeldige keuze")
 
+
 def main():
     while True:
         print("\n=== TOMIC CONTROL PANEL ===")
@@ -73,6 +83,7 @@ def main():
             break
         else:
             print("❌ Ongeldige keuze.")
+
 
 if __name__ == "__main__":
     main()

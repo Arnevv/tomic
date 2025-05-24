@@ -53,6 +53,7 @@ python controlpanel.py
 Of gebruik individuele modules:
 
 * `getaccountinfo.py`: Live portfolio-overzicht ophalen
+  (slaat posities op in `positions.json`)
 * `getonemarket.py`: Optieketen en marktdata voor een symbool
 * `getallmarkets.py`: Exporteert data voor meerdere symbolen
 * `journal_updater.py`: Nieuwe trade aanmaken en loggen

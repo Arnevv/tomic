@@ -276,7 +276,8 @@ if __name__ == "__main__":
 
     with open("positions.json", "w", encoding="utf-8") as f:
         json.dump(app.positions_data, f, ensure_ascii=False, indent=2)
-    print("\n\U0001F4BE Posities opgeslagen in positions.json")
+    print("\n📦 Posities opgeslagen in positions.json")
+
 
     print("\n📐 Portfolio Greeks:")
     for k, v in portfolio.items():
