@@ -7,6 +7,69 @@ from datetime import datetime, timezone
 import re
 
 
+def _fmt_money(value):
+    """Return value formatted as dollar amount if possible."""
+    try:
+        return f"${float(value):,.2f}"
+    except (TypeError, ValueError):
+        return str(value) if value is not None else "-"
+
+
+def print_account_overview(values: dict) -> None:
+    """Print account status table with aligned columns."""
+    net_liq = values.get("NetLiquidation")
+    buying_power = values.get("BuyingPower")
+    init_margin = values.get("InitMarginReq")
+    excess_liq = values.get("ExcessLiquidity")
+    gross_pos_val = values.get("GrossPositionValue")
+    cushion = values.get("Cushion")
+
+    margin_pct = None
+    try:
+        margin_pct = float(init_margin) / float(net_liq)
+    except (TypeError, ValueError, ZeroDivisionError):
+        margin_pct = None
+
+    rows = [
+        ("💰 **Net Liquidation Value**", _fmt_money(net_liq),
+         "Jouw actuele vermogen. Hoofdreferentie voor alles."),
+        ("🏦 **Buying Power**", _fmt_money(buying_power),
+         "Wat je direct mag inzetten voor nieuwe trades."),
+        (
+            "⚖️ **Used Margin (init)**",
+            _fmt_money(init_margin)
+            + (f" (≈ {margin_pct:.0%} van vermogen)" if margin_pct is not None else ""),
+            "Hoeveel margin je in totaal verbruikt met je posities.",
+        ),
+        ("✅ **Excess Liquidity**", _fmt_money(excess_liq),
+         "Hoeveel marge je veilig overhoudt. Buffer tegen margin calls."),
+        ("**Gross Position Value**", _fmt_money(gross_pos_val), "–"),
+        ("**Cushion**", str(cushion), "–"),
+    ]
+
+    col1 = max(len(r[0]) for r in rows + [("Label", "", "")])
+    col2 = max(len(r[1]) for r in rows + [("", "Waarde", "")])
+    col3 = max(len(r[2]) for r in rows + [("", "", "Waarom?")])
+    header = f"| {'Label'.ljust(col1)} | {'Waarde'.ljust(col2)} | {'Waarom?'.ljust(col3)} |"
+    sep = f"| {'-'*col1} | {'-'*col2} | {'-'*col3} |"
+    print(header)
+    print(sep)
+    for label, value, reason in rows:
+        print(f"| {label.ljust(col1)} | {value.ljust(col2)} | {reason.ljust(col3)} |")
+
+
+def compute_portfolio_greeks(positions):
+    totals = {"Delta": 0.0, "Gamma": 0.0, "Vega": 0.0, "Theta": 0.0}
+    for pos in positions:
+        mult = float(pos.get("multiplier") or 1)
+        qty = pos.get("position", 0)
+        for greek in ["delta", "gamma", "vega", "theta"]:
+            val = pos.get(greek)
+            if val is not None:
+                totals[greek.capitalize()] += val * qty * mult
+    return totals
+
+
 def load_positions(path: str):
     """Load positions JSON file and return as list."""
     with open(path, "r", encoding="utf-8") as f:
@@ -357,10 +420,12 @@ def main(argv=None):
     exit_rules = extract_exit_rules(journal_file)
         
     if account_info:
-        print("🏦 Accountoverzicht:")
-        for key in ["NetLiquidation", "BuyingPower", "ExcessLiquidity"]:
-            if key in account_info:
-                print(f"{key}: {account_info[key]}")
+        print_account_overview(account_info)
+
+    portfolio = compute_portfolio_greeks(positions)
+    print("\n📐 Portfolio Greeks:")
+    for k, v in portfolio.items():
+        print(f"{k}: {v:.4f}")
     print()
 
 
