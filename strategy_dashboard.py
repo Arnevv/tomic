@@ -174,7 +174,7 @@ def aggregate_metrics(legs):
         if leg.get("unrealizedPnL") is not None:
             metrics["unrealizedPnL"] += leg["unrealizedPnL"]
         if leg.get("avgCost") is not None:
-            metrics["cost_basis"] += leg["avgCost"] * qty * mult
+            metrics["cost_basis"] += leg["avgCost"] * qty
         if leg.get("IV_Rank") is not None:
             iv_ranks.append(leg["IV_Rank"])
         if leg.get("HV30") is not None:
