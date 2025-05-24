@@ -29,7 +29,7 @@ def toon_details(trade):
     print(f"\n🔍 Details voor TradeID {trade['TradeID']}")
 
     kolom1_keys = ["TradeID", "DatumIn", "DatumUit", "Symbool", "Type", "Expiry", "Spot"]
-    kolom2_keys = ["Richting", "Status", "Premium", "EntryPrice", "ExitPrice", "ReturnOnMargin"]
+    kolom2_keys = ["Richting", "Status", "Premium", "EntryPrice", "ExitPrice", "ReturnOnMargin", "InitMargin"]
     kolom3_keys = ["StopPct", "IV_Entry", "HV_Entry", "DaysInTrade", "VIX", "ATR_14", "Skew"]
 
     print("\n📄 Overzicht:")
