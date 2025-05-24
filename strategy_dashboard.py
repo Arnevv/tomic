@@ -66,7 +66,10 @@ def compute_portfolio_greeks(positions):
         for greek in ["delta", "gamma", "vega", "theta"]:
             val = pos.get(greek)
             if val is not None:
-                totals[greek.capitalize()] += val * qty * mult
+                if greek == "delta":
+                    totals["Delta"] += val * qty
+                else:
+                    totals[greek.capitalize()] += val * qty * mult
     return totals
 
 
@@ -170,7 +173,10 @@ def aggregate_metrics(legs):
         for g in ["delta", "gamma", "vega", "theta"]:
             val = leg.get(g)
             if val is not None:
-                metrics[g] += val * qty * mult
+                if g == "delta":
+                    metrics["delta"] += val * qty
+                else:
+                    metrics[g] += val * qty * mult
         if leg.get("unrealizedPnL") is not None:
             metrics["unrealizedPnL"] += leg["unrealizedPnL"]
         if leg.get("avgCost") is not None:
@@ -369,7 +375,13 @@ def print_strategy(strategy, rule=None):
         print(f"→ PnL: {pnl:+.2f}")
     spot = strategy.get("spot", 0)
     if delta is not None and spot:
-        delta_dollar = delta * spot
+        delta_dollar = sum(
+            (leg.get("delta") or 0)
+            * leg.get("position", 0)
+            * float(leg.get("multiplier") or 1)
+            * spot
+            for leg in strategy.get("legs", [])
+        )
         print(f"→ Delta exposure ≈ ${delta_dollar:,.0f} bij spot {spot}")
 
     margin = strategy.get("margin_used", 1000)
