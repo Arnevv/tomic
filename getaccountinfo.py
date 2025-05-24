@@ -278,6 +278,10 @@ if __name__ == "__main__":
         json.dump(app.positions_data, f, indent=2)
     print("\n\ud83d\udcbe Posities opgeslagen in positions.json")
 
+    with open("account_info.json", "w", encoding="utf-8") as f:
+        json.dump(app.account_values, f, indent=2)
+    print("\ud83d\udcbe Accountinfo opgeslagen in account_info.json")
+
     print("\n📐 Portfolio Greeks:")
     for k, v in portfolio.items():
         print(f"{k}: {round(v, 4)}")
