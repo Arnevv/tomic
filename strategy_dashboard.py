@@ -148,9 +148,8 @@ def print_strategy(strategy):
     if pnl is not None:
         print(f"→ PnL: {pnl:+.2f}")
     spot = strategy.get("spot", 0)
-    multiplier = 100
     if delta is not None and spot:
-        delta_dollar = delta * spot * multiplier
+        delta_dollar = delta * spot
         print(f"→ Delta exposure ≈ ${delta_dollar:,.0f} bij spot {spot}")
 
     margin = strategy.get("margin_used", 1000)
