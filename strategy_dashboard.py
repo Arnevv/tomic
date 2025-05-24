@@ -113,7 +113,18 @@ def group_strategies(positions):
             "type": determine_strategy_type(legs),
             "legs": legs,
         }
+        # haal eventueel spotprijs uit een van de legs
+        spot = None
+        for leg in legs:
+            for key in ["spot", "spot_price", "underlyingPrice", "Spot"]:
+                if leg.get(key) is not None:
+                    spot = leg.get(key)
+                    break
+            if spot is not None:
+                break
         strat.update(aggregate_metrics(legs))
+        strat["spot"] = spot
+        strat["margin_used"] = abs(strat.get("cost_basis", 0))
         strat["alerts"] = generate_alerts(strat)
         strategies.append(strat)
     return strategies
@@ -136,8 +147,29 @@ def print_strategy(strategy):
     )
     if pnl is not None:
         print(f"→ PnL: {pnl:+.2f}")
+    spot = strategy.get("spot", 0)
+    multiplier = 100
+    if delta is not None and spot:
+        delta_dollar = delta * spot * multiplier
+        print(f"→ Delta exposure ≈ ${delta_dollar:,.0f} bij spot {spot}")
+
+    margin = strategy.get("margin_used", 1000)
+    if theta is not None and margin:
+        theta_efficiency = (theta / margin) * 100
+        print(f"→ Theta-rendement: {theta_efficiency:.2f}% per $1.000 margin")
     for alert in strategy.get("alerts", []):
         print(alert)
+    print("📎 Leg-details:")
+    for leg in strategy.get("legs", []):
+        side = "Long" if leg.get("position", 0) > 0 else "Short"
+        print(f"  {leg.get('right')} {leg.get('strike')} ({side})")
+        d = leg.get('delta')
+        v = leg.get('vega')
+        t = leg.get('theta')
+        d_disp = f"{d:.3f}" if d is not None else "–"
+        v_disp = f"{v:.2f}" if v is not None else "–"
+        t_disp = f"{t:.2f}" if t is not None else "–"
+        print(f"    Delta: {d_disp} Vega: {v_disp} Theta: {t_disp}")
     print()
 
 
