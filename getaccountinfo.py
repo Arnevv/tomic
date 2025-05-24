@@ -317,7 +317,10 @@ if __name__ == "__main__":
         for greek in ["delta", "gamma", "vega", "theta"]:
             val = pos.get(greek)
             if val is not None:
-                portfolio[greek.capitalize()] += val * qty * mult
+                if greek == "delta":
+                    portfolio["Delta"] += val * qty
+                else:
+                    portfolio[greek.capitalize()] += val * qty * mult
 
     print_account_overview(app.account_values)
 
