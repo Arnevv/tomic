@@ -276,7 +276,11 @@ if __name__ == "__main__":
 
     with open("positions.json", "w", encoding="utf-8") as f:
         json.dump(app.positions_data, f, indent=2)
-    print("\n\ud83d\udcbe Posities opgeslagen in positions.json")
+    print("\n💾 Posities opgeslagen in positions.json")
+
+    with open("account_info.json", "w", encoding="utf-8") as f:
+        json.dump(app.account_values, f, indent=2)
+    print("💾 Accountinfo opgeslagen in account_info.json")
 
     print("\n📐 Portfolio Greeks:")
     for k, v in portfolio.items():
