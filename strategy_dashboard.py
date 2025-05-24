@@ -63,16 +63,37 @@ def aggregate_metrics(legs):
 
 def generate_alerts(strategy):
     alerts = []
-    if strategy.get("vega") is not None and strategy.get("IV_Rank") is not None:
-        if strategy["vega"] < -30 and strategy["IV_Rank"] > 60:
-            alerts.append("⚠️ Short Vega in hoog vol klimaat (>60 IV Rank)")
+    # 🔹 Delta-analyse
+    delta = strategy.get("delta")
+    if delta is not None:
+        if delta > 0.3:
+            alerts.append("📈 Sterk bullish (Delta > +0.30)")
+        elif delta > 0.15:
+            alerts.append("📈 Licht bullish")
+        elif delta < -0.3:
+            alerts.append("📉 Sterk bearish (Delta < –0.30)")
+        elif delta < -0.15:
+            alerts.append("📉 Licht bearish")
+
+    # 🔹 Vega en IV Rank-analyse
+    vega = strategy.get("vega")
+    ivr = strategy.get("IV_Rank")
+    if vega is not None and ivr is not None:
+        if vega < -30 and ivr > 60:
+            alerts.append("⚠️ Short Vega in hoog vol klimaat — risico op squeeze")
+        elif vega < -30 and ivr < 30:
+            alerts.append("✅ Short Vega in lage IV — condorvriendelijk klimaat")
+        elif vega > 30 and ivr < 30:
+            alerts.append("⚠️ Long Vega in lage IV — kan dodelijk zijn bij crush")
+
+    # bestaande winstneem-alert
     if strategy.get("unrealizedPnL") is not None:
         cost_basis = abs(strategy.get("cost_basis", 0))
         if cost_basis and strategy.get("theta") is not None:
             if strategy["unrealizedPnL"] > 0.7 * cost_basis and strategy["theta"] > 0:
                 alerts.append("✅ Overweeg winstnemen (>70% premie afgebouwd)")
-    if strategy.get("delta") is not None and strategy["delta"] > 0.2:
-        alerts.append("📈 Positieve delta — trendgevoeligheid aanwezig")
+
+    # 🔹 Eventueel aanvullen met trend/spotalerts later
     return alerts
 
 
