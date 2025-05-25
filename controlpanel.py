@@ -45,13 +45,42 @@ def run_trade_management():
         else:
             print("❌ Ongeldige keuze")
 
+def run_risk_tools():
+    while True:
+        print("\n=== RISK TOOLS ===")
+        print("1. Scenario-analyse")
+        print("2. Event watcher")
+        print("3. Entry checker")
+        print("4. Synthetics detector")
+        print("5. Volatility cone snapshot")
+        print("6. Cone visualizer")
+        print("7. Terug naar hoofdmenu")
+        sub = input("Maak je keuze: ")
+        if sub == "1":
+            run_script("portfolio_scenario.py")
+        elif sub == "2":
+            run_script("event_watcher.py")
+        elif sub == "3":
+            run_script("entry_checker.py")
+        elif sub == "4":
+            run_script("synthetics_detector.py")
+        elif sub == "5":
+            run_script("vol_cone_db.py")
+        elif sub == "6":
+            run_script("cone_visualizer.py")
+        elif sub == "7":
+            break
+        else:
+            print("❌ Ongeldige keuze")
+
 def main():
     while True:
         print("\n=== TOMIC CONTROL PANEL ===")
         print("1. Portfolio-overzicht")
         print("2. Trade Management")
         print("3. Dataexporter (option chain / marktdata)")
-        print("4. Stoppen")
+        print("4. Risk Tools")
+        print("5. Stoppen")
         keuze = input("Maak je keuze: ")
 
         if keuze == "1":
@@ -72,6 +101,8 @@ def main():
         elif keuze == "3":
             run_dataexporter()
         elif keuze == "4":
+            run_risk_tools()
+        elif keuze == "5":
             print("Tot ziens.")
             break
         else:
