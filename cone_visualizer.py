@@ -6,7 +6,9 @@ from typing import Tuple
 def get_iv_percentile(symbol: str, snapshot_file: str, lookback_days: int = 365) -> Tuple[float, float, float, float, float]:
     with open(snapshot_file, "r", encoding="utf-8") as f:
         data = json.load(f)
-    today = datetime.utcnow().date()
+    from datetime import datetime, timezone
+    today = datetime.now(timezone.utc).date()
+
     entries = [
         d for d in data
         if d.get("symbol") == symbol and

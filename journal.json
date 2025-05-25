@@ -84,7 +84,7 @@
         "note": "De markt zakt zoals verwacht weer wat naar beneden. Ook is de VOL wat lager geworden, maar het is nog wat hoger dan verwacht. Dus de vega helpt me niet. "
       }
     ],
-    "InitMargin": null
+    "InitMargin": 284
   },
   {
     "TradeID": "2",
@@ -146,6 +146,6 @@
       "Gamma": 0.0,
       "Vega": -0.11
     },
-    "InitMargin": null
+    "InitMargin": 361
   }
 ]
