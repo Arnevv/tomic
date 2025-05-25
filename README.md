@@ -59,6 +59,7 @@ Of gebruik individuele modules:
 * `journal_updater.py`: Nieuwe trade aanmaken en loggen
 * `close_trade.py`: Trade afsluiten met evaluatie
 * `strategy_dashboard.py`: Groepeert legs per strategie en toont alerts
+* `portfolio_scenario.py`: Simuleert PnL/Greeks na een zelf gekozen spot- en IV-shift
 
 ---
 
