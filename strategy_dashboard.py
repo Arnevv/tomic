@@ -735,7 +735,8 @@ def main(argv=None):
     total_delta_dollar = 0.0
     total_vega = 0.0
     dtes = []
-    roms = []
+    total_pnl = 0.0
+    total_margin = 0.0
     for s in strategies:
         rule = exit_rules.get((s["symbol"], s["expiry"]))
         print_strategy(s, rule)
@@ -746,8 +747,12 @@ def main(argv=None):
             total_vega += s["vega"]
         if s.get("days_to_expiry") is not None:
             dtes.append(s["days_to_expiry"])
-        if s.get("rom") is not None:
-            roms.append(s["rom"])
+
+        pnl_val = s.get("unrealizedPnL")
+        init_margin = s.get("init_margin")
+        if pnl_val is not None and init_margin is not None:
+            total_pnl += pnl_val
+            total_margin += init_margin
 
     global_alerts = []
     portfolio_vega = portfolio.get("Vega")
@@ -784,8 +789,8 @@ def main(argv=None):
         if dtes:
             avg_dte = sum(dtes) / len(dtes)
             print(f"Gemiddelde DTE: {avg_dte:.1f} dagen")
-        if roms:
-            avg_rom = sum(roms) / len(roms)
+        if total_margin:
+            avg_rom = (total_pnl / total_margin) * 100
             print(f"Gemiddeld ROM portfolio: {avg_rom:.1f}%")
 
 
