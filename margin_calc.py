@@ -67,6 +67,7 @@ def calculate_trade_margin(symbol: str, expiry: str, legs: list,
         # when submitting what-if orders for margin calculations.
         # See https://ibkrcampus.com/campus/ibkr-api-page/twsapi-doc for details.
         order.eTradeOnly = False
+        order.firmQuoteOnly = False  # disable firm quote check for what-if orders
         order.whatIf = True
         app.margin = None
         app.event.clear()
