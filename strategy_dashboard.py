@@ -342,7 +342,15 @@ def generate_alerts(strategy):
 
     # 🔹 Theta-rendement analyse
     theta = strategy.get("theta")
-    margin = abs(strategy.get("cost_basis", 0))
+    margin = strategy.get("init_margin") or strategy.get("margin_used") or 1000
+    rom = strategy.get("rom")
+    if rom is not None:
+        if rom >= 20:
+            alerts.append("🟢 ROM > 20% – hoge kapitaalefficiëntie")
+        elif rom >= 10:
+            alerts.append("✅ ROM tussen 10–20% – acceptabel rendement")
+        elif rom < 5:
+            alerts.append("⚠️ ROM < 5% – lage kapitaalefficiëntie")
     if theta is not None and margin:
         theta_efficiency = abs(theta / margin) * 100
         if theta_efficiency < 0.5:
@@ -479,6 +487,11 @@ def group_strategies(positions, journal=None):
                 if d_in:
                     days_in_trade = (datetime.now(timezone.utc).date() - d_in).days
             strat.update(parse_plan_metrics(trade_data.get("Plan", "")))
+            if trade_data.get("InitMargin") is not None:
+                try:
+                    strat["init_margin"] = float(trade_data.get("InitMargin"))
+                except (TypeError, ValueError):
+                    strat["init_margin"] = None
         strat["days_in_trade"] = days_in_trade
 
         if strat.get("spot") is None and trade_data:
@@ -504,6 +517,13 @@ def group_strategies(positions, journal=None):
 
         risk = heuristic_risk_metrics(legs, strat.get("cost_basis", 0))
         strat.update(risk)
+
+        margin_ref = strat.get("init_margin") or strat.get("margin_used") or 1000
+        pnl_val = strat.get("unrealizedPnL")
+        if pnl_val is not None and margin_ref:
+            strat["rom"] = (pnl_val / margin_ref) * 100
+        else:
+            strat["rom"] = None
 
         strat["alerts"] = generate_alerts(strat)
 
@@ -600,13 +620,18 @@ def print_strategy(strategy, rule=None):
     if days_line:
         print("→ " + " | ".join(days_line))
     if pnl is not None:
-        print(f"→ PnL: {pnl:+.2f}")
+        init_margin = strategy.get("init_margin")
+        if init_margin and init_margin > 0:
+            rom = (pnl / init_margin) * 100
+            print(f"→ PnL: {pnl:+.2f} (ROM: {rom:+.1f}%)")
+        else:
+            print(f"→ PnL: {pnl:+.2f}")
     spot = strategy.get("spot", 0)
     delta_dollar = strategy.get("delta_dollar")
     if delta is not None and spot and delta_dollar is not None:
         print(f"→ Delta exposure ≈ ${delta_dollar:,.0f} bij spot {spot}")
     
-    margin = strategy.get("margin_used", 1000)
+    margin = strategy.get("init_margin") or strategy.get("margin_used") or 1000
     if theta is not None and margin:
         theta_efficiency = abs(theta / margin) * 100
         if theta_efficiency < 0.5:
@@ -710,6 +735,7 @@ def main(argv=None):
     total_delta_dollar = 0.0
     total_vega = 0.0
     dtes = []
+    roms = []
     for s in strategies:
         rule = exit_rules.get((s["symbol"], s["expiry"]))
         print_strategy(s, rule)
@@ -720,6 +746,8 @@ def main(argv=None):
             total_vega += s["vega"]
         if s.get("days_to_expiry") is not None:
             dtes.append(s["days_to_expiry"])
+        if s.get("rom") is not None:
+            roms.append(s["rom"])
 
     global_alerts = []
     portfolio_vega = portfolio.get("Vega")
@@ -756,6 +784,9 @@ def main(argv=None):
         if dtes:
             avg_dte = sum(dtes) / len(dtes)
             print(f"Gemiddelde DTE: {avg_dte:.1f} dagen")
+        if roms:
+            avg_rom = sum(roms) / len(roms)
+            print(f"Gemiddeld ROM portfolio: {avg_rom:.1f}%")
 
 
 if __name__ == "__main__":
