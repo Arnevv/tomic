@@ -1,6 +1,6 @@
 import json
-from datetime import datetime
 from typing import List, Dict
+from datetime import datetime, timezone
 
 from strategy_dashboard import group_strategies
 
@@ -12,7 +12,6 @@ def simulate_portfolio_response(strategies: List[Dict], spot_shift_pct: float = 
     pnl_change = 0.0
     base_pnl = 0.0
     margin_total = 0.0
-    today = datetime.utcnow()
 
     for strat in strategies:
         spot = strat.get("spot") or 0.0
@@ -56,43 +55,52 @@ def main(argv=None):
         argv = []
     positions_file = argv[0] if argv else "positions.json"
 
-    spot_shift = float(argv[1]) if len(argv) > 1 else None
-    iv_shift = float(argv[2]) if len(argv) > 2 else None
+    while True:
+        try:
+            user_spot = input(
+                "\nHoeveel procent spot shift wil je simuleren?\n(bijv. 2 voor +2%, -1 voor -1%): "
+            ).strip()
+            user_iv = input(
+                "Hoeveel procent IV shift wil je simuleren?\n(bijv. 5 voor +5%, -3 voor -3%): "
+            ).strip()
+            spot_shift = float(user_spot) / 100
+            iv_shift = float(user_iv) / 100
+        except ValueError:
+            print("❌ Ongeldige invoer, probeer opnieuw.")
+            continue
 
-    if spot_shift is None:
-        user_in = input(
-            "Hoeveel procent spot shift wil je simuleren?\n"
-            "(bijv. 2 voor +2%, -1 voor -1%): "
-        ).strip()
-        spot_shift = float(user_in)
+        positions = load_positions(positions_file)
+        strategies = group_strategies(positions)
+        result = simulate_portfolio_response(strategies, spot_shift, iv_shift)
 
-    if iv_shift is None:
-        user_in = input(
-            "Hoeveel procent IV shift wil je simuleren?\n"
-            "(bijv. 5 voor +5%, -3 voor -3%): "
-        ).strip()
-        iv_shift = float(user_in)
+        print("\n=== Scenario Analyse ===")
+        print(f"Spot shift: {spot_shift*100:.1f}% | IV shift: {iv_shift*100:.1f}%")
+        totals = result["totals"]
+        print(f"Delta: {totals['delta']:+.2f} | Vega: {totals['vega']:+.2f} | Theta: {totals['theta']:+.2f}")
+        pnl = result["pnl_change"]
+        print(f"Geschatte PnL verandering: {pnl:+.2f}")
+        if result["rom_before"] is not None and result["rom_after"] is not None:
+            delta_rom = result["rom_after"] - result["rom_before"]
+            print(
+                f"ROM voor shift: {result['rom_before']:.1f}% → na shift: {result['rom_after']:.1f}% "
+                f"({delta_rom:+.1f}%)"
+            )
 
-    # convert percentages to decimals
-    spot_shift /= 100
-    iv_shift /= 100
+            # Interpretatie
+            if totals["vega"] < -30 and iv_shift > 0:
+                print("⚠️ Short Vega + stijgende IV → mogelijk verlies bij volaspike")
+            if totals["vega"] > 30 and iv_shift < 0:
+                print("⚠️ Long Vega + dalende IV → risico op volacrunch")
+            if totals["delta"] > 0.2 and spot_shift < 0:
+                print("⚠️ Bullish delta + daling → richtingverlies")
+            if totals["delta"] < -0.2 and spot_shift > 0:
+                print("⚠️ Bearish delta + stijging → richtingverlies")
 
-    positions = load_positions(positions_file)
-    strategies = group_strategies(positions)
-    result = simulate_portfolio_response(strategies, spot_shift, iv_shift)
-
-    print("\n=== Scenario Analyse ===")
-    print(f"Spot shift: {spot_shift*100:.1f}% | IV shift: {iv_shift*100:.1f}%")
-    totals = result["totals"]
-    print(f"Delta: {totals['delta']:+.2f} | Vega: {totals['vega']:+.2f} | Theta: {totals['theta']:+.2f}")
-    pnl = result["pnl_change"]
-    print(f"Geschatte PnL verandering: {pnl:+.2f}")
-    if result["rom_before"] is not None:
-        print(
-            f"ROM voor shift: {result['rom_before']:.1f}% → na shift: {result['rom_after']:.1f}%")
+        again = input("\nNog een scenario simuleren? (j/n): ").strip().lower()
+        if again != "j":
+            break
 
 
 if __name__ == "__main__":
     import sys
-
     main(sys.argv[1:])
