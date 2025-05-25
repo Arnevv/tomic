@@ -55,8 +55,27 @@ def main(argv=None):
     if argv is None:
         argv = []
     positions_file = argv[0] if argv else "positions.json"
-    spot_shift = float(argv[1]) if len(argv) > 1 else 0.02
-    iv_shift = float(argv[2]) if len(argv) > 2 else 0.05
+
+    spot_shift = float(argv[1]) if len(argv) > 1 else None
+    iv_shift = float(argv[2]) if len(argv) > 2 else None
+
+    if spot_shift is None:
+        user_in = input(
+            "Hoeveel procent spot shift wil je simuleren?\n"
+            "(bijv. 2 voor +2%, -1 voor -1%): "
+        ).strip()
+        spot_shift = float(user_in)
+
+    if iv_shift is None:
+        user_in = input(
+            "Hoeveel procent IV shift wil je simuleren?\n"
+            "(bijv. 5 voor +5%, -3 voor -3%): "
+        ).strip()
+        iv_shift = float(user_in)
+
+    # convert percentages to decimals
+    spot_shift /= 100
+    iv_shift /= 100
 
     positions = load_positions(positions_file)
     strategies = group_strategies(positions)
