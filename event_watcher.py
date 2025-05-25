@@ -11,7 +11,9 @@ def apply_event_alerts(strategies: List[Dict], event_json_path: str = "events.js
     except FileNotFoundError:
         return
 
-    today = datetime.utcnow().date()
+    from datetime import datetime, timezone
+    today = datetime.now(timezone.utc).date()
+
     for evt in events:
         sym = evt.get("symbol")
         date_str = evt.get("date")

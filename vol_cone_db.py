@@ -14,7 +14,14 @@ def store_volatility_snapshot(symbol_data: Dict, output_path: str = "volatility_
             data = json.load(f)
     else:
         data = []
+
+    # Verwijder bestaande entry voor symbool + datum
+    data = [
+        d for d in data
+        if not (d.get("symbol") == symbol_data["symbol"] and d.get("date") == symbol_data["date"])
+    ]
     data.append(symbol_data)
+
     with open(file, "w", encoding="utf-8") as f:
         json.dump(data, f, indent=2)
 

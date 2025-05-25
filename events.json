@@ -1,0 +1,4 @@
+[
+  {"symbol": "SPY", "date": "2025-05-28", "type": "macro", "label": "CPI"},
+  {"symbol": "CRM", "date": "2025-05-30", "type": "earnings"}
+]
