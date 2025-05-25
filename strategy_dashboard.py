@@ -620,12 +620,13 @@ def print_strategy(strategy, rule=None):
     if days_line:
         print("→ " + " | ".join(days_line))
     if pnl is not None:
-        init_margin = strategy.get("init_margin")
-        if init_margin and init_margin > 0:
-            rom = (pnl / init_margin) * 100
-            print(f"→ PnL: {pnl:+.2f} (ROM: {rom:+.1f}%)")
-        else:
-            print(f"→ PnL: {pnl:+.2f}")
+        margin_ref = (
+            strategy.get("init_margin")
+            or strategy.get("margin_used")
+            or 1000
+        )
+        rom = (pnl / margin_ref) * 100
+        print(f"→ PnL: {pnl:+.2f} (ROM: {rom:+.1f}%)")
     spot = strategy.get("spot", 0)
     delta_dollar = strategy.get("delta_dollar")
     if delta is not None and spot and delta_dollar is not None:
@@ -749,10 +750,14 @@ def main(argv=None):
             dtes.append(s["days_to_expiry"])
 
         pnl_val = s.get("unrealizedPnL")
-        init_margin = s.get("init_margin")
-        if pnl_val is not None and init_margin is not None:
+        margin_ref = (
+            s.get("init_margin")
+            or s.get("margin_used")
+            or 1000
+        )
+        if pnl_val is not None:
             total_pnl += pnl_val
-            total_margin += init_margin
+            total_margin += margin_ref
 
     global_alerts = []
     portfolio_vega = portfolio.get("Vega")
