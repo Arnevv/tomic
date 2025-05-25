@@ -167,6 +167,10 @@ def aggregate_metrics(legs):
     iv_ranks = []
     hv_values = []
     atr_values = []
+    iv_values = []
+    call_iv = []
+    put_iv = []
+    iv_hv_spread_vals = []
     for leg in legs:
         qty = leg.get("position", 0)
         mult = float(leg.get("multiplier") or 1)
@@ -187,9 +191,29 @@ def aggregate_metrics(legs):
             hv_values.append(leg["HV30"])
         if leg.get("ATR14") is not None:
             atr_values.append(leg["ATR14"])
+        if leg.get("iv") is not None:
+            iv = leg.get("iv")
+            iv_values.append(iv)
+            right = leg.get("right") or leg.get("type")
+            if right == "C":
+                call_iv.append(iv)
+            elif right == "P":
+                put_iv.append(iv)
+            hv = leg.get("HV30")
+            if hv is not None:
+                hv_dec = hv / 100 if hv > 1 else hv
+                iv_hv_spread_vals.append(iv - hv_dec)
     metrics["IV_Rank"] = mean(iv_ranks) if iv_ranks else None
     metrics["HV30"] = max(hv_values) if hv_values else None
     metrics["ATR14"] = max(atr_values) if atr_values else None
+    metrics["avg_iv"] = mean(iv_values) if iv_values else None
+    metrics["call_iv_avg"] = mean(call_iv) if call_iv else None
+    metrics["put_iv_avg"] = mean(put_iv) if put_iv else None
+    if metrics.get("call_iv_avg") is not None and metrics.get("put_iv_avg") is not None:
+        metrics["skew"] = metrics["call_iv_avg"] - metrics["put_iv_avg"]
+    else:
+        metrics["skew"] = None
+    metrics["iv_hv_spread"] = mean(iv_hv_spread_vals) if iv_hv_spread_vals else None
     return metrics
 
 
@@ -230,6 +254,9 @@ def generate_alerts(strategy):
     # 🔹 Vega en IV Rank-analyse
     vega = strategy.get("vega")
     ivr = strategy.get("IV_Rank")
+    if vega is not None:
+        if abs(vega) > 50:
+            alerts.append("🚨 Vega-exposure > 50: gevoelig voor volbeweging")
     if vega is not None and ivr is not None:
         if vega < -30 and ivr > 60:
             alerts.append("⚠️ Short Vega in hoog vol klimaat — risico op squeeze")
@@ -237,6 +264,27 @@ def generate_alerts(strategy):
             alerts.append("✅ Short Vega in lage IV — condorvriendelijk klimaat")
         elif vega > 30 and ivr < 30:
             alerts.append("⚠️ Long Vega in lage IV — kan dodelijk zijn bij crush")
+
+    # 🔹 Gecombineerde richting + vega alerts
+    if delta is not None and vega is not None and ivr is not None:
+        if delta >= 0.15 and vega > 30 and ivr < 30:
+            alerts.append("📈 Bullish + Long Vega in lage IV → time spread overwegen i.p.v. long call")
+        if delta <= -0.15 and vega < -30 and ivr > 60:
+            alerts.append("📉 Bearish + Short Vega in hoog vol klimaat → oppassen voor squeeze")
+
+    # 🔹 IV-HV en skew analyse
+    iv_hv = strategy.get("iv_hv_spread")
+    if iv_hv is not None:
+        if iv_hv > 0.05:
+            alerts.append("⏫ IV boven HV – premie relatief hoog")
+        elif iv_hv < -0.05:
+            alerts.append("⏬ IV onder HV – premie relatief laag")
+    skew = strategy.get("skew")
+    if skew is not None:
+        if skew > 0.05:
+            alerts.append("⚠️ Calls relatief duur vs puts (skew)")
+        elif skew < -0.05:
+            alerts.append("⚠️ Puts relatief duur vs calls (skew)")
 
     # bestaande winstneem-alert
     if strategy.get("unrealizedPnL") is not None:
@@ -420,6 +468,24 @@ def group_strategies(positions, journal=None):
     return strategies
 
 
+def compute_term_structure(strategies):
+    """Annotate strategies with simple term structure slope."""
+    by_symbol = defaultdict(list)
+    for strat in strategies:
+        exp = parse_date(strat.get("expiry"))
+        iv = strat.get("avg_iv")
+        if exp and iv is not None:
+            by_symbol[strat["symbol"]].append((exp, iv, strat))
+    for items in by_symbol.values():
+        items.sort(key=lambda x: x[0])
+        for i, (exp, iv, strat) in enumerate(items):
+            if i + 1 < len(items):
+                next_iv = items[i + 1][1]
+                strat["term_slope"] = next_iv - iv
+            else:
+                strat["term_slope"] = None
+
+
 def sort_legs(legs):
     """Return legs sorted by option type and position."""
     type_order = {"P": 0, "C": 1}
@@ -463,6 +529,24 @@ def print_strategy(strategy, rule=None):
         f"Theta: {theta:+.3f} "
         f"IV Rank: {ivr_display}"
     )
+    iv_avg = strategy.get("avg_iv")
+    hv = strategy.get("HV30")
+    ivhv = strategy.get("iv_hv_spread")
+    skew = strategy.get("skew")
+    term = strategy.get("term_slope")
+    parts = []
+    if iv_avg is not None:
+        parts.append(f"IV {iv_avg:.2%}")
+    if hv is not None:
+        parts.append(f"HV {hv:.2f}")
+    if ivhv is not None:
+        parts.append(f"IV-HV {ivhv:.2%}")
+    if skew is not None:
+        parts.append(f"Skew {skew*100:.1f}bp")
+    if term is not None:
+        parts.append(f"Term {term*100:.1f}bp")
+    if parts:
+        print("→ " + " | ".join(parts))
     days_line = []
     dte = strategy.get("days_to_expiry")
     dit = strategy.get("days_in_trade")
@@ -578,6 +662,7 @@ def main(argv=None):
 
 
     strategies = group_strategies(positions, journal)
+    compute_term_structure(strategies)
     type_counts = defaultdict(int)
     total_delta_dollar = 0.0
     total_vega = 0.0
