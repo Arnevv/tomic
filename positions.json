@@ -166,21 +166,5 @@
     "ATR14": 6.88,
     "IV_Rank": 61.91,
     "IV_Percentile": 93.0
-  },
-  {
-    "symbol": "TEST",
-    "right": "C",
-    "strike": 100,
-    "expiry": "20250620",
-    "position": 1,
-    "multiplier": "100"
-  },
-  {
-    "symbol": "TEST",
-    "right": "P",
-    "strike": 100,
-    "expiry": "20250620",
-    "position": -1,
-    "multiplier": "100"
   }
 ]
