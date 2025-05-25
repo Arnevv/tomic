@@ -143,15 +143,58 @@ def determine_strategy_type(legs):
     calls = [l for l in legs if (l.get("right") or l.get("type")) == "C"]
     puts = [l for l in legs if (l.get("right") or l.get("type")) == "P"]
     n = len(legs)
-    if n == 4 and len(calls) == 2 and len(puts) == 2:
-        return "Iron Condor"
+
+    # Iron Condor: 4 legs (2 calls, 2 puts) with one long and one short
+    if (
+        n == 4
+        and len(calls) == 2
+        and len(puts) == 2
+        and all(abs(l.get("position", 0)) == 1 for l in legs)
+    ):
+        long_calls = [l for l in calls if l.get("position", 0) > 0]
+        short_calls = [l for l in calls if l.get("position", 0) < 0]
+        long_puts = [l for l in puts if l.get("position", 0) > 0]
+        short_puts = [l for l in puts if l.get("position", 0) < 0]
+        if (
+            len(long_calls)
+            == len(short_calls)
+            == len(long_puts)
+            == len(short_puts)
+            == 1
+        ):
+            return "Iron Condor"
+
+    # Put Ratio Spread: 3 puts, 2 short + 1 long
     if n == 3 and len(puts) == 3:
         long_puts = [l for l in puts if l.get("position", 0) > 0]
         short_puts = [l for l in puts if l.get("position", 0) < 0]
         if len(long_puts) == 1 and len(short_puts) == 2:
             return "Put Ratio Spread"
-    if n == 2:
-        return "Vertical"
+
+    # Straddle: 1 put + 1 call on same strike
+    if n == 2 and len(calls) == 1 and len(puts) == 1:
+        call = calls[0]
+        put = puts[0]
+        if call.get("strike") == put.get("strike"):
+            return "Straddle"
+
+    # Vertical spread: two calls or two puts with opposite direction
+    if n == 2 and (len(calls) == 2 or len(puts) == 2):
+        long_legs = [l for l in legs if l.get("position", 0) > 0]
+        short_legs = [l for l in legs if l.get("position", 0) < 0]
+        if len(long_legs) == 1 and len(short_legs) == 1:
+            return "Vertical"
+
+    # Single-leg strategies
+    if n == 1:
+        leg = legs[0]
+        qty = leg.get("position", 0)
+        right = leg.get("right") or leg.get("type")
+        if right == "C":
+            return "Long Call" if qty > 0 else "Short Call"
+        if right == "P":
+            return "Naked Put" if qty < 0 else "Long Put"
+
     return "Other"
 
 
