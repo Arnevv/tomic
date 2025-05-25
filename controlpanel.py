@@ -94,6 +94,7 @@ def main():
                     continue
             try:
                 run_script("strategy_dashboard.py", "positions.json", "account_info.json")
+                run_script("performance_analyzer.py")
             except subprocess.CalledProcessError:
                 print("❌ Dashboard kon niet worden gestart")
         elif keuze == "2":
