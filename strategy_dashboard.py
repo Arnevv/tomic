@@ -678,6 +678,32 @@ def main(argv=None):
         if s.get("days_to_expiry") is not None:
             dtes.append(s["days_to_expiry"])
 
+    global_alerts = []
+    portfolio_vega = portfolio.get("Vega")
+    if portfolio_vega is not None:
+        abs_vega = abs(portfolio_vega)
+        if abs_vega > 10000:
+            global_alerts.append(
+                "🚨 Totale Vega-exposure > 10.000 → gevoelig voor systematische vol-bewegingen"
+            )
+        elif abs_vega > 5000:
+            global_alerts.append(
+                "⚠️ Totale Vega-exposure > 5.000 → gevoelig voor systematische vol-bewegingen"
+            )
+
+    if strategies:
+        total_strats = len(strategies)
+        major_type, major_count = max(type_counts.items(), key=lambda x: x[1])
+        pct = (major_count / total_strats) * 100
+        if pct >= 80:
+            global_alerts.append(
+                f"⚠️ Strategieclustering: {major_count}x {major_type} van {total_strats} strategieën ({pct:.1f}%) → overweeg meer spreiding"
+            )
+
+    if global_alerts:
+        for alert in global_alerts:
+            print(alert)
+
     if strategies:
         print("=== Overzicht ===")
         for t, c in type_counts.items():
