@@ -224,6 +224,8 @@ def generate_alerts(strategy):
             alerts.append(
                 f"🚨 Delta-dollar blootstelling {delta_dollar:,.0f} > $15k"
             )
+        elif abs(delta_dollar) < 3000:
+            alerts.append("ℹ️ Beperkte exposure")
 
     # 🔹 Vega en IV Rank-analyse
     vega = strategy.get("vega")
@@ -242,6 +244,10 @@ def generate_alerts(strategy):
         if cost_basis and strategy.get("theta") is not None:
             if strategy["unrealizedPnL"] > 0.7 * cost_basis and strategy["theta"] > 0:
                 alerts.append("✅ Overweeg winstnemen (>70% premie afgebouwd)")
+    pnl = strategy.get("unrealizedPnL")
+    theta = strategy.get("theta")
+    if pnl is not None and pnl < -100 and theta is not None and theta > 0:
+        alerts.append("🔻 Negatieve PnL bij positieve theta – heroverweeg positie")
 
     # 🔹 Theta-rendement analyse
     theta = strategy.get("theta")
@@ -258,7 +264,76 @@ def generate_alerts(strategy):
             alerts.append("🟢 Ideale theta-efficiëntie (>=2.5%)")
 
     # 🔹 Eventueel aanvullen met trend/spotalerts later
+    dte = strategy.get("days_to_expiry")
+    if dte is not None and dte < 10:
+        alerts.append("⏳ Minder dan 10 dagen tot expiratie – overweeg sluiten of doorrollen")
     return alerts
+
+
+def parse_plan_metrics(plan_text: str) -> dict:
+    """Extract max win/loss from a plan string if possible."""
+    if not plan_text:
+        return {}
+    metrics = {}
+    m = re.search(r"Max verlies\s*\|\s*([^|\n]+)", plan_text)
+    if m:
+        val = m.group(1).strip().replace("$", "").replace(",", "")
+        val = val.replace("\u2013", "-")
+        try:
+            metrics["max_loss"] = float(val)
+        except ValueError:
+            pass
+    m = re.search(r"Netto premie\s*\|\s*\$?([0-9.,]+)", plan_text)
+    if m:
+        val = m.group(1).replace(",", "")
+        try:
+            metrics["max_profit"] = float(val)
+        except ValueError:
+            pass
+    if "max_profit" in metrics and "max_loss" in metrics and metrics["max_loss"]:
+        metrics["risk_reward"] = metrics["max_profit"] / abs(metrics["max_loss"])
+    return metrics
+
+
+def heuristic_risk_metrics(legs, cost_basis):
+    """Rough estimation of max win/loss for basic strategies."""
+    if len(legs) == 2:
+        rights = {l.get("right") or l.get("type") for l in legs}
+        if len(rights) == 1:
+            strikes = [l.get("strike", 0) for l in legs]
+            width = abs(strikes[0] - strikes[1]) * 100
+            credit = -cost_basis if cost_basis < 0 else 0
+            debit = cost_basis if cost_basis > 0 else 0
+            if credit:
+                max_profit = credit
+                max_loss = width - credit
+            else:
+                max_profit = width - debit
+                max_loss = debit
+            return {
+                "max_profit": max_profit,
+                "max_loss": -abs(max_loss),
+                "risk_reward": max_profit / abs(max_loss) if max_loss else None,
+            }
+    if len(legs) == 4:
+        rights = [l.get("right") or l.get("type") for l in legs]
+        if rights.count("P") == 2 and rights.count("C") == 2:
+            put_short = [l for l in legs if (l.get("right") or l.get("type")) == "P" and l.get("position",0) < 0][0]
+            put_long = [l for l in legs if (l.get("right") or l.get("type")) == "P" and l.get("position",0) > 0][0]
+            call_short = [l for l in legs if (l.get("right") or l.get("type")) == "C" and l.get("position",0) < 0][0]
+            call_long = [l for l in legs if (l.get("right") or l.get("type")) == "C" and l.get("position",0) > 0][0]
+            width_put = abs(put_short.get("strike",0) - put_long.get("strike",0))
+            width_call = abs(call_short.get("strike",0) - call_long.get("strike",0))
+            width = max(width_put, width_call) * 100
+            credit = -cost_basis if cost_basis < 0 else 0
+            max_profit = credit
+            max_loss = width - credit
+            return {
+                "max_profit": max_profit,
+                "max_loss": -abs(max_loss),
+                "risk_reward": max_profit / abs(max_loss) if max_loss else None,
+            }
+    return {}
 
 
 def group_strategies(positions, journal=None):
@@ -270,6 +345,11 @@ def group_strategies(positions, journal=None):
             continue
         grouped[(symbol, expiry)].append(pos)
     strategies = []
+    journal_lookup = {}
+    if journal:
+        for trade in journal:
+            key = (trade.get("Symbool"), trade.get("Expiry"))
+            journal_lookup[key] = trade
     for (symbol, expiry), legs in grouped.items():
         strat = {
             "symbol": symbol,
@@ -289,7 +369,6 @@ def group_strategies(positions, journal=None):
         strat.update(aggregate_metrics(legs))
         strat["spot"] = spot
         strat["margin_used"] = abs(strat.get("cost_basis", 0))
-        strat["alerts"] = generate_alerts(strat)
 
         exp_date = parse_date(expiry)
         if exp_date:
@@ -300,38 +379,42 @@ def group_strategies(positions, journal=None):
             strat["days_to_expiry"] = None
 
         days_in_trade = None
-        if journal:
-            for trade in journal:
-                if (
-                    trade.get("Symbool") == symbol
-                    and parse_date(trade.get("Expiry")) == exp_date
-                ):
-                    if trade.get("DaysInTrade") is not None:
-                        days_in_trade = trade.get("DaysInTrade")
-                    else:
-                        d_in = parse_date(trade.get("DatumIn"))
-                        if d_in:
-                            days_in_trade = (
-                                datetime.now(timezone.utc).date() - d_in
-                            ).days
-                    break
+        trade_data = journal_lookup.get((symbol, expiry))
+        if trade_data:
+            if trade_data.get("DaysInTrade") is not None:
+                days_in_trade = trade_data.get("DaysInTrade")
+            else:
+                d_in = parse_date(trade_data.get("DatumIn"))
+                if d_in:
+                    days_in_trade = (datetime.now(timezone.utc).date() - d_in).days
+            strat.update(parse_plan_metrics(trade_data.get("Plan", "")))
         strat["days_in_trade"] = days_in_trade
 
-        if strat.get("spot") is None and journal:
-            for trade in journal:
-                if (
-                    trade.get("Symbool") == symbol
-                    and parse_date(trade.get("Expiry")) == exp_date
-                ):
-                    spot = trade.get("Spot")
-                    if not spot:
-                        snaps = trade.get("Snapshots", [])
-                        for snap in reversed(snaps):
-                            if snap.get("spot") is not None:
-                                spot = snap["spot"]
-                                break
-                    strat["spot"] = spot
-                    break
+        if strat.get("spot") is None and trade_data:
+            spot = trade_data.get("Spot")
+            if not spot:
+                snaps = trade_data.get("Snapshots", [])
+                for snap in reversed(snaps):
+                    if snap.get("spot") is not None:
+                        spot = snap["spot"]
+                        break
+            strat["spot"] = spot
+
+        if strat.get("spot") and strat.get("legs"):
+            strat["delta_dollar"] = sum(
+                (leg.get("delta") or 0)
+                * leg.get("position", 0)
+                * float(leg.get("multiplier") or 1)
+                * strat["spot"]
+                for leg in legs
+            )
+        else:
+            strat["delta_dollar"] = None
+
+        risk = heuristic_risk_metrics(legs, strat.get("cost_basis", 0))
+        strat.update(risk)
+
+        strat["alerts"] = generate_alerts(strat)
 
         strategies.append(strat)
     return strategies
@@ -392,16 +475,10 @@ def print_strategy(strategy, rule=None):
     if pnl is not None:
         print(f"→ PnL: {pnl:+.2f}")
     spot = strategy.get("spot", 0)
-    if delta is not None and spot:
-        delta_dollar = sum(
-            (leg.get("delta") or 0)
-            * leg.get("position", 0)
-            * float(leg.get("multiplier") or 1)
-            * spot
-            for leg in strategy.get("legs", [])
-        )
+    delta_dollar = strategy.get("delta_dollar")
+    if delta is not None and spot and delta_dollar is not None:
         print(f"→ Delta exposure ≈ ${delta_dollar:,.0f} bij spot {spot}")
-
+    
     margin = strategy.get("margin_used", 1000)
     if theta is not None and margin:
         theta_efficiency = abs(theta / margin) * 100
@@ -416,6 +493,15 @@ def print_strategy(strategy, rule=None):
         print(
             f"→ Theta-rendement: {theta_efficiency:.2f}% per $1.000 margin - {rating}"
         )
+    max_p = strategy.get("max_profit")
+    max_l = strategy.get("max_loss")
+    rr = strategy.get("risk_reward")
+    if max_p is not None and max_l is not None:
+        rr_disp = f" (R/R {rr:.2f})" if rr is not None else ""
+        print(
+            f"→ Max winst {_fmt_money(max_p)} | Max verlies {_fmt_money(max_l)}{rr_disp}"
+        )
+
     alerts = strategy.get("alerts", [])
     # exit rule evaluation
     if rule:
@@ -492,9 +578,30 @@ def main(argv=None):
 
 
     strategies = group_strategies(positions, journal)
+    type_counts = defaultdict(int)
+    total_delta_dollar = 0.0
+    total_vega = 0.0
+    dtes = []
     for s in strategies:
         rule = exit_rules.get((s["symbol"], s["expiry"]))
         print_strategy(s, rule)
+        type_counts[s.get("type")] += 1
+        if s.get("delta_dollar") is not None:
+            total_delta_dollar += s["delta_dollar"]
+        if s.get("vega") is not None:
+            total_vega += s["vega"]
+        if s.get("days_to_expiry") is not None:
+            dtes.append(s["days_to_expiry"])
+
+    if strategies:
+        print("=== Overzicht ===")
+        for t, c in type_counts.items():
+            print(f"{c}x {t}")
+        print(f"Netto delta-dollar: ${total_delta_dollar:,.0f}")
+        print(f"Totaal vega exposure: {total_vega:+.2f}")
+        if dtes:
+            avg_dte = sum(dtes) / len(dtes)
+            print(f"Gemiddelde DTE: {avg_dte:.1f} dagen")
 
 
 if __name__ == "__main__":
