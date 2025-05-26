@@ -1,5 +1,5 @@
 import json
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Dict, List
 
@@ -35,7 +35,7 @@ def snapshot_symbols(symbols: List[str], output_path: str = "volatility_data.jso
             print(f"⚠️ Mislukt voor {sym}: {exc}")
             continue
         record = {
-            "date": datetime.utcnow().strftime("%Y-%m-%d"),
+            "date": datetime.now(timezone.utc).strftime("%Y-%m-%d"),
             "symbol": sym,
             "spot": metrics.get("spot_price"),
             "iv30": metrics.get("implied_volatility"),
