@@ -51,7 +51,7 @@ def main(argv=None):
     if argv is None:
         argv = []
     if not argv:
-        syms = input("Symbols kommagescheiden: ").upper().split(",")
+        syms = input("Symbols kommagescheiden (bv. gld, xlf, xle, crm, aapl, tsla, qqq, dia, spy): ").upper().split(",")
         symbols = [s.strip() for s in syms if s.strip()]
     else:
         symbols = [a.upper() for a in argv]
