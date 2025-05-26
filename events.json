@@ -1,4 +1,188 @@
 [
-  {"symbol": "SPY", "date": "2025-05-28", "type": "macro", "label": "CPI"},
-  {"symbol": "CRM", "date": "2025-05-30", "type": "earnings"}
+  {
+    "symbol": "SPY",
+    "date": "2025-06-03",
+    "type": "macro",
+    "label": "ISM Manufacturing PMI"
+  },
+  {
+    "symbol": "SPY",
+    "date": "2025-06-05",
+    "type": "macro",
+    "label": "ISM Services PMI"
+  },
+  {
+    "symbol": "SPY",
+    "date": "2025-06-06",
+    "type": "macro",
+    "label": "Non-Farm Payrolls"
+  },
+  {
+    "symbol": "SPY",
+    "date": "2025-06-12",
+    "type": "macro",
+    "label": "CPI"
+  },
+  {
+    "symbol": "SPY",
+    "date": "2025-06-18",
+    "type": "volatility",
+    "label": "VIX Expiration"
+  },
+  {
+    "symbol": "SPY",
+    "date": "2025-06-20",
+    "type": "macro",
+    "label": "Quadruple Witching"
+  },
+  {
+    "symbol": "SPY",
+    "date": "2025-06-25",
+    "type": "macro",
+    "label": "FOMC Meeting"
+  },
+  {
+    "symbol": "SPY",
+    "date": "2025-06-27",
+    "type": "macro",
+    "label": "PCE"
+  },
+  {
+    "symbol": "SPY",
+    "date": "2025-07-01",
+    "type": "macro",
+    "label": "ISM Manufacturing PMI"
+  },
+  {
+    "symbol": "SPY",
+    "date": "2025-07-03",
+    "type": "macro",
+    "label": "ISM Services PMI"
+  },
+  {
+    "symbol": "SPY",
+    "date": "2025-07-03",
+    "type": "macro",
+    "label": "Non-Farm Payrolls"
+  },
+  {
+    "symbol": "SPY",
+    "date": "2025-07-10",
+    "type": "macro",
+    "label": "CPI"
+  },
+  {
+    "symbol": "SPY",
+    "date": "2025-07-16",
+    "type": "volatility",
+    "label": "VIX Expiration"
+  },
+  {
+    "symbol": "SPY",
+    "date": "2025-07-18",
+    "type": "macro",
+    "label": "Options Expiration"
+  },
+  {
+    "symbol": "SPY",
+    "date": "2025-07-30",
+    "type": "macro",
+    "label": "FOMC Meeting"
+  },
+  {
+    "symbol": "SPY",
+    "date": "2025-07-31",
+    "type": "macro",
+    "label": "PCE"
+  },
+  {
+    "symbol": "SPY",
+    "date": "2025-08-01",
+    "type": "macro",
+    "label": "Non-Farm Payrolls"
+  },
+  {
+    "symbol": "SPY",
+    "date": "2025-08-01",
+    "type": "macro",
+    "label": "ISM Manufacturing PMI"
+  },
+  {
+    "symbol": "SPY",
+    "date": "2025-08-05",
+    "type": "macro",
+    "label": "ISM Services PMI"
+  },
+  {
+    "symbol": "SPY",
+    "date": "2025-08-14",
+    "type": "macro",
+    "label": "CPI"
+  },
+  {
+    "symbol": "SPY",
+    "date": "2025-08-20",
+    "type": "volatility",
+    "label": "VIX Expiration"
+  },
+  {
+    "symbol": "SPY",
+    "date": "2025-08-22",
+    "type": "macro",
+    "label": "Options Expiration"
+  },
+  {
+    "symbol": "SPY",
+    "date": "2025-08-29",
+    "type": "macro",
+    "label": "PCE"
+  },
+  {
+    "symbol": "SPY",
+    "date": "2025-09-02",
+    "type": "macro",
+    "label": "ISM Manufacturing PMI"
+  },
+  {
+    "symbol": "SPY",
+    "date": "2025-09-04",
+    "type": "macro",
+    "label": "ISM Services PMI"
+  },
+  {
+    "symbol": "SPY",
+    "date": "2025-09-05",
+    "type": "macro",
+    "label": "Non-Farm Payrolls"
+  },
+  {
+    "symbol": "SPY",
+    "date": "2025-09-11",
+    "type": "macro",
+    "label": "CPI"
+  },
+  {
+    "symbol": "SPY",
+    "date": "2025-09-17",
+    "type": "volatility",
+    "label": "VIX Expiration"
+  },
+  {
+    "symbol": "SPY",
+    "date": "2025-09-19",
+    "type": "macro",
+    "label": "Quadruple Witching"
+  },
+  {
+    "symbol": "SPY",
+    "date": "2025-09-24",
+    "type": "macro",
+    "label": "FOMC Meeting"
+  },
+  {
+    "symbol": "SPY",
+    "date": "2025-09-26",
+    "type": "macro",
+    "label": "PCE"
+  }
 ]
