@@ -159,7 +159,14 @@ class IBApp(EWrapper, EClient):
         })
 
     def accountSummary(self, reqId, account, tag, value, currency):
-        self.account_values[tag] = value
+        """Store account summary values, keeping track of the currency."""
+        # Save per currency
+        self.account_values[(tag, currency)] = value
+        # If the value is reported in the account's base currency, also
+        # store it under the bare tag so higher level code can access the
+        # numbers that match what TWS displays.
+        if currency == "BASE":
+            self.account_values[tag] = value
 
     def accountSummaryEnd(self, reqId: int):
         print("🔹 Accountoverzicht opgehaald.")
