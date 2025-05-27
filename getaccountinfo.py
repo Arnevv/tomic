@@ -82,6 +82,7 @@ class IBApp(EWrapper, EClient):
         self.positions_data = []
         self.open_orders = []
         self.account_values = {}
+        self.base_currency = None
         self.req_id = 5000
         self.req_id_to_index = {}
         self.market_req_id = 8000
@@ -166,10 +167,19 @@ class IBApp(EWrapper, EClient):
         """Store account summary values, keeping track of the currency."""
         # Save per currency
         self.account_values[(tag, currency)] = value
-        # If the value is reported in the account's base currency, also
-        # store it under the bare tag so higher level code can access the
-        # numbers that match what TWS displays.
-        if currency == "BASE":
+        # Track the account's base currency so we know which values to
+        # expose under the plain tags.
+        if tag == "AccountCurrency":
+            self.base_currency = value
+
+        # If the value is reported in the base currency, or if we have not yet
+        # stored a value for this tag, also store it under the bare tag so the
+        # rest of the code can access numbers that match what TWS displays.
+        if (
+            currency == "BASE"
+            or (self.base_currency and currency == self.base_currency)
+            or tag not in self.account_values
+        ):
             self.account_values[tag] = value
 
     def accountSummaryEnd(self, reqId: int):
