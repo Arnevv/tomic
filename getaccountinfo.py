@@ -342,8 +342,14 @@ if __name__ == "__main__":
         json.dump(app.positions_data, f, indent=2)
     print("\n💾 Posities opgeslagen in positions.json")
 
+    # Filter out the tuple keyed entries (tag, currency) which are not valid
+    # JSON keys. Only store the base currency values that use simple string keys
+    # so the file can be loaded again without custom decoding logic.
+    base_currency_vals = {
+        k: v for k, v in app.account_values.items() if isinstance(k, str)
+    }
     with open("account_info.json", "w", encoding="utf-8") as f:
-        json.dump(app.account_values, f, indent=2)
+        json.dump(base_currency_vals, f, indent=2)
     print("💾 Accountinfo opgeslagen in account_info.json") 
 
     print("\n📐 Portfolio Greeks:")
