@@ -92,10 +92,14 @@ class IBApp(EWrapper, EClient):
         self.hv_data = {}
         self.atr_data = {}
         self.iv_rank_data = {}
+        self.account_event = threading.Event()
+        self.position_event = threading.Event()
 
     def nextValidId(self, orderId: int):
         print("✅ Verbonden. OrderId:", orderId)
         self.reqMarketDataType(2)
+        self.account_event.clear()
+        self.position_event.clear()
         self.reqAccountSummary(9001, "All", AccountSummaryTags.AllTags)
         self.reqPositions()
         self.reqOpenOrders()
@@ -170,6 +174,7 @@ class IBApp(EWrapper, EClient):
 
     def accountSummaryEnd(self, reqId: int):
         print("🔹 Accountoverzicht opgehaald.")
+        self.account_event.set()
 
     def pnlSingle(self, reqId: int, pos: int, dailyPnL: float, unrealizedPnL: float, realizedPnL: float, value: float):
         idx = self.req_id_to_index.get(reqId)
@@ -182,6 +187,7 @@ class IBApp(EWrapper, EClient):
 
     def positionEnd(self):
         print("🔹 Posities opgehaald.")
+        self.position_event.set()
 
     def openOrderEnd(self):
         print("🔹 Open orders opgehaald.")
@@ -276,7 +282,8 @@ if __name__ == "__main__":
     api_thread = threading.Thread(target=run_loop, args=(app,), daemon=True)
     api_thread.start()
 
-    time.sleep(10)  # geef IB tijd om posities en marketdata op te halen
+    app.account_event.wait(timeout=10)
+    app.position_event.wait(timeout=10)
 
     symbols = set(p["symbol"] for p in app.positions_data)
     for sym in symbols:
