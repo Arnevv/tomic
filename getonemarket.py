@@ -11,7 +11,7 @@ import math
 import statistics
 from datetime import datetime, timezone
 from get_iv_rank import fetch_iv_metrics
-from vol_cone_db import store_volatility_snapshot
+
 
 
 class CombinedApp(EWrapper, EClient):
@@ -594,6 +594,7 @@ def run():
         "iv_rank": iv_rank,
         "skew": skew,
     }
+    from vol_cone_db import store_volatility_snapshot
     store_volatility_snapshot(record)
 
     app.disconnect()
