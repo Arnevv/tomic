@@ -83,8 +83,12 @@ def load_account_info(path: str):
     """Load account info JSON file and return as dict."""
     if not os.path.exists(path):
         return {}
-    with open(path, "r", encoding="utf-8") as f:
-        return json.load(f)
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except json.JSONDecodeError as e:
+        print(f"\u26A0\uFE0F Kan accountinfo niet laden uit {path}: {e}")
+        return {}
 
 
 def load_journal(path: str):
