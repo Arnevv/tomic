@@ -277,6 +277,22 @@ class IBApp(EWrapper, EClient):
         atr14 = statistics.mean(trs[-14:])
         return round(atr14, 2)
 
+    def count_incomplete(self):
+        """Return how many positions are missing market or Greek data."""
+        return sum(
+            1
+            for d in self.positions_data
+            if (
+                d["bid"] is None
+                or d["ask"] is None
+                or d["iv"] is None
+                or d["delta"] is None
+                or d["gamma"] is None
+                or d["vega"] is None
+                or d["theta"] is None
+            )
+        )
+
     def error(self, reqId: TickerId, errorCode: int, errorString: str):
         print(f"⚠️ Error {errorCode}: {errorString}")
 
@@ -333,6 +349,14 @@ if __name__ == "__main__":
         except Exception:
             app.iv_rank_data[sym] = None
             app.iv_rank_data[f"{sym}_pct"] = None
+
+    time.sleep(10)
+    waited = 10
+    while app.count_incomplete() > 0 and waited < 60:
+        time.sleep(5)
+        waited += 5
+    if app.count_incomplete() > 0:
+        print("⚠️ Some legs remain incomplete.")
 
     portfolio = {"Delta": 0.0, "Gamma": 0.0, "Vega": 0.0, "Theta": 0.0}
     for pos in app.positions_data:
