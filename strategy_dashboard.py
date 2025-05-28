@@ -443,6 +443,17 @@ def heuristic_risk_metrics(legs, cost_basis):
     return {}
 
 
+def collapse_legs(legs):
+    merged = {}
+    for leg in legs:
+        key = (leg.get("strike"), leg.get("right") or leg.get("type"))
+        if key not in merged:
+            merged[key] = leg.copy()
+        else:
+            merged[key]["position"] += leg.get("position", 0)
+    return [l for l in merged.values() if l.get("position")]
+
+
 def group_strategies(positions, journal=None):
     grouped = defaultdict(list)
     for pos in positions:
@@ -458,6 +469,7 @@ def group_strategies(positions, journal=None):
             key = (trade.get("Symbool"), trade.get("Expiry"))
             journal_lookup[key] = trade
     for (symbol, expiry), legs in grouped.items():
+        legs = collapse_legs(legs)
         strat = {
             "symbol": symbol,
             "expiry": expiry,
