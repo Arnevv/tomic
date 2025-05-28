@@ -147,5 +147,107 @@
       "Vega": -0.11
     },
     "InitMargin": 361
+  },
+  {
+    "TradeID": "3",
+    "DatumIn": "2025-05-28",
+    "DatumUit": null,
+    "Symbool": "DIA",
+    "Type": "Put Calendar Spread",
+    "Expiry": "2025-06-20",
+    "Richting": "Sideways",
+    "Status": "Open",
+    "Premium": 2.85,
+    "EntryPrice": 2.85,
+    "ExitPrice": null,
+    "ReturnOnMargin": null,
+    "InitMargin": 212.76,
+    "StopPct": 287,
+    "IV_Entry": 14.92,
+    "HV_Entry": 21.0,
+    "IV_Rank": 17.72,
+    "IV_Percentile": 70.0,
+    "VIX": 19.13,
+    "ATR_14": 5.8,
+    "Skew": -0.04,
+    "Spot": 422.64,
+    "DaysInTrade": null,
+    "Plan": "| Kenmerk          | Waarde                               |\n| ---------------- | ------------------------------------ |\n| Short put        | 423                                  |\n| Long put         | 423                                  |\n| Expiraties       | Jun 20 (short), Jul 18 (long)        |\n| Netto premie     | \\$2.85                               |\n| Max verlies      | \u2013\\$285.00                            |\n| Verwachte waarde | Winst bij spot blijft dicht rond 423 |\n| Greek              | Betekenis                                                                     |\n| ------------------ | ----------------------------------------------------------------------------- |\n| \u2705 **Delta \\~0.00** | Neutraal: je verdient vooral bij zijwaartse beweging rond strike              |\n| \u2705 **Theta +0.04**  | Tijd werkt in je voordeel door premium decay in de short leg                  |\n| \u26a0\ufe0f **Vega +0.02**  | Beperkt gevoelig: je wint iets bij stijgende IV (vooral bij langere looptijd) |\n| \u2705 **Gamma \\~0.00** | Lage gamma: stabiele payoff zolang spot bij strike blijft                     |\n\u2705",
+    "Reden": "\u2705 Waarom dit werkt\nJe speelt in op een neutrale marktverwachting met lage IV Rank (~16).\n\nDe term structure is vlak tot licht contango, dus perfect voor een calendar.\n\nSpotprijs ligt exact op de gekozen strike \u2192 maximale theta harvesting.\n\nJe hebt vrijwel geen directional bias, en de setup is vega-veilig.",
+    "Exitstrategie": "\u274c Sluiten bij verlies:\n\nAls de spread daalt tot onder $1.90 (\u2248 33% verlies)\n\nOf als DIA fors buiten de range van \u00b16 punten beweegt (1\u00d7 ATR)\n\n\u2705 Winstnemen:\n\nBij waarde \u2265 $3.90 (\u2248 +35% winst)\n\nOf als spot stabiel blijft en tijdswaarde verdampt\n\n\ud83d\udfe1 Tijd-exit:\n\nEvalueren vanaf 14 juni (5\u20137 dagen voor Jun expiry)\n\nOverweeg doorrollen als setup intact blijft",
+    "Evaluatie": null,
+    "Resultaat": null,
+    "Opmerkingen": "",
+    "Legs": [
+      {
+        "strike": 423.0,
+        "type": "PUT",
+        "action": "SELL",
+        "qty": 1
+      },
+      {
+        "strike": 423.0,
+        "type": "PUT",
+        "action": "BUY",
+        "qty": 1
+      }
+    ],
+    "Greeks_Entry": {
+      "Delta": 0.01,
+      "Theta": 0.04,
+      "Gamma": -0.01,
+      "Vega": 0.2
+    }
+  },
+  {
+    "TradeID": "4",
+    "DatumIn": "2025-05-28",
+    "DatumUit": null,
+    "Symbool": "EWZ",
+    "Type": "Ratio Put Backspread",
+    "Expiry": "2025-06-20",
+    "Richting": "Bearish",
+    "Status": "Open",
+    "Premium": 0.05,
+    "EntryPrice": 0.05,
+    "ExitPrice": null,
+    "ReturnOnMargin": null,
+    "InitMargin": 489.63,
+    "StopPct": 6,
+    "IV_Entry": 51.26,
+    "HV_Entry": 31.17,
+    "IV_Rank": 76.4,
+    "IV_Percentile": 98.0,
+    "VIX": 18.86,
+    "ATR_14": 0.76,
+    "Skew": 1.26,
+    "Spot": 27.67,
+    "DaysInTrade": null,
+    "Plan": "| Kenmerk          | Waarde                                                    |\n| ---------------- | --------------------------------------------------------- |\n| Short put        | 28.0                                                      |\n| Long puts (\u00d72)   | 27.0                                                      |\n| Expiry           | 20 juni 2025                                              |\n| Netto premie     | **\\$0.06 debit**                                          |\n| Max verlies      | \u2013\\$6.00                                                   |\n| Verwachte waarde | Winst bij scherpe daling onder 26.0 (bij voorkeur < 25.5) |\n| Greek              | Betekenis                                                                    |\n| ------------------ | ---------------------------------------------------------------------------- |\n| \u26a0\ufe0f **Delta \u20130.22** | Licht negatief: je wint bij daling van EWZ                                   |\n| \u2705 **Gamma +0.25**  | Je winst versnelt bij een beweging onder de long strikes                     |\n| \u2705 **Vega +0.03**   | Je profiteert van stijgende implied volatility (long vega door 2\u00d7 long puts) |\n| \u26a0\ufe0f **Theta \u20130.01** | Tijd werkt tegen je zolang EWZ niet beweegt                                  |\n",
+    "Reden": "Je koopt convexiteit in een volatiel land-ETF met hoge skew \u2192 perfecte setting voor een ratio backspread;\n\nSpot bij entry ligt op 27.61 \u2192 net onder short leg;\n\nIV Rank op ~55% en Skew is nog steeds fors \u2192 jij verkoopt dure puts en koopt relatief goedkope downside;\n\nSetup vereist beweging, maar biedt asymmetrische winst bij plotselinge sell-off.",
+    "Exitstrategie": "\u274c Sluiten bij verlies:\n\nAls spread < $0.01 noteert (bijvoorbeeld door complete tijdswaarde-erosie)\n\nAls EWZ terug stijgt boven 28.0 en blijft hangen met weinig IV\n\n\u2705 Winstnemen:\n\nBij premie > $0.25\u20130.30 (\u2248 4\u20135\u00d7 initi\u00eble investering)\n\nOf bij spot onder 26.0 en premie piekt\n\n\ud83d\udfe1 Tijd-exit:\n\nEvaluatie vanaf 14 juni (6 dagen voor expiry)\n\nSluiten bij ongebruikte gamma + tijdsdruk",
+    "Evaluatie": null,
+    "Resultaat": null,
+    "Opmerkingen": "",
+    "Legs": [
+      {
+        "strike": 28.0,
+        "type": "PUT",
+        "action": "SELL",
+        "qty": 1
+      },
+      {
+        "strike": 27.0,
+        "type": "PUT",
+        "action": "BUY",
+        "qty": 2
+      }
+    ],
+    "Greeks_Entry": {
+      "Delta": -0.22,
+      "Theta": -0.01,
+      "Gamma": 0.25,
+      "Vega": 0.03
+    }
   }
 ]
