@@ -1,4 +1,5 @@
 import json
+import logging
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Dict, List
@@ -7,7 +8,13 @@ from getonemarket import fetch_market_metrics
 
 
 def store_volatility_snapshot(symbol_data: Dict, output_path: str = "volatility_data.json") -> None:
-    """Append volatility snapshot to JSON file."""
+    """Append volatility snapshot to JSON file if complete."""
+    required = ["date", "symbol", "spot", "iv30", "hv30", "iv_rank", "skew"]
+    missing = [key for key in required if symbol_data.get(key) is None]
+    if missing:
+        logging.warning("Incomplete snapshot for %s skipped: missing %s", symbol_data.get("symbol"), ", ".join(missing))
+        return
+
     file = Path(output_path)
     if file.exists():
         with open(file, "r", encoding="utf-8") as f:
