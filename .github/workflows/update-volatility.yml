@@ -31,7 +31,7 @@ jobs:
       - name: Run volatility snapshot script
         run: |
           echo "Running volatility snapshot"
-          python daily_vol_scraper.py AAPL CRM DIA GLD QQQ SPY TSLA XLE XLF AMZN NVDA
+          python daily_vol_scraper.py AAPL ASML CRM DIA EWG EWJ EWZ FEZ FXI GLD INDA NVDA QQQ RUT SPY TSLA VIX XLE XLF XLV
           echo "Snapshot script completed"
 
       - name: Commit and push changes
