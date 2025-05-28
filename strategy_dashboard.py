@@ -215,6 +215,7 @@ def aggregate_metrics(legs):
     hv_values = []
     atr_values = []
     iv_values = []
+    iv_percentiles = []
     call_iv = []
     put_iv = []
     iv_hv_spread_vals = []
@@ -234,6 +235,8 @@ def aggregate_metrics(legs):
             metrics["cost_basis"] += leg["avgCost"] * qty
         if leg.get("IV_Rank") is not None:
             iv_ranks.append(leg["IV_Rank"])
+        if leg.get("IV_Percentile") is not None:
+            iv_percentiles.append(leg["IV_Percentile"])
         if leg.get("HV30") is not None:
             hv_values.append(leg["HV30"])
         if leg.get("ATR14") is not None:
@@ -251,6 +254,7 @@ def aggregate_metrics(legs):
                 hv_dec = hv / 100 if hv > 1 else hv
                 iv_hv_spread_vals.append(iv - hv_dec)
     metrics["IV_Rank"] = mean(iv_ranks) if iv_ranks else None
+    metrics["IV_Percentile"] = mean(iv_percentiles) if iv_percentiles else None
     metrics["HV30"] = max(hv_values) if hv_values else None
     metrics["ATR14"] = max(atr_values) if atr_values else None
     metrics["avg_iv"] = mean(iv_values) if iv_values else None
@@ -589,12 +593,15 @@ def print_strategy(strategy, rule=None):
     theta = strategy.get("theta")
     ivr = strategy.get("IV_Rank")
     ivr_display = f"{ivr:.1f}" if ivr is not None else "n.v.t."
+    ivp = strategy.get("IV_Percentile")
+    ivp_display = f"{ivp:.1f}" if ivp is not None else "n.v.t."
     print(
         f"→ Delta: {delta:+.3f} "
         f"Gamma: {gamma:+.3f} "
         f"Vega: {vega:+.3f} "
         f"Theta: {theta:+.3f} "
-        f"IV Rank: {ivr_display}"
+        f"IV Rank: {ivr_display} "
+        f"IV Pctl: {ivp_display}"
     )
     iv_avg = strategy.get("avg_iv")
     hv = strategy.get("HV30")
