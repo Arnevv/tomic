@@ -484,17 +484,26 @@ def run(symbol):
 
 if __name__ == "__main__":
     symbols = [
-        "SPY",
+        "AAPL",
+        "ASML",
+        "CRM",
         "DIA",
+        "EWG",
+        "EWJ",
+        "EWZ",
+        "FEZ",
+        "FXI",
+        "GLD",
+        "INDA",
+        "NVDA",
         "QQQ",
         "RUT",
+        "SPY",
         "TSLA",
-        "AAPL",
-        "CRM",
+        "VIX",
         "XLE",
         "XLF",
-        "GLD",
-        "VIX",
+        "XLV"
     ]
     for sym in symbols:
         print(f"\n🔄 Ophalen voor {sym}...")
