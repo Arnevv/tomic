@@ -26,6 +26,8 @@ EXTRA_PATTERNS = {
     "hv30": [
         r"30[- ]Day Historical Volatility[^0-9]*([0-9]+(?:\.[0-9]+)?)%",
         r"HV\s*30[^0-9]*([0-9]+(?:\.[0-9]+)?)%",
+        r"Historic\s*&nbsp;?Volatility[^0-9]*([0-9]+(?:\.[0-9]+)?)%",
+        r"HV:\s*</span>\s*</span>\s*<span><strong>([0-9]+(?:\.[0-9]+)?)%",
     ],
     "skew": [
         r"Skew[^0-9-]*(-?[0-9]+(?:\.[0-9]+)?)",
