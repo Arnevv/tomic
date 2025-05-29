@@ -760,11 +760,36 @@ def print_strategy(strategy, rule=None):
 def main(argv=None):
     if argv is None:
         argv = sys.argv[1:]
-    if not argv:
-        print("Gebruik: python strategy_dashboard.py positions.json [account_info.json]")
-        return
-    positions_file = argv[0]
-    account_file = argv[1] if len(argv) > 1 else "account_info.json"
+
+    json_output = None
+    args = []
+    i = 0
+    while i < len(argv):
+        arg = argv[i]
+        if arg == "--json-output":
+            if i + 1 >= len(argv):
+                print(
+                    "Gebruik: python strategy_dashboard.py positions.json [account_info.json] [--json-output PATH]"
+                )
+                return 1
+            json_output = argv[i + 1]
+            i += 2
+            continue
+        if arg.startswith("--json-output="):
+            json_output = arg.split("=", 1)[1]
+            i += 1
+            continue
+        args.append(arg)
+        i += 1
+
+    if not args:
+        print(
+            "Gebruik: python strategy_dashboard.py positions.json [account_info.json] [--json-output PATH]"
+        )
+        return 1
+
+    positions_file = args[0]
+    account_file = args[1] if len(args) > 1 else "account_info.json"
     journal_file = "journal.json"
 
     positions = load_positions(positions_file)
@@ -850,6 +875,22 @@ def main(argv=None):
             avg_rom = (total_pnl / total_margin) * 100
             print(f"Gemiddeld ROM portfolio: {avg_rom:.1f}%")
 
+    if json_output:
+        data = {
+            "account_info": account_info,
+            "portfolio_greeks": portfolio,
+            "strategies": strategies,
+            "global_alerts": global_alerts,
+        }
+        try:
+            with open(json_output, "w", encoding="utf-8") as f:
+                json.dump(data, f, ensure_ascii=False, indent=2)
+        except OSError as e:
+            print(f"❌ Kan niet schrijven naar {json_output}: {e}")
+            return 1
+
+    return 0
+
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())
