@@ -2,8 +2,11 @@ import json
 from pathlib import Path
 from statistics import mean
 from typing import Dict, List, Optional
+from datetime import date
 
 DEFAULT_JOURNAL_PATH = "journal.json"
+
+frozen_today = date(2025, 5, 29)
 
 
 def load_journal(path: str = DEFAULT_JOURNAL_PATH) -> List[dict]:
@@ -155,8 +158,12 @@ def main(argv=None) -> None:
     journal = load_journal(journal_path)
     stats = analyze(journal)
     if json_output:
+        data = {
+            "analysis_date": str(frozen_today),
+            "stats": stats,
+        }
         with open(json_output, "w", encoding="utf-8") as f:
-            json.dump(stats, f, indent=2)
+            json.dump(data, f, indent=2)
     else:
         print_table(stats)
 
