@@ -56,7 +56,9 @@ def list_positions(symbol, positions):
     print(f"\n📈 Open posities voor {symbol}:")
     for p in sym_pos:
         exp = p.get("lastTradeDate") or p.get("expiry") or p.get("expiration")
-        print(f"  {symbol}, {p.get('strike')}, {exp}, {p.get('conId')}")
+        qty = p.get("position")
+        qty_disp = int(qty) if qty is not None else "?"
+        print(f"  {symbol}, {p.get('strike')}, {exp}, {qty_disp}, {p.get('conId')}")
     return sym_pos
 
 
