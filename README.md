@@ -58,8 +58,9 @@ Of gebruik individuele modules:
 * `journal_updater.py`: Nieuwe trade aanmaken en loggen  
 * `close_trade.py`: Trade afsluiten met evaluatie  
 * `strategy_dashboard.py`: Groepeert legs per strategie en toont alerts  
-* `portfolio_scenario.py`: Simuleert PnL/Greeks na een zelf gekozen spot- en IV-shift  
-* `csv_quality_check.py`: Controleert CSV-exports op fouten (ook via het Control Panel)  
+* `portfolio_scenario.py`: Simuleert PnL/Greeks na een zelf gekozen spot- en IV-shift
+* `csv_quality_check.py`: Controleert CSV-exports op fouten (ook via het Control Panel)
+* `regression_runner.py`: Vergelijkt scriptoutput met benchmarks (ook via het Control Panel)
 
 Voor regressietests kun je de omgevingvariabele `TOMIC_TODAY=YYYY-MM-DD` zetten.
 
@@ -86,6 +87,8 @@ Voer de test uit met:
 ```bash
 python regression_runner.py
 ```
+
+Of start hem via het Control Panel (optie 6).
 
 Voor deterministische resultaten kun je optioneel de omgevingsvariabele `TOMIC_TODAY` instellen.
 
