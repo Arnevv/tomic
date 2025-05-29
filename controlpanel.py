@@ -19,7 +19,15 @@ def run_dataexporter():
         elif sub == "2":
             run_script("getallmarkets.py")
         elif sub == "3":
-            run_script("csv_quality_check.py")
+
+            path = input("Pad naar CSV-bestand: ").strip()
+            if path:
+                try:
+                    run_script("csv_quality_check.py", path)
+                except subprocess.CalledProcessError:
+                    print("❌ Kwaliteitscheck mislukt")
+            else:
+                print("Geen pad opgegeven")
         elif sub == "4":
             break
         else:
