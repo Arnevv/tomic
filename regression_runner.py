@@ -49,6 +49,7 @@ def compare_files(output_path: str, benchmark_path: str) -> bool:
 
 
 def main() -> None:
+    os.environ["TOMIC_TODAY"] = "2025-05-29"
     os.makedirs("regression_output", exist_ok=True)
 
     run_command([
