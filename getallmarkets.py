@@ -12,6 +12,7 @@ import statistics
 from datetime import datetime, timezone
 from get_iv_rank import fetch_iv_metrics
 from vol_cone_db import store_volatility_snapshot
+import pandas as pd
 
 
 class CombinedApp(EWrapper, EClient):
@@ -480,6 +481,16 @@ def run(symbol):
 
     app.disconnect()
     time.sleep(1)
+    df_metrics = pd.DataFrame([values_metrics], columns=headers_metrics)
+    return df_metrics
+
+
+def export_combined_csv(data_per_market, output_dir):
+    """Combine individual market DataFrames and export to a single CSV."""
+    combined_df = pd.concat(data_per_market, ignore_index=True)
+    output_path = os.path.join(output_dir, "Overzicht_Marktkenmerken.csv")
+    combined_df.to_csv(output_path, index=False)
+    print(f"[INFO] {len(data_per_market)} markten verwerkt. CSV geëxporteerd.")
 
 
 if __name__ == "__main__":
@@ -505,7 +516,16 @@ if __name__ == "__main__":
         "XLF",
         "XLV"
     ]
+    today_str = datetime.now().strftime("%Y%m%d")
+    export_dir = os.path.join("exports", today_str)
+    data_frames = []
     for sym in symbols:
         print(f"\n🔄 Ophalen voor {sym}...")
-        run(sym)
+        df = run(sym)
+        if df is not None:
+            data_frames.append(df)
         time.sleep(2)
+
+    unique_markets = {df["Symbol"].iloc[0] for df in data_frames}
+    if len(unique_markets) > 1:
+        export_combined_csv(data_frames, export_dir)
