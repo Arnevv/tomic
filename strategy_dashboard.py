@@ -7,6 +7,11 @@ from datetime import datetime, timezone
 import re
 
 
+def today():
+    env = os.getenv("TOMIC_TODAY")
+    return datetime.strptime(env, "%Y-%m-%d").date() if env else datetime.now(timezone.utc).date()
+
+
 def _fmt_money(value):
     """Return value formatted as dollar amount if possible."""
     try:
@@ -510,7 +515,7 @@ def group_strategies(positions, journal=None):
         exp_date = parse_date(expiry)
         if exp_date:
             strat["days_to_expiry"] = (
-                exp_date - datetime.now(timezone.utc).date()
+                exp_date - today()
             ).days
         else:
             strat["days_to_expiry"] = None
@@ -522,7 +527,7 @@ def group_strategies(positions, journal=None):
             else:
                 d_in = parse_date(trade_data.get("DatumIn"))
                 if d_in:
-                    days_in_trade = (datetime.now(timezone.utc).date() - d_in).days
+                    days_in_trade = (today() - d_in).days
             strat.update(parse_plan_metrics(trade_data.get("Plan", "")))
             if trade_data.get("InitMargin") is not None:
                 try:
@@ -760,11 +765,36 @@ def print_strategy(strategy, rule=None):
 def main(argv=None):
     if argv is None:
         argv = sys.argv[1:]
-    if not argv:
-        print("Gebruik: python strategy_dashboard.py positions.json [account_info.json]")
-        return
-    positions_file = argv[0]
-    account_file = argv[1] if len(argv) > 1 else "account_info.json"
+
+    json_output = None
+    args = []
+    i = 0
+    while i < len(argv):
+        arg = argv[i]
+        if arg == "--json-output":
+            if i + 1 >= len(argv):
+                print(
+                    "Gebruik: python strategy_dashboard.py positions.json [account_info.json] [--json-output PATH]"
+                )
+                return 1
+            json_output = argv[i + 1]
+            i += 2
+            continue
+        if arg.startswith("--json-output="):
+            json_output = arg.split("=", 1)[1]
+            i += 1
+            continue
+        args.append(arg)
+        i += 1
+
+    if not args:
+        print(
+            "Gebruik: python strategy_dashboard.py positions.json [account_info.json] [--json-output PATH]"
+        )
+        return 1
+
+    positions_file = args[0]
+    account_file = args[1] if len(args) > 1 else "account_info.json"
     journal_file = "journal.json"
 
     positions = load_positions(positions_file)
@@ -850,6 +880,22 @@ def main(argv=None):
             avg_rom = (total_pnl / total_margin) * 100
             print(f"Gemiddeld ROM portfolio: {avg_rom:.1f}%")
 
+    if json_output:
+        data = {
+            "account_info": account_info,
+            "portfolio_greeks": portfolio,
+            "strategies": strategies,
+            "global_alerts": global_alerts,
+        }
+        try:
+            with open(json_output, "w", encoding="utf-8") as f:
+                json.dump(data, f, ensure_ascii=False, indent=2)
+        except OSError as e:
+            print(f"❌ Kan niet schrijven naar {json_output}: {e}")
+            return 1
+
+    return 0
+
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())

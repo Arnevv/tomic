@@ -1,13 +1,18 @@
 import json
-from datetime import datetime, timedelta
+import os
+from datetime import datetime, timedelta, timezone
 from typing import Tuple
+
+
+def today():
+    env = os.getenv("TOMIC_TODAY")
+    return datetime.strptime(env, "%Y-%m-%d").date() if env else datetime.now(timezone.utc).date()
 
 
 def get_iv_percentile(symbol: str, snapshot_file: str, lookback_days: int = 365) -> Tuple[float, float, float, float, float]:
     with open(snapshot_file, "r", encoding="utf-8") as f:
         data = json.load(f)
-    from datetime import datetime, timezone
-    today = datetime.now(timezone.utc).date()
+    today_date = today()
 
     entries = [
         d for d in data
@@ -20,7 +25,7 @@ def get_iv_percentile(symbol: str, snapshot_file: str, lookback_days: int = 365)
             dt = datetime.fromisoformat(d["date"]).date()
         except ValueError:
             continue
-        if (today - dt).days <= lookback_days:
+        if (today_date - dt).days <= lookback_days:
             filtered.append((dt, d["iv30"]))
     if not filtered:
         raise ValueError("No data for symbol")
