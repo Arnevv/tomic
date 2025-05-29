@@ -64,6 +64,28 @@ Of gebruik individuele modules:
 
 Voor regressietests zet `regression_runner.py` standaard `TOMIC_TODAY=2025-05-29`.
 
+## 📦 Pakketstructuur
+
+Alle logica staat nu in de map `tomic`. De belangrijkste subpakketten zijn:
+
+- `tomic.api` – interactie met de IB API (o.a. `getaccountinfo`, `getonemarket`, `getallmarkets`, `margin_calc`).
+- `tomic.analysis` – analysetools zoals `performance_analyzer` en `get_iv_rank`.
+- `tomic.journal` – beheer van het trade journal.
+
+De scripts in de hoofdmap zijn lichte wrappers die taken doorgeven aan deze modules. Voorbeelden:
+
+- `getaccountinfo.py` → `tomic.api.getaccountinfo.main()`
+- `getonemarket.py` → `tomic.api.getonemarket.run()`
+- `getallmarkets.py` → `tomic.api.getallmarkets.run()`
+- `journal_updater.py` → `tomic.journal.journal_updater.interactieve_trade_invoer()`
+- `journal_inspector.py` → `tomic.journal.journal_inspector.start_menu()`
+- `update_margins.py` → `tomic.journal.update_margins.update_all_margins()`
+- `performance_analyzer.py` → `tomic.analysis.performance_analyzer.main()`
+
+### Configuratie
+
+Het bestand `tomic/config.py` zoekt automatisch naar `config.yaml`, `config.yml` of `.env` in de projectmap. Via de omgevingsvariabele `TOMIC_CONFIG` kun je een ander pad opgeven. YAML-bestanden vereisen de optionele dependency **PyYAML**.
+
 ---
 
 ## 📂 Bestanden en mappen
