@@ -4,6 +4,11 @@ import sys
 from typing import List, Dict, Set, Any
 
 
+def is_empty(val: str) -> bool:
+    """Return True if the value is None or only whitespace."""
+    return val is None or val.strip() == ''
+
+
 def guess_symbol(path: str) -> str:
     name = os.path.basename(path)
     parts = [p for p in name.split('_') if p.isalpha() and p.isupper()]
@@ -46,7 +51,7 @@ def analyze_csv(path: str) -> Dict[str, Any]:
                     break
             # count empty fields
             for k in empty_counts.keys():
-                if k in row and row[k].strip() == '':
+                if k in row and is_empty(row[k]):
                     empty_counts[k] += 1
 
             # delta validation, only check non-empty values
@@ -54,7 +59,7 @@ def analyze_csv(path: str) -> Dict[str, Any]:
             for k in row.keys():
                 if k.lower() == 'delta':
                     val = row[k].strip()
-                    if val != '':
+                    if not is_empty(val):
                         try:
                             delta_val = float(val)
                             if not (-1.0 <= delta_val <= 1.0):
@@ -68,7 +73,7 @@ def analyze_csv(path: str) -> Dict[str, Any]:
             for k in row.keys():
                 if k.lower() in {'strike', 'bid', 'ask'}:
                     val = row[k].strip()
-                    if val != '':
+                    if not is_empty(val):
                         try:
                             num = float(val)
                             if num < 0:
