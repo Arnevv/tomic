@@ -1,46 +1,242 @@
 [
-    {
-      "symbol": "AAPL",
-      "type": "Vertical Spread",
-      "legs": [
-        {"strike": 190, "type": "CALL", "action": "SELL", "qty": 1, "conId": 1010001},
-        {"strike": 185, "type": "CALL", "action": "BUY", "qty": 1, "conId": 1010002}
-      ]
-    },
-    {
-      "symbol": "GLD",
-      "type": "Iron Condor",
-      "legs": [
-        {"strike": 290, "type": "PUT", "action": "SELL", "qty": 1, "conId": 688613296},
-        {"strike": 285, "type": "PUT", "action": "BUY", "qty": 1, "conId": 675884648},
-        {"strike": 320, "type": "CALL", "action": "SELL", "qty": 1, "conId": 696690856},
-        {"strike": 325, "type": "CALL", "action": "BUY", "qty": 1, "conId": 696690918}
-      ]
-    },
-    {
-      "symbol": "TSLA",
-      "type": "Iron Butterfly",
-      "legs": [
-        {"strike": 600, "type": "PUT", "action": "BUY", "qty": 1, "conId": 1020001},
-        {"strike": 620, "type": "PUT", "action": "SELL", "qty": 1, "conId": 1020002},
-        {"strike": 620, "type": "CALL", "action": "SELL", "qty": 1, "conId": 1020003},
-        {"strike": 640, "type": "CALL", "action": "BUY", "qty": 1, "conId": 1020004}
-      ]
-    },
-    {
-      "symbol": "DIA",
-      "type": "Put Calendar Spread",
-      "legs": [
-        {"strike": 423, "type": "PUT", "action": "SELL", "qty": 1, "conId": 778022470},
-        {"strike": 423, "type": "PUT", "action": "BUY", "qty": 1, "conId": 778031025}
-      ]
-    },
-    {
-      "symbol": "SPY",
-      "type": "Put Ratio Spread",
-      "legs": [
-        {"strike": 544, "type": "PUT", "action": "SELL", "qty": 2, "conId": 781419718},
-        {"strike": 545, "type": "PUT", "action": "BUY", "qty": 1, "conId": 632039252}
-      ]
-    }
-  ]
+  {
+    "symbol": "SPY",
+    "conId": 781419718,
+    "secType": "OPT",
+    "right": "P",
+    "strike": 544.0,
+    "lastTradeDate": "20240621",
+    "position": -2,
+    "multiplier": 100,
+    "delta": -0.24,
+    "theta": 0.10,
+    "vega": 0.16,
+    "gamma": 0.03,
+    "avgCost": 0.0
+  },
+  {
+    "symbol": "SPY",
+    "conId": 632039252,
+    "secType": "OPT",
+    "right": "P",
+    "strike": 545.0,
+    "lastTradeDate": "20240621",
+    "position": 1,
+    "multiplier": 100,
+    "delta": 0.12,
+    "theta": -0.05,
+    "vega": -0.08,
+    "gamma": -0.015,
+    "avgCost": 0.0
+  },
+  {
+    "symbol": "GLD",
+    "conId": 688613296,
+    "secType": "OPT",
+    "right": "P",
+    "strike": 290.0,
+    "lastTradeDate": "20240621",
+    "position": -1,
+    "multiplier": 100,
+    "delta": -0.15,
+    "theta": 0.08,
+    "vega": 0.09,
+    "gamma": 0.01,
+    "avgCost": 0.0
+  },
+  {
+    "symbol": "GLD",
+    "conId": 675884648,
+    "secType": "OPT",
+    "right": "P",
+    "strike": 285.0,
+    "lastTradeDate": "20240621",
+    "position": 1,
+    "multiplier": 100,
+    "delta": 0.08,
+    "theta": -0.04,
+    "vega": -0.06,
+    "gamma": -0.007,
+    "avgCost": 0.0
+  },
+  {
+    "symbol": "GLD",
+    "conId": 696690856,
+    "secType": "OPT",
+    "right": "C",
+    "strike": 320.0,
+    "lastTradeDate": "20240621",
+    "position": -1,
+    "multiplier": 100,
+    "delta": 0.14,
+    "theta": 0.07,
+    "vega": 0.06,
+    "gamma": 0.01,
+    "avgCost": 0.0
+  },
+  {
+    "symbol": "GLD",
+    "conId": 696690918,
+    "secType": "OPT",
+    "right": "C",
+    "strike": 325.0,
+    "lastTradeDate": "20240621",
+    "position": 1,
+    "multiplier": 100,
+    "delta": -0.09,
+    "theta": -0.03,
+    "vega": -0.05,
+    "gamma": -0.006,
+    "avgCost": 0.0
+  },
+  {
+    "symbol": "DIA",
+    "conId": 778022470,
+    "secType": "OPT",
+    "right": "P",
+    "strike": 423.0,
+    "lastTradeDate": "20240621",
+    "position": -1,
+    "multiplier": 100,
+    "delta": -0.18,
+    "theta": 0.09,
+    "vega": 0.12,
+    "gamma": 0.02,
+    "avgCost": 0.0
+  },
+  {
+    "symbol": "DIA",
+    "conId": 778031025,
+    "secType": "OPT",
+    "right": "P",
+    "strike": 423.0,
+    "lastTradeDate": "20240719",
+    "position": 1,
+    "multiplier": 100,
+    "delta": 0.17,
+    "theta": -0.06,
+    "vega": 0.14,
+    "gamma": -0.01,
+    "avgCost": 0.0
+  },
+  {
+    "symbol": "EWZ",
+    "conId": 705660734,
+    "secType": "OPT",
+    "right": "P",
+    "strike": 28.0,
+    "lastTradeDate": "20240621",
+    "position": -1,
+    "multiplier": 100,
+    "delta": -0.22,
+    "theta": 0.06,
+    "vega": 0.11,
+    "gamma": 0.02,
+    "avgCost": 0.0
+  },
+  {
+    "symbol": "EWZ",
+    "conId": 705660659,
+    "secType": "OPT",
+    "right": "P",
+    "strike": 27.0,
+    "lastTradeDate": "20240621",
+    "position": 2,
+    "multiplier": 100,
+    "delta": 0.25,
+    "theta": -0.07,
+    "vega": -0.13,
+    "gamma": -0.03,
+    "avgCost": 0.0
+  },
+  {
+    "symbol": "AAPL",
+    "conId": 1010001,
+    "secType": "OPT",
+    "right": "C",
+    "strike": 190,
+    "lastTradeDate": "20240621",
+    "position": -1,
+    "multiplier": 100,
+    "delta": 0.21,
+    "theta": 0.10,
+    "vega": 0.10,
+    "gamma": 0.02,
+    "avgCost": 0.0
+  },
+  {
+    "symbol": "AAPL",
+    "conId": 1010002,
+    "secType": "OPT",
+    "right": "C",
+    "strike": 185,
+    "lastTradeDate": "20240621",
+    "position": 1,
+    "multiplier": 100,
+    "delta": -0.17,
+    "theta": -0.08,
+    "vega": -0.09,
+    "gamma": -0.01,
+    "avgCost": 0.0
+  },
+  {
+    "symbol": "TSLA",
+    "conId": 1020001,
+    "secType": "OPT",
+    "right": "P",
+    "strike": 600,
+    "lastTradeDate": "20240621",
+    "position": 1,
+    "multiplier": 100,
+    "delta": -0.25,
+    "theta": -0.06,
+    "vega": 0.13,
+    "gamma": 0.01,
+    "avgCost": 0.0
+  },
+  {
+    "symbol": "TSLA",
+    "conId": 1020002,
+    "secType": "OPT",
+    "right": "P",
+    "strike": 620,
+    "lastTradeDate": "20240621",
+    "position": -1,
+    "multiplier": 100,
+    "delta": -0.12,
+    "theta": 0.09,
+    "vega": -0.11,
+    "gamma": 0.02,
+    "avgCost": 0.0
+  },
+  {
+    "symbol": "TSLA",
+    "conId": 1020003,
+    "secType": "OPT",
+    "right": "C",
+    "strike": 620,
+    "lastTradeDate": "20240621",
+    "position": -1,
+    "multiplier": 100,
+    "delta": 0.13,
+    "theta": 0.08,
+    "vega": -0.10,
+    "gamma": 0.01,
+    "avgCost": 0.0
+  },
+  {
+    "symbol": "TSLA",
+    "conId": 1020004,
+    "secType": "OPT",
+    "right": "C",
+    "strike": 640,
+    "lastTradeDate": "20240621",
+    "position": 1,
+    "multiplier": 100,
+    "delta": 0.11,
+    "theta": -0.07,
+    "vega": 0.12,
+    "gamma": -0.02,
+    "avgCost": 0.0
+  }
+]
