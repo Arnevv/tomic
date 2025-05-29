@@ -3,6 +3,8 @@ import re
 import sys
 import urllib.request
 
+from tomic.logging import setup_logging
+
 
 def _download_html(symbol: str) -> str:
     """Retrieve the volatility page HTML for the given symbol."""
@@ -68,10 +70,9 @@ def fetch_iv_rank(symbol: str = "SPY") -> float:
 
 
 def main(argv=None):
+    setup_logging()
     if argv is None:
         argv = sys.argv[1:]
-
-    logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
 
     symbol = (argv[0] if argv else input("Ticker (default SPY): ")).strip().upper() or "SPY"
     logging.info("Fetching IV metrics for %s", symbol)
