@@ -3,6 +3,8 @@ import re
 from datetime import datetime, timezone
 from typing import Dict, List
 
+from tomic.config import get as cfg_get
+
 from tomic.analysis.get_iv_rank import _download_html
 from vol_cone_db import store_volatility_snapshot
 
@@ -85,17 +87,10 @@ def snapshot_symbols(symbols: List[str]) -> None:
 def main(argv: List[str] | None = None) -> None:
     if argv is None:
         argv = []
-    symbols = [s.upper() for s in argv] if argv else [
-        "SPY",
-        "QQQ",
-        "DIA",
-        "GLD",
-        "TSLA",
-        "AAPL",
-        "CRM",
-        "XLF",
-        "XLE",
-    ]
+    if argv:
+        symbols = [s.upper() for s in argv]
+    else:
+        symbols = [s.upper() for s in cfg_get("DEFAULT_SYMBOLS", [])]
     snapshot_symbols(symbols)
 
 

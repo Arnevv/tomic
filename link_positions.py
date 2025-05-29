@@ -1,8 +1,10 @@
 import json
 from pathlib import Path
 
-JOURNAL_FILE = Path("journal.json")
-POSITIONS_FILE = Path("positions.json")
+from tomic.config import get as cfg_get
+
+JOURNAL_FILE = Path(cfg_get("JOURNAL_FILE", "journal.json"))
+POSITIONS_FILE = Path(cfg_get("POSITIONS_FILE", "positions.json"))
 
 
 def load_json(path):

@@ -3,6 +3,8 @@ import os
 from datetime import datetime, timedelta, timezone
 from typing import Tuple
 
+from tomic.config import get as cfg_get
+
 
 def today():
     env = os.getenv("TOMIC_TODAY")
@@ -43,7 +45,9 @@ def get_iv_percentile(symbol: str, snapshot_file: str, lookback_days: int = 365)
     return latest_iv, percentile, p10, p50, p90
 
 
-def display_cone(symbol: str, snapshot_file: str = "volatility_data.json") -> None:
+def display_cone(symbol: str, snapshot_file: str | None = None) -> None:
+    if snapshot_file is None:
+        snapshot_file = cfg_get("VOLATILITY_DATA_FILE", "volatility_data.json")
     try:
         iv, pct, p10, p50, p90 = get_iv_percentile(symbol, snapshot_file)
     except Exception as exc:

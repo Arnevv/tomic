@@ -3,6 +3,8 @@ import os
 from datetime import datetime, timezone
 from typing import List, Dict
 
+from tomic.config import get as cfg_get
+
 
 def today():
     env = os.getenv("TOMIC_TODAY")
@@ -42,7 +44,7 @@ def apply_event_alerts(strategies: List[Dict], event_json_path: str = "events.js
 def main(argv=None):
     if argv is None:
         argv = []
-    strategies_file = argv[0] if argv else "positions.json"
+    strategies_file = argv[0] if argv else cfg_get("POSITIONS_FILE", "positions.json")
 
     from strategy_dashboard import group_strategies
 
