@@ -58,7 +58,16 @@ def list_positions(symbol, positions):
         exp = p.get("lastTradeDate") or p.get("expiry") or p.get("expiration")
         qty = p.get("position")
         qty_disp = int(qty) if qty is not None else "?"
-        print(f"  {symbol}, {p.get('strike')}, {exp}, {qty_disp}, {p.get('conId')}")
+        right = p.get("right")
+        if right == "C":
+            right_disp = "Call"
+        elif right == "P":
+            right_disp = "Put"
+        else:
+            right_disp = right or ""
+        print(
+            f"  {symbol}, {p.get('strike')} {right_disp}, {exp}, {qty_disp}, {p.get('conId')}"
+        )
     return sym_pos
 
 
