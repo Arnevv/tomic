@@ -2,6 +2,7 @@ import os
 import sys
 import subprocess
 import difflib
+import argparse
 
 try:
     from deepdiff import DeepDiff
@@ -10,10 +11,16 @@ except ImportError:  # pragma: no cover - optional dependency
     HAS_DEEPDIFF = False
 
 
-def run_command(cmd: list[str]) -> None:
+def run_command(cmd: list[str], verbose: bool = False) -> None:
     """Run command via subprocess and raise on failure."""
     print("Running:", " ".join(cmd))
-    subprocess.run(cmd, check=True)
+    result = subprocess.run(cmd, capture_output=True, text=True)
+    if verbose or result.returncode != 0:
+        if result.stdout:
+            print(result.stdout)
+        if result.stderr:
+            print(result.stderr, file=sys.stderr)
+    result.check_returncode()
 
 
 def compare_files(output_path: str, benchmark_path: str) -> bool:
@@ -48,7 +55,11 @@ def compare_files(output_path: str, benchmark_path: str) -> bool:
         return False
 
 
-def main() -> None:
+def main(argv: list[str] | None = None) -> None:
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--verbose", action="store_true", help="show command output")
+    args = parser.parse_args(argv)
+
     os.environ["TOMIC_TODAY"] = "2025-05-29"
     os.makedirs("regression_output", exist_ok=True)
 
@@ -59,7 +70,7 @@ def main() -> None:
         "regression_input/account_info_benchmark.json",
         "--json-output",
         "regression_output/strategy_dashboard_output.json",
-    ])
+    ], verbose=args.verbose)
 
     run_command([
         "python",
@@ -67,7 +78,7 @@ def main() -> None:
         "regression_input/journal_benchmark.json",
         "--json-output",
         "regression_output/performance_analyzer_output.json",
-    ])
+    ], verbose=args.verbose)
 
     diff_found = False
     for name in os.listdir("regression_output"):
