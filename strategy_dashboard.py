@@ -3,13 +3,14 @@ import os
 import sys
 from collections import defaultdict
 from statistics import mean
-from datetime import datetime, timezone
+from datetime import datetime, timezone, date
 import re
+
+frozen_today = date(2025, 5, 29)
 
 
 def today():
-    env = os.getenv("TOMIC_TODAY")
-    return datetime.strptime(env, "%Y-%m-%d").date() if env else datetime.now(timezone.utc).date()
+    return frozen_today
 
 
 def _fmt_money(value):
@@ -883,6 +884,7 @@ def main(argv=None):
     if json_output:
         strategies.sort(key=lambda s: (s["symbol"], s.get("expiry")))
         data = {
+            "analysis_date": str(frozen_today),
             "account_info": account_info,
             "portfolio_greeks": portfolio,
             "strategies": strategies,
