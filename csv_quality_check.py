@@ -49,10 +49,11 @@ def analyze_csv(path: str) -> Dict[str, Any]:
                     if val:
                         expiries.add(val)
                     break
-            # count empty fields
-            for k in empty_counts.keys():
-                if k in row and is_empty(row[k]):
-                    empty_counts[k] += 1
+            # count empty fields case-insensitively
+            for key in row:
+                key_l = key.strip().lower()
+                if key_l in empty_counts and is_empty(row[key]):
+                    empty_counts[key_l] += 1
 
             # delta validation, only check non-empty values
             delta_val = None
