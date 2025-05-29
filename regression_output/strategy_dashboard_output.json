@@ -1,0 +1,19 @@
+{
+  "account_info": {
+    "NetLiquidation": 20000.0,
+    "FullInitMarginReq": 5000.0,
+    "FullMaintMarginReq": 4500.0,
+    "BuyingPower": 60000.0,
+    "ExcessLiquidity": 15000.0,
+    "GrossPositionValue": 3000.0,
+    "Cushion": 0.75
+  },
+  "portfolio_greeks": {
+    "Delta": 0.0,
+    "Gamma": 0.0,
+    "Vega": 0.0,
+    "Theta": 0.0
+  },
+  "strategies": [],
+  "global_alerts": []
+}
