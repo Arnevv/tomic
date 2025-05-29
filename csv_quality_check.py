@@ -15,11 +15,19 @@ def analyze_csv(path: str) -> Dict[str, Any]:
         reader = csv.DictReader(f)
         total = 0
         complete = 0
-        semi = 0
         expiries: Set[str] = set()
         bad_delta = 0
         bad_price_fields = 0
         duplicates = 0
+        empty_counts = {
+            'bid': 0,
+            'ask': 0,
+            'iv': 0,
+            'delta': 0,
+            'gamma': 0,
+            'vega': 0,
+            'theta': 0,
+        }
         seen: Set[tuple] = set()
         fieldnames = reader.fieldnames or []
         for row in reader:
@@ -36,30 +44,38 @@ def analyze_csv(path: str) -> Dict[str, Any]:
                     if val:
                         expiries.add(val)
                     break
-            # delta validation
+            # count empty fields
+            for k in empty_counts.keys():
+                if k in row and row[k].strip() == '':
+                    empty_counts[k] += 1
+
+            # delta validation, only check non-empty values
             delta_val = None
             for k in row.keys():
                 if k.lower() == 'delta':
                     val = row[k].strip()
-                    try:
-                        delta_val = float(val)
-                    except (ValueError, TypeError):
-                        delta_val = None
+                    if val != '':
+                        try:
+                            delta_val = float(val)
+                            if not (-1.0 <= delta_val <= 1.0):
+                                bad_delta += 1
+                        except (ValueError, TypeError):
+                            bad_delta += 1
                     break
-            if delta_val is None or not (-1.0 <= delta_val <= 1.0):
-                bad_delta += 1
-            # price field checks
+
+            # price field checks only on non-empty fields
             invalid = False
             for k in row.keys():
                 if k.lower() in {'strike', 'bid', 'ask'}:
                     val = row[k].strip()
-                    try:
-                        num = float(val)
-                        if num < 0:
-                            raise ValueError
-                    except (ValueError, TypeError):
-                        invalid = True
-                        break
+                    if val != '':
+                        try:
+                            num = float(val)
+                            if num < 0:
+                                raise ValueError
+                        except (ValueError, TypeError):
+                            invalid = True
+                            break
             if invalid:
                 bad_price_fields += 1
             # determine completeness
@@ -67,16 +83,14 @@ def analyze_csv(path: str) -> Dict[str, Any]:
             filled = [v != '' for v in values]
             if all(filled):
                 complete += 1
-            elif any(filled):
-                semi += 1
         return {
             'total': total,
             'complete': complete,
-            'semi': semi,
             'expiries': sorted(expiries),
             'bad_delta': bad_delta,
             'bad_price_fields': bad_price_fields,
             'duplicates': duplicates,
+            'empty_counts': empty_counts,
         }
 
 
@@ -104,10 +118,16 @@ def main(argv: List[str]) -> None:
     print(f"Expiries: {expiries_str}")
     print(f"Aantal regels: {stats['total']}")
     print(f"Aantal complete regels: {stats['complete']}")
-    print(f"Aantal semi-complete regels: {stats['semi']}")
     print(f"Delta buiten [-1,1]: {stats['bad_delta']}")
     print(f"Ongeldige Strike/Bid/Ask: {stats['bad_price_fields']}")
     print(f"Duplicaten: {stats['duplicates']}")
+    print(f"Lege Bid: {stats['empty_counts']['bid']}")
+    print(f"Lege Ask: {stats['empty_counts']['ask']}")
+    print(f"Lege IV: {stats['empty_counts']['iv']}")
+    print(f"Lege Delta: {stats['empty_counts']['delta']}")
+    print(f"Lege Gamma: {stats['empty_counts']['gamma']}")
+    print(f"Lege Vega: {stats['empty_counts']['vega']}")
+    print(f"Lege Theta: {stats['empty_counts']['theta']}")
     print(f"Kwaliteit: {quality:.1f}%")
 
 
