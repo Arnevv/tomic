@@ -7,6 +7,7 @@ from ibapi.ticktype import TickTypeEnum
 
 from datetime import datetime
 import json
+import logging
 import math
 import statistics
 from tomic.analysis.get_iv_rank import fetch_iv_metrics
@@ -15,6 +16,7 @@ import threading
 import time
 
 from tomic.config import get as cfg_get
+from tomic.logging import setup_logging
 
 
 def _fmt_money(value):
@@ -99,7 +101,7 @@ class IBApp(EWrapper, EClient):
         self.position_event = threading.Event()
 
     def nextValidId(self, orderId: int):
-        print("✅ Verbonden. OrderId:", orderId)
+        logging.info("✅ Verbonden. OrderId: %s", orderId)
         self.reqMarketDataType(2)
         self.account_event.clear()
         self.position_event.clear()
@@ -185,7 +187,7 @@ class IBApp(EWrapper, EClient):
             self.account_values[tag] = value
 
     def accountSummaryEnd(self, reqId: int):
-        print("🔹 Accountoverzicht opgehaald.")
+        logging.info("🔹 Accountoverzicht opgehaald.")
         self.account_event.set()
 
     def pnlSingle(self, reqId: int, pos: int, dailyPnL: float, unrealizedPnL: float, realizedPnL: float, value: float):
@@ -198,11 +200,11 @@ class IBApp(EWrapper, EClient):
             })
 
     def positionEnd(self):
-        print("🔹 Posities opgehaald.")
+        logging.info("🔹 Posities opgehaald.")
         self.position_event.set()
 
     def openOrderEnd(self):
-        print("🔹 Open orders opgehaald.")
+        logging.info("🔹 Open orders opgehaald.")
 
     def tickPrice(self, reqId: TickerId, tickType: int, price: float, attrib):
         if reqId in self.market_req_map:
@@ -296,7 +298,7 @@ class IBApp(EWrapper, EClient):
         )
 
     def error(self, reqId: TickerId, errorCode: int, errorString: str):
-        print(f"⚠️ Error {errorCode}: {errorString}")
+        logging.error("⚠️ Error %s: %s", errorCode, errorString)
 
 
 def run_loop(app):
@@ -305,6 +307,7 @@ def run_loop(app):
 
 def main() -> None:
     """CLI entry point executing the original script logic."""
+    setup_logging()
     app = IBApp()
     app.connect("127.0.0.1", 7497, clientId=1)
 
@@ -359,7 +362,7 @@ def main() -> None:
         time.sleep(5)
         waited += 5
     if app.count_incomplete() > 0:
-        print("⚠️ Some legs remain incomplete.")
+        logging.warning("⚠️ Some legs remain incomplete.")
 
     portfolio = {"Delta": 0.0, "Gamma": 0.0, "Vega": 0.0, "Theta": 0.0}
     for pos in app.positions_data:
@@ -384,16 +387,16 @@ def main() -> None:
 
     with open(cfg_get("POSITIONS_FILE", "positions.json"), "w", encoding="utf-8") as f:
         json.dump(app.positions_data, f, indent=2)
-    print(f"\n💾 Posities opgeslagen in {cfg_get('POSITIONS_FILE', 'positions.json')}")
+    logging.info("💾 Posities opgeslagen in %s", cfg_get('POSITIONS_FILE', 'positions.json'))
 
     base_currency_vals = {k: v for k, v in app.account_values.items() if isinstance(k, str)}
     with open(cfg_get("ACCOUNT_INFO_FILE", "account_info.json"), "w", encoding="utf-8") as f:
         json.dump(base_currency_vals, f, indent=2)
-    print(f"💾 Accountinfo opgeslagen in {cfg_get('ACCOUNT_INFO_FILE', 'account_info.json')}")
+    logging.info("💾 Accountinfo opgeslagen in %s", cfg_get('ACCOUNT_INFO_FILE', 'account_info.json'))
 
-    print("\n📐 Portfolio Greeks:")
+    logging.info("\n📐 Portfolio Greeks:")
     for k, v in portfolio.items():
-        print(f"{k}: {round(v, 4)}")
+        logging.info("%s: %.4f", k, round(v, 4))
 
     app.disconnect()
 

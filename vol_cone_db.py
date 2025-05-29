@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import Dict, List
 
 from tomic.config import get as cfg_get
+from tomic.logging import setup_logging
 
 from tomic.api.getonemarket import fetch_market_metrics
 
@@ -43,11 +44,11 @@ def snapshot_symbols(symbols: List[str], output_path: str | None = None) -> None
     if output_path is None:
         output_path = cfg_get("VOLATILITY_DATA_FILE", "volatility_data.json")
     for sym in symbols:
-        print(f"📈 Ophalen vol data voor {sym}")
+        logging.info("📈 Ophalen vol data voor %s", sym)
         try:
             metrics = fetch_market_metrics(sym)
         except Exception as exc:
-            print(f"⚠️ Mislukt voor {sym}: {exc}")
+            logging.error("⚠️ Mislukt voor %s: %s", sym, exc)
             continue
         record = {
             "date": datetime.now(timezone.utc).strftime("%Y-%m-%d"),
@@ -59,10 +60,11 @@ def snapshot_symbols(symbols: List[str], output_path: str | None = None) -> None
             "skew": metrics.get("skew"),
         }
         store_volatility_snapshot(record, output_path)
-        print("✅ Snapshot opgeslagen")
+        logging.info("✅ Snapshot opgeslagen")
 
 
 def main(argv=None):
+    setup_logging()
     if argv is None:
         argv = []
     if not argv:
