@@ -71,6 +71,28 @@ Of gebruik individuele modules:
 
 ---
 
+## 🔄 Automatische regressietest
+
+Het project bevat een eenvoudige regressietest om snel te controleren of de
+scripts nog dezelfde output opleveren. Maak in de hoofdmap de volgende mappen
+aan:
+
+* `regression_input/` – invoerbestanden voor de tests
+* `regression_output/` – map waar de resultaten van een testrun worden
+  opgeslagen
+* `benchmarks/` – referentie-output om mee te vergelijken
+
+Voer de test uit met:
+
+```bash
+python regression_runner.py
+```
+
+Voor deterministische resultaten kun je optioneel de omgevingsvariabele
+`TOMIC_TODAY` instellen.
+
+---
+
 ## 📈 Voorbeeld: spotprijs & Greeks snapshot
 
 ```
