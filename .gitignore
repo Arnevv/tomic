@@ -16,3 +16,6 @@ exports/
 
 # Backups
 Backups/
+
+# JSON-data
+volatility_data.json
