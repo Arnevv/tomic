@@ -14,6 +14,8 @@ from tomic.analysis.get_iv_rank import fetch_iv_metrics
 import threading
 import time
 
+from tomic.config import get as cfg_get
+
 
 def _fmt_money(value):
     """Return value formatted as dollar amount if possible."""
@@ -380,14 +382,14 @@ def main() -> None:
         pos["IV_Rank"] = app.iv_rank_data.get(sym)
         pos["IV_Percentile"] = app.iv_rank_data.get(f"{sym}_pct")
 
-    with open("positions.json", "w", encoding="utf-8") as f:
+    with open(cfg_get("POSITIONS_FILE", "positions.json"), "w", encoding="utf-8") as f:
         json.dump(app.positions_data, f, indent=2)
-    print("\n💾 Posities opgeslagen in positions.json")
+    print(f"\n💾 Posities opgeslagen in {cfg_get('POSITIONS_FILE', 'positions.json')}")
 
     base_currency_vals = {k: v for k, v in app.account_values.items() if isinstance(k, str)}
-    with open("account_info.json", "w", encoding="utf-8") as f:
+    with open(cfg_get("ACCOUNT_INFO_FILE", "account_info.json"), "w", encoding="utf-8") as f:
         json.dump(base_currency_vals, f, indent=2)
-    print("💾 Accountinfo opgeslagen in account_info.json")
+    print(f"💾 Accountinfo opgeslagen in {cfg_get('ACCOUNT_INFO_FILE', 'account_info.json')}")
 
     print("\n📐 Portfolio Greeks:")
     for k, v in portfolio.items():

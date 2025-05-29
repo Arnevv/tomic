@@ -6,6 +6,8 @@ from statistics import mean
 from datetime import datetime, timezone, date
 import re
 
+from tomic.config import get as cfg_get
+
 frozen_today = date(2025, 5, 29)
 
 
@@ -795,8 +797,8 @@ def main(argv=None):
         return 1
 
     positions_file = args[0]
-    account_file = args[1] if len(args) > 1 else "account_info.json"
-    journal_file = "journal.json"
+    account_file = args[1] if len(args) > 1 else cfg_get("ACCOUNT_INFO_FILE", "account_info.json")
+    journal_file = cfg_get("JOURNAL_FILE", "journal.json")
 
     positions = load_positions(positions_file)
     account_info = load_account_info(account_file)
