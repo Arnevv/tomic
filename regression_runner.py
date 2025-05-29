@@ -11,9 +11,16 @@ except ImportError:  # pragma: no cover - optional dependency
 
 
 def run_command(cmd: list[str]) -> None:
-    """Run command via subprocess and raise on failure."""
-    print("Running:", " ".join(cmd))
-    subprocess.run(cmd, check=True)
+    """Run command silently and raise on failure."""
+    result = subprocess.run(
+        cmd,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        text=True,
+    )
+    if result.returncode != 0:
+        print(result.stdout)
+        result.check_returncode()
 
 
 def compare_files(output_path: str, benchmark_path: str) -> bool:
@@ -43,7 +50,14 @@ def compare_files(output_path: str, benchmark_path: str) -> bool:
             )
         )
         if diff_lines:
-            print("\n".join(diff_lines))
+            diff_only = [
+                line
+                for line in diff_lines
+                if line.startswith(("+", "-"))
+                and not line.startswith(("+++", "---"))
+            ]
+            print(f"Differences for {os.path.basename(output_path)}:")
+            print("\n".join(diff_only))
             return True
         return False
 
