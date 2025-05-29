@@ -6,13 +6,13 @@ Een Python-project voor het beheren, analyseren en afsluiten van optieposities v
 
 ## ✅ Features
 
-* Ophalen van live portfolio en openstaande orders
-* Exporteren van option chains met Greeks naar CSV-bestanden
-* Snapshotten van marktdata: IV, HV, VIX, skew, ATR
-* Handmatig en scriptmatig beheren van trades in `journal.json`
-* Greeks-analyse per positie (Delta, Gamma, Theta, Vega)
-* Interactief Control Panel met toegang tot alle scripts
-* Dashboard dat legs groepeert tot strategieën met alerts
+* Ophalen van live portfolio en openstaande orders  
+* Exporteren van option chains met Greeks naar CSV-bestanden  
+* Snapshotten van marktdata: IV, HV, VIX, skew, ATR  
+* Handmatig en scriptmatig beheren van trades in `journal.json`  
+* Greeks-analyse per positie (Delta, Gamma, Theta, Vega)  
+* Interactief Control Panel met toegang tot alle scripts  
+* Dashboard dat legs groepeert tot strategieën met alerts  
 
 ---
 
@@ -52,44 +52,60 @@ python controlpanel.py
 
 Of gebruik individuele modules:
 
-* `getaccountinfo.py`: Live portfolio-overzicht ophalen
-  (slaat posities op in `positions.json`)
-* `getonemarket.py`: Optieketen en marktdata voor een symbool
-* `getallmarkets.py`: Exporteert data voor meerdere symbolen
-* `journal_updater.py`: Nieuwe trade aanmaken en loggen
-* `close_trade.py`: Trade afsluiten met evaluatie
-* `strategy_dashboard.py`: Groepeert legs per strategie en toont alerts
-* `portfolio_scenario.py`: Simuleert PnL/Greeks na een zelf gekozen spot- en IV-shift
-* `csv_quality_check.py`: Controleert CSV-exports op fouten (ook via het Control Panel)
+* `getaccountinfo.py`: Live portfolio-overzicht ophalen  
+* `getonemarket.py`: Optieketen en marktdata voor een symbool  
+* `getallmarkets.py`: Exporteert data voor meerdere symbolen  
+* `journal_updater.py`: Nieuwe trade aanmaken en loggen  
+* `close_trade.py`: Trade afsluiten met evaluatie  
+* `strategy_dashboard.py`: Groepeert legs per strategie en toont alerts  
+* `portfolio_scenario.py`: Simuleert PnL/Greeks na een zelf gekozen spot- en IV-shift  
+* `csv_quality_check.py`: Controleert CSV-exports op fouten (ook via het Control Panel)  
 
 Voor regressietests kun je de omgevingvariabele `TOMIC_TODAY=YYYY-MM-DD` zetten.
-Alle scripts gebruiken dan die datum als "vandaag" voor reproduceerbare resultaten.
 
 ---
 
 ## 📂 Bestanden en mappen
 
-* `exports/` – Dagelijkse CSV-export van optiegegevens en marktdata
-* `Backups/` – Back-ups van eerdere scriptversies
-* `journal.json` – Trade journal met open en gesloten posities
+* `exports/` – Dagelijkse CSV-export van optiegegevens en marktdata  
+* `Backups/` – Back-ups van eerdere scriptversies  
+* `journal.json` – Trade journal met open en gesloten posities  
+
+---
+
+## 🔄 Automatische regressietest
+
+Het project bevat een eenvoudige regressietest om snel te controleren of de scripts nog dezelfde output opleveren. Maak in de hoofdmap de volgende mappen aan:
+
+* `regression_input/` – invoerbestanden voor de tests  
+* `regression_output/` – map waar de resultaten van een testrun worden opgeslagen  
+* `benchmarks/` – referentie-output om mee te vergelijken  
+
+Voer de test uit met:
+
+```bash
+python regression_runner.py
+```
+
+Voor deterministische resultaten kun je optioneel de omgevingsvariabele `TOMIC_TODAY` instellen.
 
 ---
 
 ### `csv_quality_check.py`
 
-Validatie van geëxporteerde option-chain CSV's. Het script toont het aantal
-regels, compleetheid en extra controles:
+Validatie van geëxporteerde option-chain CSV's. Het script toont het aantal regels, compleetheid en extra controles:
 
-- Delta buiten het bereik [-1, 1]
-- Ongeldige Strike/Bid/Ask waarden
-- Aantal gedupliceerde regels
+- Delta buiten het bereik [-1, 1]  
+- Ongeldige Strike/Bid/Ask waarden  
+- Aantal gedupliceerde regels  
 
 Gebruik:
 
 ```bash
-python csv_quality_check.py <pad/naar/csv> [SYMBOL]
+python csv_quality_check.py [optioneel pad/naar/bestand.csv]
 ```
-Je kunt het pad als argument meegeven. Laat je het weg, dan vraagt het script om het bestand en optioneel het symbool. Het script is ook te starten via het Control Panel (Dataexporter-menu).
+
+Laat je het pad weg, dan vraagt het script om het bestand en optioneel het symbool. Het script is ook te starten via het Control Panel (Dataexporter-menu).
 
 Voorbeeldoutput:
 
