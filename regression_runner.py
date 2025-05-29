@@ -20,7 +20,7 @@ def compare_files(output_path: str, benchmark_path: str) -> bool:
     """Return True if files differ and print diff."""
     if HAS_DEEPDIFF:
         import json
-        with open(output_path) as f_out, open(benchmark_path) as f_bench:
+        with open(output_path, encoding="utf-8") as f_out, open(benchmark_path, encoding="utf-8") as f_bench:
             data_out = json.load(f_out)
             data_bench = json.load(f_bench)
         diff = DeepDiff(data_bench, data_out, ignore_order=True)
@@ -30,7 +30,7 @@ def compare_files(output_path: str, benchmark_path: str) -> bool:
             return True
         return False
     else:
-        with open(output_path) as f_out, open(benchmark_path) as f_bench:
+        with open(output_path, encoding="utf-8") as f_out, open(benchmark_path, encoding="utf-8") as f_bench:
             out_lines = f_out.read().splitlines()
             bench_lines = f_bench.read().splitlines()
         diff_lines = list(
