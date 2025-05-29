@@ -1,6 +1,8 @@
 import json
 from typing import Dict, List
 
+from tomic.config import get as cfg_get
+
 
 def check_entry_conditions(strategy: Dict, skew_threshold: float = 0.05,
                            iv_hv_min_spread: float = 0.03,
@@ -37,7 +39,7 @@ def check_entry_conditions(strategy: Dict, skew_threshold: float = 0.05,
 def main(argv=None):
     if argv is None:
         argv = []
-    positions_file = argv[0] if argv else "positions.json"
+    positions_file = argv[0] if argv else cfg_get("POSITIONS_FILE", "positions.json")
 
     from strategy_dashboard import group_strategies
 

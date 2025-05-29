@@ -3,6 +3,7 @@ from typing import List, Dict
 from datetime import datetime, timezone
 
 from strategy_dashboard import group_strategies
+from tomic.config import get as cfg_get
 
 
 def simulate_portfolio_response(strategies: List[Dict], spot_shift_pct: float = 0.02,
@@ -53,7 +54,7 @@ def load_positions(path: str) -> List[Dict]:
 def main(argv=None):
     if argv is None:
         argv = []
-    positions_file = argv[0] if argv else "positions.json"
+    positions_file = argv[0] if argv else cfg_get("POSITIONS_FILE", "positions.json")
 
     while True:
         try:

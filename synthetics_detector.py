@@ -1,6 +1,8 @@
 import json
 from typing import Dict, List
 
+from tomic.config import get as cfg_get
+
 
 def analyze_synthetics_and_edge(strategy: Dict) -> Dict:
     """Detect basic synthetic structures and potential edge."""
@@ -29,7 +31,7 @@ def analyze_synthetics_and_edge(strategy: Dict) -> Dict:
 def main(argv=None):
     if argv is None:
         argv = []
-    positions_file = argv[0] if argv else "positions.json"
+    positions_file = argv[0] if argv else cfg_get("POSITIONS_FILE", "positions.json")
 
     from strategy_dashboard import group_strategies
 

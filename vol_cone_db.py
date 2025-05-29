@@ -4,10 +4,16 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Dict, List
 
+from tomic.config import get as cfg_get
+
 from tomic.api.getonemarket import fetch_market_metrics
 
 
-def store_volatility_snapshot(symbol_data: Dict, output_path: str = "volatility_data.json") -> None:
+def store_volatility_snapshot(
+    symbol_data: Dict, output_path: str | None = None
+) -> None:
+    if output_path is None:
+        output_path = cfg_get("VOLATILITY_DATA_FILE", "volatility_data.json")
     """Append volatility snapshot to JSON file if complete."""
     required = ["date", "symbol", "spot", "iv30", "hv30", "iv_rank", "skew"]
     missing = [key for key in required if symbol_data.get(key) is None]
@@ -33,7 +39,9 @@ def store_volatility_snapshot(symbol_data: Dict, output_path: str = "volatility_
         json.dump(data, f, indent=2)
 
 
-def snapshot_symbols(symbols: List[str], output_path: str = "volatility_data.json") -> None:
+def snapshot_symbols(symbols: List[str], output_path: str | None = None) -> None:
+    if output_path is None:
+        output_path = cfg_get("VOLATILITY_DATA_FILE", "volatility_data.json")
     for sym in symbols:
         print(f"📈 Ophalen vol data voor {sym}")
         try:
