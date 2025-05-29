@@ -7,6 +7,11 @@ from datetime import datetime, timezone
 import re
 
 
+def today():
+    env = os.getenv("TOMIC_TODAY")
+    return datetime.strptime(env, "%Y-%m-%d").date() if env else datetime.now(timezone.utc).date()
+
+
 def _fmt_money(value):
     """Return value formatted as dollar amount if possible."""
     try:
@@ -510,7 +515,7 @@ def group_strategies(positions, journal=None):
         exp_date = parse_date(expiry)
         if exp_date:
             strat["days_to_expiry"] = (
-                exp_date - datetime.now(timezone.utc).date()
+                exp_date - today()
             ).days
         else:
             strat["days_to_expiry"] = None
@@ -522,7 +527,7 @@ def group_strategies(positions, journal=None):
             else:
                 d_in = parse_date(trade_data.get("DatumIn"))
                 if d_in:
-                    days_in_trade = (datetime.now(timezone.utc).date() - d_in).days
+                    days_in_trade = (today() - d_in).days
             strat.update(parse_plan_metrics(trade_data.get("Plan", "")))
             if trade_data.get("InitMargin") is not None:
                 try:

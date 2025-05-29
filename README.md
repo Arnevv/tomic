@@ -61,6 +61,9 @@ Of gebruik individuele modules:
 * `strategy_dashboard.py`: Groepeert legs per strategie en toont alerts
 * `portfolio_scenario.py`: Simuleert PnL/Greeks na een zelf gekozen spot- en IV-shift
 
+Voor regressietests kun je de omgevingvariabele `TOMIC_TODAY=YYYY-MM-DD` zetten.
+Alle scripts gebruiken dan die datum als "vandaag" voor reproduceerbare resultaten.
+
 ---
 
 ## 📂 Bestanden en mappen
