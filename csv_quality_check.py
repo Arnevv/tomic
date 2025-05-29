@@ -82,11 +82,13 @@ def analyze_csv(path: str) -> Dict[str, Any]:
 
 def main(argv: List[str]) -> None:
     if argv:
-        path = argv[0]
+        raw_path = argv[0]
+        path = raw_path.strip().strip("'\"")
         symbol = argv[1] if len(argv) > 1 else guess_symbol(path)
     else:
         print('Geen pad meegegeven. Vul handmatig in:')
-        path = input('Pad naar CSV-bestand: ').strip()
+        raw_path = input('Pad naar CSV-bestand: ').strip()
+        path = raw_path.strip("'\"")
         if not path:
             print('Geen pad opgegeven.')
             return
