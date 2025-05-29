@@ -81,11 +81,17 @@ def analyze_csv(path: str) -> Dict[str, Any]:
 
 
 def main(argv: List[str]) -> None:
-    if not argv:
-        print('Gebruik: python csv_quality_check.py <pad/naar/csv> [SYMBOL]')
-        return
-    path = argv[0]
-    symbol = argv[1] if len(argv) > 1 else guess_symbol(path)
+    if argv:
+        path = argv[0]
+        symbol = argv[1] if len(argv) > 1 else guess_symbol(path)
+    else:
+        print('Geen pad meegegeven. Vul handmatig in:')
+        path = input('Pad naar CSV-bestand: ').strip()
+        if not path:
+            print('Geen pad opgegeven.')
+            return
+        symbol_input = input('Symbool (enter voor auto-detect): ').strip()
+        symbol = symbol_input or guess_symbol(path)
     if not os.path.isfile(path):
         print(f'Bestand niet gevonden: {path}')
         return

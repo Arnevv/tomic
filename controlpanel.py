@@ -11,13 +11,23 @@ def run_dataexporter():
         print("\n📤 DATAEXPORTER")
         print("1. Exporteer een markt (getonemarket.py)")
         print("2. Exporteer alle markten (getallmarkets.py)")
-        print("3. Terug naar hoofdmenu")
+        print("3. CSV kwaliteit controleren")
+        print("4. Terug naar hoofdmenu")
         sub = input("Maak je keuze: ")
         if sub == "1":
             run_script("getonemarket.py")
         elif sub == "2":
             run_script("getallmarkets.py")
         elif sub == "3":
+            path = input("Pad naar CSV-bestand: ").strip()
+            if path:
+                try:
+                    run_script("csv_quality_check.py", path)
+                except subprocess.CalledProcessError:
+                    print("❌ Kwaliteitscheck mislukt")
+            else:
+                print("Geen pad opgegeven")
+        elif sub == "4":
             break
         else:
             print("❌ Ongeldige keuze")

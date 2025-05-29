@@ -60,6 +60,7 @@ Of gebruik individuele modules:
 * `close_trade.py`: Trade afsluiten met evaluatie
 * `strategy_dashboard.py`: Groepeert legs per strategie en toont alerts
 * `portfolio_scenario.py`: Simuleert PnL/Greeks na een zelf gekozen spot- en IV-shift
+* `csv_quality_check.py`: Controleert CSV-exports op fouten (ook via het Control Panel)
 
 ---
 
@@ -85,6 +86,7 @@ Gebruik:
 ```bash
 python csv_quality_check.py <pad/naar/csv> [SYMBOL]
 ```
+Je kunt het pad als argument meegeven. Laat je het weg, dan vraagt het script om het bestand en optioneel het symbool. Het script is ook te starten via het Control Panel (Dataexporter-menu).
 
 Voorbeeldoutput:
 
