@@ -3,7 +3,7 @@ import re
 from datetime import datetime, timezone
 from typing import Dict, List
 
-from get_iv_rank import _download_html
+from tomic.analysis.get_iv_rank import _download_html
 from vol_cone_db import store_volatility_snapshot
 
 

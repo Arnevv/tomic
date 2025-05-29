@@ -4,7 +4,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Dict, List
 
-from getonemarket import fetch_market_metrics
+from tomic.api.getonemarket import fetch_market_metrics
 
 
 def store_volatility_snapshot(symbol_data: Dict, output_path: str = "volatility_data.json") -> None:
