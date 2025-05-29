@@ -79,7 +79,7 @@
       "alerts": [
         "📉 Sterk bearish (≤ –0.30)",
         "⚠️ ROM < 5% – lage kapitaalefficiëntie",
-        "✅ Goede theta-efficiëntie (1.5–2.5%)",
+        "✅ Goede theta-efficiëntie (1.5–2.5%)"
       ]
     },
     {
@@ -443,7 +443,7 @@
       "alerts": [
         "📉 Licht bearish",
         "⚠️ ROM < 5% – lage kapitaalefficiëntie",
-        "🟢 Ideale theta-efficiëntie (>=2.5%)",
+        "🟢 Ideale theta-efficiëntie (>=2.5%)"
       ]
     }
   ],
