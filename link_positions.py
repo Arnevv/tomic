@@ -56,7 +56,7 @@ def list_positions(symbol, positions):
     print(f"\n📈 Open posities voor {symbol}:")
     for p in sym_pos:
         exp = p.get("lastTradeDate") or p.get("expiry") or p.get("expiration")
-        print(f"  conId {p.get('conId')} | {p.get('right')} {p.get('strike')} | exp {exp}")
+        print(f"  {symbol}, {p.get('strike')}, {exp}, {p.get('conId')}")
     return sym_pos
 
 
@@ -73,11 +73,10 @@ def main():
             break
 
         while True:
+            list_positions(trade.get("Symbool"), positions)
             idx = choose_leg(trade)
             if idx is None:
                 break
-
-            list_positions(trade.get("Symbool"), positions)
             conid_input = input("Voer conId in (ENTER om te annuleren): ").strip()
             if not conid_input:
                 continue
