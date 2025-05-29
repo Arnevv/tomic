@@ -1,7 +1,9 @@
 import json
+import logging
 from pathlib import Path
 
 from tomic.config import get as cfg_get
+from tomic.logging import setup_logging
 
 JOURNAL_FILE = Path(cfg_get("JOURNAL_FILE", "journal.json"))
 POSITIONS_FILE = Path(cfg_get("POSITIONS_FILE", "positions.json"))
@@ -9,7 +11,7 @@ POSITIONS_FILE = Path(cfg_get("POSITIONS_FILE", "positions.json"))
 
 def load_json(path):
     if not path.exists():
-        print(f"⚠️ {path} niet gevonden.")
+        logging.error("⚠️ %s niet gevonden.", path)
         return []
     with open(path, "r", encoding="utf-8") as f:
         return json.load(f)
@@ -18,7 +20,7 @@ def load_json(path):
 def save_journal(journal):
     with open(JOURNAL_FILE, "w", encoding="utf-8") as f:
         json.dump(journal, f, indent=2)
-    print("✅ Wijzigingen opgeslagen.\n")
+    logging.info("✅ Wijzigingen opgeslagen.")
 
 
 def list_open_trades(journal):
@@ -45,7 +47,7 @@ def choose_leg(trade):
     if not keuze:
         return None
     if not keuze.isdigit() or int(keuze) not in range(1, len(legs) + 1):
-        print("❌ Ongeldige keuze.")
+        logging.error("❌ Ongeldige keuze.")
         return None
     return int(keuze) - 1
 
@@ -53,7 +55,7 @@ def choose_leg(trade):
 def list_positions(symbol, positions):
     sym_pos = [p for p in positions if p.get("symbol") == symbol]
     if not sym_pos:
-        print("⚠️ Geen open posities gevonden voor dit symbool.")
+        logging.error("⚠️ Geen open posities gevonden voor dit symbool.")
         return []
     print(f"\n📈 Open posities voor {symbol}:")
     for p in sym_pos:
@@ -74,6 +76,7 @@ def list_positions(symbol, positions):
 
 
 def main():
+    setup_logging()
     journal = load_json(JOURNAL_FILE)
     positions = load_json(POSITIONS_FILE)
     if not journal:
@@ -95,10 +98,10 @@ def main():
                 continue
             try:
                 trade["Legs"][idx]["conId"] = int(conid_input)
-                print("✅ conId toegevoegd.")
+                logging.info("✅ conId toegevoegd.")
                 save_journal(journal)
             except ValueError:
-                print("❌ Ongeldig conId.")
+                logging.error("❌ Ongeldig conId.")
 
 
 if __name__ == "__main__":

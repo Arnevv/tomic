@@ -1,9 +1,11 @@
 import json
+import logging
 import os
 from datetime import datetime, timezone
 from typing import List, Dict
 
 from tomic.config import get as cfg_get
+from tomic.logging import setup_logging
 
 
 def today():
@@ -42,6 +44,7 @@ def apply_event_alerts(strategies: List[Dict], event_json_path: str = "events.js
 
 
 def main(argv=None):
+    setup_logging()
     if argv is None:
         argv = []
     strategies_file = argv[0] if argv else cfg_get("POSITIONS_FILE", "positions.json")
@@ -55,9 +58,9 @@ def main(argv=None):
     for strat in strategies:
         alerts = strat.get("alerts", [])
         if alerts:
-            print(f"{strat['symbol']} alerts:")
+            logging.info("%s alerts:", strat['symbol'])
             for alert in alerts:
-                print(f" - {alert}")
+                logging.info(" - %s", alert)
 
 
 if __name__ == "__main__":

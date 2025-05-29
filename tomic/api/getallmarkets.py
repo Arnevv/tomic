@@ -10,9 +10,11 @@ import os
 import math
 import statistics
 from datetime import datetime, timezone
+import logging
 from tomic.analysis.get_iv_rank import fetch_iv_metrics
 from vol_cone_db import store_volatility_snapshot
 import pandas as pd
+from tomic.logging import setup_logging
 
 
 class CombinedApp(EWrapper, EClient):
@@ -120,7 +122,7 @@ class CombinedApp(EWrapper, EClient):
         if errorCode == 200 and reqId in self.market_data:
             self.invalid_contracts.add(reqId)
         elif errorCode not in (2104, 2106, 2158, 2176):
-            print(f"⚠️ Error {reqId} ({errorCode}): {errorString}")
+            logging.error("⚠️ Error %s (%s): %s", reqId, errorCode, errorString)
 
     def tickPrice(self, reqId: TickerId, tickType: int, price: float, attrib):
         if reqId == 1001 and tickType == TickTypeEnum.LAST:
@@ -248,7 +250,7 @@ def create_option_contract(symbol, expiry, strike, right, trading_class):
 def run(symbol):
     symbol = symbol.upper()
     if not symbol:
-        print("❌ Geen geldig symbool ingevoerd.")
+        logging.error("❌ Geen geldig symbool ingevoerd.")
         return
 
     app = CombinedApp(symbol)
@@ -257,30 +259,30 @@ def run(symbol):
     thread.start()
 
     if not app.spot_price_event.wait(timeout=10):
-        print("❌ Spotprijs ophalen mislukt.")
+        logging.error("❌ Spotprijs ophalen mislukt.")
         app.disconnect()
         return
 
     if not app.contract_details_event.wait(timeout=10):
-        print("❌ Geen contractdetails ontvangen.")
+        logging.error("❌ Geen contractdetails ontvangen.")
         app.disconnect()
         return
 
     if not app.conId:
-        print("❌ Geen conId ontvangen.")
+        logging.error("❌ Geen conId ontvangen.")
         app.disconnect()
         return
 
     app.reqSecDefOptParams(1201, symbol, "", "STK", app.conId)
     if not app.option_params_event.wait(timeout=10):
-        print("❌ Geen expiries ontvangen.")
+        logging.error("❌ Geen expiries ontvangen.")
         app.disconnect()
         return
 
     app.historical_event.clear()
     app.get_historical_data()
     if not app.historical_event.wait(timeout=15):
-        print("❌ Historische data ophalen mislukt.")
+        logging.error("❌ Historische data ophalen mislukt.")
         app.disconnect()
         return
 
@@ -293,17 +295,17 @@ def run(symbol):
         implied_volatility = iv_data.get("implied_volatility")
         iv_percentile = iv_data.get("iv_percentile")
     except Exception as exc:
-        print(f"⚠️ IV metrics ophalen mislukt: {exc}")
+        logging.error("⚠️ IV metrics ophalen mislukt: %s", exc)
         iv_rank = None
         implied_volatility = None
         iv_percentile = None
 
     if not app.vix_event.wait(timeout=10):
-        print("❌ VIX ophalen mislukt.")
+        logging.error("❌ VIX ophalen mislukt.")
         app.disconnect()
         return
 
-    print("⏳ Wachten op marketdata (10 seconden)...")
+    logging.info("⏳ Wachten op marketdata (10 seconden)...")
     time.sleep(10)
 
     total_options = len([k for k in app.market_data if k not in app.invalid_contracts])
@@ -312,19 +314,24 @@ def run(symbol):
     max_wait = 60
     interval = 5
     while incomplete > 0 and waited < max_wait:
-        print(
-            f"⏳ {incomplete} van {total_options} opties niet compleet na {waited} seconden. Wachten..."
+        logging.info(
+            "⏳ %s van %s opties niet compleet na %s seconden. Wachten...",
+            incomplete,
+            total_options,
+            waited,
         )
         time.sleep(interval)
         waited += interval
         incomplete = app.count_incomplete()
 
     if incomplete > 0:
-        print(
-            f"⚠️ {incomplete} opties blijven incompleet na {waited} seconden. Berekeningen gaan verder met beschikbare data."
+        logging.warning(
+            "⚠️ %s opties blijven incompleet na %s seconden. Berekeningen gaan verder met beschikbare data.",
+            incomplete,
+            waited,
         )
     else:
-        print(f"✅ Alle opties volledig na {waited} seconden.")
+        logging.info("✅ Alle opties volledig na %s seconden.", waited)
 
     today_str = datetime.now().strftime("%Y%m%d")
     export_dir = os.path.join("exports", today_str)
@@ -363,7 +370,7 @@ def run(symbol):
                 ]
             )
 
-    print(f"✅ Optieketen opgeslagen in: {chain_file}")
+    logging.info("✅ Optieketen opgeslagen in: %s", chain_file)
 
     valid_options = [
         d
@@ -372,7 +379,7 @@ def run(symbol):
     ]
 
     expiry = app.expiries[0]
-    print(f"📆 Skew berekend op expiry: {expiry}")
+    logging.info("📆 Skew berekend op expiry: %s", expiry)
 
     calls = [d for d in valid_options if d["right"] == "C" and d["expiry"] == expiry]
     puts = [d for d in valid_options if d["right"] == "P" and d["expiry"] == expiry]
@@ -403,20 +410,23 @@ def run(symbol):
         iv, strike = interpolate_iv_at_delta(exp_calls, 0.50)
         atm_call_ivs.append(iv)
         if iv is not None:
-            print(f"📈 ATM IV {exp}: {iv:.4f} (strike ~ {strike})")
+            logging.info("📈 ATM IV %s: %.4f (strike ~ %s)", exp, iv, strike)
         else:
-            print(f"⚠️ Geen ATM IV beschikbaar voor {exp}")
+            logging.warning("⚠️ Geen ATM IV beschikbaar voor %s", exp)
 
     call_iv, _ = interpolate_iv_at_delta(calls, 0.25)
     put_iv, _ = interpolate_iv_at_delta(puts, -0.25)
 
     if call_iv is not None and put_iv is not None:
         skew = round((call_iv - put_iv) * 100, 2)
-        print(
-            f"📐 Skew (25d CALL - 25d PUT): {call_iv:.4f} - {put_iv:.4f} = {skew}"
+        logging.info(
+            "📐 Skew (25d CALL - 25d PUT): %.4f - %.4f = %.2f",
+            call_iv,
+            put_iv,
+            skew,
         )
     else:
-        print("⚠️ Onvoldoende data voor skew-berekening.")
+        logging.warning("⚠️ Onvoldoende data voor skew-berekening.")
         skew = None
 
     m1 = atm_call_ivs[0] if len(atm_call_ivs) > 0 else None
@@ -430,8 +440,8 @@ def run(symbol):
         None if m1 is None or m3 is None else round((m3 - m1) * 100, 2)
     )
 
-    print(f"📊 Term m1->m2: {term_m1_m2 if term_m1_m2 is not None else 'n.v.t.'}")
-    print(f"📊 Term m1->m3: {term_m1_m3 if term_m1_m3 is not None else 'n.v.t.'}")
+    logging.info("📊 Term m1->m2: %s", term_m1_m2 if term_m1_m2 is not None else "n.v.t.")
+    logging.info("📊 Term m1->m3: %s", term_m1_m3 if term_m1_m3 is not None else "n.v.t.")
 
     metrics_file = os.path.join(export_dir, f"other_data_{symbol}_{timestamp}.csv")
     headers_metrics = [
@@ -466,7 +476,7 @@ def run(symbol):
         writer.writerow(headers_metrics)
         writer.writerow(values_metrics)
 
-    print(f"✅ CSV opgeslagen als: {metrics_file}")
+    logging.info("✅ CSV opgeslagen als: %s", metrics_file)
 
     record = {
         "date": datetime.now(timezone.utc).strftime("%Y-%m-%d"),
@@ -490,10 +500,11 @@ def export_combined_csv(data_per_market, output_dir):
     combined_df = pd.concat(data_per_market, ignore_index=True)
     output_path = os.path.join(output_dir, "Overzicht_Marktkenmerken.csv")
     combined_df.to_csv(output_path, index=False)
-    print(f"[INFO] {len(data_per_market)} markten verwerkt. CSV geëxporteerd.")
+    logging.info("%d markten verwerkt. CSV geëxporteerd.", len(data_per_market))
 
 
 if __name__ == "__main__":
+    setup_logging()
     symbols = [
         "AAPL",
         "ASML",
@@ -520,7 +531,7 @@ if __name__ == "__main__":
     export_dir = os.path.join("exports", today_str)
     data_frames = []
     for sym in symbols:
-        print(f"\n🔄 Ophalen voor {sym}...")
+        logging.info("🔄 Ophalen voor %s...", sym)
         df = run(sym)
         if df is not None:
             data_frames.append(df)
