@@ -455,25 +455,43 @@ def collapse_legs(legs):
 
 
 def group_strategies(positions, journal=None):
-    grouped = defaultdict(list)
-    for pos in positions:
-        symbol = pos.get("symbol")
-        expiry = pos.get("lastTradeDate") or pos.get("expiry") or pos.get("expiration")
-        if not symbol or not expiry:
-            continue
-        grouped[(symbol, expiry)].append(pos)
-    strategies = []
-    journal_lookup = {}
+    """Group positions into strategies, mapping to journal trades when possible."""
+    trade_by_id = {}
+    conid_to_trade = {}
+    symbol_expiry_lookup = {}
     if journal:
         for trade in journal:
-            key = (trade.get("Symbool"), trade.get("Expiry"))
-            journal_lookup[key] = trade
-    for (symbol, expiry), legs in grouped.items():
+            tid = trade.get("TradeID") or id(trade)
+            trade_by_id[tid] = trade
+            symbol_expiry_lookup[(trade.get("Symbool"), trade.get("Expiry"))] = trade
+            for leg in trade.get("Legs", []):
+                cid = leg.get("conId")
+                if cid is not None:
+                    conid_to_trade[cid] = tid
+
+    trade_groups = defaultdict(list)
+    fallback_groups = defaultdict(list)
+
+    for pos in positions:
+        cid = pos.get("conId")
+        tid = conid_to_trade.get(cid)
+        if tid is not None:
+            trade_groups[tid].append(pos)
+            continue
+
+        symbol = pos.get("symbol")
+        expiry = pos.get("lastTradeDate") or pos.get("expiry") or pos.get("expiration")
+        if symbol and expiry:
+            fallback_groups[(symbol, expiry)].append(pos)
+
+    strategies = []
+
+    def build_strategy(symbol, expiry, legs, trade_data=None):
         legs = collapse_legs(legs)
         strat = {
             "symbol": symbol,
             "expiry": expiry,
-            "type": determine_strategy_type(legs),
+            "type": trade_data.get("Type") if trade_data else determine_strategy_type(legs),
             "legs": legs,
         }
         # haal eventueel spotprijs uit een van de legs
@@ -498,9 +516,7 @@ def group_strategies(positions, journal=None):
             strat["days_to_expiry"] = None
 
         days_in_trade = None
-        trade_data = journal_lookup.get((symbol, expiry))
         if trade_data:
-            strat["type"] = trade_data.get("Type") or determine_strategy_type(legs)
             if trade_data.get("DaysInTrade") is not None:
                 days_in_trade = trade_data.get("DaysInTrade")
             else:
@@ -548,9 +564,21 @@ def group_strategies(positions, journal=None):
 
         strat["alerts"] = generate_alerts(strat)
 
-        strategies.append(strat)
-    return strategies
+        return strat
 
+    for tid, legs in trade_groups.items():
+        trade = trade_by_id.get(tid)
+        symbol = trade.get("Symbool") if trade else legs[0].get("symbol")
+        expiry = trade.get("Expiry") if trade else (
+            legs[0].get("lastTradeDate") or legs[0].get("expiry") or legs[0].get("expiration")
+        )
+        strategies.append(build_strategy(symbol, expiry, legs, trade))
+
+    for (symbol, expiry), legs in fallback_groups.items():
+        trade = symbol_expiry_lookup.get((symbol, expiry))
+        strategies.append(build_strategy(symbol, expiry, legs, trade))
+
+    return strategies
 
 def compute_term_structure(strategies):
     """Annotate strategies with simple term structure slope."""
