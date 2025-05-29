@@ -260,5 +260,58 @@
       "Gamma": 0.25,
       "Vega": 0.03
     }
+  },
+  {
+    "TradeID": "5",
+    "DatumIn": "2025-05-29",
+    "DatumUit": null,
+    "Symbool": "QQQ",
+    "Type": "Calender Spread",
+    "Expiry": "2025-06-20",
+    "Richting": "Sideways",
+    "Status": "Open",
+    "Premium": 11.58,
+    "EntryPrice": 11.58,
+    "ExitPrice": null,
+    "ReturnOnMargin": null,
+    "InitMargin": 449.73,
+    "StopPct": 1158,
+    "IV_Entry": 20.44,
+    "HV_Entry": 24.87,
+    "IV_Rank": 19.96,
+    "IV_Percentile": 58.0,
+    "VIX": 19.23,
+    "ATR_14": 10.28,
+    "Skew": -0.05,
+    "Spot": 521.12,
+    "DaysInTrade": null,
+    "Plan": "| Veld               | Inhoud                               |\n| ------------------ | ------------------------------------ |\n| **Spotprijs**      | \\$520.63                             |\n| **Strategie**      | ATM Calendar Spread                  |\n| **Strikes**        | 520C (short & long)                  |\n| **Short expiry**   | 20 juni 2025                         |\n| **Long expiry**    | 15 augustus 2025                     |\n| **Netto debet**    | \\$11.58                              |\n| **Max verlies**    | \\$1,158                              |\n| **Max winst zone** | Spot tussen 515\u2013525 bij short expiry |\n| **Vega (net)**     | +0.45                                |\n| **Theta (net)**    | +0.11                                |\n| **Delta (net)**    | \u20130.013                               |\nSpeel op consolidatie rond $520 in een rustige markt. IV Rank is laag (19.6), HV > IV, en term structure is stijgend.\nCalendar biedt edge door goedkope long IV (aug) en het afschrijven van short premium (juni). Spot ligt exact op strike.\n\nIV-structuur: stijgend\n\nIV vs HV: gunstig (IV onder HV)\n\nGeen earnings of eventrisk\n\nVega-positief \u2192 profijt bij IV-opbouw",
+    "Reden": "| Element              | Reden                                                 |\n| -------------------- | ----------------------------------------------------- |\n| **Timing**           | Markt rustig, post-earnings, geen macrodruk           |\n| **IV context**       | IV Rank 19.6 + term structure steil                   |\n| **Structuur**        | ATM-calendar \u2192 exploitatie van tijdsverloop + vega    |\n| **Portfoliopasvorm** | Jij was vega-negatief, dit balanceert                 |\n| **Geen overlap**     | Nieuw symbool, geen duplicatie met bestaande posities |\n",
+    "Exitstrategie": "| Voorwaarde                         | Actie                                    |\n| ---------------------------------- | ---------------------------------------- |\n| \ud83d\udcc8 Spot > 530 of < 510             | Sluiten \u2013 buiten 'sweet spot'            |\n| \ud83d\udcc9 Spreadwaarde stijgt naar > \\$15 | Take profit (\u2248 +30%)                     |\n| \ud83d\udd53 5\u20137 dagen voor 20 juni          | Sluiten of rollen (theta/kans smelt weg) |\n| \ud83d\udd3b IV-crash of vega < 0.2          | Herzien, kans op compressie              |\n",
+    "Evaluatie": null,
+    "Resultaat": null,
+    "Opmerkingen": "",
+    "Legs": [
+      {
+        "strike": 520.0,
+        "type": "CALL",
+        "action": "SELL",
+        "qty": 1,
+        "conId": 781397281
+      },
+      {
+        "strike": 520.0,
+        "type": "CALL",
+        "action": "BUY",
+        "qty": 1,
+        "conId": 757360689
+      }
+    ],
+    "Greeks_Entry": {
+      "Delta": -0.013,
+      "Theta": 0.112,
+      "Gamma": -0.007,
+      "Vega": 0.454
+    }
   }
 ]
