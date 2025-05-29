@@ -500,6 +500,7 @@ def group_strategies(positions, journal=None):
         days_in_trade = None
         trade_data = journal_lookup.get((symbol, expiry))
         if trade_data:
+            strat["type"] = trade_data.get("Type") or determine_strategy_type(legs)
             if trade_data.get("DaysInTrade") is not None:
                 days_in_trade = trade_data.get("DaysInTrade")
             else:
