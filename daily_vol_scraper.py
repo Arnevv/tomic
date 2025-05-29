@@ -7,6 +7,7 @@ from tomic.config import get as cfg_get
 
 from tomic.analysis.get_iv_rank import _download_html
 from vol_cone_db import store_volatility_snapshot
+from tomic.logging import setup_logging
 
 
 IV_PATTERNS = {
@@ -85,6 +86,7 @@ def snapshot_symbols(symbols: List[str]) -> None:
 
 
 def main(argv: List[str] | None = None) -> None:
+    setup_logging()
     if argv is None:
         argv = []
     if argv:
@@ -97,5 +99,4 @@ def main(argv: List[str] | None = None) -> None:
 if __name__ == "__main__":
     import sys
 
-    logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
     main(sys.argv[1:])
