@@ -62,7 +62,7 @@ Of gebruik individuele modules:
 * `csv_quality_check.py`: Controleert CSV-exports op fouten (ook via het Control Panel)
 * `regression_runner.py`: Vergelijkt scriptoutput met benchmarks (ook via het Control Panel)
 
-Voor regressietests kun je de omgevingvariabele `TOMIC_TODAY=YYYY-MM-DD` zetten.
+Voor regressietests zet `regression_runner.py` standaard `TOMIC_TODAY=2025-05-29`.
 
 ---
 
@@ -90,7 +90,7 @@ python regression_runner.py
 
 Of start hem via het Control Panel (optie 6).
 
-Voor deterministische resultaten kun je optioneel de omgevingsvariabele `TOMIC_TODAY` instellen.
+Voor deterministische resultaten stelt het script automatisch `TOMIC_TODAY=2025-05-29` in.
 
 ---
 
