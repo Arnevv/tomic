@@ -79,14 +79,17 @@ def run_risk_tools():
 def main():
     while True:
         print("\n=== TOMIC CONTROL PANEL ===")
-        print("1. Portfolio-overzicht")
-        print("2. Trade Management")
-        print("3. Dataexporter (option chain / marktdata)")
-        print("4. Risk Tools")
-        print("5. Stoppen")
+        print("1. Trading Plan")
+        print("2. Portfolio-overzicht")
+        print("3. Trade Management")
+        print("4. Dataexporter (option chain / marktdata)")
+        print("5. Risk Tools")
+        print("6. Stoppen")
         keuze = input("Maak je keuze: ")
 
         if keuze == "1":
+            run_script("trading_plan.py")
+        elif keuze == "2":
             # Haal bij elke start de meest recente posities en accountinfo op
             print("ℹ️ Haal portfolio op...")
             try:
@@ -99,13 +102,13 @@ def main():
                 run_script("performance_analyzer.py")
             except subprocess.CalledProcessError:
                 print("❌ Dashboard kon niet worden gestart")
-        elif keuze == "2":
-            run_trade_management()
         elif keuze == "3":
-            run_dataexporter()
+            run_trade_management()
         elif keuze == "4":
-            run_risk_tools()
+            run_dataexporter()
         elif keuze == "5":
+            run_risk_tools()
+        elif keuze == "6":
             print("Tot ziens.")
             break
         else:
