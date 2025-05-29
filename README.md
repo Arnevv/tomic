@@ -88,6 +88,10 @@ Voer de test uit met:
 python regression_runner.py
 ```
 
+Na afloop verschijnt een duidelijke melding **Regression PASSED** of
+**Regression FAILED** zodat je direct weet of de output overeenkomt. Gebruik
+desgewenst de optie `--verbose` voor uitgebreidere diff-informatie.
+
 Of start hem via het Control Panel (optie 6).
 
 Voor deterministische resultaten stelt het script automatisch `TOMIC_TODAY=2025-05-29` in.
