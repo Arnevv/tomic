@@ -17,6 +17,8 @@ def run_command(cmd: list[str]) -> None:
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,
         text=True,
+        encoding="utf-8",
+        errors="replace",
     )
     if result.returncode != 0:
         print(result.stdout)
