@@ -1,12 +1,15 @@
 import json
+import logging
 from pathlib import Path
 from datetime import datetime
+
+from tomic.logging import setup_logging
 
 journal_file = Path("journal.json")
 
 def laad_journal():
     if not journal_file.exists():
-        print("⚠️ Geen journal.json gevonden.")
+        logging.error("⚠️ Geen journal.json gevonden.")
         return []
     with open(journal_file, "r", encoding="utf-8") as f:
         return json.load(f)
@@ -14,10 +17,10 @@ def laad_journal():
 def bewaar_journal(journal):
     with open(journal_file, "w", encoding="utf-8") as f:
         json.dump(journal, f, indent=2)
-    print("✅ Wijzigingen opgeslagen.\n")
+    logging.info("✅ Wijzigingen opgeslagen.")
 
 def sluit_trade_af(trade):
-    print(f"\n🔚 Trade afsluiten: {trade['TradeID']} - {trade['Symbool']} - {trade['Type']}")
+    logging.info("\n🔚 Trade afsluiten: %s - %s - %s", trade['TradeID'], trade['Symbool'], trade['Type'])
 
     # DatumUit en DaysInTrade
     datum_uit = input("📆 DatumUit (YYYY-MM-DD): ").strip()
@@ -26,9 +29,9 @@ def sluit_trade_af(trade):
         d_out = datetime.strptime(datum_uit, "%Y-%m-%d")
         trade["DatumUit"] = datum_uit
         trade["DaysInTrade"] = (d_out - d_in).days
-        print(f"📅 DaysInTrade berekend: {trade['DaysInTrade']} dagen")
+        logging.info("📅 DaysInTrade berekend: %s dagen", trade['DaysInTrade'])
     except Exception:
-        print("⚠️ Ongeldige datum. Sla DaysInTrade over.")
+        logging.error("⚠️ Ongeldige datum. Sla DaysInTrade over.")
         trade["DatumUit"] = datum_uit
 
     # ExitPrice met EntryPrice ter referentie
@@ -37,19 +40,19 @@ def sluit_trade_af(trade):
         exit_price_input = input(f"💰 Exitprijs (de entry prijs was: {entry_price}): ").strip()
         trade["ExitPrice"] = float(exit_price_input)
     except ValueError:
-        print("❌ Ongeldige prijs.")
+        logging.error("❌ Ongeldige prijs.")
 
     # Resultaat
     try:
         trade["Resultaat"] = float(input("📉 Resultaat ($): ").strip())
     except ValueError:
-        print("❌ Ongeldig bedrag.")
+        logging.error("❌ Ongeldig bedrag.")
 
     # Return on Margin
     try:
         trade["ReturnOnMargin"] = float(input("📊 Return on Margin (%): ").strip())
     except ValueError:
-        print("❌ Ongeldige waarde.")
+        logging.error("❌ Ongeldige waarde.")
 
     # Evaluatie
     print("\n🧠 Evaluatie:")
@@ -67,9 +70,10 @@ def sluit_trade_af(trade):
     trade["Evaluatie"] = "\n".join(lijnen)
 
     trade["Status"] = "Gesloten"
-    print("✅ Trade gemarkeerd als gesloten.")
+    logging.info("✅ Trade gemarkeerd als gesloten.")
 
 def main():
+    setup_logging()
     journal = laad_journal()
     if not journal:
         return
@@ -82,7 +86,7 @@ def main():
     keuze = input("\nVoer TradeID in om af te sluiten: ").strip()
     trade = next((t for t in journal if t["TradeID"] == keuze), None)
     if not trade:
-        print("❌ TradeID niet gevonden.")
+        logging.error("❌ TradeID niet gevonden.")
         return
 
     sluit_trade_af(trade)
