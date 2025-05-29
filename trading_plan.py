@@ -37,9 +37,6 @@ Mijn tradingaanpak is gebaseerd op het TOMIC-principe: handelen als een verzeker
 - ATR, HV, skew en term structure worden meegewogen
 - Geen dubbele posities per symbool of strategie
 
-*Uitsluitingen*
-- Symbolen die niet verhandeld worden: GLD, SPY, CRM
-
 5. **Volatiliteit & Mean Reversion Inzichten**
 
 Mean-reversion kansen bij stijging VIX t.o.v. vorige dag:
@@ -94,7 +91,7 @@ NB: Deze cijfers gelden voor implied volatility (zoals VIX), niet voor aandelenp
 - Periodieke deelname aan TOMIC- of volatility-gebaseerde trainingsmodules
 - Doel: beheersen van portfolio-Greeks en strategisch inzetten van skew en term structure voor edge
 
-Laatste update: [datum hier invullen]
+Laatste update: 29 mei 2025
 """
 
 

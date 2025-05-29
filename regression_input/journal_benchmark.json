@@ -260,5 +260,18 @@
       "Gamma": 0.25,
       "Vega": 0.03
     }
-  }
-]
+  },
+  {
+  "TradeID": "99",
+  "DatumIn": "2025-04-01",
+  "DatumUit": "2025-04-15",
+  "Symbool": "QQQ",
+  "Type": "Short Straddle",
+  "Status": "Closed",
+  "Premium": 4.2,
+  "EntryPrice": 4.2,
+  "ExitPrice": 1.1,
+  "ReturnOnMargin": 20.5,
+  "Resultaat": 310.0
+}
+  ]
