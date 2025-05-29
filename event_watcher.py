@@ -1,6 +1,12 @@
 import json
-from datetime import datetime
+import os
+from datetime import datetime, timezone
 from typing import List, Dict
+
+
+def today():
+    env = os.getenv("TOMIC_TODAY")
+    return datetime.strptime(env, "%Y-%m-%d").date() if env else datetime.now(timezone.utc).date()
 
 
 def apply_event_alerts(strategies: List[Dict], event_json_path: str = "events.json") -> None:
@@ -11,8 +17,7 @@ def apply_event_alerts(strategies: List[Dict], event_json_path: str = "events.js
     except FileNotFoundError:
         return
 
-    from datetime import datetime, timezone
-    today = datetime.now(timezone.utc).date()
+    today_date = today()
 
     for evt in events:
         sym = evt.get("symbol")
@@ -24,7 +29,7 @@ def apply_event_alerts(strategies: List[Dict], event_json_path: str = "events.js
             evt_date = datetime.fromisoformat(date_str).date()
         except ValueError:
             continue
-        days = (evt_date - today).days
+        days = (evt_date - today_date).days
         if days < 0 or days > 7:
             continue
         for strat in strategies:

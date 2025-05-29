@@ -62,6 +62,9 @@ Of gebruik individuele modules:
 * `portfolio_scenario.py`: Simuleert PnL/Greeks na een zelf gekozen spot- en IV-shift
 * `csv_quality_check.py`: Controleert CSV-exports op fouten (ook via het Control Panel)
 
+Voor regressietests kun je de omgevingvariabele `TOMIC_TODAY=YYYY-MM-DD` zetten.
+Alle scripts gebruiken dan die datum als "vandaag" voor reproduceerbare resultaten.
+
 ---
 
 ## 📂 Bestanden en mappen
