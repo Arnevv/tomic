@@ -3,15 +3,16 @@ from pathlib import Path
 from statistics import mean
 from typing import Dict, List, Optional
 
-JOURNAL_PATH = Path("journal.json")
+DEFAULT_JOURNAL_PATH = "journal.json"
 
 
-def load_journal() -> List[dict]:
-    """Load journal.json and return list of trades."""
-    if not JOURNAL_PATH.exists():
-        print("⚠️ Geen journal.json gevonden.")
+def load_journal(path: str = DEFAULT_JOURNAL_PATH) -> List[dict]:
+    """Load journal JSON file and return list of trades."""
+    file = Path(path)
+    if not file.exists():
+        print(f"⚠️ Geen {file.name} gevonden.")
         return []
-    with JOURNAL_PATH.open("r", encoding="utf-8") as f:
+    with file.open("r", encoding="utf-8") as f:
         return json.load(f)
 
 
@@ -131,11 +132,35 @@ def print_table(stats: Dict[str, dict]) -> None:
     print(f"Zwakste strategie: {worst[0]} (expectancy {fmt_money(worst[1]['expectancy'])})")
 
 
-def main() -> None:
-    journal = load_journal()
+def main(argv=None) -> None:
+    if argv is None:
+        import sys
+        argv = sys.argv[1:]
+
+    journal_path = DEFAULT_JOURNAL_PATH
+    json_output = None
+    idx = 0
+    if idx < len(argv) and not argv[0].startswith("--"):
+        journal_path = argv[0]
+        idx += 1
+
+    if idx < len(argv) and argv[idx] == "--json-output" and idx + 1 < len(argv):
+        json_output = argv[idx + 1]
+        idx += 2
+
+    if idx != len(argv):
+        print("Gebruik: python performance_analyzer.py [journal_file] [--json-output PATH]")
+        return
+
+    journal = load_journal(journal_path)
     stats = analyze(journal)
-    print_table(stats)
+    if json_output:
+        with open(json_output, "w", encoding="utf-8") as f:
+            json.dump(stats, f, indent=2)
+    else:
+        print_table(stats)
 
 
 if __name__ == "__main__":
-    main()
+    import sys
+    main(sys.argv[1:])
