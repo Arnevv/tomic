@@ -881,6 +881,7 @@ def main(argv=None):
             print(f"Gemiddeld ROM portfolio: {avg_rom:.1f}%")
 
     if json_output:
+        strategies.sort(key=lambda s: (s["symbol"], s.get("expiry")))
         data = {
             "account_info": account_info,
             "portfolio_greeks": portfolio,
