@@ -81,7 +81,9 @@ def main() -> None:
             diff_found = True
 
     if diff_found:
+        print("Regression FAILED")
         sys.exit(1)
+    print("Regression PASSED")
 
 
 if __name__ == "__main__":
