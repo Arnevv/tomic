@@ -8,16 +8,19 @@ def run_script(script_name, *args):
 
 def run_dataexporter():
     while True:
-        print("\n📤 DATAEXPORTER")
+        print("\n📤 DATA MANAGEMENT")
         print("1. Exporteer een markt (getonemarket.py)")
         print("2. Exporteer alle markten (getallmarkets.py)")
-        print("3. Terug naar hoofdmenu")
+        print("3. Controleer CSV-kwaliteit (csv_quality_check.py)")
+        print("4. Terug naar hoofdmenu")
         sub = input("Maak je keuze: ")
         if sub == "1":
             run_script("getonemarket.py")
         elif sub == "2":
             run_script("getallmarkets.py")
         elif sub == "3":
+            run_script("csv_quality_check.py")
+        elif sub == "4":
             break
         else:
             print("❌ Ongeldige keuze")
@@ -25,25 +28,25 @@ def run_dataexporter():
 def run_trade_management():
     while True:
         print("\n=== TRADE MANAGEMENT ===")
-        print("a. Overzicht bekijken")
-        print("b. Nieuwe trade aanmaken")
-        print("c. Trade aanpassen / snapshot toevoegen")
-        print("d. Journal updaten met positie IDs")
-        print("e. Trade afsluiten")
-        print("f. Terug naar hoofdmenu")
-        sub = input("Maak je keuze: ").strip().lower()
+        print("1. Overzicht bekijken")
+        print("2. Nieuwe trade aanmaken")
+        print("3. Trade aanpassen / snapshot toevoegen")
+        print("4. Journal updaten met positie IDs")
+        print("5. Trade afsluiten")
+        print("6. Terug naar hoofdmenu")
+        sub = input("Maak je keuze: ").strip()
 
-        if sub == "a":
+        if sub == "1":
             run_script("journal_inspector.py")
-        elif sub == "b":
+        elif sub == "2":
             run_script("journal_updater.py")
-        elif sub == "c":
+        elif sub == "3":
             run_script("journal_inspector.py")
-        elif sub == "d":
+        elif sub == "4":
             run_script("link_positions.py")
-        elif sub == "e":
+        elif sub == "5":
             run_script("close_trade.py")
-        elif sub == "f":
+        elif sub == "6":
             break
         else:
             print("❌ Ongeldige keuze")
@@ -82,7 +85,7 @@ def main():
         print("1. Trading Plan")
         print("2. Portfolio-overzicht")
         print("3. Trade Management")
-        print("4. Dataexporter (option chain / marktdata)")
+        print("4. Data Management")
         print("5. Risk Tools")
         print("6. Stoppen")
         keuze = input("Maak je keuze: ")
