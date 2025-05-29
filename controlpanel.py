@@ -28,8 +28,9 @@ def run_trade_management():
         print("a. Overzicht bekijken")
         print("b. Nieuwe trade aanmaken")
         print("c. Trade aanpassen / snapshot toevoegen")
-        print("d. Trade afsluiten")
-        print("e. Terug naar hoofdmenu")
+        print("d. Journal updaten met positie IDs")
+        print("e. Trade afsluiten")
+        print("f. Terug naar hoofdmenu")
         sub = input("Maak je keuze: ").strip().lower()
 
         if sub == "a":
@@ -39,8 +40,10 @@ def run_trade_management():
         elif sub == "c":
             run_script("journal_inspector.py")
         elif sub == "d":
-            run_script("close_trade.py")
+            run_script("link_positions.py")
         elif sub == "e":
+            run_script("close_trade.py")
+        elif sub == "f":
             break
         else:
             print("❌ Ongeldige keuze")
