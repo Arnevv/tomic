@@ -1,4 +1,5 @@
 {
+  "analysis_date": "2025-05-29",
   "account_info": {
     "NetLiquidation": 20000.0,
     "FullInitMarginReq": 5000.0,
@@ -17,7 +18,7 @@
   "strategies": [
     {
       "symbol": "AAPL",
-      "expiry": "20240621",
+      "expiry": "20250718",
       "type": "Vertical",
       "legs": [
         {
@@ -26,7 +27,7 @@
           "secType": "OPT",
           "right": "C",
           "strike": 190,
-          "lastTradeDate": "20240621",
+          "lastTradeDate": "20250718",
           "position": -1,
           "multiplier": 100,
           "delta": 0.21,
@@ -41,7 +42,7 @@
           "secType": "OPT",
           "right": "C",
           "strike": 185,
-          "lastTradeDate": "20240621",
+          "lastTradeDate": "20250718",
           "position": 1,
           "multiplier": 100,
           "delta": -0.17,
@@ -68,7 +69,7 @@
       "iv_hv_spread": null,
       "spot": null,
       "margin_used": 0.0,
-      "days_to_expiry": -342,
+      "days_to_expiry": 50,
       "days_in_trade": null,
       "delta_dollar": null,
       "max_profit": 500,
@@ -352,7 +353,7 @@
     },
     {
       "symbol": "TSLA",
-      "expiry": "20240621",
+      "expiry": "20250815",
       "type": "Iron Condor",
       "legs": [
         {
@@ -361,7 +362,7 @@
           "secType": "OPT",
           "right": "P",
           "strike": 600,
-          "lastTradeDate": "20240621",
+          "lastTradeDate": "20250815",
           "position": 1,
           "multiplier": 100,
           "delta": -0.25,
@@ -376,7 +377,7 @@
           "secType": "OPT",
           "right": "P",
           "strike": 620,
-          "lastTradeDate": "20240621",
+          "lastTradeDate": "20250815",
           "position": -1,
           "multiplier": 100,
           "delta": -0.12,
@@ -391,7 +392,7 @@
           "secType": "OPT",
           "right": "C",
           "strike": 620,
-          "lastTradeDate": "20240621",
+          "lastTradeDate": "20250815",
           "position": -1,
           "multiplier": 100,
           "delta": 0.13,
@@ -406,7 +407,7 @@
           "secType": "OPT",
           "right": "C",
           "strike": 640,
-          "lastTradeDate": "20240621",
+          "lastTradeDate": "20250815",
           "position": 1,
           "multiplier": 100,
           "delta": 0.11,
@@ -433,7 +434,7 @@
       "iv_hv_spread": null,
       "spot": null,
       "margin_used": 0.0,
-      "days_to_expiry": -342,
+      "days_to_expiry": 78,
       "days_in_trade": null,
       "delta_dollar": null,
       "max_profit": 0,
