@@ -9,7 +9,7 @@ Een Python-project voor het beheren, analyseren en afsluiten van optieposities v
 * Ophalen van live portfolio en openstaande orders  
 * Exporteren van option chains met Greeks naar CSV-bestanden  
 * Snapshotten van marktdata: IV, HV, VIX, skew, ATR  
-* Handmatig en scriptmatig beheren van trades in `journal.json`  
+* Handmatig en scriptmatig beheren van trades in het journalbestand (`JOURNAL_FILE`)
 * Greeks-analyse per positie (Delta, Gamma, Theta, Vega)  
 * Interactief Control Panel met toegang tot alle scripts  
 * Dashboard dat legs groepeert tot strategieën met alerts  
@@ -100,7 +100,7 @@ Belangrijke sleutels die je hier kunt aanpassen:
 
 * `exports/` – Dagelijkse CSV-export van optiegegevens en marktdata  
 * `Backups/` – Back-ups van eerdere scriptversies  
-* `journal.json` – Trade journal met open en gesloten posities  
+* `journal.json` – Standaardnaam voor het trade journal (instelbaar via `JOURNAL_FILE`)
 
 ---
 
