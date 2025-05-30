@@ -4,8 +4,9 @@ from pathlib import Path
 
 from tomic.api.margin_calc import calculate_trade_margin
 from tomic.logging import setup_logging
+from tomic.config import get as cfg_get
 
-JOURNAL_FILE = Path("journal.json")
+JOURNAL_FILE = Path(cfg_get("JOURNAL_FILE", "journal.json"))
 
 
 def update_all_margins() -> None:
