@@ -1,19 +1,24 @@
 import json
 from pathlib import Path
-from typing import Any, List
+from typing import Any, Iterable, List, Union
 
 JOURNAL_FILE = Path("journal.json")
 
 
-def load_journal(path: Path = JOURNAL_FILE) -> List[Any]:
+PathLike = Union[str, Path]
+
+
+def load_journal(path: PathLike = JOURNAL_FILE) -> List[Any]:
     """Return parsed journal data or an empty list if file is missing."""
-    if not path.exists():
+    p = Path(path)
+    if not p.exists():
         return []
-    with path.open("r", encoding="utf-8") as f:
+    with p.open("r", encoding="utf-8") as f:
         return json.load(f)
 
 
-def save_journal(journal: List[Any], path: Path = JOURNAL_FILE) -> None:
+def save_journal(journal: Iterable[Any], path: PathLike = JOURNAL_FILE) -> None:
     """Write journal data back to ``path``."""
-    with path.open("w", encoding="utf-8") as f:
-        json.dump(journal, f, indent=2)
+    p = Path(path)
+    with p.open("w", encoding="utf-8") as f:
+        json.dump(list(journal), f, indent=2)
