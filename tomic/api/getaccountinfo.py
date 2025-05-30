@@ -17,67 +17,7 @@ import time
 
 from tomic.config import get as cfg_get
 from tomic.logging import setup_logging
-
-
-def _fmt_money(value):
-    """Return value formatted as dollar amount if possible."""
-    try:
-        return f"${float(value):,.2f}"
-    except (TypeError, ValueError):
-        return value or "-"
-
-
-def print_account_overview(values: dict) -> None:
-    """Print account status and explanation table."""
-    net_liq = values.get("NetLiquidation")
-    buying_power = values.get("BuyingPower")
-    init_margin = values.get("InitMarginReq")
-    excess_liq = values.get("ExcessLiquidity")
-    gross_pos_val = values.get("GrossPositionValue")
-    cushion = values.get("Cushion")
-
-    margin_pct = None
-    try:
-        margin_pct = float(init_margin) / float(net_liq)
-    except (TypeError, ValueError, ZeroDivisionError):
-        margin_pct = None
-
-    print("\n📊 Accountstatus:")
-    print(f"- NetLiquidation:      {_fmt_money(net_liq)}")
-    print(f"- Buying Power:        {_fmt_money(buying_power)}")
-    if init_margin is not None:
-        line = _fmt_money(init_margin)
-        if margin_pct is not None:
-            line += f" (≈ {margin_pct:.0%} van vermogen)"
-        print(f"- Margin gebruikt:     {line}")
-    print(f"- Excess Liquidity:    {_fmt_money(excess_liq)}")
-    print(f"- Gross Position Value: {_fmt_money(gross_pos_val)}")
-    print(f"- Cushion:              {cushion}")
-
-    uitleg = {
-        "NetLiquidation": "Jouw actuele vermogen. Hoofdreferentie voor alles.",
-        "BuyingPower": "Wat je direct mag inzetten voor nieuwe trades.",
-        "InitMarginReq": "Hoeveel margin je in totaal verbruikt met je posities.",
-        "ExcessLiquidity": "Hoeveel marge je veilig overhoudt. Buffer tegen margin calls.",
-    }
-
-    rows = [
-        ("💰 **Net Liquidation Value**", _fmt_money(net_liq), uitleg["NetLiquidation"]),
-        ("🏦 **Buying Power**", _fmt_money(buying_power), uitleg["BuyingPower"]),
-        (
-            "⚖️ **Used Margin (init)**",
-            _fmt_money(init_margin) + (f" (≈ {margin_pct:.0%} van vermogen)" if margin_pct is not None else ""),
-            uitleg["InitMarginReq"],
-        ),
-        ("✅ **Excess Liquidity**", _fmt_money(excess_liq), uitleg["ExcessLiquidity"]),
-        ("**Gross Position Value**", _fmt_money(gross_pos_val), "–"),
-        ("**Cushion**", str(cushion), "–"),
-    ]
-
-    print("\n| Label | Waarde | Waarom? |")
-    print("| ---------------------------- | ------------------------------------ | --------------------------------------------------------------- |")
-    for label, value, reason in rows:
-        print(f"| {label} | {value} | {reason} |")
+from tomic.helpers.account import _fmt_money, print_account_overview
 
 class IBApp(EWrapper, EClient):
     def __init__(self):
