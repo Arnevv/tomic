@@ -8,6 +8,9 @@ import re
 
 from tomic.config import get as cfg_get
 from tomic.utils import today
+from tomic.logging import setup_logging
+
+setup_logging()
 
 
 def _fmt_money(value):
