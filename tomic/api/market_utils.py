@@ -4,10 +4,10 @@ import threading
 import time
 
 from tomic.analysis.get_iv_rank import fetch_iv_metrics
+from tomic.api.combined_app import CombinedApp
 
 
 def fetch_market_metrics(symbol: str) -> dict:
-    from .getonemarket import CombinedApp  # Local import to avoid circular dependency
     """Return key market metrics for the given symbol using the IB API."""
     symbol = symbol.upper()
     app = CombinedApp(symbol)
