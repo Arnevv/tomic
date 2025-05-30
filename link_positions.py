@@ -4,6 +4,7 @@ from pathlib import Path
 
 from tomic.config import get as cfg_get
 from tomic.logging import setup_logging
+from tomic.journal.utils import load_journal, save_journal
 
 JOURNAL_FILE = Path(cfg_get("JOURNAL_FILE", "journal.json"))
 POSITIONS_FILE = Path(cfg_get("POSITIONS_FILE", "positions.json"))
@@ -17,10 +18,6 @@ def load_json(path):
         return json.load(f)
 
 
-def save_journal(journal):
-    with open(JOURNAL_FILE, "w", encoding="utf-8") as f:
-        json.dump(journal, f, indent=2)
-    logging.info("✅ Wijzigingen opgeslagen.")
 
 
 def list_open_trades(journal):
@@ -77,7 +74,7 @@ def list_positions(symbol, positions):
 
 def main():
     setup_logging()
-    journal = load_json(JOURNAL_FILE)
+    journal = load_journal(JOURNAL_FILE)
     positions = load_json(POSITIONS_FILE)
     if not journal:
         return
@@ -100,6 +97,7 @@ def main():
                 trade["Legs"][idx]["conId"] = int(conid_input)
                 logging.info("✅ conId toegevoegd.")
                 save_journal(journal)
+                logging.info("✅ Wijzigingen opgeslagen.")
             except ValueError:
                 logging.error("❌ Ongeldig conId.")
 
