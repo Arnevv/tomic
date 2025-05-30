@@ -9,6 +9,7 @@ import logging
 from tomic.analysis.get_iv_rank import fetch_iv_metrics
 from tomic.logging import setup_logging
 from tomic.api.combined_app import CombinedApp
+from tomic.config import get as cfg_get
 
 
 
@@ -102,7 +103,7 @@ def run():
         logging.info("✅ Alle opties volledig na %s seconden.", waited)
 
     today_str = datetime.now().strftime("%Y%m%d")
-    export_dir = os.path.join("exports", today_str)
+    export_dir = os.path.join(cfg_get("EXPORT_DIR", "exports"), today_str)
     os.makedirs(export_dir, exist_ok=True)
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
 

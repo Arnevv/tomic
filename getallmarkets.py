@@ -5,6 +5,7 @@ import time
 import logging
 
 from tomic.logging import setup_logging
+from tomic.config import get as cfg_get
 
 if __name__ == "__main__":
     setup_logging()
@@ -14,7 +15,7 @@ if __name__ == "__main__":
         "XLE", "XLF", "XLV"
     ]
     today_str = datetime.now().strftime("%Y%m%d")
-    export_dir = os.path.join("exports", today_str)
+    export_dir = os.path.join(cfg_get("EXPORT_DIR", "exports"), today_str)
     data_frames = []
     for sym in symbols:
         logging.info("🔄 Ophalen voor %s...", sym)
