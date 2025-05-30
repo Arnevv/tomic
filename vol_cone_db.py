@@ -7,7 +7,7 @@ from typing import Dict, List
 from tomic.config import get as cfg_get
 from tomic.logging import setup_logging
 
-from tomic.api.getonemarket import fetch_market_metrics
+from tomic.api.market_utils import fetch_market_metrics
 
 
 def store_volatility_snapshot(
