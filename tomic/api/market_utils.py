@@ -8,7 +8,6 @@ import statistics
 from ibapi.contract import Contract
 
 from tomic.analysis.get_iv_rank import fetch_iv_metrics
-from tomic.api.combined_app import CombinedApp
 
 
 def create_underlying(symbol: str) -> Contract:
@@ -71,6 +70,8 @@ def calculate_atr14(historical_data: list) -> float | None:
 
 def fetch_market_metrics(symbol: str) -> dict:
     """Return key market metrics for the given symbol using the IB API."""
+    from .combined_app import CombinedApp
+
     symbol = symbol.upper()
     app = CombinedApp(symbol)
     app.connect("127.0.0.1", 7497, clientId=201)
