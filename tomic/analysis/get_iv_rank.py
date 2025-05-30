@@ -3,6 +3,7 @@ import re
 import sys
 import urllib.request
 
+from tomic.analysis.iv_patterns import IV_PATTERNS
 from tomic.logging import setup_logging
 
 
@@ -26,20 +27,7 @@ def fetch_iv_metrics(symbol: str = "SPY") -> dict:
     """Return IV Rank, Implied Volatility and IV Percentile for the symbol."""
     html = _download_html(symbol)
 
-    patterns = {
-        "iv_rank": [
-            r"IV\s*&nbsp;?Rank:</span>\s*<span><strong>([0-9]+(?:\.[0-9]+)?)%",
-            r"IV\s*Rank[^0-9]*([0-9]+(?:\.[0-9]+)?)",
-        ],
-        "implied_volatility": [
-            r"Implied\s*&nbsp;?Volatility:</span>.*?<strong>([0-9]+(?:\.[0-9]+)?)%",
-            r"Implied\s+Volatility[^0-9]*([0-9]+(?:\.[0-9]+)?)%",
-        ],
-        "iv_percentile": [
-            r"IV\s*&nbsp;?Percentile:</span>.*?<strong>([0-9]+(?:\.[0-9]+)?)%",
-            r"IV\s*Pctl:</span>.*?<strong>([0-9]+(?:\.[0-9]+)?)%",
-        ],
-    }
+    patterns = IV_PATTERNS
 
     results = {}
     for key, pats in patterns.items():
