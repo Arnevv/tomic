@@ -86,6 +86,14 @@ De scripts in de hoofdmap zijn lichte wrappers die taken doorgeven aan deze modu
 
 Het bestand `tomic/config.py` zoekt automatisch naar `config.yaml`, `config.yml` of `.env` in de projectmap. Via de omgevingsvariabele `TOMIC_CONFIG` kun je een ander pad opgeven. YAML-bestanden vereisen de optionele dependency **PyYAML**.
 
+Belangrijke sleutels die je hier kunt aanpassen:
+
+* `EXPORT_DIR` – map voor CSV-exports (standaard `exports/`)
+* `POSITIONS_FILE` – JSON-bestand met open posities
+* `ACCOUNT_INFO_FILE` – JSON-bestand met accountgegevens
+* `JOURNAL_FILE` – trade journal
+* `VOLATILITY_DATA_FILE` – snapshots van volatiliteitsdata
+
 ---
 
 ## 📂 Bestanden en mappen
