@@ -1,23 +1,9 @@
 from ibapi.client import EClient
 from ibapi.wrapper import EWrapper
-from ibapi.contract import Contract
 from ibapi.order import Order
 import threading
 
-
-def create_option_contract(symbol: str, expiry: str, strike: float, right: str) -> Contract:
-    """Return an option contract object for the given parameters."""
-    c = Contract()
-    c.symbol = symbol
-    c.secType = "OPT"
-    c.exchange = "SMART"
-    c.currency = "USD"
-    c.lastTradeDateOrContractMonth = expiry
-    c.strike = strike
-    c.right = right[0].upper()
-    c.multiplier = "100"
-    c.tradingClass = symbol
-    return c
+from .market_utils import create_option_contract
 
 
 class MarginApp(EWrapper, EClient):

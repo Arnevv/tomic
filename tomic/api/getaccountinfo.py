@@ -8,8 +8,7 @@ from ibapi.ticktype import TickTypeEnum
 from datetime import datetime
 import json
 import logging
-import math
-import statistics
+from tomic.api.market_utils import calculate_hv30, calculate_atr14
 from tomic.analysis.get_iv_rank import fetch_iv_metrics
 
 import threading
@@ -201,25 +200,10 @@ class IBApp(EWrapper, EClient):
         self.hist_event.set()
 
     def calculate_hv30(self):
-        closes = [bar.close for bar in self.historical_data if hasattr(bar, "close")]
-        if len(closes) < 2:
-            return None
-        log_returns = [math.log(closes[i + 1] / closes[i]) for i in range(len(closes) - 1)]
-        std_dev = statistics.stdev(log_returns)
-        return round(std_dev * math.sqrt(252) * 100, 2)
+        return calculate_hv30(self.historical_data)
 
     def calculate_atr14(self):
-        trs = []
-        for i in range(1, len(self.historical_data)):
-            high = self.historical_data[i].high
-            low = self.historical_data[i].low
-            prev_close = self.historical_data[i - 1].close
-            tr = max(high - low, abs(high - prev_close), abs(low - prev_close))
-            trs.append(tr)
-        if len(trs) < 14:
-            return None
-        atr14 = statistics.mean(trs[-14:])
-        return round(atr14, 2)
+        return calculate_atr14(self.historical_data)
 
     def count_incomplete(self):
         """Return how many positions are missing market or Greek data."""
