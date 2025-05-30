@@ -1,16 +1,11 @@
 import json
 import logging
-import os
-from datetime import datetime, timezone
+from datetime import datetime
 from typing import List, Dict
 
 from tomic.config import get as cfg_get
 from tomic.logging import setup_logging
-
-
-def today():
-    env = os.getenv("TOMIC_TODAY")
-    return datetime.strptime(env, "%Y-%m-%d").date() if env else datetime.now(timezone.utc).date()
+from tomic.utils import today
 
 
 def apply_event_alerts(strategies: List[Dict], event_json_path: str = "events.json") -> None:
