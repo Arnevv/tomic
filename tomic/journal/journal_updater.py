@@ -4,8 +4,9 @@ from pathlib import Path
 
 from tomic.api.getonemarket import fetch_market_metrics
 from tomic.api.margin_calc import calculate_trade_margin
+from tomic.config import get as cfg_get
 
-journal_file = Path("journal.json")
+journal_file = Path(cfg_get("JOURNAL_FILE", "journal.json"))
 
 if not journal_file.exists():
     with open(journal_file, "w", encoding="utf-8") as f:
