@@ -1,23 +1,8 @@
-import json
 import logging
-from pathlib import Path
 from datetime import datetime
 
 from tomic.logging import setup_logging
-
-journal_file = Path("journal.json")
-
-def laad_journal():
-    if not journal_file.exists():
-        logging.error("⚠️ Geen journal.json gevonden.")
-        return []
-    with open(journal_file, "r", encoding="utf-8") as f:
-        return json.load(f)
-
-def bewaar_journal(journal):
-    with open(journal_file, "w", encoding="utf-8") as f:
-        json.dump(journal, f, indent=2)
-    logging.info("✅ Wijzigingen opgeslagen.")
+from tomic.journal.utils import load_journal, save_journal
 
 def sluit_trade_af(trade):
     logging.info("\n🔚 Trade afsluiten: %s - %s - %s", trade['TradeID'], trade['Symbool'], trade['Type'])
@@ -74,7 +59,7 @@ def sluit_trade_af(trade):
 
 def main():
     setup_logging()
-    journal = laad_journal()
+    journal = load_journal()
     if not journal:
         return
 
@@ -90,7 +75,7 @@ def main():
         return
 
     sluit_trade_af(trade)
-    bewaar_journal(journal)
+    save_journal(journal)
 
 if __name__ == "__main__":
     main()
