@@ -2,11 +2,9 @@ import json
 from pathlib import Path
 from statistics import mean
 from typing import Dict, List, Optional
-from datetime import date
+from tomic.utils import today
 
 DEFAULT_JOURNAL_PATH = "journal.json"
-
-frozen_today = date(2025, 5, 29)
 
 
 def load_journal(path: str = DEFAULT_JOURNAL_PATH) -> List[dict]:
@@ -159,7 +157,7 @@ def main(argv=None) -> None:
     stats = analyze(journal)
     if json_output:
         data = {
-            "analysis_date": str(frozen_today),
+            "analysis_date": str(today()),
             "stats": stats,
         }
         with open(json_output, "w", encoding="utf-8") as f:
