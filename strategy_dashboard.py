@@ -3,16 +3,11 @@ import os
 import sys
 from collections import defaultdict
 from statistics import mean
-from datetime import datetime, timezone, date
+from datetime import datetime
 import re
 
 from tomic.config import get as cfg_get
-
-frozen_today = date(2025, 5, 29)
-
-
-def today():
-    return frozen_today
+from tomic.utils import today
 
 
 def _fmt_money(value):
@@ -886,7 +881,7 @@ def main(argv=None):
     if json_output:
         strategies.sort(key=lambda s: (s["symbol"], s.get("expiry")))
         data = {
-            "analysis_date": str(frozen_today),
+            "analysis_date": str(today()),
             "account_info": account_info,
             "portfolio_greeks": portfolio,
             "strategies": strategies,
