@@ -101,9 +101,9 @@ def main() -> None:
             diff_found = True
 
     if diff_found:
-        logging.error("Regression FAILED")
+        logging.warning("Regression FAILED")
         sys.exit(1)
-    logging.info("Regression PASSED")
+    logging.warning("Regression PASSED")
 
 
 if __name__ == "__main__":
