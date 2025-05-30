@@ -12,6 +12,26 @@ class _IoFilter(logging.Filter):
         return record.name != "tomic.io"
 
 
+class _InfoErrorFilter(logging.Filter):
+    """Filter INFO/ERROR logs unless debugging or containing status emojis."""
+
+    def filter(self, record: logging.LogRecord) -> bool:
+        debug = os.getenv("TOMIC_DEBUG", "0").lower() in {"1", "true", "yes"}
+
+        msg = record.getMessage()
+
+        if any(emoji in msg for emoji in ("✅", "📊", "⏳", "⚠️")):
+            return True
+
+        if any(msg.startswith(prefix) for prefix in ("SENDING", "REQUEST", "ANSWER")):
+            return debug
+
+        if record.levelno in (logging.INFO, logging.ERROR):
+            return debug
+
+        return True
+
+
 def setup_logging(default_level: int = logging.INFO) -> None:
     """Configure basic logging for scripts.
 
@@ -27,4 +47,7 @@ def setup_logging(default_level: int = logging.INFO) -> None:
     logging.getLogger("tomic.warning")
 
     if os.getenv("TOMIC_DEBUG", "0").lower() not in {"1", "true", "yes"}:
-        logging.getLogger().addFilter(_IoFilter())
+        root_logger = logging.getLogger()
+        root_logger.addFilter(_IoFilter())
+        root_logger.addFilter(_InfoErrorFilter())
+
