@@ -32,7 +32,7 @@ class _InfoErrorFilter(logging.Filter):
         return True
 
 
-def setup_logging(default_level: int = logging.INFO) -> None:
+def setup_logging(default_level: int = logging.WARNING) -> None:
     """Configure basic logging for scripts.
 
     The environment variable ``TOMIC_DEBUG=1`` shows additional I/O logs.
