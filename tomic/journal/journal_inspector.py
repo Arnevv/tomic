@@ -1,20 +1,6 @@
-import json
-from pathlib import Path
 from datetime import datetime
 
-journal_file = Path("journal.json")
-
-def laad_journal():
-    if not journal_file.exists():
-        print("⚠️ Geen journal.json gevonden.")
-        return []
-    with open(journal_file, "r", encoding="utf-8") as f:
-        return json.load(f)
-
-def bewaar_journal(journal):
-    with open(journal_file, "w", encoding="utf-8") as f:
-        json.dump(journal, f, indent=2)
-    print("✅ Wijzigingen opgeslagen.\n")
+from .utils import load_journal, save_journal
 
 def toon_overzicht(journal):
     print("\n📋 Overzicht van trades:")
@@ -173,7 +159,7 @@ def snapshot_input(trade):
     print("✅ Snapshot toegevoegd.")
 
 def main():
-    journal = laad_journal()
+    journal = load_journal()
     if not journal:
         return
 
@@ -199,10 +185,10 @@ def main():
 
             if actie == "1":
                 pas_trade_aan(trade)
-                bewaar_journal(journal)
+                save_journal(journal)
             elif actie == "2":
                 snapshot_input(trade)
-                bewaar_journal(journal)
+                save_journal(journal)
             elif actie == "3":
                 break
             else:
