@@ -1,5 +1,8 @@
 import subprocess
 import os
+from tomic.logging import setup_logging
+
+setup_logging()
 
 
 def run_script(script_name, *args):
