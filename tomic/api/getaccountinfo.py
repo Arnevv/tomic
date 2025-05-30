@@ -376,8 +376,6 @@ def main() -> None:
                 else:
                     portfolio[greek.capitalize()] += val * qty * mult
 
-    print_account_overview(app.account_values)
-
     for pos in app.positions_data:
         sym = pos["symbol"]
         pos["HV30"] = app.hv_data.get(sym)
