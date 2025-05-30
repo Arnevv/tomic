@@ -38,9 +38,15 @@ def setup_logging(default_level: int = logging.INFO) -> None:
     The environment variable ``TOMIC_DEBUG=1`` shows additional I/O logs.
     """
 
+    debug_env = os.getenv("TOMIC_DEBUG", "0")
     level_name = os.getenv("TOMIC_LOG_LEVEL", "").upper()
     level = getattr(logging, level_name, default_level)
     logging.basicConfig(level=level, format="%(levelname)s: %(message)s")
+
+    # Log the resolved environment configuration so users can verify settings
+    logging.getLogger(__name__).info(
+        "Logging setup: TOMIC_DEBUG=%s, TOMIC_LOG_LEVEL=%s", debug_env, level_name or logging.getLevelName(level)
+    )
 
     logging.getLogger("tomic.io")
     logging.getLogger("tomic.status")
