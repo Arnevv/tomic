@@ -10,6 +10,7 @@ from tomic.config import get as cfg_get
 from tomic.utils import today
 from tomic.logging import setup_logging
 from tomic.helpers.account import _fmt_money, print_account_overview
+from tomic.journal.utils import load_journal
 
 setup_logging()
 
@@ -45,14 +46,6 @@ def load_account_info(path: str):
     except json.JSONDecodeError as e:
         print(f"\u26A0\uFE0F Kan accountinfo niet laden uit {path}: {e}")
         return {}
-
-
-def load_journal(path: str):
-    """Load journal JSON if available."""
-    if not os.path.exists(path):
-        return []
-    with open(path, "r", encoding="utf-8") as f:
-        return json.load(f)
 
 
 def extract_exit_rules(path: str):
