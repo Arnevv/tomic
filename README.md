@@ -120,6 +120,17 @@ Voor deterministische resultaten stelt het script automatisch `TOMIC_TODAY=2025-
 
 ---
 
+## 🧪 Unit tests
+
+De map `tests/` bevat eenvoudige unittests voor kernfuncties. Na het installeren van de
+afhankelijkheden kunnen de tests worden uitgevoerd met:
+
+```bash
+pytest
+```
+
+---
+
 ### `csv_quality_check.py`
 
 Validatie van geëxporteerde option-chain CSV's. Het script toont het aantal regels, compleetheid en extra controles:
