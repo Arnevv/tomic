@@ -1,8 +1,10 @@
 import json
+import logging
 from pathlib import Path
 from statistics import mean
 from typing import Dict, List, Optional
 from tomic.utils import today
+from tomic.logging import setup_logging
 
 DEFAULT_JOURNAL_PATH = "journal.json"
 
@@ -11,7 +13,7 @@ def load_journal(path: str = DEFAULT_JOURNAL_PATH) -> List[dict]:
     """Load journal JSON file and return list of trades."""
     file = Path(path)
     if not file.exists():
-        print(f"⚠️ Geen {file.name} gevonden.")
+        logging.warning("Geen %s gevonden.", file.name)
         return []
     with file.open("r", encoding="utf-8") as f:
         return json.load(f)
@@ -62,7 +64,9 @@ def analyze(trades: List[dict]) -> Dict[str, dict]:
             continue
         pnl = compute_pnl(trade)
         if pnl is None:
-            print(f"⚠️ Onvolledige data voor trade {trade.get('TradeID')}, overslaan.")
+            logging.warning(
+                "Onvolledige data voor trade %s, overslaan.", trade.get('TradeID')
+            )
             continue
         t_type = trade.get("Type") or "Onbekend"
         grouped.setdefault(t_type, []).append(pnl)
@@ -89,7 +93,7 @@ def analyze(trades: List[dict]) -> Dict[str, dict]:
 
 def print_table(stats: Dict[str, dict]) -> None:
     if not stats:
-        print("Geen afgesloten trades gevonden.")
+        logging.info("Geen afgesloten trades gevonden.")
         return
 
     headers = [
@@ -134,6 +138,7 @@ def print_table(stats: Dict[str, dict]) -> None:
 
 
 def main(argv=None) -> None:
+    setup_logging()
     if argv is None:
         import sys
         argv = sys.argv[1:]
@@ -150,7 +155,9 @@ def main(argv=None) -> None:
         idx += 2
 
     if idx != len(argv):
-        print("Gebruik: python performance_analyzer.py [journal_file] [--json-output PATH]")
+        logging.error(
+            "Gebruik: python performance_analyzer.py [journal_file] [--json-output PATH]"
+        )
         return
 
     journal = load_journal(journal_path)
