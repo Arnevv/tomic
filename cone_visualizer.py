@@ -1,14 +1,9 @@
 import json
-import os
-from datetime import datetime, timedelta, timezone
+from datetime import datetime
 from typing import Tuple
 
 from tomic.config import get as cfg_get
-
-
-def today():
-    env = os.getenv("TOMIC_TODAY")
-    return datetime.strptime(env, "%Y-%m-%d").date() if env else datetime.now(timezone.utc).date()
+from tomic.utils import today
 
 
 def get_iv_percentile(symbol: str, snapshot_file: str, lookback_days: int = 365) -> Tuple[float, float, float, float, float]:
