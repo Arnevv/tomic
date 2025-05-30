@@ -83,9 +83,9 @@ def main(argv=None):
         implied_vol = metrics.get("implied_volatility")
         iv_pct = metrics.get("iv_percentile")
 
-        print(f"IV Rank for {symbol}: {iv_rank}")
-        print(f"Implied Volatility: {implied_vol}")
-        print(f"IV Percentile: {iv_pct}")
+        logging.info("IV Rank for %s: %s", symbol, iv_rank)
+        logging.info("Implied Volatility: %s", implied_vol)
+        logging.info("IV Percentile: %s", iv_pct)
     except Exception as exc:
         logging.error("Error fetching IV metrics: %s", exc)
 
