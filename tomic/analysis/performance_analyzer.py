@@ -1,22 +1,14 @@
 import json
 import logging
-from pathlib import Path
 from statistics import mean
 from typing import Dict, List, Optional
+
 from tomic.utils import today
 from tomic.logging import setup_logging
+from tomic.journal.utils import load_journal
+from tomic.helpers.account import _fmt_money
 
 DEFAULT_JOURNAL_PATH = "journal.json"
-
-
-def load_journal(path: str = DEFAULT_JOURNAL_PATH) -> List[dict]:
-    """Load journal JSON file and return list of trades."""
-    file = Path(path)
-    if not file.exists():
-        logging.warning("Geen %s gevonden.", file.name)
-        return []
-    with file.open("r", encoding="utf-8") as f:
-        return json.load(f)
 
 
 def compute_pnl(trade: dict) -> Optional[float]:
@@ -45,13 +37,6 @@ def compute_pnl(trade: dict) -> Optional[float]:
     return None
 
 
-def fmt_money(value: float) -> str:
-    """Format float as signed dollar value without decimals."""
-    if value > 0:
-        return f"+${value:.0f}"
-    if value < 0:
-        return f"–${abs(value):.0f}"
-    return "±$0"
 
 
 def analyze(trades: List[dict]) -> Dict[str, dict]:
@@ -113,10 +98,10 @@ def print_table(stats: Dict[str, dict]) -> None:
             strat,
             str(data["trades"]),
             f"{data['winrate']*100:.0f}%",
-            fmt_money(data["avg_win"]),
-            fmt_money(data["avg_loss"]),
-            fmt_money(data["expectancy"]),
-            fmt_money(data["max_drawdown"]),
+            _fmt_money(data["avg_win"]),
+            _fmt_money(data["avg_loss"]),
+            _fmt_money(data["expectancy"]),
+            _fmt_money(data["max_drawdown"]),
         ]
         rows.append(row)
         for i, cell in enumerate(row):
@@ -133,8 +118,12 @@ def print_table(stats: Dict[str, dict]) -> None:
     # summary
     best = max(stats.items(), key=lambda x: x[1]["expectancy"])
     worst = min(stats.items(), key=lambda x: x[1]["expectancy"])
-    print(f"\nBeste strategie: {best[0]} (expectancy {fmt_money(best[1]['expectancy'])})")
-    print(f"Zwakste strategie: {worst[0]} (expectancy {fmt_money(worst[1]['expectancy'])})")
+    print(
+        f"\nBeste strategie: {best[0]} (expectancy {_fmt_money(best[1]['expectancy'])})"
+    )
+    print(
+        f"Zwakste strategie: {worst[0]} (expectancy {_fmt_money(worst[1]['expectancy'])})"
+    )
 
 
 def main(argv=None) -> None:

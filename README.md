@@ -53,9 +53,10 @@ python controlpanel.py
 Of gebruik individuele modules:
 
 * `getaccountinfo.py`: Live portfolio-overzicht ophalen  
-* `getonemarket.py`: Optieketen en marktdata voor een symbool  
-* `getallmarkets.py`: Exporteert data voor meerdere symbolen  
-* `journal_updater.py`: Nieuwe trade aanmaken en loggen  
+* `getonemarket.py`: Optieketen en marktdata voor een symbool
+* `getallmarkets.py`: Exporteert data voor meerdere symbolen
+* `getallmarkets_async.py`: Prototype dat meerdere markten parallel ophaalt
+* `journal_updater.py`: Nieuwe trade aanmaken en loggen
 * `close_trade.py`: Trade afsluiten met evaluatie  
 * `strategy_dashboard.py`: Groepeert legs per strategie en toont alerts  
 * `portfolio_scenario.py`: Simuleert PnL/Greeks na een zelf gekozen spot- en IV-shift
@@ -63,6 +64,12 @@ Of gebruik individuele modules:
 * `regression_runner.py`: Vergelijkt scriptoutput met benchmarks (ook via het Control Panel)
 
 Voor regressietests zet `regression_runner.py` standaard `TOMIC_TODAY=2025-05-29`.
+
+### Asynchrone prototype
+
+`getallmarkets_async.py` toont hoe de bestaande marktdatascripts parallel kunnen
+lopen met `asyncio.to_thread`. De IBKR-API zelf is niet echt asynchroon, maar op
+deze manier kun je wel meerdere symbolen gelijktijdig verwerken.
 
 ## 📦 Pakketstructuur
 
@@ -77,6 +84,7 @@ De scripts in de hoofdmap zijn lichte wrappers die taken doorgeven aan deze modu
 - `getaccountinfo.py` → `tomic.api.getaccountinfo.main()`
 - `getonemarket.py` → `tomic.api.getonemarket.run()`
 - `getallmarkets.py` → `tomic.api.getallmarkets.run()`
+- `getallmarkets_async.py` → `tomic.api.getallmarkets_async.gather_markets()`
 - `journal_updater.py` → `tomic.journal.journal_updater.interactieve_trade_invoer()`
 - `journal_inspector.py` → `tomic.journal.journal_inspector.main()`
 - `update_margins.py` → `tomic.journal.update_margins.update_all_margins()`
