@@ -5,10 +5,15 @@ from ibapi.contract import Contract, ContractDetails
 from ibapi.ticktype import TickTypeEnum
 from ibapi.common import TickerId
 import threading
-import math
-import statistics
 from datetime import datetime
 import logging
+
+from .market_utils import (
+    create_underlying,
+    create_option_contract,
+    calculate_hv30,
+    calculate_atr14,
+)
 
 
 class CombinedApp(EWrapper, EClient):
@@ -206,21 +211,10 @@ class CombinedApp(EWrapper, EClient):
 
     # --- Calculations --------------------------------------------------------
     def calculate_hv30(self):
-        closes = [bar.close for bar in self.historical_data if hasattr(bar, "close")]
-        log_returns = [math.log(closes[i + 1] / closes[i]) for i in range(len(closes) - 1)]
-        std_dev = statistics.stdev(log_returns)
-        return round(std_dev * math.sqrt(252) * 100, 2)
+        return calculate_hv30(self.historical_data)
 
     def calculate_atr14(self):
-        trs = []
-        for i in range(1, len(self.historical_data)):
-            high = self.historical_data[i].high
-            low = self.historical_data[i].low
-            prev_close = self.historical_data[i - 1].close
-            tr = max(high - low, abs(high - prev_close), abs(low - prev_close))
-            trs.append(tr)
-        atr14 = statistics.mean(trs[-14:])
-        return round(atr14, 2)
+        return calculate_atr14(self.historical_data)
 
     def count_incomplete(self):
         return sum(
@@ -239,30 +233,4 @@ class CombinedApp(EWrapper, EClient):
         )
 
 
-# --- Helper contract builders -------------------------------------------------
-
-def create_underlying(symbol: str) -> Contract:
-    c = Contract()
-    c.symbol = symbol
-    c.secType = "STK"
-    c.exchange = "SMART"
-    c.primaryExchange = "ARCA"
-    c.currency = "USD"
-    return c
-
-
-def create_option_contract(symbol: str, expiry: str, strike: float, right: str, trading_class: str) -> Contract:
-    c = Contract()
-    c.symbol = symbol
-    c.secType = "OPT"
-    c.exchange = "SMART"
-    c.primaryExchange = "SMART"
-    c.currency = "USD"
-    c.lastTradeDateOrContractMonth = expiry
-    c.strike = strike
-    c.right = right
-    c.multiplier = "100"
-    c.tradingClass = trading_class
-    return c
-
-__all__ = ["CombinedApp", "create_underlying", "create_option_contract"]
+__all__ = ["CombinedApp"]
