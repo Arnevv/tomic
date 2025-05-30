@@ -13,7 +13,7 @@ from tomic.api.combined_app import CombinedApp
 from tomic.config import get as cfg_get
 
 
-def run(symbol):
+def run(symbol: str, output_dir: str | None = None):
     symbol = symbol.upper()
     if not symbol:
         logging.error("❌ Geen geldig symbool ingevoerd.")
@@ -99,8 +99,11 @@ def run(symbol):
     else:
         logging.info("✅ Alle opties volledig na %s seconden.", waited)
 
-    today_str = datetime.now().strftime("%Y%m%d")
-    export_dir = os.path.join(cfg_get("EXPORT_DIR", "exports"), today_str)
+    if output_dir is None:
+        today_str = datetime.now().strftime("%Y%m%d")
+        export_dir = os.path.join(cfg_get("EXPORT_DIR", "exports"), today_str)
+    else:
+        export_dir = output_dir
     os.makedirs(export_dir, exist_ok=True)
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
 
@@ -259,8 +262,25 @@ def export_combined_csv(data_per_market, output_dir):
 
 
 if __name__ == "__main__":
+    import argparse
+
+    parser = argparse.ArgumentParser(
+        description="Exporteer data voor meerdere markten"
+    )
+    parser.add_argument(
+        "symbols",
+        nargs="*",
+        help="Symbolen om te verwerken",
+    )
+    parser.add_argument(
+        "--output-dir",
+        help="Map voor exports (standaard wordt automatisch bepaald)",
+    )
+    args = parser.parse_args()
+
     setup_logging()
-    symbols = [
+
+    default_symbols = [
         "AAPL",
         "ASML",
         "CRM",
@@ -280,14 +300,20 @@ if __name__ == "__main__":
         "VIX",
         "XLE",
         "XLF",
-        "XLV"
+        "XLV",
     ]
-    today_str = datetime.now().strftime("%Y%m%d")
-    export_dir = os.path.join(cfg_get("EXPORT_DIR", "exports"), today_str)
+    symbols = args.symbols or default_symbols
+
+    if args.output_dir is None:
+        today_str = datetime.now().strftime("%Y%m%d")
+        export_dir = os.path.join(cfg_get("EXPORT_DIR", "exports"), today_str)
+    else:
+        export_dir = args.output_dir
+
     data_frames = []
     for sym in symbols:
         logging.info("🔄 Ophalen voor %s...", sym)
-        df = run(sym)
+        df = run(sym, export_dir)
         if df is not None:
             data_frames.append(df)
         time.sleep(2)
