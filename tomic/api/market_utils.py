@@ -2,9 +2,71 @@
 
 import threading
 import time
+import math
+import statistics
+
+from ibapi.contract import Contract
 
 from tomic.analysis.get_iv_rank import fetch_iv_metrics
 from tomic.api.combined_app import CombinedApp
+
+
+def create_underlying(symbol: str) -> Contract:
+    """Return a stock Contract for the given symbol."""
+    c = Contract()
+    c.symbol = symbol
+    c.secType = "STK"
+    c.exchange = "SMART"
+    c.primaryExchange = "ARCA"
+    c.currency = "USD"
+    return c
+
+
+def create_option_contract(
+    symbol: str,
+    expiry: str,
+    strike: float,
+    right: str,
+    trading_class: str | None = None,
+) -> Contract:
+    """Return an option Contract for the given parameters."""
+    c = Contract()
+    c.symbol = symbol
+    c.secType = "OPT"
+    c.exchange = "SMART"
+    c.primaryExchange = "SMART"
+    c.currency = "USD"
+    c.lastTradeDateOrContractMonth = expiry
+    c.strike = strike
+    c.right = right[0].upper() if right else right
+    c.multiplier = "100"
+    c.tradingClass = trading_class or symbol
+    return c
+
+
+def calculate_hv30(historical_data: list) -> float | None:
+    """Return the 30-day historical volatility percentage."""
+    closes = [bar.close for bar in historical_data if hasattr(bar, "close")]
+    if len(closes) < 2:
+        return None
+    log_returns = [math.log(closes[i + 1] / closes[i]) for i in range(len(closes) - 1)]
+    std_dev = statistics.stdev(log_returns)
+    return round(std_dev * math.sqrt(252) * 100, 2)
+
+
+def calculate_atr14(historical_data: list) -> float | None:
+    """Return the 14-day average true range."""
+    trs = []
+    for i in range(1, len(historical_data)):
+        high = historical_data[i].high
+        low = historical_data[i].low
+        prev_close = historical_data[i - 1].close
+        tr = max(high - low, abs(high - prev_close), abs(low - prev_close))
+        trs.append(tr)
+    if len(trs) < 14:
+        return None
+    atr14 = statistics.mean(trs[-14:])
+    return round(atr14, 2)
 
 
 def fetch_market_metrics(symbol: str) -> dict:
@@ -121,3 +183,12 @@ def fetch_market_metrics(symbol: str) -> dict:
     app.disconnect()
     time.sleep(1)
     return metrics
+
+
+__all__ = [
+    "create_underlying",
+    "create_option_contract",
+    "calculate_hv30",
+    "calculate_atr14",
+    "fetch_market_metrics",
+]
