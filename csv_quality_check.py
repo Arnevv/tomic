@@ -1,7 +1,10 @@
 import csv
 import os
 import sys
+import logging
 from typing import List, Dict, Set, Any
+
+from tomic.logging import setup_logging
 
 
 def is_empty(val: str) -> bool:
@@ -101,6 +104,7 @@ def analyze_csv(path: str) -> Dict[str, Any]:
 
 
 def main(argv: List[str]) -> None:
+    setup_logging()
     if argv:
         raw_path = argv[0]
         path = raw_path.strip().strip("'\"")
@@ -115,26 +119,26 @@ def main(argv: List[str]) -> None:
         symbol_input = input('Symbool (enter voor auto-detect): ').strip()
         symbol = symbol_input or guess_symbol(path)
     if not os.path.isfile(path):
-        print(f'Bestand niet gevonden: {path}')
+        logging.error('Bestand niet gevonden: %s', path)
         return
     stats = analyze_csv(path)
     quality = (stats['complete'] / stats['total'] * 100) if stats['total'] else 0
     expiries_str = ' / '.join(stats['expiries']) if stats['expiries'] else '-'
-    print(f"Markt: {symbol}")
-    print(f"Expiries: {expiries_str}")
-    print(f"Aantal regels: {stats['total']}")
-    print(f"Aantal complete regels: {stats['complete']}")
-    print(f"Delta buiten [-1,1]: {stats['bad_delta']}")
-    print(f"Ongeldige Strike/Bid/Ask: {stats['bad_price_fields']}")
-    print(f"Duplicaten: {stats['duplicates']}")
-    print(f"Lege Bid: {stats['empty_counts']['bid']}")
-    print(f"Lege Ask: {stats['empty_counts']['ask']}")
-    print(f"Lege IV: {stats['empty_counts']['iv']}")
-    print(f"Lege Delta: {stats['empty_counts']['delta']}")
-    print(f"Lege Gamma: {stats['empty_counts']['gamma']}")
-    print(f"Lege Vega: {stats['empty_counts']['vega']}")
-    print(f"Lege Theta: {stats['empty_counts']['theta']}")
-    print(f"Kwaliteit: {quality:.1f}%")
+    logging.info("Markt: %s", symbol)
+    logging.info("Expiries: %s", expiries_str)
+    logging.info("Aantal regels: %s", stats['total'])
+    logging.info("Aantal complete regels: %s", stats['complete'])
+    logging.info("Delta buiten [-1,1]: %s", stats['bad_delta'])
+    logging.info("Ongeldige Strike/Bid/Ask: %s", stats['bad_price_fields'])
+    logging.info("Duplicaten: %s", stats['duplicates'])
+    logging.info("Lege Bid: %s", stats['empty_counts']['bid'])
+    logging.info("Lege Ask: %s", stats['empty_counts']['ask'])
+    logging.info("Lege IV: %s", stats['empty_counts']['iv'])
+    logging.info("Lege Delta: %s", stats['empty_counts']['delta'])
+    logging.info("Lege Gamma: %s", stats['empty_counts']['gamma'])
+    logging.info("Lege Vega: %s", stats['empty_counts']['vega'])
+    logging.info("Lege Theta: %s", stats['empty_counts']['theta'])
+    logging.info("Kwaliteit: %.1f%%", quality)
 
 
 if __name__ == '__main__':
