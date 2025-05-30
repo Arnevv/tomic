@@ -11,11 +11,11 @@ from tomic.config import get as cfg_get
 
 
 
-def run():
+def run(symbol: str, output_dir: str | None = None):
+    """Download option chain and market metrics for *symbol*."""
+
     setup_logging()
-    symbol = input(
-        "📈 Voer het symbool in waarvoor je data wilt ophalen (bijv. SPY): "
-    ).strip().upper()
+    symbol = symbol.strip().upper()
     if not symbol:
         logging.error("❌ Geen geldig symbool ingevoerd.")
         return
@@ -80,8 +80,11 @@ def run():
     else:
         logging.info("✅ Alle opties volledig na %s seconden.", waited)
 
-    today_str = datetime.now().strftime("%Y%m%d")
-    export_dir = os.path.join(cfg_get("EXPORT_DIR", "exports"), today_str)
+    if output_dir is None:
+        today_str = datetime.now().strftime("%Y%m%d")
+        export_dir = os.path.join(cfg_get("EXPORT_DIR", "exports"), today_str)
+    else:
+        export_dir = output_dir
     os.makedirs(export_dir, exist_ok=True)
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
 
@@ -159,4 +162,13 @@ def run():
 
 
 if __name__ == "__main__":
-    run()
+    import argparse
+
+    parser = argparse.ArgumentParser(description="Exporteer optie- en marktdata")
+    parser.add_argument("symbol", help="Ticker symbool")
+    parser.add_argument(
+        "--output-dir",
+        help="Map voor exports (standaard wordt automatisch bepaald)",
+    )
+    args = parser.parse_args()
+    run(args.symbol, args.output_dir)
