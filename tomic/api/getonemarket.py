@@ -480,18 +480,6 @@ def run():
 
     logging.info("✅ CSV opgeslagen als: %s", metrics_file)
 
-    record = {
-        "date": datetime.now(timezone.utc).strftime("%Y-%m-%d"),
-        "symbol": symbol,
-        "spot": app.spot_price,
-        "iv30": implied_volatility,
-        "hv30": hv30,
-        "iv_rank": iv_rank,
-        "skew": skew,
-    }
-    from vol_cone_db import store_volatility_snapshot
-    store_volatility_snapshot(record)
-
     app.disconnect()
     time.sleep(1)
 
