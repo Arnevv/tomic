@@ -119,26 +119,26 @@ def main(argv: List[str]) -> None:
         symbol_input = input('Symbool (enter voor auto-detect): ').strip()
         symbol = symbol_input or guess_symbol(path)
     if not os.path.isfile(path):
-        logging.error('Bestand niet gevonden: %s', path)
+        logging.warning('Bestand niet gevonden: %s', path)
         return
     stats = analyze_csv(path)
     quality = (stats['complete'] / stats['total'] * 100) if stats['total'] else 0
     expiries_str = ' / '.join(stats['expiries']) if stats['expiries'] else '-'
-    logging.info("Markt: %s", symbol)
-    logging.info("Expiries: %s", expiries_str)
-    logging.info("Aantal regels: %s", stats['total'])
-    logging.info("Aantal complete regels: %s", stats['complete'])
-    logging.info("Delta buiten [-1,1]: %s", stats['bad_delta'])
-    logging.info("Ongeldige Strike/Bid/Ask: %s", stats['bad_price_fields'])
-    logging.info("Duplicaten: %s", stats['duplicates'])
-    logging.info("Lege Bid: %s", stats['empty_counts']['bid'])
-    logging.info("Lege Ask: %s", stats['empty_counts']['ask'])
-    logging.info("Lege IV: %s", stats['empty_counts']['iv'])
-    logging.info("Lege Delta: %s", stats['empty_counts']['delta'])
-    logging.info("Lege Gamma: %s", stats['empty_counts']['gamma'])
-    logging.info("Lege Vega: %s", stats['empty_counts']['vega'])
-    logging.info("Lege Theta: %s", stats['empty_counts']['theta'])
-    logging.info("Kwaliteit: %.1f%%", quality)
+    logging.warning("Markt: %s", symbol)
+    logging.warning("Expiries: %s", expiries_str)
+    logging.warning("Aantal regels: %s", stats['total'])
+    logging.warning("Aantal complete regels: %s", stats['complete'])
+    logging.warning("Delta buiten [-1,1]: %s", stats['bad_delta'])
+    logging.warning("Ongeldige Strike/Bid/Ask: %s", stats['bad_price_fields'])
+    logging.warning("Duplicaten: %s", stats['duplicates'])
+    logging.warning("Lege Bid: %s", stats['empty_counts']['bid'])
+    logging.warning("Lege Ask: %s", stats['empty_counts']['ask'])
+    logging.warning("Lege IV: %s", stats['empty_counts']['iv'])
+    logging.warning("Lege Delta: %s", stats['empty_counts']['delta'])
+    logging.warning("Lege Gamma: %s", stats['empty_counts']['gamma'])
+    logging.warning("Lege Vega: %s", stats['empty_counts']['vega'])
+    logging.warning("Lege Theta: %s", stats['empty_counts']['theta'])
+    logging.warning("Kwaliteit: %.1f%%", quality)
 
 
 if __name__ == '__main__':
