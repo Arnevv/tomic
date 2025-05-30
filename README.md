@@ -78,7 +78,7 @@ De scripts in de hoofdmap zijn lichte wrappers die taken doorgeven aan deze modu
 - `getonemarket.py` → `tomic.api.getonemarket.run()`
 - `getallmarkets.py` → `tomic.api.getallmarkets.run()`
 - `journal_updater.py` → `tomic.journal.journal_updater.interactieve_trade_invoer()`
-- `journal_inspector.py` → `tomic.journal.journal_inspector.start_menu()`
+- `journal_inspector.py` → `tomic.journal.journal_inspector.main()`
 - `update_margins.py` → `tomic.journal.update_margins.update_all_margins()`
 - `performance_analyzer.py` → `tomic.analysis.performance_analyzer.main()`
 
