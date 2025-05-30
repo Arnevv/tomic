@@ -2,7 +2,9 @@ import json
 from pathlib import Path
 from typing import Any, List
 
-JOURNAL_FILE = Path("journal.json")
+from tomic.config import get as cfg_get
+
+JOURNAL_FILE = Path(cfg_get("JOURNAL_FILE", "journal.json"))
 
 
 def load_journal(path: Path = JOURNAL_FILE) -> List[Any]:
