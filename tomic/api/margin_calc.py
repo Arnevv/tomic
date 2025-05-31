@@ -4,6 +4,7 @@ from ibapi.order import Order
 import threading
 
 from .market_utils import create_option_contract
+from tomic.config import get as cfg_get
 
 
 class MarginApp(EWrapper, EClient):
@@ -28,11 +29,18 @@ class MarginApp(EWrapper, EClient):
             self.event.set()
 
 
-def calculate_trade_margin(symbol: str, expiry: str, legs: list,
-                           host: str = "127.0.0.1", port: int = 7497,
-                           client_id: int = 900) -> float | None:
+def calculate_trade_margin(
+    symbol: str,
+    expiry: str,
+    legs: list,
+    host: str | None = None,
+    port: int | None = None,
+    client_id: int = 900,
+) -> float | None:
     """Return required initial margin for the given option legs."""
     expiry = expiry.replace("-", "")
+    host = host or cfg_get("IB_HOST", "127.0.0.1")
+    port = int(port or cfg_get("IB_PORT", 7497))
     app = MarginApp()
     app.connect(host, port, clientId=client_id)
     thread = threading.Thread(target=app.run, daemon=True)

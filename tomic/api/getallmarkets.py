@@ -24,7 +24,9 @@ def run(symbol: str, output_dir: str | None = None):
         return
 
     app = CombinedApp(symbol)
-    app.connect("127.0.0.1", 7497, clientId=200)
+    host = cfg_get("IB_HOST", "127.0.0.1")
+    port = int(cfg_get("IB_PORT", 7497))
+    app.connect(host, port, clientId=200)
     thread = threading.Thread(target=app.run, daemon=True)
     thread.start()
 
@@ -110,15 +112,30 @@ def run(symbol: str, output_dir: str | None = None):
                     data.get("bid"),
                     data.get("ask"),
                     round(data.get("iv"), 3) if data.get("iv") is not None else None,
-                    round(data.get("delta"), 3) if data.get("delta") is not None else None,
-                    round(data.get("gamma"), 3) if data.get("gamma") is not None else None,
-                    round(data.get("vega"), 3) if data.get("vega") is not None else None,
-                    round(data.get("theta"), 3) if data.get("theta") is not None else None,
+                    (
+                        round(data.get("delta"), 3)
+                        if data.get("delta") is not None
+                        else None
+                    ),
+                    (
+                        round(data.get("gamma"), 3)
+                        if data.get("gamma") is not None
+                        else None
+                    ),
+                    (
+                        round(data.get("vega"), 3)
+                        if data.get("vega") is not None
+                        else None
+                    ),
+                    (
+                        round(data.get("theta"), 3)
+                        if data.get("theta") is not None
+                        else None
+                    ),
                 ]
             )
 
     logging.info("✅ Optieketen opgeslagen in: %s", chain_file)
-
 
     metrics_file = os.path.join(export_dir, f"other_data_{symbol}_{timestamp}.csv")
     headers_metrics = [
@@ -172,9 +189,7 @@ def export_combined_csv(data_per_market, output_dir):
 if __name__ == "__main__":
     import argparse
 
-    parser = argparse.ArgumentParser(
-        description="Exporteer data voor meerdere markten"
-    )
+    parser = argparse.ArgumentParser(description="Exporteer data voor meerdere markten")
     parser.add_argument(
         "symbols",
         nargs="*",
