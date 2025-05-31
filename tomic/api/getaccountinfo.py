@@ -7,7 +7,7 @@ from ibapi.ticktype import TickTypeEnum
 
 from datetime import datetime
 import json
-from tomic.api.market_utils import calculate_hv30, calculate_atr14
+from tomic.api.market_utils import calculate_hv30, calculate_atr14, count_incomplete
 from tomic.analysis.get_iv_rank import fetch_iv_metrics
 
 from tomic.logging import logger
@@ -238,19 +238,8 @@ class IBApp(EWrapper, EClient):
 
     def count_incomplete(self):
         """Return how many positions are missing market or Greek data."""
-        return sum(
-            1
-            for d in self.positions_data
-            if (
-                d["bid"] is None
-                or d["ask"] is None
-                or d["iv"] is None
-                or d["delta"] is None
-                or d["gamma"] is None
-                or d["vega"] is None
-                or d["theta"] is None
-            )
-        )
+
+        return count_incomplete(self.positions_data)
 
     def error(self, reqId: TickerId, errorCode: int, errorString: str):
         logger.error("⚠️ Error %s: %s", errorCode, errorString)
@@ -343,7 +332,7 @@ def main() -> None:
 
     with open(cfg_get("POSITIONS_FILE", "positions.json"), "w", encoding="utf-8") as f:
         json.dump(app.positions_data, f, indent=2)
-    
+
     logging.info(
         "💾 Posities opgeslagen in %s", cfg_get("POSITIONS_FILE", "positions.json")
     )
