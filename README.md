@@ -100,7 +100,7 @@ De scripts in de hoofdmap zijn lichte wrappers die taken doorgeven aan deze modu
 
 ### Configuratie
 
-Het bestand `tomic/config.py` zoekt automatisch naar `config.yaml`, `config.yml` of `.env` in de projectmap. Via de omgevingsvariabele `TOMIC_CONFIG` kun je een ander pad opgeven. YAML-bestanden vereisen de optionele dependency **PyYAML**.
+Alle basisinstellingen staan in `config/base.yaml`. Overrides of geheime waarden plaats je in `.env`. De module `tomic.config` laadt deze bestanden via **Pydantic**. Met de variabele `TOMIC_CONFIG` kun je een alternatief YAML-pad opgeven.
 
 Belangrijke sleutels die je hier kunt aanpassen:
 

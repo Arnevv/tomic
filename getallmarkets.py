@@ -19,29 +19,7 @@ if __name__ == "__main__":
 
     setup_logging()
 
-    default_symbols = [
-        "AAPL",
-        "ASML",
-        "CRM",
-        "DIA",
-        "EWG",
-        "EWJ",
-        "EWZ",
-        "FEZ",
-        "FXI",
-        "GLD",
-        "INDA",
-        "NVDA",
-        "QQQ",
-        "RUT",
-        "SPY",
-        "TSLA",
-        "VIX",
-        "XLE",
-        "XLF",
-        "XLV",
-    ]
-    symbols = args.symbols or default_symbols
+    symbols = args.symbols or cfg_get("DEFAULT_SYMBOLS", [])
 
     if args.output_dir is None:
         today_str = datetime.now().strftime("%Y%m%d")
