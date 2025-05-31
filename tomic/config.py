@@ -22,6 +22,8 @@ DEFAULTS: Dict[str, Any] = {
     "JOURNAL_FILE": "journal.json",
     "VOLATILITY_DATA_FILE": "volatility_data.json",
     "EXPORT_DIR": "exports",
+    "IB_HOST": "127.0.0.1",
+    "IB_PORT": 7497,
 }
 
 _BASE_DIR = Path(__file__).resolve().parent.parent

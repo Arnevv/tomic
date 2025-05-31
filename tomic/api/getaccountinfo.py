@@ -265,7 +265,9 @@ def main() -> None:
     setup_logging()
     logger.info("🚀 Ophalen van accountinformatie")
     app = IBApp()
-    app.connect("127.0.0.1", 7497, clientId=1)
+    host = cfg_get("IB_HOST", "127.0.0.1")
+    port = int(cfg_get("IB_PORT", 7497))
+    app.connect(host, port, clientId=1)
 
     api_thread = threading.Thread(target=run_loop, args=(app,), daemon=True)
     api_thread.start()
@@ -341,7 +343,8 @@ def main() -> None:
 
     with open(cfg_get("POSITIONS_FILE", "positions.json"), "w", encoding="utf-8") as f:
         json.dump(app.positions_data, f, indent=2)
-    logger.info(
+    
+    logging.info(
         "💾 Posities opgeslagen in %s", cfg_get("POSITIONS_FILE", "positions.json")
     )
 
@@ -352,7 +355,8 @@ def main() -> None:
         cfg_get("ACCOUNT_INFO_FILE", "account_info.json"), "w", encoding="utf-8"
     ) as f:
         json.dump(base_currency_vals, f, indent=2)
-    logger.info(
+
+    logging.info(
         "💾 Accountinfo opgeslagen in %s",
         cfg_get("ACCOUNT_INFO_FILE", "account_info.json"),
     )

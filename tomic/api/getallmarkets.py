@@ -23,7 +23,9 @@ def run(symbol: str, output_dir: str | None = None):
         return
 
     app = CombinedApp(symbol)
-    app.connect("127.0.0.1", 7497, clientId=200)
+    host = cfg_get("IB_HOST", "127.0.0.1")
+    port = int(cfg_get("IB_PORT", 7497))
+    app.connect(host, port, clientId=200)
     thread = threading.Thread(target=app.run, daemon=True)
     thread.start()
 

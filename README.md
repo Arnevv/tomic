@@ -108,6 +108,8 @@ Belangrijke sleutels die je hier kunt aanpassen:
 * `ACCOUNT_INFO_FILE` – JSON-bestand met accountgegevens
 * `JOURNAL_FILE` – trade journal
 * `VOLATILITY_DATA_FILE` – snapshots van volatiliteitsdata
+* `IB_HOST` – hostnaam voor de IB Gateway/TWS (standaard `127.0.0.1`)
+* `IB_PORT` – poortnummer voor de IB Gateway/TWS (standaard `7497`)
 
 ---
 
