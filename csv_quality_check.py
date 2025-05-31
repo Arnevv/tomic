@@ -1,7 +1,7 @@
 import csv
 import os
 import sys
-import logging
+from loguru import logger
 from typing import List, Dict, Set, Any
 
 from tomic.logging import setup_logging
@@ -105,6 +105,7 @@ def analyze_csv(path: str) -> Dict[str, Any]:
 
 def main(argv: List[str]) -> None:
     setup_logging()
+    logger.info("🚀 CSV kwaliteitscontrole")
     if argv:
         raw_path = argv[0]
         path = raw_path.strip().strip("'\"")
@@ -119,27 +120,29 @@ def main(argv: List[str]) -> None:
         symbol_input = input('Symbool (enter voor auto-detect): ').strip()
         symbol = symbol_input or guess_symbol(path)
     if not os.path.isfile(path):
-        logging.warning('Bestand niet gevonden: %s', path)
+        logger.warning('Bestand niet gevonden: %s', path)
         return
     stats = analyze_csv(path)
     quality = (stats['complete'] / stats['total'] * 100) if stats['total'] else 0
     expiries_str = ' / '.join(stats['expiries']) if stats['expiries'] else '-'
-    logging.warning("Markt: %s", symbol)
-    logging.warning("Expiries: %s", expiries_str)
-    logging.warning("Aantal regels: %s", stats['total'])
-    logging.warning("Aantal complete regels: %s", stats['complete'])
-    logging.warning("Delta buiten [-1,1]: %s", stats['bad_delta'])
-    logging.warning("Ongeldige Strike/Bid/Ask: %s", stats['bad_price_fields'])
-    logging.warning("Duplicaten: %s", stats['duplicates'])
-    logging.warning("Lege Bid: %s", stats['empty_counts']['bid'])
-    logging.warning("Lege Ask: %s", stats['empty_counts']['ask'])
-    logging.warning("Lege IV: %s", stats['empty_counts']['iv'])
-    logging.warning("Lege Delta: %s", stats['empty_counts']['delta'])
-    logging.warning("Lege Gamma: %s", stats['empty_counts']['gamma'])
-    logging.warning("Lege Vega: %s", stats['empty_counts']['vega'])
-    logging.warning("Lege Theta: %s", stats['empty_counts']['theta'])
-    logging.warning("Kwaliteit: %.1f%%", quality)
+    logger.warning("Markt: %s", symbol)
+    logger.warning("Expiries: %s", expiries_str)
+    logger.warning("Aantal regels: %s", stats['total'])
+    logger.warning("Aantal complete regels: %s", stats['complete'])
+    logger.warning("Delta buiten [-1,1]: %s", stats['bad_delta'])
+    logger.warning("Ongeldige Strike/Bid/Ask: %s", stats['bad_price_fields'])
+    logger.warning("Duplicaten: %s", stats['duplicates'])
+    logger.warning("Lege Bid: %s", stats['empty_counts']['bid'])
+    logger.warning("Lege Ask: %s", stats['empty_counts']['ask'])
+    logger.warning("Lege IV: %s", stats['empty_counts']['iv'])
+    logger.warning("Lege Delta: %s", stats['empty_counts']['delta'])
+    logger.warning("Lege Gamma: %s", stats['empty_counts']['gamma'])
+    logger.warning("Lege Vega: %s", stats['empty_counts']['vega'])
+    logger.warning("Lege Theta: %s", stats['empty_counts']['theta'])
+    logger.warning("Kwaliteit: %.1f%%", quality)
+    logger.success("✅ Controle afgerond")
 
 
 if __name__ == '__main__':
     main(sys.argv[1:])
+

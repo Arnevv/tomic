@@ -1,5 +1,5 @@
 import json
-import logging
+from loguru import logger
 from statistics import mean
 from typing import Dict, List, Optional
 
@@ -49,7 +49,7 @@ def analyze(trades: List[dict]) -> Dict[str, dict]:
             continue
         pnl = compute_pnl(trade)
         if pnl is None:
-            logging.warning(
+            logger.warning(
                 "Onvolledige data voor trade %s, overslaan.", trade.get('TradeID')
             )
             continue
@@ -78,7 +78,7 @@ def analyze(trades: List[dict]) -> Dict[str, dict]:
 
 def print_table(stats: Dict[str, dict]) -> None:
     if not stats:
-        logging.info("Geen afgesloten trades gevonden.")
+        logger.info("Geen afgesloten trades gevonden.")
         return
 
     headers = [
@@ -144,11 +144,12 @@ def main(argv=None) -> None:
         idx += 2
 
     if idx != len(argv):
-        logging.error(
+        logger.error(
             "Gebruik: python performance_analyzer.py [journal_file] [--json-output PATH]"
         )
         return
 
+    logger.info("🚀 Start performance analyse")
     journal = load_journal(journal_path)
     stats = analyze(journal)
     if json_output:
@@ -160,8 +161,10 @@ def main(argv=None) -> None:
             json.dump(data, f, indent=2)
     else:
         print_table(stats)
+    logger.success("✅ Analyse afgerond voor %d trades", len(journal))
 
 
 if __name__ == "__main__":
     import sys
     main(sys.argv[1:])
+
