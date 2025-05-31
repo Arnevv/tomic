@@ -31,9 +31,10 @@ def compute_portfolio_greeks(positions):
 
 
 def load_positions(path: str):
-    """Load positions JSON file and return as list."""
+    """Load positions JSON file and return list of open positions."""
     with open(path, "r", encoding="utf-8") as f:
-        return json.load(f)
+        data = json.load(f)
+    return [p for p in data if p.get("position")]
 
 
 def load_account_info(path: str):
@@ -44,7 +45,7 @@ def load_account_info(path: str):
         with open(path, "r", encoding="utf-8") as f:
             return json.load(f)
     except json.JSONDecodeError as e:
-        print(f"\u26A0\uFE0F Kan accountinfo niet laden uit {path}: {e}")
+        print(f"\u26a0\ufe0f Kan accountinfo niet laden uit {path}: {e}")
         return {}
 
 
@@ -69,9 +70,13 @@ def extract_exit_rules(path: str):
         m = re.search(r"\$([0-9]+(?:\.[0-9]+)?)", txt)
         if m:
             rule["premium_target"] = float(m.group(1))
-            if isinstance(rule.get("premium_entry"), (int, float)) and rule["premium_entry"]:
+            if (
+                isinstance(rule.get("premium_entry"), (int, float))
+                and rule["premium_entry"]
+            ):
                 rule["target_profit_pct"] = (
-                    (rule["premium_entry"] - rule["premium_target"]) / rule["premium_entry"]
+                    (rule["premium_entry"] - rule["premium_target"])
+                    / rule["premium_entry"]
                 ) * 100
         m = re.search(r"(\d+)\s*dagen", txt, re.I)
         if m:
@@ -245,9 +250,7 @@ def generate_alerts(strategy):
             for leg in legs
         )
         if abs(delta_dollar) > 15000:
-            alerts.append(
-                f"🚨 Delta-dollar blootstelling {delta_dollar:,.0f} > $15k"
-            )
+            alerts.append(f"🚨 Delta-dollar blootstelling {delta_dollar:,.0f} > $15k")
         elif abs(delta_dollar) < 3000:
             alerts.append("ℹ️ Beperkte exposure")
 
@@ -268,9 +271,13 @@ def generate_alerts(strategy):
     # 🔹 Gecombineerde richting + vega alerts
     if delta is not None and vega is not None and ivr is not None:
         if delta >= 0.15 and vega > 30 and ivr < 30:
-            alerts.append("📈 Bullish + Long Vega in lage IV → time spread overwegen i.p.v. long call")
+            alerts.append(
+                "📈 Bullish + Long Vega in lage IV → time spread overwegen i.p.v. long call"
+            )
         if delta <= -0.15 and vega < -30 and ivr > 60:
-            alerts.append("📉 Bearish + Short Vega in hoog vol klimaat → oppassen voor squeeze")
+            alerts.append(
+                "📉 Bearish + Short Vega in hoog vol klimaat → oppassen voor squeeze"
+            )
 
     # 🔹 IV-HV en skew analyse
     iv_hv = strategy.get("iv_hv_spread")
@@ -322,7 +329,9 @@ def generate_alerts(strategy):
     # 🔹 Eventueel aanvullen met trend/spotalerts later
     dte = strategy.get("days_to_expiry")
     if dte is not None and dte < 10:
-        alerts.append("⏳ Minder dan 10 dagen tot expiratie – overweeg sluiten of doorrollen")
+        alerts.append(
+            "⏳ Minder dan 10 dagen tot expiratie – overweeg sluiten of doorrollen"
+        )
     return alerts
 
 
@@ -374,12 +383,28 @@ def heuristic_risk_metrics(legs, cost_basis):
     if len(legs) == 4:
         rights = [l.get("right") or l.get("type") for l in legs]
         if rights.count("P") == 2 and rights.count("C") == 2:
-            put_short = [l for l in legs if (l.get("right") or l.get("type")) == "P" and l.get("position",0) < 0][0]
-            put_long = [l for l in legs if (l.get("right") or l.get("type")) == "P" and l.get("position",0) > 0][0]
-            call_short = [l for l in legs if (l.get("right") or l.get("type")) == "C" and l.get("position",0) < 0][0]
-            call_long = [l for l in legs if (l.get("right") or l.get("type")) == "C" and l.get("position",0) > 0][0]
-            width_put = abs(put_short.get("strike",0) - put_long.get("strike",0))
-            width_call = abs(call_short.get("strike",0) - call_long.get("strike",0))
+            put_short = [
+                l
+                for l in legs
+                if (l.get("right") or l.get("type")) == "P" and l.get("position", 0) < 0
+            ][0]
+            put_long = [
+                l
+                for l in legs
+                if (l.get("right") or l.get("type")) == "P" and l.get("position", 0) > 0
+            ][0]
+            call_short = [
+                l
+                for l in legs
+                if (l.get("right") or l.get("type")) == "C" and l.get("position", 0) < 0
+            ][0]
+            call_long = [
+                l
+                for l in legs
+                if (l.get("right") or l.get("type")) == "C" and l.get("position", 0) > 0
+            ][0]
+            width_put = abs(put_short.get("strike", 0) - put_long.get("strike", 0))
+            width_call = abs(call_short.get("strike", 0) - call_long.get("strike", 0))
             width = max(width_put, width_call) * 100
             credit = -cost_basis if cost_basis < 0 else 0
             max_profit = credit
@@ -435,13 +460,16 @@ def group_strategies(positions, journal=None):
 
     strategies = []
 
-    def build_strategy(symbol, expiry, legs, trade_data=None):
+    def build_strategy(symbol, expiry, legs, trade_data=None, trade_id=None):
         legs = collapse_legs(legs)
         strat = {
             "symbol": symbol,
             "expiry": expiry,
-            "type": trade_data.get("Type") if trade_data else determine_strategy_type(legs),
+            "type": (
+                trade_data.get("Type") if trade_data else determine_strategy_type(legs)
+            ),
             "legs": legs,
+            "trade_id": trade_id,
         }
         # haal eventueel spotprijs uit een van de legs
         spot = None
@@ -458,9 +486,7 @@ def group_strategies(positions, journal=None):
 
         exp_date = parse_date(expiry)
         if exp_date:
-            strat["days_to_expiry"] = (
-                exp_date - today()
-            ).days
+            strat["days_to_expiry"] = (exp_date - today()).days
         else:
             strat["days_to_expiry"] = None
 
@@ -518,16 +544,24 @@ def group_strategies(positions, journal=None):
     for tid, legs in trade_groups.items():
         trade = trade_by_id.get(tid)
         symbol = trade.get("Symbool") if trade else legs[0].get("symbol")
-        expiry = trade.get("Expiry") if trade else (
-            legs[0].get("lastTradeDate") or legs[0].get("expiry") or legs[0].get("expiration")
+        expiry = (
+            trade.get("Expiry")
+            if trade
+            else (
+                legs[0].get("lastTradeDate")
+                or legs[0].get("expiry")
+                or legs[0].get("expiration")
+            )
         )
-        strategies.append(build_strategy(symbol, expiry, legs, trade))
+        strategies.append(build_strategy(symbol, expiry, legs, trade, trade_id=tid))
 
     for (symbol, expiry), legs in fallback_groups.items():
         trade = symbol_expiry_lookup.get((symbol, expiry))
-        strategies.append(build_strategy(symbol, expiry, legs, trade))
+        tid = trade.get("TradeID") if trade else None
+        strategies.append(build_strategy(symbol, expiry, legs, trade, trade_id=tid))
 
     return strategies
+
 
 def compute_term_structure(strategies):
     """Annotate strategies with simple term structure slope."""
@@ -566,11 +600,10 @@ def sort_legs(legs):
 # Mapping of leg characteristics to emoji symbols
 SYMBOL_MAP = {
     ("P", -1): "🔴",  # short put
-    ("P", 1): "🔵",   # long put
+    ("P", 1): "🔵",  # long put
     ("C", -1): "🟡",  # short call
-    ("C", 1): "🟢",   # long call
+    ("C", 1): "🟢",  # long call
 }
-
 
 
 def print_strategy(strategy, rule=None):
@@ -621,18 +654,14 @@ def print_strategy(strategy, rule=None):
     if days_line:
         print("→ " + " | ".join(days_line))
     if pnl is not None:
-        margin_ref = (
-            strategy.get("init_margin")
-            or strategy.get("margin_used")
-            or 1000
-        )
+        margin_ref = strategy.get("init_margin") or strategy.get("margin_used") or 1000
         rom = (pnl / margin_ref) * 100
         print(f"→ PnL: {pnl:+.2f} (ROM: {rom:+.1f}%)")
     spot = strategy.get("spot", 0)
     delta_dollar = strategy.get("delta_dollar")
     if delta is not None and spot and delta_dollar is not None:
         print(f"→ Delta exposure ≈ ${delta_dollar:,.0f} bij spot {spot}")
-    
+
     margin = strategy.get("init_margin") or strategy.get("margin_used") or 1000
     if theta is not None and margin:
         theta_efficiency = abs(theta / margin) * 100
@@ -692,12 +721,14 @@ def print_strategy(strategy, rule=None):
         symbol = SYMBOL_MAP.get((right, 1 if leg.get("position", 0) > 0 else -1), "▫️")
 
         qty = abs(leg.get("position", 0))
-        print(f"  {symbol} {right} {leg.get('strike')} ({side}) - {qty} contract{'s' if qty != 1 else ''}")
+        print(
+            f"  {symbol} {right} {leg.get('strike')} ({side}) - {qty} contract{'s' if qty != 1 else ''}"
+        )
 
-        d = leg.get('delta')
-        g = leg.get('gamma')
-        v = leg.get('vega')
-        t = leg.get('theta')
+        d = leg.get("delta")
+        g = leg.get("gamma")
+        v = leg.get("vega")
+        t = leg.get("theta")
         d_disp = f"{d:.3f}" if d is not None else "–"
         g_disp = f"{g:.3f}" if g is not None else "–"
         v_disp = f"{v:.3f}" if v is not None else "–"
@@ -738,25 +769,32 @@ def main(argv=None):
         return 1
 
     positions_file = args[0]
-    account_file = args[1] if len(args) > 1 else cfg_get("ACCOUNT_INFO_FILE", "account_info.json")
+    account_file = (
+        args[1] if len(args) > 1 else cfg_get("ACCOUNT_INFO_FILE", "account_info.json")
+    )
     journal_file = cfg_get("JOURNAL_FILE", "journal.json")
 
     positions = load_positions(positions_file)
     account_info = load_account_info(account_file)
     journal = load_journal(journal_file)
     exit_rules = extract_exit_rules(journal_file)
-        
+
     if account_info:
+        print("=== Portfolio ===")
         print_account_overview(account_info)
 
     portfolio = compute_portfolio_greeks(positions)
-    print("\n📐 Portfolio Greeks:")
+    print("\n=== Portfolio Greeks ===")
     for k, v in portfolio.items():
         print(f"{k}: {v:.4f}")
     print()
 
-
     strategies = group_strategies(positions, journal)
+    strategies.sort(
+        key=lambda s: (
+            s.get("trade_id") if s.get("trade_id") is not None else float("inf")
+        )
+    )
     compute_term_structure(strategies)
     type_counts = defaultdict(int)
     total_delta_dollar = 0.0
@@ -764,6 +802,7 @@ def main(argv=None):
     dtes = []
     total_pnl = 0.0
     total_margin = 0.0
+    print("=== Open posities ===")
     for s in strategies:
         rule = exit_rules.get((s["symbol"], s["expiry"]))
         print_strategy(s, rule)
@@ -776,11 +815,7 @@ def main(argv=None):
             dtes.append(s["days_to_expiry"])
 
         pnl_val = s.get("unrealizedPnL")
-        margin_ref = (
-            s.get("init_margin")
-            or s.get("margin_used")
-            or 1000
-        )
+        margin_ref = s.get("init_margin") or s.get("margin_used") or 1000
         if pnl_val is not None:
             total_pnl += pnl_val
             total_margin += margin_ref
@@ -812,7 +847,7 @@ def main(argv=None):
             print(alert)
 
     if strategies:
-        print("=== Overzicht ===")
+        print("=== Overzicht Open posities ===")
         for t, c in type_counts.items():
             print(f"{c}x {t}")
         print(f"Netto delta-dollar: ${total_delta_dollar:,.0f}")
