@@ -33,6 +33,12 @@ def setup_logging(default_level: int = logging.INFO) -> None:
 
     debug_env = os.getenv("TOMIC_DEBUG", "0")
     level_name = os.getenv("TOMIC_LOG_LEVEL", "").upper()
+
+    is_debug = debug_env not in {"0", "", "false", "False"}
+
+    if is_debug and not level_name:
+        default_level = logging.DEBUG
+
     level = getattr(logging, level_name, default_level)
 
     if _LOGURU_AVAILABLE:
@@ -42,6 +48,10 @@ def setup_logging(default_level: int = logging.INFO) -> None:
         logging.basicConfig(handlers=[InterceptHandler()], level=level, force=True)
     else:  # pragma: no cover - fallback
         logging.basicConfig(level=level)
+
+    ib_level = logging.DEBUG if is_debug else logging.WARNING
+    logging.getLogger("ibapi").setLevel(ib_level)
+    logging.getLogger("ibapi.client").setLevel(ib_level)
 
     logger.info(
         "Logging setup: TOMIC_DEBUG=%s, TOMIC_LOG_LEVEL=%s",
