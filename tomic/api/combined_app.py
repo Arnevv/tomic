@@ -6,7 +6,7 @@ from ibapi.ticktype import TickTypeEnum
 from ibapi.common import TickerId
 import threading
 from datetime import datetime
-import logging
+from loguru import logger
 
 from .market_utils import (
     create_underlying,
@@ -148,7 +148,7 @@ class CombinedApp(EWrapper, EClient):
         if errorCode == 200 and reqId in self.market_data:
             self.invalid_contracts.add(reqId)
         elif errorCode not in (2104, 2106, 2158, 2176):
-            logging.error("⚠️ Error %s (%s): %s", reqId, errorCode, errorString)
+            logger.error("⚠️ Error %s (%s): %s", reqId, errorCode, errorString)
 
     def tickPrice(self, reqId: TickerId, tickType: int, price: float, attrib):  # noqa: N802
         if reqId == 1001 and tickType == TickTypeEnum.LAST:
