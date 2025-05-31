@@ -1,8 +1,9 @@
 import json
-from loguru import logger
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Dict, List
+
+from tomic.logging import logger
 
 from tomic.config import get as cfg_get
 from tomic.logging import setup_logging
@@ -19,7 +20,11 @@ def store_volatility_snapshot(
     required = ["date", "symbol", "spot", "iv30", "hv30", "iv_rank", "skew"]
     missing = [key for key in required if symbol_data.get(key) is None]
     if missing:
-        logger.warning("Incomplete snapshot for %s skipped: missing %s", symbol_data.get("symbol"), ", ".join(missing))
+        logger.warning(
+            "Incomplete snapshot for %s skipped: missing %s",
+            symbol_data.get("symbol"),
+            ", ".join(missing),
+        )
         return
 
     file = Path(output_path)
@@ -31,8 +36,12 @@ def store_volatility_snapshot(
 
     # Verwijder bestaande entry voor symbool + datum
     data = [
-        d for d in data
-        if not (d.get("symbol") == symbol_data["symbol"] and d.get("date") == symbol_data["date"])
+        d
+        for d in data
+        if not (
+            d.get("symbol") == symbol_data["symbol"]
+            and d.get("date") == symbol_data["date"]
+        )
     ]
     data.append(symbol_data)
 
@@ -69,7 +78,13 @@ def main(argv=None):
     if argv is None:
         argv = []
     if not argv:
-        syms = input("Symbols kommagescheiden (bv. gld, xlf, xle, crm, aapl, tsla, qqq, dia, spy): ").upper().split(",")
+        syms = (
+            input(
+                "Symbols kommagescheiden (bv. gld, xlf, xle, crm, aapl, tsla, qqq, dia, spy): "
+            )
+            .upper()
+            .split(",")
+        )
         symbols = [s.strip() for s in syms if s.strip()]
     else:
         symbols = [a.upper() for a in argv]
@@ -81,4 +96,3 @@ if __name__ == "__main__":
     import sys
 
     main(sys.argv[1:])
-

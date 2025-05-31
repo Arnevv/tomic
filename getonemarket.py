@@ -14,7 +14,7 @@ if __name__ == "__main__":
 
     if args.symbol is None:
         args.symbol = input(
-            "\U0001F4C8 Voer het symbool in waarvoor je data wilt ophalen (bijv. SPY): "
+            "\U0001f4c8 Voer het symbool in waarvoor je data wilt ophalen (bijv. SPY): "
         ).strip()
 
     setup_logging()

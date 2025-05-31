@@ -3,12 +3,10 @@ import time
 import csv
 import os
 from datetime import datetime
-from loguru import logger
-from tomic.logging import setup_logging
+from tomic.logging import logger, setup_logging
 from tomic.api.combined_app import CombinedApp
 from tomic.api.market_utils import fetch_market_metrics
 from tomic.config import get as cfg_get
-
 
 
 def run(symbol: str, output_dir: str | None = None):
@@ -114,10 +112,26 @@ def run(symbol: str, output_dir: str | None = None):
                     data.get("bid"),
                     data.get("ask"),
                     round(data.get("iv"), 3) if data.get("iv") is not None else None,
-                    round(data.get("delta"), 3) if data.get("delta") is not None else None,
-                    round(data.get("gamma"), 3) if data.get("gamma") is not None else None,
-                    round(data.get("vega"), 3) if data.get("vega") is not None else None,
-                    round(data.get("theta"), 3) if data.get("theta") is not None else None,
+                    (
+                        round(data.get("delta"), 3)
+                        if data.get("delta") is not None
+                        else None
+                    ),
+                    (
+                        round(data.get("gamma"), 3)
+                        if data.get("gamma") is not None
+                        else None
+                    ),
+                    (
+                        round(data.get("vega"), 3)
+                        if data.get("vega") is not None
+                        else None
+                    ),
+                    (
+                        round(data.get("theta"), 3)
+                        if data.get("theta") is not None
+                        else None
+                    ),
                 ]
             )
 
@@ -174,4 +188,3 @@ if __name__ == "__main__":
     )
     args = parser.parse_args()
     run(args.symbol, args.output_dir)
-

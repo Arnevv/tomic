@@ -3,9 +3,8 @@ import time
 import csv
 import os
 from datetime import datetime
-from loguru import logger
 import pandas as pd
-from tomic.logging import setup_logging
+from tomic.logging import logger, setup_logging
 from tomic.api.combined_app import CombinedApp
 from tomic.api.market_utils import fetch_market_metrics
 from tomic.config import get as cfg_get
@@ -110,15 +109,30 @@ def run(symbol: str, output_dir: str | None = None):
                     data.get("bid"),
                     data.get("ask"),
                     round(data.get("iv"), 3) if data.get("iv") is not None else None,
-                    round(data.get("delta"), 3) if data.get("delta") is not None else None,
-                    round(data.get("gamma"), 3) if data.get("gamma") is not None else None,
-                    round(data.get("vega"), 3) if data.get("vega") is not None else None,
-                    round(data.get("theta"), 3) if data.get("theta") is not None else None,
+                    (
+                        round(data.get("delta"), 3)
+                        if data.get("delta") is not None
+                        else None
+                    ),
+                    (
+                        round(data.get("gamma"), 3)
+                        if data.get("gamma") is not None
+                        else None
+                    ),
+                    (
+                        round(data.get("vega"), 3)
+                        if data.get("vega") is not None
+                        else None
+                    ),
+                    (
+                        round(data.get("theta"), 3)
+                        if data.get("theta") is not None
+                        else None
+                    ),
                 ]
             )
 
     logger.info("✅ Optieketen opgeslagen in: %s", chain_file)
-
 
     metrics_file = os.path.join(export_dir, f"other_data_{symbol}_{timestamp}.csv")
     headers_metrics = [
@@ -172,9 +186,7 @@ def export_combined_csv(data_per_market, output_dir):
 if __name__ == "__main__":
     import argparse
 
-    parser = argparse.ArgumentParser(
-        description="Exporteer data voor meerdere markten"
-    )
+    parser = argparse.ArgumentParser(description="Exporteer data voor meerdere markten")
     parser.add_argument(
         "symbols",
         nargs="*",
