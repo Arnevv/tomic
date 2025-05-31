@@ -1,13 +1,19 @@
 import subprocess
-import os
+import sys
 from tomic.logging import setup_logging
 
 setup_logging()
 
 
-def run_script(script_name, *args):
-    """Run a Python script with optional arguments."""
-    subprocess.run(["python", script_name, *args], check=True)
+def run_module(module_name: str, *args: str) -> None:
+    """Run a Python module using ``python -m``."""
+    subprocess.run([sys.executable, "-m", module_name, *args], check=True)
+
+
+def run_script(script_name: str, *args: str) -> None:
+    """Run a Python file with optional arguments."""
+    subprocess.run([sys.executable, script_name, *args], check=True)
+
 
 def run_dataexporter():
     while True:
@@ -18,9 +24,9 @@ def run_dataexporter():
         print("4. Terug naar hoofdmenu")
         sub = input("Maak je keuze: ")
         if sub == "1":
-            run_script("getonemarket.py")
+            run_module("tomic.api.getonemarket")
         elif sub == "2":
-            run_script("getallmarkets.py")
+            run_module("tomic.api.getallmarkets")
         elif sub == "3":
 
             path = input("Pad naar CSV-bestand: ").strip()
@@ -36,6 +42,7 @@ def run_dataexporter():
         else:
             print("❌ Ongeldige keuze")
 
+
 def run_trade_management():
     while True:
         print("\n=== TRADE MANAGEMENT ===")
@@ -48,11 +55,11 @@ def run_trade_management():
         sub = input("Maak je keuze: ").strip()
 
         if sub == "1":
-            run_script("journal_inspector.py")
+            run_module("tomic.journal.journal_inspector")
         elif sub == "2":
-            run_script("journal_updater.py")
+            run_module("tomic.journal.journal_updater")
         elif sub == "3":
-            run_script("journal_inspector.py")
+            run_module("tomic.journal.journal_inspector")
         elif sub == "4":
             run_script("link_positions.py")
         elif sub == "5":
@@ -61,6 +68,7 @@ def run_trade_management():
             break
         else:
             print("❌ Ongeldige keuze")
+
 
 def run_risk_tools():
     while True:
@@ -90,6 +98,7 @@ def run_risk_tools():
         else:
             print("❌ Ongeldige keuze")
 
+
 def main():
     while True:
         print("\n=== TOMIC CONTROL PANEL ===")
@@ -108,13 +117,15 @@ def main():
             # Haal bij elke start de meest recente posities en accountinfo op
             print("ℹ️ Haal portfolio op...")
             try:
-                run_script("getaccountinfo.py")
+                run_module("tomic.api.getaccountinfo")
             except subprocess.CalledProcessError:
                 print("❌ Ophalen van portfolio mislukt")
                 continue
             try:
-                run_script("strategy_dashboard.py", "positions.json", "account_info.json")
-                run_script("performance_analyzer.py")
+                run_script(
+                    "strategy_dashboard.py", "positions.json", "account_info.json"
+                )
+                run_module("tomic.analysis.performance_analyzer")
             except subprocess.CalledProcessError:
                 print("❌ Dashboard kon niet worden gestart")
         elif keuze == "3":
@@ -133,6 +144,7 @@ def main():
             break
         else:
             print("❌ Ongeldige keuze.")
+
 
 if __name__ == "__main__":
     main()
