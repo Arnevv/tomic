@@ -1,7 +1,8 @@
-import logging
 import re
 from datetime import datetime, timezone
 from typing import Dict, List
+
+from tomic.logging import logger
 
 from tomic.config import get as cfg_get
 
@@ -9,6 +10,7 @@ from tomic.analysis.get_iv_rank import _download_html
 from tomic.analysis.iv_patterns import IV_PATTERNS, EXTRA_PATTERNS
 from vol_cone_db import store_volatility_snapshot
 from tomic.logging import setup_logging
+
 
 def _parse_patterns(patterns: Dict[str, List[str]], html: str) -> Dict[str, float]:
     """Return a dict with parsed values using the provided patterns."""
@@ -38,11 +40,11 @@ def fetch_volatility_metrics(symbol: str) -> Dict[str, float]:
 
 def snapshot_symbols(symbols: List[str]) -> None:
     for sym in symbols:
-        logging.info("Fetching metrics for %s", sym)
+        logger.info("Fetching metrics for %s", sym)
         try:
             metrics = fetch_volatility_metrics(sym)
         except Exception as exc:  # pragma: no cover - network dependent
-            logging.error("Failed for %s: %s", sym, exc)
+            logger.error("Failed for %s: %s", sym, exc)
             continue
         record = {
             "date": datetime.now(timezone.utc).strftime("%Y-%m-%d"),
@@ -54,11 +56,12 @@ def snapshot_symbols(symbols: List[str]) -> None:
             "skew": metrics.get("skew"),
         }
         store_volatility_snapshot(record)
-        logging.info("Stored snapshot for %s", sym)
+        logger.info("Stored snapshot for %s", sym)
 
 
 def main(argv: List[str] | None = None) -> None:
     setup_logging()
+    logger.info("🚀 Daily volatility scrape")
     if argv is None:
         argv = []
     if argv:
@@ -66,6 +69,7 @@ def main(argv: List[str] | None = None) -> None:
     else:
         symbols = [s.upper() for s in cfg_get("DEFAULT_SYMBOLS", [])]
     snapshot_symbols(symbols)
+    logger.success("✅ Volatiliteitsscrape voltooid voor %d symbolen", len(symbols))
 
 
 if __name__ == "__main__":

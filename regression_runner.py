@@ -2,12 +2,14 @@ import os
 import sys
 import subprocess
 import difflib
-import logging
+
+from tomic.logging import logger
 
 from tomic.logging import setup_logging
 
 try:
     from deepdiff import DeepDiff
+
     HAS_DEEPDIFF = True
 except ImportError:  # pragma: no cover - optional dependency
     HAS_DEEPDIFF = False
@@ -24,7 +26,7 @@ def run_command(cmd: list[str]) -> None:
         errors="replace",
     )
     if result.returncode != 0:
-        logging.error(result.stdout)
+        logger.error(result.stdout)
         result.check_returncode()
 
 
@@ -32,17 +34,22 @@ def compare_files(output_path: str, benchmark_path: str) -> bool:
     """Return True if files differ and print diff."""
     if HAS_DEEPDIFF:
         import json
-        with open(output_path, encoding="utf-8") as f_out, open(benchmark_path, encoding="utf-8") as f_bench:
+
+        with open(output_path, encoding="utf-8") as f_out, open(
+            benchmark_path, encoding="utf-8"
+        ) as f_bench:
             data_out = json.load(f_out)
             data_bench = json.load(f_bench)
         diff = DeepDiff(data_bench, data_out, ignore_order=True)
         if diff:
-            logging.info("Differences for %s:", os.path.basename(output_path))
-            logging.info(diff)
+            logger.info("Differences for %s:", os.path.basename(output_path))
+            logger.info(diff)
             return True
         return False
     else:
-        with open(output_path, encoding="utf-8") as f_out, open(benchmark_path, encoding="utf-8") as f_bench:
+        with open(output_path, encoding="utf-8") as f_out, open(
+            benchmark_path, encoding="utf-8"
+        ) as f_bench:
             out_lines = f_out.read().splitlines()
             bench_lines = f_bench.read().splitlines()
         diff_lines = list(
@@ -58,52 +65,56 @@ def compare_files(output_path: str, benchmark_path: str) -> bool:
             diff_only = [
                 line
                 for line in diff_lines
-                if line.startswith(("+", "-"))
-                and not line.startswith(("+++", "---"))
+                if line.startswith(("+", "-")) and not line.startswith(("+++", "---"))
             ]
-            logging.info("Differences for %s:", os.path.basename(output_path))
-            logging.info("\n".join(diff_only))
+            logger.info("Differences for %s:", os.path.basename(output_path))
+            logger.info("\n".join(diff_only))
             return True
         return False
 
 
 def main() -> None:
     setup_logging()
+    logger.info("🚀 Start regression run")
     os.environ["TOMIC_TODAY"] = "2025-05-29"
     os.makedirs("regression_output", exist_ok=True)
 
-    run_command([
-        "python",
-        "strategy_dashboard.py",
-        "regression_input/positions_benchmark.json",
-        "regression_input/account_info_benchmark.json",
-        "--json-output",
-        "regression_output/strategy_dashboard_output.json",
-    ])
+    run_command(
+        [
+            "python",
+            "strategy_dashboard.py",
+            "regression_input/positions_benchmark.json",
+            "regression_input/account_info_benchmark.json",
+            "--json-output",
+            "regression_output/strategy_dashboard_output.json",
+        ]
+    )
 
-    run_command([
-        "python",
-        "performance_analyzer.py",
-        "regression_input/journal_benchmark.json",
-        "--json-output",
-        "regression_output/performance_analyzer_output.json",
-    ])
+    run_command(
+        [
+            "python",
+            "performance_analyzer.py",
+            "regression_input/journal_benchmark.json",
+            "--json-output",
+            "regression_output/performance_analyzer_output.json",
+        ]
+    )
 
     diff_found = False
     for name in os.listdir("regression_output"):
         out_path = os.path.join("regression_output", name)
         bench_path = os.path.join("benchmarks", name)
         if not os.path.exists(bench_path):
-            logging.error("Benchmark file missing: %s", bench_path)
+            logger.error("Benchmark file missing: %s", bench_path)
             diff_found = True
             continue
         if compare_files(out_path, bench_path):
             diff_found = True
 
     if diff_found:
-        logging.warning("Regression FAILED")
+        logger.warning("Regression FAILED")
         sys.exit(1)
-    logging.warning("Regression PASSED")
+    logger.success("Regression PASSED")
 
 
 if __name__ == "__main__":

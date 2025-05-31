@@ -1,7 +1,8 @@
 import json
-import logging
 from statistics import mean
 from typing import Dict, List, Optional
+
+from tomic.logging import logger
 
 from tomic.utils import today
 from tomic.logging import setup_logging
@@ -37,8 +38,6 @@ def compute_pnl(trade: dict) -> Optional[float]:
     return None
 
 
-
-
 def analyze(trades: List[dict]) -> Dict[str, dict]:
     """Compute stats per strategy type."""
     stats: Dict[str, dict] = {}
@@ -49,8 +48,8 @@ def analyze(trades: List[dict]) -> Dict[str, dict]:
             continue
         pnl = compute_pnl(trade)
         if pnl is None:
-            logging.warning(
-                "Onvolledige data voor trade %s, overslaan.", trade.get('TradeID')
+            logger.warning(
+                "Onvolledige data voor trade %s, overslaan.", trade.get("TradeID")
             )
             continue
         t_type = trade.get("Type") or "Onbekend"
@@ -78,7 +77,7 @@ def analyze(trades: List[dict]) -> Dict[str, dict]:
 
 def print_table(stats: Dict[str, dict]) -> None:
     if not stats:
-        logging.info("Geen afgesloten trades gevonden.")
+        logger.info("Geen afgesloten trades gevonden.")
         return
 
     headers = [
@@ -107,13 +106,21 @@ def print_table(stats: Dict[str, dict]) -> None:
         for i, cell in enumerate(row):
             col_widths[i] = max(col_widths[i], len(cell))
 
-    header_line = "| " + " | ".join(h.ljust(col_widths[i]) for i, h in enumerate(headers)) + " |"
-    sep_line = "| " + " | ".join("-" * col_widths[i] for i in range(len(headers))) + " |"
+    header_line = (
+        "| " + " | ".join(h.ljust(col_widths[i]) for i, h in enumerate(headers)) + " |"
+    )
+    sep_line = (
+        "| " + " | ".join("-" * col_widths[i] for i in range(len(headers))) + " |"
+    )
     print("=== Strategie Performance (afgelopen 90 dagen) ===")
     print(header_line)
     print(sep_line)
     for row in rows:
-        print("| " + " | ".join(row[i].ljust(col_widths[i]) for i in range(len(headers))) + " |")
+        print(
+            "| "
+            + " | ".join(row[i].ljust(col_widths[i]) for i in range(len(headers)))
+            + " |"
+        )
 
     # summary
     best = max(stats.items(), key=lambda x: x[1]["expectancy"])
@@ -130,6 +137,7 @@ def main(argv=None) -> None:
     setup_logging()
     if argv is None:
         import sys
+
         argv = sys.argv[1:]
 
     journal_path = DEFAULT_JOURNAL_PATH
@@ -144,11 +152,12 @@ def main(argv=None) -> None:
         idx += 2
 
     if idx != len(argv):
-        logging.error(
+        logger.error(
             "Gebruik: python performance_analyzer.py [journal_file] [--json-output PATH]"
         )
         return
 
+    logger.info("🚀 Start performance analyse")
     journal = load_journal(journal_path)
     stats = analyze(journal)
     if json_output:
@@ -160,8 +169,10 @@ def main(argv=None) -> None:
             json.dump(data, f, indent=2)
     else:
         print_table(stats)
+    logger.success("✅ Analyse afgerond voor %d trades", len(journal))
 
 
 if __name__ == "__main__":
     import sys
+
     main(sys.argv[1:])

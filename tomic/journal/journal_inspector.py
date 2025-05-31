@@ -1,28 +1,86 @@
 from datetime import datetime
+from typing import Any, Dict, Iterable
 
 from .utils import load_journal, save_journal
 
-def toon_overzicht(journal):
+
+def _format_leg(leg: Dict[str, Any]) -> str:
+    """Return formatted leg description including optional ``conId``."""
+
+    con_id = leg.get("conId")
+    con_id_str = f" - conId: {con_id}" if con_id is not None else ""
+    return (
+        f"  {leg['action']} {leg['qty']}x {leg['type']} @ {leg['strike']}{con_id_str}"
+    )
+
+
+def toon_overzicht(journal: Iterable[Dict[str, Any]]) -> None:
+    """Display a short overview of all trades."""
+
     print("\n📋 Overzicht van trades:")
     for trade in journal:
-        print(f"- {trade['TradeID']}: {trade['Symbool']} - {trade['Type']} - {trade['Status']}")
+        print(
+            f"- {trade['TradeID']}: {trade['Symbool']} - {trade['Type']} - {trade['Status']}"
+        )
 
-def print_kolomrij(label, key, trade):
+
+def print_kolomrij(label: str, key: str, trade: Dict[str, Any]) -> str:
+    """Return the display value for ``key`` in ``trade``."""
+
     waarde = trade.get(key, "")
     return f"{label}: {waarde}"
 
-def toon_details(trade):
+
+def toon_details(trade: Dict[str, Any]) -> None:
+    """Print a detailed view of a single trade."""
+
     print(f"\n🔍 Details voor TradeID {trade['TradeID']}")
 
-    kolom1_keys = ["TradeID", "DatumIn", "DatumUit", "Symbool", "Type", "Expiry", "Spot"]
-    kolom2_keys = ["Richting", "Status", "Premium", "EntryPrice", "ExitPrice", "ReturnOnMargin", "InitMargin"]
-    kolom3_keys = ["StopPct", "IV_Entry", "HV_Entry", "DaysInTrade", "VIX", "ATR_14", "Skew"]
+    kolom1_keys = [
+        "TradeID",
+        "DatumIn",
+        "DatumUit",
+        "Symbool",
+        "Type",
+        "Expiry",
+        "Spot",
+    ]
+    kolom2_keys = [
+        "Richting",
+        "Status",
+        "Premium",
+        "EntryPrice",
+        "ExitPrice",
+        "ReturnOnMargin",
+        "InitMargin",
+    ]
+    kolom3_keys = [
+        "StopPct",
+        "IV_Entry",
+        "HV_Entry",
+        "DaysInTrade",
+        "VIX",
+        "ATR_14",
+        "Skew",
+    ]
 
     print("\n📄 Overzicht:")
     for r in range(max(len(kolom1_keys), len(kolom2_keys), len(kolom3_keys))):
-        c1 = print_kolomrij(kolom1_keys[r], kolom1_keys[r], trade) if r < len(kolom1_keys) else ""
-        c2 = print_kolomrij(kolom2_keys[r], kolom2_keys[r], trade) if r < len(kolom2_keys) else ""
-        c3 = print_kolomrij(kolom3_keys[r], kolom3_keys[r], trade) if r < len(kolom3_keys) else ""
+        c1 = (
+            print_kolomrij(kolom1_keys[r], kolom1_keys[r], trade)
+            if r < len(kolom1_keys)
+            else ""
+        )
+        c2 = (
+            print_kolomrij(kolom2_keys[r], kolom2_keys[r], trade)
+            if r < len(kolom2_keys)
+            else ""
+        )
+        c3 = (
+            print_kolomrij(kolom3_keys[r], kolom3_keys[r], trade)
+            if r < len(kolom3_keys)
+            else ""
+        )
         print(f"  {c1:<35} {c2:<35} {c3:<35}")
 
     # Rest van de inhoud (legs, plan, etc.)
@@ -32,25 +90,25 @@ def toon_details(trade):
         elif k == "Legs":
             print("\n📦 Legs:")
             for leg in v:
-                print(f"  {leg['action']} {leg['qty']}x {leg['type']} @ {leg['strike']}")
+                print(_format_leg(leg))
         elif k == "Plan":
-            print(f"\n📋 Plan:")
+            print("\n📋 Plan:")
             for line in v.strip().splitlines():
                 print(f"  {line}")
         elif k == "Reden":
-            print(f"\n🧠 Reden:")
+            print("\n🧠 Reden:")
             for line in v.strip().splitlines():
                 print(f"  {line}")
         elif k == "Exitstrategie":
-            print(f"\n🚪 Exitstrategie:")
+            print("\n🚪 Exitstrategie:")
             for line in v.strip().splitlines():
                 print(f"  {line}")
         elif k == "Opmerkingen":
-            print(f"\n🗒️ Opmerkingen:")
+            print("\n🗒️ Opmerkingen:")
             for line in v.strip().splitlines():
                 print(f"  {line}")
         elif k == "Evaluatie":
-            print(f"\n📈 Evaluatie:")
+            print("\n📈 Evaluatie:")
             for line in (v or "").strip().splitlines():
                 print(f"  {line}")
         elif k == "Greeks":
@@ -60,17 +118,36 @@ def toon_details(trade):
         elif k == "Snapshots":
             print("\n🧾 Snapshots:")
             for snap in v:
-                print(f"📆 {snap.get('date', '-')}: Spot {snap.get('spot')} | IV30 {snap.get('iv30')} | IV Rank {snap.get('iv_rank')} | Skew {snap.get('skew')}")
+                print(
+                    f"📆 {snap.get('date', '-')}: Spot {snap.get('spot')} | IV30 {snap.get('iv30')} | IV Rank {snap.get('iv_rank')} | Skew {snap.get('skew')}"
+                )
                 g = snap.get("Greeks", {})
-                print(f"  Greeks → Delta: {g.get('Delta')} | Theta: {g.get('Theta')} | Gamma: {g.get('Gamma')} | Vega: {g.get('Vega')}")
+                print(
+                    f"  Greeks → Delta: {g.get('Delta')} | Theta: {g.get('Theta')} | Gamma: {g.get('Gamma')} | Vega: {g.get('Vega')}"
+                )
                 note = snap.get("note", "").strip()
                 if note:
                     print("  Notitie:")
                     for line in note.splitlines():
                         print(f"    {line}")
 
-def pas_trade_aan(trade):
-    velden = ["Plan", "Reden", "Exitstrategie", "Status", "DatumUit", "Resultaat", "Opmerkingen", "Evaluatie", "ExitPrice", "ReturnOnMargin", "Greeks"]
+
+def pas_trade_aan(trade: Dict[str, Any]) -> None:
+    """Interactively modify fields in ``trade``."""
+
+    velden = [
+        "Plan",
+        "Reden",
+        "Exitstrategie",
+        "Status",
+        "DatumUit",
+        "Resultaat",
+        "Opmerkingen",
+        "Evaluatie",
+        "ExitPrice",
+        "ReturnOnMargin",
+        "Greeks",
+    ]
     while True:
         print("\n📌 Kies welk veld je wilt aanpassen:")
         for i, veld in enumerate(velden, 1):
@@ -112,8 +189,10 @@ def pas_trade_aan(trade):
                     d_in = datetime.strptime(trade["DatumIn"], "%Y-%m-%d")
                     d_out = datetime.strptime(nieuwe_waarde, "%Y-%m-%d")
                     trade["DaysInTrade"] = (d_out - d_in).days
-                    print(f"📆 DaysInTrade automatisch berekend: {trade['DaysInTrade']}")
-                except:
+                    print(
+                        f"📆 DaysInTrade automatisch berekend: {trade['DaysInTrade']}"
+                    )
+                except Exception:
                     print("⚠️ Kon DaysInTrade niet berekenen.")
             else:
                 trade[veld] = nieuwe_waarde
@@ -121,13 +200,17 @@ def pas_trade_aan(trade):
         except ValueError:
             print("❌ Ongeldige invoer.")
 
-def snapshot_input(trade):
-    snapshot = {"date": datetime.now().strftime("%Y-%m-%d")}
-    def float_input(prompt):
+
+def snapshot_input(trade: Dict[str, Any]) -> None:
+    """Add a snapshot entry to ``trade`` with optional market data."""
+
+    snapshot: Dict[str, Any] = {"date": datetime.now().strftime("%Y-%m-%d")}
+
+    def float_input(prompt: str) -> float | None:
         try:
             val = input(prompt).strip()
             return float(val) if val else None
-        except:
+        except Exception:
             return None
 
     snapshot["spot"] = float_input("Spotprijs: ")
@@ -158,14 +241,19 @@ def snapshot_input(trade):
     trade["Greeks"] = greeks
     print("✅ Snapshot toegevoegd.")
 
-def main():
+
+def main() -> None:
+    """Entry point for command line usage."""
+
     journal = load_journal()
     if not journal:
         return
 
     while True:
         toon_overzicht(journal)
-        keuze = input("\nVoer TradeID in om details te bekijken of ENTER om terug te keren: ").strip()
+        keuze = input(
+            "\nVoer TradeID in om details te bekijken of ENTER om terug te keren: "
+        ).strip()
         if not keuze:
             break
 
@@ -193,6 +281,7 @@ def main():
                 break
             else:
                 print("❌ Ongeldige keuze.")
+
 
 if __name__ == "__main__":
     main()

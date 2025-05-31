@@ -1,14 +1,17 @@
 import json
-import logging
 from datetime import datetime
-from typing import List, Dict
+from typing import Dict, List
+
+from tomic.logging import logger
 
 from tomic.config import get as cfg_get
 from tomic.logging import setup_logging
 from tomic.utils import today
 
 
-def apply_event_alerts(strategies: List[Dict], event_json_path: str = "events.json") -> None:
+def apply_event_alerts(
+    strategies: List[Dict], event_json_path: str = "events.json"
+) -> None:
     """Add upcoming event alerts to strategies in place."""
     try:
         with open(event_json_path, "r", encoding="utf-8") as f:
@@ -40,6 +43,7 @@ def apply_event_alerts(strategies: List[Dict], event_json_path: str = "events.js
 
 def main(argv=None):
     setup_logging()
+    logger.info("🚀 Event alerts check")
     if argv is None:
         argv = []
     strategies_file = argv[0] if argv else cfg_get("POSITIONS_FILE", "positions.json")
@@ -53,9 +57,11 @@ def main(argv=None):
     for strat in strategies:
         alerts = strat.get("alerts", [])
         if alerts:
-            logging.info("%s alerts:", strat['symbol'])
+            logger.info("%s alerts:", strat["symbol"])
             for alert in alerts:
-                logging.info(" - %s", alert)
+                logger.info(" - %s", alert)
+
+    logger.success("✅ Events verwerkt")
 
 
 if __name__ == "__main__":

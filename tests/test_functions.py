@@ -1,4 +1,3 @@
-import pytest
 from entry_checker import check_entry_conditions
 from strategy_dashboard import determine_strategy_type
 from tomic.analysis.performance_analyzer import compute_pnl
@@ -69,3 +68,19 @@ class TestCheckEntryConditions:
         strat = {"avg_iv": 0.6, "HV30": 0.4, "IV_Rank": 20}
         alerts = check_entry_conditions(strat)
         assert "⚠️ IV Rank 20.0 lager dan 30" in alerts
+
+    def test_invalid_numbers(self):
+        trade = {"EntryPrice": "x", "ExitPrice": 5}
+        assert compute_pnl(trade) is None
+
+
+class TestDetermineStrategyTypeEdge:
+    def test_empty_legs(self):
+        assert determine_strategy_type([]) == "Other"
+
+
+class TestCheckEntryConditionsEdge:
+    def test_hv_percentage_conversion(self):
+        strat = {"avg_iv": 0.6, "HV30": 50}
+        alerts = check_entry_conditions(strat)
+        assert any(alert.startswith("✅ IV significant") for alert in alerts)

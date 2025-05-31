@@ -40,6 +40,13 @@ pip install -r requirements.txt
 
 4. Zorg dat IB Gateway of TWS actief is op poort 7497.
 
+### Logging
+
+Alle scripts gebruiken **loguru** voor consistente logging. Als `loguru` niet
+geïnstalleerd is, valt het systeem automatisch terug op het standaard
+`logging`-pakket. Stel `TOMIC_LOG_LEVEL` of `TOMIC_DEBUG=1` in om meer details
+te zien.
+
 ---
 
 ## 🕹️ Gebruik
@@ -101,6 +108,8 @@ Belangrijke sleutels die je hier kunt aanpassen:
 * `ACCOUNT_INFO_FILE` – JSON-bestand met accountgegevens
 * `JOURNAL_FILE` – trade journal
 * `VOLATILITY_DATA_FILE` – snapshots van volatiliteitsdata
+* `IB_HOST` – hostnaam voor de IB Gateway/TWS (standaard `127.0.0.1`)
+* `IB_PORT` – poortnummer voor de IB Gateway/TWS (standaard `7497`)
 
 ---
 

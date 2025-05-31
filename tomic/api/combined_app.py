@@ -6,7 +6,7 @@ from ibapi.ticktype import TickTypeEnum
 from ibapi.common import TickerId
 import threading
 from datetime import datetime
-import logging
+from tomic.logging import logger
 
 from .market_utils import (
     create_underlying,
@@ -137,7 +137,9 @@ class CombinedApp(EWrapper, EClient):
         self.expiries = regulars[:3]
         center = round(self.spot_price)
         filtered_strikes = [
-            s for s in strikes if center - 100 <= s <= center + 100 and isinstance(s, (int, float))
+            s
+            for s in strikes
+            if center - 100 <= s <= center + 100 and isinstance(s, (int, float))
         ]
         self.strikes = sorted(filtered_strikes)
         self.trading_class = tradingClass
@@ -148,9 +150,11 @@ class CombinedApp(EWrapper, EClient):
         if errorCode == 200 and reqId in self.market_data:
             self.invalid_contracts.add(reqId)
         elif errorCode not in (2104, 2106, 2158, 2176):
-            logging.error("⚠️ Error %s (%s): %s", reqId, errorCode, errorString)
+            logger.error("⚠️ Error %s (%s): %s", reqId, errorCode, errorString)
 
-    def tickPrice(self, reqId: TickerId, tickType: int, price: float, attrib):  # noqa: N802
+    def tickPrice(
+        self, reqId: TickerId, tickType: int, price: float, attrib
+    ):  # noqa: N802
         if reqId == 1001 and tickType == TickTypeEnum.LAST:
             self.spot_price = round(price, 2)
             self.cancelMktData(1001)
