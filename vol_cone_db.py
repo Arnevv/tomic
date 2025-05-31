@@ -1,75 +1,20 @@
-import json
-from datetime import datetime, timezone
-from pathlib import Path
-from typing import Dict, List
+"""Store volatility data snapshots via the IB API."""
+
+from typing import List
 
 from tomic.logging import logger
 
-from tomic.config import get as cfg_get
 from tomic.logging import setup_logging
 
 from tomic.api.market_utils import fetch_market_metrics
-
-
-def store_volatility_snapshot(
-    symbol_data: Dict, output_path: str | None = None
-) -> None:
-    if output_path is None:
-        output_path = cfg_get("VOLATILITY_DATA_FILE", "volatility_data.json")
-    """Append volatility snapshot to JSON file if complete."""
-    required = ["date", "symbol", "spot", "iv30", "hv30", "iv_rank", "skew"]
-    missing = [key for key in required if symbol_data.get(key) is None]
-    if missing:
-        logger.warning(
-            "Incomplete snapshot for %s skipped: missing %s",
-            symbol_data.get("symbol"),
-            ", ".join(missing),
-        )
-        return
-
-    file = Path(output_path)
-    if file.exists():
-        with open(file, "r", encoding="utf-8") as f:
-            data = json.load(f)
-    else:
-        data = []
-
-    # Verwijder bestaande entry voor symbool + datum
-    data = [
-        d
-        for d in data
-        if not (
-            d.get("symbol") == symbol_data["symbol"]
-            and d.get("date") == symbol_data["date"]
-        )
-    ]
-    data.append(symbol_data)
-
-    with open(file, "w", encoding="utf-8") as f:
-        json.dump(data, f, indent=2)
-
+from tomic.analysis.vol_snapshot import (
+    store_volatility_snapshot,
+    snapshot_symbols as unified_snapshot,
+)
 
 def snapshot_symbols(symbols: List[str], output_path: str | None = None) -> None:
-    if output_path is None:
-        output_path = cfg_get("VOLATILITY_DATA_FILE", "volatility_data.json")
-    for sym in symbols:
-        logger.info("📈 Ophalen vol data voor %s", sym)
-        try:
-            metrics = fetch_market_metrics(sym)
-        except Exception as exc:
-            logger.error("⚠️ Mislukt voor %s: %s", sym, exc)
-            continue
-        record = {
-            "date": datetime.now(timezone.utc).strftime("%Y-%m-%d"),
-            "symbol": sym,
-            "spot": metrics.get("spot_price"),
-            "iv30": metrics.get("implied_volatility"),
-            "hv30": metrics.get("hv30"),
-            "iv_rank": metrics.get("iv_rank"),
-            "skew": metrics.get("skew"),
-        }
-        store_volatility_snapshot(record, output_path)
-        logger.info("✅ Snapshot opgeslagen")
+    """Fetch metrics via the IB API and store a snapshot for each symbol."""
+    unified_snapshot(symbols, fetch_market_metrics, output_path)
 
 
 def main(argv=None):
