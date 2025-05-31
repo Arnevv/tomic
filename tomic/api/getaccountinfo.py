@@ -12,6 +12,9 @@ from tomic.analysis.get_iv_rank import fetch_iv_metrics
 
 from tomic.logging import logger
 
+# Alias to avoid NameError if standard logging is accidentally used
+logging = logger
+
 import threading
 import time
 
