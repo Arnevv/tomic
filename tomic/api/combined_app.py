@@ -13,6 +13,7 @@ from .market_utils import (
     create_option_contract,
     calculate_hv30,
     calculate_atr14,
+    count_incomplete,
 )
 
 
@@ -221,20 +222,10 @@ class CombinedApp(EWrapper, EClient):
         return calculate_atr14(self.historical_data)
 
     def count_incomplete(self):
-        return sum(
-            1
-            for k, d in self.market_data.items()
-            if k not in self.invalid_contracts
-            and (
-                d["bid"] is None
-                or d["ask"] is None
-                or d["iv"] is None
-                or d["delta"] is None
-                or d["gamma"] is None
-                or d["vega"] is None
-                or d["theta"] is None
-            )
-        )
+        relevant = [
+            d for k, d in self.market_data.items() if k not in self.invalid_contracts
+        ]
+        return count_incomplete(relevant)
 
 
 __all__ = ["CombinedApp"]
