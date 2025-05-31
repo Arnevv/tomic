@@ -12,6 +12,24 @@ from ibapi.contract import Contract
 from tomic.analysis.get_iv_rank import fetch_iv_metrics
 
 
+def count_incomplete(records: list[dict]) -> int:
+    """Return how many option records miss market or Greek data."""
+
+    return sum(
+        1
+        for rec in records
+        if (
+            rec.get("bid") is None
+            or rec.get("ask") is None
+            or rec.get("iv") is None
+            or rec.get("delta") is None
+            or rec.get("gamma") is None
+            or rec.get("vega") is None
+            or rec.get("theta") is None
+        )
+    )
+
+
 def create_underlying(symbol: str) -> Contract:
     """Return a stock Contract for the given symbol."""
     c = Contract()
@@ -207,5 +225,6 @@ __all__ = [
     "create_option_contract",
     "calculate_hv30",
     "calculate_atr14",
+    "count_incomplete",
     "fetch_market_metrics",
 ]
