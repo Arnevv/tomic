@@ -1,5 +1,5 @@
 import argparse
-import logging
+from loguru import logger
 import os
 import time
 from datetime import datetime
@@ -51,9 +51,11 @@ if __name__ == "__main__":
     else:
         export_dir = args.output_dir
 
+    logger.info("🚀 Start export voor %d markten", len(symbols))
+
     data_frames = []
     for sym in symbols:
-        logging.info("🔄 Ophalen voor %s...", sym)
+        logger.info("🔄 Ophalen voor %s...", sym)
         df = run(sym, export_dir)
         if df is not None:
             data_frames.append(df)
@@ -62,3 +64,6 @@ if __name__ == "__main__":
     unique_markets = {df["Symbol"].iloc[0] for df in data_frames}
     if len(unique_markets) > 1:
         export_combined_csv(data_frames, export_dir)
+
+    logger.success("✅ Export afgerond: %d markten", len(unique_markets))
+
