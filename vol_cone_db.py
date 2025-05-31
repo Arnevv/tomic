@@ -1,5 +1,5 @@
 import json
-import logging
+from loguru import logger
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Dict, List
@@ -19,7 +19,7 @@ def store_volatility_snapshot(
     required = ["date", "symbol", "spot", "iv30", "hv30", "iv_rank", "skew"]
     missing = [key for key in required if symbol_data.get(key) is None]
     if missing:
-        logging.warning("Incomplete snapshot for %s skipped: missing %s", symbol_data.get("symbol"), ", ".join(missing))
+        logger.warning("Incomplete snapshot for %s skipped: missing %s", symbol_data.get("symbol"), ", ".join(missing))
         return
 
     file = Path(output_path)
@@ -44,11 +44,11 @@ def snapshot_symbols(symbols: List[str], output_path: str | None = None) -> None
     if output_path is None:
         output_path = cfg_get("VOLATILITY_DATA_FILE", "volatility_data.json")
     for sym in symbols:
-        logging.info("📈 Ophalen vol data voor %s", sym)
+        logger.info("📈 Ophalen vol data voor %s", sym)
         try:
             metrics = fetch_market_metrics(sym)
         except Exception as exc:
-            logging.error("⚠️ Mislukt voor %s: %s", sym, exc)
+            logger.error("⚠️ Mislukt voor %s: %s", sym, exc)
             continue
         record = {
             "date": datetime.now(timezone.utc).strftime("%Y-%m-%d"),
@@ -60,11 +60,12 @@ def snapshot_symbols(symbols: List[str], output_path: str | None = None) -> None
             "skew": metrics.get("skew"),
         }
         store_volatility_snapshot(record, output_path)
-        logging.info("✅ Snapshot opgeslagen")
+        logger.info("✅ Snapshot opgeslagen")
 
 
 def main(argv=None):
     setup_logging()
+    logger.info("🚀 Snapshot volatility data")
     if argv is None:
         argv = []
     if not argv:
@@ -73,9 +74,11 @@ def main(argv=None):
     else:
         symbols = [a.upper() for a in argv]
     snapshot_symbols(symbols)
+    logger.success("✅ Volatiliteitsdata opgeslagen voor %d symbolen", len(symbols))
 
 
 if __name__ == "__main__":
     import sys
 
     main(sys.argv[1:])
+
