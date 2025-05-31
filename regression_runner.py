@@ -93,7 +93,8 @@ def main() -> None:
     run_command(
         [
             "python",
-            "performance_analyzer.py",
+            "-m",
+            "tomic.analysis.performance_analyzer",
             "regression_input/journal_benchmark.json",
             "--json-output",
             "regression_output/performance_analyzer_output.json",
