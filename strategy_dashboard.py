@@ -98,8 +98,8 @@ def parse_date(date_str: str):
 
 
 def determine_strategy_type(legs):
-    calls = [l for l in legs if (l.get("right") or l.get("type")) == "C"]
-    puts = [l for l in legs if (l.get("right") or l.get("type")) == "P"]
+    calls = [leg for leg in legs if (leg.get("right") or leg.get("type")) == "C"]
+    puts = [leg for leg in legs if (leg.get("right") or leg.get("type")) == "P"]
     n = len(legs)
 
     # Iron Condor: 4 legs (2 calls, 2 puts) with one long and one short
@@ -107,12 +107,12 @@ def determine_strategy_type(legs):
         n == 4
         and len(calls) == 2
         and len(puts) == 2
-        and all(abs(l.get("position", 0)) == 1 for l in legs)
+        and all(abs(leg.get("position", 0)) == 1 for leg in legs)
     ):
-        long_calls = [l for l in calls if l.get("position", 0) > 0]
-        short_calls = [l for l in calls if l.get("position", 0) < 0]
-        long_puts = [l for l in puts if l.get("position", 0) > 0]
-        short_puts = [l for l in puts if l.get("position", 0) < 0]
+        long_calls = [leg for leg in calls if leg.get("position", 0) > 0]
+        short_calls = [leg for leg in calls if leg.get("position", 0) < 0]
+        long_puts = [leg for leg in puts if leg.get("position", 0) > 0]
+        short_puts = [leg for leg in puts if leg.get("position", 0) < 0]
         if (
             len(long_calls)
             == len(short_calls)
@@ -124,8 +124,8 @@ def determine_strategy_type(legs):
 
     # Put Ratio Spread: 3 puts, 2 short + 1 long
     if n == 3 and len(puts) == 3:
-        long_puts = [l for l in puts if l.get("position", 0) > 0]
-        short_puts = [l for l in puts if l.get("position", 0) < 0]
+        long_puts = [leg for leg in puts if leg.get("position", 0) > 0]
+        short_puts = [leg for leg in puts if leg.get("position", 0) < 0]
         if len(long_puts) == 1 and len(short_puts) == 2:
             return "Put Ratio Spread"
 
@@ -138,8 +138,8 @@ def determine_strategy_type(legs):
 
     # Vertical spread: two calls or two puts with opposite direction
     if n == 2 and (len(calls) == 2 or len(puts) == 2):
-        long_legs = [l for l in legs if l.get("position", 0) > 0]
-        short_legs = [l for l in legs if l.get("position", 0) < 0]
+        long_legs = [leg for leg in legs if leg.get("position", 0) > 0]
+        short_legs = [leg for leg in legs if leg.get("position", 0) < 0]
         if len(long_legs) == 1 and len(short_legs) == 1:
             return "Vertical"
 
@@ -363,9 +363,9 @@ def parse_plan_metrics(plan_text: str) -> dict:
 def heuristic_risk_metrics(legs, cost_basis):
     """Rough estimation of max win/loss for basic strategies."""
     if len(legs) == 2:
-        rights = {l.get("right") or l.get("type") for l in legs}
+        rights = {leg.get("right") or leg.get("type") for leg in legs}
         if len(rights) == 1:
-            strikes = [l.get("strike", 0) for l in legs]
+            strikes = [leg.get("strike", 0) for leg in legs]
             width = abs(strikes[0] - strikes[1]) * 100
             credit = -cost_basis if cost_basis < 0 else 0
             debit = cost_basis if cost_basis > 0 else 0
@@ -381,27 +381,31 @@ def heuristic_risk_metrics(legs, cost_basis):
                 "risk_reward": max_profit / abs(max_loss) if max_loss else None,
             }
     if len(legs) == 4:
-        rights = [l.get("right") or l.get("type") for l in legs]
+        rights = [leg.get("right") or leg.get("type") for leg in legs]
         if rights.count("P") == 2 and rights.count("C") == 2:
             put_short = [
-                l
-                for l in legs
-                if (l.get("right") or l.get("type")) == "P" and l.get("position", 0) < 0
+                leg
+                for leg in legs
+                if (leg.get("right") or leg.get("type")) == "P"
+                and leg.get("position", 0) < 0
             ][0]
             put_long = [
-                l
-                for l in legs
-                if (l.get("right") or l.get("type")) == "P" and l.get("position", 0) > 0
+                leg
+                for leg in legs
+                if (leg.get("right") or leg.get("type")) == "P"
+                and leg.get("position", 0) > 0
             ][0]
             call_short = [
-                l
-                for l in legs
-                if (l.get("right") or l.get("type")) == "C" and l.get("position", 0) < 0
+                leg
+                for leg in legs
+                if (leg.get("right") or leg.get("type")) == "C"
+                and leg.get("position", 0) < 0
             ][0]
             call_long = [
-                l
-                for l in legs
-                if (l.get("right") or l.get("type")) == "C" and l.get("position", 0) > 0
+                leg
+                for leg in legs
+                if (leg.get("right") or leg.get("type")) == "C"
+                and leg.get("position", 0) > 0
             ][0]
             width_put = abs(put_short.get("strike", 0) - put_long.get("strike", 0))
             width_call = abs(call_short.get("strike", 0) - call_long.get("strike", 0))
@@ -418,14 +422,29 @@ def heuristic_risk_metrics(legs, cost_basis):
 
 
 def collapse_legs(legs):
+    """Merge legs representing the same contract.
+
+    The trade data includes a unique ``conId`` for each option contract. Use
+    this identifier to combine multiple entries of the same contract into a
+    single leg.
+    """
+
     merged = {}
     for leg in legs:
-        key = (leg.get("strike"), leg.get("right") or leg.get("type"))
+        cid = leg.get("conId")
+        if cid is None:
+            expiry = (
+                leg.get("lastTradeDate") or leg.get("expiry") or leg.get("expiration")
+            )
+            key = (leg.get("strike"), leg.get("right") or leg.get("type"), expiry)
+        else:
+            key = cid
         if key not in merged:
             merged[key] = leg.copy()
         else:
             merged[key]["position"] += leg.get("position", 0)
-    return [l for l in merged.values() if l.get("position")]
+
+    return [leg for leg in merged.values() if leg.get("position")]
 
 
 def group_strategies(positions, journal=None):
@@ -471,17 +490,29 @@ def group_strategies(positions, journal=None):
             "legs": legs,
             "trade_id": trade_id,
         }
-        # haal eventueel spotprijs uit een van de legs
-        spot = None
+
+        # huidige spot uit legs
+        spot_current = None
         for leg in legs:
             for key in ["spot", "spot_price", "underlyingPrice", "Spot"]:
                 if leg.get(key) is not None:
-                    spot = leg.get(key)
+                    spot_current = leg.get(key)
                     break
-            if spot is not None:
+            if spot_current is not None:
                 break
+
+        spot_open = None
+        if trade_data:
+            spot_open = trade_data.get("Spot")
+            if not spot_open:
+                snaps = trade_data.get("Snapshots", [])
+                if snaps:
+                    spot_open = snaps[0].get("spot")
+
         strat.update(aggregate_metrics(legs))
-        strat["spot"] = spot
+        strat["spot"] = spot_current if spot_current is not None else spot_open
+        strat["spot_current"] = spot_current
+        strat["spot_open"] = spot_open
         strat["margin_used"] = abs(strat.get("cost_basis", 0))
 
         exp_date = parse_date(expiry)
@@ -507,14 +538,14 @@ def group_strategies(positions, journal=None):
         strat["days_in_trade"] = days_in_trade
 
         if strat.get("spot") is None and trade_data:
-            spot = trade_data.get("Spot")
-            if not spot:
+            if spot_open is not None:
+                strat["spot"] = spot_open
+            else:
                 snaps = trade_data.get("Snapshots", [])
                 for snap in reversed(snaps):
                     if snap.get("spot") is not None:
-                        spot = snap["spot"]
+                        strat["spot"] = snap["spot"]
                         break
-            strat["spot"] = spot
 
         if strat.get("spot") and strat.get("legs"):
             strat["delta_dollar"] = sum(
@@ -609,7 +640,20 @@ SYMBOL_MAP = {
 def print_strategy(strategy, rule=None):
     pnl = strategy.get("unrealizedPnL")
     color = "🟩" if pnl is not None and pnl >= 0 else "🟥"
-    print(f"{color} {strategy['symbol']} – {strategy['type']}")
+    header = f"{color} {strategy['symbol']} – {strategy['type']}"
+    if strategy.get("trade_id") is not None:
+        header += f" - TradeId {strategy['trade_id']}"
+    print(header)
+
+    spot_now = strategy.get("spot_current") or strategy.get("spot")
+    spot_open = strategy.get("spot_open")
+    if spot_now is not None or spot_open is not None:
+        parts = []
+        if spot_now is not None:
+            parts.append(f"Huidige spot: {spot_now}")
+        if spot_open is not None:
+            parts.append(f"Spot bij open: {spot_open}")
+        print("→ " + " | ".join(parts))
     delta = strategy.get("delta")
     gamma = strategy.get("gamma")
     vega = strategy.get("vega")
@@ -778,6 +822,17 @@ def main(argv=None):
     account_info = load_account_info(account_file)
     journal = load_journal(journal_file)
     exit_rules = extract_exit_rules(journal_file)
+
+    # totaal gerealiseerd resultaat uit TWS-posities
+    realized_profit = 0.0
+    for pos in positions:
+        rpnl = pos.get("realizedPnL")
+        if isinstance(rpnl, (int, float)) and abs(rpnl) < 1e307:
+            realized_profit += rpnl
+
+    if account_info is not None:
+        account_info = dict(account_info)
+        account_info["RealizedProfit"] = realized_profit
 
     if account_info:
         print("=== Portfolio ===")

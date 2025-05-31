@@ -1,5 +1,4 @@
 import re
-from datetime import datetime, timezone
 from typing import Dict, List
 
 from tomic.logging import logger
@@ -8,7 +7,7 @@ from tomic.config import get as cfg_get
 
 from tomic.analysis.get_iv_rank import _download_html
 from tomic.analysis.iv_patterns import IV_PATTERNS, EXTRA_PATTERNS
-from vol_cone_db import store_volatility_snapshot
+from tomic.analysis.vol_snapshot import snapshot_symbols as unified_snapshot
 from tomic.logging import setup_logging
 
 
@@ -38,25 +37,9 @@ def fetch_volatility_metrics(symbol: str) -> Dict[str, float]:
     return data
 
 
-def snapshot_symbols(symbols: List[str]) -> None:
-    for sym in symbols:
-        logger.info("Fetching metrics for %s", sym)
-        try:
-            metrics = fetch_volatility_metrics(sym)
-        except Exception as exc:  # pragma: no cover - network dependent
-            logger.error("Failed for %s: %s", sym, exc)
-            continue
-        record = {
-            "date": datetime.now(timezone.utc).strftime("%Y-%m-%d"),
-            "symbol": sym,
-            "spot": metrics.get("spot_price"),
-            "iv30": metrics.get("implied_volatility"),
-            "hv30": metrics.get("hv30"),
-            "iv_rank": metrics.get("iv_rank"),
-            "skew": metrics.get("skew"),
-        }
-        store_volatility_snapshot(record)
-        logger.info("Stored snapshot for %s", sym)
+def snapshot_symbols(symbols: List[str], output_path: str | None = None) -> None:
+    """Fetch metrics via scraping and store a snapshot for each symbol."""
+    unified_snapshot(symbols, fetch_volatility_metrics, output_path)
 
 
 def main(argv: List[str] | None = None) -> None:
