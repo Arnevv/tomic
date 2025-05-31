@@ -2,7 +2,7 @@ import json
 from datetime import date
 from pathlib import Path
 
-from tomic.api.getonemarket import fetch_market_metrics
+from tomic.api.market_utils import fetch_market_metrics
 from tomic.api.margin_calc import calculate_trade_margin
 from tomic.config import get as cfg_get
 
