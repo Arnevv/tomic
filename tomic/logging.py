@@ -14,6 +14,13 @@ except ImportError:  # pragma: no cover - optional dependency
     logger = _logging.getLogger("tomic")
     _LOGURU_AVAILABLE = False
 
+if not hasattr(logger, "success"):
+    def _success(message: str, *args: object, **kwargs: object) -> None:
+        """Fallback for loguru's ``success`` method using ``info`` level."""
+        logger.info(message, *args, **kwargs)
+
+    setattr(logger, "success", _success)
+
 
 class InterceptHandler(logging.Handler):
     """Forward standard logging records to loguru."""
