@@ -3,7 +3,7 @@ import time
 import csv
 import os
 from datetime import datetime
-import logging
+from loguru import logger
 import pandas as pd
 from tomic.logging import setup_logging
 from tomic.api.combined_app import CombinedApp
@@ -14,13 +14,13 @@ from tomic.config import get as cfg_get
 def run(symbol: str, output_dir: str | None = None):
     symbol = symbol.upper()
     if not symbol:
-        logging.error("❌ Geen geldig symbool ingevoerd.")
+        logger.error("❌ Geen geldig symbool ingevoerd.")
         return
 
     try:
         metrics = fetch_market_metrics(symbol)
     except Exception as exc:
-        logging.error("❌ Marktkenmerken ophalen mislukt: %s", exc)
+        logger.error("❌ Marktkenmerken ophalen mislukt: %s", exc)
         return
 
     app = CombinedApp(symbol)
@@ -29,27 +29,27 @@ def run(symbol: str, output_dir: str | None = None):
     thread.start()
 
     if not app.spot_price_event.wait(timeout=10):
-        logging.error("❌ Spotprijs ophalen mislukt.")
+        logger.error("❌ Spotprijs ophalen mislukt.")
         app.disconnect()
         return
 
     if not app.contract_details_event.wait(timeout=10):
-        logging.error("❌ Geen contractdetails ontvangen.")
+        logger.error("❌ Geen contractdetails ontvangen.")
         app.disconnect()
         return
 
     if not app.conId:
-        logging.error("❌ Geen conId ontvangen.")
+        logger.error("❌ Geen conId ontvangen.")
         app.disconnect()
         return
 
     app.reqSecDefOptParams(1201, symbol, "", "STK", app.conId)
     if not app.option_params_event.wait(timeout=10):
-        logging.error("❌ Geen expiries ontvangen.")
+        logger.error("❌ Geen expiries ontvangen.")
         app.disconnect()
         return
 
-    logging.info("⏳ Wachten op marketdata (10 seconden)...")
+    logger.info("⏳ Wachten op marketdata (10 seconden)...")
     time.sleep(10)
 
     total_options = len([k for k in app.market_data if k not in app.invalid_contracts])
@@ -58,7 +58,7 @@ def run(symbol: str, output_dir: str | None = None):
     max_wait = 60
     interval = 5
     while incomplete > 0 and waited < max_wait:
-        logging.info(
+        logger.info(
             "⏳ %s van %s opties niet compleet na %s seconden. Wachten...",
             incomplete,
             total_options,
@@ -69,13 +69,13 @@ def run(symbol: str, output_dir: str | None = None):
         incomplete = app.count_incomplete()
 
     if incomplete > 0:
-        logging.warning(
+        logger.warning(
             "⚠️ %s opties blijven incompleet na %s seconden. Berekeningen gaan verder met beschikbare data.",
             incomplete,
             waited,
         )
     else:
-        logging.info("✅ Alle opties volledig na %s seconden.", waited)
+        logger.info("✅ Alle opties volledig na %s seconden.", waited)
 
     if output_dir is None:
         today_str = datetime.now().strftime("%Y%m%d")
@@ -117,7 +117,7 @@ def run(symbol: str, output_dir: str | None = None):
                 ]
             )
 
-    logging.info("✅ Optieketen opgeslagen in: %s", chain_file)
+    logger.info("✅ Optieketen opgeslagen in: %s", chain_file)
 
 
     metrics_file = os.path.join(export_dir, f"other_data_{symbol}_{timestamp}.csv")
@@ -153,7 +153,7 @@ def run(symbol: str, output_dir: str | None = None):
         writer.writerow(headers_metrics)
         writer.writerow(values_metrics)
 
-    logging.info("✅ CSV opgeslagen als: %s", metrics_file)
+    logger.info("✅ CSV opgeslagen als: %s", metrics_file)
 
     app.disconnect()
     time.sleep(1)
@@ -166,7 +166,7 @@ def export_combined_csv(data_per_market, output_dir):
     combined_df = pd.concat(data_per_market, ignore_index=True)
     output_path = os.path.join(output_dir, "Overzicht_Marktkenmerken.csv")
     combined_df.to_csv(output_path, index=False)
-    logging.info("%d markten verwerkt. CSV geëxporteerd.", len(data_per_market))
+    logger.info("%d markten verwerkt. CSV geëxporteerd.", len(data_per_market))
 
 
 if __name__ == "__main__":
@@ -187,6 +187,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     setup_logging()
+    logger.info("🚀 Start export")
 
     default_symbols = [
         "AAPL",
@@ -220,7 +221,7 @@ if __name__ == "__main__":
 
     data_frames = []
     for sym in symbols:
-        logging.info("🔄 Ophalen voor %s...", sym)
+        logger.info("🔄 Ophalen voor %s...", sym)
         df = run(sym, export_dir)
         if df is not None:
             data_frames.append(df)
@@ -229,3 +230,5 @@ if __name__ == "__main__":
     unique_markets = {df["Symbol"].iloc[0] for df in data_frames}
     if len(unique_markets) > 1:
         export_combined_csv(data_frames, export_dir)
+
+    logger.success("✅ Export afgerond voor %d markten", len(unique_markets))

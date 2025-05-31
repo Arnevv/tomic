@@ -1,4 +1,4 @@
-import logging
+from loguru import logger
 import re
 from datetime import datetime, timezone
 from typing import Dict, List
@@ -38,11 +38,11 @@ def fetch_volatility_metrics(symbol: str) -> Dict[str, float]:
 
 def snapshot_symbols(symbols: List[str]) -> None:
     for sym in symbols:
-        logging.info("Fetching metrics for %s", sym)
+        logger.info("Fetching metrics for %s", sym)
         try:
             metrics = fetch_volatility_metrics(sym)
         except Exception as exc:  # pragma: no cover - network dependent
-            logging.error("Failed for %s: %s", sym, exc)
+            logger.error("Failed for %s: %s", sym, exc)
             continue
         record = {
             "date": datetime.now(timezone.utc).strftime("%Y-%m-%d"),
@@ -54,11 +54,12 @@ def snapshot_symbols(symbols: List[str]) -> None:
             "skew": metrics.get("skew"),
         }
         store_volatility_snapshot(record)
-        logging.info("Stored snapshot for %s", sym)
+        logger.info("Stored snapshot for %s", sym)
 
 
 def main(argv: List[str] | None = None) -> None:
     setup_logging()
+    logger.info("🚀 Daily volatility scrape")
     if argv is None:
         argv = []
     if argv:
@@ -66,9 +67,11 @@ def main(argv: List[str] | None = None) -> None:
     else:
         symbols = [s.upper() for s in cfg_get("DEFAULT_SYMBOLS", [])]
     snapshot_symbols(symbols)
+    logger.success("✅ Volatiliteitsscrape voltooid voor %d symbolen", len(symbols))
 
 
 if __name__ == "__main__":
     import sys
 
     main(sys.argv[1:])
+
