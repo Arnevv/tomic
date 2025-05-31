@@ -44,8 +44,9 @@ pip install -r requirements.txt
 
 Alle scripts gebruiken **loguru** voor consistente logging. Als `loguru` niet
 geïnstalleerd is, valt het systeem automatisch terug op het standaard
-`logging`-pakket. Stel `TOMIC_LOG_LEVEL` of `TOMIC_DEBUG=1` in om meer details
-te zien.
+`logging`-pakket. Uitgebreide `ibapi`-logs worden standaard onderdrukt.
+Stel `TOMIC_LOG_LEVEL=DEBUG` of `TOMIC_DEBUG=1` in om deze en andere
+debugberichten te tonen.
 
 ---
 
