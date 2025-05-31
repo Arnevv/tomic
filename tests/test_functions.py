@@ -1,6 +1,6 @@
-import pytest
 from entry_checker import check_entry_conditions
 from strategy_dashboard import determine_strategy_type
+from strategy_dashboard import collapse_legs
 from tomic.analysis.performance_analyzer import compute_pnl
 
 
@@ -69,3 +69,20 @@ class TestCheckEntryConditions:
         strat = {"avg_iv": 0.6, "HV30": 0.4, "IV_Rank": 20}
         alerts = check_entry_conditions(strat)
         assert "⚠️ IV Rank 20.0 lager dan 30" in alerts
+
+
+class TestCollapseLegs:
+    def test_calendar_spread_keeps_legs(self):
+        legs = [
+            {"conId": 1, "strike": 100, "right": "C", "position": -1},
+            {"conId": 2, "strike": 100, "right": "C", "position": 1},
+        ]
+        collapsed = collapse_legs(legs)
+        assert len(collapsed) == 2
+
+    def test_same_expiry_collapses(self):
+        legs = [
+            {"conId": 3, "strike": 100, "right": "C", "position": -1},
+            {"conId": 3, "strike": 100, "right": "C", "position": 1},
+        ]
+        assert collapse_legs(legs) == []
