@@ -5,6 +5,8 @@ import time
 import math
 import statistics
 
+from tomic.config import get as cfg_get
+
 from ibapi.contract import Contract
 
 from tomic.analysis.get_iv_rank import fetch_iv_metrics
@@ -74,7 +76,9 @@ def fetch_market_metrics(symbol: str) -> dict:
 
     symbol = symbol.upper()
     app = CombinedApp(symbol)
-    app.connect("127.0.0.1", 7497, clientId=201)
+    host = cfg_get("IB_HOST", "127.0.0.1")
+    port = int(cfg_get("IB_PORT", 7497))
+    app.connect(host, port, clientId=201)
     thread = threading.Thread(target=app.run, daemon=True)
     thread.start()
 
@@ -123,7 +127,9 @@ def fetch_market_metrics(symbol: str) -> dict:
     valid_options = [
         d
         for k, d in app.market_data.items()
-        if k not in app.invalid_contracts and d.get("delta") is not None and d.get("iv") is not None
+        if k not in app.invalid_contracts
+        and d.get("delta") is not None
+        and d.get("iv") is not None
     ]
 
     expiry = app.expiries[0]
@@ -145,21 +151,31 @@ def fetch_market_metrics(symbol: str) -> dict:
                     continue
                 weight = 0 if d1 == d2 else (target_delta - d1) / (d2 - d1)
                 iv = iv1 + weight * (iv2 - iv1)
-                strike = k1 + weight * (k2 - k1) if k1 is not None and k2 is not None else None
+                strike = (
+                    k1 + weight * (k2 - k1)
+                    if k1 is not None and k2 is not None
+                    else None
+                )
                 return iv, strike
         nearest = min(sorted_opts, key=lambda x: abs(x["delta"] - target_delta))
         return nearest["iv"], nearest.get("strike")
 
     atm_call_ivs = []
     for exp in app.expiries:
-        exp_calls = [d for d in valid_options if d["right"] == "C" and d["expiry"] == exp]
+        exp_calls = [
+            d for d in valid_options if d["right"] == "C" and d["expiry"] == exp
+        ]
         iv, _ = interpolate_iv_at_delta(exp_calls, 0.50)
         atm_call_ivs.append(iv)
 
     call_iv, _ = interpolate_iv_at_delta(calls, 0.25)
     put_iv, _ = interpolate_iv_at_delta(puts, -0.25)
 
-    skew = round(call_iv - put_iv, 2) if call_iv is not None and put_iv is not None else None
+    skew = (
+        round(call_iv - put_iv, 2)
+        if call_iv is not None and put_iv is not None
+        else None
+    )
 
     m1 = atm_call_ivs[0] if len(atm_call_ivs) > 0 else None
     m2 = atm_call_ivs[1] if len(atm_call_ivs) > 1 else None
