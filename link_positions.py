@@ -1,6 +1,6 @@
 import json
-from loguru import logger
 from pathlib import Path
+from tomic.logging import logger
 
 from tomic.config import get as cfg_get
 from tomic.logging import setup_logging
@@ -16,8 +16,6 @@ def load_json(path):
         return []
     with open(path, "r", encoding="utf-8") as f:
         return json.load(f)
-
-
 
 
 def list_open_trades(journal):
@@ -107,4 +105,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-

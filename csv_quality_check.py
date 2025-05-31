@@ -1,7 +1,7 @@
 import csv
 import os
 import sys
-from loguru import logger
+from tomic.logging import logger
 from typing import List, Dict, Set, Any
 
 from tomic.logging import setup_logging
@@ -9,17 +9,17 @@ from tomic.logging import setup_logging
 
 def is_empty(val: str) -> bool:
     """Return True if the value is None or only whitespace."""
-    return val is None or val.strip() == ''
+    return val is None or val.strip() == ""
 
 
 def guess_symbol(path: str) -> str:
     name = os.path.basename(path)
-    parts = [p for p in name.split('_') if p.isalpha() and p.isupper()]
+    parts = [p for p in name.split("_") if p.isalpha() and p.isupper()]
     return parts[0] if parts else os.path.splitext(name)[0]
 
 
 def analyze_csv(path: str) -> Dict[str, Any]:
-    with open(path, newline='', encoding='utf-8') as f:
+    with open(path, newline="", encoding="utf-8") as f:
         reader = csv.DictReader(f)
         total = 0
         complete = 0
@@ -28,26 +28,26 @@ def analyze_csv(path: str) -> Dict[str, Any]:
         bad_price_fields = 0
         duplicates = 0
         empty_counts = {
-            'bid': 0,
-            'ask': 0,
-            'iv': 0,
-            'delta': 0,
-            'gamma': 0,
-            'vega': 0,
-            'theta': 0,
+            "bid": 0,
+            "ask": 0,
+            "iv": 0,
+            "delta": 0,
+            "gamma": 0,
+            "vega": 0,
+            "theta": 0,
         }
         seen: Set[tuple] = set()
         fieldnames = reader.fieldnames or []
         for row in reader:
             total += 1
-            key = tuple(row.get(h, '').strip() for h in fieldnames)
+            key = tuple(row.get(h, "").strip() for h in fieldnames)
             if key in seen:
                 duplicates += 1
             else:
                 seen.add(key)
             # collect expiries
             for k in row.keys():
-                if k.lower() == 'expiry':
+                if k.lower() == "expiry":
                     val = row[k].strip()
                     if val:
                         expiries.add(val)
@@ -61,7 +61,7 @@ def analyze_csv(path: str) -> Dict[str, Any]:
             # delta validation, only check non-empty values
             delta_val = None
             for k in row.keys():
-                if k.lower() == 'delta':
+                if k.lower() == "delta":
                     val = row[k].strip()
                     if not is_empty(val):
                         try:
@@ -75,7 +75,7 @@ def analyze_csv(path: str) -> Dict[str, Any]:
             # price field checks only on non-empty fields
             invalid = False
             for k in row.keys():
-                if k.lower() in {'strike', 'bid', 'ask'}:
+                if k.lower() in {"strike", "bid", "ask"}:
                     val = row[k].strip()
                     if not is_empty(val):
                         try:
@@ -89,17 +89,17 @@ def analyze_csv(path: str) -> Dict[str, Any]:
                 bad_price_fields += 1
             # determine completeness
             values = [v.strip() for v in row.values()]
-            filled = [v != '' for v in values]
+            filled = [v != "" for v in values]
             if all(filled):
                 complete += 1
         return {
-            'total': total,
-            'complete': complete,
-            'expiries': sorted(expiries),
-            'bad_delta': bad_delta,
-            'bad_price_fields': bad_price_fields,
-            'duplicates': duplicates,
-            'empty_counts': empty_counts,
+            "total": total,
+            "complete": complete,
+            "expiries": sorted(expiries),
+            "bad_delta": bad_delta,
+            "bad_price_fields": bad_price_fields,
+            "duplicates": duplicates,
+            "empty_counts": empty_counts,
         }
 
 
@@ -111,38 +111,37 @@ def main(argv: List[str]) -> None:
         path = raw_path.strip().strip("'\"")
         symbol = argv[1] if len(argv) > 1 else guess_symbol(path)
     else:
-        print('Geen pad meegegeven. Vul handmatig in:')
-        raw_path = input('Pad naar CSV-bestand: ').strip()
+        print("Geen pad meegegeven. Vul handmatig in:")
+        raw_path = input("Pad naar CSV-bestand: ").strip()
         path = raw_path.strip("'\"")
         if not path:
-            print('Geen pad opgegeven.')
+            print("Geen pad opgegeven.")
             return
-        symbol_input = input('Symbool (enter voor auto-detect): ').strip()
+        symbol_input = input("Symbool (enter voor auto-detect): ").strip()
         symbol = symbol_input or guess_symbol(path)
     if not os.path.isfile(path):
-        logger.warning('Bestand niet gevonden: %s', path)
+        logger.warning("Bestand niet gevonden: %s", path)
         return
     stats = analyze_csv(path)
-    quality = (stats['complete'] / stats['total'] * 100) if stats['total'] else 0
-    expiries_str = ' / '.join(stats['expiries']) if stats['expiries'] else '-'
+    quality = (stats["complete"] / stats["total"] * 100) if stats["total"] else 0
+    expiries_str = " / ".join(stats["expiries"]) if stats["expiries"] else "-"
     logger.warning("Markt: %s", symbol)
     logger.warning("Expiries: %s", expiries_str)
-    logger.warning("Aantal regels: %s", stats['total'])
-    logger.warning("Aantal complete regels: %s", stats['complete'])
-    logger.warning("Delta buiten [-1,1]: %s", stats['bad_delta'])
-    logger.warning("Ongeldige Strike/Bid/Ask: %s", stats['bad_price_fields'])
-    logger.warning("Duplicaten: %s", stats['duplicates'])
-    logger.warning("Lege Bid: %s", stats['empty_counts']['bid'])
-    logger.warning("Lege Ask: %s", stats['empty_counts']['ask'])
-    logger.warning("Lege IV: %s", stats['empty_counts']['iv'])
-    logger.warning("Lege Delta: %s", stats['empty_counts']['delta'])
-    logger.warning("Lege Gamma: %s", stats['empty_counts']['gamma'])
-    logger.warning("Lege Vega: %s", stats['empty_counts']['vega'])
-    logger.warning("Lege Theta: %s", stats['empty_counts']['theta'])
+    logger.warning("Aantal regels: %s", stats["total"])
+    logger.warning("Aantal complete regels: %s", stats["complete"])
+    logger.warning("Delta buiten [-1,1]: %s", stats["bad_delta"])
+    logger.warning("Ongeldige Strike/Bid/Ask: %s", stats["bad_price_fields"])
+    logger.warning("Duplicaten: %s", stats["duplicates"])
+    logger.warning("Lege Bid: %s", stats["empty_counts"]["bid"])
+    logger.warning("Lege Ask: %s", stats["empty_counts"]["ask"])
+    logger.warning("Lege IV: %s", stats["empty_counts"]["iv"])
+    logger.warning("Lege Delta: %s", stats["empty_counts"]["delta"])
+    logger.warning("Lege Gamma: %s", stats["empty_counts"]["gamma"])
+    logger.warning("Lege Vega: %s", stats["empty_counts"]["vega"])
+    logger.warning("Lege Theta: %s", stats["empty_counts"]["theta"])
     logger.warning("Kwaliteit: %.1f%%", quality)
     logger.success("✅ Controle afgerond")
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main(sys.argv[1:])
-

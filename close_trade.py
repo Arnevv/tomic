@@ -1,11 +1,17 @@
-from loguru import logger
+from tomic.logging import logger
 from datetime import datetime
 
 from tomic.logging import setup_logging
 from tomic.journal.utils import load_journal, save_journal
 
+
 def sluit_trade_af(trade):
-    logger.info("\n🔚 Trade afsluiten: %s - %s - %s", trade['TradeID'], trade['Symbool'], trade['Type'])
+    logger.info(
+        "\n🔚 Trade afsluiten: %s - %s - %s",
+        trade["TradeID"],
+        trade["Symbool"],
+        trade["Type"],
+    )
 
     # DatumUit en DaysInTrade
     datum_uit = input("📆 DatumUit (YYYY-MM-DD): ").strip()
@@ -14,7 +20,7 @@ def sluit_trade_af(trade):
         d_out = datetime.strptime(datum_uit, "%Y-%m-%d")
         trade["DatumUit"] = datum_uit
         trade["DaysInTrade"] = (d_out - d_in).days
-        logger.info("📅 DaysInTrade berekend: %s dagen", trade['DaysInTrade'])
+        logger.info("📅 DaysInTrade berekend: %s dagen", trade["DaysInTrade"])
     except Exception:
         logger.error("⚠️ Ongeldige datum. Sla DaysInTrade over.")
         trade["DatumUit"] = datum_uit
@@ -22,7 +28,9 @@ def sluit_trade_af(trade):
     # ExitPrice met EntryPrice ter referentie
     try:
         entry_price = trade.get("EntryPrice", "?")
-        exit_price_input = input(f"💰 Exitprijs (de entry prijs was: {entry_price}): ").strip()
+        exit_price_input = input(
+            f"💰 Exitprijs (de entry prijs was: {entry_price}): "
+        ).strip()
         trade["ExitPrice"] = float(exit_price_input)
     except ValueError:
         logger.error("❌ Ongeldige prijs.")
@@ -42,8 +50,12 @@ def sluit_trade_af(trade):
     # Evaluatie
     print("\n🧠 Evaluatie:")
     print("Zeg iets over:")
-    print("- je marktinschatting (IV, richting), effectiviteit van je edge (skew, premie vs risico)")
-    print("- je risicomanagement: wat verwachtte je, wat gebeurde er, wat concludeer je?")
+    print(
+        "- je marktinschatting (IV, richting), effectiviteit van je edge (skew, premie vs risico)"
+    )
+    print(
+        "- je risicomanagement: wat verwachtte je, wat gebeurde er, wat concludeer je?"
+    )
     print("Typ '.' op een lege regel om te stoppen:")
 
     lijnen = []
@@ -56,6 +68,7 @@ def sluit_trade_af(trade):
 
     trade["Status"] = "Gesloten"
     logger.info("✅ Trade gemarkeerd als gesloten.")
+
 
 def main():
     setup_logging()
@@ -79,6 +92,6 @@ def main():
     save_journal(journal)
     logger.success("✅ Trade afgesloten")
 
+
 if __name__ == "__main__":
     main()
-

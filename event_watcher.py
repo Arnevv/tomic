@@ -1,14 +1,17 @@
 import json
-from loguru import logger
 from datetime import datetime
-from typing import List, Dict
+from typing import Dict, List
+
+from tomic.logging import logger
 
 from tomic.config import get as cfg_get
 from tomic.logging import setup_logging
 from tomic.utils import today
 
 
-def apply_event_alerts(strategies: List[Dict], event_json_path: str = "events.json") -> None:
+def apply_event_alerts(
+    strategies: List[Dict], event_json_path: str = "events.json"
+) -> None:
     """Add upcoming event alerts to strategies in place."""
     try:
         with open(event_json_path, "r", encoding="utf-8") as f:
@@ -54,7 +57,7 @@ def main(argv=None):
     for strat in strategies:
         alerts = strat.get("alerts", [])
         if alerts:
-            logger.info("%s alerts:", strat['symbol'])
+            logger.info("%s alerts:", strat["symbol"])
             for alert in alerts:
                 logger.info(" - %s", alert)
 
@@ -65,4 +68,3 @@ if __name__ == "__main__":
     import sys
 
     main(sys.argv[1:])
-

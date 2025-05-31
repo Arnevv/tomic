@@ -1,6 +1,7 @@
 import json
-from loguru import logger
 from pathlib import Path
+
+from tomic.logging import logger
 
 from tomic.api.margin_calc import calculate_trade_margin
 from tomic.logging import setup_logging
@@ -27,7 +28,7 @@ def update_all_margins() -> None:
         if not sym or not expiry or not legs:
             continue
 
-        logger.info("🔄 Calculating margin for TradeID %s", trade.get('TradeID'))
+        logger.info("🔄 Calculating margin for TradeID %s", trade.get("TradeID"))
         try:
             margin = calculate_trade_margin(sym, expiry, legs)
             trade["InitMargin"] = margin
@@ -45,4 +46,3 @@ def update_all_margins() -> None:
 if __name__ == "__main__":
     setup_logging()
     update_all_margins()
-
