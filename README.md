@@ -42,7 +42,10 @@ pip install -r requirements.txt
 
 ### Logging
 
-Alle scripts gebruiken nu **loguru** voor consistente logging. Stel `TOMIC_LOG_LEVEL` of `TOMIC_DEBUG=1` in om meer details te zien.
+Alle scripts gebruiken **loguru** voor consistente logging. Als `loguru` niet
+geïnstalleerd is, valt het systeem automatisch terug op het standaard
+`logging`-pakket. Stel `TOMIC_LOG_LEVEL` of `TOMIC_DEBUG=1` in om meer details
+te zien.
 
 ---
 

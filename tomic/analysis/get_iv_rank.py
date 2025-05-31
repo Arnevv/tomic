@@ -1,7 +1,8 @@
-from loguru import logger
 import re
 import sys
 import urllib.request
+
+from tomic.logging import logger
 
 from tomic.analysis.iv_patterns import IV_PATTERNS
 from tomic.logging import setup_logging
@@ -36,10 +37,14 @@ def fetch_iv_metrics(symbol: str = "SPY") -> dict:
             if match:
                 try:
                     results[key] = float(match.group(1))
-                    logger.debug("Matched pattern '%s' for %s -> %s", pat, key, results[key])
+                    logger.debug(
+                        "Matched pattern '%s' for %s -> %s", pat, key, results[key]
+                    )
                     break
                 except ValueError:
-                    logger.warning("Failed to parse %s from match '%s'", key, match.group(1))
+                    logger.warning(
+                        "Failed to parse %s from match '%s'", key, match.group(1)
+                    )
                     break
         if key not in results:
             logger.error("%s not found on page", key)
@@ -62,7 +67,9 @@ def main(argv=None):
     if argv is None:
         argv = sys.argv[1:]
 
-    symbol = (argv[0] if argv else input("Ticker (default SPY): ")).strip().upper() or "SPY"
+    symbol = (
+        argv[0] if argv else input("Ticker (default SPY): ")
+    ).strip().upper() or "SPY"
     logger.info("🚀 Fetching IV metrics for %s", symbol)
 
     try:
@@ -81,4 +88,3 @@ def main(argv=None):
 
 if __name__ == "__main__":
     main()
-
