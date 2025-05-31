@@ -1,7 +1,8 @@
-from loguru import logger
 import re
 from datetime import datetime, timezone
 from typing import Dict, List
+
+from tomic.logging import logger
 
 from tomic.config import get as cfg_get
 
@@ -9,6 +10,7 @@ from tomic.analysis.get_iv_rank import _download_html
 from tomic.analysis.iv_patterns import IV_PATTERNS, EXTRA_PATTERNS
 from vol_cone_db import store_volatility_snapshot
 from tomic.logging import setup_logging
+
 
 def _parse_patterns(patterns: Dict[str, List[str]], html: str) -> Dict[str, float]:
     """Return a dict with parsed values using the provided patterns."""
@@ -74,4 +76,3 @@ if __name__ == "__main__":
     import sys
 
     main(sys.argv[1:])
-

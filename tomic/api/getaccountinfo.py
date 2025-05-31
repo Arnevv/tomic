@@ -7,9 +7,10 @@ from ibapi.ticktype import TickTypeEnum
 
 from datetime import datetime
 import json
-from loguru import logger
 from tomic.api.market_utils import calculate_hv30, calculate_atr14
 from tomic.analysis.get_iv_rank import fetch_iv_metrics
+
+from tomic.logging import logger
 
 import threading
 import time
@@ -342,7 +343,7 @@ def main() -> None:
 
     with open(cfg_get("POSITIONS_FILE", "positions.json"), "w", encoding="utf-8") as f:
         json.dump(app.positions_data, f, indent=2)
-
+    
     logging.info(
         "💾 Posities opgeslagen in %s", cfg_get("POSITIONS_FILE", "positions.json")
     )
@@ -354,6 +355,7 @@ def main() -> None:
         cfg_get("ACCOUNT_INFO_FILE", "account_info.json"), "w", encoding="utf-8"
     ) as f:
         json.dump(base_currency_vals, f, indent=2)
+
     logging.info(
         "💾 Accountinfo opgeslagen in %s",
         cfg_get("ACCOUNT_INFO_FILE", "account_info.json"),
@@ -369,4 +371,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-

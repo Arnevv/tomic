@@ -3,8 +3,7 @@ import time
 import csv
 import os
 from datetime import datetime
-from loguru import logger
-from tomic.logging import setup_logging
+from tomic.logging import logger, setup_logging
 from tomic.api.combined_app import CombinedApp
 from tomic.api.market_utils import fetch_market_metrics
 from tomic.config import get as cfg_get
@@ -191,4 +190,3 @@ if __name__ == "__main__":
     )
     args = parser.parse_args()
     run(args.symbol, args.output_dir)
-
