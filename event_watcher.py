@@ -1,5 +1,5 @@
 import json
-import logging
+from loguru import logger
 from datetime import datetime
 from typing import List, Dict
 
@@ -40,6 +40,7 @@ def apply_event_alerts(strategies: List[Dict], event_json_path: str = "events.js
 
 def main(argv=None):
     setup_logging()
+    logger.info("🚀 Event alerts check")
     if argv is None:
         argv = []
     strategies_file = argv[0] if argv else cfg_get("POSITIONS_FILE", "positions.json")
@@ -53,12 +54,15 @@ def main(argv=None):
     for strat in strategies:
         alerts = strat.get("alerts", [])
         if alerts:
-            logging.info("%s alerts:", strat['symbol'])
+            logger.info("%s alerts:", strat['symbol'])
             for alert in alerts:
-                logging.info(" - %s", alert)
+                logger.info(" - %s", alert)
+
+    logger.success("✅ Events verwerkt")
 
 
 if __name__ == "__main__":
     import sys
 
     main(sys.argv[1:])
+

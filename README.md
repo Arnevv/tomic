@@ -40,6 +40,10 @@ pip install -r requirements.txt
 
 4. Zorg dat IB Gateway of TWS actief is op poort 7497.
 
+### Logging
+
+Alle scripts gebruiken nu **loguru** voor consistente logging. Stel `TOMIC_LOG_LEVEL` of `TOMIC_DEBUG=1` in om meer details te zien.
+
 ---
 
 ## 🕹️ Gebruik
