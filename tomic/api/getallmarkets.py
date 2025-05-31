@@ -1,4 +1,5 @@
 """Export market data for multiple symbols."""
+from __future__ import annotations
 
 import os
 import time
@@ -15,12 +16,18 @@ def run(symbol: str, output_dir: str | None = None):
     return export_market_data(symbol, output_dir)
 
 
-def export_combined_csv(data_per_market, output_dir):
+def export_combined_csv(data_per_market: list[pd.DataFrame], output_dir: str) -> None:
     """Combine individual market DataFrames and export to a single CSV."""
-    combined_df = pd.concat(data_per_market, ignore_index=True)
+    valid_frames = [
+        df for df in data_per_market if not df.empty and not df.isna().all().all()
+    ]
+    if not valid_frames:
+        logger.warning("Geen geldige marktdata om te combineren.")
+        return
+    combined_df = pd.concat(valid_frames, ignore_index=True)
     output_path = os.path.join(output_dir, "Overzicht_Marktkenmerken.csv")
     combined_df.to_csv(output_path, index=False)
-    logger.info("%d markten verwerkt. CSV geëxporteerd.", len(data_per_market))
+    logger.info("%d markten verwerkt. CSV geëxporteerd.", len(valid_frames))
 
 
 if __name__ == "__main__":
