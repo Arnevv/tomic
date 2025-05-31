@@ -96,12 +96,16 @@ def _await_market_data(app: CombinedApp, symbol: str) -> bool:
     return True
 
 
-def _write_option_chain(app: CombinedApp, symbol: str, export_dir: str, timestamp: str) -> None:
+def _write_option_chain(
+    app: CombinedApp, symbol: str, export_dir: str, timestamp: str
+) -> None:
     chain_file = os.path.join(export_dir, f"option_chain_{symbol}_{timestamp}.csv")
     with open(chain_file, "w", newline="") as file:
         writer = csv.writer(file)
         writer.writerow(_HEADERS_CHAIN)
-        for data in app.market_data.values():
+        for req_id, data in app.market_data.items():
+            if req_id in app.invalid_contracts:
+                continue
             writer.writerow(
                 [
                     data.get("expiry"),
@@ -110,16 +114,34 @@ def _write_option_chain(app: CombinedApp, symbol: str, export_dir: str, timestam
                     data.get("bid"),
                     data.get("ask"),
                     round(data.get("iv"), 3) if data.get("iv") is not None else None,
-                    round(data.get("delta"), 3) if data.get("delta") is not None else None,
-                    round(data.get("gamma"), 3) if data.get("gamma") is not None else None,
-                    round(data.get("vega"), 3) if data.get("vega") is not None else None,
-                    round(data.get("theta"), 3) if data.get("theta") is not None else None,
+                    (
+                        round(data.get("delta"), 3)
+                        if data.get("delta") is not None
+                        else None
+                    ),
+                    (
+                        round(data.get("gamma"), 3)
+                        if data.get("gamma") is not None
+                        else None
+                    ),
+                    (
+                        round(data.get("vega"), 3)
+                        if data.get("vega") is not None
+                        else None
+                    ),
+                    (
+                        round(data.get("theta"), 3)
+                        if data.get("theta") is not None
+                        else None
+                    ),
                 ]
             )
     logger.info("✅ Optieketen opgeslagen in: %s", chain_file)
 
 
-def _write_metrics_csv(metrics: dict, symbol: str, export_dir: str, timestamp: str) -> pd.DataFrame:
+def _write_metrics_csv(
+    metrics: dict, symbol: str, export_dir: str, timestamp: str
+) -> pd.DataFrame:
     metrics_file = os.path.join(export_dir, f"other_data_{symbol}_{timestamp}.csv")
     values_metrics = [
         symbol,
@@ -142,7 +164,9 @@ def _write_metrics_csv(metrics: dict, symbol: str, export_dir: str, timestamp: s
     return pd.DataFrame([values_metrics], columns=_HEADERS_METRICS)
 
 
-def export_market_data(symbol: str, output_dir: str | None = None) -> pd.DataFrame | None:
+def export_market_data(
+    symbol: str, output_dir: str | None = None
+) -> pd.DataFrame | None:
     """Export option chain and market metrics for ``symbol`` to CSV files."""
     symbol = symbol.strip().upper()
     if not symbol:
