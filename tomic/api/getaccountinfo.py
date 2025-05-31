@@ -343,9 +343,10 @@ def main() -> None:
 
     with open(cfg_get("POSITIONS_FILE", "positions.json"), "w", encoding="utf-8") as f:
         json.dump(app.positions_data, f, indent=2)
-    
-    logging.info(
-        "💾 Posities opgeslagen in %s", cfg_get("POSITIONS_FILE", "positions.json")
+
+    logger.info(
+        "💾 Posities opgeslagen in %s",
+        cfg_get("POSITIONS_FILE", "positions.json"),
     )
 
     base_currency_vals = {
@@ -356,7 +357,7 @@ def main() -> None:
     ) as f:
         json.dump(base_currency_vals, f, indent=2)
 
-    logging.info(
+    logger.info(
         "💾 Accountinfo opgeslagen in %s",
         cfg_get("ACCOUNT_INFO_FILE", "account_info.json"),
     )
