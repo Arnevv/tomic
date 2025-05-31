@@ -18,6 +18,7 @@ from tomic.config import get as cfg_get
 from tomic.logging import setup_logging
 from tomic.helpers.account import _fmt_money, print_account_overview
 
+
 class IBApp(EWrapper, EClient):
     def __init__(self):
         EClient.__init__(self, self)
@@ -48,29 +49,33 @@ class IBApp(EWrapper, EClient):
         self.reqPositions()
         self.reqOpenOrders()
 
-    def position(self, account: str, contract: Contract, position: float, avgCost: float):
+    def position(
+        self, account: str, contract: Contract, position: float, avgCost: float
+    ):
         idx = len(self.positions_data)
-        self.positions_data.append({
-            "symbol": contract.symbol,
-            "secType": contract.secType,
-            "exchange": contract.exchange,
-            "position": position,
-            "avgCost": avgCost,
-            "conId": contract.conId,
-            "localSymbol": contract.localSymbol,
-            "lastTradeDate": contract.lastTradeDateOrContractMonth,
-            "strike": contract.strike,
-            "right": contract.right,
-            "multiplier": contract.multiplier,
-            "currency": contract.currency,
-            "bid": None,
-            "ask": None,
-            "iv": None,
-            "delta": None,
-            "gamma": None,
-            "vega": None,
-            "theta": None
-        })
+        self.positions_data.append(
+            {
+                "symbol": contract.symbol,
+                "secType": contract.secType,
+                "exchange": contract.exchange,
+                "position": position,
+                "avgCost": avgCost,
+                "conId": contract.conId,
+                "localSymbol": contract.localSymbol,
+                "lastTradeDate": contract.lastTradeDateOrContractMonth,
+                "strike": contract.strike,
+                "right": contract.right,
+                "multiplier": contract.multiplier,
+                "currency": contract.currency,
+                "bid": None,
+                "ask": None,
+                "iv": None,
+                "delta": None,
+                "gamma": None,
+                "vega": None,
+                "theta": None,
+            }
+        )
         self.reqPnLSingle(self.req_id, account, "", contract.conId)
         self.req_id_to_index[self.req_id] = idx
         self.req_id += 1
@@ -97,14 +102,16 @@ class IBApp(EWrapper, EClient):
             self.market_req_id += 1
 
     def openOrder(self, orderId: OrderId, contract: Contract, order, orderState):
-        self.open_orders.append({
-            "orderId": orderId,
-            "symbol": contract.symbol,
-            "action": order.action,
-            "totalQuantity": order.totalQuantity,
-            "orderType": order.orderType,
-            "limitPrice": order.lmtPrice
-        })
+        self.open_orders.append(
+            {
+                "orderId": orderId,
+                "symbol": contract.symbol,
+                "action": order.action,
+                "totalQuantity": order.totalQuantity,
+                "orderType": order.orderType,
+                "limitPrice": order.lmtPrice,
+            }
+        )
 
     def accountSummary(self, reqId, account, tag, value, currency):
         """Store account summary values, keeping track of the currency."""
@@ -129,14 +136,24 @@ class IBApp(EWrapper, EClient):
         logger.info("🔹 Accountoverzicht opgehaald.")
         self.account_event.set()
 
-    def pnlSingle(self, reqId: int, pos: int, dailyPnL: float, unrealizedPnL: float, realizedPnL: float, value: float):
+    def pnlSingle(
+        self,
+        reqId: int,
+        pos: int,
+        dailyPnL: float,
+        unrealizedPnL: float,
+        realizedPnL: float,
+        value: float,
+    ):
         idx = self.req_id_to_index.get(reqId)
         if idx is not None and idx < len(self.positions_data):
-            self.positions_data[idx].update({
-                "dailyPnL": dailyPnL,
-                "unrealizedPnL": unrealizedPnL,
-                "realizedPnL": realizedPnL
-            })
+            self.positions_data[idx].update(
+                {
+                    "dailyPnL": dailyPnL,
+                    "unrealizedPnL": unrealizedPnL,
+                    "realizedPnL": realizedPnL,
+                }
+            )
 
     def positionEnd(self):
         logger.info("🔹 Posities opgehaald.")
@@ -174,10 +191,23 @@ class IBApp(EWrapper, EClient):
                 elif tickType == 27:
                     d["theta"] = price
 
-    def tickOptionComputation(self, reqId, tickType, tickAttrib, impliedVol,
-                              delta, optPrice, pvDividend, gamma, vega, theta,
-                              undPrice):
-        if reqId in self.market_req_map and not isinstance(self.market_req_map[reqId], dict):
+    def tickOptionComputation(
+        self,
+        reqId,
+        tickType,
+        tickAttrib,
+        impliedVol,
+        delta,
+        optPrice,
+        pvDividend,
+        gamma,
+        vega,
+        theta,
+        undPrice,
+    ):
+        if reqId in self.market_req_map and not isinstance(
+            self.market_req_map[reqId], dict
+        ):
             idx = self.market_req_map[reqId]
             d = self.positions_data[idx]
             if impliedVol is not None:
@@ -234,7 +264,9 @@ def main() -> None:
     setup_logging()
     logger.info("🚀 Ophalen van accountinformatie")
     app = IBApp()
-    app.connect("127.0.0.1", 7497, clientId=1)
+    host = cfg_get("IB_HOST", "127.0.0.1")
+    port = int(cfg_get("IB_PORT", 7497))
+    app.connect(host, port, clientId=1)
 
     api_thread = threading.Thread(target=run_loop, args=(app,), daemon=True)
     api_thread.start()
@@ -310,12 +342,22 @@ def main() -> None:
 
     with open(cfg_get("POSITIONS_FILE", "positions.json"), "w", encoding="utf-8") as f:
         json.dump(app.positions_data, f, indent=2)
-    logger.info("💾 Posities opgeslagen in %s", cfg_get('POSITIONS_FILE', 'positions.json'))
 
-    base_currency_vals = {k: v for k, v in app.account_values.items() if isinstance(k, str)}
-    with open(cfg_get("ACCOUNT_INFO_FILE", "account_info.json"), "w", encoding="utf-8") as f:
+    logging.info(
+        "💾 Posities opgeslagen in %s", cfg_get("POSITIONS_FILE", "positions.json")
+    )
+
+    base_currency_vals = {
+        k: v for k, v in app.account_values.items() if isinstance(k, str)
+    }
+    with open(
+        cfg_get("ACCOUNT_INFO_FILE", "account_info.json"), "w", encoding="utf-8"
+    ) as f:
         json.dump(base_currency_vals, f, indent=2)
-    logger.info("💾 Accountinfo opgeslagen in %s", cfg_get('ACCOUNT_INFO_FILE', 'account_info.json'))
+    logging.info(
+        "💾 Accountinfo opgeslagen in %s",
+        cfg_get("ACCOUNT_INFO_FILE", "account_info.json"),
+    )
 
     logger.info("\n📐 Portfolio Greeks:")
     for k, v in portfolio.items():
@@ -323,7 +365,6 @@ def main() -> None:
 
     app.disconnect()
     logger.success("✅ Accountinformatie verwerkt")
-
 
 
 if __name__ == "__main__":
