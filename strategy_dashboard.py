@@ -650,9 +650,27 @@ def print_strategy(strategy, rule=None):
     if spot_now is not None or spot_open is not None:
         parts = []
         if spot_now is not None:
-            parts.append(f"Huidige spot: {spot_now}")
+            try:
+                spot_now_float = float(spot_now)
+                spot_now_str = f"{spot_now_float:.2f}"
+            except (TypeError, ValueError):
+                spot_now_str = str(spot_now)
+            diff_pct = None
+            if spot_open not in (None, 0, "0"):
+                try:
+                    diff_pct = ((float(spot_now) - float(spot_open)) / float(spot_open)) * 100
+                except (TypeError, ValueError, ZeroDivisionError):
+                    diff_pct = None
+            if diff_pct is not None:
+                parts.append(f"Huidige spot: {spot_now_str} ({diff_pct:+.2f}%)")
+            else:
+                parts.append(f"Huidige spot: {spot_now_str}")
         if spot_open is not None:
-            parts.append(f"Spot bij open: {spot_open}")
+            try:
+                spot_open_str = f"{float(spot_open):.2f}"
+            except (TypeError, ValueError):
+                spot_open_str = str(spot_open)
+            parts.append(f"Spot bij open: {spot_open_str}")
         print("→ " + " | ".join(parts))
     delta = strategy.get("delta")
     gamma = strategy.get("gamma")
