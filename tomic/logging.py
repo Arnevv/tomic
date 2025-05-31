@@ -54,7 +54,6 @@ def setup_logging(default_level: int = logging.INFO) -> None:
     logging.getLogger("ibapi.client").setLevel(ib_level)
 
     logger.info(
-        "Logging setup: TOMIC_DEBUG=%s, TOMIC_LOG_LEVEL=%s",
-        debug_env,
-        level_name or logging.getLevelName(level),
+        f"Logging setup: TOMIC_DEBUG={debug_env}, "
+        f"TOMIC_LOG_LEVEL={level_name or logging.getLevelName(level)}"
     )
