@@ -1,9 +1,0 @@
-{
-    "NetLiquidation": 20000.0,
-    "FullInitMarginReq": 5000.0,
-    "FullMaintMarginReq": 4500.0,
-    "BuyingPower": 60000.0,
-    "ExcessLiquidity": 15000.0,
-    "GrossPositionValue": 3000.0,
-    "Cushion": 0.75
-}
