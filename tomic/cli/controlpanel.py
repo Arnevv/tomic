@@ -14,6 +14,8 @@ setup_logging()
 POSITIONS_FILE = Path(cfg_get("POSITIONS_FILE", "positions.json"))
 ACCOUNT_INFO_FILE = Path(cfg_get("ACCOUNT_INFO_FILE", "account_info.json"))
 META_FILE = Path(cfg_get("PORTFOLIO_META_FILE", "portfolio_meta.json"))
+# Direct path to the dashboard script so we avoid the thin wrapper in the repo
+STRATEGY_DASHBOARD_FILE = Path(__file__).with_name("strategy_dashboard.py")
 
 
 def run_module(module_name: str, *args: str) -> None:
@@ -146,8 +148,8 @@ def run_portfolio_menu() -> None:
                 print("❌ Ophalen van portfolio mislukt")
                 continue
             try:
-                run_module(
-                    "tomic.cli.strategy_dashboard",
+                run_script(
+                    str(STRATEGY_DASHBOARD_FILE),
                     str(POSITIONS_FILE),
                     str(ACCOUNT_INFO_FILE),
                 )
@@ -164,8 +166,8 @@ def run_portfolio_menu() -> None:
             if ts:
                 print(f"ℹ️ Laatste update: {ts}")
             try:
-                run_module(
-                    "tomic.cli.strategy_dashboard",
+                run_script(
+                    str(STRATEGY_DASHBOARD_FILE),
                     str(POSITIONS_FILE),
                     str(ACCOUNT_INFO_FILE),
                 )
