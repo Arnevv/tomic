@@ -1,4 +1,6 @@
-from tomic.cli.link_positions import main
+"""Wrapper script for linking IB positions via ``tomic.journal``."""
+
+from tomic.journal import link_positions
 
 if __name__ == "__main__":
-    main()
+    link_positions()
