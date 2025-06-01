@@ -14,18 +14,12 @@ setup_logging()
 POSITIONS_FILE = Path(cfg_get("POSITIONS_FILE", "positions.json"))
 ACCOUNT_INFO_FILE = Path(cfg_get("ACCOUNT_INFO_FILE", "account_info.json"))
 META_FILE = Path(cfg_get("PORTFOLIO_META_FILE", "portfolio_meta.json"))
-# Direct path to the dashboard script so we avoid the thin wrapper in the repo
-STRATEGY_DASHBOARD_FILE = Path(__file__).with_name("strategy_dashboard.py")
+STRATEGY_DASHBOARD_MODULE = "tomic.cli.strategy_dashboard"
 
 
 def run_module(module_name: str, *args: str) -> None:
     """Run a Python module using ``python -m``."""
     subprocess.run([sys.executable, "-m", module_name, *args], check=True)
-
-
-def run_script(script_name: str, *args: str) -> None:
-    """Run a Python file with optional arguments."""
-    subprocess.run([sys.executable, script_name, *args], check=True)
 
 
 def save_portfolio_timestamp() -> None:
@@ -48,9 +42,9 @@ def run_dataexporter() -> None:
     """Menu for export and CSV validation utilities."""
     while True:
         print("\n📤 DATA MANAGEMENT")
-        print("1. Exporteer een markt (getonemarket.py)")
-        print("2. Exporteer alle markten (getallmarkets.py)")
-        print("3. Controleer CSV-kwaliteit (csv_quality_check.py)")
+        print("1. Exporteer een markt (tomic.api.getonemarket)")
+        print("2. Exporteer alle markten (tomic.api.getallmarkets)")
+        print("3. Controleer CSV-kwaliteit (tomic.cli.csv_quality_check)")
         print("4. Terug naar hoofdmenu")
         sub = input("Maak je keuze: ")
         if sub == "1":
@@ -145,8 +139,8 @@ def run_portfolio_menu() -> None:
                 print("❌ Ophalen van portfolio mislukt")
                 continue
             try:
-                run_script(
-                    str(STRATEGY_DASHBOARD_FILE),
+                run_module(
+                    STRATEGY_DASHBOARD_MODULE,
                     str(POSITIONS_FILE),
                     str(ACCOUNT_INFO_FILE),
                 )
@@ -163,8 +157,8 @@ def run_portfolio_menu() -> None:
             if ts:
                 print(f"ℹ️ Laatste update: {ts}")
             try:
-                run_script(
-                    str(STRATEGY_DASHBOARD_FILE),
+                run_module(
+                    STRATEGY_DASHBOARD_MODULE,
                     str(POSITIONS_FILE),
                     str(ACCOUNT_INFO_FILE),
                 )
