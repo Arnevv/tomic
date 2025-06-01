@@ -50,7 +50,7 @@ def main(argv: List[str] | None = None) -> None:
     else:
         symbols = [s.upper() for s in cfg_get("DEFAULT_SYMBOLS", [])]
     snapshot_symbols(symbols, fetch_volatility_metrics)
-    logger.success("✅ Volatiliteitsscrape voltooid voor %d symbolen", len(symbols))
+    logger.success(f"✅ Volatiliteitsscrape voltooid voor {len(symbols)} symbolen")
 
 
 if __name__ == "__main__":

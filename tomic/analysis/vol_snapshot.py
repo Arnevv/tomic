@@ -22,9 +22,7 @@ def store_volatility_snapshot(
     missing = [key for key in required if symbol_data.get(key) is None]
     if missing:
         logger.warning(
-            "Incomplete snapshot for %s skipped: missing %s",
-            symbol_data.get("symbol"),
-            ", ".join(missing),
+            f"Incomplete snapshot for {symbol_data.get('symbol')} skipped: missing {', '.join(missing)}"
         )
         return
 
@@ -57,11 +55,11 @@ def snapshot_symbols(
 ) -> None:
     """Take a volatility snapshot for each symbol using the given fetcher."""
     for sym in symbols:
-        logger.info("Fetching metrics for %s", sym)
+        logger.info(f"Fetching metrics for {sym}")
         try:
             metrics = fetcher(sym)
         except Exception as exc:  # pragma: no cover - network dependent
-            logger.error("Failed for %s: %s", sym, exc)
+            logger.error(f"Failed for {sym}: {exc}")
             continue
         record = {
             "date": datetime.now(timezone.utc).strftime("%Y-%m-%d"),
@@ -73,7 +71,7 @@ def snapshot_symbols(
             "skew": metrics.get("skew"),
         }
         store_volatility_snapshot(record, output_path)
-        logger.info("Stored snapshot for %s", sym)
+        logger.info(f"Stored snapshot for {sym}")
 
 
 __all__ = ["store_volatility_snapshot", "snapshot_symbols"]
