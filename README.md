@@ -177,9 +177,10 @@ pytest
 
 Validatie van geëxporteerde option-chain CSV's. Het script toont het aantal regels, compleetheid en extra controles:
 
-- Delta buiten het bereik [-1, 1]  
-- Ongeldige Strike/Bid/Ask waarden  
-- Aantal gedupliceerde regels  
+- Delta buiten het bereik [-1, 1]
+- Ongeldige Strike/Bid/Ask waarden
+- Aantal gedupliceerde regels
+- Bid of Ask met waarde -1
 
 Gebruik:
 
@@ -200,6 +201,7 @@ Aantal semi-complete regels: 5
 Delta buiten [-1,1]: 0
 Ongeldige Strike/Bid/Ask: 1
 Duplicaten: 0
+Bid/Ask == -1: 0
 Kwaliteit: 95.0%
 ```
 
