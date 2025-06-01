@@ -209,7 +209,7 @@ Kwaliteit: 95.0%
 
 ```
 [Step 2] ✅ SPY spotprijs ontvangen: 594.20
-[Step 3] ✅ Drie reguliere expiries: 20250621, 20250719, 20250816
+[Step 3] ✅ Drie reguliere expiries + vier weeklies: 20250621, 20250719, 20250816, ...
 [Step 5] ✅ Market data requests initiated
 ```
 

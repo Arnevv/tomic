@@ -25,6 +25,7 @@ from tomic.api.market_utils import (
 )
 from tomic.cli.strategy_dashboard import determine_strategy_type, collapse_legs
 from tomic.analysis.performance_analyzer import compute_pnl
+from tomic.utils import extract_weeklies
 
 
 def test_store_volatility_snapshot_roundtrip(tmp_path):
@@ -135,3 +136,16 @@ def test_collapse_legs_partial():
     legs = [{"conId": 1, "position": 2}, {"conId": 1, "position": -1}]
     result = collapse_legs(legs)
     assert result == [{"conId": 1, "position": 1}]
+
+
+def test_extract_weeklies():
+    expiries = [
+        "20240607",
+        "20240614",
+        "20240621",
+        "20240628",
+        "20240705",
+        "20240712",
+    ]
+    result = extract_weeklies(expiries)
+    assert result == ["20240607", "20240614", "20240628", "20240705"]
