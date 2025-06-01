@@ -23,7 +23,7 @@ from tomic.api.market_utils import (
     calculate_hv30,
     calculate_atr14,
 )
-from strategy_dashboard import determine_strategy_type, collapse_legs
+from tomic.cli.strategy_dashboard import determine_strategy_type, collapse_legs
 from tomic.analysis.performance_analyzer import compute_pnl
 
 
