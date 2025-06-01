@@ -7,6 +7,7 @@ import os
 import threading
 import time
 from datetime import datetime
+import math
 
 import pandas as pd
 
@@ -27,6 +28,7 @@ _HEADERS_CHAIN = [
     "Gamma",
     "Vega",
     "Theta",
+    "ParityDeviation",
 ]
 
 _HEADERS_METRICS = [
@@ -100,40 +102,91 @@ def _write_option_chain(
     app: CombinedApp, symbol: str, export_dir: str, timestamp: str
 ) -> None:
     chain_file = os.path.join(export_dir, f"option_chain_{symbol}_{timestamp}.csv")
+    records = [
+        data
+        for req_id, data in app.market_data.items()
+        if req_id not in app.invalid_contracts
+    ]
+
+    def _mid(bid: float | None, ask: float | None) -> float | None:
+        if bid is None or ask is None:
+            return None
+        return (bid + ask) / 2
+
+    grouped: dict[tuple[str, float], dict[str, dict]] = {}
+    for rec in records:
+        key = (rec.get("expiry"), rec.get("strike"))
+        pair = grouped.setdefault(key, {})
+        if rec.get("right") == "C":
+            pair["call"] = rec
+        elif rec.get("right") == "P":
+            pair["put"] = rec
+
+    today = datetime.now().date()
+    r = 0.05
+    for (expiry, strike), pair in grouped.items():
+        call = pair.get("call")
+        put = pair.get("put")
+        parity = None
+        if (
+            call
+            and put
+            and strike is not None
+            and app.spot_price is not None
+            and call.get("bid") is not None
+            and call.get("ask") is not None
+            and put.get("bid") is not None
+            and put.get("ask") is not None
+        ):
+            call_mid = _mid(call.get("bid"), call.get("ask"))
+            put_mid = _mid(put.get("bid"), put.get("ask"))
+            try:
+                exp_date = datetime.strptime(str(expiry), "%Y%m%d").date()
+                t = max((exp_date - today).days, 0) / 365
+                parity = (call_mid - put_mid) - (
+                    app.spot_price - strike * math.exp(-r * t)
+                )
+                parity = round(parity, 4)
+            except Exception:
+                parity = None
+        if call is not None:
+            call["parity_deviation"] = parity
+        if put is not None:
+            put["parity_deviation"] = parity
+
     with open(chain_file, "w", newline="") as file:
         writer = csv.writer(file)
         writer.writerow(_HEADERS_CHAIN)
-        for req_id, data in app.market_data.items():
-            if req_id in app.invalid_contracts:
-                continue
+        for rec in records:
             writer.writerow(
                 [
-                    data.get("expiry"),
-                    data.get("right"),
-                    data.get("strike"),
-                    data.get("bid"),
-                    data.get("ask"),
-                    round(data.get("iv"), 3) if data.get("iv") is not None else None,
+                    rec.get("expiry"),
+                    rec.get("right"),
+                    rec.get("strike"),
+                    rec.get("bid"),
+                    rec.get("ask"),
+                    round(rec.get("iv"), 3) if rec.get("iv") is not None else None,
                     (
-                        round(data.get("delta"), 3)
-                        if data.get("delta") is not None
+                        round(rec.get("delta"), 3)
+                        if rec.get("delta") is not None
                         else None
                     ),
                     (
-                        round(data.get("gamma"), 3)
-                        if data.get("gamma") is not None
+                        round(rec.get("gamma"), 3)
+                        if rec.get("gamma") is not None
                         else None
                     ),
                     (
-                        round(data.get("vega"), 3)
-                        if data.get("vega") is not None
+                        round(rec.get("vega"), 3)
+                        if rec.get("vega") is not None
                         else None
                     ),
                     (
-                        round(data.get("theta"), 3)
-                        if data.get("theta") is not None
+                        round(rec.get("theta"), 3)
+                        if rec.get("theta") is not None
                         else None
                     ),
+                    rec.get("parity_deviation"),
                 ]
             )
     logger.info("✅ Optieketen opgeslagen in: %s", chain_file)
