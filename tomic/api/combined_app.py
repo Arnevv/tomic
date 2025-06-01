@@ -151,7 +151,7 @@ class CombinedApp(EWrapper, EClient):
         if errorCode == 200 and reqId in self.market_data:
             self.invalid_contracts.add(reqId)
         elif errorCode not in (2104, 2106, 2158, 2176):
-            logger.error("⚠️ Error %s (%s): %s", reqId, errorCode, errorString)
+            logger.error(f"⚠️ Error {reqId} ({errorCode}): {errorString}")
 
     def tickPrice(
         self, reqId: TickerId, tickType: int, price: float, attrib

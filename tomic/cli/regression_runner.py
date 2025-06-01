@@ -44,7 +44,7 @@ def compare_files(output_path: str, benchmark_path: str) -> bool:
             data_bench = json.load(f_bench)
         diff = DeepDiff(data_bench, data_out, ignore_order=True)
         if diff:
-            logger.info("Differences for %s:", os.path.basename(output_path))
+            logger.info(f"Differences for {os.path.basename(output_path)}:")
             logger.info(diff)
             return True
         return False
@@ -69,7 +69,7 @@ def compare_files(output_path: str, benchmark_path: str) -> bool:
                 for line in diff_lines
                 if line.startswith(("+", "-")) and not line.startswith(("+++", "---"))
             ]
-            logger.info("Differences for %s:", os.path.basename(output_path))
+            logger.info(f"Differences for {os.path.basename(output_path)}:")
             logger.info("\n".join(diff_only))
             return True
         return False
@@ -110,7 +110,7 @@ def main() -> None:
         out_path = os.path.join("regression_output", name)
         bench_path = os.path.join("benchmarks", name)
         if not os.path.exists(bench_path):
-            logger.error("Benchmark file missing: %s", bench_path)
+            logger.error(f"Benchmark file missing: {bench_path}")
             diff_found = True
             continue
         if compare_files(out_path, bench_path):

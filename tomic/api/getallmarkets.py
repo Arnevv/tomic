@@ -28,7 +28,7 @@ def export_combined_csv(data_per_market: list[pd.DataFrame], output_dir: str) ->
     combined_df = pd.concat(valid_frames, ignore_index=True)
     output_path = os.path.join(output_dir, "Overzicht_Marktkenmerken.csv")
     combined_df.to_csv(output_path, index=False)
-    logger.info("%d markten verwerkt. CSV geëxporteerd.", len(valid_frames))
+    logger.info(f"{len(valid_frames)} markten verwerkt. CSV geëxporteerd.")
 
 
 if __name__ == "__main__":
@@ -59,7 +59,7 @@ if __name__ == "__main__":
 
     data_frames = []
     for sym in symbols:
-        logger.info("🔄 Ophalen voor %s...", sym)
+        logger.info(f"🔄 Ophalen voor {sym}...")
         df = run(sym, export_dir)
         if df is not None:
             data_frames.append(df)
@@ -69,4 +69,4 @@ if __name__ == "__main__":
     if len(unique_markets) > 1:
         export_combined_csv(data_frames, export_dir)
 
-    logger.success("✅ Export afgerond voor %d markten", len(unique_markets))
+    logger.success(f"✅ Export afgerond voor {len(unique_markets)} markten")
