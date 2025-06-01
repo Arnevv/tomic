@@ -128,6 +128,7 @@ def main(argv: List[str] | None = None) -> None:
         symbol_input = input("Symbool (enter voor auto-detect): ").strip()
         symbol = symbol_input or guess_symbol(path)
     if not os.path.isfile(path):
+
         logger.warning("Bestand niet gevonden: {}", path)
         return
     stats = analyze_csv(path)

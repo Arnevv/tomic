@@ -79,22 +79,17 @@ def _await_market_data(app: CombinedApp, symbol: str) -> bool:
     interval = 5
     while incomplete > 0 and waited < max_wait:
         logger.info(
-            "⏳ %s van %s opties niet compleet na %s seconden. Wachten...",
-            incomplete,
-            total_options,
-            waited,
+            f"⏳ {incomplete} van {total_options} opties niet compleet na {waited} seconden. Wachten..."
         )
         time.sleep(interval)
         waited += interval
         incomplete = app.count_incomplete()
     if incomplete > 0:
         logger.warning(
-            "⚠️ %s opties blijven incompleet na %s seconden. Berekeningen gaan verder met beschikbare data.",
-            incomplete,
-            waited,
+            f"⚠️ {incomplete} opties blijven incompleet na {waited} seconden. Berekeningen gaan verder met beschikbare data."
         )
     else:
-        logger.info("✅ Alle opties volledig na %s seconden.", waited)
+        logger.info(f"✅ Alle opties volledig na {waited} seconden.")
     return True
 
 
@@ -109,8 +104,11 @@ def _write_option_chain(
     ]
 
     def _mid(bid: float | None, ask: float | None) -> float | None:
-        if bid is None or ask is None:
+        """Return midpoint price when bid/ask are valid and positive."""
+
+        if bid is None or ask is None or bid < 0 or ask < 0:
             return None
+
         return (bid + ask) / 2
 
     grouped: dict[tuple[str, float], dict[str, dict]] = {}
@@ -189,7 +187,7 @@ def _write_option_chain(
                     rec.get("parity_deviation"),
                 ]
             )
-    logger.info("✅ Optieketen opgeslagen in: %s", chain_file)
+    logger.info(f"✅ Optieketen opgeslagen in: {chain_file}")
 
 
 def _write_metrics_csv(
@@ -213,7 +211,7 @@ def _write_metrics_csv(
         writer = csv.writer(file)
         writer.writerow(_HEADERS_METRICS)
         writer.writerow(values_metrics)
-    logger.info("✅ CSV opgeslagen als: %s", metrics_file)
+    logger.info(f"✅ CSV opgeslagen als: {metrics_file}")
     return pd.DataFrame([values_metrics], columns=_HEADERS_METRICS)
 
 
@@ -228,7 +226,7 @@ def export_market_data(
     try:
         metrics = fetch_market_metrics(symbol)
     except Exception as exc:  # pragma: no cover - network failures
-        logger.error("❌ Marktkenmerken ophalen mislukt: %s", exc)
+        logger.error(f"❌ Marktkenmerken ophalen mislukt: {exc}")
         return None
     app = CombinedApp(symbol)
     _start_app(app)
@@ -246,7 +244,7 @@ def export_market_data(
     df_metrics = _write_metrics_csv(metrics, symbol, export_dir, timestamp)
     app.disconnect()
     time.sleep(1)
-    logger.success("✅ Marktdata verwerkt voor %s", symbol)
+    logger.success(f"✅ Marktdata verwerkt voor {symbol}")
     return df_metrics
 
 
