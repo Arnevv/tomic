@@ -40,9 +40,15 @@ def load_positions(path: str):
     return [p for p in data if p.get("position")]
 
 
-def load_account_info(path: str):
+def load_account_info(path: str) -> dict:
     """Load account info JSON file and return as dict."""
     if not os.path.exists(path):
+        return {}
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except json.JSONDecodeError as e:
+        print(f"⚠️ Kan accountinfo niet laden uit {path}: {e}")
         return {}
 
 
@@ -63,12 +69,6 @@ def print_account_summary(values: dict, portfolio: dict) -> None:
     if used_pct is not None:
         parts.append(f"Used: {used_pct:.0f}%")
     print(" | ".join(parts))
-    try:
-        with open(path, "r", encoding="utf-8") as f:
-            return json.load(f)
-    except json.JSONDecodeError as e:
-        print(f"\u26a0\ufe0f Kan accountinfo niet laden uit {path}: {e}")
-        return {}
 
 
 def extract_exit_rules(path: str):
@@ -959,7 +959,7 @@ def main(argv=None):
         if arg == "--json-output":
             if i + 1 >= len(argv):
                 print(
-                    "Gebruik: python strategy_dashboard.py positions.json [account_info.json] [--json-output PATH]"
+                    "Gebruik: python -m tomic.cli.strategy_dashboard positions.json [account_info.json] [--json-output PATH]"
                 )
                 return 1
             json_output = argv[i + 1]
@@ -993,7 +993,7 @@ def main(argv=None):
 
     if not args:
         print(
-            "Gebruik: python strategy_dashboard.py positions.json [account_info.json] [--json-output PATH]"
+            "Gebruik: python -m tomic.cli.strategy_dashboard positions.json [account_info.json] [--json-output PATH]"
         )
         return 1
 
