@@ -16,5 +16,4 @@ def test_print_strategy_spot_diff(capsys):
     }
     print_strategy(strat)
     captured = capsys.readouterr().out
-    assert "Huidige spot: 105.12 (+5.12%)" in captured
-
+    assert "- Huidige spot: 105.12 (+5.12%)" in captured
