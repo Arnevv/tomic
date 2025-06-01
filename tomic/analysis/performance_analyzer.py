@@ -49,7 +49,7 @@ def analyze(trades: List[dict]) -> Dict[str, dict]:
         pnl = compute_pnl(trade)
         if pnl is None:
             logger.warning(
-                "Onvolledige data voor trade %s, overslaan.", trade.get("TradeID")
+                f"Onvolledige data voor trade {trade.get('TradeID')}, overslaan."
             )
             continue
         t_type = trade.get("Type") or "Onbekend"
@@ -169,7 +169,7 @@ def main(argv=None) -> None:
             json.dump(data, f, indent=2)
     else:
         print_table(stats)
-    logger.success("✅ Analyse afgerond voor %d trades", len(journal))
+    logger.success(f"✅ Analyse afgerond voor {len(journal)} trades")
 
 
 if __name__ == "__main__":
