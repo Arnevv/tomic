@@ -1,8 +1,6 @@
-"""Wrapper script to launch the journal inspector CLI."""
+"""Wrapper script to launch the journal inspector via ``tomic.journal``."""
 
-from tomic.journal import journal_inspector
+from tomic.journal import inspect_journal
 
 if __name__ == "__main__":
-    # The CLI entrypoint was renamed to ``main`` in ``tomic.journal.journal_inspector``.
-    # Keep this lightweight wrapper functional by calling the new function.
-    journal_inspector.main()
+    inspect_journal()

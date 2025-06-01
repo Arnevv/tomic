@@ -1,4 +1,6 @@
-from tomic.cli.close_trade import main
+"""Wrapper script for closing trades via ``tomic.journal``."""
+
+from tomic.journal import close_trade
 
 if __name__ == "__main__":
-    main()
+    close_trade()
