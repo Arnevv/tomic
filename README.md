@@ -93,9 +93,6 @@ Of gebruik individuele modules:
 * `tomic.cli.strategy_dashboard`: Groepeert legs per strategie en toont alerts
 * `tomic.cli.portfolio_scenario`: Simuleert PnL/Greeks na een zelf gekozen spot- en IV-shift
 * `tomic.cli.csv_quality_check`: Controleert CSV-exports op fouten (ook via het Control Panel)
-* `tomic.cli.regression_runner`: Vergelijkt scriptoutput met benchmarks (ook via het Control Panel)
-
-Voor regressietests zet `tomic.cli.regression_runner` standaard `TOMIC_TODAY=2025-05-29`.
 
 ### Asynchrone prototype
 
@@ -140,25 +137,7 @@ Belangrijke sleutels die je hier kunt aanpassen:
 
 ## 🔄 Automatische regressietest
 
-Het project bevat een eenvoudige regressietest om snel te controleren of de scripts nog dezelfde output opleveren. Maak in de hoofdmap de volgende mappen aan:
-
-* `regression_input/` – invoerbestanden voor de tests  
-* `regression_output/` – map waar de resultaten van een testrun worden opgeslagen  
-* `benchmarks/` – referentie-output om mee te vergelijken  
-
-Voer de test uit met:
-
-```bash
-python -m tomic.cli.regression_runner
-```
-
-Na afloop verschijnt een duidelijke melding **Regression PASSED** of
-**Regression FAILED** zodat je direct weet of de output overeenkomt. Gebruik
-desgewenst de optie `--verbose` voor uitgebreidere diff-informatie.
-
-Of start hem via het Control Panel (optie 6).
-
-Voor deterministische resultaten stelt het script automatisch `TOMIC_TODAY=2025-05-29` in.
+Deze functionaliteit is verwijderd. Gebruik de unit tests om de belangrijkste logica te verifiëren.
 
 ---
 
@@ -177,9 +156,10 @@ pytest
 
 Validatie van geëxporteerde option-chain CSV's. Het script toont het aantal regels, compleetheid en extra controles:
 
-- Delta buiten het bereik [-1, 1]  
-- Ongeldige Strike/Bid/Ask waarden  
-- Aantal gedupliceerde regels  
+- Delta buiten het bereik [-1, 1]
+- Ongeldige Strike/Bid/Ask waarden
+- Aantal gedupliceerde regels
+- Bid of Ask met waarde -1
 
 Gebruik:
 
@@ -200,6 +180,7 @@ Aantal semi-complete regels: 5
 Delta buiten [-1,1]: 0
 Ongeldige Strike/Bid/Ask: 1
 Duplicaten: 0
+Bid/Ask == -1: 0
 Kwaliteit: 95.0%
 ```
 
