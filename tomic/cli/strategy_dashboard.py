@@ -53,7 +53,7 @@ def load_account_info(path: str) -> dict:
 
 
 def print_account_summary(values: dict, portfolio: dict) -> None:
-    """Print concise one-line account overview."""
+    """Print concise one-line account overview with icons."""
     net_liq = values.get("NetLiquidation")
     margin = values.get("InitMarginReq")
     used_pct = None
@@ -63,11 +63,15 @@ def print_account_summary(values: dict, portfolio: dict) -> None:
         used_pct = None
     delta = portfolio.get("Delta")
     vega = portfolio.get("Vega")
-    parts = [f"Netliq: {_fmt_money(net_liq)}", f"Margin: {_fmt_money(margin)}"]
-    parts.append(f"Delta: {delta:+.1f}" if delta is not None else "Delta: n.v.t.")
-    parts.append(f"Vega: {vega:+.1f}" if vega is not None else "Vega: n.v.t.")
+    parts = [
+        f"💰 Netliq: {_fmt_money(net_liq)}",
+        f"🏦 Margin used: {_fmt_money(margin)}",
+    ]
+    parts.append(f"📉 Δ: {delta:+.2f}" if delta is not None else "📉 Δ: n.v.t.")
+    parts.append(f"📈 Vega: {vega:+.0f}" if vega is not None else "📈 Vega: n.v.t.")
     if used_pct is not None:
-        parts.append(f"Used: {used_pct:.0f}%")
+        parts.append(f"📦 Used: {used_pct:.0f}%")
+    print("=== ACCOUNT ===")
     print(" | ".join(parts))
 
 
@@ -294,11 +298,11 @@ def generate_alerts(strategy):
     if delta is not None and vega is not None and ivr is not None:
         if delta >= 0.15 and vega > 30 and ivr < 30:
             alerts.append(
-                "📈 Bullish + Long Vega in lage IV → time spread overwegen i.p.v. long call"
+                "📈 Bullish + Long Vega in lage IV - time spread overwegen i.p.v. long call"
             )
         if delta <= -0.15 and vega < -30 and ivr > 60:
             alerts.append(
-                "📉 Bearish + Short Vega in hoog vol klimaat → oppassen voor squeeze"
+                "📉 Bearish + Short Vega in hoog vol klimaat - oppassen voor squeeze"
             )
 
     # 🔹 IV-HV en skew analyse
@@ -551,6 +555,12 @@ def group_strategies(positions, journal=None):
                 d_in = parse_date(trade_data.get("DatumIn"))
                 if d_in:
                     days_in_trade = (today() - d_in).days
+            exp_d = exp_date or parse_date(trade_data.get("Expiry"))
+            d_in = parse_date(trade_data.get("DatumIn"))
+            if d_in and exp_d:
+                strat["dte_entry"] = (exp_d - d_in).days
+            else:
+                strat["dte_entry"] = None
             strat.update(parse_plan_metrics(trade_data.get("Plan", "")))
             if trade_data.get("InitMargin") is not None:
                 try:
@@ -711,9 +721,9 @@ def render_entry_view(strategy: dict) -> list[str]:
     spot_open = strategy.get("spot_open")
     if spot_open is not None:
         try:
-            lines.append(f"→ Spot bij open: {float(spot_open):.2f}")
+            lines.append(f"- Spot bij open: {float(spot_open):.2f}")
         except (TypeError, ValueError):
-            lines.append(f"→ Spot bij open: {spot_open}")
+            lines.append(f"- Spot bij open: {spot_open}")
     parts: list[str] = []
     iv = strategy.get("avg_iv")
     hv = strategy.get("HV30")
@@ -731,25 +741,28 @@ def render_entry_view(strategy: dict) -> list[str]:
     if atr is not None:
         parts.append(f"ATR {atr:.2f}")
     if parts:
-        lines.append("→ " + " | ".join(parts))
+        lines.append("- " + " | ".join(parts))
     delta = strategy.get("delta")
     vega = strategy.get("vega")
     theta = strategy.get("theta")
     if any(x is not None for x in (delta, vega, theta)):
         lines.append(
-            "→ " f"Delta: {delta:+.3f} " f"Vega: {vega:+.3f} " f"Theta: {theta:+.3f}"
+            "- " f"Delta: {delta:+.3f} | Vega: {vega:+.3f} | Theta: {theta:+.3f}"
         )
     rom = strategy.get("rom")
     if rom is not None:
-        lines.append(f"→ ROM bij instap: {rom:+.1f}%")
+        lines.append(f"- ROM bij instap: {rom:+.1f}%")
     max_p = strategy.get("max_profit")
     max_l = strategy.get("max_loss")
     rr = strategy.get("risk_reward")
     if max_p is not None and max_l is not None:
         rr_disp = f" (R/R {rr:.2f})" if rr is not None else ""
         lines.append(
-            f"→ Max winst {_fmt_money(max_p)} | Max verlies {_fmt_money(max_l)}{rr_disp}"
+            f"- Max winst {_fmt_money(max_p)} | Max verlies {_fmt_money(max_l)}{rr_disp}"
         )
+    dte_entry = strategy.get("dte_entry")
+    if dte_entry is not None:
+        lines.append(f"- DTE bij opening: {dte_entry} dagen")
     return lines
 
 
@@ -784,7 +797,7 @@ def render_management_view(strategy: dict) -> list[str]:
             except (TypeError, ValueError):
                 spot_open_str = str(spot_open)
             parts.append(f"Spot bij open: {spot_open_str}")
-        lines.append("→ " + " | ".join(parts))
+        lines.append("- " + " | ".join(parts))
     delta = strategy.get("delta")
     gamma = strategy.get("gamma")
     vega = strategy.get("vega")
@@ -794,7 +807,7 @@ def render_management_view(strategy: dict) -> list[str]:
     ivp = strategy.get("IV_Percentile")
     ivp_display = f"{ivp:.1f}" if ivp is not None else "n.v.t."
     lines.append(
-        f"→ Delta: {delta:+.3f} "
+        f"- Delta: {delta:+.3f} "
         f"Gamma: {gamma:+.3f} "
         f"Vega: {vega:+.3f} "
         f"Theta: {theta:+.3f} "
@@ -818,7 +831,7 @@ def render_management_view(strategy: dict) -> list[str]:
     if term is not None:
         parts.append(f"Term {term*100:.1f}bp")
     if parts:
-        lines.append("→ " + " | ".join(parts))
+        lines.append("- " + " | ".join(parts))
     days_line: list[str] = []
     dte = strategy.get("days_to_expiry")
     dit = strategy.get("days_in_trade")
@@ -827,16 +840,16 @@ def render_management_view(strategy: dict) -> list[str]:
     if dit is not None:
         days_line.append(f"{dit}d in trade")
     if days_line:
-        lines.append("→ " + " | ".join(days_line))
+        lines.append("- " + " | ".join(days_line))
     pnl = strategy.get("unrealizedPnL")
     if pnl is not None:
         margin_ref = strategy.get("init_margin") or strategy.get("margin_used") or 1000
         rom = (pnl / margin_ref) * 100
-        lines.append(f"→ PnL: {pnl:+.2f} (ROM: {rom:+.1f}%)")
+        lines.append(f"- PnL: {pnl:+.2f} (ROM: {rom:+.1f}%)")
     spot = strategy.get("spot", 0)
     delta_dollar = strategy.get("delta_dollar")
     if delta is not None and spot and delta_dollar is not None:
-        lines.append(f"→ Delta exposure ≈ ${delta_dollar:,.0f} bij spot {spot}")
+        lines.append(f"- Delta exposure ≈ ${delta_dollar:,.0f} bij spot {spot}")
     margin = strategy.get("init_margin") or strategy.get("margin_used") or 1000
     if theta is not None and margin:
         theta_efficiency = abs(theta / margin) * 100
@@ -849,7 +862,7 @@ def render_management_view(strategy: dict) -> list[str]:
         else:
             rating = "🟢 ideaal"
         lines.append(
-            f"→ Theta-rendement: {theta_efficiency:.2f}% per $1.000 margin - {rating}"
+            f"- Theta-rendement: {theta_efficiency:.2f}% per $1.000 margin - {rating}"
         )
     max_p = strategy.get("max_profit")
     max_l = strategy.get("max_loss")
@@ -857,18 +870,47 @@ def render_management_view(strategy: dict) -> list[str]:
     if max_p is not None and max_l is not None:
         rr_disp = f" (R/R {rr:.2f})" if rr is not None else ""
         lines.append(
-            f"→ Max winst {_fmt_money(max_p)} | Max verlies {_fmt_money(max_l)}{rr_disp}"
+            f"- Max winst {_fmt_money(max_p)} | Max verlies {_fmt_money(max_l)}{rr_disp}"
         )
     return lines
+
+
+def render_kpi_box(strategy: dict) -> str:
+    """Return compact KPI summary for a strategy."""
+    rom = strategy.get("rom")
+    theta = strategy.get("theta")
+    margin = strategy.get("init_margin") or strategy.get("margin_used") or 1000
+    max_p = strategy.get("max_profit")
+    max_l = strategy.get("max_loss")
+    rr = strategy.get("risk_reward")
+
+    rom_str = f"{rom:+.1f}%" if rom is not None else "n.v.t."
+    theta_eff = None
+    rating = ""
+    if theta is not None and margin:
+        theta_eff = abs(theta / margin) * 100
+        if theta_eff < 0.5:
+            rating = "⚠️"
+        elif theta_eff < 1.5:
+            rating = "🟡"
+        elif theta_eff < 2.5:
+            rating = "✅"
+        else:
+            rating = "🟢"
+    theta_str = f"{rating} {theta_eff:.2f}%/k" if theta_eff is not None else "n.v.t."
+    max_p_str = _fmt_money(max_p) if max_p is not None else "-"
+    max_l_str = _fmt_money(max_l) if max_l is not None else "-"
+    rr_str = f"{rr:.2f}" if rr is not None else "n.v.t."
+    return (
+        f"ROM: {rom_str} | Theta-effici\u00ebntie: {theta_str} | "
+        f"Max winst: {max_p_str} | Max verlies: {max_l_str} | R/R: {rr_str}"
+    )
 
 
 def print_strategy(
     strategy, rule=None, *, view: str | None = None, details: bool = False
 ):
-    """Print a strategy in either entry or management view."""
-    if view is None:
-        view = "entry" if strategy.get("days_in_trade") == 0 else "management"
-
+    """Print a strategy with entry info, current status, KPI box and alerts."""
     pnl = strategy.get("unrealizedPnL")
     color = "🟩" if pnl is not None and pnl >= 0 else "🟥"
     header = f"{color} {strategy['symbol']} – {strategy['type']}"
@@ -876,37 +918,53 @@ def print_strategy(
         header += f" - TradeId {strategy['trade_id']}"
     print(header)
 
-    if view == "entry":
-        lines = render_entry_view(strategy)
-        alerts = strategy.get("entry_alerts", [])
-    else:
-        lines = render_management_view(strategy)
-        alerts = strategy.get("alerts", [])
-        if rule:
-            spot = strategy.get("spot")
-            pnl_val = strategy.get("unrealizedPnL")
-            if spot is not None:
-                if rule.get("spot_below") is not None and spot < rule["spot_below"]:
-                    alerts.append(
-                        f"🚨 Spot {spot:.2f} onder exitniveau {rule['spot_below']}"
-                    )
-                if rule.get("spot_above") is not None and spot > rule["spot_above"]:
-                    alerts.append(
-                        f"🚨 Spot {spot:.2f} boven exitniveau {rule['spot_above']}"
-                    )
-            if (
-                pnl_val is not None
-                and rule.get("target_profit_pct") is not None
-                and rule.get("premium_entry")
-            ):
-                profit_pct = (pnl_val / (rule["premium_entry"] * 100)) * 100
-                if profit_pct >= rule["target_profit_pct"]:
-                    alerts.append(
-                        f"🚨 PnL {profit_pct:.1f}% >= target {rule['target_profit_pct']:.1f}%"
-                    )
-
-    for line in lines:
+    print("📌 ENTRY-INFORMATIE")
+    for line in render_entry_view(strategy):
         print(line)
+
+    print("📈 HUIDIGE POSITIE")
+    for line in render_management_view(strategy):
+        print(line)
+
+    print("📊 KPI BOX")
+    print(render_kpi_box(strategy))
+
+    alerts = list(strategy.get("entry_alerts", [])) + list(strategy.get("alerts", []))
+    if rule:
+        spot = strategy.get("spot")
+        pnl_val = strategy.get("unrealizedPnL")
+        if spot is not None:
+            if rule.get("spot_below") is not None and spot < rule["spot_below"]:
+                alerts.append(
+                    f"🚨 Spot {spot:.2f} onder exitniveau {rule['spot_below']}"
+                )
+            if rule.get("spot_above") is not None and spot > rule["spot_above"]:
+                alerts.append(
+                    f"🚨 Spot {spot:.2f} boven exitniveau {rule['spot_above']}"
+                )
+        if (
+            pnl_val is not None
+            and rule.get("target_profit_pct") is not None
+            and rule.get("premium_entry")
+        ):
+            profit_pct = (pnl_val / (rule["premium_entry"] * 100)) * 100
+            if profit_pct >= rule["target_profit_pct"]:
+                alerts.append(
+                    f"🚨 PnL {profit_pct:.1f}% >= target {rule['target_profit_pct']:.1f}%"
+                )
+
+    profile = ALERT_PROFILE.get(strategy.get("type"))
+    if profile is not None:
+        alerts = [a for a in alerts if alert_category(a) in profile]
+    alerts = list(dict.fromkeys(alerts))  # dedupe while preserving order
+    alerts.sort(key=alert_severity, reverse=True)
+
+    print("🚨 ALERTS")
+    if alerts:
+        for alert in alerts[:3]:
+            print(f"- {alert}")
+    else:
+        print("- \u2139\ufe0f Geen directe aandachtspunten gedetecteerd")
 
     profile = ALERT_PROFILE.get(strategy.get("type"))
     if profile is not None:
@@ -1063,11 +1121,11 @@ def main(argv=None):
         abs_vega = abs(portfolio_vega)
         if abs_vega > 10000:
             global_alerts.append(
-                "🚨 Totale Vega-exposure > 10.000 → gevoelig voor systematische vol-bewegingen"
+                "🚨 Totale Vega-exposure > 10.000 - gevoelig voor systematische vol-bewegingen"
             )
         elif abs_vega > 5000:
             global_alerts.append(
-                "⚠️ Totale Vega-exposure > 5.000 → gevoelig voor systematische vol-bewegingen"
+                "⚠️ Totale Vega-exposure > 5.000 - gevoelig voor systematische vol-bewegingen"
             )
 
     if strategies:
@@ -1076,7 +1134,7 @@ def main(argv=None):
         pct = (major_count / total_strats) * 100
         if pct >= 80:
             global_alerts.append(
-                f"⚠️ Strategieclustering: {major_count}x {major_type} van {total_strats} strategieën ({pct:.1f}%) → overweeg meer spreiding"
+                f"⚠️ Strategieclustering: {major_count}x {major_type} van {total_strats} strategieën ({pct:.1f}%) - overweeg meer spreiding"
             )
 
     if global_alerts:
