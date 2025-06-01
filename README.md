@@ -88,14 +88,14 @@ Of gebruik individuele modules:
 * `tomic.api.getonemarket`: Optieketen en marktdata voor een symbool
 * `tomic.api.getallmarkets`: Exporteert data voor meerdere symbolen
 * `tomic.api.getallmarkets_async`: Prototype dat meerdere markten parallel ophaalt
-* `journal_updater.py`: Nieuwe trade aanmaken en loggen
+* `tomic.journal.journal_updater`: Nieuwe trade aanmaken en loggen
 * `tomic.cli.close_trade`: Trade afsluiten met evaluatie
 * `tomic.cli.strategy_dashboard`: Groepeert legs per strategie en toont alerts
 * `tomic.cli.portfolio_scenario`: Simuleert PnL/Greeks na een zelf gekozen spot- en IV-shift
 * `tomic.cli.csv_quality_check`: Controleert CSV-exports op fouten (ook via het Control Panel)
 * `tomic.cli.regression_runner`: Vergelijkt scriptoutput met benchmarks (ook via het Control Panel)
 
-Voor regressietests zet `regression_runner.py` standaard `TOMIC_TODAY=2025-05-29`.
+Voor regressietests zet `tomic.cli.regression_runner` standaard `TOMIC_TODAY=2025-05-29`.
 
 ### Asynchrone prototype
 
@@ -111,16 +111,7 @@ Alle logica staat nu in de map `tomic`. De belangrijkste subpakketten zijn:
 - `tomic.analysis` – analysetools zoals `performance_analyzer` en `get_iv_rank`.
 - `tomic.journal` – beheer van het trade journal.
 
-De scripts in de hoofdmap zijn lichte wrappers die taken doorgeven aan deze modules. Voorbeelden:
-
-- `getaccountinfo.py` → `tomic.api.getaccountinfo.main()`
-- `getonemarket.py` → `tomic.api.getonemarket.run()`
-- `getallmarkets.py` → `tomic.api.getallmarkets.run()`
-- `getallmarkets_async.py` → `tomic.api.getallmarkets_async.gather_markets()`
-- `journal_updater.py` → `tomic.journal.add_trade()`
-- `journal_inspector.py` → `tomic.journal.inspect_journal()`
-- `update_margins.py` → `tomic.journal.update_margins()`
-- `performance_analyzer.py` → `tomic.analysis.performance_analyzer.main()`
+Alle utilities kunnen direct worden gestart met `python -m <module>`. De losse wrappers in de hoofdmap zijn verwijderd voor meer duidelijkheid.
 
 ### Configuratie
 
@@ -182,7 +173,7 @@ pytest
 
 ---
 
-### `csv_quality_check.py`
+### csv_quality_check
 
 Validatie van geëxporteerde option-chain CSV's. Het script toont het aantal regels, compleetheid en extra controles:
 
