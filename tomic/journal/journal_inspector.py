@@ -123,7 +123,7 @@ def toon_details(trade: Dict[str, Any]) -> None:
                 )
                 g = snap.get("Greeks", {})
                 print(
-                    f"  Greeks → Delta: {g.get('Delta')} | Theta: {g.get('Theta')} | Gamma: {g.get('Gamma')} | Vega: {g.get('Vega')}"
+                    f"  Greeks → Delta: {g.get('Delta')} | Gamma: {g.get('Gamma')} | Vega: {g.get('Vega')} | Theta: {g.get('Theta')}"
                 )
                 note = snap.get("note", "").strip()
                 if note:
@@ -164,7 +164,7 @@ def pas_trade_aan(trade: Dict[str, Any]) -> None:
 
         if veld == "Greeks":
             greeks = {}
-            for greek in ["Delta", "Theta", "Gamma", "Vega"]:
+            for greek in ["Delta", "Gamma", "Vega", "Theta"]:
                 waarde = input(f"  {greek}: ").strip()
                 greeks[greek] = float(waarde) if waarde else None
             trade["Greeks"] = greeks
@@ -224,7 +224,7 @@ def snapshot_input(trade: Dict[str, Any]) -> None:
     snapshot["skew"] = round(iv_call - iv_put, 2) if iv_call and iv_put else None
 
     greeks = {}
-    for greek in ["Delta", "Theta", "Gamma", "Vega"]:
+    for greek in ["Delta", "Gamma", "Vega", "Theta"]:
         greeks[greek] = float_input(f"{greek}: ")
     snapshot["Greeks"] = greeks
 

@@ -167,9 +167,9 @@ def interactieve_trade_invoer():
     print("\n📐 Vul de NETTO Greeks in van de hele positie bij entry (optioneel):")
     print("ℹ️ Dit zijn GEAGGREGEERDE waarden van de gehele trade, NIET per leg of strike")
     delta = float_prompt("  Delta: ", default=None)
-    theta = float_prompt("  Theta: ", default=None)
     gamma = float_prompt("  Gamma: ", default=None)
     vega = float_prompt("  Vega: ", default=None)
+    theta = float_prompt("  Theta: ", default=None)
 
     nieuwe_trade = {
         "TradeID": trade_id,
@@ -204,9 +204,9 @@ def interactieve_trade_invoer():
         "Legs": legs,
         "Greeks_Entry": {
             "Delta": delta,
-            "Theta": theta,
             "Gamma": gamma,
-            "Vega": vega
+            "Vega": vega,
+            "Theta": theta,
         }
     }
 

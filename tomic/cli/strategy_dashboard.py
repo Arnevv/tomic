@@ -14,6 +14,7 @@ from tomic.logging import setup_logging
 from tomic.helpers.account import _fmt_money, print_account_overview
 from tomic.cli.entry_checker import check_entry_conditions
 from tomic.journal.utils import load_journal
+from .strategy_data import ALERT_PROFILE, get_strategy_description
 
 setup_logging()
 
@@ -671,6 +672,7 @@ def sort_legs(legs):
 
 
 # Mapping of leg characteristics to emoji symbols
+
 SYMBOL_MAP = {
     ("P", -1): "🔴",  # short put
     ("P", 1): "🔵",  # long put
@@ -678,33 +680,8 @@ SYMBOL_MAP = {
     ("C", 1): "🟢",  # long call
 }
 
-# Alert filtering per strategy type
-ALERT_PROFILE = {
-    "Iron Condor": ["theta", "vega", "iv", "skew", "rom", "dte"],
-    "Vertical": ["delta", "pnl", "dte"],
-    "Straddle": ["delta", "vega", "iv", "dte"],
-    "Put Ratio Spread": ["delta", "vega", "iv", "dte"],
-    "Long Call": ["delta", "pnl", "dte"],
-    "Short Call": ["delta", "pnl", "dte"],
-    "Naked Put": ["delta", "pnl", "dte"],
-    "Long Put": ["delta", "pnl", "dte"],
-}
-
 # Severity scoring based on emoji markers
 SEVERITY_MAP = {"🚨": 3, "⚠️": 2, "🔻": 2, "🟡": 1, "✅": 1, "🟢": 1}
-
-# Short descriptions per strategy type
-STRATEGY_DESCRIPTIONS = {
-    "Iron Condor": "Inzet op range met hoge IV",
-    "Vertical": "Richtingstrade met beperkte risk",
-    "Straddle": "Neutrale volatiliteitswinst",
-    "Put Ratio Spread": "Richtingstrade met extra short put",
-    "Long Call": "Speculatief bullish",
-    "Short Call": "Neutraal tot bearish premie",
-    "Naked Put": "Bullish premie-innamestrategie",
-    "Long Put": "Speculatief bearish",
-}
-
 
 def alert_category(alert: str) -> str:
     """Return rough category tag for an alert string."""
@@ -770,11 +747,16 @@ def render_entry_view(strategy: dict) -> list[str]:
     if parts:
         lines.append("- " + " | ".join(parts))
     delta = strategy.get("delta")
+    gamma = strategy.get("gamma")
     vega = strategy.get("vega")
     theta = strategy.get("theta")
-    if any(x is not None for x in (delta, vega, theta)):
+    if any(x is not None for x in (delta, gamma, vega, theta)):
         lines.append(
-            "- " f"Delta: {delta:+.3f} | Vega: {vega:+.3f} | Theta: {theta:+.3f}"
+            "- "
+            f"Delta: {delta:+.3f} | "
+            f"Gamma: {gamma:+.3f} | "
+            f"Vega: {vega:+.3f} | "
+            f"Theta: {theta:+.3f}"
         )
     rom = strategy.get("rom")
     if rom is not None:
@@ -942,7 +924,7 @@ def print_strategy(
     if strategy.get("trade_id") is not None:
         header += f" - TradeId {strategy['trade_id']}"
     print(header)
-    desc = STRATEGY_DESCRIPTIONS.get(strategy.get("type"))
+    desc = get_strategy_description(strategy.get("type"), strategy.get("delta"))
     if desc:
         print(f"ℹ️ {desc}")
 
