@@ -31,6 +31,7 @@ def analyze_csv(path: str) -> Dict[str, Any]:
         expiries: Set[str] = set()
         bad_delta = 0
         bad_price_fields = 0
+        minus_one_quotes = 0
         duplicates = 0
         empty_counts = {
             "bid": 0,
@@ -80,11 +81,14 @@ def analyze_csv(path: str) -> Dict[str, Any]:
             # price field checks only on non-empty fields
             invalid = False
             for k in row.keys():
-                if k.lower() in {"strike", "bid", "ask"}:
+                key_l = k.lower()
+                if key_l in {"strike", "bid", "ask"}:
                     val = row[k].strip()
                     if not is_empty(val):
                         try:
                             num = float(val)
+                            if key_l in {"bid", "ask"} and num == -1:
+                                minus_one_quotes += 1
                             if num < 0:
                                 raise ValueError
                         except (ValueError, TypeError):
@@ -105,6 +109,7 @@ def analyze_csv(path: str) -> Dict[str, Any]:
             "bad_price_fields": bad_price_fields,
             "duplicates": duplicates,
             "empty_counts": empty_counts,
+            "minus_one_quotes": minus_one_quotes,
         }
 
 
@@ -141,6 +146,7 @@ def main(argv: List[str] | None = None) -> None:
     logger.warning("Delta buiten [-1,1]: {}", stats["bad_delta"])
     logger.warning("Ongeldige Strike/Bid/Ask: {}", stats["bad_price_fields"])
     logger.warning("Duplicaten: {}", stats["duplicates"])
+    logger.warning("Bid/Ask == -1: {}", stats["minus_one_quotes"])
     logger.warning("Lege Bid: {}", stats["empty_counts"]["bid"])
     logger.warning("Lege Ask: {}", stats["empty_counts"]["ask"])
     logger.warning("Lege IV: {}", stats["empty_counts"]["iv"])
