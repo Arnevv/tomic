@@ -187,8 +187,7 @@ def main() -> None:
         print("3. Trade Management")
         print("4. Data Management")
         print("5. Risk Tools")
-        print("6. Regressietest")
-        print("7. Stoppen")
+        print("6. Stoppen")
         keuze = input("Maak je keuze: ")
 
         if keuze == "1":
@@ -202,11 +201,6 @@ def main() -> None:
         elif keuze == "5":
             run_risk_tools()
         elif keuze == "6":
-            try:
-                run_module("tomic.cli.regression_runner")
-            except subprocess.CalledProcessError:
-                print("❌ Regressietest mislukt")
-        elif keuze == "7":
             print("Tot ziens.")
             break
         else:
