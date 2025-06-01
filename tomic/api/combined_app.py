@@ -6,6 +6,7 @@ from ibapi.ticktype import TickTypeEnum
 from ibapi.common import TickerId
 import threading
 from datetime import datetime
+from tomic.utils import extract_weeklies
 from tomic.logging import logger
 
 from .market_utils import (
@@ -126,7 +127,7 @@ class CombinedApp(EWrapper, EClient):
         if self.expiries:
             return
 
-        def is_third_friday(date_str):
+        def is_third_friday(date_str: str) -> bool:
             try:
                 dt = datetime.strptime(date_str, "%Y%m%d")
                 return dt.weekday() == 4 and 15 <= dt.day <= 21
@@ -135,7 +136,8 @@ class CombinedApp(EWrapper, EClient):
 
         expiries = sorted(expirations)
         regulars = [e for e in expiries if is_third_friday(e)]
-        self.expiries = regulars[:3]
+        weeklies = extract_weeklies(expiries)
+        self.expiries = regulars[:3] + weeklies
         center = round(self.spot_price)
         filtered_strikes = [
             s
