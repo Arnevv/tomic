@@ -52,7 +52,11 @@ def test_write_option_chain_skips_invalid(tmp_path):
         },
     }
     invalid_contracts = {2}
-    app = SimpleNamespace(market_data=market_data, invalid_contracts=invalid_contracts)
+    app = SimpleNamespace(
+        market_data=market_data,
+        invalid_contracts=invalid_contracts,
+        spot_price=100.0,
+    )
 
     _write_option_chain(app, "ABC", str(tmp_path), "123")
 
@@ -62,4 +66,5 @@ def test_write_option_chain_skips_invalid(tmp_path):
 
     assert rows[0] == _HEADERS_CHAIN
     assert len(rows) == 2
+    assert len(rows[0]) == len(_HEADERS_CHAIN)
     assert rows[1][2] == "100"  # strike of valid contract
