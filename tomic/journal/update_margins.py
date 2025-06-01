@@ -12,7 +12,7 @@ JOURNAL_FILE = Path(cfg_get("JOURNAL_FILE", "journal.json"))
 
 def update_all_margins() -> None:
     """Recalculate and store InitMargin for each trade in journal.json."""
-    logger.info("🚀 Start margin update voor %s", JOURNAL_FILE)
+    logger.info(f"🚀 Start margin update voor {JOURNAL_FILE}")
     if not JOURNAL_FILE.exists():
         logger.error("⚠️ journal.json not found.")
         return
@@ -28,19 +28,19 @@ def update_all_margins() -> None:
         if not sym or not expiry or not legs:
             continue
 
-        logger.info("🔄 Calculating margin for TradeID %s", trade.get("TradeID"))
+        logger.info(f"🔄 Calculating margin for TradeID {trade.get('TradeID')}")
         try:
             margin = calculate_trade_margin(sym, expiry, legs)
             trade["InitMargin"] = margin
-            logger.info("   InitMargin → %s", margin)
+            logger.info(f"   InitMargin → {margin}")
             updated_count += 1
         except Exception as exc:
-            logger.error("⚠️ Failed to calculate margin: %s", exc)
+            logger.error(f"⚠️ Failed to calculate margin: {exc}")
 
     if updated_count:
         with open(JOURNAL_FILE, "w", encoding="utf-8") as f:
             json.dump(journal, f, indent=2)
-        logger.success("✅ Margins bijgewerkt voor %d trades.", updated_count)
+        logger.success(f"✅ Margins bijgewerkt voor {updated_count} trades.")
 
 
 if __name__ == "__main__":
