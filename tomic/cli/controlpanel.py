@@ -108,9 +108,8 @@ def run_risk_tools() -> None:
         print("2. Event watcher")
         print("3. Entry checker")
         print("4. Synthetics detector")
-        print("5. Volatility cone snapshot")
-        print("6. Cone visualizer")
-        print("7. Terug naar hoofdmenu")
+        print("5. Cone visualizer")
+        print("6. Terug naar hoofdmenu")
         sub = input("Maak je keuze: ")
         if sub == "1":
             run_module("tomic.cli.portfolio_scenario")
@@ -121,10 +120,8 @@ def run_risk_tools() -> None:
         elif sub == "4":
             run_module("tomic.cli.synthetics_detector")
         elif sub == "5":
-            run_module("tomic.cli.vol_cone_db")
-        elif sub == "6":
             run_module("tomic.cli.cone_visualizer")
-        elif sub == "7":
+        elif sub == "6":
             break
         else:
             print("❌ Ongeldige keuze")
