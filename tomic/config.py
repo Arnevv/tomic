@@ -30,6 +30,7 @@ DEFAULTS: Dict[str, Any] = {
     ],
     "POSITIONS_FILE": "positions.json",
     "ACCOUNT_INFO_FILE": "account_info.json",
+    "PORTFOLIO_META_FILE": "portfolio_meta.json",
     "JOURNAL_FILE": "journal.json",
     "VOLATILITY_DATA_FILE": "volatility_data.json",
     "EXPORT_DIR": "exports",
