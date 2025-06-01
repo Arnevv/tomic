@@ -1,4 +1,6 @@
-from tomic.journal import journal_updater
+"""Wrapper script to add a new trade to the journal via ``tomic.journal``."""
+
+from tomic.journal import add_trade
 
 if __name__ == "__main__":
-    journal_updater.interactieve_trade_invoer()
+    add_trade()
