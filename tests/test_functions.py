@@ -1,4 +1,4 @@
-from tomic.cli.entry_checker import check_entry_conditions
+from tomic.analysis.entry_checks import check_entry_conditions
 from tomic.cli.strategy_dashboard import determine_strategy_type
 from tomic.cli.strategy_dashboard import collapse_legs
 from tomic.analysis.performance_analyzer import compute_pnl
