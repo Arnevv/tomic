@@ -37,6 +37,8 @@ def test_write_option_chain_skips_invalid(tmp_path):
             "gamma": 0.1,
             "vega": 0.2,
             "theta": -0.1,
+            "open_interest": 10,
+            "volume": 5,
         },
         2: {
             "expiry": "20240101",
@@ -49,6 +51,8 @@ def test_write_option_chain_skips_invalid(tmp_path):
             "gamma": 0.1,
             "vega": 0.2,
             "theta": -0.05,
+            "open_interest": 20,
+            "volume": 7,
         },
     }
     invalid_contracts = {2}
@@ -85,6 +89,8 @@ def test_write_option_chain_negative_bid(tmp_path):
             "gamma": 0.1,
             "vega": 0.2,
             "theta": -0.1,
+            "open_interest": 0,
+            "volume": 0,
         },
         2: {
             "expiry": "20240101",
@@ -97,6 +103,8 @@ def test_write_option_chain_negative_bid(tmp_path):
             "gamma": 0.1,
             "vega": 0.2,
             "theta": -0.05,
+            "open_interest": 0,
+            "volume": 0,
         },
     }
     app = SimpleNamespace(
