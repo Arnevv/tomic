@@ -11,7 +11,9 @@ from tomic.logging import logger
 from tomic.config import get as cfg_get
 
 
-def store_volatility_snapshot(symbol_data: Dict[str, Any], output_path: str | None = None) -> None:
+def store_volatility_snapshot(
+    symbol_data: Dict[str, Any], output_path: str | None = None
+) -> None:
     """Append a volatility snapshot to a JSON file if data is complete."""
     if output_path is None:
         output_path = cfg_get("VOLATILITY_DATA_FILE", "volatility_data.json")
@@ -38,7 +40,8 @@ def store_volatility_snapshot(symbol_data: Dict[str, Any], output_path: str | No
         d
         for d in data
         if not (
-            d.get("symbol") == symbol_data["symbol"] and d.get("date") == symbol_data["date"]
+            d.get("symbol") == symbol_data["symbol"]
+            and d.get("date") == symbol_data["date"]
         )
     ]
     data.append(symbol_data)
