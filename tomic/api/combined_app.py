@@ -86,8 +86,10 @@ class CombinedApp(EWrapper, EClient):
                         "gamma": None,
                         "vega": None,
                         "theta": None,
+                        "open_interest": None,
+                        "volume": None,
                     }
-                    self.reqMktData(req_id, contract, "", True, False, [])
+                    self.reqMktData(req_id, contract, "100,101", False, False, [])
 
     def get_historical_data(self):
         contract = create_underlying(self.symbol)
@@ -182,6 +184,21 @@ class CombinedApp(EWrapper, EClient):
                 d["vega"] = price
             elif tickType == 27:
                 d["theta"] = price
+            elif tickType in (86, 87):
+                d["open_interest"] = price
+            elif tickType == 8:
+                d["volume"] = price
+
+    def tickSize(self, reqId: TickerId, tickType: int, size: int):  # noqa: N802
+        if reqId in self.market_data and tickType == 8:
+            self.market_data[reqId]["volume"] = size
+
+    def tickGeneric(self, reqId: TickerId, tickType: int, value: float):  # noqa: N802
+        if reqId in self.market_data:
+            if tickType == 100:
+                self.market_data[reqId]["volume"] = value
+            elif tickType == 101:
+                self.market_data[reqId]["open_interest"] = value
 
     def tickOptionComputation(
         self,
