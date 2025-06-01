@@ -104,8 +104,11 @@ def _write_option_chain(
     ]
 
     def _mid(bid: float | None, ask: float | None) -> float | None:
-        if bid is None or ask is None:
+        """Return midpoint price when bid/ask are valid and positive."""
+
+        if bid is None or ask is None or bid < 0 or ask < 0:
             return None
+
         return (bid + ask) / 2
 
     grouped: dict[tuple[str, float], dict[str, dict]] = {}
