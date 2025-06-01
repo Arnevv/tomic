@@ -4,7 +4,6 @@ import subprocess
 import sys
 from datetime import datetime
 import json
-import os
 from pathlib import Path
 
 from tomic.config import get as cfg_get
@@ -205,8 +204,8 @@ def main() -> None:
         elif keuze == "6":
             try:
                 run_module("tomic.cli.regression_runner")
-                except subprocess.CalledProcessError:
-                    print("❌ Regressietest mislukt")
+            except subprocess.CalledProcessError:
+                print("❌ Regressietest mislukt")
         elif keuze == "7":
             print("Tot ziens.")
             break
