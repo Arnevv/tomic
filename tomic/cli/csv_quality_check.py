@@ -28,6 +28,7 @@ def analyze_csv(path: str) -> Dict[str, Any]:
         reader = csv.DictReader(f)
         total = 0
         complete = 0
+        valid = 0
         expiries: Set[str] = set()
         bad_delta = 0
         bad_price_fields = 0
@@ -47,10 +48,12 @@ def analyze_csv(path: str) -> Dict[str, Any]:
         for row in reader:
             total += 1
             row_key = tuple(row.get(h, "").strip() for h in fieldnames)
-            if row_key in seen:
+            is_duplicate = row_key in seen
+            if is_duplicate:
                 duplicates += 1
             else:
                 seen.add(row_key)
+            row_invalid = is_duplicate
             # collect expiries
             for k in row.keys():
                 if k.lower() == "expiry":
@@ -63,6 +66,7 @@ def analyze_csv(path: str) -> Dict[str, Any]:
                 key_l = field.strip().lower()
                 if key_l in empty_counts and is_empty(row[field]):
                     empty_counts[key_l] += 1
+                    row_invalid = True
 
             # delta validation, only check non-empty values
             delta_val = None
@@ -74,8 +78,12 @@ def analyze_csv(path: str) -> Dict[str, Any]:
                             delta_val = float(val)
                             if not (-1.0 <= delta_val <= 1.0):
                                 bad_delta += 1
+                                row_invalid = True
                         except (ValueError, TypeError):
                             bad_delta += 1
+                            row_invalid = True
+                    else:
+                        row_invalid = True
                     break
 
             # price field checks only on non-empty fields
@@ -89,6 +97,7 @@ def analyze_csv(path: str) -> Dict[str, Any]:
                             num = float(val)
                             if key_l in {"bid", "ask"} and num == -1:
                                 minus_one_quotes += 1
+                                invalid = True
                             if num < 0:
                                 raise ValueError
                         except (ValueError, TypeError):
@@ -96,14 +105,20 @@ def analyze_csv(path: str) -> Dict[str, Any]:
                             break
             if invalid:
                 bad_price_fields += 1
+                row_invalid = True
             # determine completeness
             values = [v.strip() for v in row.values()]
             filled = [v != "" for v in values]
             if all(filled):
                 complete += 1
+            else:
+                row_invalid = True
+            if not row_invalid:
+                valid += 1
         return {
             "total": total,
             "complete": complete,
+            "valid": valid,
             "expiries": sorted(expiries),
             "bad_delta": bad_delta,
             "bad_price_fields": bad_price_fields,
@@ -137,12 +152,13 @@ def main(argv: List[str] | None = None) -> None:
         logger.warning("Bestand niet gevonden: {}", path)
         return
     stats = analyze_csv(path)
-    quality = (stats["complete"] / stats["total"] * 100) if stats["total"] else 0
+    quality = (stats["valid"] / stats["total"] * 100) if stats["total"] else 0
     expiries_str = " / ".join(stats["expiries"]) if stats["expiries"] else "-"
     logger.warning("Markt: {}", symbol)
     logger.warning("Expiries: {}", expiries_str)
     logger.warning("Aantal regels: {}", stats["total"])
     logger.warning("Aantal complete regels: {}", stats["complete"])
+    logger.warning("Aantal geldige regels: {}", stats["valid"])
     logger.warning("Delta buiten [-1,1]: {}", stats["bad_delta"])
     logger.warning("Ongeldige Strike/Bid/Ask: {}", stats["bad_price_fields"])
     logger.warning("Duplicaten: {}", stats["duplicates"])
