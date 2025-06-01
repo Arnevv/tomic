@@ -1,4 +1,4 @@
-from strategy_dashboard import print_strategy
+from tomic.cli.strategy_dashboard import print_strategy
 
 
 def test_print_strategy_spot_diff(capsys):
