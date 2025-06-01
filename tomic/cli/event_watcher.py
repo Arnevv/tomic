@@ -60,9 +60,9 @@ def main(argv: List[str] | None = None) -> None:
     for strat in strategies:
         alerts = strat.get("alerts", [])
         if alerts:
-            logger.info("%s alerts:", strat["symbol"])
+            logger.info(f"{strat['symbol']} alerts:")
             for alert in alerts:
-                logger.info(" - %s", alert)
+                logger.info(f" - {alert}")
 
     logger.success("✅ Events verwerkt")
 
