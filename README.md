@@ -55,21 +55,21 @@ debugberichten te tonen.
 Start het hoofdscript met het controlpanel:
 
 ```bash
-python controlpanel.py
+python -m tomic.cli.controlpanel
 ```
 
 Of gebruik individuele modules:
 
-* `getaccountinfo.py`: Live portfolio-overzicht ophalen  
-* `getonemarket.py`: Optieketen en marktdata voor een symbool
-* `getallmarkets.py`: Exporteert data voor meerdere symbolen
-* `getallmarkets_async.py`: Prototype dat meerdere markten parallel ophaalt
+* `tomic.api.getaccountinfo`: Live portfolio-overzicht ophalen
+* `tomic.api.getonemarket`: Optieketen en marktdata voor een symbool
+* `tomic.api.getallmarkets`: Exporteert data voor meerdere symbolen
+* `tomic.api.getallmarkets_async`: Prototype dat meerdere markten parallel ophaalt
 * `journal_updater.py`: Nieuwe trade aanmaken en loggen
-* `close_trade.py`: Trade afsluiten met evaluatie  
-* `strategy_dashboard.py`: Groepeert legs per strategie en toont alerts  
-* `portfolio_scenario.py`: Simuleert PnL/Greeks na een zelf gekozen spot- en IV-shift
-* `csv_quality_check.py`: Controleert CSV-exports op fouten (ook via het Control Panel)
-* `regression_runner.py`: Vergelijkt scriptoutput met benchmarks (ook via het Control Panel)
+* `tomic.cli.close_trade`: Trade afsluiten met evaluatie
+* `tomic.cli.strategy_dashboard`: Groepeert legs per strategie en toont alerts
+* `tomic.cli.portfolio_scenario`: Simuleert PnL/Greeks na een zelf gekozen spot- en IV-shift
+* `tomic.cli.csv_quality_check`: Controleert CSV-exports op fouten (ook via het Control Panel)
+* `tomic.cli.regression_runner`: Vergelijkt scriptoutput met benchmarks (ook via het Control Panel)
 
 Voor regressietests zet `regression_runner.py` standaard `TOMIC_TODAY=2025-05-29`.
 
@@ -134,7 +134,7 @@ Het project bevat een eenvoudige regressietest om snel te controleren of de scri
 Voer de test uit met:
 
 ```bash
-python regression_runner.py
+python -m tomic.cli.regression_runner
 ```
 
 Na afloop verschijnt een duidelijke melding **Regression PASSED** of
@@ -169,7 +169,7 @@ Validatie van geëxporteerde option-chain CSV's. Het script toont het aantal reg
 Gebruik:
 
 ```bash
-python csv_quality_check.py [optioneel pad/naar/bestand.csv]
+python -m tomic.cli.csv_quality_check [optioneel pad/naar/bestand.csv]
 ```
 
 Laat je het pad weg, dan vraagt het script om het bestand en optioneel het symbool. Het script is ook te starten via het Control Panel (Dataexporter-menu).
