@@ -30,3 +30,4 @@ def test_minus_one_quotes(tmp_path):
         )
     stats = analyze_csv(path)
     assert stats["minus_one_quotes"] == 2
+    assert stats["valid"] == 1
