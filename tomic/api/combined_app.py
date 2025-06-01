@@ -86,6 +86,8 @@ class CombinedApp(EWrapper, EClient):
                         "gamma": None,
                         "vega": None,
                         "theta": None,
+                        "open_interest": None,
+                        "volume": None,
                     }
                     self.reqMktData(req_id, contract, "", True, False, [])
 
@@ -182,6 +184,10 @@ class CombinedApp(EWrapper, EClient):
                 d["vega"] = price
             elif tickType == 27:
                 d["theta"] = price
+            elif tickType in (86, 87):
+                d["open_interest"] = price
+            elif tickType == 8:
+                d["volume"] = price
 
     def tickOptionComputation(
         self,
