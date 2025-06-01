@@ -382,7 +382,10 @@ def parse_plan_metrics(plan_text: str) -> dict:
         except ValueError:
             pass
     if "max_profit" in metrics and "max_loss" in metrics and metrics["max_loss"]:
-        metrics["risk_reward"] = metrics["max_profit"] / abs(metrics["max_loss"])
+        rr = metrics["max_profit"] / abs(metrics["max_loss"])
+        if abs(abs(metrics["max_profit"]) - abs(metrics["max_loss"])) < 1e-2:
+            rr = None
+        metrics["risk_reward"] = rr
     return metrics
 
 
@@ -401,10 +404,13 @@ def heuristic_risk_metrics(legs, cost_basis):
             else:
                 max_profit = width - debit
                 max_loss = debit
+            rr = max_profit / abs(max_loss) if max_loss else None
+            if abs(abs(max_profit) - abs(max_loss)) < 1e-2:
+                rr = None
             return {
                 "max_profit": max_profit,
                 "max_loss": -abs(max_loss),
-                "risk_reward": max_profit / abs(max_loss) if max_loss else None,
+                "risk_reward": rr,
             }
     if len(legs) == 4:
         rights = [leg.get("right") or leg.get("type") for leg in legs]
@@ -439,10 +445,13 @@ def heuristic_risk_metrics(legs, cost_basis):
             credit = -cost_basis if cost_basis < 0 else 0
             max_profit = credit
             max_loss = width - credit
+            rr = max_profit / abs(max_loss) if max_loss else None
+            if abs(abs(max_profit) - abs(max_loss)) < 1e-2:
+                rr = None
             return {
                 "max_profit": max_profit,
                 "max_loss": -abs(max_loss),
-                "risk_reward": max_profit / abs(max_loss) if max_loss else None,
+                "risk_reward": rr,
             }
     return {}
 
@@ -684,6 +693,18 @@ ALERT_PROFILE = {
 # Severity scoring based on emoji markers
 SEVERITY_MAP = {"🚨": 3, "⚠️": 2, "🔻": 2, "🟡": 1, "✅": 1, "🟢": 1}
 
+# Short descriptions per strategy type
+STRATEGY_DESCRIPTIONS = {
+    "Iron Condor": "Inzet op range met hoge IV",
+    "Vertical": "Richtingstrade met beperkte risk",
+    "Straddle": "Neutrale volatiliteitswinst",
+    "Put Ratio Spread": "Richtingstrade met extra short put",
+    "Long Call": "Speculatief bullish",
+    "Short Call": "Neutraal tot bearish premie",
+    "Naked Put": "Bullish premie-innamestrategie",
+    "Long Put": "Speculatief bearish",
+}
+
 
 def alert_category(alert: str) -> str:
     """Return rough category tag for an alert string."""
@@ -728,16 +749,22 @@ def render_entry_view(strategy: dict) -> list[str]:
     iv = strategy.get("avg_iv")
     hv = strategy.get("HV30")
     ivr = strategy.get("IV_Rank")
+    ivp = strategy.get("IV_Percentile")
     skew = strategy.get("skew")
+    term = strategy.get("term_slope")
     atr = strategy.get("ATR14")
     if iv is not None:
         parts.append(f"IV {iv:.2%}")
     if hv is not None:
-        parts.append(f"HV {hv:.2f}")
+        parts.append(f"HV {hv:.2f}%")
     if ivr is not None:
-        parts.append(f"IVR {ivr:.1f}")
+        parts.append(f"IV Rank: {ivr:.1f}")
+    if ivp is not None:
+        parts.append(f"IV Pctl: {ivp:.1f}")
     if skew is not None:
-        parts.append(f"Skew {skew:+.2%}")
+        parts.append(f"Skew {skew*100:.1f}bp")
+    if term is not None:
+        parts.append(f"Term {term*100:.1f}bp")
     if atr is not None:
         parts.append(f"ATR {atr:.2f}")
     if parts:
@@ -802,28 +829,28 @@ def render_management_view(strategy: dict) -> list[str]:
     gamma = strategy.get("gamma")
     vega = strategy.get("vega")
     theta = strategy.get("theta")
-    ivr = strategy.get("IV_Rank")
-    ivr_display = f"{ivr:.1f}" if ivr is not None else "n.v.t."
-    ivp = strategy.get("IV_Percentile")
-    ivp_display = f"{ivp:.1f}" if ivp is not None else "n.v.t."
     lines.append(
         f"- Delta: {delta:+.3f} "
         f"Gamma: {gamma:+.3f} "
         f"Vega: {vega:+.3f} "
-        f"Theta: {theta:+.3f} "
-        f"IV Rank: {ivr_display} "
-        f"IV Pctl: {ivp_display}"
+        f"Theta: {theta:+.3f}"
     )
     iv_avg = strategy.get("avg_iv")
     hv = strategy.get("HV30")
     ivhv = strategy.get("iv_hv_spread")
     skew = strategy.get("skew")
     term = strategy.get("term_slope")
+    ivr = strategy.get("IV_Rank")
+    ivp = strategy.get("IV_Percentile")
     parts = []
     if iv_avg is not None:
         parts.append(f"IV {iv_avg:.2%}")
     if hv is not None:
-        parts.append(f"HV {hv:.2f}")
+        parts.append(f"HV {hv:.2f}%")
+    if ivr is not None:
+        parts.append(f"IV Rank: {ivr:.1f}")
+    if ivp is not None:
+        parts.append(f"IV Pctl: {ivp:.1f}")
     if ivhv is not None:
         parts.append(f"IV-HV {ivhv:.2%}")
     if skew is not None:
@@ -849,7 +876,13 @@ def render_management_view(strategy: dict) -> list[str]:
     spot = strategy.get("spot", 0)
     delta_dollar = strategy.get("delta_dollar")
     if delta is not None and spot and delta_dollar is not None:
-        lines.append(f"- Delta exposure ≈ ${delta_dollar:,.0f} bij spot {spot}")
+        try:
+            spot_fmt = f"{float(spot):.2f}"
+        except (TypeError, ValueError):
+            spot_fmt = str(spot)
+        lines.append(
+            f"- Delta exposure \u2248 ${delta_dollar:,.0f} bij spot {spot_fmt}"
+        )
     margin = strategy.get("init_margin") or strategy.get("margin_used") or 1000
     if theta is not None and margin:
         theta_efficiency = abs(theta / margin) * 100
@@ -863,14 +896,6 @@ def render_management_view(strategy: dict) -> list[str]:
             rating = "🟢 ideaal"
         lines.append(
             f"- Theta-rendement: {theta_efficiency:.2f}% per $1.000 margin - {rating}"
-        )
-    max_p = strategy.get("max_profit")
-    max_l = strategy.get("max_loss")
-    rr = strategy.get("risk_reward")
-    if max_p is not None and max_l is not None:
-        rr_disp = f" (R/R {rr:.2f})" if rr is not None else ""
-        lines.append(
-            f"- Max winst {_fmt_money(max_p)} | Max verlies {_fmt_money(max_l)}{rr_disp}"
         )
     return lines
 
@@ -917,6 +942,9 @@ def print_strategy(
     if strategy.get("trade_id") is not None:
         header += f" - TradeId {strategy['trade_id']}"
     print(header)
+    desc = STRATEGY_DESCRIPTIONS.get(strategy.get("type"))
+    if desc:
+        print(f"ℹ️ {desc}")
 
     print("📌 ENTRY-INFORMATIE")
     for line in render_entry_view(strategy):
@@ -966,16 +994,6 @@ def print_strategy(
     else:
         print("- \u2139\ufe0f Geen directe aandachtspunten gedetecteerd")
 
-    profile = ALERT_PROFILE.get(strategy.get("type"))
-    if profile is not None:
-        alerts = [a for a in alerts if alert_category(a) in profile]
-    alerts.sort(key=alert_severity, reverse=True)
-    if alerts:
-        for alert in alerts[:3]:
-            print(alert)
-    else:
-        print("ℹ️ Geen directe aandachtspunten gedetecteerd")
-
     if details:
         print("📎 Leg-details:")
         for leg in sort_legs(strategy.get("legs", [])):
@@ -1000,6 +1018,8 @@ def print_strategy(
             t_disp = f"{t:.3f}" if t is not None else "–"
             print(f"    Delta: {d_disp} Gamma: {g_disp} Vega: {v_disp} Theta: {t_disp}")
         print()
+
+    print()
 
 
 def main(argv=None):
