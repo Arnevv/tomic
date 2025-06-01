@@ -45,7 +45,7 @@ class IBApp(EWrapper, EClient):
         self.position_event = threading.Event()
 
     def nextValidId(self, orderId: int):
-        logger.info("✅ Verbonden. OrderId: %s", orderId)
+        logger.info("✅ Verbonden. OrderId: {}", orderId)
         self.reqMarketDataType(2)
         self.account_event.clear()
         self.position_event.clear()
@@ -245,7 +245,7 @@ class IBApp(EWrapper, EClient):
         return count_incomplete(self.positions_data)
 
     def error(self, reqId: TickerId, errorCode: int, errorString: str):
-        logger.error("⚠️ Error %s: %s", errorCode, errorString)
+        logger.error("⚠️ Error {}: {}", errorCode, errorString)
 
 
 def run_loop(app):
@@ -337,7 +337,8 @@ def main() -> None:
         json.dump(app.positions_data, f, indent=2)
 
     logging.info(
-        "💾 Posities opgeslagen in %s", cfg_get("POSITIONS_FILE", "positions.json")
+        "💾 Posities opgeslagen in {}",
+        cfg_get("POSITIONS_FILE", "positions.json"),
     )
 
     base_currency_vals = {
@@ -349,13 +350,13 @@ def main() -> None:
         json.dump(base_currency_vals, f, indent=2)
 
     logger.info(
-        "💾 Accountinfo opgeslagen in %s",
+        "💾 Accountinfo opgeslagen in {}",
         cfg_get("ACCOUNT_INFO_FILE", "account_info.json"),
     )
 
     logger.info("\n📐 Portfolio Greeks:")
     for k, v in portfolio.items():
-        logger.info("%s: %.4f", k, round(v, 4))
+        logger.info("{}: {:.4f}", k, round(v, 4))
 
     app.disconnect()
     logger.success("✅ Accountinformatie verwerkt")
