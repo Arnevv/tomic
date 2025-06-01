@@ -48,7 +48,14 @@ def run_dataexporter() -> None:
         print("4. Terug naar hoofdmenu")
         sub = input("Maak je keuze: ")
         if sub == "1":
-            run_module("tomic.api.getonemarket")
+            symbol = input("Ticker symbool: ").strip()
+            if not symbol:
+                print("Geen symbool opgegeven")
+                continue
+            try:
+                run_module("tomic.api.getonemarket", symbol)
+            except subprocess.CalledProcessError:
+                print("❌ Export mislukt")
         elif sub == "2":
             run_module("tomic.api.getallmarkets")
         elif sub == "3":
