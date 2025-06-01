@@ -1,8 +1,18 @@
 import subprocess
 import sys
+from datetime import datetime
+import json
+import os
+from pathlib import Path
+
+from tomic.config import get as cfg_get
 from tomic.logging import setup_logging
 
 setup_logging()
+
+POSITIONS_FILE = Path(cfg_get("POSITIONS_FILE", "positions.json"))
+ACCOUNT_INFO_FILE = Path(cfg_get("ACCOUNT_INFO_FILE", "account_info.json"))
+META_FILE = Path(cfg_get("PORTFOLIO_META_FILE", "portfolio_meta.json"))
 
 
 def run_module(module_name: str, *args: str) -> None:
@@ -13,6 +23,20 @@ def run_module(module_name: str, *args: str) -> None:
 def run_script(script_name: str, *args: str) -> None:
     """Run a Python file with optional arguments."""
     subprocess.run([sys.executable, script_name, *args], check=True)
+
+
+def save_portfolio_timestamp() -> None:
+    META_FILE.write_text(json.dumps({"last_update": datetime.now().isoformat()}))
+
+
+def load_portfolio_timestamp() -> str | None:
+    if not META_FILE.exists():
+        return None
+    try:
+        data = json.loads(META_FILE.read_text())
+        return data.get("last_update")
+    except Exception:
+        return None
 
 
 def run_dataexporter():
@@ -99,6 +123,51 @@ def run_risk_tools():
             print("❌ Ongeldige keuze")
 
 
+def run_portfolio_menu() -> None:
+    while True:
+        print("\n=== PORTFOLIO OVERZICHT ===")
+        print("1. Portfolio overzicht opnieuw ophalen van TWS")
+        print("2. Laatst opgehaalde portfolio-overzicht tonen")
+        print("3. Terug naar hoofdmenu")
+        sub = input("Maak je keuze: ").strip()
+
+        if sub == "1":
+            print("ℹ️ Haal portfolio op...")
+            try:
+                run_module("tomic.api.getaccountinfo")
+                save_portfolio_timestamp()
+            except subprocess.CalledProcessError:
+                print("❌ Ophalen van portfolio mislukt")
+                continue
+            try:
+                run_script(
+                    "strategy_dashboard.py", str(POSITIONS_FILE), str(ACCOUNT_INFO_FILE)
+                )
+                run_module("tomic.analysis.performance_analyzer")
+            except subprocess.CalledProcessError:
+                print("❌ Dashboard kon niet worden gestart")
+        elif sub == "2":
+            if not (POSITIONS_FILE.exists() and ACCOUNT_INFO_FILE.exists()):
+                print(
+                    "⚠️ Geen opgeslagen portfolio gevonden. Kies optie 1 om te verversen."
+                )
+                continue
+            ts = load_portfolio_timestamp()
+            if ts:
+                print(f"ℹ️ Laatste update: {ts}")
+            try:
+                run_script(
+                    "strategy_dashboard.py", str(POSITIONS_FILE), str(ACCOUNT_INFO_FILE)
+                )
+                run_module("tomic.analysis.performance_analyzer")
+            except subprocess.CalledProcessError:
+                print("❌ Dashboard kon niet worden gestart")
+        elif sub == "3":
+            break
+        else:
+            print("❌ Ongeldige keuze")
+
+
 def main():
     while True:
         print("\n=== TOMIC CONTROL PANEL ===")
@@ -114,20 +183,7 @@ def main():
         if keuze == "1":
             run_script("trading_plan.py")
         elif keuze == "2":
-            # Haal bij elke start de meest recente posities en accountinfo op
-            print("ℹ️ Haal portfolio op...")
-            try:
-                run_module("tomic.api.getaccountinfo")
-            except subprocess.CalledProcessError:
-                print("❌ Ophalen van portfolio mislukt")
-                continue
-            try:
-                run_script(
-                    "strategy_dashboard.py", "positions.json", "account_info.json"
-                )
-                run_module("tomic.analysis.performance_analyzer")
-            except subprocess.CalledProcessError:
-                print("❌ Dashboard kon niet worden gestart")
+            run_portfolio_menu()
         elif keuze == "3":
             run_trade_management()
         elif keuze == "4":
