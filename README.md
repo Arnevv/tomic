@@ -48,6 +48,30 @@ geïnstalleerd is, valt het systeem automatisch terug op het standaard
 Stel `TOMIC_LOG_LEVEL=DEBUG` of `TOMIC_DEBUG=1` in om deze en andere
 debugberichten te tonen.
 
+### Omgevingsvariabelen instellen
+
+Linux en macOS gebruiken de `VAR=waarde` syntaxis voor eenmalige
+omgevingsvariabelen:
+
+```bash
+TOMIC_DEBUG=1 python tomic/api/getaccountinfo.py
+```
+
+In **PowerShell** werkt dat anders. Gebruik daar:
+
+```powershell
+$env:TOMIC_DEBUG = 1
+python tomic/api/getaccountinfo.py
+```
+
+En in de klassieke **cmd.exe**-prompt:
+
+```cmd
+set TOMIC_DEBUG=1 && python tomic/api/getaccountinfo.py
+```
+
+Zo voorkom je de melding `TOMIC_DEBUG=0 : The term 'TOMIC_DEBUG=0' is not recognized...`.
+
 ---
 
 ## 🕹️ Gebruik
