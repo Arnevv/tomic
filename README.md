@@ -107,6 +107,7 @@ Belangrijke sleutels die je hier kunt aanpassen:
 * `EXPORT_DIR` – map voor CSV-exports (standaard `exports/`)
 * `POSITIONS_FILE` – JSON-bestand met open posities
 * `ACCOUNT_INFO_FILE` – JSON-bestand met accountgegevens
+* `PORTFOLIO_META_FILE` – JSON-bestand met timestamp van laatste portfolio update
 * `JOURNAL_FILE` – trade journal
 * `VOLATILITY_DATA_FILE` – snapshots van volatiliteitsdata
 * `IB_HOST` – hostnaam voor de IB Gateway/TWS (standaard `127.0.0.1`)
