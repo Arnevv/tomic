@@ -45,11 +45,11 @@ def analyze_csv(path: str) -> Dict[str, Any]:
         fieldnames = reader.fieldnames or []
         for row in reader:
             total += 1
-            key = tuple(row.get(h, "").strip() for h in fieldnames)
-            if key in seen:
+            row_key = tuple(row.get(h, "").strip() for h in fieldnames)
+            if row_key in seen:
                 duplicates += 1
             else:
-                seen.add(key)
+                seen.add(row_key)
             # collect expiries
             for k in row.keys():
                 if k.lower() == "expiry":
@@ -58,9 +58,9 @@ def analyze_csv(path: str) -> Dict[str, Any]:
                         expiries.add(val)
                     break
             # count empty fields case-insensitively
-            for key in row:
-                key_l = key.strip().lower()
-                if key_l in empty_counts and is_empty(row[key]):
+            for field in row:
+                key_l = field.strip().lower()
+                if key_l in empty_counts and is_empty(row[field]):
                     empty_counts[key_l] += 1
 
             # delta validation, only check non-empty values
@@ -128,26 +128,26 @@ def main(argv: List[str] | None = None) -> None:
         symbol_input = input("Symbool (enter voor auto-detect): ").strip()
         symbol = symbol_input or guess_symbol(path)
     if not os.path.isfile(path):
-        logger.warning("Bestand niet gevonden: %s", path)
+        logger.warning("Bestand niet gevonden: {}", path)
         return
     stats = analyze_csv(path)
     quality = (stats["complete"] / stats["total"] * 100) if stats["total"] else 0
     expiries_str = " / ".join(stats["expiries"]) if stats["expiries"] else "-"
-    logger.warning("Markt: %s", symbol)
-    logger.warning("Expiries: %s", expiries_str)
-    logger.warning("Aantal regels: %s", stats["total"])
-    logger.warning("Aantal complete regels: %s", stats["complete"])
-    logger.warning("Delta buiten [-1,1]: %s", stats["bad_delta"])
-    logger.warning("Ongeldige Strike/Bid/Ask: %s", stats["bad_price_fields"])
-    logger.warning("Duplicaten: %s", stats["duplicates"])
-    logger.warning("Lege Bid: %s", stats["empty_counts"]["bid"])
-    logger.warning("Lege Ask: %s", stats["empty_counts"]["ask"])
-    logger.warning("Lege IV: %s", stats["empty_counts"]["iv"])
-    logger.warning("Lege Delta: %s", stats["empty_counts"]["delta"])
-    logger.warning("Lege Gamma: %s", stats["empty_counts"]["gamma"])
-    logger.warning("Lege Vega: %s", stats["empty_counts"]["vega"])
-    logger.warning("Lege Theta: %s", stats["empty_counts"]["theta"])
-    logger.warning("Kwaliteit: %.1f%%", quality)
+    logger.warning("Markt: {}", symbol)
+    logger.warning("Expiries: {}", expiries_str)
+    logger.warning("Aantal regels: {}", stats["total"])
+    logger.warning("Aantal complete regels: {}", stats["complete"])
+    logger.warning("Delta buiten [-1,1]: {}", stats["bad_delta"])
+    logger.warning("Ongeldige Strike/Bid/Ask: {}", stats["bad_price_fields"])
+    logger.warning("Duplicaten: {}", stats["duplicates"])
+    logger.warning("Lege Bid: {}", stats["empty_counts"]["bid"])
+    logger.warning("Lege Ask: {}", stats["empty_counts"]["ask"])
+    logger.warning("Lege IV: {}", stats["empty_counts"]["iv"])
+    logger.warning("Lege Delta: {}", stats["empty_counts"]["delta"])
+    logger.warning("Lege Gamma: {}", stats["empty_counts"]["gamma"])
+    logger.warning("Lege Vega: {}", stats["empty_counts"]["vega"])
+    logger.warning("Lege Theta: {}", stats["empty_counts"]["theta"])
+    logger.warning("Kwaliteit: {:.1f}%", quality)
     logger.success("✅ Controle afgerond")
 
 
