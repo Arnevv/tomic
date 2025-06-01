@@ -17,7 +17,7 @@ POSITIONS_FILE = Path(cfg_get("POSITIONS_FILE", "positions.json"))
 def load_json(path: Path) -> List[Dict[str, Any]]:
     """Return parsed JSON from ``path`` or an empty list."""
     if not path.exists():
-        logger.error("⚠️ %s niet gevonden.", path)
+        logger.error(f"⚠️ {path} niet gevonden.")
         return []
     with open(path, "r", encoding="utf-8") as f:
         return json.load(f)
@@ -55,7 +55,9 @@ def choose_leg(trade: Dict[str, Any]) -> int | None:
     return int(keuze) - 1
 
 
-def list_positions(symbol: str, positions: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+def list_positions(
+    symbol: str, positions: List[Dict[str, Any]]
+) -> List[Dict[str, Any]]:
     """Print positions for ``symbol`` and return them."""
     sym_pos = [p for p in positions if p.get("symbol") == symbol]
     if not sym_pos:

@@ -11,7 +11,7 @@ from tomic.logging import setup_logging
 def _download_html(symbol: str) -> str:
     """Retrieve the volatility page HTML for the given symbol."""
     url = f"https://www.barchart.com/etfs-funds/quotes/{symbol}/volatility-charts"
-    logger.debug("Requesting URL: %s", url)
+    logger.debug(f"Requesting URL: {url}")
 
     req = urllib.request.Request(
         url,
@@ -20,7 +20,7 @@ def _download_html(symbol: str) -> str:
 
     with urllib.request.urlopen(req) as response:
         html = response.read().decode("utf-8", errors="ignore")
-    logger.debug("Downloaded %d characters", len(html))
+    logger.debug(f"Downloaded {len(html)} characters")
     return html
 
 
@@ -37,17 +37,15 @@ def fetch_iv_metrics(symbol: str = "SPY") -> dict:
             if match:
                 try:
                     results[key] = float(match.group(1))
-                    logger.debug(
-                        "Matched pattern '%s' for %s -> %s", pat, key, results[key]
-                    )
+                    logger.debug(f"Matched pattern '{pat}' for {key} -> {results[key]}")
                     break
                 except ValueError:
                     logger.warning(
-                        "Failed to parse %s from match '%s'", key, match.group(1)
+                        f"Failed to parse {key} from match '{match.group(1)}'"
                     )
                     break
         if key not in results:
-            logger.error("%s not found on page", key)
+            logger.error(f"{key} not found on page")
             results[key] = None
 
     return results
@@ -70,7 +68,7 @@ def main(argv=None):
     symbol = (
         argv[0] if argv else input("Ticker (default SPY): ")
     ).strip().upper() or "SPY"
-    logger.info("🚀 Fetching IV metrics for %s", symbol)
+    logger.info(f"🚀 Fetching IV metrics for {symbol}")
 
     try:
         metrics = fetch_iv_metrics(symbol)
@@ -78,12 +76,12 @@ def main(argv=None):
         implied_vol = metrics.get("implied_volatility")
         iv_pct = metrics.get("iv_percentile")
 
-        logger.info("IV Rank for %s: %s", symbol, iv_rank)
-        logger.info("Implied Volatility: %s", implied_vol)
-        logger.info("IV Percentile: %s", iv_pct)
+        logger.info(f"IV Rank for {symbol}: {iv_rank}")
+        logger.info(f"Implied Volatility: {implied_vol}")
+        logger.info(f"IV Percentile: {iv_pct}")
         logger.success("✅ Metrics fetched")
     except Exception as exc:
-        logger.error("Error fetching IV metrics: %s", exc)
+        logger.error(f"Error fetching IV metrics: {exc}")
 
 
 if __name__ == "__main__":

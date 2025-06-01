@@ -12,10 +12,7 @@ from tomic.journal.utils import load_journal, save_journal
 def sluit_trade_af(trade: Dict[str, Any]) -> None:
     """Interactively enter exit details for ``trade``."""
     logger.info(
-        "\n🔚 Trade afsluiten: %s - %s - %s",
-        trade["TradeID"],
-        trade["Symbool"],
-        trade["Type"],
+        f"\n🔚 Trade afsluiten: {trade['TradeID']} - {trade['Symbool']} - {trade['Type']}"
     )
 
     # DatumUit en DaysInTrade
@@ -25,7 +22,7 @@ def sluit_trade_af(trade: Dict[str, Any]) -> None:
         d_out = datetime.strptime(datum_uit, "%Y-%m-%d")
         trade["DatumUit"] = datum_uit
         trade["DaysInTrade"] = (d_out - d_in).days
-        logger.info("📅 DaysInTrade berekend: %s dagen", trade["DaysInTrade"])
+        logger.info(f"📅 DaysInTrade berekend: {trade['DaysInTrade']} dagen")
     except Exception:
         logger.error("⚠️ Ongeldige datum. Sla DaysInTrade over.")
         trade["DatumUit"] = datum_uit
