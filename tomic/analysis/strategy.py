@@ -462,7 +462,30 @@ def group_strategies(
                 strat["dte_entry"] = (exp_d - d_in).days
             else:
                 strat["dte_entry"] = None
+
             strat.update(parse_plan_metrics(trade_data.get("Plan", "")))
+
+            ge = trade_data.get("Greeks_Entry")
+            if isinstance(ge, dict):
+                strat["delta_entry"] = ge.get("Delta")
+                strat["gamma_entry"] = ge.get("Gamma")
+                strat["vega_entry"] = ge.get("Vega")
+                strat["theta_entry"] = ge.get("Theta")
+
+            for key, new_key in [
+                ("IV_Entry", "iv_entry"),
+                ("HV_Entry", "hv_entry"),
+                ("IV_Rank", "ivrank_entry"),
+                ("IV_Percentile", "ivpct_entry"),
+                ("Skew", "skew_entry"),
+                ("ATR_14", "atr_entry"),
+            ]:
+                if trade_data.get(key) is not None:
+                    try:
+                        strat[new_key] = float(trade_data.get(key))
+                    except (TypeError, ValueError):
+                        strat[new_key] = None
+
             if trade_data.get("InitMargin") is not None:
                 try:
                     strat["init_margin"] = float(trade_data.get("InitMargin"))
