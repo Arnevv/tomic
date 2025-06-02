@@ -4,8 +4,34 @@ import urllib.request
 
 from tomic.logging import logger
 
+from typing import Dict, List, Optional
+
 from tomic.analysis.iv_patterns import IV_PATTERNS
 from tomic.logging import setup_logging
+
+
+def parse_patterns(
+    patterns: Dict[str, List[str]], html: str
+) -> Dict[str, Optional[float]]:
+    """Return a dict with parsed values using the provided patterns."""
+    results: Dict[str, Optional[float]] = {}
+    for key, pats in patterns.items():
+        for pat in pats:
+            match = re.search(pat, html, re.IGNORECASE | re.DOTALL)
+            if match:
+                try:
+                    results[key] = float(match.group(1))
+                    logger.debug(f"Matched pattern '{pat}' for {key} -> {results[key]}")
+                    break
+                except ValueError:
+                    logger.warning(
+                        f"Failed to parse {key} from match '{match.group(1)}'"
+                    )
+                    break
+        if key not in results:
+            logger.error(f"{key} not found on page")
+            results[key] = None
+    return results
 
 
 def _download_html(symbol: str) -> str:
@@ -24,31 +50,10 @@ def _download_html(symbol: str) -> str:
     return html
 
 
-def fetch_iv_metrics(symbol: str = "SPY") -> dict:
+def fetch_iv_metrics(symbol: str = "SPY") -> Dict[str, Optional[float]]:
     """Return IV Rank, Implied Volatility and IV Percentile for the symbol."""
     html = _download_html(symbol)
-
-    patterns = IV_PATTERNS
-
-    results = {}
-    for key, pats in patterns.items():
-        for pat in pats:
-            match = re.search(pat, html, re.IGNORECASE | re.DOTALL)
-            if match:
-                try:
-                    results[key] = float(match.group(1))
-                    logger.debug(f"Matched pattern '{pat}' for {key} -> {results[key]}")
-                    break
-                except ValueError:
-                    logger.warning(
-                        f"Failed to parse {key} from match '{match.group(1)}'"
-                    )
-                    break
-        if key not in results:
-            logger.error(f"{key} not found on page")
-            results[key] = None
-
-    return results
+    return parse_patterns(IV_PATTERNS, html)
 
 
 def fetch_iv_rank(symbol: str = "SPY") -> float:
