@@ -11,6 +11,17 @@ from tomic.logging import setup_logging
 
 setup_logging()
 
+# Available log levels for loguru/logging
+LOG_LEVEL_CHOICES = [
+    "TRACE",
+    "DEBUG",
+    "INFO",
+    "SUCCESS",
+    "WARNING",
+    "ERROR",
+    "CRITICAL",
+]
+
 POSITIONS_FILE = Path(cfg.get("POSITIONS_FILE", "positions.json"))
 ACCOUNT_INFO_FILE = Path(cfg.get("ACCOUNT_INFO_FILE", "account_info.json"))
 META_FILE = Path(cfg.get("PORTFOLIO_META_FILE", "portfolio_meta.json"))
@@ -188,7 +199,7 @@ def run_settings_menu() -> None:
         print("1. Toon huidige configuratie")
         print("2. Pas IB host/poort aan")
         print("3. Pas default symbols aan")
-        print("4. Pas log-niveau aan")
+        print(f"4. Pas log-niveau aan ({', '.join(LOG_LEVEL_CHOICES)})")
         print("5. Terug naar hoofdmenu")
         sub = input("Maak je keuze: ").strip()
 
@@ -207,8 +218,14 @@ def run_settings_menu() -> None:
                 symbols = [s.strip().upper() for s in raw.split(",") if s.strip()]
                 cfg.update({"DEFAULT_SYMBOLS": symbols})
         elif sub == "4":
+            print("Beschikbare log-niveaus:")
+            for name in LOG_LEVEL_CHOICES:
+                print(f"  {name}")
             level = input(f"Log level ({cfg.CONFIG.LOG_LEVEL}): ").strip().upper()
             if level:
+                if level not in LOG_LEVEL_CHOICES:
+                    print("❌ Ongeldig log-niveau")
+                    continue
                 cfg.update({"LOG_LEVEL": level})
                 setup_logging()
         elif sub == "5":
