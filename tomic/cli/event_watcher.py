@@ -2,7 +2,7 @@
 
 import json
 from datetime import datetime
-from typing import Any, Dict, List
+from typing import Dict, List
 
 from tomic.logging import logger
 
@@ -51,7 +51,7 @@ def main(argv: List[str] | None = None) -> None:
         argv = []
     strategies_file = argv[0] if argv else cfg_get("POSITIONS_FILE", "positions.json")
 
-    from .strategy_dashboard import group_strategies
+    from tomic.analysis.strategy import group_strategies
 
     with open(strategies_file, "r", encoding="utf-8") as f:
         positions = json.load(f)

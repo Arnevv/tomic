@@ -11,14 +11,18 @@ def analyze_synthetics_and_edge(strategy: Dict[str, Any]) -> Dict[str, Any]:
     legs = strategy.get("legs", [])
     result = {}
     # check for synthetic long/short stock
-    for call in [l for l in legs if (l.get("right") or l.get("type")) == "C"]:
-        for put in [p for p in legs if (p.get("right") or p.get("type")) == "P"]:
+    for call_leg in [
+        leg for leg in legs if (leg.get("right") or leg.get("type")) == "C"
+    ]:
+        for put_leg in [
+            leg for leg in legs if (leg.get("right") or leg.get("type")) == "P"
+        ]:
             if (
-                call.get("strike") == put.get("strike")
-                and call.get("expiry") == put.get("expiry")
-                and call.get("position") == -put.get("position")
+                call_leg.get("strike") == put_leg.get("strike")
+                and call_leg.get("expiry") == put_leg.get("expiry")
+                and call_leg.get("position") == -put_leg.get("position")
             ):
-                if call.get("position", 0) > 0:
+                if call_leg.get("position", 0) > 0:
                     result["synthetic"] = "long_stock"
                 else:
                     result["synthetic"] = "short_stock"
@@ -36,7 +40,7 @@ def main(argv: List[str] | None = None) -> None:
         argv = []
     positions_file = argv[0] if argv else cfg_get("POSITIONS_FILE", "positions.json")
 
-    from .strategy_dashboard import group_strategies
+    from tomic.analysis.strategy import group_strategies
 
     with open(positions_file, "r", encoding="utf-8") as f:
         positions = json.load(f)

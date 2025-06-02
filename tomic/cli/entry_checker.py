@@ -13,7 +13,7 @@ def main(argv: List[str] | None = None) -> None:
         argv = []
     positions_file = argv[0] if argv else cfg_get("POSITIONS_FILE", "positions.json")
 
-    from .strategy_dashboard import group_strategies
+    from tomic.analysis.strategy import group_strategies
 
     with open(positions_file, "r", encoding="utf-8") as f:
         positions = json.load(f)
@@ -28,4 +28,5 @@ def main(argv: List[str] | None = None) -> None:
 
 if __name__ == "__main__":
     import sys
+
     main(sys.argv[1:])
