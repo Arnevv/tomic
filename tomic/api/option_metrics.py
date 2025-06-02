@@ -10,13 +10,14 @@ from tomic.logging import logger
 
 
 def fetch_option_metrics(
-    symbol: str, expiry: str, strike: float
+    symbol: str, expiry: str, strike: float, right: str | None = None
 ) -> Dict[str, Any] | None:
     """Return spot price, volume and open interest for ``symbol``.
 
-    The ``expiry`` should be provided as ``YYYY-MM-DD`` and ``strike`` as a float.
-    Values for volume and open interest are aggregated across calls and puts for
-    the specified strike and expiry.
+    The ``expiry`` should be provided as ``YYYY-MM-DD`` and ``strike`` as a
+    float. When ``right`` is ``"C"`` or ``"P"`` the result is limited to calls or
+    puts respectively. If ``right`` is ``None`` (default) values are aggregated
+    across both option types.
     """
 
     expiry = expiry.replace("-", "")
@@ -32,6 +33,7 @@ def fetch_option_metrics(
         if req_id not in app.invalid_contracts
         and data.get("expiry") == expiry
         and data.get("strike") == strike
+        and (right is None or data.get("right") == right.upper())
     ]
 
     spot = app.spot_price
@@ -40,7 +42,7 @@ def fetch_option_metrics(
 
     app.disconnect()
     logger.info(
-        f"Data voor {symbol} {expiry} {strike}: spot={spot}, volume={volume}, OI={open_interest}"
+        f"Data voor {symbol} {expiry} {strike}{right or ''}: spot={spot}, volume={volume}, OI={open_interest}"
     )
     return {"spot_price": spot, "volume": volume, "open_interest": open_interest}
 
