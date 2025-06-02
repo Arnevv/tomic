@@ -6,7 +6,7 @@ from typing import Any, Dict
 from tomic.logging import logger
 
 from tomic.logging import setup_logging
-from tomic.journal.utils import load_journal, save_journal
+from tomic.journal.service import load_journal, update_trade, save_journal
 
 
 def sluit_trade_af(trade: Dict[str, Any]) -> None:
@@ -92,7 +92,7 @@ def main() -> None:
         return
 
     sluit_trade_af(trade)
-    save_journal(journal)
+    update_trade(trade["TradeID"], trade)
     logger.success("✅ Trade afgesloten")
 
 

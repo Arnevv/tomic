@@ -15,13 +15,18 @@ from tomic.analysis.get_iv_rank import fetch_iv_metrics
 # --- App helpers ------------------------------------------------------------
 
 
-def start_app(app) -> None:
-    """Connect and start the IB API client."""
-    host = cfg_get("IB_HOST", "127.0.0.1")
-    port = int(cfg_get("IB_PORT", 7497))
-    app.connect(host, port, clientId=200)
+def start_app(app, host: str | None = None, port: int | None = None, client_id: int = 200) -> threading.Thread:
+    """Connect and start the IB API client.
+
+    Parameters are optional and fall back to ``config.yaml`` defaults.
+    """
+
+    host = host or cfg_get("IB_HOST", "127.0.0.1")
+    port = int(port or cfg_get("IB_PORT", 7497))
+    app.connect(host, port, clientId=client_id)
     thread = threading.Thread(target=app.run, daemon=True)
     thread.start()
+    return thread
 
 
 def await_market_data(app, symbol: str) -> bool:
@@ -147,9 +152,7 @@ def fetch_market_metrics(symbol: str) -> dict:
     app = CombinedApp(symbol)
     host = cfg_get("IB_HOST", "127.0.0.1")
     port = int(cfg_get("IB_PORT", 7497))
-    app.connect(host, port, clientId=201)
-    thread = threading.Thread(target=app.run, daemon=True)
-    thread.start()
+    start_app(app, host=host, port=port, client_id=201)
 
     if not app.spot_price_event.wait(timeout=10):
         app.disconnect()

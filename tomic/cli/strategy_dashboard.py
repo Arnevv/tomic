@@ -13,7 +13,7 @@ from tomic.utils import today
 from tomic.logging import setup_logging, logger
 from tomic.helpers.account import _fmt_money, print_account_overview
 from tomic.analysis.strategy import parse_date, group_strategies
-from tomic.journal.utils import load_journal
+from tomic.journal.utils import load_journal, load_json, save_json
 from .strategy_data import ALERT_PROFILE, get_strategy_description
 from tomic.analysis.greeks import compute_portfolio_greeks
 
@@ -49,8 +49,7 @@ def maybe_refresh_portfolio(refresh: bool) -> None:
 
 def load_positions(path: str):
     """Load positions JSON file and return list of open positions."""
-    with open(path, "r", encoding="utf-8") as f:
-        data = json.load(f)
+    data = load_json(path)
     return [p for p in data if p.get("position")]
 
 
@@ -59,8 +58,7 @@ def load_account_info(path: str) -> dict:
     if not os.path.exists(path):
         return {}
     try:
-        with open(path, "r", encoding="utf-8") as f:
-            return json.load(f)
+        return load_json(path)
     except json.JSONDecodeError as e:
         print(f"⚠️ Kan accountinfo niet laden uit {path}: {e}")
         return {}
@@ -634,8 +632,7 @@ def main(argv=None):
             "global_alerts": global_alerts,
         }
         try:
-            with open(json_output, "w", encoding="utf-8") as f:
-                json.dump(data, f, ensure_ascii=False, indent=2)
+            save_json(data, json_output)
         except OSError as e:
             print(f"❌ Kan niet schrijven naar {json_output}: {e}")
             return 1
