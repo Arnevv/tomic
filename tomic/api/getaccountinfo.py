@@ -1,5 +1,4 @@
-from ibapi.client import EClient
-from ibapi.wrapper import EWrapper
+from tomic.api.base_client import BaseIBApp
 from ibapi.contract import Contract
 from ibapi.common import *
 from ibapi.account_summary_tags import *
@@ -7,7 +6,6 @@ from ibapi.ticktype import TickTypeEnum
 
 from datetime import datetime
 import json
-from tomic.api.market_utils import calculate_hv30, calculate_atr14, count_incomplete
 from tomic.analysis.get_iv_rank import fetch_iv_metrics
 from tomic.analysis.greeks import compute_portfolio_greeks
 
@@ -24,9 +22,9 @@ from tomic.logging import setup_logging
 from tomic.helpers.account import _fmt_money, print_account_overview
 
 
-class IBApp(EWrapper, EClient):
+class IBApp(BaseIBApp):
     def __init__(self):
-        EClient.__init__(self, self)
+        super().__init__()
 
         self.positions_data = []
         self.open_orders = []
@@ -37,7 +35,6 @@ class IBApp(EWrapper, EClient):
         self.market_req_id = 8000
         self.market_req_map = {}
         self.spot_data = {}
-        self.historical_data = []
         self.hist_event = threading.Event()
         self.hv_data = {}
         self.atr_data = {}
@@ -234,11 +231,7 @@ class IBApp(EWrapper, EClient):
     def historicalDataEnd(self, reqId: int, start: str, end: str):
         self.hist_event.set()
 
-    def calculate_hv30(self):
-        return calculate_hv30(self.historical_data)
 
-    def calculate_atr14(self):
-        return calculate_atr14(self.historical_data)
 
     def count_incomplete(self):
         """Return how many positions are missing market or Greek data."""

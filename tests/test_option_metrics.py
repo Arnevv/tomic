@@ -3,12 +3,10 @@ import sys
 import types
 
 # Stub dependencies before importing the module
-market_export_stub = types.ModuleType("tomic.api.market_export")
-market_export_stub._start_app = lambda app: None  # type: ignore[attr-defined]
-market_export_stub._await_market_data = (  # type: ignore[attr-defined]
-    lambda app, symbol: True
-)
-sys.modules["tomic.api.market_export"] = market_export_stub
+market_utils_stub = types.ModuleType("tomic.api.market_utils")
+market_utils_stub.start_app = lambda app: None
+market_utils_stub.await_market_data = lambda app, symbol: True
+sys.modules["tomic.api.market_utils"] = market_utils_stub
 
 combined_stub = types.ModuleType("tomic.api.combined_app")
 
@@ -44,6 +42,7 @@ combined_stub.CombinedApp = DummyApp  # type: ignore[attr-defined]
 sys.modules["tomic.api.combined_app"] = combined_stub
 
 option_metrics = importlib.reload(importlib.import_module("tomic.api.option_metrics"))
+sys.modules.pop("tomic.api.market_utils", None)
 
 
 def test_fetch_option_metrics_aggregates():
