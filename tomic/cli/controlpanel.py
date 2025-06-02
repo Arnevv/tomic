@@ -56,8 +56,8 @@ def run_dataexporter() -> None:
         print("1. Exporteer een markt (tomic.api.getonemarket)")
         print("2. Exporteer alle markten (tomic.api.getallmarkets)")
         print("3. Controleer CSV-kwaliteit (tomic.cli.csv_quality_check)")
-        print("4. Terug naar hoofdmenu")
-        print("5. Haal optiedata op per symbool")
+        print("4. Haal optiedata op per symbool")
+        print("5. Terug naar hoofdmenu")
         sub = input("Maak je keuze: ")
         if sub == "1":
             symbol = input("Ticker symbool: ").strip()
@@ -80,9 +80,9 @@ def run_dataexporter() -> None:
             else:
                 print("Geen pad opgegeven")
         elif sub == "4":
-            break
-        elif sub == "5":
             run_module("tomic.cli.option_lookup")
+        elif sub == "5":
+            break
         else:
             print("❌ Ongeldige keuze")
 
