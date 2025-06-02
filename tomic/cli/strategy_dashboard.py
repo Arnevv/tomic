@@ -16,6 +16,7 @@ from tomic.helpers.account import _fmt_money, print_account_overview
 from tomic.cli.entry_checker import check_entry_conditions
 from tomic.journal.utils import load_journal
 from .strategy_data import ALERT_PROFILE, get_strategy_description
+from tomic.analysis.greeks import compute_portfolio_greeks
 
 setup_logging()
 
@@ -45,21 +46,6 @@ def maybe_refresh_portfolio(refresh: bool) -> None:
     account_path = Path(cfg_get("ACCOUNT_INFO_FILE", "account_info.json"))
     if refresh or not (positions_path.exists() and account_path.exists()):
         refresh_portfolio_data()
-
-
-def compute_portfolio_greeks(positions):
-    totals = {"Delta": 0.0, "Gamma": 0.0, "Vega": 0.0, "Theta": 0.0}
-    for pos in positions:
-        mult = float(pos.get("multiplier") or 1)
-        qty = pos.get("position", 0)
-        for greek in ["delta", "gamma", "vega", "theta"]:
-            val = pos.get(greek)
-            if val is not None:
-                if greek == "delta":
-                    totals["Delta"] += val * qty
-                else:
-                    totals[greek.capitalize()] += val * qty * mult
-    return totals
 
 
 def load_positions(path: str):
