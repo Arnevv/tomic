@@ -3,7 +3,7 @@ from ibapi.wrapper import EWrapper
 from ibapi.order import Order
 import threading
 
-from .market_utils import create_option_contract
+from .market_utils import create_option_contract, start_app
 from tomic.config import get as cfg_get
 
 
@@ -42,9 +42,7 @@ def calculate_trade_margin(
     host = host or cfg_get("IB_HOST", "127.0.0.1")
     port = int(port or cfg_get("IB_PORT", 7497))
     app = MarginApp()
-    app.connect(host, port, clientId=client_id)
-    thread = threading.Thread(target=app.run, daemon=True)
-    thread.start()
+    start_app(app, host=host, port=port, client_id=client_id)
 
     if not app.event.wait(timeout=5):
         app.disconnect()

@@ -1,9 +1,9 @@
 """Detect synthetic positions in strategies."""
 
-import json
 from typing import Any, Dict, List
 
 from tomic.config import get as cfg_get
+from tomic.journal.utils import load_json
 
 
 def analyze_synthetics_and_edge(strategy: Dict[str, Any]) -> Dict[str, Any]:
@@ -42,8 +42,7 @@ def main(argv: List[str] | None = None) -> None:
 
     from tomic.analysis.strategy import group_strategies
 
-    with open(positions_file, "r", encoding="utf-8") as f:
-        positions = json.load(f)
+    positions = load_json(positions_file)
     strategies = group_strategies(positions)
     for strat in strategies:
         res = analyze_synthetics_and_edge(strat)

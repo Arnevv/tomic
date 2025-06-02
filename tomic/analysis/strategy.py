@@ -9,7 +9,7 @@ from datetime import datetime
 from typing import Any, Dict, List, Optional
 
 from tomic.utils import today
-from tomic.analysis.entry_checks import check_entry_conditions
+from tomic.analysis.alerts import check_entry_conditions, generate_risk_alerts
 
 
 def parse_date(date_str: str) -> Optional[datetime.date]:
@@ -146,7 +146,7 @@ def aggregate_metrics(legs: List[Dict[str, Any]]) -> Dict[str, Any]:
     return metrics
 
 
-def generate_alerts(strategy: Dict[str, Any]) -> List[str]:
+def generate_risk_alerts(strategy: Dict[str, Any]) -> List[str]:
     """Return basic risk alerts for a strategy."""
     alerts: List[str] = []
     delta = strategy.get("delta")
@@ -524,7 +524,7 @@ def group_strategies(
         else:
             strat["rom"] = None
 
-        strat["alerts"] = generate_alerts(strat)
+        strat["alerts"] = generate_risk_alerts(strat)
         strat["entry_alerts"] = check_entry_conditions(strat)
 
         return strat
