@@ -1,16 +1,13 @@
-import json
+"""Interactively add new trades to the journal."""
+
+from __future__ import annotations
+
 from datetime import date
-from pathlib import Path
 
 from tomic.api.market_utils import fetch_market_metrics
 from tomic.api.margin_calc import calculate_trade_margin
-from tomic.config import get as cfg_get
+from tomic.journal.utils import JOURNAL_FILE, load_journal, save_journal
 
-journal_file = Path(cfg_get("JOURNAL_FILE", "journal.json"))
-
-if not journal_file.exists():
-    with open(journal_file, "w", encoding="utf-8") as f:
-        json.dump([], f)
 
 def float_prompt(prompt_tekst, default=None):
     while True:
@@ -22,9 +19,13 @@ def float_prompt(prompt_tekst, default=None):
         except ValueError:
             print("❌ Ongeldige invoer, gebruik bijv. 14.7")
 
+
 def get_next_trade_id(journal):
-    existing_ids = [int(trade["TradeID"]) for trade in journal if str(trade["TradeID"]).isdigit()]
+    existing_ids = [
+        int(trade["TradeID"]) for trade in journal if str(trade["TradeID"]).isdigit()
+    ]
     return str(max(existing_ids + [0]) + 1)
+
 
 def date_prompt(prompt_tekst):
     while True:
@@ -35,11 +36,13 @@ def date_prompt(prompt_tekst):
         except ValueError:
             print("❌ Ongeldige datum. Gebruik het formaat YYYY-MM-DD met streepjes.")
 
-def interactieve_trade_invoer():
-    print("\n🆕 Nieuwe Trade Invoeren (meerdere legs ondersteund)\nLaat een veld leeg om af te breken.\n")
 
-    with open(journal_file, "r", encoding="utf-8") as f:
-        journal = json.load(f)
+def interactieve_trade_invoer():
+    print(
+        "\n🆕 Nieuwe Trade Invoeren (meerdere legs ondersteund)\nLaat een veld leeg om af te breken.\n"
+    )
+
+    journal = load_journal(JOURNAL_FILE)
 
     trade_id = get_next_trade_id(journal)
     print(f"TradeID automatisch toegekend: {trade_id}")
@@ -78,12 +81,7 @@ def interactieve_trade_invoer():
             print("❌ Ongeldig aantal.")
             continue
 
-        legs.append({
-            "strike": strike,
-            "type": right,
-            "action": action,
-            "qty": qty
-        })
+        legs.append({"strike": strike, "type": right, "action": action, "qty": qty})
 
     if not legs:
         print("❌ Geen geldige legs ingevoerd.")
@@ -165,7 +163,9 @@ def interactieve_trade_invoer():
         init_margin = None
 
     print("\n📐 Vul de NETTO Greeks in van de hele positie bij entry (optioneel):")
-    print("ℹ️ Dit zijn GEAGGREGEERDE waarden van de gehele trade, NIET per leg of strike")
+    print(
+        "ℹ️ Dit zijn GEAGGREGEERDE waarden van de gehele trade, NIET per leg of strike"
+    )
     delta = float_prompt("  Delta: ", default=None)
     gamma = float_prompt("  Gamma: ", default=None)
     vega = float_prompt("  Vega: ", default=None)
@@ -207,15 +207,15 @@ def interactieve_trade_invoer():
             "Gamma": gamma,
             "Vega": vega,
             "Theta": theta,
-        }
+        },
     }
 
     journal.append(nieuwe_trade)
 
-    with open(journal_file, "w", encoding="utf-8") as f:
-        json.dump(journal, f, indent=2)
+    save_journal(journal, JOURNAL_FILE)
 
     print(f"\n✅ Trade {trade_id} succesvol toegevoegd aan journal.json")
+
 
 if __name__ == "__main__":
     interactieve_trade_invoer()

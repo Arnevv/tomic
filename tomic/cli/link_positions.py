@@ -1,6 +1,7 @@
 """Utility to link IB position IDs to journal trades."""
 
-import json
+from __future__ import annotations
+
 from pathlib import Path
 from typing import Any, Dict, List
 
@@ -8,19 +9,10 @@ from tomic.logging import logger
 
 from tomic.config import get as cfg_get
 from tomic.logging import setup_logging
-from tomic.journal.utils import load_journal, save_journal
+from tomic.journal.utils import load_journal, save_journal, load_json
 
 JOURNAL_FILE = Path(cfg_get("JOURNAL_FILE", "journal.json"))
 POSITIONS_FILE = Path(cfg_get("POSITIONS_FILE", "positions.json"))
-
-
-def load_json(path: Path) -> List[Dict[str, Any]]:
-    """Return parsed JSON from ``path`` or an empty list."""
-    if not path.exists():
-        logger.error(f"⚠️ {path} niet gevonden.")
-        return []
-    with open(path, "r", encoding="utf-8") as f:
-        return json.load(f)
 
 
 def list_open_trades(journal: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
