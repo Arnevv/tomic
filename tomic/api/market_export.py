@@ -45,6 +45,7 @@ _HEADERS_METRICS = [
     "IV_Rank",
     "Implied_Volatility",
     "IV_Percentile",
+    "Avg_Parity_Deviation",
 ]
 
 
@@ -97,7 +98,7 @@ def _await_market_data(app: CombinedApp, symbol: str) -> bool:
 
 def _write_option_chain(
     app: CombinedApp, symbol: str, export_dir: str, timestamp: str
-) -> None:
+) -> float | None:
     chain_file = os.path.join(export_dir, f"option_chain_{symbol}_{timestamp}.csv")
     records = [
         data
@@ -114,6 +115,9 @@ def _write_option_chain(
         return (bid + ask) / 2
 
     grouped: dict[tuple[str, float], dict[str, dict]] = {}
+    parity_values: list[float] = []
+    expiries = getattr(app, "expiries", [])
+    target_expiry = expiries[0] if expiries else None
     for rec in records:
         key = (rec.get("expiry"), rec.get("strike"))
         pair = grouped.setdefault(key, {})
@@ -141,6 +145,8 @@ def _write_option_chain(
             call_mid = _mid(call.get("bid"), call.get("ask"))
             put_mid = _mid(put.get("bid"), put.get("ask"))
             try:
+                if call_mid is None or put_mid is None:
+                    raise ValueError("invalid mid")
                 exp_date = datetime.strptime(str(expiry), "%Y%m%d").date()
                 t = max((exp_date - today).days, 0) / 365
                 parity = (call_mid - put_mid) - (
@@ -149,6 +155,8 @@ def _write_option_chain(
                 parity = round(parity, 4)
             except Exception:
                 parity = None
+        if parity is not None and expiry == target_expiry:
+            parity_values.append(parity)
         if call is not None:
             call["parity_deviation"] = parity
         if put is not None:
@@ -192,10 +200,17 @@ def _write_option_chain(
                 ]
             )
     logger.info(f"✅ Optieketen opgeslagen in: {chain_file}")
+    if parity_values:
+        return round(sum(parity_values) / len(parity_values), 4)
+    return None
 
 
 def _write_metrics_csv(
-    metrics: dict, symbol: str, export_dir: str, timestamp: str
+    metrics: dict,
+    symbol: str,
+    export_dir: str,
+    timestamp: str,
+    avg_parity_dev: float | None,
 ) -> pd.DataFrame:
     metrics_file = os.path.join(export_dir, f"other_data_{symbol}_{timestamp}.csv")
     values_metrics = [
@@ -210,6 +225,7 @@ def _write_metrics_csv(
         metrics.get("iv_rank"),
         metrics.get("implied_volatility"),
         metrics.get("iv_percentile"),
+        avg_parity_dev,
     ]
     with open(metrics_file, "w", newline="") as file:
         writer = csv.writer(file)
@@ -244,8 +260,8 @@ def export_market_data(
         export_dir = output_dir
     os.makedirs(export_dir, exist_ok=True)
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    _write_option_chain(app, symbol, export_dir, timestamp)
-    df_metrics = _write_metrics_csv(metrics, symbol, export_dir, timestamp)
+    avg_parity = _write_option_chain(app, symbol, export_dir, timestamp)
+    df_metrics = _write_metrics_csv(metrics, symbol, export_dir, timestamp, avg_parity)
     app.disconnect()
     time.sleep(1)
     logger.success(f"✅ Marktdata verwerkt voor {symbol}")
