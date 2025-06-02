@@ -6,14 +6,14 @@ from datetime import datetime
 import json
 from pathlib import Path
 
-from tomic.config import get as cfg_get
+from tomic import config as cfg
 from tomic.logging import setup_logging
 
 setup_logging()
 
-POSITIONS_FILE = Path(cfg_get("POSITIONS_FILE", "positions.json"))
-ACCOUNT_INFO_FILE = Path(cfg_get("ACCOUNT_INFO_FILE", "account_info.json"))
-META_FILE = Path(cfg_get("PORTFOLIO_META_FILE", "portfolio_meta.json"))
+POSITIONS_FILE = Path(cfg.get("POSITIONS_FILE", "positions.json"))
+ACCOUNT_INFO_FILE = Path(cfg.get("ACCOUNT_INFO_FILE", "account_info.json"))
+META_FILE = Path(cfg.get("PORTFOLIO_META_FILE", "portfolio_meta.json"))
 STRATEGY_DASHBOARD_MODULE = "tomic.cli.strategy_dashboard"
 
 
@@ -178,6 +178,42 @@ def run_portfolio_menu() -> None:
             print("❌ Ongeldige keuze")
 
 
+def run_settings_menu() -> None:
+    """Menu to view and edit configuration."""
+    while True:
+        print("\n=== INSTELLINGEN ===")
+        print("1. Toon huidige configuratie")
+        print("2. Pas IB host/poort aan")
+        print("3. Pas default symbols aan")
+        print("4. Pas log-niveau aan")
+        print("5. Terug naar hoofdmenu")
+        sub = input("Maak je keuze: ").strip()
+
+        if sub == "1":
+            for key, value in cfg.CONFIG.dict().items():
+                print(f"{key}: {value}")
+        elif sub == "2":
+            host = input(f"Host ({cfg.CONFIG.IB_HOST}): ").strip() or cfg.CONFIG.IB_HOST
+            port_str = input(f"Poort ({cfg.CONFIG.IB_PORT}): ").strip()
+            port = int(port_str) if port_str else cfg.CONFIG.IB_PORT
+            cfg.update({"IB_HOST": host, "IB_PORT": port})
+        elif sub == "3":
+            print("Huidige symbols:", ", ".join(cfg.CONFIG.DEFAULT_SYMBOLS))
+            raw = input("Nieuw lijst (comma-sep): ").strip()
+            if raw:
+                symbols = [s.strip().upper() for s in raw.split(",") if s.strip()]
+                cfg.update({"DEFAULT_SYMBOLS": symbols})
+        elif sub == "4":
+            level = input(f"Log level ({cfg.CONFIG.LOG_LEVEL}): ").strip().upper()
+            if level:
+                cfg.update({"LOG_LEVEL": level})
+                setup_logging()
+        elif sub == "5":
+            break
+        else:
+            print("❌ Ongeldige keuze")
+
+
 def main() -> None:
     """Start the interactive control panel."""
     while True:
@@ -187,7 +223,8 @@ def main() -> None:
         print("3. Trade Management")
         print("4. Data Management")
         print("5. Risk Tools")
-        print("6. Stoppen")
+        print("6. Instellingen")
+        print("7. Stoppen")
         keuze = input("Maak je keuze: ")
 
         if keuze == "1":
@@ -201,6 +238,8 @@ def main() -> None:
         elif keuze == "5":
             run_risk_tools()
         elif keuze == "6":
+            run_settings_menu()
+        elif keuze == "7":
             print("Tot ziens.")
             break
         else:
