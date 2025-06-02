@@ -6,17 +6,45 @@ import sys
 from collections import defaultdict
 from statistics import mean
 from datetime import datetime
+from pathlib import Path
 import re
 
 from tomic.config import get as cfg_get
 from tomic.utils import today
-from tomic.logging import setup_logging
+from tomic.logging import setup_logging, logger
 from tomic.helpers.account import _fmt_money, print_account_overview
 from tomic.cli.entry_checker import check_entry_conditions
 from tomic.journal.utils import load_journal
 from .strategy_data import ALERT_PROFILE, get_strategy_description
 
 setup_logging()
+
+
+def refresh_portfolio_data() -> None:
+    """Fetch latest portfolio data via the IB API and update timestamp."""
+    from tomic.api import getaccountinfo
+
+    logger.info("🔄 Vernieuw portfolio data via getaccountinfo")
+    try:
+        getaccountinfo.main()
+    except Exception as exc:  # pragma: no cover - network/IB errors
+        logger.error("❌ Fout bij ophalen portfolio: {}", exc)
+        return
+
+    meta_path = Path(cfg_get("PORTFOLIO_META_FILE", "portfolio_meta.json"))
+    try:
+        meta_path.write_text(json.dumps({"last_update": datetime.now().isoformat()}))
+    except OSError as exc:  # pragma: no cover - I/O errors
+        logger.error("⚠️ Kan meta file niet schrijven: {}", exc)
+
+
+def maybe_refresh_portfolio(refresh: bool) -> None:
+    """Refresh portfolio when requested or data files are missing."""
+
+    positions_path = Path(cfg_get("POSITIONS_FILE", "positions.json"))
+    account_path = Path(cfg_get("ACCOUNT_INFO_FILE", "account_info.json"))
+    if refresh or not (positions_path.exists() and account_path.exists()):
+        refresh_portfolio_data()
 
 
 def compute_portfolio_greeks(positions):
@@ -683,6 +711,7 @@ SYMBOL_MAP = {
 # Severity scoring based on emoji markers
 SEVERITY_MAP = {"🚨": 3, "⚠️": 2, "🔻": 2, "🟡": 1, "✅": 1, "🟢": 1}
 
+
 def alert_category(alert: str) -> str:
     """Return rough category tag for an alert string."""
     lower = alert.lower()
@@ -1013,13 +1042,14 @@ def main(argv=None):
     details = False
     account_details = False
     view_override = None
+    refresh = False
     i = 0
     while i < len(argv):
         arg = argv[i]
         if arg == "--json-output":
             if i + 1 >= len(argv):
                 print(
-                    "Gebruik: python -m tomic.cli.strategy_dashboard positions.json [account_info.json] [--json-output PATH]"
+                    "Gebruik: python -m tomic.cli.strategy_dashboard positions.json [account_info.json] [--json-output PATH] [--refresh]"
                 )
                 return 1
             json_output = argv[i + 1]
@@ -1031,6 +1061,10 @@ def main(argv=None):
             continue
         if arg == "--details":
             details = True
+            i += 1
+            continue
+        if arg == "--refresh":
+            refresh = True
             i += 1
             continue
         if arg == "--account":
@@ -1053,7 +1087,7 @@ def main(argv=None):
 
     if not args:
         print(
-            "Gebruik: python -m tomic.cli.strategy_dashboard positions.json [account_info.json] [--json-output PATH]"
+            "Gebruik: python -m tomic.cli.strategy_dashboard positions.json [account_info.json] [--json-output PATH] [--refresh]"
         )
         return 1
 
@@ -1062,6 +1096,8 @@ def main(argv=None):
         args[1] if len(args) > 1 else cfg_get("ACCOUNT_INFO_FILE", "account_info.json")
     )
     journal_file = cfg_get("JOURNAL_FILE", "journal.json")
+
+    maybe_refresh_portfolio(refresh)
 
     positions = load_positions(positions_file)
     account_info = load_account_info(account_file)
