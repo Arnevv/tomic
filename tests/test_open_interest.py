@@ -29,8 +29,14 @@ class DummyApp:
         self.disconnected = False
 
     def reqMktData(self, req_id, contract, tick_list, snapshot, regulatory, opts):
-        self.open_interest = 42
-        self.open_interest_event.set()
+        assert tick_list == "100,101"
+        # Simulate server response via tickPrice
+        self.tickPrice(req_id, 86, 42, None)
+
+    def tickPrice(self, req_id, tick_type, price, attrib):
+        if tick_type in (86, 87):
+            self.open_interest = price
+            self.open_interest_event.set()
 
     def disconnect(self) -> None:
         self.disconnected = True
@@ -48,7 +54,7 @@ def test_fetch_open_interest_value():
 
 def test_fetch_open_interest_none_if_no_event():
     def no_set(self, req_id, contract, tick_list, snapshot, regulatory, opts):
-        self.open_interest = 0
+        pass
 
     DummyApp.reqMktData = no_set
     DummyApp.open_interest_event = types.SimpleNamespace(
