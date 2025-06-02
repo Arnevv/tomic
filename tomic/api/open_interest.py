@@ -26,13 +26,22 @@ class _OpenInterestApp(BaseIBApp):
         contract = create_option_contract(
             self.symbol, self.expiry, self.strike, self.right
         )
-        self.reqMktData(1001, contract, "101", False, False, [])
+        # Request volume (100) and open interest (101) generic ticks. Some
+        # brokers send open interest via tick types 86/87 instead of 101.
+        self.reqMktData(1001, contract, "100,101", False, False, [])
 
     def tickGeneric(
         self, reqId: int, tickType: int, value: float
     ) -> None:  # noqa: N802
         if tickType == 101:
             self.open_interest = int(value)
+            self.open_interest_event.set()
+
+    def tickPrice(
+        self, reqId: int, tickType: int, price: float, attrib
+    ) -> None:  # noqa: N802
+        if tickType in (86, 87):  # option call/put open interest
+            self.open_interest = int(price)
             self.open_interest_event.set()
 
 
