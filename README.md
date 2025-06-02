@@ -38,6 +38,8 @@ source .venv/bin/activate  # Windows: .venv\Scripts\activate
 pip install -r requirements.txt
 ```
 
+Deze stap installeert ook **Pydantic**, gebruikt voor het laden van `config.py`.
+
 4. Zorg dat IB Gateway of TWS actief is op poort 7497.
 
 ### Logging
