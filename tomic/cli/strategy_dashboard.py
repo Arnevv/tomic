@@ -202,175 +202,6 @@ def alert_severity(alert: str) -> int:
     return 0
 
 
-def render_entry_view(strategy: dict) -> list[str]:
-    """Return lines representing the entry view of a strategy."""
-    lines: list[str] = []
-    spot_open = strategy.get("spot_open")
-    if spot_open is not None:
-        try:
-            lines.append(f"- Spot bij open: {float(spot_open):.2f}")
-        except (TypeError, ValueError):
-            lines.append(f"- Spot bij open: {spot_open}")
-    parts: list[str] = []
-    iv = strategy.get("avg_iv")
-    hv = strategy.get("HV30")
-    ivr = strategy.get("IV_Rank")
-    ivp = strategy.get("IV_Percentile")
-    skew = strategy.get("skew")
-    term = strategy.get("term_slope")
-    atr = strategy.get("ATR14")
-    if iv is not None:
-        parts.append(f"IV {iv:.2%}")
-    if hv is not None:
-        parts.append(f"HV {hv:.2f}%")
-    if ivr is not None:
-        parts.append(f"IV Rank: {ivr:.1f}")
-    if ivp is not None:
-        parts.append(f"IV Pctl: {ivp:.1f}")
-    if skew is not None:
-        parts.append(f"Skew {skew*100:.1f}bp")
-    if term is not None:
-        parts.append(f"Term {term*100:.1f}bp")
-    if atr is not None:
-        parts.append(f"ATR {atr:.2f}")
-    if parts:
-        lines.append("- " + " | ".join(parts))
-    delta = strategy.get("delta")
-    gamma = strategy.get("gamma")
-    vega = strategy.get("vega")
-    theta = strategy.get("theta")
-    if any(x is not None for x in (delta, gamma, vega, theta)):
-        lines.append(
-            "- "
-            f"Delta: {delta:+.3f} | "
-            f"Gamma: {gamma:+.3f} | "
-            f"Vega: {vega:+.3f} | "
-            f"Theta: {theta:+.3f}"
-        )
-    rom = strategy.get("rom")
-    if rom is not None:
-        lines.append(f"- ROM bij instap: {rom:+.1f}%")
-    max_p = strategy.get("max_profit")
-    max_l = strategy.get("max_loss")
-    rr = strategy.get("risk_reward")
-    if max_p is not None and max_l is not None:
-        rr_disp = f" (R/R {rr:.2f})" if rr is not None else ""
-        lines.append(
-            f"- Max winst {_fmt_money(max_p)} | Max verlies {_fmt_money(max_l)}{rr_disp}"
-        )
-    dte_entry = strategy.get("dte_entry")
-    if dte_entry is not None:
-        lines.append(f"- DTE bij opening: {dte_entry} dagen")
-    return lines
-
-
-def render_management_view(strategy: dict) -> list[str]:
-    """Return lines for the management view of a strategy."""
-    lines: list[str] = []
-    spot_now = strategy.get("spot_current") or strategy.get("spot")
-    spot_open = strategy.get("spot_open")
-    if spot_now is not None or spot_open is not None:
-        parts: list[str] = []
-        if spot_now is not None:
-            try:
-                spot_now_float = float(spot_now)
-                spot_now_str = f"{spot_now_float:.2f}"
-            except (TypeError, ValueError):
-                spot_now_str = str(spot_now)
-            diff_pct = None
-            if spot_open not in (None, 0, "0"):
-                try:
-                    diff_pct = (
-                        (float(spot_now) - float(spot_open)) / float(spot_open)
-                    ) * 100
-                except (TypeError, ValueError, ZeroDivisionError):
-                    diff_pct = None
-            if diff_pct is not None:
-                parts.append(f"Huidige spot: {spot_now_str} ({diff_pct:+.2f}%)")
-            else:
-                parts.append(f"Huidige spot: {spot_now_str}")
-        if spot_open is not None:
-            try:
-                spot_open_str = f"{float(spot_open):.2f}"
-            except (TypeError, ValueError):
-                spot_open_str = str(spot_open)
-            parts.append(f"Spot bij open: {spot_open_str}")
-        lines.append("- " + " | ".join(parts))
-    delta = strategy.get("delta")
-    gamma = strategy.get("gamma")
-    vega = strategy.get("vega")
-    theta = strategy.get("theta")
-    lines.append(
-        f"- Delta: {delta:+.3f} "
-        f"Gamma: {gamma:+.3f} "
-        f"Vega: {vega:+.3f} "
-        f"Theta: {theta:+.3f}"
-    )
-    iv_avg = strategy.get("avg_iv")
-    hv = strategy.get("HV30")
-    ivhv = strategy.get("iv_hv_spread")
-    skew = strategy.get("skew")
-    term = strategy.get("term_slope")
-    ivr = strategy.get("IV_Rank")
-    ivp = strategy.get("IV_Percentile")
-    parts = []
-    if iv_avg is not None:
-        parts.append(f"IV {iv_avg:.2%}")
-    if hv is not None:
-        parts.append(f"HV {hv:.2f}%")
-    if ivr is not None:
-        parts.append(f"IV Rank: {ivr:.1f}")
-    if ivp is not None:
-        parts.append(f"IV Pctl: {ivp:.1f}")
-    if ivhv is not None:
-        parts.append(f"IV-HV {ivhv:.2%}")
-    if skew is not None:
-        parts.append(f"Skew {skew*100:.1f}bp")
-    if term is not None:
-        parts.append(f"Term {term*100:.1f}bp")
-    if parts:
-        lines.append("- " + " | ".join(parts))
-    days_line: list[str] = []
-    dte = strategy.get("days_to_expiry")
-    dit = strategy.get("days_in_trade")
-    if dte is not None:
-        days_line.append(f"{dte}d tot exp")
-    if dit is not None:
-        days_line.append(f"{dit}d in trade")
-    if days_line:
-        lines.append("- " + " | ".join(days_line))
-    pnl = strategy.get("unrealizedPnL")
-    if pnl is not None:
-        margin_ref = strategy.get("init_margin") or strategy.get("margin_used") or 1000
-        rom = (pnl / margin_ref) * 100
-        lines.append(f"- PnL: {pnl:+.2f} (ROM: {rom:+.1f}%)")
-    spot = strategy.get("spot", 0)
-    delta_dollar = strategy.get("delta_dollar")
-    if delta is not None and spot and delta_dollar is not None:
-        try:
-            spot_fmt = f"{float(spot):.2f}"
-        except (TypeError, ValueError):
-            spot_fmt = str(spot)
-        lines.append(
-            f"- Delta exposure \u2248 ${delta_dollar:,.0f} bij spot {spot_fmt}"
-        )
-    margin = strategy.get("init_margin") or strategy.get("margin_used") or 1000
-    if theta is not None and margin:
-        theta_efficiency = abs(theta / margin) * 100
-        if theta_efficiency < 0.5:
-            rating = "⚠️ oninteressant"
-        elif theta_efficiency < 1.5:
-            rating = "🟡 acceptabel"
-        elif theta_efficiency < 2.5:
-            rating = "✅ goed"
-        else:
-            rating = "🟢 ideaal"
-        lines.append(
-            f"- Theta-rendement: {theta_efficiency:.2f}% per $1.000 margin - {rating}"
-        )
-    return lines
-
-
 def render_kpi_box(strategy: dict) -> str:
     """Return compact KPI summary for a strategy."""
     rom = strategy.get("rom")
@@ -403,9 +234,7 @@ def render_kpi_box(strategy: dict) -> str:
     )
 
 
-def print_strategy(
-    strategy, rule=None, *, view: str | None = None, details: bool = False
-):
+def print_strategy(strategy, rule=None, *, details: bool = False):
     """Print a strategy with entry info, current status, KPI box and alerts."""
     pnl = strategy.get("unrealizedPnL")
     color = "🟩" if pnl is not None and pnl >= 0 else "🟥"
@@ -418,11 +247,165 @@ def print_strategy(
         print(f"ℹ️ {desc}")
 
     print("📌 ENTRY-INFORMATIE")
-    for line in render_entry_view(strategy):
+    entry_lines: list[str] = []
+    spot_open = strategy.get("spot_open")
+    if spot_open is not None:
+        try:
+            entry_lines.append(f"- Spot bij open: {float(spot_open):.2f}")
+        except (TypeError, ValueError):
+            entry_lines.append(f"- Spot bij open: {spot_open}")
+    parts: list[str] = []
+    iv = strategy.get("avg_iv")
+    hv = strategy.get("HV30")
+    ivr = strategy.get("IV_Rank")
+    ivp = strategy.get("IV_Percentile")
+    skew = strategy.get("skew")
+    term = strategy.get("term_slope")
+    atr = strategy.get("ATR14")
+    if iv is not None:
+        parts.append(f"IV {iv:.2%}")
+    if hv is not None:
+        parts.append(f"HV {hv:.2f}%")
+    if ivr is not None:
+        parts.append(f"IV Rank: {ivr:.1f}")
+    if ivp is not None:
+        parts.append(f"IV Pctl: {ivp:.1f}")
+    if skew is not None:
+        parts.append(f"Skew {skew*100:.1f}bp")
+    if term is not None:
+        parts.append(f"Term {term*100:.1f}bp")
+    if atr is not None:
+        parts.append(f"ATR {atr:.2f}")
+    if parts:
+        entry_lines.append("- " + " | ".join(parts))
+    delta = strategy.get("delta")
+    gamma = strategy.get("gamma")
+    vega = strategy.get("vega")
+    theta = strategy.get("theta")
+    if any(x is not None for x in (delta, gamma, vega, theta)):
+        entry_lines.append(
+            "- "
+            f"Delta: {delta:+.3f} | "
+            f"Gamma: {gamma:+.3f} | "
+            f"Vega: {vega:+.3f} | "
+            f"Theta: {theta:+.3f}"
+        )
+    rom = strategy.get("rom")
+    if rom is not None:
+        entry_lines.append(f"- ROM bij instap: {rom:+.1f}%")
+    max_p = strategy.get("max_profit")
+    max_l = strategy.get("max_loss")
+    rr = strategy.get("risk_reward")
+    if max_p is not None and max_l is not None:
+        rr_disp = f" (R/R {rr:.2f})" if rr is not None else ""
+        entry_lines.append(
+            f"- Max winst {_fmt_money(max_p)} | Max verlies {_fmt_money(max_l)}{rr_disp}"
+        )
+    dte_entry = strategy.get("dte_entry")
+    if dte_entry is not None:
+        entry_lines.append(f"- DTE bij opening: {dte_entry} dagen")
+    for line in entry_lines:
         print(line)
 
     print("📈 HUIDIGE POSITIE")
-    for line in render_management_view(strategy):
+    mgmt_lines: list[str] = []
+    spot_now = strategy.get("spot_current") or strategy.get("spot")
+    if spot_now is not None or spot_open is not None:
+        parts = []
+        if spot_now is not None:
+            try:
+                spot_now_float = float(spot_now)
+                spot_now_str = f"{spot_now_float:.2f}"
+            except (TypeError, ValueError):
+                spot_now_str = str(spot_now)
+            diff_pct = None
+            if spot_open not in (None, 0, "0"):
+                try:
+                    diff_pct = (
+                        (float(spot_now) - float(spot_open)) / float(spot_open)
+                    ) * 100
+                except (TypeError, ValueError, ZeroDivisionError):
+                    diff_pct = None
+            if diff_pct is not None:
+                parts.append(f"Huidige spot: {spot_now_str} ({diff_pct:+.2f}%)")
+            else:
+                parts.append(f"Huidige spot: {spot_now_str}")
+        if spot_open is not None:
+            try:
+                spot_open_str = f"{float(spot_open):.2f}"
+            except (TypeError, ValueError):
+                spot_open_str = str(spot_open)
+            parts.append(f"Spot bij open: {spot_open_str}")
+        mgmt_lines.append("- " + " | ".join(parts))
+    mgmt_lines.append(
+        f"- Delta: {delta:+.3f} "
+        f"Gamma: {gamma:+.3f} "
+        f"Vega: {vega:+.3f} "
+        f"Theta: {theta:+.3f}"
+    )
+    iv_avg = strategy.get("avg_iv")
+    hv = strategy.get("HV30")
+    ivhv = strategy.get("iv_hv_spread")
+    skew = strategy.get("skew")
+    term = strategy.get("term_slope")
+    ivr = strategy.get("IV_Rank")
+    ivp = strategy.get("IV_Percentile")
+    parts = []
+    if iv_avg is not None:
+        parts.append(f"IV {iv_avg:.2%}")
+    if hv is not None:
+        parts.append(f"HV {hv:.2f}%")
+    if ivr is not None:
+        parts.append(f"IV Rank: {ivr:.1f}")
+    if ivp is not None:
+        parts.append(f"IV Pctl: {ivp:.1f}")
+    if ivhv is not None:
+        parts.append(f"IV-HV {ivhv:.2%}")
+    if skew is not None:
+        parts.append(f"Skew {skew*100:.1f}bp")
+    if term is not None:
+        parts.append(f"Term {term*100:.1f}bp")
+    if parts:
+        mgmt_lines.append("- " + " | ".join(parts))
+    days_line: list[str] = []
+    dte = strategy.get("days_to_expiry")
+    dit = strategy.get("days_in_trade")
+    if dte is not None:
+        days_line.append(f"{dte}d tot exp")
+    if dit is not None:
+        days_line.append(f"{dit}d in trade")
+    if days_line:
+        mgmt_lines.append("- " + " | ".join(days_line))
+    pnl_val = strategy.get("unrealizedPnL")
+    if pnl_val is not None:
+        margin_ref = strategy.get("init_margin") or strategy.get("margin_used") or 1000
+        rom_now = (pnl_val / margin_ref) * 100
+        mgmt_lines.append(f"- PnL: {pnl_val:+.2f} (ROM: {rom_now:+.1f}%)")
+    spot = strategy.get("spot", 0)
+    delta_dollar = strategy.get("delta_dollar")
+    if delta is not None and spot and delta_dollar is not None:
+        try:
+            spot_fmt = f"{float(spot):.2f}"
+        except (TypeError, ValueError):
+            spot_fmt = str(spot)
+        mgmt_lines.append(
+            f"- Delta exposure ≈ ${delta_dollar:,.0f} bij spot {spot_fmt}"
+        )
+    margin = strategy.get("init_margin") or strategy.get("margin_used") or 1000
+    if theta is not None and margin:
+        theta_efficiency = abs(theta / margin) * 100
+        if theta_efficiency < 0.5:
+            rating = "⚠️ oninteressant"
+        elif theta_efficiency < 1.5:
+            rating = "🟡 acceptabel"
+        elif theta_efficiency < 2.5:
+            rating = "✅ goed"
+        else:
+            rating = "🟢 ideaal"
+        mgmt_lines.append(
+            f"- Theta-rendement: {theta_efficiency:.2f}% per $1.000 margin - {rating}"
+        )
+    for line in mgmt_lines:
         print(line)
 
     print("📊 KPI BOX")
@@ -501,7 +484,6 @@ def main(argv=None):
     args = []
     details = False
     account_details = False
-    view_override = None
     refresh = False
     i = 0
     while i < len(argv):
@@ -529,17 +511,6 @@ def main(argv=None):
             continue
         if arg == "--account":
             account_details = True
-            i += 1
-            continue
-        if arg == "--view":
-            if i + 1 >= len(argv):
-                print("--view requires argument [entry|management]")
-                return 1
-            view_override = argv[i + 1]
-            i += 2
-            continue
-        if arg.startswith("--view="):
-            view_override = arg.split("=", 1)[1]
             i += 1
             continue
         args.append(arg)
@@ -598,7 +569,7 @@ def main(argv=None):
     print("=== Open posities ===")
     for s in strategies:
         rule = exit_rules.get((s["symbol"], s["expiry"]))
-        print_strategy(s, rule, view=view_override, details=details)
+        print_strategy(s, rule, details=details)
         type_counts[s.get("type")] += 1
         if s.get("delta_dollar") is not None:
             total_delta_dollar += s["delta_dollar"]
