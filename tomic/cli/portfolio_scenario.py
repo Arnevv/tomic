@@ -1,10 +1,10 @@
 """Simulate portfolio exposure after spot and IV shifts."""
 
-import json
 from typing import Any, Dict, List
 
 from tomic.analysis.strategy import group_strategies
 from tomic.config import get as cfg_get
+from tomic.journal.utils import load_json
 
 
 def simulate_portfolio_response(
@@ -56,8 +56,7 @@ def simulate_portfolio_response(
 
 def load_positions(path: str) -> List[Dict[str, Any]]:
     """Load positions from ``path``."""
-    with open(path, "r", encoding="utf-8") as f:
-        return json.load(f)
+    return load_json(path)
 
 
 def main(argv: List[str] | None = None) -> None:

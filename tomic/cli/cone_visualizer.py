@@ -1,16 +1,15 @@
 """Visualize volatility cone percentiles for a symbol."""
 
-import json
 from datetime import datetime
 from typing import List, Tuple
 
 from tomic.config import get as cfg_get
 from tomic.utils import today
+from tomic.journal.utils import load_json
 
 
 def get_iv_percentile(symbol: str, snapshot_file: str, lookback_days: int = 365) -> Tuple[float, float, float, float, float]:
-    with open(snapshot_file, "r", encoding="utf-8") as f:
-        data = json.load(f)
+    data = load_json(snapshot_file)
     today_date = today()
 
     entries = [

@@ -8,6 +8,7 @@ from datetime import datetime
 import json
 from tomic.analysis.get_iv_rank import fetch_iv_metrics
 from tomic.analysis.greeks import compute_portfolio_greeks
+from tomic.api.market_utils import start_app
 
 from tomic.logging import logger
 
@@ -242,10 +243,6 @@ class IBApp(BaseIBApp):
         logger.error("⚠️ Error {}: {}", errorCode, errorString)
 
 
-def run_loop(app):
-    app.run()
-
-
 def main() -> None:
     """CLI entry point executing the original script logic."""
     setup_logging()
@@ -253,10 +250,7 @@ def main() -> None:
     app = IBApp()
     host = cfg_get("IB_HOST", "127.0.0.1")
     port = int(cfg_get("IB_PORT", 7497))
-    app.connect(host, port, clientId=1)
-
-    api_thread = threading.Thread(target=run_loop, args=(app,), daemon=True)
-    api_thread.start()
+    start_app(app, host=host, port=port, client_id=1)
 
     app.account_event.wait(timeout=10)
     app.position_event.wait(timeout=10)
