@@ -1,6 +1,5 @@
 """Attach event alerts to strategies."""
 
-import json
 from datetime import datetime
 from typing import Dict, List
 
@@ -9,6 +8,7 @@ from tomic.logging import logger
 from tomic.config import get as cfg_get
 from tomic.logging import setup_logging
 from tomic.utils import today
+from tomic.journal.utils import load_json
 
 
 def apply_event_alerts(
@@ -16,8 +16,7 @@ def apply_event_alerts(
 ) -> None:
     """Add upcoming event alerts to strategies in place."""
     try:
-        with open(event_json_path, "r", encoding="utf-8") as f:
-            events = json.load(f)
+        events = load_json(event_json_path)
     except FileNotFoundError:
         return
 
@@ -53,8 +52,7 @@ def main(argv: List[str] | None = None) -> None:
 
     from tomic.analysis.strategy import group_strategies
 
-    with open(strategies_file, "r", encoding="utf-8") as f:
-        positions = json.load(f)
+    positions = load_json(strategies_file)
     strategies = group_strategies(positions)
     apply_event_alerts(strategies)
     for strat in strategies:
