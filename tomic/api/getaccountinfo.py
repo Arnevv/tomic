@@ -9,6 +9,7 @@ from datetime import datetime
 import json
 from tomic.api.market_utils import calculate_hv30, calculate_atr14, count_incomplete
 from tomic.analysis.get_iv_rank import fetch_iv_metrics
+from tomic.analysis.greeks import compute_portfolio_greeks
 
 from tomic.logging import logger
 
@@ -314,17 +315,7 @@ def main() -> None:
     if app.count_incomplete() > 0:
         logger.warning("⚠️ Some legs remain incomplete.")
 
-    portfolio = {"Delta": 0.0, "Gamma": 0.0, "Vega": 0.0, "Theta": 0.0}
-    for pos in app.positions_data:
-        mult = float(pos.get("multiplier") or 1)
-        qty = pos.get("position", 0)
-        for greek in ["delta", "gamma", "vega", "theta"]:
-            val = pos.get(greek)
-            if val is not None:
-                if greek == "delta":
-                    portfolio["Delta"] += val * qty
-                else:
-                    portfolio[greek.capitalize()] += val * qty * mult
+    portfolio = compute_portfolio_greeks(app.positions_data)
 
     for pos in app.positions_data:
         sym = pos["symbol"]
