@@ -3,7 +3,7 @@
 import json
 from typing import Any, Dict, List
 
-from .strategy_dashboard import group_strategies
+from tomic.analysis.strategy import group_strategies
 from tomic.config import get as cfg_get
 
 
@@ -37,7 +37,11 @@ def simulate_portfolio_response(
             totals["delta"] += new_delta * qty
             totals["vega"] += vega * qty * mult
             totals["theta"] += theta * qty * mult
-            price_change = (delta * dS + 0.5 * gamma * dS ** 2 + vega * iv_shift_pct * iv) * mult * qty
+            price_change = (
+                (delta * dS + 0.5 * gamma * dS**2 + vega * iv_shift_pct * iv)
+                * mult
+                * qty
+            )
             pnl_change += price_change
 
     rom_before = (base_pnl / margin_total) * 100 if margin_total else None
@@ -83,7 +87,9 @@ def main(argv: List[str] | None = None) -> None:
         print("\n=== Scenario Analyse ===")
         print(f"Spot shift: {spot_shift*100:.1f}% | IV shift: {iv_shift*100:.1f}%")
         totals = result["totals"]
-        print(f"Delta: {totals['delta']:+.2f} | Vega: {totals['vega']:+.2f} | Theta: {totals['theta']:+.2f}")
+        print(
+            f"Delta: {totals['delta']:+.2f} | Vega: {totals['vega']:+.2f} | Theta: {totals['theta']:+.2f}"
+        )
         pnl = result["pnl_change"]
         print(f"Geschatte PnL verandering: {pnl:+.2f}")
         if result["rom_before"] is not None and result["rom_after"] is not None:
@@ -110,4 +116,5 @@ def main(argv: List[str] | None = None) -> None:
 
 if __name__ == "__main__":
     import sys
+
     main(sys.argv[1:])
