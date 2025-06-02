@@ -22,11 +22,23 @@ class _OpenInterestApp(BaseIBApp):
         self.open_interest: Optional[int] = None
         self.open_interest_event = threading.Event()
 
+    def _log_request(self) -> None:
+        logger.debug(
+            "Requesting open interest for %s %s %.2f%s",
+            self.symbol,
+            self.expiry,
+            self.strike,
+            self.right,
+        )
+
     def nextValidId(self, orderId: int) -> None:  # noqa: N802 - IB API callback
         contract = create_option_contract(
             self.symbol, self.expiry, self.strike, self.right
         )
-        self.reqMktData(1001, contract, "101", False, False, [])
+        # Request volume (100) and open interest (101) generic ticks. Some
+        # brokers send open interest via tick types 86/87 instead of 101.
+        self._log_request()
+        self.reqMktData(1001, contract, "100,101", False, False, [])
 
     def tickGeneric(
         self, reqId: int, tickType: int, value: float
@@ -34,6 +46,18 @@ class _OpenInterestApp(BaseIBApp):
         if tickType == 101:
             self.open_interest = int(value)
             self.open_interest_event.set()
+        logger.debug("tickGeneric: reqId=%s tickType=%s value=%s", reqId, tickType, value)
+
+    def tickPrice(
+        self, reqId: int, tickType: int, price: float, attrib
+    ) -> None:  # noqa: N802
+        if tickType in (86, 87):  # option call/put open interest
+            self.open_interest = int(price)
+            self.open_interest_event.set()
+        logger.debug("tickPrice: reqId=%s tickType=%s price=%s", reqId, tickType, price)
+
+
+WAIT_TIMEOUT = 20
 
 
 def fetch_open_interest(
@@ -45,7 +69,11 @@ def fetch_open_interest(
     app = _OpenInterestApp(symbol.upper(), expiry, strike, right.upper())
     start_app(app)
 
-    if not app.open_interest_event.wait(timeout=10):
+    logger.debug(
+        "Waiting up to %s seconds for open interest data", WAIT_TIMEOUT
+    )
+
+    if not app.open_interest_event.wait(timeout=WAIT_TIMEOUT):
         logger.error("❌ Geen open interest ontvangen.")
         app.disconnect()
         return None
