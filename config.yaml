@@ -1,0 +1,30 @@
+DEFAULT_SYMBOLS:
+  - AAPL
+  - ASML
+  - CRM
+  - DIA
+  - EWG
+  - EWJ
+  - EWZ
+  - FEZ
+  - FXI
+  - GLD
+  - INDA
+  - NVDA
+  - QQQ
+  - RUT
+  - SPY
+  - TSLA
+  - VIX
+  - XLE
+  - XLF
+  - XLV
+POSITIONS_FILE: positions.json
+ACCOUNT_INFO_FILE: account_info.json
+PORTFOLIO_META_FILE: portfolio_meta.json
+JOURNAL_FILE: journal.json
+VOLATILITY_DATA_FILE: volatility_data.json
+EXPORT_DIR: exports
+IB_HOST: 127.0.0.1
+IB_PORT: 7497
+LOG_LEVEL: INFO
