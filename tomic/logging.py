@@ -4,6 +4,8 @@ import logging
 import os
 import sys
 
+from tomic.config import get as cfg_get
+
 try:
     from loguru import logger  # type: ignore
 
@@ -15,6 +17,7 @@ except ImportError:  # pragma: no cover - optional dependency
     _LOGURU_AVAILABLE = False
 
 if not hasattr(logger, "success"):
+
     def _success(message: str, *args: object, **kwargs: object) -> None:
         """Fallback for loguru's ``success`` method using ``info`` level."""
         logger.info(message, *args, **kwargs)
@@ -36,10 +39,10 @@ class InterceptHandler(logging.Handler):
 
 
 def setup_logging(default_level: int = logging.INFO) -> None:
-    """Configure loguru logging based on environment variables."""
+    """Configure loguru logging based on configuration and environment."""
 
     debug_env = os.getenv("TOMIC_DEBUG", "0")
-    level_name = os.getenv("TOMIC_LOG_LEVEL", "").upper()
+    level_name = os.getenv("TOMIC_LOG_LEVEL", cfg_get("LOG_LEVEL", "INFO")).upper()
 
     is_debug = debug_env not in {"0", "", "false", "False"}
 
