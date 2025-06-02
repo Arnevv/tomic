@@ -1,5 +1,6 @@
 ibapi
 pandas
 PyYAML
+pydantic
 pytest
 loguru
