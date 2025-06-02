@@ -9,7 +9,56 @@ from tomic.config import get as cfg_get
 
 from ibapi.contract import Contract
 
+from tomic.logging import logger
 from tomic.analysis.get_iv_rank import fetch_iv_metrics
+
+# --- App helpers ------------------------------------------------------------
+
+
+def start_app(app) -> None:
+    """Connect and start the IB API client."""
+    host = cfg_get("IB_HOST", "127.0.0.1")
+    port = int(cfg_get("IB_PORT", 7497))
+    app.connect(host, port, clientId=200)
+    thread = threading.Thread(target=app.run, daemon=True)
+    thread.start()
+
+
+def await_market_data(app, symbol: str) -> bool:
+    """Wait until option market data is received."""
+    if not app.spot_price_event.wait(timeout=10):
+        logger.error("❌ Spotprijs ophalen mislukt.")
+        return False
+    if not app.contract_details_event.wait(timeout=10):
+        logger.error("❌ Geen contractdetails ontvangen.")
+        return False
+    if not getattr(app, "conId", None):
+        logger.error("❌ Geen conId ontvangen.")
+        return False
+    app.reqSecDefOptParams(1201, symbol, "", "STK", app.conId)
+    if not app.option_params_event.wait(timeout=10):
+        logger.error("❌ Geen expiries ontvangen.")
+        return False
+    logger.info("⏳ Wachten op marketdata (10 seconden)...")
+    time.sleep(10)
+    total = len([k for k in app.market_data if k not in app.invalid_contracts])
+    incomplete = app.count_incomplete()
+    waited = 10
+    while incomplete > 0 and waited < 60:
+        logger.info(
+            f"⏳ {incomplete} van {total} opties niet compleet na {waited} seconden. Wachten..."
+        )
+        time.sleep(5)
+        waited += 5
+        incomplete = app.count_incomplete()
+    if incomplete > 0:
+        logger.warning(
+            f"⚠️ {incomplete} opties blijven incompleet na {waited} seconden. Berekeningen gaan verder met beschikbare data."
+        )
+    else:
+        logger.info(f"✅ Alle opties volledig na {waited} seconden.")
+    return True
+
 
 
 def count_incomplete(records: list[dict]) -> int:
@@ -227,6 +276,9 @@ __all__ = [
     "create_option_contract",
     "calculate_hv30",
     "calculate_atr14",
+    "start_app",
+    "await_market_data",
     "count_incomplete",
     "fetch_market_metrics",
 ]
+
