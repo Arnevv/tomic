@@ -1,26 +1,26 @@
-from tomic.api.base_client import BaseIBApp
-from ibapi.contract import Contract
-from ibapi.common import *
-from ibapi.account_summary_tags import *
-from ibapi.ticktype import TickTypeEnum
+from __future__ import annotations
 
 from datetime import datetime
 import json
-from tomic.analysis.get_iv_rank import fetch_iv_metrics
-from tomic.analysis.greeks import compute_portfolio_greeks
-from tomic.api.market_utils import start_app
-
-from tomic.logging import logger
-
-# Alias to avoid NameError if standard logging is accidentally used
-logging = logger
-
 import threading
 import time
 
+from ibapi.account_summary_tags import AccountSummaryTags
+from ibapi.common import OrderId, TickerId
+from ibapi.contract import Contract
+from ibapi.ticktype import TickTypeEnum
+
+from tomic.api.base_client import BaseIBApp
+from tomic.api.market_utils import count_incomplete
+from tomic.analysis.get_iv_rank import fetch_iv_metrics
+from tomic.analysis.greeks import compute_portfolio_greeks
+from tomic.api.market_utils import start_app
 from tomic.config import get as cfg_get
-from tomic.logging import setup_logging
-from tomic.helpers.account import _fmt_money, print_account_overview
+from tomic.logging import logger, setup_logging
+
+
+# Alias to avoid NameError if standard logging is accidentally used
+logging = logger
 
 
 class IBApp(BaseIBApp):
@@ -231,8 +231,6 @@ class IBApp(BaseIBApp):
 
     def historicalDataEnd(self, reqId: int, start: str, end: str):
         self.hist_event.set()
-
-
 
     def count_incomplete(self):
         """Return how many positions are missing market or Greek data."""
