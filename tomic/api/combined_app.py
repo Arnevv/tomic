@@ -82,14 +82,14 @@ class CombinedApp(BaseIBApp):
                         "open_interest": None,
                         "volume": None,
                     }
-                    # Request a market data snapshot to ensure open interest is
-                    # populated immediately. Streaming requests often miss this
-                    # field for options.
+                    # Request streaming market data including option specific
+                    # generic ticks for volume and open interest. Snapshot
+                    # requests are not allowed for generic ticks.
                     self.reqMktData(
                         req_id,
                         contract,
                         "100,101",
-                        True,
+                        False,
                         False,
                         [],
                     )
@@ -235,5 +235,6 @@ class CombinedApp(BaseIBApp):
 
     def historicalDataEnd(self, reqId: int, start: str, end: str):  # noqa: N802
         self.historical_event.set()
+
 
 __all__ = ["CombinedApp"]
