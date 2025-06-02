@@ -86,9 +86,9 @@ def test_event_watcher_main(tmp_path, monkeypatch):
     positions_path.write_text("[]")
     monkeypatch.setattr(mod, "setup_logging", lambda: None)
     monkeypatch.setattr(mod, "cfg_get", lambda name, default=None: str(positions_path))
-    dashboard_stub = types.ModuleType("tomic.cli.strategy_dashboard")
+    dashboard_stub = types.ModuleType("tomic.analysis.strategy")
     dashboard_stub.group_strategies = lambda pos: [{"symbol": "AAA"}]
-    monkeypatch.setitem(sys.modules, "tomic.cli.strategy_dashboard", dashboard_stub)
+    monkeypatch.setitem(sys.modules, "tomic.analysis.strategy", dashboard_stub)
     monkeypatch.setattr(
         mod, "apply_event_alerts", lambda strategies, event_json_path="": None
     )
@@ -114,9 +114,9 @@ def test_entry_checker_main(tmp_path, monkeypatch):
     pos = tmp_path / "p.json"
     pos.write_text("[]")
     monkeypatch.setattr(mod, "cfg_get", lambda name, default=None: str(pos))
-    dashboard_stub = types.ModuleType("tomic.cli.strategy_dashboard")
+    dashboard_stub = types.ModuleType("tomic.analysis.strategy")
     dashboard_stub.group_strategies = lambda positions: [{"symbol": "AAA", "type": "X"}]
-    monkeypatch.setitem(sys.modules, "tomic.cli.strategy_dashboard", dashboard_stub)
+    monkeypatch.setitem(sys.modules, "tomic.analysis.strategy", dashboard_stub)
     monkeypatch.setattr(mod, "check_entry_conditions", lambda strat: ["warn"])
     lines = []
     monkeypatch.setattr(
@@ -209,11 +209,11 @@ def test_synthetics_detector_main(tmp_path, monkeypatch):
     path = tmp_path / "p.json"
     path.write_text("[]")
     monkeypatch.setattr(mod, "cfg_get", lambda name, default=None: str(path))
-    dashboard_stub = types.ModuleType("tomic.cli.strategy_dashboard")
+    dashboard_stub = types.ModuleType("tomic.analysis.strategy")
     dashboard_stub.group_strategies = lambda positions: [
         {"symbol": "AAA", "type": "Test", "legs": []}
     ]
-    monkeypatch.setitem(sys.modules, "tomic.cli.strategy_dashboard", dashboard_stub)
+    monkeypatch.setitem(sys.modules, "tomic.analysis.strategy", dashboard_stub)
     monkeypatch.setattr(
         mod, "analyze_synthetics_and_edge", lambda s: {"synthetic": "stock"}
     )
