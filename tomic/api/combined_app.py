@@ -89,7 +89,17 @@ class CombinedApp(EWrapper, EClient):
                         "open_interest": None,
                         "volume": None,
                     }
-                    self.reqMktData(req_id, contract, "100,101", False, False, [])
+                    # Request a market data snapshot to ensure open interest is
+                    # populated immediately. Streaming requests often miss this
+                    # field for options.
+                    self.reqMktData(
+                        req_id,
+                        contract,
+                        "100,101",
+                        True,
+                        False,
+                        [],
+                    )
 
     def get_historical_data(self):
         contract = create_underlying(self.symbol)
