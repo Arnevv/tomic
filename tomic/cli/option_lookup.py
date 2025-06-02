@@ -22,7 +22,12 @@ def run() -> None:
         print("Ongeldige strike")
         return
 
-    data = fetch_option_metrics(symbol, expiry, strike)
+    right = input("Type (C/P): ").strip().upper() or None
+    if right not in ("C", "P", None):
+        print("Ongeldig type")
+        return
+
+    data = fetch_option_metrics(symbol, expiry, strike, right)
     if not data:
         print("❌ Ophalen mislukt")
         return
