@@ -3,8 +3,7 @@
 from __future__ import annotations
 
 from typing import Any, Dict
-
-from tomic.api.market_export import _await_market_data, _start_app
+from tomic.api.market_utils import start_app, await_market_data
 from tomic.api.combined_app import CombinedApp
 from tomic.logging import logger
 
@@ -22,8 +21,8 @@ def fetch_option_metrics(
 
     expiry = expiry.replace("-", "")
     app = CombinedApp(symbol)
-    _start_app(app)
-    if not _await_market_data(app, symbol):
+    start_app(app)
+    if not await_market_data(app, symbol):
         app.disconnect()
         return None
 

@@ -1,6 +1,5 @@
 # Common CombinedApp implementation shared across market utilities.
-from ibapi.client import EClient
-from ibapi.wrapper import EWrapper
+from tomic.api.base_client import BaseIBApp
 from ibapi.contract import Contract, ContractDetails
 from ibapi.ticktype import TickTypeEnum
 from ibapi.common import TickerId
@@ -12,17 +11,14 @@ from tomic.logging import logger
 from .market_utils import (
     create_underlying,
     create_option_contract,
-    calculate_hv30,
-    calculate_atr14,
-    count_incomplete,
 )
 
 
-class CombinedApp(EWrapper, EClient):
-    """IB API client that exposes both EClient and EWrapper behaviour."""
+class CombinedApp(BaseIBApp):
+    """IB API client exposing ``EClient`` and ``EWrapper`` behaviour."""
 
     def __init__(self, symbol: str):
-        EClient.__init__(self, self)
+        super().__init__()
         self.symbol = symbol.upper()
         self.ready_event = threading.Event()
         self.spot_price_event = threading.Event()
@@ -37,10 +33,7 @@ class CombinedApp(EWrapper, EClient):
         self.expiries = []
         self.strikes = []
         self.trading_class = None
-        self.market_data = {}
-        self.invalid_contracts = set()
         self.req_id_counter = 2000
-        self.historical_data = []
 
     def get_next_req_id(self):
         self.req_id_counter += 1
@@ -242,19 +235,5 @@ class CombinedApp(EWrapper, EClient):
 
     def historicalDataEnd(self, reqId: int, start: str, end: str):  # noqa: N802
         self.historical_event.set()
-
-    # --- Calculations --------------------------------------------------------
-    def calculate_hv30(self):
-        return calculate_hv30(self.historical_data)
-
-    def calculate_atr14(self):
-        return calculate_atr14(self.historical_data)
-
-    def count_incomplete(self):
-        relevant = [
-            d for k, d in self.market_data.items() if k not in self.invalid_contracts
-        ]
-        return count_incomplete(relevant)
-
 
 __all__ = ["CombinedApp"]

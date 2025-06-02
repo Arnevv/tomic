@@ -13,7 +13,7 @@ import pandas as pd
 
 from tomic.logging import logger
 from tomic.api.combined_app import CombinedApp
-from tomic.api.market_utils import fetch_market_metrics
+from tomic.api.market_utils import fetch_market_metrics, start_app, await_market_data
 from tomic.config import get as cfg_get
 
 
@@ -49,51 +49,6 @@ _HEADERS_METRICS = [
 ]
 
 
-def _start_app(app: CombinedApp) -> None:
-    """Connect and start the IBKR app in a background thread."""
-    host = cfg_get("IB_HOST", "127.0.0.1")
-    port = int(cfg_get("IB_PORT", 7497))
-    app.connect(host, port, clientId=200)
-    thread = threading.Thread(target=app.run, daemon=True)
-    thread.start()
-
-
-def _await_market_data(app: CombinedApp, symbol: str) -> bool:
-    """Wait for option market data to be fully received."""
-    if not app.spot_price_event.wait(timeout=10):
-        logger.error("❌ Spotprijs ophalen mislukt.")
-        return False
-    if not app.contract_details_event.wait(timeout=10):
-        logger.error("❌ Geen contractdetails ontvangen.")
-        return False
-    if not app.conId:
-        logger.error("❌ Geen conId ontvangen.")
-        return False
-    app.reqSecDefOptParams(1201, symbol, "", "STK", app.conId)
-    if not app.option_params_event.wait(timeout=10):
-        logger.error("❌ Geen expiries ontvangen.")
-        return False
-    logger.info("⏳ Wachten op marketdata (10 seconden)...")
-    time.sleep(10)
-    total_options = len([k for k in app.market_data if k not in app.invalid_contracts])
-    incomplete = app.count_incomplete()
-    waited = 10
-    max_wait = 60
-    interval = 5
-    while incomplete > 0 and waited < max_wait:
-        logger.info(
-            f"⏳ {incomplete} van {total_options} opties niet compleet na {waited} seconden. Wachten..."
-        )
-        time.sleep(interval)
-        waited += interval
-        incomplete = app.count_incomplete()
-    if incomplete > 0:
-        logger.warning(
-            f"⚠️ {incomplete} opties blijven incompleet na {waited} seconden. Berekeningen gaan verder met beschikbare data."
-        )
-    else:
-        logger.info(f"✅ Alle opties volledig na {waited} seconden.")
-    return True
 
 
 def _write_option_chain(
@@ -249,8 +204,8 @@ def export_market_data(
         logger.error(f"❌ Marktkenmerken ophalen mislukt: {exc}")
         return None
     app = CombinedApp(symbol)
-    _start_app(app)
-    if not _await_market_data(app, symbol):
+    start_app(app)
+    if not await_market_data(app, symbol):
         app.disconnect()
         return None
     if output_dir is None:
