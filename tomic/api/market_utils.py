@@ -13,20 +13,22 @@ from tomic.analysis.get_iv_rank import fetch_iv_metrics
 
 
 def count_incomplete(records: list[dict]) -> int:
-    """Return how many option records miss market or Greek data."""
+    """Return how many option records miss market, Greek or volume data."""
+
+    required_fields = {
+        "bid",
+        "ask",
+        "iv",
+        "delta",
+        "gamma",
+        "vega",
+        "theta",
+        "open_interest",
+        "volume",
+    }
 
     return sum(
-        1
-        for rec in records
-        if (
-            rec.get("bid") is None
-            or rec.get("ask") is None
-            or rec.get("iv") is None
-            or rec.get("delta") is None
-            or rec.get("gamma") is None
-            or rec.get("vega") is None
-            or rec.get("theta") is None
-        )
+        1 for rec in records if any(rec.get(field) is None for field in required_fields)
     )
 
 
