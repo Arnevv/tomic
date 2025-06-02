@@ -2,7 +2,8 @@ name: Update volatility metrics
 
 on:
   schedule:
-    - cron: '5 20 * * *'
+    # Run at 20:05 UTC from Monday (1) to Friday (5)
+    - cron: '5 20 * * 1-5'
   workflow_dispatch:
 
 jobs:
@@ -33,7 +34,7 @@ jobs:
       - name: Run volatility snapshot script
         run: |
           echo "Running volatility snapshot"
-          python daily_vol_scraper.py AAPL ASML CRM DIA EWG EWJ EWZ FEZ FXI GLD INDA NVDA QQQ RUT SPY TSLA VIX XLE XLF XLV
+          python tomic/cli/daily_vol_scraper.py AAPL ASML CRM DIA EWG EWJ EWZ FEZ FXI GLD INDA NVDA QQQ RUT SPY TSLA VIX XLE XLF XLV
           echo "Snapshot script completed"
 
       - name: Commit and push changes
