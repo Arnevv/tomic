@@ -255,13 +255,13 @@ def print_strategy(strategy, rule=None, *, details: bool = False):
         except (TypeError, ValueError):
             entry_lines.append(f"- Spot bij open: {spot_open}")
     parts: list[str] = []
-    iv = strategy.get("avg_iv")
-    hv = strategy.get("HV30")
-    ivr = strategy.get("IV_Rank")
-    ivp = strategy.get("IV_Percentile")
-    skew = strategy.get("skew")
+    iv = strategy.get("iv_entry")
+    hv = strategy.get("hv_entry")
+    ivr = strategy.get("ivrank_entry")
+    ivp = strategy.get("ivpct_entry")
+    skew = strategy.get("skew_entry")
     term = strategy.get("term_slope")
-    atr = strategy.get("ATR14")
+    atr = strategy.get("atr_entry")
     if iv is not None:
         parts.append(f"IV {iv:.2%}")
     if hv is not None:
@@ -278,11 +278,23 @@ def print_strategy(strategy, rule=None, *, details: bool = False):
         parts.append(f"ATR {atr:.2f}")
     if parts:
         entry_lines.append("- " + " | ".join(parts))
+    delta_entry = strategy.get("delta_entry")
+    gamma_entry = strategy.get("gamma_entry")
+    vega_entry = strategy.get("vega_entry")
+    theta_entry = strategy.get("theta_entry")
     delta = strategy.get("delta")
     gamma = strategy.get("gamma")
     vega = strategy.get("vega")
     theta = strategy.get("theta")
-    if any(x is not None for x in (delta, gamma, vega, theta)):
+    if any(x is not None for x in (delta_entry, gamma_entry, vega_entry, theta_entry)):
+        entry_lines.append(
+            "- "
+            f"Delta: {delta_entry:+.3f} | "
+            f"Gamma: {gamma_entry:+.3f} | "
+            f"Vega: {vega_entry:+.3f} | "
+            f"Theta: {theta_entry:+.3f}"
+        )
+    elif any(x is not None for x in (delta, gamma, vega, theta)):
         entry_lines.append(
             "- "
             f"Delta: {delta:+.3f} | "
@@ -337,11 +349,15 @@ def print_strategy(strategy, rule=None, *, details: bool = False):
                 spot_open_str = str(spot_open)
             parts.append(f"Spot bij open: {spot_open_str}")
         mgmt_lines.append("- " + " | ".join(parts))
+    delta_fmt = f"{delta:+.3f}" if delta is not None else "n.v.t."
+    gamma_fmt = f"{gamma:+.3f}" if gamma is not None else "n.v.t."
+    vega_fmt = f"{vega:+.3f}" if vega is not None else "n.v.t."
+    theta_fmt = f"{theta:+.3f}" if theta is not None else "n.v.t."
     mgmt_lines.append(
-        f"- Delta: {delta:+.3f} "
-        f"Gamma: {gamma:+.3f} "
-        f"Vega: {vega:+.3f} "
-        f"Theta: {theta:+.3f}"
+        f"- Delta: {delta_fmt} "
+        f"Gamma: {gamma_fmt} "
+        f"Vega: {vega_fmt} "
+        f"Theta: {theta_fmt}"
     )
     iv_avg = strategy.get("avg_iv")
     hv = strategy.get("HV30")
