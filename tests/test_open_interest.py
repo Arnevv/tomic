@@ -20,6 +20,8 @@ base_stub = types.ModuleType("tomic.api.base_client")
 
 
 class DummyApp:
+    called_market_data_type = None
+
     def __init__(self, *args, **kwargs):
         self.open_interest = None
         self.open_interest_event = types.SimpleNamespace(
@@ -32,6 +34,9 @@ class DummyApp:
         assert tick_list == "100,101"
         # Simulate server response via tickPrice
         self.tickPrice(req_id, 86, 42, None)
+
+    def reqMarketDataType(self, data_type):
+        DummyApp.called_market_data_type = data_type
 
     def tickPrice(self, req_id, tick_type, price, attrib):
         if tick_type in (86, 87):
@@ -50,6 +55,7 @@ open_interest = importlib.reload(importlib.import_module("tomic.api.open_interes
 
 def test_fetch_open_interest_value():
     assert open_interest.fetch_open_interest("ABC", "2025-01-01", 100.0, "C") == 42
+    assert DummyApp.called_market_data_type == 2
 
 
 def test_fetch_open_interest_none_if_no_event():
