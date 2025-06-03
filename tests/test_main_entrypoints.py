@@ -276,3 +276,15 @@ def test_getallmarkets_run(monkeypatch):
     monkeypatch.setitem(sys.modules, "tomic.api.market_export", export_stub)
     mod = importlib.reload(importlib.import_module("tomic.api.getallmarkets"))
     assert mod.run("XYZ") == "XYZ"
+
+
+def test_option_lookup_main_invalid_expiry(monkeypatch):
+    mod = importlib.import_module("tomic.cli.option_lookup")
+    monkeypatch.setattr(mod, "setup_logging", lambda: None)
+    monkeypatch.setattr(mod, "fetch_open_interest", lambda *a, **k: None)
+    output = []
+    monkeypatch.setattr(
+        builtins, "print", lambda *a, **k: output.append(" ".join(str(x) for x in a))
+    )
+    mod.main(["SPY", "2025-20-06", "100", "C"])
+    assert any("Ongeldige" in line for line in output)
