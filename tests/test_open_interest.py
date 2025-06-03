@@ -52,7 +52,7 @@ open_interest = importlib.reload(importlib.import_module("tomic.api.open_interes
 def test_fetch_open_interest_value():
     DummyApp.called_market_data_types.clear()
     assert open_interest.fetch_open_interest("ABC", "2025-01-01", 100.0, "C") == 42
-    assert DummyApp.called_market_data_types == [2, 4]
+    assert DummyApp.called_market_data_types == [2, 3]
 
 
 def test_fetch_open_interest_none_if_no_event():
