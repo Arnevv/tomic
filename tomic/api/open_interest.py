@@ -37,7 +37,7 @@ class _OpenInterestApp(BaseIBApp):
         self._log_request()
         # Ensure we receive frozen market data so open interest is returned
         self.reqMarketDataType(2)
-        self.reqMktData(1001, contract, "100,101", False, False, [])
+        self.reqMktData(1001, contract, "101", False, False, [])
 
     def tickGeneric(
         self, reqId: int, tickType: int, value: float
@@ -45,9 +45,7 @@ class _OpenInterestApp(BaseIBApp):
         if tickType == 101:
             self.open_interest = int(value)
             self.open_interest_event.set()
-        logger.debug(
-            f"tickGeneric: reqId={reqId} tickType={tickType} value={value}"
-        )
+        logger.debug(f"tickGeneric: reqId={reqId} tickType={tickType} value={value}")
 
     def tickPrice(
         self, reqId: int, tickType: int, price: float, attrib
@@ -55,9 +53,7 @@ class _OpenInterestApp(BaseIBApp):
         if tickType in (86, 87):  # option call/put open interest
             self.open_interest = int(price)
             self.open_interest_event.set()
-        logger.debug(
-            f"tickPrice: reqId={reqId} tickType={tickType} price={price}"
-        )
+        logger.debug(f"tickPrice: reqId={reqId} tickType={tickType} price={price}")
 
 
 WAIT_TIMEOUT = 20
