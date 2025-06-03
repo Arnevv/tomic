@@ -20,7 +20,7 @@ base_stub = types.ModuleType("tomic.api.base_client")
 
 
 class DummyApp:
-    called_market_data_type = None
+    called_market_data_types = []
 
     def __init__(self, *args, **kwargs):
         self.open_interest = None
@@ -31,13 +31,13 @@ class DummyApp:
         self.disconnected = False
 
     def reqMktData(self, req_id, contract, tick_list, snapshot, regulatory, opts):
-        assert tick_list == "101"
+        assert tick_list == "100,101"
 
         # Simulate server response via tickGeneric
         self.tickGeneric(req_id, 101, 42)
 
     def reqMarketDataType(self, data_type):
-        DummyApp.called_market_data_type = data_type
+        DummyApp.called_market_data_types.append(data_type)
 
     def disconnect(self) -> None:
         self.disconnected = True
@@ -50,8 +50,9 @@ open_interest = importlib.reload(importlib.import_module("tomic.api.open_interes
 
 
 def test_fetch_open_interest_value():
+    DummyApp.called_market_data_types.clear()
     assert open_interest.fetch_open_interest("ABC", "2025-01-01", 100.0, "C") == 42
-    assert DummyApp.called_market_data_type == 2
+    assert DummyApp.called_market_data_types == [2, 4]
 
 
 def test_fetch_open_interest_none_if_no_event():
@@ -62,5 +63,6 @@ def test_fetch_open_interest_none_if_no_event():
     # Avoid long waits by using a zero timeout
     original_timeout = open_interest.WAIT_TIMEOUT
     open_interest.WAIT_TIMEOUT = 0
+    DummyApp.called_market_data_types.clear()
     assert open_interest.fetch_open_interest("ABC", "2025-01-01", 100.0, "C") is None
     open_interest.WAIT_TIMEOUT = original_timeout
