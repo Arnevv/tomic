@@ -35,22 +35,31 @@ class _OpenInterestApp(BaseIBApp):
         # Request volume (100) and open interest (101) generic ticks. Some
         # brokers send open interest via tick types 86/87 instead of 101.
         self._log_request()
-        # Ensure we receive frozen market data so open interest is returned
+        # First attempt with frozen market data
         self.reqMarketDataType(2)
-        self.reqMktData(1001, contract, "101", False, False, [])
+        self.reqMktData(1001, contract, "100,101", False, False, [])
+        # Also request delayed frozen market data so both paths can be compared
+        self.reqMarketDataType(4)
+        self.reqMktData(1002, contract, "100,101", False, False, [])
 
     def tickGeneric(
         self, reqId: int, tickType: int, value: float
     ) -> None:  # noqa: N802
         if tickType == 101:
+            logger.success(f"✅ Open Interest (tickGeneric 101): {value}")
             self.open_interest = int(value)
             self.open_interest_event.set()
+        elif tickType == 100:
+            logger.info(f"ℹ️ Volume (tickGeneric 100): {value}")
         logger.debug(f"tickGeneric: reqId={reqId} tickType={tickType} value={value}")
 
     def tickPrice(
         self, reqId: int, tickType: int, price: float, attrib
     ) -> None:  # noqa: N802
         if tickType in (86, 87):  # option call/put open interest
+            logger.warning(
+                f"⚠️ Open Interest mogelijk via tickPrice {tickType}: {price}"
+            )
             self.open_interest = int(price)
             self.open_interest_event.set()
         logger.debug(f"tickPrice: reqId={reqId} tickType={tickType} price={price}")
