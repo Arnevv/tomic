@@ -22,6 +22,7 @@ from tomic.api.market_utils import (
     count_incomplete,
     calculate_hv30,
     calculate_atr14,
+    create_underlying,
 )
 from tomic.analysis.strategy import determine_strategy_type, collapse_legs
 from tomic.analysis.performance_analyzer import compute_pnl
@@ -180,3 +181,27 @@ def test_extract_weeklies():
     ]
     result = extract_weeklies(expiries)
     assert result == ["20240607", "20240614", "20240628", "20240705"]
+
+
+def test_create_underlying_stock():
+    c = create_underlying("AAPL")
+    assert c.secType == "STK"
+    assert c.exchange == "SMART"
+    assert c.primaryExchange == "ARCA"
+    assert c.currency == "USD"
+
+
+def test_create_underlying_vix():
+    c = create_underlying("VIX")
+    assert c.secType == "IND"
+    assert c.exchange == "CBOE"
+    assert not hasattr(c, "primaryExchange")
+    assert c.currency == "USD"
+
+
+def test_create_underlying_rut():
+    c = create_underlying("RUT")
+    assert c.secType == "IND"
+    assert c.exchange == "RUSSELL"
+    assert not hasattr(c, "primaryExchange")
+    assert c.currency == "USD"

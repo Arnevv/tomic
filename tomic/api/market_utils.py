@@ -99,7 +99,10 @@ def create_underlying(symbol: str) -> Contract:
 
     if symbol.upper() in INDEX_SYMBOLS:
         c.secType = "IND"
-        c.exchange = "CBOE"
+        if symbol.upper() == "RUT":
+            c.exchange = "RUSSELL"
+        else:
+            c.exchange = "CBOE"
     else:
         c.secType = "STK"
         c.exchange = "SMART"
