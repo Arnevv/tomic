@@ -35,6 +35,8 @@ class _OpenInterestApp(BaseIBApp):
         # Request volume (100) and open interest (101) generic ticks. Some
         # brokers send open interest via tick types 86/87 instead of 101.
         self._log_request()
+        # Ensure we receive frozen market data so open interest is returned
+        self.reqMarketDataType(2)
         self.reqMktData(1001, contract, "100,101", False, False, [])
 
     def tickGeneric(
