@@ -82,7 +82,7 @@ def _write_option_chain(
             pair["put"] = rec
 
     today = datetime.now().date()
-    r = 0.05
+    r = cfg_get("INTEREST_RATE", 0.05)
     for (expiry, strike), pair in grouped.items():
         call = pair.get("call")
         put = pair.get("put")
