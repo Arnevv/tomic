@@ -249,6 +249,8 @@ class IBApp(BaseIBApp):
             logger.warning("⚠️ Error {}: {}", errorCode, errorString)
         else:
             logger.error("⚠️ Error {}: {}", errorCode, errorString)
+
+
 def main() -> None:
     """CLI entry point executing the original script logic."""
     setup_logging()
@@ -337,9 +339,11 @@ def main() -> None:
         f"💾 Accountinfo opgeslagen in {cfg_get('ACCOUNT_INFO_FILE', 'account_info.json')}"
     )
 
-    logger.info("\n📐 Portfolio Greeks:")
+    # Print portfolio Greeks without the INFO prefix so they stand out as
+    # plain results instead of log messages.
+    logger.opt(raw=True).info("\n📐 Portfolio Greeks:\n")
     for k, v in portfolio.items():
-        logger.info(f"{k}: {round(v, 4):.4f}")
+        logger.opt(raw=True).info(f"{k}: {round(v, 4):.4f}\n")
 
     app.disconnect()
     logger.success("✅ Accountinformatie verwerkt")
