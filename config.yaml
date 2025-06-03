@@ -1,31 +1,31 @@
-DEFAULT_SYMBOLS:
-  - AAPL
-  - ASML
-  - CRM
-  - DIA
-  - EWG
-  - EWJ
-  - EWZ
-  - FEZ
-  - FXI
-  - GLD
-  - INDA
-  - NVDA
-  - QQQ
-  - RUT
-  - SPY
-  - TSLA
-  - VIX
-  - XLE
-  - XLF
-  - XLV
-POSITIONS_FILE: positions.json
 ACCOUNT_INFO_FILE: account_info.json
-PORTFOLIO_META_FILE: portfolio_meta.json
-JOURNAL_FILE: journal.json
-VOLATILITY_DATA_FILE: volatility_data.json
+DEFAULT_SYMBOLS:
+- AAPL
+- ASML
+- CRM
+- DIA
+- EWG
+- EWJ
+- EWZ
+- FEZ
+- FXI
+- GLD
+- INDA
+- NVDA
+- QQQ
+- RUT
+- SPY
+- TSLA
+- VIX
+- XLE
+- XLF
+- XLV
 EXPORT_DIR: exports
 IB_HOST: 127.0.0.1
 IB_PORT: 7497
+JOURNAL_FILE: journal.json
 LOG_LEVEL: INFO
+PORTFOLIO_META_FILE: portfolio_meta.json
+POSITIONS_FILE: positions.json
+VOLATILITY_DATA_FILE: volatility_data.json
 INTEREST_RATE: 0.05
