@@ -67,6 +67,33 @@ def test_store_volatility_snapshot_skips_incomplete(tmp_path):
     assert not path.exists()
 
 
+def test_store_volatility_snapshot_uses_helpers(tmp_path, monkeypatch):
+    path = tmp_path / "snap.json"
+    calls: list[str] = []
+
+    def fake_load(p):
+        calls.append(f"load:{p}")
+        return []
+
+    def fake_save(data, p):
+        calls.append(f"save:{p}")
+
+    monkeypatch.setattr("tomic.analysis.vol_snapshot.load_json", fake_load)
+    monkeypatch.setattr("tomic.analysis.vol_snapshot.save_json", fake_save)
+
+    record = {
+        "date": "2025-05-31",
+        "symbol": "ABC",
+        "spot": 10.0,
+        "iv30": 0.3,
+        "hv30": 0.2,
+        "iv_rank": 50,
+        "skew": 0.1,
+    }
+    store_volatility_snapshot(record, path)
+    assert calls == [f"load:{path}", f"save:{path}"]
+
+
 def test_snapshot_symbols(tmp_path):
     path = tmp_path / "vol.json"
     calls: list[str] = []
