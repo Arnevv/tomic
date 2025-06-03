@@ -339,11 +339,11 @@ def main() -> None:
         f"💾 Accountinfo opgeslagen in {cfg_get('ACCOUNT_INFO_FILE', 'account_info.json')}"
     )
 
-    # Print portfolio Greeks without the INFO prefix so they stand out as
-    # plain results instead of log messages.
-    logger.opt(raw=True).info("\n📐 Portfolio Greeks:\n")
+    # Print portfolio Greeks in plain text without color so the values are
+    # easily readable in the CLI.
+    logger.opt(raw=True, colors=False).info("\n📐 Portfolio Greeks:\n")
     for k, v in portfolio.items():
-        logger.opt(raw=True).info(f"{k}: {round(v, 4):.4f}\n")
+        logger.opt(raw=True, colors=False).info(f"{k}: {round(v, 4):.4f}\n")
 
     app.disconnect()
     logger.success("✅ Accountinformatie verwerkt")
