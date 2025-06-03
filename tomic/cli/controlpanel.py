@@ -8,6 +8,7 @@ from pathlib import Path
 
 from tomic import config as cfg
 from tomic.logging import setup_logging
+from tomic.analysis.greeks import compute_portfolio_greeks
 
 setup_logging()
 
@@ -47,6 +48,21 @@ def load_portfolio_timestamp() -> str | None:
         return data.get("last_update")
     except Exception:
         return None
+
+
+def print_saved_portfolio_greeks() -> None:
+    """Compute and display portfolio Greeks from saved positions."""
+    if not POSITIONS_FILE.exists():
+        return
+    try:
+        positions = json.loads(POSITIONS_FILE.read_text())
+    except Exception:
+        print("⚠️ Kan portfolio niet laden voor Greeks-overzicht.")
+        return
+    portfolio = compute_portfolio_greeks(positions)
+    print("📐 Portfolio Greeks:")
+    for key, val in portfolio.items():
+        print(f"{key}: {val:+.4f}")
 
 
 def run_dataexporter() -> None:
@@ -177,6 +193,7 @@ def run_portfolio_menu() -> None:
             ts = load_portfolio_timestamp()
             if ts:
                 print(f"ℹ️ Laatste update: {ts}")
+            print_saved_portfolio_greeks()
             try:
                 run_module(
                     STRATEGY_DASHBOARD_MODULE,
