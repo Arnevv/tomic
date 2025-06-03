@@ -217,11 +217,17 @@ def run_settings_menu() -> None:
         print("2. Pas IB host/poort aan")
         print("3. Pas default symbols aan")
         print(f"4. Pas log-niveau aan ({', '.join(LOG_LEVEL_CHOICES)})")
-        print("5. Terug naar hoofdmenu")
+        print("5. Pas interest rate aan")
+        print("6. Terug naar hoofdmenu")
         sub = input("Maak je keuze: ").strip()
 
         if sub == "1":
-            for key, value in cfg.CONFIG.dict().items():
+            asdict = (
+                cfg.CONFIG.model_dump
+                if hasattr(cfg.CONFIG, "model_dump")
+                else cfg.CONFIG.dict
+            )
+            for key, value in asdict().items():
                 print(f"{key}: {value}")
         elif sub == "2":
             host = input(f"Host ({cfg.CONFIG.IB_HOST}): ").strip() or cfg.CONFIG.IB_HOST
@@ -246,6 +252,15 @@ def run_settings_menu() -> None:
                 cfg.update({"LOG_LEVEL": level})
                 setup_logging()
         elif sub == "5":
+            rate_str = input(f"Rente ({cfg.CONFIG.INTEREST_RATE}): ").strip()
+            if rate_str:
+                try:
+                    rate = float(rate_str)
+                except ValueError:
+                    print("❌ Ongeldige rente")
+                    continue
+                cfg.update({"INTEREST_RATE": rate})
+        elif sub == "6":
             break
         else:
             print("❌ Ongeldige keuze")
