@@ -44,7 +44,7 @@ class IBApp(BaseIBApp):
         self.position_event = threading.Event()
 
     def nextValidId(self, orderId: int):
-        logger.info("✅ Verbonden. OrderId: {}", orderId)
+        logger.info(f"✅ Verbonden. OrderId: {orderId}")
         self.reqMarketDataType(2)
         self.account_event.clear()
         self.position_event.clear()
@@ -244,11 +244,11 @@ class IBApp(BaseIBApp):
         """Log IB error messages with appropriate severity."""
 
         if errorCode in self.IGNORED_ERROR_CODES:
-            logger.debug("IB: {} {}", errorCode, errorString)
+            logger.debug(f"IB: {errorCode} {errorString}")
         elif errorCode in self.WARNING_ERROR_CODES:
-            logger.warning("⚠️ Error {}: {}", errorCode, errorString)
+            logger.warning(f"⚠️ Error {errorCode}: {errorString}")
         else:
-            logger.error("⚠️ Error {}: {}", errorCode, errorString)
+            logger.error(f"⚠️ Error {errorCode}: {errorString}")
 
 
 def main() -> None:
@@ -336,13 +336,12 @@ def main() -> None:
         json.dump(base_currency_vals, f, indent=2)
 
     logger.info(
-        "💾 Accountinfo opgeslagen in {}",
-        cfg_get("ACCOUNT_INFO_FILE", "account_info.json"),
+        f"💾 Accountinfo opgeslagen in {cfg_get('ACCOUNT_INFO_FILE', 'account_info.json')}"
     )
 
     logger.info("\n📐 Portfolio Greeks:")
     for k, v in portfolio.items():
-        logger.info("{}: {:.4f}", k, round(v, 4))
+        logger.info(f"{k}: {round(v, 4):.4f}")
 
     app.disconnect()
     logger.success("✅ Accountinformatie verwerkt")
