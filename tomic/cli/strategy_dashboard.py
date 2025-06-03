@@ -28,14 +28,14 @@ def refresh_portfolio_data() -> None:
     try:
         getaccountinfo.main()
     except Exception as exc:  # pragma: no cover - network/IB errors
-        logger.error("❌ Fout bij ophalen portfolio: {}", exc)
+        logger.error(f"❌ Fout bij ophalen portfolio: {exc}")
         return
 
     meta_path = Path(cfg_get("PORTFOLIO_META_FILE", "portfolio_meta.json"))
     try:
         meta_path.write_text(json.dumps({"last_update": datetime.now().isoformat()}))
     except OSError as exc:  # pragma: no cover - I/O errors
-        logger.error("⚠️ Kan meta file niet schrijven: {}", exc)
+        logger.error(f"⚠️ Kan meta file niet schrijven: {exc}")
 
 
 def maybe_refresh_portfolio(refresh: bool) -> None:
