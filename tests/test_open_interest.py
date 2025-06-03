@@ -31,10 +31,13 @@ class DummyApp:
         self.disconnected = False
 
     def reqMktData(self, req_id, contract, tick_list, snapshot, regulatory, opts):
-        assert tick_list == "100,101"
+        assert tick_list == "101"
 
         # Simulate server response via tickGeneric
         self.tickGeneric(req_id, 101, 42)
+
+    def reqMarketDataType(self, data_type):
+        DummyApp.called_market_data_type = data_type
 
     def disconnect(self) -> None:
         self.disconnected = True
