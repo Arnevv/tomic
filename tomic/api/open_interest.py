@@ -24,11 +24,8 @@ class _OpenInterestApp(BaseIBApp):
 
     def _log_request(self) -> None:
         logger.debug(
-            "Requesting open interest for %s %s %.2f%s",
-            self.symbol,
-            self.expiry,
-            self.strike,
-            self.right,
+            f"Requesting open interest for {self.symbol} "
+            f"{self.expiry} {self.strike:.2f}{self.right}"
         )
 
     def nextValidId(self, orderId: int) -> None:  # noqa: N802 - IB API callback
@@ -46,7 +43,9 @@ class _OpenInterestApp(BaseIBApp):
         if tickType == 101:
             self.open_interest = int(value)
             self.open_interest_event.set()
-        logger.debug("tickGeneric: reqId=%s tickType=%s value=%s", reqId, tickType, value)
+        logger.debug(
+            f"tickGeneric: reqId={reqId} tickType={tickType} value={value}"
+        )
 
     def tickPrice(
         self, reqId: int, tickType: int, price: float, attrib
@@ -54,7 +53,9 @@ class _OpenInterestApp(BaseIBApp):
         if tickType in (86, 87):  # option call/put open interest
             self.open_interest = int(price)
             self.open_interest_event.set()
-        logger.debug("tickPrice: reqId=%s tickType=%s price=%s", reqId, tickType, price)
+        logger.debug(
+            f"tickPrice: reqId={reqId} tickType={tickType} price={price}"
+        )
 
 
 WAIT_TIMEOUT = 20
@@ -69,9 +70,7 @@ def fetch_open_interest(
     app = _OpenInterestApp(symbol.upper(), expiry, strike, right.upper())
     start_app(app)
 
-    logger.debug(
-        "Waiting up to %s seconds for open interest data", WAIT_TIMEOUT
-    )
+    logger.debug(f"Waiting up to {WAIT_TIMEOUT} seconds for open interest data")
 
     if not app.open_interest_event.wait(timeout=WAIT_TIMEOUT):
         logger.error("❌ Geen open interest ontvangen.")
