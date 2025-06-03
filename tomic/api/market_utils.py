@@ -12,10 +12,14 @@ from ibapi.contract import Contract
 from tomic.logging import logger
 from tomic.analysis.get_iv_rank import fetch_iv_metrics
 
+INDEX_SYMBOLS = {"RUT", "VIX"}
+
 # --- App helpers ------------------------------------------------------------
 
 
-def start_app(app, host: str | None = None, port: int | None = None, client_id: int = 200) -> threading.Thread:
+def start_app(
+    app, host: str | None = None, port: int | None = None, client_id: int = 200
+) -> threading.Thread:
     """Connect and start the IB API client.
 
     Parameters are optional and fall back to ``config.yaml`` defaults.
@@ -40,7 +44,9 @@ def await_market_data(app, symbol: str) -> bool:
     if not getattr(app, "conId", None):
         logger.error("❌ Geen conId ontvangen.")
         return False
-    app.reqSecDefOptParams(1201, symbol, "", "STK", app.conId)
+
+    sec_type = "IND" if symbol.upper() in INDEX_SYMBOLS else "STK"
+    app.reqSecDefOptParams(1201, symbol, "", sec_type, app.conId)
     if not app.option_params_event.wait(timeout=10):
         logger.error("❌ Geen expiries ontvangen.")
         return False
@@ -65,7 +71,6 @@ def await_market_data(app, symbol: str) -> bool:
     return True
 
 
-
 def count_incomplete(records: list[dict]) -> int:
     """Return how many option records miss market, Greek or volume data."""
 
@@ -87,12 +92,19 @@ def count_incomplete(records: list[dict]) -> int:
 
 
 def create_underlying(symbol: str) -> Contract:
-    """Return a stock Contract for the given symbol."""
+    """Return a stock or index ``Contract`` for the given symbol."""
+
     c = Contract()
     c.symbol = symbol
-    c.secType = "STK"
-    c.exchange = "SMART"
-    c.primaryExchange = "ARCA"
+
+    if symbol.upper() in INDEX_SYMBOLS:
+        c.secType = "IND"
+        c.exchange = "CBOE"
+    else:
+        c.secType = "STK"
+        c.exchange = "SMART"
+        c.primaryExchange = "ARCA"
+
     c.currency = "USD"
     return c
 
@@ -162,7 +174,8 @@ def fetch_market_metrics(symbol: str) -> dict:
         app.disconnect()
         raise RuntimeError("Contract details not received")
 
-    app.reqSecDefOptParams(1201, symbol, "", "STK", app.conId)
+    sec_type = "IND" if symbol.upper() in INDEX_SYMBOLS else "STK"
+    app.reqSecDefOptParams(1201, symbol, "", sec_type, app.conId)
     if not app.option_params_event.wait(timeout=10):
         app.disconnect()
         raise RuntimeError("Option parameters not received")
@@ -284,4 +297,3 @@ __all__ = [
     "count_incomplete",
     "fetch_market_metrics",
 ]
-
