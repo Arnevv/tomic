@@ -252,30 +252,36 @@ def print_strategy(strategy, rule=None, *, details: bool = False):
             entry_lines.append(f"- Spot bij open: {float(spot_open):.2f}")
         except (TypeError, ValueError):
             entry_lines.append(f"- Spot bij open: {spot_open}")
-    parts: list[str] = []
+    parts_main: list[str] = []
+    parts_extra: list[str] = []
     iv = strategy.get("iv_entry")
     hv = strategy.get("hv_entry")
     ivr = strategy.get("ivrank_entry")
     ivp = strategy.get("ivpct_entry")
+    vix = strategy.get("vix_entry")
     skew = strategy.get("skew_entry")
     term = strategy.get("term_slope")
     atr = strategy.get("atr_entry")
     if iv is not None:
-        parts.append(f"IV {iv:.2%}")
+        parts_main.append(f"IV {iv:.2f}%")
     if hv is not None:
-        parts.append(f"HV {hv:.2f}%")
+        parts_main.append(f"HV {hv:.2f}%")
     if ivr is not None:
-        parts.append(f"IV Rank: {ivr:.1f}")
+        parts_main.append(f"IV Rank: {ivr:.1f}")
     if ivp is not None:
-        parts.append(f"IV Pctl: {ivp:.1f}")
+        parts_main.append(f"IV Pctl: {ivp:.1f}")
+    if vix is not None:
+        parts_extra.append(f"VIX {vix:.2f}")
     if skew is not None:
-        parts.append(f"Skew {skew*100:.1f}bp")
+        parts_extra.append(f"Skew {skew*100:.1f}bp")
     if term is not None:
-        parts.append(f"Term {term*100:.1f}bp")
+        parts_extra.append(f"Term {term*100:.1f}bp")
     if atr is not None:
-        parts.append(f"ATR {atr:.2f}")
-    if parts:
-        entry_lines.append("- " + " | ".join(parts))
+        parts_extra.append(f"ATR {atr:.2f}")
+    if parts_main:
+        entry_lines.append("- " + " | ".join(parts_main))
+    if parts_extra:
+        entry_lines.append("- " + " | ".join(parts_extra))
     delta_entry = strategy.get("delta_entry")
     gamma_entry = strategy.get("gamma_entry")
     vega_entry = strategy.get("vega_entry")

@@ -9,7 +9,7 @@ from datetime import datetime
 from typing import Any, Dict, List, Optional
 
 from tomic.utils import today
-from tomic.analysis.alerts import check_entry_conditions, generate_risk_alerts
+from tomic.analysis.alerts import check_entry_conditions
 
 
 def parse_date(date_str: str) -> Optional[datetime.date]:
@@ -479,6 +479,7 @@ def group_strategies(
                 ("IV_Percentile", "ivpct_entry"),
                 ("Skew", "skew_entry"),
                 ("ATR_14", "atr_entry"),
+                ("VIX", "vix_entry"),
             ]:
                 if trade_data.get(key) is not None:
                     try:
