@@ -2,13 +2,13 @@
 
 from __future__ import annotations
 
-import json
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Callable, Dict, List
 
 from tomic.logging import logger
 from tomic.config import get as cfg_get
+from tomic.journal.utils import load_json, save_json
 
 
 def store_volatility_snapshot(
@@ -27,11 +27,7 @@ def store_volatility_snapshot(
         return
 
     file = Path(output_path)
-    if file.exists():
-        with open(file, "r", encoding="utf-8") as f:
-            data = json.load(f)
-    else:
-        data = []
+    data = load_json(file)
 
     # remove existing entry for same symbol and date
     data = [
@@ -44,8 +40,7 @@ def store_volatility_snapshot(
     ]
     data.append(symbol_data)
 
-    with open(file, "w", encoding="utf-8") as f:
-        json.dump(data, f, indent=2)
+    save_json(data, file)
 
 
 def snapshot_symbols(
