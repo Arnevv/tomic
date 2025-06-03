@@ -14,7 +14,7 @@ def add_trade(trade: Dict[str, Any], path: str | None = None) -> None:
     journal = load_journal(journal_file)
     journal.append(trade)
     save_journal(journal, journal_file)
-    logger.info("➕ Trade added: %s", trade.get("TradeID"))
+    logger.info(f"➕ Trade added: {trade.get('TradeID')}")
 
 
 def update_trade(
@@ -30,9 +30,9 @@ def update_trade(
         if trade.get("TradeID") == trade_id:
             trade.update(updates)
             save_journal(journal, journal_file)
-            logger.info("🔄 Trade updated: %s", trade_id)
+            logger.info(f"🔄 Trade updated: {trade_id}")
             return True
-    logger.warning("⚠️ Trade not found: %s", trade_id)
+    logger.warning(f"⚠️ Trade not found: {trade_id}")
     return False
 
 
