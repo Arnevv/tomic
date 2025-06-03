@@ -113,8 +113,8 @@ class CombinedApp(BaseIBApp):
     # --- Data callbacks ------------------------------------------------------
     def contractDetails(self, reqId: int, details: ContractDetails):  # noqa: N802
         c = details.contract
-        if c.secType == "STK" and c.symbol.upper() == self.symbol:
-            self.conId = details.contract.conId
+        if c.symbol.upper() == self.symbol and c.secType in {"STK", "IND"}:
+            self.conId = c.conId
 
     def contractDetailsEnd(self, reqId: int):  # noqa: N802
         self.contract_details_event.set()
