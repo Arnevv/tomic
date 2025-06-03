@@ -55,7 +55,22 @@ def test_fetch_open_interest_value():
     assert DummyApp.called_market_data_types == [2, 3]
 
 
+def test_fetch_open_interest_via_tickprice():
+    class AltDummyApp(DummyApp):
+        def reqMktData(self, req_id, contract, tick_list, snapshot, regulatory, opts):
+            self.tickPrice(req_id, 86, 99.0, None)
+
+    base_stub.BaseIBApp = AltDummyApp
+    sys.modules["tomic.api.market_utils"] = market_utils_stub
+    importlib.reload(open_interest)
+    assert open_interest.fetch_open_interest("XYZ", "2025-01-01", 100.0, "C") == 99
+
+
 def test_fetch_open_interest_none_if_no_event():
+    base_stub.BaseIBApp = DummyApp
+    sys.modules["tomic.api.market_utils"] = market_utils_stub
+    importlib.reload(open_interest)
+
     def no_set(self, req_id, contract, tick_list, snapshot, regulatory, opts):
         pass
 

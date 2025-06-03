@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import threading
+import time
 from typing import Optional
 
 from tomic.api.base_client import BaseIBApp
@@ -21,6 +22,7 @@ class _OpenInterestApp(BaseIBApp):
         self.right = right
         self.open_interest: Optional[int] = None
         self.open_interest_event = threading.Event()
+        self.open_interest_source: Optional[str] = None
 
     def _log_request(self) -> None:
         logger.debug(
@@ -38,6 +40,8 @@ class _OpenInterestApp(BaseIBApp):
         # First attempt with frozen real-time market data
         self.reqMarketDataType(2)
         self.reqMktData(1001, contract, "100,101", False, False, [])
+        # Brief pause before requesting delayed data as fallback
+        time.sleep(0.25)
         # Fallback to delayed streaming data if no real-time open interest arrives
         self.reqMarketDataType(3)
         self.reqMktData(1002, contract, "100,101", False, False, [])
@@ -48,6 +52,7 @@ class _OpenInterestApp(BaseIBApp):
         if tickType == 101:
             logger.success(f"✅ Open Interest (tickGeneric 101): {value}")
             self.open_interest = int(value)
+            self.open_interest_source = "tickGeneric 101"
             self.open_interest_event.set()
         elif tickType == 100:
             logger.info(f"ℹ️ Volume (tickGeneric 100): {value}")
@@ -61,6 +66,7 @@ class _OpenInterestApp(BaseIBApp):
                 f"⚠️ Open Interest mogelijk via tickPrice {tickType}: {price}"
             )
             self.open_interest = int(price)
+            self.open_interest_source = f"tickPrice {tickType}"
             self.open_interest_event.set()
         logger.debug(f"tickPrice: reqId={reqId} tickType={tickType} price={price}")
 
@@ -86,6 +92,7 @@ def fetch_open_interest(
 
     oi = app.open_interest
     app.disconnect()
+    logger.info(f"Open interest ontvangen via: {app.open_interest_source}")
     logger.info(
         f"Open interest voor {symbol.upper()} {expiry} {strike}{right.upper()}: {oi}"
     )
