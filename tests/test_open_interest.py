@@ -32,16 +32,9 @@ class DummyApp:
 
     def reqMktData(self, req_id, contract, tick_list, snapshot, regulatory, opts):
         assert tick_list == "100,101"
-        # Simulate server response via tickPrice
-        self.tickPrice(req_id, 86, 42, None)
 
-    def reqMarketDataType(self, data_type):
-        DummyApp.called_market_data_type = data_type
-
-    def tickPrice(self, req_id, tick_type, price, attrib):
-        if tick_type in (86, 87):
-            self.open_interest = price
-            self.open_interest_event.set()
+        # Simulate server response via tickGeneric
+        self.tickGeneric(req_id, 101, 42)
 
     def disconnect(self) -> None:
         self.disconnected = True
@@ -63,7 +56,8 @@ def test_fetch_open_interest_none_if_no_event():
         pass
 
     DummyApp.reqMktData = no_set
-    DummyApp.open_interest_event = types.SimpleNamespace(
-        wait=lambda timeout: False, set=lambda: None
-    )
+    # Avoid long waits by using a zero timeout
+    original_timeout = open_interest.WAIT_TIMEOUT
+    open_interest.WAIT_TIMEOUT = 0
     assert open_interest.fetch_open_interest("ABC", "2025-01-01", 100.0, "C") is None
+    open_interest.WAIT_TIMEOUT = original_timeout
