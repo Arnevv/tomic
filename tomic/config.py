@@ -7,6 +7,13 @@ from typing import Any, Dict, List
 from pydantic import BaseModel
 
 
+def _asdict(model: BaseModel) -> Dict[str, Any]:
+    """Return model data as a plain ``dict`` for Pydantic v1 or v2."""
+    if hasattr(model, "model_dump"):
+        return model.model_dump()  # type: ignore[attr-defined]
+    return model.dict()
+
+
 class AppConfig(BaseModel):
     """Typed configuration loaded from YAML or environment."""
 
@@ -95,7 +102,7 @@ def load_config() -> AppConfig:
         else:
             data = _load_env(path)
 
-    cfg = {**AppConfig().dict(), **data}
+    cfg = {**_asdict(AppConfig()), **data}
     return AppConfig(**cfg)
 
 
@@ -109,7 +116,7 @@ def save_config(config: AppConfig, path: Path | None = None) -> None:
     except Exception as exc:  # pragma: no cover - optional dependency
         raise RuntimeError("PyYAML required for YAML config") from exc
     with open(path, "w", encoding="utf-8") as f:
-        yaml.safe_dump(config.dict(), f)
+        yaml.safe_dump(_asdict(config), f)
 
 
 CONFIG = load_config()
