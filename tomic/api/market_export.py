@@ -28,7 +28,6 @@ _HEADERS_CHAIN = [
     "Gamma",
     "Vega",
     "Theta",
-    "OpenInterest",
     "Volume",
     "ParityDeviation",
 ]
@@ -149,7 +148,6 @@ def _write_option_chain(
                         if rec.get("theta") is not None
                         else None
                     ),
-                    rec.get("open_interest"),
                     rec.get("volume"),
                     rec.get("parity_deviation"),
                 ]
