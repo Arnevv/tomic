@@ -11,7 +11,7 @@ from tomic.logging import logger
 def fetch_option_metrics(
     symbol: str, expiry: str, strike: float, right: str | None = None
 ) -> Dict[str, Any] | None:
-    """Return spot price, volume and open interest for ``symbol``.
+    """Return spot price and volume for ``symbol``.
 
     The ``expiry`` should be provided as ``YYYY-MM-DD`` and ``strike`` as a
     float. When ``right`` is ``"C"`` or ``"P"`` the result is limited to calls or
@@ -37,13 +37,11 @@ def fetch_option_metrics(
 
     spot = app.spot_price
     volume = sum(r.get("volume", 0) or 0 for r in records)
-    open_interest = sum(r.get("open_interest", 0) or 0 for r in records)
-
     app.disconnect()
     logger.info(
-        f"Data voor {symbol} {expiry} {strike}{right or ''}: spot={spot}, volume={volume}, OI={open_interest}"
+        f"Data voor {symbol} {expiry} {strike}{right or ''}: spot={spot}, volume={volume}"
     )
-    return {"spot_price": spot, "volume": volume, "open_interest": open_interest}
+    return {"spot_price": spot, "volume": volume}
 
 
 __all__ = ["fetch_option_metrics"]
