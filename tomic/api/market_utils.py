@@ -82,7 +82,6 @@ def count_incomplete(records: list[dict]) -> int:
         "gamma",
         "vega",
         "theta",
-        "open_interest",
         "volume",
     }
 

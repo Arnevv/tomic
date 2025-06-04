@@ -126,7 +126,6 @@ def test_count_incomplete():
             "gamma": 0.1,
             "vega": 0.2,
             "theta": -0.1,
-            "open_interest": 10,
             "volume": 5,
         },
         {
@@ -137,10 +136,9 @@ def test_count_incomplete():
             "gamma": 0.1,
             "vega": 0.2,
             "theta": -0.1,
-            "open_interest": None,
             "volume": 0,
         },
-        {"bid": 1, "open_interest": 0, "volume": 0},
+        {"bid": 1, "volume": 0},
     ]
     assert count_incomplete(records) == 2
 

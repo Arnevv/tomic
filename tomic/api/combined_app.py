@@ -79,16 +79,15 @@ class CombinedApp(BaseIBApp):
                         "gamma": None,
                         "vega": None,
                         "theta": None,
-                        "open_interest": None,
                         "volume": None,
                     }
                     # Request streaming market data including option specific
-                    # generic ticks for volume and open interest. Snapshot
+                    # generic ticks for volume. Snapshot
                     # requests are not allowed for generic ticks.
                     self.reqMktData(
                         req_id,
                         contract,
-                        "100,101",
+                        "100",
                         False,
                         False,
                         [],
@@ -187,8 +186,6 @@ class CombinedApp(BaseIBApp):
                 d["vega"] = price
             elif tickType == 27:
                 d["theta"] = price
-            elif tickType in (86, 87):
-                d["open_interest"] = price
             elif tickType == 8:
                 d["volume"] = price
 
@@ -200,8 +197,6 @@ class CombinedApp(BaseIBApp):
         if reqId in self.market_data:
             if tickType == 100:
                 self.market_data[reqId]["volume"] = value
-            elif tickType == 101:
-                self.market_data[reqId]["open_interest"] = value
 
     def tickOptionComputation(
         self,
