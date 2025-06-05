@@ -1,58 +1,16 @@
-import re
 import sys
-import urllib.request
 
-from tomic.logging import logger
-
-from typing import Dict, List, Optional
+from typing import Dict, Optional
 
 from tomic.analysis.iv_patterns import IV_PATTERNS
+from tomic.analysis.volatility_fetcher import download_html, parse_patterns
+from tomic.logging import logger
 from tomic.logging import setup_logging
-
-
-def parse_patterns(
-    patterns: Dict[str, List[str]], html: str
-) -> Dict[str, Optional[float]]:
-    """Return a dict with parsed values using the provided patterns."""
-    results: Dict[str, Optional[float]] = {}
-    for key, pats in patterns.items():
-        for pat in pats:
-            match = re.search(pat, html, re.IGNORECASE | re.DOTALL)
-            if match:
-                try:
-                    results[key] = float(match.group(1))
-                    logger.debug(f"Matched pattern '{pat}' for {key} -> {results[key]}")
-                    break
-                except ValueError:
-                    logger.warning(
-                        f"Failed to parse {key} from match '{match.group(1)}'"
-                    )
-                    break
-        if key not in results:
-            logger.error(f"{key} not found on page")
-            results[key] = None
-    return results
-
-
-def _download_html(symbol: str) -> str:
-    """Retrieve the volatility page HTML for the given symbol."""
-    url = f"https://www.barchart.com/etfs-funds/quotes/{symbol}/volatility-charts"
-    logger.debug(f"Requesting URL: {url}")
-
-    req = urllib.request.Request(
-        url,
-        headers={"User-Agent": "Mozilla/5.0"},
-    )
-
-    with urllib.request.urlopen(req) as response:
-        html = response.read().decode("utf-8", errors="ignore")
-    logger.debug(f"Downloaded {len(html)} characters")
-    return html
 
 
 def fetch_iv_metrics(symbol: str = "SPY") -> Dict[str, Optional[float]]:
     """Return IV Rank, Implied Volatility and IV Percentile for the symbol."""
-    html = _download_html(symbol)
+    html = download_html(symbol)
     return parse_patterns(IV_PATTERNS, html)
 
 
