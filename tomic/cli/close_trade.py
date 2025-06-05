@@ -9,10 +9,10 @@ from tomic.logging import setup_logging
 from tomic.journal.service import (
     load_journal,
     update_trade,
-    save_journal,
     is_valid_trade_id,
 )
-from .common import prompt, prompt_float
+from .common import prompt
+
 
 def sluit_trade_af(trade: Dict[str, Any]) -> None:
     """Interactively enter exit details for ``trade``."""
@@ -35,9 +35,7 @@ def sluit_trade_af(trade: Dict[str, Any]) -> None:
     # ExitPrice met EntryPrice ter referentie
     try:
         entry_price = trade.get("EntryPrice", "?")
-        exit_price_input = prompt(
-            f"💰 Exitprijs (de entry prijs was: {entry_price}): "
-        )
+        exit_price_input = prompt(f"💰 Exitprijs (de entry prijs was: {entry_price}): ")
         trade["ExitPrice"] = float(exit_price_input)
     except ValueError:
         logger.error("❌ Ongeldige prijs.")
@@ -90,10 +88,10 @@ def main() -> None:
     for t in open_trades:
         print(f"- {t['TradeID']}: {t['Symbool']} - {t['Type']}")
 
-keuze = prompt("\nVoer TradeID in om af te sluiten: ")
-if not is_valid_trade_id(keuze):
-    logger.error("❌ Ongeldige TradeID.")
-    return
+    keuze = prompt("\nVoer TradeID in om af te sluiten: ")
+    if not is_valid_trade_id(keuze):
+        logger.error("❌ Ongeldige TradeID.")
+        return
 
     trade = next((t for t in journal if t["TradeID"] == keuze), None)
     if not trade:
