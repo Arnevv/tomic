@@ -237,18 +237,8 @@ class IBApp(BaseIBApp):
 
         return count_incomplete(self.positions_data)
 
-    IGNORED_ERROR_CODES = {2104, 2106, 2158, 2176, 2150}
+    IGNORED_ERROR_CODES = BaseIBApp.IGNORED_ERROR_CODES | {2150}
     WARNING_ERROR_CODES: set[int] = set()
-
-    def error(self, reqId: TickerId, errorCode: int, errorString: str) -> None:
-        """Log IB error messages with appropriate severity."""
-
-        if errorCode in self.IGNORED_ERROR_CODES:
-            logger.debug("IB: {} {}", errorCode, errorString)
-        elif errorCode in self.WARNING_ERROR_CODES:
-            logger.warning("⚠️ Error {}: {}", errorCode, errorString)
-        else:
-            logger.error("⚠️ Error {}: {}", errorCode, errorString)
 
 
 def main() -> None:

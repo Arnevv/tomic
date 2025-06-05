@@ -6,7 +6,11 @@ from typing import Any, Dict
 from tomic.logging import logger
 
 from tomic.logging import setup_logging
-from tomic.journal.service import load_journal, update_trade, save_journal
+from tomic.journal.service import (
+    load_journal,
+    update_trade,
+    is_valid_trade_id,
+)
 
 
 def sluit_trade_af(trade: Dict[str, Any]) -> None:
@@ -86,6 +90,10 @@ def main() -> None:
         print(f"- {t['TradeID']}: {t['Symbool']} - {t['Type']}")
 
     keuze = input("\nVoer TradeID in om af te sluiten: ").strip()
+    if not is_valid_trade_id(keuze):
+        logger.error("❌ Ongeldige TradeID.")
+        return
+
     trade = next((t for t in journal if t["TradeID"] == keuze), None)
     if not trade:
         logger.error("❌ TradeID niet gevonden.")

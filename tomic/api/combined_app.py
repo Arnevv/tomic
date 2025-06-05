@@ -6,7 +6,6 @@ from ibapi.common import TickerId
 import threading
 from datetime import datetime
 from tomic.utils import extract_weeklies
-from tomic.logging import logger
 
 from .market_utils import (
     create_underlying,
@@ -156,8 +155,8 @@ class CombinedApp(BaseIBApp):
     def error(self, reqId: TickerId, errorCode: int, errorString: str):  # noqa: N802
         if errorCode == 200 and reqId in self.market_data:
             self.invalid_contracts.add(reqId)
-        elif errorCode not in (2104, 2106, 2158, 2176):
-            logger.error(f"⚠️ Error {reqId} ({errorCode}): {errorString}")
+        else:
+            super().error(reqId, errorCode, errorString)
 
     def tickPrice(
         self, reqId: TickerId, tickType: int, price: float, attrib
