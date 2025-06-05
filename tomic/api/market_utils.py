@@ -161,7 +161,7 @@ def calculate_atr14(historical_data: list) -> float | None:
     return round(atr14, 2)
 
 
-def fetch_market_metrics(symbol: str) -> dict:
+def fetch_market_metrics(symbol: str) -> dict | None:
     """Return key market metrics for the given symbol using the IB API."""
     from .combined_app import CombinedApp
 
@@ -221,6 +221,11 @@ def fetch_market_metrics(symbol: str) -> dict:
         and d.get("delta") is not None
         and d.get("iv") is not None
     ]
+
+    if not app.expiries:
+        logger.error("❌ Geen expiries ontvangen voor %s", symbol)
+        app.disconnect()
+        return None
 
     expiry = app.expiries[0]
     calls = [d for d in valid_options if d["right"] == "C" and d["expiry"] == expiry]

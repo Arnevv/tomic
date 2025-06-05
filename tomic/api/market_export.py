@@ -202,6 +202,9 @@ def export_market_metrics(
     except Exception as exc:  # pragma: no cover - network failures
         logger.error(f"❌ Marktkenmerken ophalen mislukt: {exc}")
         return None
+    if metrics is None:
+        logger.error("❌ Geen expiries gevonden voor %s", symbol)
+        return None
     if output_dir is None:
         today_str = datetime.now().strftime("%Y%m%d")
         export_dir = os.path.join(cfg_get("EXPORT_DIR", "exports"), today_str)
@@ -251,6 +254,9 @@ def export_market_data(
         metrics = fetch_market_metrics(symbol)
     except Exception as exc:  # pragma: no cover - network failures
         logger.error(f"❌ Marktkenmerken ophalen mislukt: {exc}")
+        return None
+    if metrics is None:
+        logger.error("❌ Geen expiries gevonden voor %s", symbol)
         return None
     app = CombinedApp(symbol)
     start_app(app)
