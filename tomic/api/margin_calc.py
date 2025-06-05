@@ -1,5 +1,4 @@
-from ibapi.client import EClient
-from ibapi.wrapper import EWrapper
+from tomic.core.ib import BaseApp
 from ibapi.order import Order
 import threading
 
@@ -7,11 +6,11 @@ from .market_utils import create_option_contract, start_app
 from tomic.config import get as cfg_get
 
 
-class MarginApp(EWrapper, EClient):
+class MarginApp(BaseApp):
     """Minimal IB app to request what-if orders for margin."""
 
     def __init__(self):
-        EClient.__init__(self, self)
+        super().__init__()
         self.margin = None
         self.order_id = None
         self.event = threading.Event()

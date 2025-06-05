@@ -1,9 +1,8 @@
-from __future__ import annotations
-
 """Shared base classes for IB API clients."""
 
-from ibapi.client import EClient
-from ibapi.wrapper import EWrapper
+from __future__ import annotations
+
+from tomic.core.ib import BaseApp
 
 from .market_utils import calculate_atr14, calculate_hv30, count_incomplete
 
@@ -32,12 +31,12 @@ class MarketDataMixin:
         return count_incomplete(relevant)
 
 
-class BaseIBApp(MarketDataMixin, EWrapper, EClient):
-    """Minimal base application combining ``EClient`` and ``EWrapper``."""
+class BaseIBApp(MarketDataMixin, BaseApp):
+    """Base application combining market data utilities with :class:`BaseApp`."""
 
     def __init__(self) -> None:
         MarketDataMixin.__init__(self)
-        EClient.__init__(self, self)
+        BaseApp.__init__(self)
 
 
 __all__ = ["MarketDataMixin", "BaseIBApp"]
