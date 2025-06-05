@@ -7,11 +7,15 @@ from types import SimpleNamespace
 captured_concat: list = []
 combined_result = None
 
+
 class FakeFrame:
-    def __init__(self, empty: bool = False, all_na: bool = False):
+    def __init__(
+        self, empty: bool = False, all_na: bool = False, has_cols: bool = True
+    ):
         self._empty = empty
         self._all_na = all_na
         self.saved_path: str | None = None
+        self.columns = ["c"] if has_cols else []
 
     @property
     def empty(self) -> bool:
@@ -44,15 +48,21 @@ def fake_concat(frames, ignore_index=False):
     combined_result = FakeFrame()
     return combined_result
 
+
 pd_stub = types.ModuleType("pandas")
 pd_stub.DataFrame = FakeFrame
 pd_stub.concat = fake_concat
 sys.modules["pandas"] = pd_stub
 
 contract_stub = types.ModuleType("ibapi.contract")
+
+
 class Contract:  # noqa: D401 - simple stub
     """Stub contract object."""
+
     pass
+
+
 contract_stub.Contract = Contract
 sys.modules.setdefault("ibapi.contract", contract_stub)
 combined_stub = types.ModuleType("tomic.api.combined_app")
@@ -63,11 +73,27 @@ getallmarkets = importlib.reload(importlib.import_module("tomic.api.getallmarket
 
 
 def test_export_combined_csv_filters_invalid(tmp_path):
+    captured_concat.clear()
+    global combined_result
+    combined_result = None
     df_valid = FakeFrame()
     df_empty = FakeFrame(empty=True)
     df_all_na = FakeFrame(all_na=True)
 
     getallmarkets.export_combined_csv([df_valid, df_empty, df_all_na], str(tmp_path))
+
+    assert captured_concat == [df_valid]
+    assert combined_result.saved_path == str(tmp_path / "Overzicht_Marktkenmerken.csv")
+
+
+def test_export_combined_csv_skips_no_columns(tmp_path):
+    captured_concat.clear()
+    global combined_result
+    combined_result = None
+    df_valid = FakeFrame()
+    df_no_cols = FakeFrame(has_cols=False)
+
+    getallmarkets.export_combined_csv([df_valid, df_no_cols], str(tmp_path))
 
     assert captured_concat == [df_valid]
     assert combined_result.saved_path == str(tmp_path / "Overzicht_Marktkenmerken.csv")
