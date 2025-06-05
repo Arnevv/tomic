@@ -13,6 +13,7 @@ from tomic.utils import today
 from tomic.logging import setup_logging, logger
 from tomic.helpers.account import _fmt_money, print_account_overview
 from tomic.analysis.strategy import parse_date, group_strategies
+from tomic.analysis.metrics import compute_term_structure, render_kpi_box
 from tomic.journal.utils import load_journal, load_json, save_json
 from .strategy_data import ALERT_PROFILE, get_strategy_description
 from tomic.analysis.greeks import compute_portfolio_greeks
@@ -123,24 +124,6 @@ def extract_exit_rules(path: str):
     return rules
 
 
-def compute_term_structure(strategies):
-    """Annotate strategies with simple term structure slope."""
-    by_symbol = defaultdict(list)
-    for strat in strategies:
-        exp = parse_date(strat.get("expiry"))
-        iv = strat.get("avg_iv")
-        if exp and iv is not None:
-            by_symbol[strat["symbol"]].append((exp, iv, strat))
-    for items in by_symbol.values():
-        items.sort(key=lambda x: x[0])
-        for i, (exp, iv, strat) in enumerate(items):
-            if i + 1 < len(items):
-                next_iv = items[i + 1][1]
-                strat["term_slope"] = next_iv - iv
-            else:
-                strat["term_slope"] = None
-
-
 def sort_legs(legs):
     """Return legs sorted by option type and position."""
     type_order = {"P": 0, "C": 1}
@@ -198,38 +181,6 @@ def alert_severity(alert: str) -> int:
         if key in alert:
             return val
     return 0
-
-
-def render_kpi_box(strategy: dict) -> str:
-    """Return compact KPI summary for a strategy."""
-    rom = strategy.get("rom")
-    theta = strategy.get("theta")
-    margin = strategy.get("init_margin") or strategy.get("margin_used") or 1000
-    max_p = strategy.get("max_profit")
-    max_l = strategy.get("max_loss")
-    rr = strategy.get("risk_reward")
-
-    rom_str = f"{rom:+.1f}%" if rom is not None else "n.v.t."
-    theta_eff = None
-    rating = ""
-    if theta is not None and margin:
-        theta_eff = abs(theta / margin) * 100
-        if theta_eff < 0.5:
-            rating = "⚠️"
-        elif theta_eff < 1.5:
-            rating = "🟡"
-        elif theta_eff < 2.5:
-            rating = "✅"
-        else:
-            rating = "🟢"
-    theta_str = f"{rating} {theta_eff:.2f}%/k" if theta_eff is not None else "n.v.t."
-    max_p_str = _fmt_money(max_p) if max_p is not None else "-"
-    max_l_str = _fmt_money(max_l) if max_l is not None else "-"
-    rr_str = f"{rr:.2f}" if rr is not None else "n.v.t."
-    return (
-        f"ROM: {rom_str} | Theta-effici\u00ebntie: {theta_str} | "
-        f"Max winst: {max_p_str} | Max verlies: {max_l_str} | R/R: {rr_str}"
-    )
 
 
 def print_strategy(strategy, rule=None, *, details: bool = False):
