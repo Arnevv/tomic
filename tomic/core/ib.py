@@ -37,7 +37,11 @@ class BaseApp(EWrapper, EClient):
 
     def disconnect(self) -> None:  # type: ignore[override]
         super().disconnect()
-        if self._thread and self._thread.is_alive():
+        if (
+            self._thread
+            and self._thread.is_alive()
+            and threading.current_thread() is not self._thread
+        ):
             self._thread.join(timeout=0.1)
 
     def error(self, reqId: int, errorCode: int, errorString: str) -> None:  # noqa: N802
