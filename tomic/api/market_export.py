@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import csv
 import os
-import threading
 import time
 from datetime import datetime
 import math
@@ -13,7 +12,11 @@ import pandas as pd
 
 from tomic.logging import logger
 from tomic.api.combined_app import CombinedApp
-from tomic.api.market_utils import fetch_market_metrics, start_app, await_market_data
+from tomic.api.market_utils import (
+    fetch_market_metrics,
+    start_app,
+    await_market_data,
+)
 from tomic.config import get as cfg_get
 
 
@@ -46,8 +49,6 @@ _HEADERS_METRICS = [
     "IV_Percentile",
     "Avg_Parity_Deviation",
 ]
-
-
 
 
 def _write_option_chain(
@@ -188,6 +189,56 @@ def _write_metrics_csv(
     return pd.DataFrame([values_metrics], columns=_HEADERS_METRICS)
 
 
+def export_market_metrics(
+    symbol: str, output_dir: str | None = None
+) -> pd.DataFrame | None:
+    """Export only market metrics for ``symbol`` to a CSV file."""
+    symbol = symbol.strip().upper()
+    if not symbol:
+        logger.error("❌ Geen geldig symbool ingevoerd.")
+        return None
+    try:
+        metrics = fetch_market_metrics(symbol)
+    except Exception as exc:  # pragma: no cover - network failures
+        logger.error(f"❌ Marktkenmerken ophalen mislukt: {exc}")
+        return None
+    if output_dir is None:
+        today_str = datetime.now().strftime("%Y%m%d")
+        export_dir = os.path.join(cfg_get("EXPORT_DIR", "exports"), today_str)
+    else:
+        export_dir = output_dir
+    os.makedirs(export_dir, exist_ok=True)
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    df_metrics = _write_metrics_csv(metrics, symbol, export_dir, timestamp, None)
+    logger.success(f"✅ Marktdata verwerkt voor {symbol}")
+    return df_metrics
+
+
+def export_option_chain(symbol: str, output_dir: str | None = None) -> float | None:
+    """Export only the option chain for ``symbol`` to a CSV file."""
+    symbol = symbol.strip().upper()
+    if not symbol:
+        logger.error("❌ Geen geldig symbool ingevoerd.")
+        return None
+    app = CombinedApp(symbol)
+    start_app(app)
+    if not await_market_data(app, symbol):
+        app.disconnect()
+        return None
+    if output_dir is None:
+        today_str = datetime.now().strftime("%Y%m%d")
+        export_dir = os.path.join(cfg_get("EXPORT_DIR", "exports"), today_str)
+    else:
+        export_dir = output_dir
+    os.makedirs(export_dir, exist_ok=True)
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    avg_parity = _write_option_chain(app, symbol, export_dir, timestamp)
+    app.disconnect()
+    time.sleep(1)
+    logger.success(f"✅ Optieketen verwerkt voor {symbol}")
+    return avg_parity
+
+
 def export_market_data(
     symbol: str, output_dir: str | None = None
 ) -> pd.DataFrame | None:
@@ -221,4 +272,8 @@ def export_market_data(
     return df_metrics
 
 
-__all__ = ["export_market_data"]
+__all__ = [
+    "export_market_data",
+    "export_market_metrics",
+    "export_option_chain",
+]
