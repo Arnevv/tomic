@@ -129,8 +129,12 @@ def run_dataexporter() -> None:
             lambda: run_module("tomic.api.getallmarkets", "--only-metrics"),
         )
         sub.add(
-            "Alleen optionchains",
+            "Alleen optionchains - synchroon",
             lambda: run_module("tomic.api.getallmarkets", "--only-chains"),
+        )
+        sub.add(
+            "Alleen optionchains - asynchroon (prototype)",
+            lambda: run_module("tomic.api.getallmarkets_async", "--only-chains"),
         )
         sub.add(
             "Marktdata en optionchains",
