@@ -7,6 +7,11 @@ import json
 from pathlib import Path
 import threading
 
+if __package__ is None:
+    # Allow running this file directly without ``-m`` by adjusting ``sys.path``
+    sys.path.append(str(Path(__file__).resolve().parents[1]))
+    __package__ = "tomic.cli"
+
 from .common import Menu, prompt
 
 from tomic.api.market_utils import start_app
@@ -119,9 +124,14 @@ def run_dataexporter() -> None:
 
     menu = Menu("📤 DATA MANAGEMENT")
     menu.add("Exporteer een markt (tomic.api.getonemarket)", export_one)
-    menu.add("Exporteer alle markten (tomic.api.getallmarkets)", lambda: run_module("tomic.api.getallmarkets"))
+    menu.add(
+        "Exporteer alle markten (tomic.api.getallmarkets)",
+        lambda: run_module("tomic.api.getallmarkets"),
+    )
     menu.add("Controleer CSV-kwaliteit (tomic.cli.csv_quality_check)", csv_check)
-    menu.add("Haal optiedata op per symbool", lambda: run_module("tomic.cli.option_lookup"))
+    menu.add(
+        "Haal optiedata op per symbool", lambda: run_module("tomic.cli.option_lookup")
+    )
     menu.run()
 
 
@@ -129,10 +139,20 @@ def run_trade_management() -> None:
     """Menu for journal management tasks."""
 
     menu = Menu("TRADE MANAGEMENT")
-    menu.add("Overzicht bekijken", lambda: run_module("tomic.journal.journal_inspector"))
-    menu.add("Nieuwe trade aanmaken", lambda: run_module("tomic.journal.journal_updater"))
-    menu.add("Trade aanpassen / snapshot toevoegen", lambda: run_module("tomic.journal.journal_inspector"))
-    menu.add("Journal updaten met positie IDs", lambda: run_module("tomic.cli.link_positions"))
+    menu.add(
+        "Overzicht bekijken", lambda: run_module("tomic.journal.journal_inspector")
+    )
+    menu.add(
+        "Nieuwe trade aanmaken", lambda: run_module("tomic.journal.journal_updater")
+    )
+    menu.add(
+        "Trade aanpassen / snapshot toevoegen",
+        lambda: run_module("tomic.journal.journal_inspector"),
+    )
+    menu.add(
+        "Journal updaten met positie IDs",
+        lambda: run_module("tomic.cli.link_positions"),
+    )
     menu.add("Trade afsluiten", lambda: run_module("tomic.cli.close_trade"))
     menu.run()
 
@@ -199,7 +219,9 @@ def run_settings_menu() -> None:
 
     def show_config() -> None:
         asdict = (
-            cfg.CONFIG.model_dump if hasattr(cfg.CONFIG, "model_dump") else cfg.CONFIG.dict
+            cfg.CONFIG.model_dump
+            if hasattr(cfg.CONFIG, "model_dump")
+            else cfg.CONFIG.dict
         )
         for key, value in asdict().items():
             print(f"{key}: {value}")
