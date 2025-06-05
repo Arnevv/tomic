@@ -413,6 +413,13 @@ def group_strategies(
         strat.update(risk)
 
         margin_ref = strat.get("init_margin") or strat.get("margin_used") or 1000
+
+        max_profit = strat.get("max_profit")
+        if max_profit is not None and margin_ref:
+            strat["rom_entry"] = (max_profit / margin_ref) * 100
+        else:
+            strat["rom_entry"] = None
+
         pnl_val = strat.get("unrealizedPnL")
         if pnl_val is not None and margin_ref:
             strat["rom"] = (pnl_val / margin_ref) * 100
