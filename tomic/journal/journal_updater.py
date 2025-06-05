@@ -125,6 +125,8 @@ def interactieve_trade_invoer():
         metrics = fetch_market_metrics(symbool)
     except Exception as exc:
         print(f"⚠️ Marktdata ophalen mislukt: {exc}")
+        metrics = None
+    if metrics is None:
         metrics = {
             "spot_price": None,
             "hv30": None,
