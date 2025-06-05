@@ -47,6 +47,7 @@ def export_combined_csv(data_per_market: list[pd.DataFrame], output_dir: str) ->
     valid_frames = [
         df for df in data_per_market if not df.empty and not df.isna().all().all()
     ]
+    valid_frames = [df for df in valid_frames if len(getattr(df, "columns", [])) > 0]
     if not valid_frames:
         logger.warning("Geen geldige marktdata om te combineren.")
         return
