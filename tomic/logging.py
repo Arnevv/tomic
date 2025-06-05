@@ -53,11 +53,19 @@ def setup_logging(default_level: int = logging.INFO) -> None:
 
     if _LOGURU_AVAILABLE:
         logger.remove()
-        logger.add(sys.stderr, level=level, format="{level}: {message}")
+        logger.add(
+            sys.stderr,
+            level=level,
+            format="{level} - {time:HH:mm:ss}: {message}",
+        )
 
         logging.basicConfig(handlers=[InterceptHandler()], level=level, force=True)
     else:  # pragma: no cover - fallback
-        logging.basicConfig(level=level)
+        logging.basicConfig(
+            level=level,
+            format="%(levelname)s - %(asctime)s: %(message)s",
+            datefmt="%H:%M:%S",
+        )
 
     ib_level = logging.DEBUG if is_debug else logging.WARNING
     logging.getLogger("ibapi").setLevel(ib_level)
