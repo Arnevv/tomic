@@ -12,7 +12,7 @@ from tomic.config import get as cfg_get
 from tomic.utils import today
 from tomic.logging import setup_logging, logger
 from tomic.helpers.account import _fmt_money, print_account_overview
-from tomic.analysis.strategy import parse_date, group_strategies
+from tomic.analysis.strategy import group_strategies
 from tomic.analysis.metrics import compute_term_structure, render_kpi_box
 from tomic.journal.utils import load_journal, load_json, save_json
 from .strategy_data import ALERT_PROFILE, get_strategy_description
@@ -257,9 +257,9 @@ def print_strategy(strategy, rule=None, *, details: bool = False):
             f"Vega: {vega:+.3f} | "
             f"Theta: {theta:+.3f}"
         )
-    rom = strategy.get("rom")
-    if rom is not None:
-        entry_lines.append(f"- ROM bij instap: {rom:+.1f}%")
+    rom_entry = strategy.get("rom_entry")
+    if rom_entry is not None:
+        entry_lines.append(f"- ROM bij instap: {rom_entry:+.1f}%")
     max_p = strategy.get("max_profit")
     max_l = strategy.get("max_loss")
     rr = strategy.get("risk_reward")
