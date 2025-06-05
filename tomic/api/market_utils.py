@@ -178,7 +178,8 @@ def fetch_market_metrics(symbol: str) -> dict | None:
     app = CombinedApp(symbol)
     host = cfg_get("IB_HOST", "127.0.0.1")
     port = int(cfg_get("IB_PORT", 7497))
-    start_app(app, host=host, port=port, client_id=201)
+    # Use a unique client ID for every connection to prevent IB error 326
+    start_app(app, host=host, port=port)
 
     if not app.spot_price_event.wait(timeout=10):
         app.disconnect()
