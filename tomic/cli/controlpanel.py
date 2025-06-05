@@ -5,6 +5,10 @@ import sys
 from datetime import datetime
 import json
 from pathlib import Path
+import threading
+
+from tomic.api.market_utils import start_app
+from tomic.api.base_client import BaseIBApp
 
 from tomic import config as cfg
 from tomic.logging import setup_logging
@@ -63,6 +67,29 @@ def print_saved_portfolio_greeks() -> None:
     print("📐 Portfolio Greeks:")
     for key, val in portfolio.items():
         print(f"{key}: {val:+.4f}")
+
+
+class VersionApp(BaseIBApp):
+    """Minimal IB app to retrieve the TWS server version."""
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.ready_event = threading.Event()
+
+    def nextValidId(self, orderId: int) -> None:  # noqa: N802 - IB API callback
+        self.ready_event.set()
+
+
+def print_api_version() -> None:
+    """Connect to TWS and display the server version information."""
+    app = VersionApp()
+    start_app(app, client_id=998)
+    if app.ready_event.wait(timeout=5):
+        print(f"Server versie: {app.serverVersion()}")
+        print(f"Verbindingstijd: {app.twsConnectionTime()}")
+    else:
+        print("❌ Geen verbinding met TWS")
+    app.disconnect()
 
 
 def run_dataexporter() -> None:
@@ -218,7 +245,8 @@ def run_settings_menu() -> None:
         print("3. Pas default symbols aan")
         print(f"4. Pas log-niveau aan ({', '.join(LOG_LEVEL_CHOICES)})")
         print("5. Pas interest rate aan")
-        print("6. Terug naar hoofdmenu")
+        print("6. Haal TWS API-versie op")
+        print("7. Terug naar hoofdmenu")
         sub = input("Maak je keuze: ").strip()
 
         if sub == "1":
@@ -261,6 +289,8 @@ def run_settings_menu() -> None:
                     continue
                 cfg.update({"INTEREST_RATE": rate})
         elif sub == "6":
+            print_api_version()
+        elif sub == "7":
             break
         else:
             print("❌ Ongeldige keuze")
