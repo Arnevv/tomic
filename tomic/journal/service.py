@@ -8,6 +8,22 @@ from .utils import JOURNAL_FILE, load_journal, save_journal
 from tomic.logging import logger
 
 
+def is_valid_trade_id(tid: Any) -> bool:
+    """Return ``True`` if ``tid`` represents a valid numeric TradeID."""
+
+    return str(tid).isdigit()
+
+
+def next_trade_id(path: str | None = None) -> str:
+    """Return the next available TradeID for the journal at ``path``."""
+
+    journal = load_journal(path or JOURNAL_FILE)
+    existing = [
+        int(t["TradeID"]) for t in journal if is_valid_trade_id(t.get("TradeID"))
+    ]
+    return str(max(existing + [0]) + 1)
+
+
 def add_trade(trade: Dict[str, Any], path: str | None = None) -> None:
     """Append ``trade`` to the journal stored at ``path``."""
     journal_file = path or JOURNAL_FILE
@@ -36,4 +52,11 @@ def update_trade(
     return False
 
 
-__all__ = ["add_trade", "update_trade", "load_journal", "save_journal"]
+__all__ = [
+    "add_trade",
+    "update_trade",
+    "load_journal",
+    "save_journal",
+    "next_trade_id",
+    "is_valid_trade_id",
+]

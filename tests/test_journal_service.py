@@ -45,3 +45,14 @@ def test_update_trade_warns(tmp_path, monkeypatch):
     res = svc.update_trade("X", {"foo": 1}, path)
     assert not res
     assert any("Trade not found" in w for w in warnings)
+
+
+def test_next_trade_id(tmp_path):
+    path = tmp_path / "journal.json"
+    path.write_text(json.dumps([{"TradeID": "1"}, {"TradeID": "2"}]))
+    assert svc.next_trade_id(path) == "3"
+
+
+def test_is_valid_trade_id():
+    assert svc.is_valid_trade_id("10")
+    assert not svc.is_valid_trade_id("A1")

@@ -6,7 +6,7 @@ from datetime import date
 
 from tomic.api.market_utils import fetch_market_metrics
 from tomic.api.margin_calc import calculate_trade_margin
-from tomic.journal.utils import JOURNAL_FILE, load_journal, save_journal
+from tomic.journal.service import add_trade, next_trade_id
 
 
 def float_prompt(prompt_tekst, default=None):
@@ -18,13 +18,6 @@ def float_prompt(prompt_tekst, default=None):
             return float(val)
         except ValueError:
             print("❌ Ongeldige invoer, gebruik bijv. 14.7")
-
-
-def get_next_trade_id(journal):
-    existing_ids = [
-        int(trade["TradeID"]) for trade in journal if str(trade["TradeID"]).isdigit()
-    ]
-    return str(max(existing_ids + [0]) + 1)
 
 
 def date_prompt(prompt_tekst):
@@ -42,9 +35,7 @@ def interactieve_trade_invoer():
         "\n🆕 Nieuwe Trade Invoeren (meerdere legs ondersteund)\nLaat een veld leeg om af te breken.\n"
     )
 
-    journal = load_journal(JOURNAL_FILE)
-
-    trade_id = get_next_trade_id(journal)
+    trade_id = next_trade_id()
     print(f"TradeID automatisch toegekend: {trade_id}")
 
     symbool = input("Symbool (bijv. SPY): ").strip()
@@ -210,9 +201,7 @@ def interactieve_trade_invoer():
         },
     }
 
-    journal.append(nieuwe_trade)
-
-    save_journal(journal, JOURNAL_FILE)
+    add_trade(nieuwe_trade)
 
     print(f"\n✅ Trade {trade_id} succesvol toegevoegd aan journal.json")
 
