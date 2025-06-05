@@ -25,6 +25,9 @@ def start_app(
     Parameters are optional and fall back to ``config.yaml`` defaults.
     """
 
+    if hasattr(app, "start"):
+        return app.start(host=host, port=port, client_id=client_id)
+
     host = host or cfg_get("IB_HOST", "127.0.0.1")
     port = int(port or cfg_get("IB_PORT", 7497))
     app.connect(host, port, clientId=client_id)
