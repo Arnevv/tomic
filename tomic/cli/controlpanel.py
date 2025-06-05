@@ -122,12 +122,25 @@ def run_dataexporter() -> None:
         except subprocess.CalledProcessError:
             print("❌ Kwaliteitscheck mislukt")
 
+    def export_all() -> None:
+        sub = Menu("Selecteer exporttype")
+        sub.add(
+            "Alleen marktdata",
+            lambda: run_module("tomic.api.getallmarkets", "--only-metrics"),
+        )
+        sub.add(
+            "Alleen optionchains",
+            lambda: run_module("tomic.api.getallmarkets", "--only-chains"),
+        )
+        sub.add(
+            "Marktdata en optionchains",
+            lambda: run_module("tomic.api.getallmarkets"),
+        )
+        sub.run()
+
     menu = Menu("📤 DATA MANAGEMENT")
     menu.add("Exporteer een markt (tomic.api.getonemarket)", export_one)
-    menu.add(
-        "Exporteer alle markten (tomic.api.getallmarkets)",
-        lambda: run_module("tomic.api.getallmarkets"),
-    )
+    menu.add("Exporteer alle markten (tomic.api.getallmarkets)", export_all)
     menu.add("Controleer CSV-kwaliteit (tomic.cli.csv_quality_check)", csv_check)
     menu.add(
         "Haal optiedata op per symbool", lambda: run_module("tomic.cli.option_lookup")
