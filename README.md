@@ -78,10 +78,10 @@ Zo voorkom je de melding `TOMIC_DEBUG=0 : The term 'TOMIC_DEBUG=0' is not recogn
 
 ## 🕹️ Gebruik
 
-Start het hoofdscript met het controlpanel:
+Start het hoofdscript met het controlpanel via het nieuwe CLI-framework:
 
 ```bash
-python -m tomic.cli.controlpanel
+python -m tomic.cli.app controlpanel
 ```
 
 Of gebruik individuele modules:
@@ -166,7 +166,7 @@ Validatie van geëxporteerde option-chain CSV's. Het script toont het aantal reg
 Gebruik:
 
 ```bash
-python -m tomic.cli.csv_quality_check [optioneel pad/naar/bestand.csv]
+python -m tomic.cli.app csv-quality-check [optioneel pad/naar/bestand.csv]
 ```
 
 Laat je het pad weg, dan vraagt het script om het bestand en optioneel het symbool. Het script is ook te starten via het Control Panel (Dataexporter-menu).
