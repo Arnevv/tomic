@@ -7,6 +7,7 @@ from tomic.logging import logger
 
 from tomic.logging import setup_logging
 from tomic.journal.service import load_journal, update_trade, save_journal
+from .common import prompt, prompt_float
 
 
 def sluit_trade_af(trade: Dict[str, Any]) -> None:
@@ -16,7 +17,7 @@ def sluit_trade_af(trade: Dict[str, Any]) -> None:
     )
 
     # DatumUit en DaysInTrade
-    datum_uit = input("📆 DatumUit (YYYY-MM-DD): ").strip()
+    datum_uit = prompt("📆 DatumUit (YYYY-MM-DD): ")
     try:
         d_in = datetime.strptime(trade["DatumIn"], "%Y-%m-%d")
         d_out = datetime.strptime(datum_uit, "%Y-%m-%d")
@@ -30,22 +31,22 @@ def sluit_trade_af(trade: Dict[str, Any]) -> None:
     # ExitPrice met EntryPrice ter referentie
     try:
         entry_price = trade.get("EntryPrice", "?")
-        exit_price_input = input(
+        exit_price_input = prompt(
             f"💰 Exitprijs (de entry prijs was: {entry_price}): "
-        ).strip()
+        )
         trade["ExitPrice"] = float(exit_price_input)
     except ValueError:
         logger.error("❌ Ongeldige prijs.")
 
     # Resultaat
     try:
-        trade["Resultaat"] = float(input("📉 Resultaat ($): ").strip())
+        trade["Resultaat"] = float(prompt("📉 Resultaat ($): "))
     except ValueError:
         logger.error("❌ Ongeldig bedrag.")
 
     # Return on Margin
     try:
-        trade["ReturnOnMargin"] = float(input("📊 Return on Margin (%): ").strip())
+        trade["ReturnOnMargin"] = float(prompt("📊 Return on Margin (%): "))
     except ValueError:
         logger.error("❌ Ongeldige waarde.")
 
@@ -62,7 +63,7 @@ def sluit_trade_af(trade: Dict[str, Any]) -> None:
 
     lijnen = []
     while True:
-        regel = input("> ")
+        regel = prompt("> ")
         if regel.strip() == ".":
             break
         lijnen.append(regel)
@@ -85,7 +86,7 @@ def main() -> None:
     for t in open_trades:
         print(f"- {t['TradeID']}: {t['Symbool']} - {t['Type']}")
 
-    keuze = input("\nVoer TradeID in om af te sluiten: ").strip()
+    keuze = prompt("\nVoer TradeID in om af te sluiten: ")
     trade = next((t for t in journal if t["TradeID"] == keuze), None)
     if not trade:
         logger.error("❌ TradeID niet gevonden.")
