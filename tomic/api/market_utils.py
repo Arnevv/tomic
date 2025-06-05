@@ -4,6 +4,7 @@ import threading
 import time
 import math
 import statistics
+import itertools
 
 from tomic.config import get as cfg_get
 
@@ -12,18 +13,26 @@ from ibapi.contract import Contract
 from tomic.logging import logger
 from tomic.analysis.get_iv_rank import fetch_iv_metrics
 
+# Global client ID counter for unique connections
+_client_id_counter = itertools.count(start=1)
+
 INDEX_SYMBOLS = {"RUT", "VIX"}
 
 # --- App helpers ------------------------------------------------------------
 
 
 def start_app(
-    app, host: str | None = None, port: int | None = None, client_id: int = 200
+    app, host: str | None = None, port: int | None = None, client_id: int | None = None
 ) -> threading.Thread:
     """Connect and start the IB API client.
 
-    Parameters are optional and fall back to ``config.yaml`` defaults.
+    Parameters are optional and fall back to ``config.yaml`` defaults. When no
+    ``client_id`` is provided, a unique identifier is generated for each
+    connection.
     """
+
+    if client_id is None:
+        client_id = next(_client_id_counter)
 
     if hasattr(app, "start"):
         return app.start(host=host, port=port, client_id=client_id)

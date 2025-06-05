@@ -42,7 +42,9 @@ class BaseApp(EWrapper, EClient):
             and self._thread.is_alive()
             and threading.current_thread() is not self._thread
         ):
-            self._thread.join(timeout=0.1)
+            # Ensure the network thread fully stops before continuing
+            self._thread.join()
+        self._thread = None
 
     def error(self, reqId: int, errorCode: int, errorString: str) -> None:  # noqa: N802
         """Default error handler logging using :mod:`loguru`."""
