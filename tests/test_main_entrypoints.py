@@ -73,7 +73,6 @@ def test_close_trade_main(monkeypatch):
     trade = {"TradeID": "1", "Symbool": "ABC", "Type": "T", "Status": "Open"}
     monkeypatch.setattr(mod, "load_journal", lambda: [trade])
     monkeypatch.setattr(mod, "sluit_trade_af", lambda t: None)
-    monkeypatch.setattr(mod, "save_journal", lambda j: None)
     monkeypatch.setattr(mod.logger, "error", lambda *a, **k: None)
     monkeypatch.setattr(mod.logger, "success", lambda *a, **k: None)
     monkeypatch.setattr(builtins, "input", lambda prompt="": "1")
