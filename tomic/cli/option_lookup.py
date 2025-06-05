@@ -6,30 +6,31 @@ from datetime import date
 
 from tomic.logging import setup_logging
 from tomic.api.open_interest import fetch_open_interest
+from .common import prompt
 
 
 def run() -> None:
     """Prompt user for parameters and display open interest."""
     setup_logging()
-    symbol = input("Ticker symbool: ").strip().upper()
+    symbol = prompt("Ticker symbool: ").upper()
     if not symbol:
         print("Geen symbool opgegeven")
         return
 
-    expiry = input("Expiry (YYYY-MM-DD): ").strip()
+    expiry = prompt("Expiry (YYYY-MM-DD): ")
     try:
         date.fromisoformat(expiry)
     except ValueError:
         print("❌ Ongeldige datum. Gebruik het formaat YYYY-MM-DD.")
         return
-    strike_str = input("Strike: ").strip()
+    strike_str = prompt("Strike: ")
     try:
         strike = float(strike_str)
     except ValueError:
         print("Ongeldige strike")
         return
 
-    right = input("Type (C/P): ").strip().upper()
+    right = prompt("Type (C/P): ").upper()
     if right not in ("C", "P"):
         print("Ongeldig type")
         return

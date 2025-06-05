@@ -8,6 +8,7 @@ from typing import Any, Dict, List, Set
 from tomic.logging import logger
 
 from tomic.logging import setup_logging
+from .common import prompt
 
 
 def is_empty(val: str) -> bool:
@@ -140,12 +141,12 @@ def main(argv: List[str] | None = None) -> None:
         symbol = argv[1] if len(argv) > 1 else guess_symbol(path)
     else:
         print("Geen pad meegegeven. Vul handmatig in:")
-        raw_path = input("Pad naar CSV-bestand: ").strip()
+        raw_path = prompt("Pad naar CSV-bestand: ")
         path = raw_path.strip("'\"")
         if not path:
             print("Geen pad opgegeven.")
             return
-        symbol_input = input("Symbool (enter voor auto-detect): ").strip()
+        symbol_input = prompt("Symbool (enter voor auto-detect): ")
         symbol = symbol_input or guess_symbol(path)
     if not os.path.isfile(path):
 
