@@ -112,7 +112,23 @@ def run_dataexporter() -> None:
             except subprocess.CalledProcessError:
                 print("❌ Export mislukt")
         elif sub == "2":
-            run_module("tomic.api.getallmarkets")
+            print("\n1. Haal marktdata op")
+            print("2. Haal optionchains op")
+            print("3. Haal beide op")
+            choice = input("Maak je keuze: ").strip()
+            if choice == "1":
+                args = ["--only-metrics"]
+            elif choice == "2":
+                args = ["--only-chains"]
+            elif choice == "3":
+                args = []
+            else:
+                print("❌ Ongeldige keuze")
+                continue
+            try:
+                run_module("tomic.api.getallmarkets", *args)
+            except subprocess.CalledProcessError:
+                print("❌ Export mislukt")
         elif sub == "3":
             path = input("Pad naar CSV-bestand: ").strip()
             if path:
