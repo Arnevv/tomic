@@ -5,6 +5,7 @@ from typing import Any, Dict, List
 from tomic.analysis.strategy import group_strategies
 from tomic.config import get as cfg_get
 from tomic.journal.utils import load_json
+from .common import prompt
 
 
 def simulate_portfolio_response(
@@ -67,12 +68,12 @@ def main(argv: List[str] | None = None) -> None:
 
     while True:
         try:
-            user_spot = input(
+            user_spot = prompt(
                 "\nHoeveel procent spot shift wil je simuleren?\n(bijv. 2 voor +2%, -1 voor -1%): "
-            ).strip()
-            user_iv = input(
+            )
+            user_iv = prompt(
                 "Hoeveel procent IV shift wil je simuleren?\n(bijv. 5 voor +5%, -3 voor -3%): "
-            ).strip()
+            )
             spot_shift = float(user_spot) / 100
             iv_shift = float(user_iv) / 100
         except ValueError:
@@ -108,7 +109,7 @@ def main(argv: List[str] | None = None) -> None:
             if totals["delta"] < -0.2 and spot_shift > 0:
                 print("⚠️ Bearish delta + stijging → richtingverlies")
 
-        again = input("\nNog een scenario simuleren? (j/n): ").strip().lower()
+        again = prompt("\nNog een scenario simuleren? (j/n): ").lower()
         if again != "j":
             break
 
