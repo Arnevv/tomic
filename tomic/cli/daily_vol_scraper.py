@@ -6,7 +6,7 @@ from tomic.logging import logger
 
 from tomic.config import get as cfg_get
 
-from tomic.analysis.get_iv_rank import _download_html, parse_patterns
+from tomic.analysis.volatility_fetcher import download_html, parse_patterns
 from tomic.analysis.iv_patterns import IV_PATTERNS, EXTRA_PATTERNS
 from tomic.analysis.vol_snapshot import snapshot_symbols
 from tomic.logging import setup_logging
@@ -14,7 +14,7 @@ from tomic.logging import setup_logging
 
 def fetch_volatility_metrics(symbol: str) -> Dict[str, float]:
     """Fetch spot, IV30, HV30, IV rank and skew for a symbol."""
-    html = _download_html(symbol)
+    html = download_html(symbol)
     iv_data = parse_patterns(IV_PATTERNS, html)
     extra_data = parse_patterns(EXTRA_PATTERNS, html)
     data = {**iv_data, **extra_data}

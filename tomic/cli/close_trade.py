@@ -6,9 +6,13 @@ from typing import Any, Dict
 from tomic.logging import logger
 
 from tomic.logging import setup_logging
-from tomic.journal.service import load_journal, update_trade, save_journal
+from tomic.journal.service import (
+    load_journal,
+    update_trade,
+    save_journal,
+    is_valid_trade_id,
+)
 from .common import prompt, prompt_float
-
 
 def sluit_trade_af(trade: Dict[str, Any]) -> None:
     """Interactively enter exit details for ``trade``."""
@@ -86,7 +90,11 @@ def main() -> None:
     for t in open_trades:
         print(f"- {t['TradeID']}: {t['Symbool']} - {t['Type']}")
 
-    keuze = prompt("\nVoer TradeID in om af te sluiten: ")
+keuze = prompt("\nVoer TradeID in om af te sluiten: ")
+if not is_valid_trade_id(keuze):
+    logger.error("❌ Ongeldige TradeID.")
+    return
+
     trade = next((t for t in journal if t["TradeID"] == keuze), None)
     if not trade:
         logger.error("❌ TradeID niet gevonden.")
