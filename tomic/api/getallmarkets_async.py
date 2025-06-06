@@ -3,12 +3,14 @@
 from __future__ import annotations
 
 import asyncio
-from datetime import datetime
 import os
+import sys
+from datetime import datetime
 from typing import Iterable, List
 
 from tomic.logging import logger, setup_logging
 from tomic.config import get as cfg_get
+from .market_utils import ib_connection_available
 
 from .getallmarkets import run, export_combined_csv
 
@@ -77,10 +79,18 @@ def main(args: list[str] | None = None) -> None:
         help="Map voor exports (standaard wordt automatisch bepaald)",
     )
     parser.add_argument("--only-metrics", action="store_true", help="Alleen marktdata")
-    parser.add_argument("--only-chains", action="store_true", help="Alleen optionchains")
+    parser.add_argument(
+        "--only-chains", action="store_true", help="Alleen optionchains"
+    )
     parsed = parser.parse_args(args)
 
     setup_logging()
+    if not ib_connection_available():
+        logger.error(
+            "❌ IB Gateway/TWS niet bereikbaar. Controleer of de service draait."
+        )
+        sys.exit(1)
+
     logger.info("🚀 Start async export")
 
     symbols = parsed.symbols or cfg_get("DEFAULT_SYMBOLS", [])
@@ -105,4 +115,3 @@ def main(args: list[str] | None = None) -> None:
 
 if __name__ == "__main__":  # pragma: no cover - manual invocation
     main()
-
