@@ -1,7 +1,6 @@
 import importlib
 import sys
 import types
-from types import SimpleNamespace
 
 # Build pandas stub with minimal functionality
 captured_concat: list = []
