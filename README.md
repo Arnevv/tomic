@@ -40,7 +40,15 @@ pip install -r requirements.txt
 
 Deze stap installeert ook **Pydantic**, gebruikt voor het laden van `config.py`.
 
-4. Zorg dat IB Gateway of TWS actief is op poort 7497.
+4. Gebruik je de officiële IB API download i.p.v. de ``pip``-versie? Zet dan de
+   omgevingsvariabele ``TWS_API_PATH`` (of ``IB_API_PATH``) naar de map met het
+   pakket ``ibapi``. Vaak is dat ``source/pythonclient`` uit de API-zip:
+
+   ```bash
+   export TWS_API_PATH="/pad/naar/source/pythonclient"  # Windows: set TWS_API_PATH=C:\TWS API\source\pythonclient
+   ```
+
+5. Zorg dat IB Gateway of TWS actief is op poort 7497.
 
 ### Logging
 
