@@ -3,12 +3,14 @@
 from __future__ import annotations
 
 import os
+import sys
 import time
 from datetime import datetime
 
 import pandas as pd
 from tomic.logging import logger, setup_logging
 from tomic.config import get as cfg_get
+from .market_utils import ib_connection_available
 from .market_export import export_market_data
 
 try:  # pragma: no cover - optional during tests
@@ -83,6 +85,12 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     setup_logging()
+    if not ib_connection_available():
+        logger.error(
+            "❌ IB Gateway/TWS niet bereikbaar. Controleer of de service draait."
+        )
+        sys.exit(1)
+
     logger.info("🚀 Start export")
 
     symbols = args.symbols or cfg_get("DEFAULT_SYMBOLS", [])
