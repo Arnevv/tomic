@@ -5,6 +5,7 @@ import time
 import math
 import statistics
 import itertools
+import socket
 
 from tomic.config import get as cfg_get
 
@@ -17,6 +18,26 @@ from tomic.analysis.get_iv_rank import fetch_iv_metrics
 _client_id_counter = itertools.count(start=1)
 
 INDEX_SYMBOLS = {"RUT", "VIX"}
+
+# --- Connection helpers -----------------------------------------------------
+
+
+def ib_connection_available(
+    host: str | None = None,
+    port: int | None = None,
+    *,
+    timeout: float = 2.0,
+) -> bool:
+    """Return ``True`` if a socket connection to IB can be established."""
+
+    host = host or cfg_get("IB_HOST", "127.0.0.1")
+    port = int(port or cfg_get("IB_PORT", 7497))
+    try:
+        with socket.create_connection((host, port), timeout):
+            return True
+    except OSError:
+        return False
+
 
 # --- App helpers ------------------------------------------------------------
 
@@ -308,6 +329,7 @@ def fetch_market_metrics(symbol: str) -> dict | None:
 
 
 __all__ = [
+    "ib_connection_available",
     "create_underlying",
     "create_option_contract",
     "calculate_hv30",
