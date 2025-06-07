@@ -40,6 +40,30 @@ def ib_connection_available(
         return False
 
 
+def wait_for_port(
+    host: str | None = None,
+    port: int | None = None,
+    *,
+    attempts: int = 5,
+    timeout: float = 1.0,
+    backoff: float = 0.5,
+) -> bool:
+    """Poll the TCP port until it becomes reachable."""
+
+    host = host or cfg_get("IB_HOST", "127.0.0.1")
+    port = int(port or cfg_get("IB_PORT", 7497))
+    delay = backoff
+    for _ in range(attempts):
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+            sock.settimeout(timeout)
+            if sock.connect_ex((host, port)) == 0:
+                return True
+        logger.debug(f"⏳ wacht {delay} seconden op open poort {port}")
+        time.sleep(delay)
+        delay *= 2
+    return False
+
+
 def ib_api_available(
     host: str | None = None,
     port: int | None = None,
@@ -122,11 +146,37 @@ def tws_is_ready(
             pass
 
 
+def tws_status_probe(
+    host: str | None = None,
+    port: int | None = None,
+    *,
+    attempts: int = 5,
+    backoff: float = 0.5,
+    client_id: int | None = None,
+) -> bool:
+    """Retry ``tws_is_ready`` with exponential backoff."""
+
+    delay = backoff
+    for _ in range(attempts):
+        if tws_is_ready(host=host, port=port, client_id=client_id):
+            return True
+        logger.info(f"⏳ TWS niet klaar, nieuwe poging over {delay} seconden")
+        time.sleep(delay)
+        delay *= 2
+    return False
+
+
 # --- App helpers ------------------------------------------------------------
 
 
 def start_app(
-    app, host: str | None = None, port: int | None = None, client_id: int | None = None
+    app,
+    host: str | None = None,
+    port: int | None = None,
+    client_id: int | None = None,
+    *,
+    attempts: int = 5,
+    backoff: float = 0.5,
 ) -> threading.Thread:
     """Connect and start the IB API client.
 
@@ -138,13 +188,17 @@ def start_app(
     if client_id is None:
         client_id = next(_client_id_counter)
 
+    host = host or cfg_get("IB_HOST", "127.0.0.1")
+    port = int(port or cfg_get("IB_PORT", 7497))
+
+    if not wait_for_port(host, port, attempts=attempts, backoff=backoff):
+        raise RuntimeError("TWS poort niet bereikbaar")
+
     logger.debug(f"🚀 Connecting with client_id={client_id}")
 
     if hasattr(app, "start"):
         thread = app.start(host=host, port=port, client_id=client_id)
     else:
-        host = host or cfg_get("IB_HOST", "127.0.0.1")
-        port = int(port or cfg_get("IB_PORT", 7497))
         app.connect(host, port, clientId=client_id)
         thread = threading.Thread(target=app.run, daemon=True)
         thread.start()
@@ -308,7 +362,7 @@ def fetch_market_metrics(symbol: str) -> dict | None:
     host = cfg_get("IB_HOST", "127.0.0.1")
     port = int(cfg_get("IB_PORT", 7497))
     client_id = next(_client_id_counter)
-    if not tws_is_ready(host=host, port=port, client_id=client_id):
+    if not tws_status_probe(host=host, port=port, client_id=client_id):
         raise RuntimeError("TWS reageert niet op handshake")
     try:
         start_app(app, host=host, port=port, client_id=client_id)
@@ -456,7 +510,9 @@ def fetch_market_metrics(symbol: str) -> dict | None:
 __all__ = [
     "ib_connection_available",
     "ib_api_available",
+    "wait_for_port",
     "tws_is_ready",
+    "tws_status_probe",
     "create_underlying",
     "create_option_contract",
     "calculate_hv30",
