@@ -44,6 +44,7 @@ def ib_api_available(
     port: int | None = None,
     *,
     timeout: float = 2.0,
+    client_id: int | None = None,
 ) -> bool:
     """Return ``True`` if a basic IB API connection succeeds."""
 
@@ -57,17 +58,14 @@ def ib_api_available(
         def nextValidId(self, orderId: int) -> None:  # noqa: N802 - IB API callback
             self.ready_event.set()
 
-        def start_requests(self) -> None:
-            """No-op method for compatibility with :class:`CombinedApp`."""
+        def start_requests(self) -> None:  # pragma: no cover - compatibility
             pass
 
     app = _PingApp()
     try:
-      client_id = client_id or next(_client_id_counter)
-      start_app(app, host=host, port=port, client_id=client_id)
-      app.start_requests()
-    return True
-
+        cid = client_id or next(_client_id_counter)
+        start_app(app, host=host, port=port, client_id=cid)
+        return app.ready_event.wait(timeout=timeout)
     except Exception:
         return False
     finally:
@@ -246,8 +244,13 @@ def fetch_market_metrics(symbol: str) -> dict | None:
     app = CombinedApp(symbol)
     host = cfg_get("IB_HOST", "127.0.0.1")
     port = int(cfg_get("IB_PORT", 7497))
-    # Use a unique client ID for every connection to prevent IB error 326
-    start_app(app, host=host, port=port)
+    client_id = next(_client_id_counter)
+    try:
+        start_app(app, host=host, port=port, client_id=client_id)
+    except Exception as exc:
+        raise RuntimeError(
+            "TWS reageert niet, controleer of TWS draait en port correct is"
+        ) from exc
     if hasattr(app, "start_requests"):
         app.start_requests()
 
