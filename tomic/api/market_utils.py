@@ -59,7 +59,7 @@ def ib_api_available(
 
     app = _PingApp()
     try:
-        start_app(app, host=host, port=port, client_id=1)
+        start_app(app, host=host, port=port)
         return app.ready_event.wait(timeout=timeout)
     except Exception:
         return False
