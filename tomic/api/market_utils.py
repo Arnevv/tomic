@@ -178,12 +178,7 @@ def start_app(
     attempts: int = 5,
     backoff: float = 0.5,
 ) -> threading.Thread:
-    """Connect and start the IB API client.
-
-    Parameters are optional and fall back to ``config.yaml`` defaults. When no
-    ``client_id`` is provided, a unique identifier is generated for each
-    connection.
-    """
+    """Connect and start the IB API client using a minimal approach."""
 
     if client_id is None:
         client_id = next(_client_id_counter)
@@ -196,34 +191,9 @@ def start_app(
 
     logger.debug(f"🚀 Connecting with client_id={client_id}")
 
-    if hasattr(app, "start"):
-        thread = app.start(host=host, port=port, client_id=client_id)
-    else:
-        app.connect(host, port, clientId=client_id)
-        thread = threading.Thread(target=app.run, daemon=True)
-        thread.start()
-
-    if not getattr(app, "_api_started", False):
-        if hasattr(app, "reqCurrentTime"):
-            try:
-                app.reqCurrentTime()
-            except Exception:
-                pass
-        if hasattr(app, "startApi"):
-            try:
-                app.startApi()
-                app._api_started = True
-            except Exception:
-                pass
-        if hasattr(app, "reqIds"):
-            try:
-                app.reqIds(1)
-            except Exception:
-                pass
-
-    if hasattr(app, "ready_event") and not app.ready_event.is_set():
-        if not app.ready_event.wait(timeout=5):
-            raise RuntimeError("⚠️ TWS gaf geen nextValidId - connectie incompleet")
+    app.connect(host, port, clientId=client_id)
+    thread = threading.Thread(target=app.run, daemon=True)
+    thread.start()
 
     return thread
 
