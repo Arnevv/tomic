@@ -39,6 +39,12 @@ class CombinedApp(BaseIBApp):
         self.market_data: dict[int, dict] = {}
         self.invalid_contracts: set[int] = set()
 
+    def run(self) -> None:  # type: ignore[override]
+        """Network loop processing incoming messages."""
+        while self.isConnected():
+            self.waitOnSignal()
+            self.recvMsg()
+
     def start(
         self, host: str = "127.0.0.1", port: int = 7497, client_id: int = 100
     ) -> threading.Thread:
@@ -51,11 +57,13 @@ class CombinedApp(BaseIBApp):
         logger.info("Starting IB connection")
         print("⏳ waiting for nextValidId")
 
-        self.connect(host, port, clientId=client_id)
-
-        # Start run-loop
+        # Start run-loop before connecting so we don't miss initial server
+        # messages. The run-loop explicitly waits on the socket signal
+        # before calling ``recvMsg``.
         thread = threading.Thread(target=self.run, daemon=True)
         thread.start()
+
+        self.connect(host, port, clientId=client_id)
 
         # Trigger handshake to request ``nextValidId``
         self.reqIds(1)
