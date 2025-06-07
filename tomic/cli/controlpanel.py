@@ -6,6 +6,7 @@ from datetime import datetime
 import json
 from pathlib import Path
 import threading
+import os
 
 if __package__ is None:
     # Allow running this file directly without ``-m`` by adjusting ``sys.path``
@@ -146,12 +147,28 @@ def run_dataexporter() -> None:
         )
         sub.run()
 
+    def option_lookup_default() -> None:
+        os.environ["TOMIC_LOG_LEVEL"] = "DEBUG"
+        try:
+            run_module(
+                "tomic.cli.option_lookup",
+                "AAPL",
+                "2025-06-20",
+                "200",
+                "C",
+            )
+        except subprocess.CalledProcessError:
+            print("❌ Ophalen van optiedata mislukt")
+        finally:
+            os.environ["TOMIC_LOG_LEVEL"] = "INFO"
+
     menu = Menu("📤 DATA MANAGEMENT")
     menu.add("Exporteer een markt (tomic.api.getonemarket)", export_one)
     menu.add("Exporteer alle markten (tomic.api.getallmarkets)", export_all)
     menu.add("Controleer CSV-kwaliteit (tomic.cli.csv_quality_check)", csv_check)
     menu.add(
-        "Haal optiedata op per symbool", lambda: run_module("tomic.cli.option_lookup")
+        "Haal optiedata op per symbool",
+        option_lookup_default,
     )
     menu.run()
 
