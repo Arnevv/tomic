@@ -1,3 +1,4 @@
+# ruff: noqa: E402
 import json
 import builtins
 from multiprocessing import Queue
@@ -25,6 +26,7 @@ def setup_ib_stubs(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setitem(sys.modules, "ibapi.ticktype", ticktype_stub)
     monkeypatch.setitem(sys.modules, "ibapi.common", common_stub)
     monkeypatch.setitem(sys.modules, "pandas", types.ModuleType("pandas"))
+
 
 from tomic.proto import rpc, tws_daemon, job_status
 
