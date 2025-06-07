@@ -9,6 +9,39 @@ import threading
 import os
 import csv
 
+try:
+    from tabulate import tabulate
+except Exception:  # pragma: no cover - fallback when tabulate is missing
+
+    def tabulate(
+        rows: list[list[str]],
+        headers: list[str] | None = None,
+        tablefmt: str = "simple",
+    ) -> str:
+        if headers:
+            table_rows = [headers] + rows
+        else:
+            table_rows = rows
+        col_w = [max(len(str(c)) for c in col) for col in zip(*table_rows)]
+
+        def fmt(row: list[str]) -> str:
+            return (
+                "| "
+                + " | ".join(str(c).ljust(col_w[i]) for i, c in enumerate(row))
+                + " |"
+            )
+
+        lines = []
+        if headers:
+            lines.append(fmt(headers))
+            lines.append(
+                "|-" + "-|-".join("-" * col_w[i] for i in range(len(col_w))) + "-|"
+            )
+        for row in rows:
+            lines.append(fmt(row))
+        return "\n".join(lines)
+
+
 if __package__ is None:
     # Allow running this file directly without ``-m`` by adjusting ``sys.path``
     sys.path.append(str(Path(__file__).resolve().parents[1]))
@@ -292,9 +325,10 @@ def run_portfolio_menu() -> None:
             print(f"ℹ️ Marktkenmerken uit {overview}")
             try:
                 with open(overview, newline="", encoding="utf-8") as fh:
-                    reader = csv.reader(fh)
-                    for row in reader:
-                        print(" | ".join(row))
+                    reader = list(csv.reader(fh))
+                if reader:
+                    headers, *rows = reader
+                    print(tabulate(rows, headers=headers, tablefmt="github"))
             except Exception as exc:
                 print(f"⚠️ Kan overzicht niet lezen: {exc}")
         else:
@@ -312,9 +346,7 @@ def run_portfolio_menu() -> None:
         if abs(delta) > 25:
             strategies.append("Vertical – richting kiezen (bij duidelijke bias)")
         if vega > 50:
-            strategies.append(
-                "Iron Condor – vega omlaag (hoge IV, IV Rank > 30)"
-            )
+            strategies.append("Iron Condor – vega omlaag (hoge IV, IV Rank > 30)")
         if vega < -50:
             strategies.append(
                 "Calendar Spread – vega omhoog (lage IV, contango term structure)"

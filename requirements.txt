@@ -4,3 +4,4 @@ PyYAML
 pydantic
 pytest
 loguru
+tabulate
