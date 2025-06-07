@@ -47,6 +47,31 @@ def test_getallmarkets_main_exits(monkeypatch):
     assert exited == [1]
 
 
+def test_getonemarket_main_exits(monkeypatch):
+    monkeypatch.setattr(
+        "tomic.api.getonemarket.ib_connection_available",
+        lambda: False,
+    )
+    monkeypatch.setattr("tomic.api.getonemarket.setup_logging", lambda: None)
+
+    exited: list[int] = []
+
+    def fake_exit(code: int = 0) -> None:
+        exited.append(code)
+        raise SystemExit(code)
+
+    monkeypatch.setattr("tomic.api.getonemarket.sys.exit", fake_exit)
+    monkeypatch.setattr(
+        "tomic.api.getonemarket.sys.argv",
+        ["getonemarket", "AAPL"],
+    )
+
+    with pytest.raises(SystemExit):
+        runpy.run_module("tomic.api.getonemarket", run_name="__main__")
+
+    assert exited == [1]
+
+
 def test_check_ib_connection(monkeypatch):
     from tomic.cli import controlpanel
 
