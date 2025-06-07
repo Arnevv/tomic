@@ -19,7 +19,7 @@ def run(symbol: str, output_dir: str | None = None) -> bool:
             "❌ IB Gateway/TWS niet bereikbaar. Controleer of de service draait."
         )
         return False
-    export_market_data(symbol, output_dir)
+    export_market_data(symbol.strip().upper(), output_dir)
     return True
 
 
