@@ -5,6 +5,8 @@ import sys
 import types
 
 import pytest
+from tomic.proto import rpc
+from tomic.cli import daemonctl
 
 
 def setup_ib_stubs(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -26,9 +28,6 @@ def setup_ib_stubs(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setitem(sys.modules, "ibapi.common", common_stub)
     monkeypatch.setitem(sys.modules, "pandas", types.ModuleType("pandas"))
 
-from tomic.proto import rpc
-from tomic.cli import daemonctl
-
 
 def setup_paths(tmp_path, monkeypatch):
     setup_ib_stubs(monkeypatch)
@@ -45,7 +44,9 @@ def test_daemonctl_ls(tmp_path, monkeypatch):
     setup_paths(tmp_path, monkeypatch)
     rpc.submit_task({"type": "get_market_data", "symbol": "XYZ"})
     out = []
-    monkeypatch.setattr(builtins, "print", lambda *a, **k: out.append(" ".join(str(x) for x in a)))
+    monkeypatch.setattr(
+        builtins, "print", lambda *a, **k: out.append(" ".join(str(x) for x in a))
+    )
     daemonctl.main(["ls", "--all"])
     assert any("XYZ" in line for line in out)
 
@@ -56,8 +57,22 @@ def test_daemonctl_retry(tmp_path, monkeypatch):
     # emulate failure
     rpc.update_index(job_id, status="failed")
     out = []
-    monkeypatch.setattr(builtins, "print", lambda *a, **k: out.append(" ".join(str(x) for x in a)))
+    monkeypatch.setattr(
+        builtins, "print", lambda *a, **k: out.append(" ".join(str(x) for x in a))
+    )
     assert daemonctl.main(["retry", job_id]) == 0
     assert any("requeued" in line for line in out)
     index = json.loads(rpc.INDEX_FILE.read_text())
     assert index[0]["status"] == "queued"
+
+
+def test_daemonctl_done(tmp_path, monkeypatch):
+    setup_paths(tmp_path, monkeypatch)
+    job_id = rpc.submit_task({"type": "get_market_data", "symbol": "XYZ"})
+    rpc.update_index(job_id, status="completed")
+    out = []
+    monkeypatch.setattr(
+        builtins, "print", lambda *a, **k: out.append(" ".join(str(x) for x in a))
+    )
+    daemonctl.main(["done"])
+    assert any("XYZ" in line for line in out)
