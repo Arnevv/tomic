@@ -63,9 +63,11 @@ def ib_api_available(
 
     app = _PingApp()
     try:
-        start_app(app, host=host, port=port, client_id=1)
-        app.start_requests()
-        return True
+      client_id = client_id or next(_client_id_counter)
+      start_app(app, host=host, port=port, client_id=client_id)
+      app.start_requests()
+    return True
+
     except Exception:
         return False
     finally:

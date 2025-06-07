@@ -34,7 +34,7 @@ def calculate_trade_margin(
     legs: list,
     host: str | None = None,
     port: int | None = None,
-    client_id: int = 900,
+    client_id: int | None = None,
 ) -> float | None:
     """Return required initial margin for the given option legs."""
     expiry = expiry.replace("-", "")
