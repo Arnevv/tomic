@@ -241,14 +241,14 @@ class IBApp(BaseIBApp):
     WARNING_ERROR_CODES: set[int] = set()
 
 
-def main() -> None:
+def main(client_id: int | None = None) -> None:
     """CLI entry point executing the original script logic."""
     setup_logging()
     logger.info("🚀 Ophalen van accountinformatie")
     app = IBApp()
     host = cfg_get("IB_HOST", "127.0.0.1")
     port = int(cfg_get("IB_PORT", 7497))
-    start_app(app, host=host, port=port, client_id=1)
+    start_app(app, host=host, port=port, client_id=client_id)
 
     app.account_event.wait(timeout=10)
     app.position_event.wait(timeout=10)
