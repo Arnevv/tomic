@@ -87,13 +87,22 @@ def start_app(
         client_id = next(_client_id_counter)
 
     if hasattr(app, "start"):
-        return app.start(host=host, port=port, client_id=client_id)
+        thread = app.start(host=host, port=port, client_id=client_id)
+    else:
+        host = host or cfg_get("IB_HOST", "127.0.0.1")
+        port = int(port or cfg_get("IB_PORT", 7497))
+        app.connect(host, port, clientId=client_id)
+        thread = threading.Thread(target=app.run, daemon=True)
+        thread.start()
 
-    host = host or cfg_get("IB_HOST", "127.0.0.1")
-    port = int(port or cfg_get("IB_PORT", 7497))
-    app.connect(host, port, clientId=client_id)
-    thread = threading.Thread(target=app.run, daemon=True)
-    thread.start()
+    # Explicitly initiate the API to avoid hanging connections on some systems
+    if hasattr(app, "startApi"):
+        time.sleep(0.1)
+        try:
+            app.startApi()
+        except Exception:
+            pass
+
     return thread
 
 
