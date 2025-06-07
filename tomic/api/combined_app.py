@@ -5,6 +5,7 @@ from ibapi.ticktype import TickTypeEnum
 from ibapi.common import TickerId
 import threading
 from datetime import datetime
+import time
 from tomic.utils import extract_weeklies
 from tomic.logging import logger
 
@@ -86,6 +87,7 @@ class CombinedApp(BaseIBApp):
     def start_requests(self) -> None:
         """Initiate all data requests once the connection is ready."""
         logger.info("Starting market data requests")
+        time.sleep(0.1)
         self.reqMarketDataType(2)
         self.request_spot_price()
         self.request_vix()
