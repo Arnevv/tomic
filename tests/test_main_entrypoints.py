@@ -266,7 +266,8 @@ def test_getonemarket_run(monkeypatch):
     monkeypatch.setitem(sys.modules, "tomic.api.market_export", export_stub)
     mod = importlib.reload(importlib.import_module("tomic.api.getonemarket"))
     monkeypatch.setattr(mod, "setup_logging", lambda: None)
-    assert mod.run("ABC") is None
+    monkeypatch.setattr(mod, "ib_connection_available", lambda: True)
+    assert mod.run("ABC") is True
 
 
 def test_getallmarkets_run(monkeypatch):
