@@ -5,6 +5,7 @@ from ibapi.ticktype import TickTypeEnum
 from ibapi.common import TickerId
 import threading
 from datetime import datetime
+import time
 from tomic.utils import extract_weeklies
 
 from .market_utils import (
@@ -26,13 +27,27 @@ class CombinedApp(BaseIBApp):
         self.option_params_event = threading.Event()
         self.historical_event = threading.Event()
 
-        self.spot_price = None
-        self.vix_price = None
-        self.conId = None
-        self.expiries = []
-        self.strikes = []
-        self.trading_class = None
+        self.spot_price: float | None = None
+        self.vix_price: float | None = None
+        self.conId: int | None = None
+        self.expiries: list[str] = []
+        self.strikes: list[float] = []
+        self.trading_class: str | None = None
         self.req_id_counter = 2000
+
+    def start(
+        self, host: str | None = None, port: int | None = None, client_id: int = 0
+    ) -> threading.Thread:
+        """Connect to IB and start the API thread."""
+
+        thread = super().start(host=host, port=port, client_id=client_id)
+        if hasattr(self, "startApi"):
+            time.sleep(0.1)
+            try:
+                self.startApi()
+            except Exception:  # pragma: no cover - network issues
+                pass
+        return thread
 
     def get_next_req_id(self):
         self.req_id_counter += 1
