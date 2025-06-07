@@ -76,7 +76,7 @@ def test_check_ib_connection(monkeypatch):
     from tomic.cli import controlpanel
 
     output: list[str] = []
-    monkeypatch.setattr(controlpanel, "ib_connection_available", lambda: True)
+    monkeypatch.setattr(controlpanel, "ib_api_available", lambda: True)
     monkeypatch.setattr(
         builtins, "print", lambda *a, **k: output.append(" ".join(str(x) for x in a))
     )
@@ -84,6 +84,6 @@ def test_check_ib_connection(monkeypatch):
     assert any("✅" in line for line in output)
 
     output.clear()
-    monkeypatch.setattr(controlpanel, "ib_connection_available", lambda: False)
+    monkeypatch.setattr(controlpanel, "ib_api_available", lambda: False)
     controlpanel.check_ib_connection()
     assert any("❌" in line for line in output)

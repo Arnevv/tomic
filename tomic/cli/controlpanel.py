@@ -15,7 +15,7 @@ if __package__ is None:
 
 from .common import Menu, prompt
 
-from tomic.api.market_utils import start_app, ib_connection_available
+from tomic.api.market_utils import start_app, ib_api_available
 from tomic.api.base_client import BaseIBApp
 
 from tomic import config as cfg
@@ -101,8 +101,8 @@ def print_api_version() -> None:
 
 
 def check_ib_connection() -> None:
-    """Test whether a basic socket connection to TWS can be made."""
-    if ib_connection_available():
+    """Test whether the IB API is reachable."""
+    if ib_api_available():
         print("✅ Verbinding met TWS beschikbaar")
     else:
         print("❌ Geen verbinding met TWS")
