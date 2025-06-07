@@ -6,6 +6,7 @@ import json
 import time
 from multiprocessing import Process
 from queue import Empty
+from datetime import datetime
 
 from tomic.logging import logger
 from tomic.config import get as cfg_get
@@ -29,10 +30,15 @@ class TwsSessionManager:
             cls._instance = cls()
         return cls._instance
 
-    def _update_status(self, job_id: str, state: str) -> None:
+    def _update_status(
+        self, job_id: str, state: str, progress: str | None = None, error: str | None = None
+    ) -> None:
+        ts = datetime.utcnow().replace(microsecond=0).isoformat() + "Z"
         status_file = rpc.STATUS_DIR / f"{job_id}.json"
+        data = {"state": state, "updated": ts, "progress": progress, "error": error}
         try:
-            status_file.write_text(json.dumps({"state": state}))
+            status_file.write_text(json.dumps(data))
+            rpc.update_index(job_id, status=state, updated=ts, progress=progress, error=error)
         except Exception as exc:  # pragma: no cover - unlikely
             logger.error(f"Kan status niet schrijven: {exc}")
 
@@ -46,6 +52,8 @@ class TwsSessionManager:
                 task = rpc.TASK_QUEUE.get_nowait()
             except Empty:
                 for job_file in jobs_dir.glob("*.json"):
+                    if job_file.name == "index.json":
+                        continue
                     try:
                         data = json.loads(job_file.read_text())
                     except Exception as exc:
@@ -61,16 +69,20 @@ class TwsSessionManager:
 
             job_id = task.get("id")
             if job_id:
-                self._update_status(job_id, "running")
+                self._update_status(job_id, "running", progress="start")
             try:
                 self._handle_task(task)
-            except Exception:
+            except Exception as exc:
                 logger.exception("Taak mislukt: %s", task)
                 if job_id:
-                    self._update_status(job_id, "failed")
+                    retries = rpc.increment_retries(job_id)
+                    self._update_status(job_id, "failed", error=str(exc))
+                    entry = rpc.get_entry(job_id)
+                    if entry and retries <= entry.get("max_retries", 0):
+                        rpc.retry_job(job_id)
             else:
                 if job_id:
-                    self._update_status(job_id, "completed")
+                    self._update_status(job_id, "completed", progress="done")
             if source_file:
                 source_file.unlink()
 
@@ -79,6 +91,9 @@ class TwsSessionManager:
         if typ == "get_market_data":
             symbol = task.get("symbol")
             output_dir = task.get("output_dir") or cfg_get("EXPORT_DIR", "exports")
+            job_id = task.get("id")
+            if job_id:
+                self._update_status(job_id, "running", progress="export")
             if not symbol:
                 logger.error("Ontbrekend symbool in taak")
                 return
