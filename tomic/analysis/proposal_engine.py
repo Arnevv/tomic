@@ -111,7 +111,14 @@ def _make_calendar(chain: List[Leg]) -> Optional[List[Leg]]:
         return None
     chain.sort(key=lambda x: (x.strike, x.expiry))
     first = chain[0]
-    other = next((l for l in chain[1:] if l.strike == first.strike and l.expiry != first.expiry), None)
+    other = next(
+        (
+            leg
+            for leg in chain[1:]
+            if leg.strike == first.strike and leg.expiry != first.expiry
+        ),
+        None,
+    )
     if other is None:
         return None
     return [
@@ -130,7 +137,9 @@ def _tomic_score(after: Dict[str, float]) -> float:
     return round(max(score, 0.0), 1)
 
 
-def suggest_strategies(symbol: str, chain: List[Leg], exposure: Dict[str, float]) -> List[Dict[str, Any]]:
+def suggest_strategies(
+    symbol: str, chain: List[Leg], exposure: Dict[str, float]
+) -> List[Dict[str, Any]]:
     """Return a list of strategy proposals for ``symbol``."""
     suggestions: List[Dict[str, Any]] = []
     if abs(exposure.get("Delta", 0.0)) > 25:
@@ -179,7 +188,9 @@ def suggest_strategies(symbol: str, chain: List[Leg], exposure: Dict[str, float]
     return suggestions
 
 
-def generate_proposals(positions_file: str, chain_dir: str) -> Dict[str, List[Dict[str, Any]]]:
+def generate_proposals(
+    positions_file: str, chain_dir: str
+) -> Dict[str, List[Dict[str, Any]]]:
     """Combine portfolio Greeks with chain data and return proposals."""
     positions = load_json(positions_file)
     open_positions = [p for p in positions if p.get("position")]
