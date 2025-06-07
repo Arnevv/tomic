@@ -1,22 +1,26 @@
 """Command line tools to interact with the TWS daemon."""
+
 from __future__ import annotations
 
 import argparse
 import json
 from typing import Any
 
-from tomic.logging import setup_logging, logger
+from tomic.logging import setup_logging
 from tomic.proto import rpc
 
 try:
     from tabulate import tabulate
 except Exception:  # pragma: no cover - fallback
+
     def tabulate(rows: list[list[Any]], headers: list[str] | None = None) -> str:
         if headers:
             rows = [headers] + rows
         col_w = [max(len(str(c)) for c in col) for col in zip(*rows)]
+
         def fmt(row: list[Any]) -> str:
             return " | ".join(str(c).ljust(col_w[i]) for i, c in enumerate(row))
+
         return "\n".join(fmt(r) for r in rows)
 
 
@@ -44,6 +48,24 @@ def cmd_ls(args: argparse.Namespace) -> None:
     rows = []
     for j in jobs:
         if not args.all and j.get("status") not in {"queued", "running"}:
+            continue
+        rows.append(
+            [
+                j.get("job_id"),
+                j.get("type"),
+                j.get("symbol"),
+                j.get("status"),
+                j.get("retries", 0),
+            ]
+        )
+    print(tabulate(rows, headers=["ID", "Type", "Symbol", "Status", "Retries"]))
+
+
+def cmd_done(_args: argparse.Namespace) -> None:
+    jobs = rpc.load_index()
+    rows = []
+    for j in jobs:
+        if j.get("status") in {"queued", "running"}:
             continue
         rows.append(
             [
@@ -97,6 +119,9 @@ def main(argv: list[str] | None = None) -> int:
     ls_p = sub.add_parser("ls", help="List jobs")
     ls_p.add_argument("--all", action="store_true")
     ls_p.set_defaults(func=cmd_ls)
+
+    done_p = sub.add_parser("done", help="List finished jobs")
+    done_p.set_defaults(func=cmd_done)
 
     show_p = sub.add_parser("show", help="Show job details")
     show_p.add_argument("job_id")

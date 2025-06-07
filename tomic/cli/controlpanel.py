@@ -266,13 +266,17 @@ def run_trade_management() -> None:
 def run_job_management() -> None:
     """Menu for TOMIC job management tasks."""
 
-    menu = Menu("🗂️ JOB MANAGEMENT")
+    menu = Menu("JOB MANAGEMENT")
     menu.add(
-        "📋 Lijst actieve jobs",
+        "Lijst actieve jobs",
         lambda: run_module("tomic.cli.daemonctl", "ls", "--all"),
     )
     menu.add(
-        "📂 Toon jobdetails",
+        "Lijst afgehandelde jobs",
+        lambda: run_module("tomic.cli.daemonctl", "done"),
+    )
+    menu.add(
+        "Toon jobdetails",
         lambda: run_module(
             "tomic.cli.daemonctl",
             "show",
@@ -280,7 +284,7 @@ def run_job_management() -> None:
         ),
     )
     menu.add(
-        "🔁 Retry gefaalde job",
+        "Retry gefaalde job",
         lambda: run_module(
             "tomic.cli.daemonctl",
             "retry",
@@ -481,7 +485,7 @@ def main() -> None:
     menu.add("Portfolio-overzicht", run_portfolio_menu)
     menu.add("Trade Management", run_trade_management)
     menu.add("Data Management", run_dataexporter)
-    menu.add("🗂️ Job Management", run_job_management)
+    menu.add("Job Management", run_job_management)
     menu.add("Risk Tools", run_risk_tools)
     menu.add("Instellingen", run_settings_menu)
     menu.run()
