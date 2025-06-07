@@ -40,29 +40,33 @@ class CombinedApp(BaseIBApp):
         self.invalid_contracts: set[int] = set()
 
     def start(
-        self, host: str | None = None, port: int | None = None, client_id: int = 0
+        self, host: str = "127.0.0.1", port: int = 7497, client_id: int = 1
     ) -> threading.Thread:
         """Connect to IB and start the API thread.
 
-        The method now waits for ``nextValidId`` to signal a ready connection
-        before returning.
+        This implementation waits for ``nextValidId`` before returning so that
+        callers can safely issue requests immediately after ``start``.
         """
 
         logger.info("Starting IB connection")
-        logger.info("⏳ waiting for nextValidId")
+        print("⏳ waiting for nextValidId")
 
-        thread = super().start(host=host, port=port, client_id=client_id)
-        if hasattr(self, "startApi"):
-            time.sleep(0.1)
-            try:
-                self.startApi()
-            except Exception:  # pragma: no cover - network issues
-                pass
+        self.connect(host, port, clientId=client_id)
 
-        if not self.ready_event.wait(timeout=10):
-            raise RuntimeError("TWS reageert niet")
+        thread = threading.Thread(target=self.run, daemon=True)
+        thread.start()
 
-        logger.success("IB connection ready")
+        time.sleep(0.25)  # noodzakelijke delay vóór ``startApi``
+        self.startApi()
+
+        success = self.ready_event.wait(timeout=5)
+        if not success:
+            logger.error(
+                "❌ nextValidId werd niet ontvangen – check connectie met TWS."
+            )
+            raise TimeoutError(
+                "❌ nextValidId werd niet ontvangen – check connectie met TWS."
+            )
 
         return thread
 
