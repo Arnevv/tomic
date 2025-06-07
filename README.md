@@ -194,6 +194,20 @@ Bid/Ask == -1: 0
 Kwaliteit: 95.0%
 ```
 
+### generate_proposals
+
+Genereert strategievoorstellen op basis van de Greeks in `positions.json` en de
+laatste option‑chain CSV's uit de exportmap.
+
+Gebruik:
+
+```bash
+python -m tomic.cli.generate_proposals positions.json exports/
+```
+
+De functie zal ook in het controlpanel verschijnen zodra bovenstaande integratie
+is toegevoegd.
+
 ---
 
 ## 📈 Voorbeeld: spotprijs & Greeks snapshot
