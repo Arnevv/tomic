@@ -290,22 +290,29 @@ def run_job_management() -> None:
         "Lijst afgehandelde jobs",
         lambda: run_module("tomic.cli.daemonctl", "done"),
     )
-    menu.add(
-        "Toon jobdetails",
-        lambda: run_module(
-            "tomic.cli.daemonctl",
-            "show",
-            prompt("Job ID: "),
-        ),
-    )
-    menu.add(
-        "Retry gefaalde job",
-        lambda: run_module(
-            "tomic.cli.daemonctl",
-            "retry",
-            prompt("Job ID: "),
-        ),
-    )
+
+    def show_job_details() -> None:
+        job_id = prompt("Job ID: ")
+        if not job_id:
+            print("⚠️ Geen Job ID opgegeven")
+            return
+        try:
+            run_module("tomic.cli.daemonctl", "show", job_id)
+        except subprocess.CalledProcessError:
+            print("❌ Jobdetails opvragen mislukt")
+
+    def retry_failed_job() -> None:
+        job_id = prompt("Job ID: ")
+        if not job_id:
+            print("⚠️ Geen Job ID opgegeven")
+            return
+        try:
+            run_module("tomic.cli.daemonctl", "retry", job_id)
+        except subprocess.CalledProcessError:
+            print("❌ Retry mislukt")
+
+    menu.add("Toon jobdetails", show_job_details)
+    menu.add("Retry gefaalde job", retry_failed_job)
     menu.add(
         "Bekijk daemon log",
         lambda: run_module("tomic.cli.daemonctl", "log"),
