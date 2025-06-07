@@ -7,7 +7,7 @@ import json
 from typing import Any
 
 from tomic.logging import setup_logging
-from tomic.proto import rpc
+from tomic.proto import rpc, tws_daemon
 
 try:
     from tabulate import tabulate
@@ -109,6 +109,19 @@ def cmd_purge(args: argparse.Namespace) -> None:
     rpc._save_index(kept)  # type: ignore[attr-defined]
 
 
+def cmd_log(_args: argparse.Namespace) -> None:
+    """Print the daemon log to stdout."""
+
+    path = getattr(tws_daemon, "LOG_FILE", rpc.JOBS_DIR / "daemon.log")
+    if not path.exists():
+        print("No log file found")
+        return
+    try:
+        print(path.read_text())
+    except Exception as exc:
+        print(f"cannot read log: {exc}")
+
+
 def main(argv: list[str] | None = None) -> int:
     setup_logging()
     parser = argparse.ArgumentParser("daemonctl")
@@ -134,6 +147,8 @@ def main(argv: list[str] | None = None) -> int:
     purge_p = sub.add_parser("purge", help="Purge jobs")
     purge_p.add_argument("--failed", action="store_true")
     purge_p.set_defaults(func=cmd_purge)
+
+    sub.add_parser("log", help="Show daemon log").set_defaults(func=cmd_log)
 
     args = parser.parse_args(argv)
     if hasattr(args, "func"):
