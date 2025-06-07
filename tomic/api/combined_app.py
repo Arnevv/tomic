@@ -62,6 +62,7 @@ class CombinedApp(BaseIBApp):
 
         # Start IB API (moet NA run-thread en NA connect gebeuren)
         self.startApi()
+        self._api_started = True
 
         success = self.ready_event.wait(timeout=5)
         if not success:
@@ -80,7 +81,7 @@ class CombinedApp(BaseIBApp):
 
     # --- Connection callbacks -------------------------------------------------
     def nextValidId(self, orderId: int):  # noqa: N802 (callback name)
-        logger.success(f"nextValidId in CombinedApp: {orderId}")
+        logger.success(f"✅ nextValidId ontvangen: {orderId}")
         self.ready_event.set()
         logger.debug("ready_event set")
 
