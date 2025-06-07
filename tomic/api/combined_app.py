@@ -34,6 +34,8 @@ class CombinedApp(BaseIBApp):
         self.strikes: list[float] = []
         self.trading_class: str | None = None
         self.req_id_counter = 2000
+        self.market_data: dict[int, dict] = {}
+        self.invalid_contracts: set[int] = set()
 
     def start(
         self, host: str | None = None, port: int | None = None, client_id: int = 0
@@ -173,9 +175,7 @@ class CombinedApp(BaseIBApp):
         else:
             super().error(reqId, errorCode, errorString)
 
-    def tickPrice(
-        self, reqId: TickerId, tickType: int, price: float, attrib
-    ):  # noqa: N802
+    def tickPrice(self, reqId: TickerId, tickType: int, price: float, attrib):  # noqa: N802
         if reqId == 1001 and tickType == TickTypeEnum.LAST:
             self.spot_price = round(price, 2)
             self.cancelMktData(1001)
