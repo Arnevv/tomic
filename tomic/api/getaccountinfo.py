@@ -14,7 +14,6 @@ from tomic.api.base_client import BaseIBApp
 from tomic.api.market_utils import count_incomplete
 from tomic.analysis.get_iv_rank import fetch_iv_metrics
 from tomic.analysis.greeks import compute_portfolio_greeks
-from tomic.api.market_utils import start_app
 from tomic.config import get as cfg_get
 from tomic.logging import logger, setup_logging
 
@@ -248,7 +247,12 @@ def main(client_id: int | None = None) -> None:
     app = IBApp()
     host = cfg_get("IB_HOST", "127.0.0.1")
     port = int(cfg_get("IB_PORT", 7497))
-    start_app(app, host=host, port=port, client_id=client_id)
+    if client_id is None:
+        client_id = 1
+    # Connect using the minimal approach from ``test_connectie.py``
+    app.connect(host, port, clientId=client_id)
+    thread = threading.Thread(target=app.run, daemon=True)
+    thread.start()
 
     app.account_event.wait(timeout=10)
     app.position_event.wait(timeout=10)
