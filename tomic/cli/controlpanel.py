@@ -45,9 +45,8 @@ except Exception:  # pragma: no cover - fallback when tabulate is missing
 if __package__ is None:
     # Allow running this file directly without ``-m`` by adjusting ``sys.path``
     sys.path.append(str(Path(__file__).resolve().parents[1]))
-    __package__ = "tomic.cli"
 
-from .common import Menu, prompt
+from tomic.cli.common import Menu, prompt
 
 from tomic.api.market_utils import start_app, ib_api_available
 from tomic.api.base_client import BaseIBApp
