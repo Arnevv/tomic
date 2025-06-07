@@ -60,7 +60,8 @@ def ib_api_available(
     app = _PingApp()
     try:
         start_app(app, host=host, port=port, client_id=1)
-        return app.ready_event.wait(timeout=timeout)
+        app.start_requests()
+        return True
     except Exception:
         return False
     finally:
