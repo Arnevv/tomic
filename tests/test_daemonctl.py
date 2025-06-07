@@ -76,3 +76,15 @@ def test_daemonctl_done(tmp_path, monkeypatch):
     )
     daemonctl.main(["done"])
     assert any("XYZ" in line for line in out)
+
+
+def test_daemonctl_log(tmp_path, monkeypatch):
+    setup_paths(tmp_path, monkeypatch)
+    log_path = rpc.JOBS_DIR / "daemon.log"
+    log_path.write_text("hello")
+    out = []
+    monkeypatch.setattr(
+        builtins, "print", lambda *a, **k: out.append(" ".join(str(x) for x in a))
+    )
+    assert daemonctl.main(["log"]) == 0
+    assert any("hello" in line for line in out)

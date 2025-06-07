@@ -55,6 +55,7 @@ from tomic.api.base_client import BaseIBApp
 from tomic import config as cfg
 from tomic.logging import setup_logging
 from tomic.analysis.greeks import compute_portfolio_greeks
+from tomic.proto import tws_daemon
 
 setup_logging()
 
@@ -259,8 +260,23 @@ def run_trade_management() -> None:
         "Journal updaten met positie IDs",
         lambda: run_module("tomic.cli.link_positions"),
     )
+
     menu.add("Trade afsluiten", lambda: run_module("tomic.cli.close_trade"))
     menu.run()
+
+
+def show_daemon_log() -> None:
+    """Display the TWS daemon log."""
+
+    path = getattr(tws_daemon, "LOG_FILE", Path("daemon.log"))
+    if not path.exists():
+        print("⚠️ Geen logbestand gevonden")
+        return
+    print(f"ℹ️ Logbestand: {path}")
+    try:
+        print(path.read_text())
+    except Exception as exc:
+        print(f"⚠️ Kan log niet lezen: {exc}")
 
 
 def run_job_management() -> None:
@@ -290,6 +306,10 @@ def run_job_management() -> None:
             "retry",
             prompt("Job ID: "),
         ),
+    )
+    menu.add(
+        "Bekijk daemon log",
+        lambda: run_module("tomic.cli.daemonctl", "log"),
     )
     menu.run()
 

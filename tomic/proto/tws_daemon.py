@@ -8,11 +8,14 @@ from multiprocessing import Process
 from queue import Empty
 from datetime import datetime
 
-from tomic.logging import logger
+from tomic.logging import logger, setup_logging
 from tomic.config import get as cfg_get
 from tomic.api.market_export import export_market_data
 
 from . import rpc
+
+# Logfile storing connection and job execution details
+LOG_FILE = rpc.JOBS_DIR / "daemon.log"
 
 
 class TwsSessionManager:
@@ -31,18 +34,30 @@ class TwsSessionManager:
         return cls._instance
 
     def _update_status(
-        self, job_id: str, state: str, progress: str | None = None, error: str | None = None
+        self,
+        job_id: str,
+        state: str,
+        progress: str | None = None,
+        error: str | None = None,
     ) -> None:
         ts = datetime.utcnow().replace(microsecond=0).isoformat() + "Z"
         status_file = rpc.STATUS_DIR / f"{job_id}.json"
         data = {"state": state, "updated": ts, "progress": progress, "error": error}
         try:
             status_file.write_text(json.dumps(data))
-            rpc.update_index(job_id, status=state, updated=ts, progress=progress, error=error)
+            rpc.update_index(
+                job_id, status=state, updated=ts, progress=progress, error=error
+            )
         except Exception as exc:  # pragma: no cover - unlikely
             logger.error(f"Kan status niet schrijven: {exc}")
 
     def _run(self) -> None:
+        setup_logging()
+        try:
+            logger.add(LOG_FILE, level="DEBUG")
+        except Exception as exc:  # pragma: no cover - fallback when file failed
+            logger.warning(f"Kan logbestand niet openen: {exc}")
+
         jobs_dir = rpc.JOBS_DIR
         logger.info("TwsSessionManager gestart")
         while True:
