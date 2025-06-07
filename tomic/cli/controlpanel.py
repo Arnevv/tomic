@@ -15,7 +15,7 @@ if __package__ is None:
 
 from .common import Menu, prompt
 
-from tomic.api.market_utils import start_app
+from tomic.api.market_utils import start_app, ib_connection_available
 from tomic.api.base_client import BaseIBApp
 
 from tomic import config as cfg
@@ -98,6 +98,14 @@ def print_api_version() -> None:
     else:
         print("❌ Geen verbinding met TWS")
     app.disconnect()
+
+
+def check_ib_connection() -> None:
+    """Test whether a basic socket connection to TWS can be made."""
+    if ib_connection_available():
+        print("✅ Verbinding met TWS beschikbaar")
+    else:
+        print("❌ Geen verbinding met TWS")
 
 
 def run_dataexporter() -> None:
@@ -314,6 +322,7 @@ def run_settings_menu() -> None:
     menu.add("Pas default symbols aan", change_symbols)
     menu.add(f"Pas log-niveau aan ({', '.join(LOG_LEVEL_CHOICES)})", change_log_level)
     menu.add("Pas interest rate aan", change_rate)
+    menu.add("Test TWS-verbinding", check_ib_connection)
     menu.add("Haal TWS API-versie op", print_api_version)
     menu.run()
 
