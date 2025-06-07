@@ -1,4 +1,9 @@
+import pytest
+
+
 def test_tws_connection():
+    pytest.importorskip("ibapi")
+
     from ibapi.client import EClient
     from ibapi.wrapper import EWrapper
 
