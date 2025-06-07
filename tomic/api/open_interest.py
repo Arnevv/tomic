@@ -23,12 +23,14 @@ class _OpenInterestApp(BaseIBApp):
         self.open_interest: Optional[int] = None
         self.open_interest_event = threading.Event()
         self.open_interest_source: Optional[str] = None
+        self.received_ticks: list[str] = []
 
-    def _log_request(self) -> None:
+    def _log_request(self, contract) -> None:
         logger.debug(
             f"Requesting open interest for {self.symbol} "
             f"{self.expiry} {self.strike:.2f}{self.right}"
         )
+        logger.debug("Contract details: %s", contract)
 
     def nextValidId(self, orderId: int) -> None:  # noqa: N802 - IB API callback
         contract = create_option_contract(
@@ -36,15 +38,23 @@ class _OpenInterestApp(BaseIBApp):
         )
         # Request volume (100) and open interest (101) generic ticks. Some
         # brokers send open interest via tick types 86/87 instead of 101.
-        self._log_request()
+        self._log_request(contract)
         # First attempt with frozen real-time market data
         self.reqMarketDataType(2)
+        logger.debug("reqMarketDataType(2) - frozen real-time")
         self.reqMktData(1001, contract, "100,101", False, False, [])
+        logger.debug(
+            "reqMktData sent: id=1001 tickList=100,101 snapshot=False regulatory=False"
+        )
         # Brief pause before requesting delayed data as fallback
         time.sleep(0.25)
         # Fallback to delayed streaming data if no real-time open interest arrives
         self.reqMarketDataType(3)
+        logger.debug("reqMarketDataType(3) - delayed")
         self.reqMktData(1002, contract, "100,101", False, False, [])
+        logger.debug(
+            "reqMktData sent: id=1002 tickList=100,101 snapshot=False regulatory=False"
+        )
 
     def tickGeneric(
         self, reqId: int, tickType: int, value: float
@@ -56,7 +66,10 @@ class _OpenInterestApp(BaseIBApp):
             self.open_interest_event.set()
         elif tickType == 100:
             logger.info(f"ℹ️ Volume (tickGeneric 100): {value}")
-        logger.debug(f"tickGeneric: reqId={reqId} tickType={tickType} value={value}")
+        self.received_ticks.append(f"G{tickType}")
+        logger.debug(
+            f"tickGeneric: reqId={reqId} tickType={tickType} value={value}"
+        )
 
     def tickPrice(
         self, reqId: int, tickType: int, price: float, attrib
@@ -68,7 +81,10 @@ class _OpenInterestApp(BaseIBApp):
             self.open_interest = int(price)
             self.open_interest_source = f"tickPrice {tickType}"
             self.open_interest_event.set()
-        logger.debug(f"tickPrice: reqId={reqId} tickType={tickType} price={price}")
+        self.received_ticks.append(f"P{tickType}")
+        logger.debug(
+            f"tickPrice: reqId={reqId} tickType={tickType} price={price}"
+        )
 
 
 WAIT_TIMEOUT = 20
@@ -87,6 +103,9 @@ def fetch_open_interest(
 
     if not app.open_interest_event.wait(timeout=WAIT_TIMEOUT):
         logger.error("❌ Geen open interest ontvangen.")
+        logger.debug(
+            "Ontvangen tick types tijdens wachten: %s", ", ".join(app.received_ticks)
+        )
         app.disconnect()
         return None
 
