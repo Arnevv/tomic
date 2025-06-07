@@ -269,12 +269,12 @@ def run_job_management() -> None:
     menu = Menu("🗂️ JOB MANAGEMENT")
     menu.add(
         "📋 Lijst actieve jobs",
-        lambda: run_module("tomic.proto.daemonctl", "ls", "--all"),
+        lambda: run_module("tomic.cli.daemonctl", "ls", "--all"),
     )
     menu.add(
         "📂 Toon jobdetails",
         lambda: run_module(
-            "tomic.proto.daemonctl",
+            "tomic.cli.daemonctl",
             "show",
             prompt("Job ID: "),
         ),
@@ -282,7 +282,7 @@ def run_job_management() -> None:
     menu.add(
         "🔁 Retry gefaalde job",
         lambda: run_module(
-            "tomic.proto.daemonctl",
+            "tomic.cli.daemonctl",
             "retry",
             prompt("Job ID: "),
         ),
