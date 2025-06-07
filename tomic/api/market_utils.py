@@ -75,6 +75,52 @@ def ib_api_available(
             pass
 
 
+def tws_is_ready(
+    host: str | None = None,
+    port: int | None = None,
+    *,
+    timeout: float = 2.0,
+    client_id: int | None = None,
+) -> bool:
+    """Return ``True`` if TWS responds to ``reqCurrentTime``."""
+
+    from tomic.core.ib import BaseApp
+
+    class _ProbeApp(BaseApp):
+        def __init__(self) -> None:
+            super().__init__()
+            self.ping_event = threading.Event()
+
+        def currentTime(self, time: int) -> None:  # noqa: N802 - IB API callback
+            self.ping_event.set()
+
+        def nextValidId(self, orderId: int) -> None:  # noqa: N802
+            self.ping_event.set()
+
+        def start_requests(self) -> None:  # pragma: no cover - compatibility
+            pass
+
+    app = _ProbeApp()
+    try:
+        cid = client_id or next(_client_id_counter)
+        start_app(app, host=host, port=port, client_id=cid)
+        try:
+            app.reqCurrentTime()
+        except Exception:
+            try:
+                app.reqIds(1)
+            except Exception:
+                pass
+        return app.ping_event.wait(timeout=timeout)
+    except Exception:
+        return False
+    finally:
+        try:
+            app.disconnect()
+        except Exception:
+            pass
+
+
 # --- App helpers ------------------------------------------------------------
 
 
@@ -91,6 +137,8 @@ def start_app(
     if client_id is None:
         client_id = next(_client_id_counter)
 
+    logger.debug(f"🚀 Connecting with client_id={client_id}")
+
     if hasattr(app, "start"):
         thread = app.start(host=host, port=port, client_id=client_id)
     else:
@@ -100,9 +148,19 @@ def start_app(
         thread = threading.Thread(target=app.run, daemon=True)
         thread.start()
 
+    if hasattr(app, "reqCurrentTime"):
+        try:
+            app.reqCurrentTime()
+        except Exception:
+            pass
+    elif hasattr(app, "reqIds"):
+        try:
+            app.reqIds(1)
+        except Exception:
+            pass
+
     # Explicitly initiate the API to avoid hanging connections on some systems
     if hasattr(app, "startApi"):
-        time.sleep(0.1)
         try:
             app.startApi()
         except Exception:
@@ -245,6 +303,8 @@ def fetch_market_metrics(symbol: str) -> dict | None:
     host = cfg_get("IB_HOST", "127.0.0.1")
     port = int(cfg_get("IB_PORT", 7497))
     client_id = next(_client_id_counter)
+    if not tws_is_ready(host=host, port=port, client_id=client_id):
+        raise RuntimeError("TWS reageert niet op handshake")
     try:
         start_app(app, host=host, port=port, client_id=client_id)
     except TimeoutError as exc:  # nextValidId timeout
@@ -391,6 +451,7 @@ def fetch_market_metrics(symbol: str) -> dict | None:
 __all__ = [
     "ib_connection_available",
     "ib_api_available",
+    "tws_is_ready",
     "create_underlying",
     "create_option_contract",
     "calculate_hv30",
