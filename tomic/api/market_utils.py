@@ -15,7 +15,8 @@ from tomic.logging import logger
 from tomic.analysis.get_iv_rank import fetch_iv_metrics
 
 # Global client ID counter for unique connections
-_client_id_counter = itertools.count(start=1)
+# Avoid using client_id=1 which may conflict with running TWS sessions.
+_client_id_counter = itertools.count(start=101)
 
 INDEX_SYMBOLS = {"RUT", "VIX"}
 
@@ -219,6 +220,10 @@ def start_app(
                 app.reqIds(1)
             except Exception:
                 pass
+
+    if hasattr(app, "ready_event") and not app.ready_event.is_set():
+        if not app.ready_event.wait(timeout=5):
+            raise RuntimeError("⚠️ TWS gaf geen nextValidId - connectie incompleet")
 
     return thread
 
