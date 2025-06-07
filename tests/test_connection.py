@@ -1,6 +1,7 @@
 import runpy
 import sys
 import types
+import builtins
 import pytest
 
 # Stub IBAPI modules to avoid import errors
@@ -44,3 +45,20 @@ def test_getallmarkets_main_exits(monkeypatch):
         runpy.run_module("tomic.api.getallmarkets", run_name="__main__")
 
     assert exited == [1]
+
+
+def test_check_ib_connection(monkeypatch):
+    from tomic.cli import controlpanel
+
+    output: list[str] = []
+    monkeypatch.setattr(controlpanel, "ib_connection_available", lambda: True)
+    monkeypatch.setattr(
+        builtins, "print", lambda *a, **k: output.append(" ".join(str(x) for x in a))
+    )
+    controlpanel.check_ib_connection()
+    assert any("✅" in line for line in output)
+
+    output.clear()
+    monkeypatch.setattr(controlpanel, "ib_connection_available", lambda: False)
+    controlpanel.check_ib_connection()
+    assert any("❌" in line for line in output)
