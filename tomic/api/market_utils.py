@@ -148,23 +148,23 @@ def start_app(
         thread = threading.Thread(target=app.run, daemon=True)
         thread.start()
 
-    if hasattr(app, "reqCurrentTime"):
-        try:
-            app.reqCurrentTime()
-        except Exception:
-            pass
-    elif hasattr(app, "reqIds"):
-        try:
-            app.reqIds(1)
-        except Exception:
-            pass
-
-    # Explicitly initiate the API to avoid hanging connections on some systems
-    if hasattr(app, "startApi"):
-        try:
-            app.startApi()
-        except Exception:
-            pass
+    if not getattr(app, "_api_started", False):
+        if hasattr(app, "reqCurrentTime"):
+            try:
+                app.reqCurrentTime()
+            except Exception:
+                pass
+        if hasattr(app, "startApi"):
+            try:
+                app.startApi()
+                app._api_started = True
+            except Exception:
+                pass
+        if hasattr(app, "reqIds"):
+            try:
+                app.reqIds(1)
+            except Exception:
+                pass
 
     return thread
 
