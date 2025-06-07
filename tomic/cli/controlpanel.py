@@ -165,6 +165,18 @@ def run_dataexporter() -> None:
         except subprocess.CalledProcessError:
             print("❌ Export mislukt")
 
+    def export_one_prototype() -> None:
+        symbol = prompt("Ticker symbool: ")
+        if not symbol:
+            print("Geen symbool opgegeven")
+            return
+        from datetime import datetime
+        from tomic.proto.rpc import submit_task
+
+        submit_task({"type": "get_market_data", "symbol": symbol.strip().upper()})
+        job_id = f"{symbol.strip().upper()}_{datetime.now().strftime('%Y%m%d%H%M%S')}"
+        print(f"Job {job_id} toegevoegd aan queue.")
+
     def csv_check() -> None:
         path = prompt("Pad naar CSV-bestand: ")
         if not path:
@@ -216,6 +228,10 @@ def run_dataexporter() -> None:
 
     menu = Menu("📤 DATA MANAGEMENT")
     menu.add("Exporteer een markt (tomic.api.getonemarket)", export_one)
+    menu.add(
+        "Exporteer een markt (via TwsSessionDaemon prototype)",
+        export_one_prototype,
+    )
     menu.add("Exporteer alle markten (tomic.api.getallmarkets)", export_all)
     menu.add("Controleer CSV-kwaliteit (tomic.cli.csv_quality_check)", csv_check)
     menu.add(
