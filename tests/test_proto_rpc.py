@@ -5,6 +5,32 @@ from multiprocessing import Queue
 import sys
 import types
 
+# Stub dependencies so modules import without the real packages present
+contract_stub = types.ModuleType("ibapi.contract")
+contract_stub.Contract = type("Contract", (), {})
+contract_stub.ContractDetails = type("ContractDetails", (), {})
+client_stub = types.ModuleType("ibapi.client")
+client_stub.EClient = type("EClient", (), {})
+wrapper_stub = types.ModuleType("ibapi.wrapper")
+wrapper_stub.EWrapper = type("EWrapper", (), {})
+ticktype_stub = types.ModuleType("ibapi.ticktype")
+ticktype_stub.TickTypeEnum = type("TickTypeEnum", (), {})
+common_stub = types.ModuleType("ibapi.common")
+common_stub.TickerId = int
+ibapi_pkg = types.ModuleType("ibapi")
+sys.modules["ibapi"] = ibapi_pkg
+sys.modules["pandas"] = types.ModuleType("pandas")
+sys.modules["ibapi.contract"] = contract_stub
+sys.modules["ibapi.client"] = client_stub
+sys.modules["ibapi.wrapper"] = wrapper_stub
+sys.modules["ibapi.ticktype"] = ticktype_stub
+sys.modules["ibapi.common"] = common_stub
+ibapi_pkg.contract = contract_stub
+ibapi_pkg.client = client_stub
+ibapi_pkg.wrapper = wrapper_stub
+ibapi_pkg.ticktype = ticktype_stub
+ibapi_pkg.common = common_stub
+
 import pytest
 
 

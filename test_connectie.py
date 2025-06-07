@@ -14,6 +14,8 @@ def test_tws_connection():
         from ibapi.wrapper import EWrapper
     except Exception:
         pytest.skip("ibapi not available")
+    if not hasattr(EClient, "connect"):
+        pytest.skip("ibapi stub")
 
     class TestApp(EWrapper, EClient):
         def __init__(self):
