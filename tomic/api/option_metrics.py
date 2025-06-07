@@ -22,6 +22,8 @@ def fetch_option_metrics(
     expiry = expiry.replace("-", "")
     app = CombinedApp(symbol)
     start_app(app)
+    if hasattr(app, "start_requests"):
+        app.start_requests()
     if not await_market_data(app, symbol):
         app.disconnect()
         return None

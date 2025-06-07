@@ -57,6 +57,10 @@ def ib_api_available(
         def nextValidId(self, orderId: int) -> None:  # noqa: N802 - IB API callback
             self.ready_event.set()
 
+        def start_requests(self) -> None:
+            """No-op method for compatibility with :class:`CombinedApp`."""
+            pass
+
     app = _PingApp()
     try:
         start_app(app, host=host, port=port, client_id=1)
@@ -242,6 +246,8 @@ def fetch_market_metrics(symbol: str) -> dict | None:
     port = int(cfg_get("IB_PORT", 7497))
     # Use a unique client ID for every connection to prevent IB error 326
     start_app(app, host=host, port=port)
+    if hasattr(app, "start_requests"):
+        app.start_requests()
 
     if not app.spot_price_event.wait(timeout=10):
         app.disconnect()
