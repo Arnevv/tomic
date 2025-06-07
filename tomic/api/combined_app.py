@@ -5,7 +5,6 @@ from ibapi.ticktype import TickTypeEnum
 from ibapi.common import TickerId
 import threading
 from datetime import datetime
-import time
 from tomic.utils import extract_weeklies
 from tomic.logging import logger
 
@@ -57,8 +56,8 @@ class CombinedApp(BaseIBApp):
         thread = threading.Thread(target=self.run, daemon=True)
         thread.start()
 
-        # 🟡 Hier wacht je op een minimale delay van 0.5s zodat de connectie stabiel is
-        time.sleep(0.5)
+        # Trigger handshake to request ``nextValidId``
+        self.reqIds(1)
 
         # Start IB API (moet NA run-thread en NA connect gebeuren)
         self.startApi()
