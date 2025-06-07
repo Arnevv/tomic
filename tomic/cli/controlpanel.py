@@ -135,7 +135,7 @@ class VersionApp(BaseIBApp):
 def print_api_version() -> None:
     """Connect to TWS and display the server version information."""
     app = VersionApp()
-    start_app(app, client_id=1)
+    start_app(app)
     if app.ready_event.wait(timeout=5):
         print(f"Server versie: {app.serverVersion()}")
         print(f"Verbindingstijd: {app.twsConnectionTime()}")
