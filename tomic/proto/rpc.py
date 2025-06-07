@@ -7,6 +7,9 @@ from multiprocessing import Queue
 from pathlib import Path
 from uuid import uuid4
 from datetime import datetime
+import os
+
+from tomic.logging import logger
 
 TASK_QUEUE: Queue = Queue()
 
@@ -69,6 +72,16 @@ def load_index() -> list[dict]:
 
 def submit_task(task: dict) -> str:
     """Queue a task for the :class:`TwsSessionManager` daemon."""
+    # Ensure the daemon process is running so jobs can be processed when not
+    # executing inside the test suite.
+    if "PYTEST_CURRENT_TEST" not in os.environ:
+        try:
+            from . import tws_daemon
+
+            tws_daemon.TwsSessionManager.instance()
+        except Exception as exc:  # pragma: no cover - best effort
+            logger.warning(f"Kan TWS daemon niet starten: {exc}")
+
     job_id = task.get("id") or uuid4().hex
     task["id"] = job_id
     TASK_QUEUE.put(task)
