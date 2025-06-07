@@ -10,7 +10,10 @@ from datetime import datetime
 
 TASK_QUEUE: Queue = Queue()
 
-JOBS_DIR = Path("jobs")
+# Use an absolute path for job files so the daemon and CLI share the same
+# directory regardless of the current working directory.
+BASE_DIR = Path(__file__).resolve().parent
+JOBS_DIR = BASE_DIR / "jobs"
 JOBS_DIR.mkdir(exist_ok=True)
 STATUS_DIR = JOBS_DIR / "status"
 STATUS_DIR.mkdir(exist_ok=True)
