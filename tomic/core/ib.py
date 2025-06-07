@@ -20,6 +20,7 @@ class BaseApp(EWrapper, EClient):
         EWrapper.__init__(self)
         EClient.__init__(self, self)
         self._thread: threading.Thread | None = None
+        self._api_started: bool = False
 
     def start(
         self,
