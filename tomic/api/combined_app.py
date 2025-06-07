@@ -53,10 +53,14 @@ class CombinedApp(BaseIBApp):
 
         self.connect(host, port, clientId=client_id)
 
+        # Start run-loop
         thread = threading.Thread(target=self.run, daemon=True)
         thread.start()
 
-        time.sleep(0.25)  # noodzakelijke delay vóór ``startApi``
+        # 🟡 Hier wacht je op een minimale delay van 0.5s zodat de connectie stabiel is
+        time.sleep(0.5)
+
+        # Start IB API (moet NA run-thread en NA connect gebeuren)
         self.startApi()
 
         success = self.ready_event.wait(timeout=5)
