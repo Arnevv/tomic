@@ -210,6 +210,10 @@ def run_risk_tools() -> None:
     menu.add("Scenario-analyse", lambda: run_module("tomic.cli.portfolio_scenario"))
     menu.add("Event watcher", lambda: run_module("tomic.cli.event_watcher"))
     menu.add("Entry checker", lambda: run_module("tomic.cli.entry_checker"))
+    menu.add(
+        "Strategievoorstellen",
+        lambda: run_module("tomic.cli.generate_proposals"),
+    )
     menu.add("Synthetics detector", lambda: run_module("tomic.cli.synthetics_detector"))
     menu.add("Cone visualizer", lambda: run_module("tomic.cli.cone_visualizer"))
     menu.run()

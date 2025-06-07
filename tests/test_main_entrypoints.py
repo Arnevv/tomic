@@ -224,6 +224,16 @@ def test_synthetics_detector_main(tmp_path, monkeypatch):
     assert output
 
 
+def test_risk_tools_generate_proposals(monkeypatch):
+    mod = importlib.import_module("tomic.cli.controlpanel")
+    called = []
+    monkeypatch.setattr(mod, "run_module", lambda name, *a: called.append(name))
+    inputs = iter(["4", "7"])
+    monkeypatch.setattr(builtins, "input", lambda *a: next(inputs))
+    mod.run_risk_tools()
+    assert called == ["tomic.cli.generate_proposals"]
+
+
 def test_trading_plan_main(capsys):
     from tomic.cli import trading_plan
 
