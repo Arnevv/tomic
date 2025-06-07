@@ -247,6 +247,14 @@ def fetch_market_metrics(symbol: str) -> dict | None:
     client_id = next(_client_id_counter)
     try:
         start_app(app, host=host, port=port, client_id=client_id)
+    except TimeoutError as exc:  # nextValidId timeout
+        logger.error("❌ nextValidId nooit ontvangen voor %s", symbol)
+        try:
+            app.disconnect()
+        finally:
+            raise RuntimeError(
+                "TWS reageert niet, controleer of TWS draait en port correct is"
+            ) from exc
     except Exception as exc:
         raise RuntimeError(
             "TWS reageert niet, controleer of TWS draait en port correct is"
