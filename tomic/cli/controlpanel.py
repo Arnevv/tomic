@@ -267,10 +267,25 @@ def run_portfolio_menu() -> None:
         except subprocess.CalledProcessError:
             print("❌ Greeks-overzicht kon niet worden getoond")
 
+    def generate_proposals_now() -> None:
+        if not POSITIONS_FILE.exists():
+            print("⚠️ Geen opgeslagen portfolio gevonden. Kies optie 1 om te verversen.")
+            return
+        export_dir = str(Path(cfg.get("EXPORT_DIR", "exports")))
+        try:
+            run_module(
+                "tomic.cli.generate_proposals",
+                str(POSITIONS_FILE),
+                export_dir,
+            )
+        except subprocess.CalledProcessError:
+            print("❌ Strategievoorstellen genereren mislukt")
+
     menu = Menu("PORTFOLIO OVERZICHT")
     menu.add("Portfolio overzicht opnieuw ophalen van TWS", fetch_and_show)
     menu.add("Laatst opgehaalde portfolio-overzicht tonen", show_saved)
     menu.add("Toon portfolio greeks", show_greeks)
+    menu.add("Genereer strategieen obv portfolio greeks", generate_proposals_now)
     menu.run()
 
 
