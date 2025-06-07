@@ -7,6 +7,7 @@ import json
 from pathlib import Path
 import threading
 import os
+import csv
 
 if __package__ is None:
     # Allow running this file directly without ``-m`` by adjusting ``sys.path``
@@ -39,6 +40,16 @@ POSITIONS_FILE = Path(cfg.get("POSITIONS_FILE", "positions.json"))
 ACCOUNT_INFO_FILE = Path(cfg.get("ACCOUNT_INFO_FILE", "account_info.json"))
 META_FILE = Path(cfg.get("PORTFOLIO_META_FILE", "portfolio_meta.json"))
 STRATEGY_DASHBOARD_MODULE = "tomic.cli.strategy_dashboard"
+
+
+def _latest_export_dir(base: Path) -> Path | None:
+    """Return newest subdirectory inside ``base`` or ``None`` if none exist."""
+    if not base.exists():
+        return None
+    subdirs = [d for d in base.iterdir() if d.is_dir()]
+    if not subdirs:
+        return None
+    return max(subdirs, key=lambda d: d.stat().st_mtime)
 
 
 def run_module(module_name: str, *args: str) -> None:
@@ -271,12 +282,53 @@ def run_portfolio_menu() -> None:
         if not POSITIONS_FILE.exists():
             print("⚠️ Geen opgeslagen portfolio gevonden. Kies optie 1 om te verversen.")
             return
-        export_dir = str(Path(cfg.get("EXPORT_DIR", "exports")))
+        base_dir = Path(cfg.get("EXPORT_DIR", "exports"))
+        latest = _latest_export_dir(base_dir)
+        if latest is None:
+            print("⚠️ Geen exportmap gevonden")
+            return
+        overview = latest / "Overzicht_Marktkenmerken.csv"
+        if overview.exists():
+            print(f"ℹ️ Marktkenmerken uit {overview}")
+            try:
+                with open(overview, newline="", encoding="utf-8") as fh:
+                    reader = csv.reader(fh)
+                    for row in reader:
+                        print(" | ".join(row))
+            except Exception as exc:
+                print(f"⚠️ Kan overzicht niet lezen: {exc}")
+        else:
+            print(f"⚠️ {overview.name} ontbreekt in {latest}")
+
+        try:
+            positions = json.loads(POSITIONS_FILE.read_text())
+        except Exception:
+            print("⚠️ Kan portfolio niet laden voor strategie-overzicht.")
+            return
+        totals = compute_portfolio_greeks(positions)
+        delta = totals.get("Delta", 0)
+        vega = totals.get("Vega", 0)
+        strategies: list[str] = []
+        if abs(delta) > 25:
+            strategies.append("Vertical – richting kiezen (bij duidelijke bias)")
+        if vega > 50:
+            strategies.append(
+                "Iron Condor – vega omlaag (hoge IV, IV Rank > 30)"
+            )
+        if vega < -50:
+            strategies.append(
+                "Calendar Spread – vega omhoog (lage IV, contango term structure)"
+            )
+        if strategies:
+            print("\nTOMIC zoekt strategieën:")
+            for s in strategies:
+                print(f"- {s}")
+
         try:
             run_module(
                 "tomic.cli.generate_proposals",
                 str(POSITIONS_FILE),
-                export_dir,
+                str(latest),
             )
         except subprocess.CalledProcessError:
             print("❌ Strategievoorstellen genereren mislukt")
