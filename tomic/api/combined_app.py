@@ -7,6 +7,7 @@ import threading
 from datetime import datetime
 import time
 from tomic.utils import extract_weeklies
+from tomic.logging import logger
 
 from .market_utils import (
     create_underlying,
@@ -47,7 +48,8 @@ class CombinedApp(BaseIBApp):
         before returning.
         """
 
-        print("⏳ waiting for nextValidId")
+        logger.info("Starting IB connection")
+        logger.info("⏳ waiting for nextValidId")
 
         thread = super().start(host=host, port=port, client_id=client_id)
         if hasattr(self, "startApi"):
@@ -60,6 +62,8 @@ class CombinedApp(BaseIBApp):
         if not self.ready_event.wait(timeout=10):
             raise RuntimeError("TWS reageert niet")
 
+        logger.success("IB connection ready")
+
         return thread
 
     def get_next_req_id(self):
@@ -68,11 +72,13 @@ class CombinedApp(BaseIBApp):
 
     # --- Connection callbacks -------------------------------------------------
     def nextValidId(self, orderId: int):  # noqa: N802 (callback name)
-        print(f"✅ nextValidId in CombinedApp: {orderId}")
+        logger.success(f"nextValidId in CombinedApp: {orderId}")
         self.ready_event.set()
+        logger.debug("ready_event set")
 
     def start_requests(self) -> None:
         """Initiate all data requests once the connection is ready."""
+        logger.info("Starting market data requests")
         self.reqMarketDataType(2)
         self.request_spot_price()
         self.request_vix()
@@ -149,6 +155,7 @@ class CombinedApp(BaseIBApp):
 
     def contractDetailsEnd(self, reqId: int):  # noqa: N802
         self.contract_details_event.set()
+        logger.debug("contract_details_event set")
 
     def securityDefinitionOptionParameter(
         self,
@@ -183,6 +190,7 @@ class CombinedApp(BaseIBApp):
         self.strikes = sorted(filtered_strikes)
         self.trading_class = tradingClass
         self.option_params_event.set()
+        logger.debug("option_params_event set")
         self.request_option_market_data()
 
     def error(self, reqId: TickerId, errorCode: int, errorString: str):  # noqa: N802
@@ -198,10 +206,12 @@ class CombinedApp(BaseIBApp):
             self.spot_price = round(price, 2)
             self.cancelMktData(1001)
             self.spot_price_event.set()
+            logger.debug("spot_price_event set")
         elif reqId == 1002 and tickType == TickTypeEnum.LAST:
             self.vix_price = round(price, 2)
             self.cancelMktData(1002)
             self.vix_event.set()
+            logger.debug("vix_event set")
         elif reqId in self.market_data:
             d = self.market_data[reqId]
             if tickType == 1:
@@ -262,6 +272,7 @@ class CombinedApp(BaseIBApp):
 
     def historicalDataEnd(self, reqId: int, start: str, end: str):  # noqa: N802
         self.historical_event.set()
+        logger.debug("historical_event set")
 
 
 __all__ = ["CombinedApp"]
