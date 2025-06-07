@@ -229,9 +229,19 @@ def run_portfolio_menu() -> None:
         except subprocess.CalledProcessError:
             print("❌ Dashboard kon niet worden gestart")
 
+    def show_greeks() -> None:
+        if not POSITIONS_FILE.exists():
+            print("⚠️ Geen opgeslagen portfolio gevonden. Kies optie 1 om te verversen.")
+            return
+        try:
+            run_module("tomic.cli.portfolio_greeks", str(POSITIONS_FILE))
+        except subprocess.CalledProcessError:
+            print("❌ Greeks-overzicht kon niet worden getoond")
+
     menu = Menu("PORTFOLIO OVERZICHT")
     menu.add("Portfolio overzicht opnieuw ophalen van TWS", fetch_and_show)
     menu.add("Laatst opgehaalde portfolio-overzicht tonen", show_saved)
+    menu.add("Toon portfolio greeks", show_greeks)
     menu.run()
 
 
