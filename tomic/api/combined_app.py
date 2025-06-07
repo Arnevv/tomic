@@ -41,7 +41,13 @@ class CombinedApp(BaseIBApp):
     def start(
         self, host: str | None = None, port: int | None = None, client_id: int = 0
     ) -> threading.Thread:
-        """Connect to IB and start the API thread."""
+        """Connect to IB and start the API thread.
+
+        The method now waits for ``nextValidId`` to signal a ready connection
+        before returning.
+        """
+
+        print("⏳ waiting for nextValidId")
 
         thread = super().start(host=host, port=port, client_id=client_id)
         if hasattr(self, "startApi"):
@@ -50,6 +56,10 @@ class CombinedApp(BaseIBApp):
                 self.startApi()
             except Exception:  # pragma: no cover - network issues
                 pass
+
+        if not self.ready_event.wait(timeout=10):
+            raise RuntimeError("TWS reageert niet")
+
         return thread
 
     def get_next_req_id(self):
@@ -58,6 +68,7 @@ class CombinedApp(BaseIBApp):
 
     # --- Connection callbacks -------------------------------------------------
     def nextValidId(self, orderId: int):  # noqa: N802 (callback name)
+        print(f"✅ nextValidId in CombinedApp: {orderId}")
         self.reqMarketDataType(2)
         self.request_spot_price()
         self.request_vix()
@@ -177,7 +188,9 @@ class CombinedApp(BaseIBApp):
         else:
             super().error(reqId, errorCode, errorString)
 
-    def tickPrice(self, reqId: TickerId, tickType: int, price: float, attrib):  # noqa: N802
+    def tickPrice(
+        self, reqId: TickerId, tickType: int, price: float, attrib
+    ):  # noqa: N802
         if reqId == 1001 and tickType == TickTypeEnum.LAST:
             self.spot_price = round(price, 2)
             self.cancelMktData(1001)
