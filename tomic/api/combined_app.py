@@ -26,6 +26,7 @@ class CombinedApp(BaseIBApp):
         self.contract_details_event = threading.Event()
         self.option_params_event = threading.Event()
         self.historical_event = threading.Event()
+        self.historical_data: list = []
 
         self.spot_price: float | None = None
         self.vix_price: float | None = None
@@ -60,6 +61,7 @@ class CombinedApp(BaseIBApp):
         self.reqMarketDataType(2)
         self.request_spot_price()
         self.request_vix()
+        self.get_historical_data()
         self.ready_event.set()
 
     # --- Requests -------------------------------------------------------------
