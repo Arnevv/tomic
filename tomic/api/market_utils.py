@@ -39,6 +39,37 @@ def ib_connection_available(
         return False
 
 
+def ib_api_available(
+    host: str | None = None,
+    port: int | None = None,
+    *,
+    timeout: float = 2.0,
+) -> bool:
+    """Return ``True`` if a basic IB API connection succeeds."""
+
+    from tomic.core.ib import BaseApp
+
+    class _PingApp(BaseApp):
+        def __init__(self) -> None:
+            super().__init__()
+            self.ready_event = threading.Event()
+
+        def nextValidId(self, orderId: int) -> None:  # noqa: N802 - IB API callback
+            self.ready_event.set()
+
+    app = _PingApp()
+    try:
+        start_app(app, host=host, port=port, client_id=999)
+        return app.ready_event.wait(timeout=timeout)
+    except Exception:
+        return False
+    finally:
+        try:
+            app.disconnect()
+        except Exception:
+            pass
+
+
 # --- App helpers ------------------------------------------------------------
 
 
@@ -330,6 +361,7 @@ def fetch_market_metrics(symbol: str) -> dict | None:
 
 __all__ = [
     "ib_connection_available",
+    "ib_api_available",
     "create_underlying",
     "create_option_contract",
     "calculate_hv30",
