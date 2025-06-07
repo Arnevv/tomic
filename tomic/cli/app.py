@@ -7,6 +7,7 @@ from . import controlpanel
 from . import csv_quality_check
 from . import option_lookup
 from . import portfolio_scenario
+from . import generate_proposals
 
 
 def main(argv: list[str] | None = None) -> None:
@@ -40,6 +41,18 @@ def main(argv: list[str] | None = None) -> None:
     sub_scen.add_argument("positions", nargs="?")
     sub_scen.set_defaults(
         func=lambda a: portfolio_scenario.main([a.positions] if a.positions else [])
+    )
+
+    sub_prop = sub.add_parser(
+        "generate-proposals",
+        help="Genereer strategievoorstellen",
+    )
+    sub_prop.add_argument("positions", nargs="?", help="Pad naar positions.json")
+    sub_prop.add_argument("export_dir", nargs="?", help="Directory met optionchains")
+    sub_prop.set_defaults(
+        func=lambda a: generate_proposals.main(
+            [p for p in [a.positions, a.export_dir] if p]
+        )
     )
 
     args = parser.parse_args(argv)
