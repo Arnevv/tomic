@@ -40,7 +40,7 @@ class CombinedApp(BaseIBApp):
         self.invalid_contracts: set[int] = set()
 
     def start(
-        self, host: str = "127.0.0.1", port: int = 7497, client_id: int = 1
+        self, host: str = "127.0.0.1", port: int = 7497, client_id: int = 100
     ) -> threading.Thread:
         """Connect to IB and start the API thread.
 
