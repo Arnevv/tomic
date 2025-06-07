@@ -69,11 +69,14 @@ class CombinedApp(BaseIBApp):
     # --- Connection callbacks -------------------------------------------------
     def nextValidId(self, orderId: int):  # noqa: N802 (callback name)
         print(f"✅ nextValidId in CombinedApp: {orderId}")
+        self.ready_event.set()
+
+    def start_requests(self) -> None:
+        """Initiate all data requests once the connection is ready."""
         self.reqMarketDataType(2)
         self.request_spot_price()
         self.request_vix()
         self.get_historical_data()
-        self.ready_event.set()
 
     # --- Requests -------------------------------------------------------------
     def request_spot_price(self):
