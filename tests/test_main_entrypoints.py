@@ -104,7 +104,7 @@ def test_controlpanel_main(monkeypatch):
     monkeypatch.setattr(mod, "run_dataexporter", lambda: None)
     monkeypatch.setattr(mod, "run_risk_tools", lambda: None)
     monkeypatch.setattr(mod, "run_settings_menu", lambda: None)
-    monkeypatch.setattr(builtins, "input", lambda prompt="": "7")
+    monkeypatch.setattr(builtins, "input", lambda prompt="": "8")
     mod.main()
 
 
