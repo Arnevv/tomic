@@ -17,6 +17,7 @@ from tomic.api.market_client import (
     start_app,
     await_market_data,
 )
+from tomic.models import MarketMetrics
 from tomic.config import get as cfg_get
 
 
@@ -160,7 +161,7 @@ def _write_option_chain(
 
 
 def _write_metrics_csv(
-    metrics: dict,
+    metrics: MarketMetrics,
     symbol: str,
     export_dir: str,
     timestamp: str,
@@ -169,16 +170,16 @@ def _write_metrics_csv(
     metrics_file = os.path.join(export_dir, f"other_data_{symbol}_{timestamp}.csv")
     values_metrics = [
         symbol,
-        metrics.get("spot_price"),
-        metrics.get("hv30"),
-        metrics.get("atr14"),
-        metrics.get("vix"),
-        metrics.get("skew"),
-        metrics.get("term_m1_m2"),
-        metrics.get("term_m1_m3"),
-        metrics.get("iv_rank"),
-        metrics.get("implied_volatility"),
-        metrics.get("iv_percentile"),
+        metrics.spot_price,
+        metrics.hv30,
+        metrics.atr14,
+        metrics.vix,
+        metrics.skew,
+        metrics.term_m1_m2,
+        metrics.term_m1_m3,
+        metrics.iv_rank,
+        metrics.implied_volatility,
+        metrics.iv_percentile,
         avg_parity_dev,
     ]
     with open(metrics_file, "w", newline="") as file:
@@ -198,13 +199,14 @@ def export_market_metrics(
         logger.error("❌ Geen geldig symbool ingevoerd.")
         return None
     try:
-        metrics = fetch_market_metrics(symbol)
+        raw_metrics = fetch_market_metrics(symbol)
     except Exception as exc:  # pragma: no cover - network failures
         logger.error(f"❌ Marktkenmerken ophalen mislukt: {exc}")
         return None
-    if metrics is None:
+    if raw_metrics is None:
         logger.error("❌ Geen expiries gevonden voor %s", symbol)
         return None
+    metrics = MarketMetrics.from_dict(raw_metrics)
     if output_dir is None:
         today_str = datetime.now().strftime("%Y%m%d")
         export_dir = os.path.join(cfg_get("EXPORT_DIR", "exports"), today_str)
@@ -253,13 +255,14 @@ def export_market_data(
         logger.error("❌ Geen geldig symbool ingevoerd.")
         return None
     try:
-        metrics = fetch_market_metrics(symbol)
+        raw_metrics = fetch_market_metrics(symbol)
     except Exception as exc:  # pragma: no cover - network failures
         logger.error(f"❌ Marktkenmerken ophalen mislukt: {exc}")
         return None
-    if metrics is None:
+    if raw_metrics is None:
         logger.error("❌ Geen expiries gevonden voor %s", symbol)
         return None
+    metrics = MarketMetrics.from_dict(raw_metrics)
     app = MarketClient(symbol)
     start_app(app)
     if hasattr(app, "start_requests"):

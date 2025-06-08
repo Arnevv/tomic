@@ -256,24 +256,20 @@ class IBApp(BaseIBApp):
     WARNING_ERROR_CODES: set[int] = getattr(BaseIBApp, "WARNING_ERROR_CODES", set())
 
 
-def main(client_id: int | None = None) -> None:
-    """CLI entry point executing the original script logic."""
-    setup_logging()
-    logger.info("🚀 Ophalen van accountinformatie")
-    app = IBApp()
-    host = cfg_get("IB_HOST", "127.0.0.1")
-    port = int(cfg_get("IB_PORT", 7497))
-    if client_id is None:
-        client_id = 101
-    # Connect using the minimal approach from ``test_connectie.py``
+def retrieve_positions_and_orders(
+    app: IBApp, host: str, port: int, client_id: int
+) -> None:
+    """Connect and populate ``positions_data`` and ``open_orders``."""
     app.connect(host, port, clientId=client_id)
     thread = threading.Thread(target=app.run)
     thread.start()
-
     app.account_event.wait(timeout=10)
     app.position_event.wait(timeout=10)
 
-    symbols = set(p["symbol"] for p in app.positions_data)
+
+def fetch_historical_metrics(app: IBApp) -> None:
+    """Download bars and compute HV30/ATR14 for all symbols."""
+    symbols = {p["symbol"] for p in app.positions_data}
     for sym in symbols:
         app.historical_data = []
         app.hist_event.clear()
@@ -299,18 +295,35 @@ def main(client_id: int | None = None) -> None:
             [],
         )
         app.hist_event.wait(timeout=10)
-        hv30 = app.calculate_hv30()
-        atr14 = app.calculate_atr14()
-        app.hv_data[sym] = hv30
-        app.atr_data[sym] = atr14
+        app.hv_data[sym] = app.calculate_hv30()
+        app.atr_data[sym] = app.calculate_atr14()
 
+
+def enrich_with_iv_rank(app: IBApp) -> None:
+    """Fetch and store IV rank/percentile for all symbols."""
+    symbols = {p["symbol"] for p in app.positions_data}
+    for sym in symbols:
         try:
             metrics = fetch_iv_metrics(sym)
             app.iv_rank_data[sym] = metrics.get("iv_rank")
             app.iv_rank_data[f"{sym}_pct"] = metrics.get("iv_percentile")
-        except Exception:
+        except Exception:  # pragma: no cover - network errors
             app.iv_rank_data[sym] = None
             app.iv_rank_data[f"{sym}_pct"] = None
+
+
+def main(client_id: int | None = None) -> None:
+    """CLI entry point orchestrating the data collection steps."""
+    setup_logging()
+    logger.info("🚀 Ophalen van accountinformatie")
+    app = IBApp()
+    host = cfg_get("IB_HOST", "127.0.0.1")
+    port = int(cfg_get("IB_PORT", 7497))
+    client = client_id or 101
+
+    retrieve_positions_and_orders(app, host, port, client)
+    fetch_historical_metrics(app)
+    enrich_with_iv_rank(app)
 
     time.sleep(10)
     waited = 10
@@ -330,7 +343,6 @@ def main(client_id: int | None = None) -> None:
         pos["IV_Percentile"] = app.iv_rank_data.get(f"{sym}_pct")
 
     dump_json(app.positions_data, cfg_get("POSITIONS_FILE", "positions.json"))
-
     logging.info(
         "💾 Posities opgeslagen in {}",
         cfg_get("POSITIONS_FILE", "positions.json"),
@@ -345,8 +357,6 @@ def main(client_id: int | None = None) -> None:
         f"💾 Accountinfo opgeslagen in {cfg_get('ACCOUNT_INFO_FILE', 'account_info.json')}"
     )
 
-    # Print portfolio Greeks in plain text without color so the values are
-    # easily readable in the CLI.
     logger.opt(raw=True, colors=False).info("\n📐 Portfolio Greeks:\n")
     for k, v in portfolio.items():
         logger.opt(raw=True, colors=False).info(f"{k}: {round(v, 4):.4f}\n")
