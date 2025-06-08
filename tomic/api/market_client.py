@@ -19,6 +19,10 @@ except Exception:  # pragma: no cover - tests provide stubs
 class MarketClient(BaseIBApp):
     """Minimal IB client used for market data exports."""
 
+    WARNING_ERROR_CODES: set[int] = getattr(
+        BaseIBApp, "WARNING_ERROR_CODES", set()
+    ) | {2104, 2106, 2158}
+
     def __init__(self, symbol: str) -> None:
         super().__init__()
         self.symbol = symbol.upper()
@@ -97,7 +101,8 @@ class OptionChainClient(MarketClient):
     ) -> None:  # noqa: N802
         if self.expiries:
             return
-        self.expiries = sorted(expirations)[:1]
+        self.expiries = sorted(expirations)
+        logger.info(f"Expiries: {', '.join(self.expiries)}")
         center = round(self.spot_price or 0)
         self.strikes = sorted(s for s in strikes if center - 10 <= s <= center + 10)[:10]
         self.trading_class = tradingClass
@@ -158,7 +163,16 @@ class OptionChainClient(MarketClient):
 
     def _request_option_data(self) -> None:
         if not self.expiries or not self.strikes or self.trading_class is None:
+            logger.debug(
+                "Request option data skipped: expiries=%s strikes=%s trading_class=%s",
+                self.expiries,
+                self.strikes,
+                self.trading_class,
+            )
             return
+        logger.debug(
+            "Requesting option data for expiries=%s strikes=%s", self.expiries, self.strikes
+        )
         for expiry in self.expiries:
             for strike in self.strikes:
                 for right in ("C", "P"):
