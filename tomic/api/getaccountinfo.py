@@ -12,6 +12,7 @@ from ibapi.ticktype import TickTypeEnum
 from tomic.api.base_client import BaseIBApp
 from tomic.analysis.get_iv_rank import fetch_iv_metrics
 from tomic.analysis.greeks import compute_portfolio_greeks
+from tomic.analysis.metrics import historical_volatility, average_true_range
 from tomic.config import get as cfg_get
 from tomic.logutils import logger, setup_logging
 from tomic.helpers import dump_json
@@ -229,6 +230,18 @@ class IBApp(BaseIBApp):
 
     def historicalDataEnd(self, reqId: int, start: str, end: str):
         self.hist_event.set()
+
+    def calculate_hv30(self) -> float | None:
+        """Calculate 30-day historical volatility using collected bars."""
+        closes = [b.close for b in self.historical_data]
+        return historical_volatility(closes, window=30)
+
+    def calculate_atr14(self) -> float | None:
+        """Calculate 14-day Average True Range using collected bars."""
+        highs = [b.high for b in self.historical_data]
+        lows = [b.low for b in self.historical_data]
+        closes = [b.close for b in self.historical_data]
+        return average_true_range(highs, lows, closes, period=14)
 
     def count_incomplete(self):
         """Return how many positions are missing market or Greek data."""
