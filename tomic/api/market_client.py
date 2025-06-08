@@ -118,7 +118,12 @@ class OptionChainClient(MarketClient):
         self._strike_lookup: dict[float, float] = {}
         self.weeklies: list[str] = []
         self.monthlies: list[str] = []
-        self.option_params_complete = threading.Event()
+          
+        # Voor foutopsporing van contracten
+        self._pending_details: dict[int, OptionContract] = {}
+
+        # Voor synchronisatie van option param callback
+        self.option_params_complete = threading.Event()                  
 
     # IB callbacks ------------------------------------------------
     def contractDetails(self, reqId: int, details):  # noqa: N802
@@ -187,6 +192,9 @@ class OptionChainClient(MarketClient):
     def error(self, reqId, errorTime, errorCode, errorString, advancedOrderRejectJson=""):  # noqa: D401
         super().error(reqId, errorTime, errorCode, errorString, advancedOrderRejectJson)
         if errorCode == 200:
+            info = self._pending_details.get(reqId)
+            if info is not None:
+                logger.debug(f"Invalid contract for id {reqId}: {info}")
             self.invalid_contracts.add(reqId)
 
     def tickOptionComputation(
@@ -306,6 +314,7 @@ class OptionChainClient(MarketClient):
                         "strike": strike,
                         "right": right,
                     }
+                    self._pending_details[req_id] = info
                     self.reqMktData(req_id, c, "", True, False, [])
 
 def start_app(app: MarketClient) -> None:
