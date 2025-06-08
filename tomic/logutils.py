@@ -93,3 +93,32 @@ def log_result(func: Callable[..., T]) -> Callable[..., T]:
         return result
 
     return wrapper
+
+
+def trace_calls(func: Callable[..., T]) -> Callable[..., T]:
+    """Trace all function calls triggered by ``func`` and log their results."""
+
+    @wraps(func)
+    def wrapper(*args: Any, **kwargs: Any) -> T:
+        def tracer(frame, event, arg):
+            if event not in {"call", "return"}:
+                return tracer
+            module = frame.f_globals.get("__name__", "")
+            if not module.startswith("tomic"):
+                return tracer
+            name = frame.f_code.co_name
+            if event == "call":
+                logger.debug(f"calling {module}.{name}")
+            elif event == "return":
+                logger.debug(f"{module}.{name} -> {arg}")
+            return tracer
+
+        old_profiler = sys.getprofile()
+        sys.setprofile(tracer)
+        try:
+            return func(*args, **kwargs)
+        finally:
+            sys.setprofile(old_profiler)
+
+    return wrapper
+
