@@ -309,32 +309,78 @@ class OptionChainClient(MarketClient):
 
     @log_result
     def _init_requests(self) -> None:
-        self.reqMarketDataType(2)
         stk = self._stock_contract()
         logger.debug(f"Requesting stock quote with contract: {stk}")
-        spot_id = self._next_id()
-        self.reqMktData(spot_id, stk, "", False, False, [])
-        logger.debug(
-            f"reqMktData sent: id={spot_id} snapshot=False for stock contract"
-        )
-        timeout = cfg_get("SPOT_TIMEOUT", 20)
-        self.data_event.clear()
-        self.data_event.wait(timeout)
+data_type_success = None
+short_timeout = cfg_get("DATA_TYPE_TIMEOUT", 2)
+for data_type in (1, 3, 4):
+    self.reqMarketDataType(data_type)
+    logger.debug(f"reqMarketDataType({data_type})")
+    spot_id = self._next_id()
+    self.reqMktData(spot_id, stk, "", False, False, [])
+    logger.debug(f"reqMktData sent: id={spot_id} snapshot=False for stock contract")
+    self.data_event.clear()
+    self.data_event.wait(short_timeout)
+    self.cancelMktData(spot_id)
+    if self.spot_price is not None:
+        data_type_success = data_type
+        logger.info(f"Market data type {data_type} succeeded")
+        break
 
-        self.cancelMktData(spot_id)
-        if self.con_id is None:
+# Fallback met langere wachttijd
+if self.spot_price is None:
+    self.data_event.clear()
+    self.data_event.wait(cfg_get("SPOT_TIMEOUT", 20))
+
+if self.spot_price is None:
+    logger.error("❌ Spot price not available after all retries")
+
+# Contractdetails alleen als nog niet bekend
+if self.con_id is None:
+    logger.debug(
+        f"Requesting contract details for: symbol={stk.symbol}, expiry={stk.lastTradeDateOrContractMonth}, strike={floatMaxString(stk.strike)}, right={stk.right}"
+    )
+    self.reqContractDetails(self._next_id(), stk)
+    logger.debug(f"reqContractDetails sent for: {contract_repr(stk)}")
+
+if not self.option_params_complete.wait(timeout=20):
+    logger.error("Timeout waiting for option parameters")
+    return
+self._request_option_data()
+
             logger.debug(
-                f"Requesting contract details for: symbol={stk.symbol}, expiry={stk.lastTradeDateOrContractMonth}, strike={floatMaxString(stk.strike)}, right={stk.right}"
+                f"reqMktData sent: id={spot_id} snapshot=False for stock contract"
             )
-            self.reqContractDetails(self._next_id(), stk)
-            logger.debug(f"reqContractDetails sent for: {contract_repr(stk)}")
+            start = time.time()
+            while self.spot_price is None and time.time() - start < short_timeout:
+                time.sleep(0.1)
+            self.cancelMktData(spot_id)
+            if self.spot_price is not None:
+                data_type_success = data_type
+                logger.info(f"Market data type {data_type} succeeded")
+                break
 
-        # Wait until all option parameters have been received before
-        # requesting option market data
-        if not self.option_params_complete.wait(timeout=20):
-            logger.error("Timeout waiting for option parameters")
-            return
-        self._request_option_data()
+        if self.spot_price is None:
+            start = time.time()
+            timeout = cfg_get("SPOT_TIMEOUT", 20)
+            while self.spot_price is None and time.time() - start < timeout:
+                time.sleep(0.1)
+
+self.cancelMktData(spot_id)
+
+if self.con_id is None:
+    logger.debug(
+        f"Requesting contract details for: symbol={stk.symbol}, expiry={stk.lastTradeDateOrContractMonth}, strike={floatMaxString(stk.strike)}, right={stk.right}"
+    )
+    self.reqContractDetails(self._next_id(), stk)
+    logger.debug(f"reqContractDetails sent for: {contract_repr(stk)}")
+
+# Wait until all option parameters have been received before
+# requesting option market data
+if not self.option_params_complete.wait(timeout=20):
+    logger.error("Timeout waiting for option parameters")
+    return
+self._request_option_data()
 
     @log_result
     def _request_option_data(self) -> None:
