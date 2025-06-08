@@ -8,14 +8,6 @@ from .ib_connection import connect_ib
 
 def run(symbol: str, output_dir: str | None = None) -> bool:
     setup_logging()
-
-# TODO: onderstaande vervangen
-#    try:
-#        app = connect_ib()
-#        app.disconnect()
-#    except Exception as exc:
-#        logger.error(f"❌ Geen verbinding met TWS: {exc}")
-#        return False
     export_market_data(symbol.strip().upper(), output_dir)
     return True
 

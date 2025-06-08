@@ -166,10 +166,6 @@ class OptionChainClient(MarketClient):
         )
         start = time.time()
 
-        #TODO dit vervangen als onderstaande werkt
-        #while self.spot_price is None and time.time() - start < 5:
-        #    time.sleep(0.1)
-
         timeout = cfg_get("SPOT_TIMEOUT", 20)
         while self.spot_price is None and time.time() - start < timeout:
             time.sleep(0.1)
@@ -225,7 +221,6 @@ def start_app(app: MarketClient) -> None:
     while not app.connected.is_set() and time.time() - start < 5:
         time.sleep(0.1)
 
-print("🚨 Hier kom ik!")
 def await_market_data(app: MarketClient, symbol: str, timeout: int = 10) -> bool:
     """Wait until market data has been populated or timeout occurs."""
     start = time.time()
