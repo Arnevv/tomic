@@ -10,7 +10,11 @@ from tomic.config import get as cfg_get
 from tomic.logutils import logger
 from tomic.cli.daily_vol_scraper import fetch_volatility_metrics
 from tomic.models import OptionContract
-from tomic.utils import extract_weeklies, extract_monthlies
+from tomic.utils import (
+    extract_weeklies,
+    extract_monthlies,
+    filter_future_expiries,
+)
 try:  # pragma: no cover - optional dependency during tests
     from ibapi.contract import Contract
 except Exception:  # pragma: no cover - tests provide stubs
@@ -147,8 +151,9 @@ class OptionChainClient(MarketClient):
         if self.expiries:
             return
 
-        self.monthlies = extract_monthlies(expirations, 3)
-        self.weeklies = extract_weeklies(expirations, 4)
+        future = filter_future_expiries(expirations)
+        self.monthlies = extract_monthlies(future, 3)
+        self.weeklies = extract_weeklies(future, 4)
         self.expiries = sorted(set(self.monthlies + self.weeklies))
         logger.info(f"Expiries: {', '.join(self.expiries)}")
 
