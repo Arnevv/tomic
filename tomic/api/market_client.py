@@ -103,6 +103,22 @@ class OptionChainClient(MarketClient):
                 f"contractDetails received for reqId={reqId} conId={con.conId}"
             )
             self.market_data.setdefault(reqId, {})["conId"] = con.conId
+            # Log contract fields returned by IB before requesting market data
+            logger.debug(
+                "Using contract for reqId=%s: conId=%s symbol=%s expiry=%s "
+                "strike=%s right=%s exchange=%s primaryExchange=%s "
+                "tradingClass=%s multiplier=%s",
+                reqId,
+                con.conId,
+                con.symbol,
+                con.lastTradeDateOrContractMonth,
+                con.strike,
+                con.right,
+                con.exchange,
+                con.primaryExchange,
+                getattr(con, "tradingClass", ""),
+                getattr(con, "multiplier", ""),
+            )
             # Request market data with validated contract
             self.reqMktData(reqId, con, "", True, False, [])
             logger.debug(f"reqMktData sent for reqId={reqId} {con.symbol} {con.lastTradeDateOrContractMonth} {con.strike} {con.right}")
@@ -173,7 +189,14 @@ class OptionChainClient(MarketClient):
         rec["vega"] = vega
         rec["theta"] = theta
         logger.debug(
-            f"tickOptionComputation reqId={reqId} iv={impliedVol} delta={delta} gamma={gamma} vega={vega} theta={theta}"
+            "tickOptionComputation reqId=%s type=%s iv=%s delta=%s gamma=%s vega=%s theta=%s",
+            reqId,
+            TickTypeEnum.toStr(tickType),
+            impliedVol,
+            delta,
+            gamma,
+            vega,
+            theta,
         )
 
     def tickPrice(self, reqId: int, tickType: int, price: float, attrib) -> None:  # noqa: N802
@@ -184,7 +207,10 @@ class OptionChainClient(MarketClient):
         elif tickType == TickTypeEnum.ASK:
             rec["ask"] = price
         logger.debug(
-            f"tickPrice reqId={reqId} type={tickType} price={price}"
+            "tickPrice reqId=%s type=%s price=%s",
+            reqId,
+            TickTypeEnum.toStr(tickType),
+            price,
         )
 
     def tickGeneric(self, reqId: int, tickType: int, value: float) -> None:  # noqa: N802
