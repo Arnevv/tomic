@@ -33,6 +33,16 @@ python tests/test_ib_connection.py
 Run control panel (interactief)
 python tomic/cli/controlpanel.py
 
+⏳ Verbindingstips
+Wacht na het verbinden tot de callback `nextValidId()` is aangeroepen voordat
+je verzoeken naar TWS stuurt. Pas dan is de client klaar om orders of
+marktdata-opvragingen te verwerken.
+
+Stel bovendien exchange en market data type correct in:
+- `contract.exchange = "SMART"` of de gewenste beurs
+- `reqMarketDataType(2)` voor real‑time of `reqMarketDataType(3)` voor delayed
+  quotes.
+
 📂 Projectstructuur
 tomic/
 ├── api/               # IB-connectie, accountdata, marketdata
