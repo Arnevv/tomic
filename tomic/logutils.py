@@ -8,6 +8,13 @@ from tomic.config import get as cfg_get
 from functools import wraps
 from typing import Any, Callable, TypeVar
 
+
+def _format_result(result: Any, max_length: int = 200) -> str:
+    """Return a string representation of ``result`` truncated if necessary."""
+    if isinstance(result, str) and len(result) > max_length:
+        return f"{result[:max_length]}... [truncated {len(result)} chars]"
+    return str(result)
+
 try:
     from loguru import logger  # type: ignore
 
@@ -89,7 +96,7 @@ def log_result(func: Callable[..., T]) -> Callable[..., T]:
     def wrapper(*args: Any, **kwargs: Any) -> T:
         logger.debug(f"calling {func.__name__}")
         result = func(*args, **kwargs)
-        logger.debug(f"{func.__name__} -> {result}")
+        logger.debug(f"{func.__name__} -> {_format_result(result)}")
         return result
 
     return wrapper
@@ -110,7 +117,7 @@ def trace_calls(func: Callable[..., T]) -> Callable[..., T]:
             if event == "call":
                 logger.debug(f"calling {module}.{name}")
             elif event == "return":
-                logger.debug(f"{module}.{name} -> {arg}")
+                logger.debug(f"{module}.{name} -> {_format_result(arg)}")
             return tracer
 
         old_profiler = sys.getprofile()
