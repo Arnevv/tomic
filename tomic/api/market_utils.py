@@ -178,7 +178,18 @@ def start_app(
     attempts: int = 5,
     backoff: float = 0.5,
 ) -> threading.Thread:
-    """Connect and start the IB API client using a minimal approach."""
+    """Connect and start the IB API client using a minimal approach.
+
+    The default :class:`ibapi.client.EClient` does not emit ``nextValidId``
+    until either :meth:`reqIds` or :meth:`startApi` is called.  Several helper
+    apps in this project rely on that callback to initialise state (e.g.
+    to obtain the next order id).  The previous implementation merely
+    connected and spawned the network thread which meant ``nextValidId`` was
+    never triggered, leading to timeouts.
+
+    This helper now explicitly requests IDs and starts the API so that any
+    ``nextValidId`` handlers fire reliably straight after connecting.
+    """
 
     if client_id is None:
         client_id = next(_client_id_counter)
@@ -194,6 +205,18 @@ def start_app(
     app.connect(host, port, clientId=client_id)
     thread = threading.Thread(target=app.run, daemon=True)
     thread.start()
+
+    # Trigger the initial handshake so ``nextValidId`` will be emitted.
+    try:
+        app.reqIds(1)
+    except Exception:
+        pass
+    try:
+        app.startApi()
+        if hasattr(app, "_api_started"):
+            app._api_started = True
+    except Exception:
+        pass
 
     return thread
 
