@@ -65,6 +65,20 @@ def _ensure_ibapi() -> None:
                 f"ibapi not found in fallback path: {fallback_path}"
             ) from exc
 
+    # Check 4: bundled package within the 'tomic' source tree
+    local_pkg = os.path.dirname(os.path.dirname(__file__))
+    bundled_path = os.path.join(local_pkg, "ibapi")
+    if os.path.exists(bundled_path):
+        sys.path.insert(0, local_pkg)
+        proto_path = os.path.join(bundled_path, "protobuf")
+        if os.path.isdir(proto_path):
+            sys.path.insert(0, proto_path)
+        try:
+            importlib.import_module("ibapi.contract")
+            return
+        except ModuleNotFoundError:
+            pass
+
     # All options exhausted
     raise ModuleNotFoundError(
         "No module named 'ibapi'. Install via pip or set TWS_API_PATH/IB_API_PATH "
