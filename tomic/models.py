@@ -35,8 +35,14 @@ class OptionContract:
         contract.lastTradeDateOrContractMonth = self.expiry
         contract.strike = self.strike
         contract.right = self.right
-        contract.multiplier = self.multiplier
-        contract.tradingClass = self.trading_class or self.symbol
+        contract.multiplier = "100"
+        if not self.trading_class:
+            logger.warning(
+                f"⚠️ tradingClass ontbreekt voor {self.symbol} - fallback naar {self.symbol.upper()}"
+            )
+            contract.tradingClass = self.symbol.upper()
+        else:
+            contract.tradingClass = self.trading_class
 
         logger.debug(
             f"IB contract built: symbol={contract.symbol} "
