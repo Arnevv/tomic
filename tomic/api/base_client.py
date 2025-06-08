@@ -33,13 +33,13 @@ class BaseIBApp(IBClient):
         """Handle error messages from the IB API."""
 
         if errorCode in self.IGNORED_ERROR_CODES:
-            logger.debug("IB error %s ignored: %s", errorCode, errorString)
+            logger.debug(f"IB error {errorCode} ignored: {errorString}")
             return
 
         if errorCode in self.WARNING_ERROR_CODES:
-            logger.warning("IB warning %s: %s", errorCode, errorString)
+            logger.warning(f"IB warning {errorCode}: {errorString}")
         else:
-            logger.error("IB error %s: %s", errorCode, errorString)
+            logger.error(f"IB error {errorCode}: {errorString}")
 
 
 __all__ = ["BaseIBApp"]
