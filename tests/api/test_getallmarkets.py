@@ -54,6 +54,12 @@ pd_stub.concat = fake_concat
 sys.modules["pandas"] = pd_stub
 
 contract_stub = types.ModuleType("ibapi.contract")
+client_stub = types.ModuleType("ibapi.client")
+client_stub.EClient = type("EClient", (), {})
+wrapper_stub = types.ModuleType("ibapi.wrapper")
+wrapper_stub.EWrapper = type("EWrapper", (), {})
+sys.modules.setdefault("ibapi.client", client_stub)
+sys.modules.setdefault("ibapi.wrapper", wrapper_stub)
 
 
 class Contract:  # noqa: D401 - simple stub
@@ -67,6 +73,11 @@ sys.modules.setdefault("ibapi.contract", contract_stub)
 combined_stub = types.ModuleType("tomic.api.combined_app")
 combined_stub.CombinedApp = object
 sys.modules.setdefault("tomic.api.combined_app", combined_stub)
+mu_stub = types.ModuleType("tomic.api.market_utils")
+mu_stub.fetch_market_metrics = lambda *a, **k: None
+mu_stub.start_app = lambda *a, **k: None
+mu_stub.await_market_data = lambda *a, **k: True
+sys.modules.setdefault("tomic.api.market_utils", mu_stub)
 
 getallmarkets = importlib.reload(importlib.import_module("tomic.api.getallmarkets"))
 

@@ -10,7 +10,7 @@ from datetime import datetime
 import pandas as pd
 from tomic.logging import logger, setup_logging
 from tomic.config import get as cfg_get
-from .market_utils import ib_connection_available
+from .ib_connection import connect_ib
 from .market_export import export_market_data
 
 try:  # pragma: no cover - optional during tests
@@ -85,7 +85,10 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     setup_logging()
-    if not ib_connection_available():
+    try:
+        app = connect_ib()
+        app.disconnect()
+    except Exception:
         logger.error(
             "❌ IB Gateway/TWS niet bereikbaar. Controleer of de service draait."
         )

@@ -20,6 +20,11 @@ sys.modules.setdefault("ibapi.contract", contract_stub)
 combined_stub = types.ModuleType("tomic.api.combined_app")
 combined_stub.CombinedApp = object
 sys.modules.setdefault("tomic.api.combined_app", combined_stub)
+mu_stub = types.ModuleType("tomic.api.market_utils")
+mu_stub.fetch_market_metrics = lambda *a, **k: None
+mu_stub.start_app = lambda *a, **k: None
+mu_stub.await_market_data = lambda *a, **k: True
+sys.modules.setdefault("tomic.api.market_utils", mu_stub)
 
 from tomic.api.market_export import _write_option_chain, _HEADERS_CHAIN
 
