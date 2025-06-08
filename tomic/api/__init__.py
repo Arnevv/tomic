@@ -14,6 +14,10 @@ import importlib
 import os
 import sys
 
+# Fallback to local ``lib`` directory containing ``ibapi`` if available
+lib_path = os.path.join(os.path.dirname(__file__), "..", "..", "lib")
+sys.path.insert(0, os.path.abspath(lib_path))
+
 
 def _ensure_ibapi() -> None:
     """Ensure the ``ibapi`` package can be imported.

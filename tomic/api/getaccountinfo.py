@@ -5,10 +5,10 @@ import json
 import threading
 import time
 
-from lib.ibapi import AccountSummaryTags
-from lib.ibapi import OrderId, TickerId
-from lib.ibapi import Contract
-from lib.ibapi import TickTypeEnum
+from ibapi.account_summary_tags import AccountSummaryTags
+from ibapi.common import OrderId, TickerId
+from ibapi.contract import Contract
+from ibapi.ticktype import TickTypeEnum
 
 from tomic.api.base_client import BaseIBApp
 from tomic.api.market_utils import count_incomplete
