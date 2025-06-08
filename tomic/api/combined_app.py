@@ -12,6 +12,7 @@ from tomic.logging import logger
 from .market_utils import (
     create_underlying,
     create_option_contract,
+    round_strike,
 )
 
 
@@ -188,7 +189,9 @@ class CombinedApp(BaseIBApp):
         strikes,
     ):  # noqa: D417,N802
         self._expirations.update(expirations)
-        self._strikes.update(s for s in strikes if isinstance(s, (int, float)))
+        self._strikes.update(
+            round_strike(s) for s in strikes if isinstance(s, (int, float))
+        )
         self.trading_class = tradingClass
 
     def securityDefinitionOptionParameterEnd(self, reqId: int):  # noqa: N802
@@ -196,11 +199,10 @@ class CombinedApp(BaseIBApp):
         regulars, weeklies = split_expiries(expiries)
         self.expiries = regulars + weeklies
 
-        center = round(self.spot_price)
-        filtered_strikes = [
-            s for s in self._strikes if center - 100 <= s <= center + 100
-        ]
-        self.strikes = sorted(filtered_strikes)
+        center = round_strike(self.spot_price)
+        rounded = sorted(self._strikes)
+        closest = sorted(rounded, key=lambda x: abs(x - center))[:7]
+        self.strikes = sorted(closest)
         self.option_params_event.set()
         logger.debug("option_params_event set")
 

@@ -171,22 +171,28 @@ def test_collapse_legs_partial():
 
 def test_extract_weeklies():
     expiries = [
+        "20240603",
+        "20240605",
         "20240607",
+        "20240612",
         "20240614",
         "20240621",
+        "20240626",
         "20240628",
-        "20240705",
-        "20240712",
     ]
     result = extract_weeklies(expiries)
-    assert result == ["20240607", "20240614", "20240628", "20240705"]
+    assert result == ["20240603", "20240605", "20240607", "20240612"]
 
 
 def test_split_expiries():
     expiries = [
+        "20240603",
+        "20240605",
         "20240607",
+        "20240612",
         "20240614",
         "20240621",
+        "20240626",
         "20240628",
         "20240705",
         "20240712",
@@ -195,10 +201,10 @@ def test_split_expiries():
     regulars, weeklies = split_expiries(expiries)
     assert regulars == ["20240621", "20240719"]
     assert weeklies == [
+        "20240603",
+        "20240605",
         "20240607",
-        "20240614",
-        "20240628",
-        "20240705",
+        "20240612",
     ]
 
 

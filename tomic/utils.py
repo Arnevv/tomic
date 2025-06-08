@@ -3,27 +3,31 @@ from datetime import datetime, timezone, date
 
 
 def _is_third_friday(dt: datetime) -> bool:
-    return dt.weekday() in {4, 5} and 15 <= dt.day <= 21
+    """Return ``True`` for the 3rd Friday of the month."""
+
+    return dt.weekday() == 4 and 15 <= dt.day <= 21
 
 
 def _is_weekly(dt: datetime) -> bool:
-    return dt.weekday() in {4, 5} and not _is_third_friday(dt)
+    """Return ``True`` for standard weekly expiries."""
+
+    return dt.weekday() in {0, 2, 4} and not _is_third_friday(dt)
 
 
 def extract_weeklies(expirations: list[str], count: int = 4) -> list[str]:
     """Return the next ``count`` weekly expiries from ``expirations``."""
 
-    fridays = []
+    weeks = []
     for exp in sorted(expirations):
         try:
             dt = datetime.strptime(exp, "%Y%m%d")
         except Exception:
             continue
         if _is_weekly(dt):
-            fridays.append(exp)
-        if len(fridays) == count:
+            weeks.append(exp)
+        if len(weeks) == count:
             break
-    return fridays
+    return weeks
 
 
 def split_expiries(expirations: list[str]) -> tuple[list[str], list[str]]:
@@ -46,7 +50,7 @@ def split_expiries(expirations: list[str]) -> tuple[list[str], list[str]]:
             dt = datetime.strptime(exp, "%Y%m%d")
         except Exception:
             continue
-        if dt.weekday() in {4, 5}:
+        if dt.weekday() in {0, 2, 4}:
             parsed.append((dt, exp))
 
     parsed.sort(key=lambda x: x[0])
