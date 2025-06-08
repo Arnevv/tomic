@@ -4,16 +4,25 @@ from typing import TYPE_CHECKING
 # mypy: disable-error-code=import-not-found
 
 if TYPE_CHECKING:  # pragma: no cover - import for type checking only
-    from lib.ibapi import EClient  # noqa: F401
-    from lib.ibapi import EWrapper  # noqa: F401
+    from ibapi.client import EClient  # noqa: F401
+    from ibapi.wrapper import EWrapper  # noqa: F401
 
 
 def test_tws_connection():
     try:
-        from lib.ibapi import EClient
-        from lib.ibapi import EWrapper
+        import google.protobuf  # noqa: F401
     except Exception:
-        pytest.skip("ibapi not available")
+        pytest.skip("google protobuf not installed")
+
+    try:
+        from ibapi.client import EClient
+        from ibapi.wrapper import EWrapper
+    except Exception:
+        try:
+            from lib.ibapi import EClient
+            from lib.ibapi import EWrapper
+        except Exception:
+            pytest.skip("ibapi not available")
     if not hasattr(EClient, "connect"):
         pytest.skip("ibapi stub")
 
