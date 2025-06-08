@@ -207,7 +207,7 @@ def export_market_metrics(
         logger.error(f"❌ Marktkenmerken ophalen mislukt: {exc}")
         return None
     if raw_metrics is None:
-        logger.error("❌ Geen expiries gevonden voor %s", symbol)
+        logger.error(f"❌ Geen expiries gevonden voor {symbol}")
         return None
     metrics = MarketMetrics.from_dict(raw_metrics)
     if output_dir is None:
@@ -263,7 +263,7 @@ def export_market_data(
         logger.error(f"❌ Marktkenmerken ophalen mislukt: {exc}")
         return None
     if raw_metrics is None:
-        logger.error("❌ Geen expiries gevonden voor %s", symbol)
+        logger.error(f"❌ Geen expiries gevonden voor {symbol}")
         return None
     metrics = MarketMetrics.from_dict(raw_metrics)
     app = OptionChainClient(symbol)

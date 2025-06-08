@@ -38,7 +38,7 @@ class _OpenInterestApp(MarketClient):
             f"Requesting open interest for {self.symbol} "
             f"{self.expiry} {self.strike:.2f}{self.right}"
         )
-        logger.debug("Contract details: %s", contract)
+        logger.debug(f"Contract details: {contract}")
 
     def nextValidId(self, orderId: int) -> None:  # noqa: N802 - IB API callback
         contract = _create_option_contract(self.contract)
@@ -120,8 +120,7 @@ def fetch_open_interest(
         if time.time() - start > WAIT_TIMEOUT:
             logger.error("❌ Geen open interest ontvangen.")
             logger.debug(
-                "Ontvangen tick types tijdens wachten: %s",
-                ", ".join(app.received_ticks),
+                f"Ontvangen tick types tijdens wachten: {', '.join(app.received_ticks)}"
             )
             app.disconnect()
             return None
