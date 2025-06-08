@@ -33,7 +33,14 @@ class _ClientProto(Protocol):
 class DummyWrapper:
     """Minimal ``EWrapper`` replacement for offline tests."""
 
-    def error(self, reqId: int, errorCode: int, errorString: str) -> None:  # noqa: N802
+    def error(
+        self,
+        reqId: int,
+        errorTime: int,
+        errorCode: int,
+        errorString: str,
+        advancedOrderRejectJson: str = "",
+    ) -> None:  # noqa: N802
         builtins.print(f"❌ Error {errorCode}: {errorString}")
 
 
