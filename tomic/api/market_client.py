@@ -6,6 +6,7 @@ import time
 from datetime import datetime
 from ibapi.ticktype import TickTypeEnum
 from datetime import timedelta
+from ibapi.utils import floatMaxString
 
 from tomic.api.base_client import BaseIBApp
 from tomic.config import get as cfg_get
@@ -26,7 +27,7 @@ def contract_repr(contract):
     return (
         f"{contract.secType} {contract.symbol} "
         f"{contract.lastTradeDateOrContractMonth or ''} "
-        f"{contract.right or ''}{contract.strike or ''} "
+        f"{contract.right or ''}{floatMaxString(contract.strike)} "
         f"{contract.exchange or ''} {contract.currency or ''} "
         f"(conId={contract.conId})"
     ).strip()
@@ -278,7 +279,9 @@ class OptionChainClient(MarketClient):
             time.sleep(0.1)
 
         self.cancelMktData(spot_id)
-        logger.debug(f"Requesting contract details for: symbol={stk.symbol}, expiry={stk.lastTradeDateOrContractMonth}, strike={stk.strike}, right={stk.right}")
+        logger.debug(
+            f"Requesting contract details for: symbol={stk.symbol}, expiry={stk.lastTradeDateOrContractMonth}, strike={floatMaxString(stk.strike)}, right={stk.right}"
+        )
         self.reqContractDetails(self._next_id(), stk)
         logger.debug(f"reqContractDetails sent for: {contract_repr(stk)}")
 
