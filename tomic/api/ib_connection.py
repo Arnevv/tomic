@@ -18,8 +18,18 @@ class IBClient(EClient, EWrapper):
     def nextValidId(self, orderId: int):
         self.next_valid_id = orderId
 
-    def error(self, reqId, errorCode, errorString):
-        print(f"IB error {errorCode}: {errorString}")
+    def error(self, reqId, *args):
+        """Handle API error callbacks for both old and new signatures."""
+        if len(args) == 2:
+            errorCode, errorString = args
+            print(f"IB error {errorCode}: {errorString}")
+        elif len(args) >= 3:
+            errorTime, errorCode, errorString, *rest = args
+            print(f"IB error {errorCode}: {errorString}")
+            if rest and rest[0]:
+                print(f"Advanced order reject: {rest[0]}")
+        else:
+            print(f"IB error: unexpected arguments {args}")
 
 
 def connect_ib(client_id=1, host="127.0.0.1", port=7497, timeout=5) -> IBClient:
