@@ -322,8 +322,6 @@ class OptionChainClient(MarketClient):
                     self._pending_details[req_id] = info
                     self.reqContractDetails(req_id, c)
 
-
-
 def start_app(app: MarketClient) -> None:
     """Connect to TWS/IB Gateway and start ``app`` in a background thread."""
     host = cfg_get("IB_HOST", "127.0.0.1")

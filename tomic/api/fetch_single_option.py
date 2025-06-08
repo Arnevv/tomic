@@ -24,16 +24,20 @@ class SingleOptionClient(BaseIBApp):
         self.data: dict[str, float] = {}
         self.req_id = 1
         self.done = threading.Event()
+        self.connected = threading.Event()
 
     # IB callbacks -------------------------------------------------
     def nextValidId(self, orderId: int) -> None:  # noqa: N802
         super().nextValidId(orderId)
+        self.connected.set()  # ← toevoegen
         logger.info("Stap 1: contractdetails opvragen")
         c = Contract()
         c.symbol = self.symbol
         c.secType = "OPT"
         c.exchange = "SMART"
+        c.PrimaryExchange = "SMART"
         c.currency = "USD"
+        c.expiry = "20250620"
         c.lastTradeDateOrContractMonth = self.expiry
         c.strike = self.strike
         c.right = self.right
