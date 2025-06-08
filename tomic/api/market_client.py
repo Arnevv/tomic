@@ -152,6 +152,15 @@ class OptionChainClient(MarketClient):
         if self.expiries:
             return
 
+        logger.debug(
+            f"spot_price={self.spot_price}, expirations={expirations[:5]}"
+        )
+
+        if self.spot_price is None:
+            end = time.time() + 2
+            while self.spot_price is None and time.time() < end:
+                time.sleep(0.1)
+
         future = filter_future_expiries(expirations)
         self.monthlies = extract_monthlies(future, 3)
         self.weeklies = extract_weeklies(future, 4)
@@ -260,6 +269,7 @@ class OptionChainClient(MarketClient):
                 f"strikes={self.strikes} trading_class={self.trading_class}"
             )
             return
+        logger.debug(f"Spot price at _request_option_data: {self.spot_price}")
         logger.debug(
             f"Requesting option data for expiries={self.expiries} strikes={self.strikes}"
         )
