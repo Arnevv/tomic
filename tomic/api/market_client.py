@@ -48,10 +48,42 @@ class MarketClient(BaseIBApp):
         self.spot_price: float | None = None
         self.expiries: list[str] = []
         self.connected = threading.Event()
+        self._req_id = 50
+
+    # Helpers -----------------------------------------------------
+    def _stock_contract(self) -> Contract:
+        c = Contract()
+        c.symbol = self.symbol
+        c.secType = "STK"
+        c.exchange = "SMART"
+        c.primaryExchange = "SMART"
+        c.currency = "USD"
+        logger.debug(
+            f"Stock contract built: symbol={c.symbol} secType={c.secType} "
+            f"exchange={c.exchange} primaryExchange={c.primaryExchange} "
+            f"currency={c.currency}"
+        )
+        return c
+
+    def _next_id(self) -> int:
+        self._req_id += 1
+        return self._req_id
 
     def start_requests(self) -> None:  # pragma: no cover - runtime behaviour
-        """Placeholder method to initiate market data requests."""
-        logger.debug("MarketClient.start_requests called - no-op stub")
+        """Request a basic stock quote for ``self.symbol``."""
+        contract = self._stock_contract()
+        self.reqMarketDataType(2)
+        req_id = self._next_id()
+        logger.debug(
+            f"Requesting stock quote for symbol={contract.symbol} id={req_id}"
+        )
+        self.reqMktData(req_id, contract, "", False, False, [])
+        timeout = cfg_get("SPOT_TIMEOUT", 10)
+        start = time.time()
+        while self.spot_price is None and time.time() - start < timeout:
+            time.sleep(0.05)
+        if self.spot_price is not None:
+            self.cancelMktData(req_id)
 
     # IB callbacks -----------------------------------------------------
     def nextValidId(self, orderId: int) -> None:  # noqa: N802
@@ -86,26 +118,6 @@ class OptionChainClient(MarketClient):
         self._pending_details: dict[int, OptionContract] = {}
         self.weeklies: list[str] = []
         self.monthlies: list[str] = []
-        self._req_id = 50
-
-    # Helpers -----------------------------------------------------
-    def _stock_contract(self) -> Contract:
-        c = Contract()
-        c.symbol = self.symbol
-        c.secType = "STK"
-        c.exchange = "SMART"
-        c.primaryExchange = "SMART"
-        c.currency = "USD"
-        logger.debug(
-            f"Stock contract built: symbol={c.symbol} secType={c.secType} "
-            f"exchange={c.exchange} primaryExchange={c.primaryExchange} "
-            f"currency={c.currency}"
-        )
-        return c
-
-    def _next_id(self) -> int:
-        self._req_id += 1
-        return self._req_id
 
     # IB callbacks ------------------------------------------------
     def contractDetails(self, reqId: int, details):  # noqa: N802
