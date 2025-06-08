@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from datetime import date
 
-from tomic.api.market_utils import fetch_market_metrics
+from tomic.api.market_client import fetch_market_metrics
 from tomic.api.margin_calc import calculate_trade_margin
 from tomic.journal.service import add_trade, next_trade_id
 
