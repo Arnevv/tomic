@@ -29,13 +29,17 @@ def parse_patterns(patterns: Dict[str, List[str]], html: str) -> Dict[str, Optio
             if match:
                 try:
                     results[key] = float(match.group(1))
-                    logger.debug("Matched pattern '%s' for %s -> %s", pat, key, results[key])
+                    logger.debug(
+                        f"Matched pattern '{pat}' for {key} -> {results[key]}"
+                    )
                     break
                 except ValueError:
-                    logger.warning("Failed to parse %s from '%s'", key, match.group(1))
+                    logger.warning(
+                        f"Failed to parse {key} from '{match.group(1)}'"
+                    )
                     break
         if key not in results:
-            logger.error("%s not found on page", key)
+            logger.error(f"{key} not found on page")
             results[key] = None
     return results
 

@@ -62,6 +62,8 @@ def _write_option_chain(
         for req_id, data in app.market_data.items()
         if req_id not in app.invalid_contracts
     ]
+    if not records:
+        logger.warning(f"Geen optie data ontvangen voor {symbol}")
 
     def _mid(bid: float | None, ask: float | None) -> float | None:
         """Return midpoint price when bid/ask are valid and positive."""
