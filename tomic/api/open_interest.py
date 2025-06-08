@@ -8,6 +8,7 @@ from typing import Optional
 
 from ibapi.contract import Contract
 from tomic.api.market_client import MarketClient, start_app
+from tomic.config import get as cfg_get
 from tomic.api.ib_connection import connect_ib
 from tomic.models import OptionContract
 
@@ -22,8 +23,8 @@ from tomic.logutils import logger
 class _OpenInterestApp(MarketClient):
     """Minimal IB app to fetch open interest."""
 
-    def __init__(self, symbol: str, expiry: str, strike: float, right: str) -> None:
-        super().__init__(symbol)
+    def __init__(self, symbol: str, expiry: str, strike: float, right: str, primary_exchange: str | None = None) -> None:
+        super().__init__(symbol, primary_exchange=primary_exchange)
         self.symbol = symbol
         self.expiry = expiry
         self.strike = strike
@@ -103,7 +104,13 @@ def fetch_open_interest(
 
     expiry = expiry.replace("-", "")
     info = OptionContract(symbol.upper(), expiry, strike, right.upper())
-    app = _OpenInterestApp(info)
+    app = _OpenInterestApp(
+        info.symbol,
+        info.expiry,
+        info.strike,
+        info.right,
+        primary_exchange=cfg_get("PRIMARY_EXCHANGE", "SMART"),
+    )
 
     try:
         probe = connect_ib()

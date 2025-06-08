@@ -41,9 +41,11 @@ class MarketClient(BaseIBApp):
         BaseIBApp, "WARNING_ERROR_CODES", set()
     ) | {2104, 2106, 2158}
 
-    def __init__(self, symbol: str) -> None:
+    def __init__(self, symbol: str, primary_exchange: str | None = None) -> None:
         super().__init__()
         self.symbol = symbol.upper()
+        self.primary_exchange = primary_exchange or cfg_get("PRIMARY_EXCHANGE", "SMART")
+        self.stock_con_id: int | None = None
         self.market_data: Dict[int, Dict[str, Any]] = {}
         self.invalid_contracts: set[int] = set()
         self.spot_price: float | None = None
@@ -57,12 +59,14 @@ class MarketClient(BaseIBApp):
         c.symbol = self.symbol
         c.secType = "STK"
         c.exchange = "SMART"
-        c.primaryExchange = "SMART"
+        c.primaryExchange = self.primary_exchange
         c.currency = "USD"
+        if self.stock_con_id is not None:
+            c.conId = self.stock_con_id
         logger.debug(
             f"Stock contract built: symbol={c.symbol} secType={c.secType} "
             f"exchange={c.exchange} primaryExchange={c.primaryExchange} "
-            f"currency={c.currency}"
+            f"currency={c.currency} conId={getattr(c, 'conId', None)}"
         )
         return c
 
@@ -110,8 +114,8 @@ class MarketClient(BaseIBApp):
 class OptionChainClient(MarketClient):
     """IB client that retrieves a basic option chain."""
 
-    def __init__(self, symbol: str) -> None:
-        super().__init__(symbol)
+    def __init__(self, symbol: str, primary_exchange: str | None = None) -> None:
+        super().__init__(symbol, primary_exchange=primary_exchange)
         self.con_id: int | None = None
         self.trading_class: str | None = None
         self.strikes: list[float] = []
@@ -130,6 +134,7 @@ class OptionChainClient(MarketClient):
         con = details.contract
         if con.secType == "STK" and self.con_id is None:
             self.con_id = con.conId
+            self.stock_con_id = con.conId
             self.trading_class = con.tradingClass or self.symbol
             self.reqSecDefOptParams(self._next_id(), self.symbol, "", "STK", self.con_id)
 
@@ -269,11 +274,12 @@ class OptionChainClient(MarketClient):
             time.sleep(0.1)
 
         self.cancelMktData(spot_id)
-        logger.debug(
-            f"Requesting contract details for: symbol={stk.symbol}, expiry={stk.lastTradeDateOrContractMonth}, strike={floatMaxString(stk.strike)}, right={stk.right}"
-        )
-        self.reqContractDetails(self._next_id(), stk)
-        logger.debug(f"reqContractDetails sent for: {contract_repr(stk)}")
+        if self.con_id is None:
+            logger.debug(
+                f"Requesting contract details for: symbol={stk.symbol}, expiry={stk.lastTradeDateOrContractMonth}, strike={floatMaxString(stk.strike)}, right={stk.right}"
+            )
+            self.reqContractDetails(self._next_id(), stk)
+            logger.debug(f"reqContractDetails sent for: {contract_repr(stk)}")
 
         # Wait until all option parameters have been received before
         # requesting option market data

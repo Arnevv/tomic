@@ -49,6 +49,7 @@ class AppConfig(BaseModel):
     IB_PORT: int = 7497
     LOG_LEVEL: str = "INFO"
     INTEREST_RATE: float = 0.05
+    PRIMARY_EXCHANGE: str = "SMART"
 
 
 _BASE_DIR = Path(__file__).resolve().parent.parent
