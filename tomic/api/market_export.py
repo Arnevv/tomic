@@ -51,6 +51,16 @@ _HEADERS_METRICS = [
 ]
 
 
+def _filter_invalid_contracts(app: CombinedApp) -> None:
+    """Remove invalid option contracts from ``app.market_data``."""
+
+    app.market_data = {
+        req_id: data
+        for req_id, data in app.market_data.items()
+        if req_id not in app.invalid_contracts
+    }
+
+
 def _write_option_chain(
     app: CombinedApp, symbol: str, export_dir: str, timestamp: str
 ) -> float | None:
@@ -237,6 +247,7 @@ def export_option_chain(symbol: str, output_dir: str | None = None) -> float | N
         export_dir = output_dir
     os.makedirs(export_dir, exist_ok=True)
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    _filter_invalid_contracts(app)
     avg_parity = _write_option_chain(app, symbol, export_dir, timestamp)
     app.disconnect()
     time.sleep(1)
@@ -274,6 +285,7 @@ def export_market_data(
         export_dir = output_dir
     os.makedirs(export_dir, exist_ok=True)
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    _filter_invalid_contracts(app)
     avg_parity = _write_option_chain(app, symbol, export_dir, timestamp)
     df_metrics = _write_metrics_csv(metrics, symbol, export_dir, timestamp, avg_parity)
     app.disconnect()
