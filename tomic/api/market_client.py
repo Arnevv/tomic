@@ -436,24 +436,19 @@ def start_app(app: MarketClient) -> None:
 @log_result
 def await_market_data(app: MarketClient, symbol: str, timeout: int = 30) -> bool:
     """Wait until market data has been populated or timeout occurs."""
-    
-start = time.time()
-app.data_event.wait(timeout)
+    start = time.time()
+    app.data_event.wait(timeout)
 
-if app.spot_price is not None:
-    logger.debug(f"Spot price ontvangen binnen {time.time() - start:.2f}s")
-    return True
+    if app.spot_price is not None:
+        logger.debug(f"Spot price ontvangen binnen {time.time() - start:.2f}s")
+        return True
 
-if any("bid" in rec or "ask" in rec for rec in app.market_data.values()):
-    logger.debug(f"Bid/ask ontvangen binnen {time.time() - start:.2f}s")
-    return True
-
-logger.error(f"❌ Timeout terwijl gewacht werd op data voor {symbol}")
-return False
+    if any("bid" in rec or "ask" in rec for rec in app.market_data.values()):
+        logger.debug(f"Bid/ask ontvangen binnen {time.time() - start:.2f}s")
+        return True
 
     logger.error(f"❌ Timeout terwijl gewacht werd op data voor {symbol}")
     return False
-
 
 @log_result
 def fetch_market_metrics(symbol: str) -> dict[str, Any] | None:
