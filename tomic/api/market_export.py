@@ -10,7 +10,7 @@ import math
 
 import pandas as pd
 
-from tomic.logutils import logger
+from tomic.logutils import logger, log_result
 from tomic.api.market_client import (
     MarketClient,
     OptionChainClient,
@@ -53,6 +53,7 @@ _HEADERS_METRICS = [
 ]
 
 
+@log_result
 def _write_option_chain(
     app: MarketClient, symbol: str, export_dir: str, timestamp: str
 ) -> float | None:
@@ -164,6 +165,7 @@ def _write_option_chain(
     return None
 
 
+@log_result
 def _write_metrics_csv(
     metrics: MarketMetrics,
     symbol: str,
@@ -194,6 +196,7 @@ def _write_metrics_csv(
     return pd.DataFrame([values_metrics], columns=_HEADERS_METRICS)
 
 
+@log_result
 def export_market_metrics(
     symbol: str, output_dir: str | None = None
 ) -> pd.DataFrame | None:
@@ -223,6 +226,7 @@ def export_market_metrics(
     return df_metrics
 
 
+@log_result
 def export_option_chain(symbol: str, output_dir: str | None = None) -> float | None:
     """Export only the option chain for ``symbol`` to a CSV file."""
     symbol = symbol.strip().upper()
@@ -250,6 +254,7 @@ def export_option_chain(symbol: str, output_dir: str | None = None) -> float | N
     return avg_parity
 
 
+@log_result
 def export_market_data(
     symbol: str, output_dir: str | None = None
 ) -> pd.DataFrame | None:

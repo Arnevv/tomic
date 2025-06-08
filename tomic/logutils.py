@@ -5,6 +5,8 @@ import os
 import sys
 
 from tomic.config import get as cfg_get
+from functools import wraps
+from typing import Any, Callable, TypeVar
 
 try:
     from loguru import logger  # type: ignore
@@ -75,3 +77,19 @@ def setup_logging(default_level: int = logging.INFO) -> None:
         f"Logging setup: TOMIC_DEBUG={debug_env}, "
         f"TOMIC_LOG_LEVEL={level_name or logging.getLevelName(level)}"
     )
+
+
+T = TypeVar("T")
+
+
+def log_result(func: Callable[..., T]) -> Callable[..., T]:
+    """Decorator that logs function calls and their return value."""
+
+    @wraps(func)
+    def wrapper(*args: Any, **kwargs: Any) -> T:
+        logger.debug(f"calling {func.__name__}")
+        result = func(*args, **kwargs)
+        logger.debug(f"{func.__name__} -> {result}")
+        return result
+
+    return wrapper
