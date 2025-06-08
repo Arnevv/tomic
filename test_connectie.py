@@ -4,14 +4,14 @@ from typing import TYPE_CHECKING
 # mypy: disable-error-code=import-not-found
 
 if TYPE_CHECKING:  # pragma: no cover - import for type checking only
-    from ibapi.client import EClient  # noqa: F401
-    from ibapi.wrapper import EWrapper  # noqa: F401
+    from lib.ibapi import EClient  # noqa: F401
+    from lib.ibapi import EWrapper  # noqa: F401
 
 
 def test_tws_connection():
     try:
-        from ibapi.client import EClient
-        from ibapi.wrapper import EWrapper
+        from lib.ibapi import EClient
+        from lib.ibapi import EWrapper
     except Exception:
         pytest.skip("ibapi not available")
     if not hasattr(EClient, "connect"):
