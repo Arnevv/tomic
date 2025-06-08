@@ -51,6 +51,7 @@ class MarketClient(BaseIBApp):
         self.spot_price: float | None = None
         self.expiries: list[str] = []
         self.connected = threading.Event()
+        self.data_event = threading.Event()
         self._req_id = 50
 
     # Helpers -----------------------------------------------------
@@ -84,9 +85,8 @@ class MarketClient(BaseIBApp):
         )
         self.reqMktData(req_id, contract, "", False, False, [])
         timeout = cfg_get("SPOT_TIMEOUT", 10)
-        start = time.time()
-        while self.spot_price is None and time.time() - start < timeout:
-            time.sleep(0.05)
+        self.data_event.clear()
+        self.data_event.wait(timeout)
         if self.spot_price is not None:
             self.cancelMktData(req_id)
 
@@ -103,6 +103,15 @@ class MarketClient(BaseIBApp):
     def tickPrice(self, reqId: int, tickType: int, price: float, attrib) -> None:  # noqa: N802 - IB API callback
         if tickType in (TickTypeEnum.LAST, TickTypeEnum.DELAYED_LAST):
             self.spot_price = price
+        if tickType in (
+            TickTypeEnum.LAST,
+            TickTypeEnum.BID,
+            TickTypeEnum.ASK,
+            getattr(TickTypeEnum, "DELAYED_LAST", TickTypeEnum.LAST),
+            getattr(TickTypeEnum, "DELAYED_BID", TickTypeEnum.BID),
+            getattr(TickTypeEnum, "DELAYED_ASK", TickTypeEnum.ASK),
+        ):
+            self.data_event.set()
         rec = self.market_data.setdefault(reqId, {})
         rec.setdefault("prices", {})[tickType] = price
 
@@ -157,10 +166,11 @@ class OptionChainClient(MarketClient):
 
         # Zorg dat spot_price beschikbaar is
         if self.spot_price is None:
-            logger.warning("Spot price not yet available. Waiting for spot price before processing expiries.")
-            deadline = datetime.now() + timedelta(seconds=10)
-            while self.spot_price is None and datetime.now() < deadline:
-                time.sleep(0.05)
+            logger.warning(
+                "Spot price not yet available. Waiting for spot price before processing expiries."
+            )
+            self.data_event.clear()
+            self.data_event.wait(10)
 
         # Stop als spot_price nog steeds ontbreekt
         if self.spot_price is None:
@@ -267,11 +277,9 @@ class OptionChainClient(MarketClient):
         logger.debug(
             f"reqMktData sent: id={spot_id} snapshot=False for stock contract"
         )
-        start = time.time()
-
         timeout = cfg_get("SPOT_TIMEOUT", 20)
-        while self.spot_price is None and time.time() - start < timeout:
-            time.sleep(0.1)
+        self.data_event.clear()
+        self.data_event.wait(timeout)
 
         self.cancelMktData(spot_id)
         if self.con_id is None:
@@ -337,11 +345,11 @@ def start_app(app: MarketClient) -> None:
 
 def await_market_data(app: MarketClient, symbol: str, timeout: int = 30) -> bool:
     """Wait until market data has been populated or timeout occurs."""
-    start = time.time()
-    while time.time() - start < timeout:
-        if any("bid" in rec for rec in app.market_data.values()):
-            return True
-        time.sleep(0.1)
+    app.data_event.wait(timeout)
+    if app.spot_price is not None:
+        return True
+    if any("bid" in rec or "ask" in rec for rec in app.market_data.values()):
+        return True
     logger.error(f"❌ Timeout terwijl gewacht werd op data voor {symbol}")
     return False
 
