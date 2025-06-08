@@ -239,21 +239,34 @@ class OptionChainClient(MarketClient):
         threading.Thread(target=self._init_requests, daemon=True).start()
 
     def _init_requests(self) -> None:
-        self.reqMarketDataType(2)
         stk = self._stock_contract()
         logger.debug(f"Requesting stock quote with contract: {stk}")
-        spot_id = self._next_id()
-        self.reqMktData(spot_id, stk, "", False, False, [])
-        logger.debug(
-            f"reqMktData sent: id={spot_id} snapshot=False for stock contract"
-        )
-        start = time.time()
 
-        timeout = cfg_get("SPOT_TIMEOUT", 20)
-        while self.spot_price is None and time.time() - start < timeout:
-            time.sleep(0.1)
+        data_type_success = None
+        short_timeout = cfg_get("DATA_TYPE_TIMEOUT", 2)
+        for data_type in (1, 3, 4):
+            self.reqMarketDataType(data_type)
+            logger.debug(f"reqMarketDataType({data_type})")
+            spot_id = self._next_id()
+            self.reqMktData(spot_id, stk, "", False, False, [])
+            logger.debug(
+                f"reqMktData sent: id={spot_id} snapshot=False for stock contract"
+            )
+            start = time.time()
+            while self.spot_price is None and time.time() - start < short_timeout:
+                time.sleep(0.1)
+            self.cancelMktData(spot_id)
+            if self.spot_price is not None:
+                data_type_success = data_type
+                logger.info(f"Market data type {data_type} succeeded")
+                break
 
-        self.cancelMktData(spot_id)
+        if self.spot_price is None:
+            start = time.time()
+            timeout = cfg_get("SPOT_TIMEOUT", 20)
+            while self.spot_price is None and time.time() - start < timeout:
+                time.sleep(0.1)
+
         logger.debug(
             f"Requesting contract details for: symbol={stk.symbol}, expiry={stk.lastTradeDateOrContractMonth}, strike={floatMaxString(stk.strike)}, right={stk.right}"
         )
