@@ -176,7 +176,13 @@ class OptionChainClient(MarketClient):
         for expiry in self.expiries:
             for strike in self.strikes:
                 for right in ("C", "P"):
-                    info = OptionContract(self.symbol, expiry, strike, right, self.trading_class)
+                    info = OptionContract(
+                        self.symbol,
+                        expiry,
+                        strike,
+                        right,
+                        trading_class=self.trading_class,
+                    )
                     c = info.to_ib()
                     req_id = self._next_id()
                     self.market_data[req_id] = {
