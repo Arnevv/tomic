@@ -2,6 +2,7 @@ ibapi @ file://./lib/ibapi
 pandas
 PyYAML
 pydantic
+protobuf
 pytest
 loguru
 tabulate
