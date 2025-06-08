@@ -7,6 +7,20 @@ import statistics
 import itertools
 import socket
 
+
+def round_strike(strike: float) -> float:
+    """Return strike rounded to standard option increments."""
+
+    if strike >= 200:
+        inc = 5
+    elif strike >= 25:
+        inc = 2.5
+    elif strike >= 5:
+        inc = 1
+    else:
+        inc = 0.5
+    return round(round(strike / inc) * inc, 2)
+
 from tomic.config import get as cfg_get
 
 from ibapi.contract import Contract
@@ -230,14 +244,20 @@ def await_market_data(app, symbol: str) -> bool:
         logger.error("❌ Geen contractdetails ontvangen.")
         return False
     if not getattr(app, "conId", None):
-        logger.error("❌ Geen conId ontvangen.")
-        return False
+        logger.warning("❌ Geen conId ontvangen. Probeer contractdetails opnieuw.")
+        app.contract_details_event.clear()
+        contract = create_underlying(symbol)
+        app.reqContractDetails(1101, contract)
+        if not app.contract_details_event.wait(timeout=5) or not getattr(app, "conId", None):
+            logger.error("❌ Geen conId na tweede poging.")
+            return False
 
     sec_type = "IND" if symbol.upper() in INDEX_SYMBOLS else "STK"
     app.reqSecDefOptParams(1201, symbol, "", sec_type, app.conId)
     if not app.option_params_event.wait(timeout=10):
         logger.error("❌ Geen expiries ontvangen.")
         return False
+    app.request_option_market_data()
     logger.info("⏳ Wachten op marketdata (10 seconden)...")
     time.sleep(10)
     total = len([k for k in app.market_data if k not in app.invalid_contracts])
@@ -314,7 +334,7 @@ def create_option_contract(
     c.primaryExchange = "SMART"
     c.currency = "USD"
     c.lastTradeDateOrContractMonth = expiry
-    c.strike = strike
+    c.strike = round_strike(strike)
     c.right = right[0].upper() if right else right
     c.multiplier = "100"
     c.tradingClass = trading_class or symbol
@@ -508,6 +528,7 @@ __all__ = [
     "tws_status_probe",
     "create_underlying",
     "create_option_contract",
+    "round_strike",
     "calculate_hv30",
     "calculate_atr14",
     "start_app",
