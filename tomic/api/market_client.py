@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import threading
+import time
 from typing import Any
 
 from .base_client import BaseIBApp
@@ -18,31 +20,49 @@ class MarketClient(BaseIBApp):
         self.spot_price: float | None = None
 
 
-# The functions below are intentionally minimal. They can be overridden or
-# monkeypatched during testing or extended in production code.
-
 def start_app(app: MarketClient) -> None:
-    """Start the event loop for ``app`` (stub)."""
-    raise NotImplementedError(
-        "start_app is not implemented. Provide an implementation that connects "
-        "to the IB Gateway/TWS event loop."
-    )
+    """Connect ``app`` to TWS and start the network thread."""
+    app.connect("127.0.0.1", 7497, 1)
+    thread = threading.Thread(target=app.run, daemon=True)
+    thread.start()
+    start = time.time()
+    while app.next_valid_id is None and time.time() - start < 5:
+        time.sleep(0.1)
 
 
 def await_market_data(app: MarketClient, symbol: str, timeout: int = 10) -> bool:
-    """Wait for market data to be received (stub)."""
-    raise NotImplementedError(
-        "await_market_data is not implemented. This function should wait until "
-        "market data for the given symbol becomes available."
-    )
+    """Wait until some market data has been received or timeout occurs."""
+    start = time.time()
+    while time.time() - start < timeout:
+        if app.market_data:
+            return True
+        time.sleep(0.1)
+    return False
 
 
 def fetch_market_metrics(symbol: str):
-    """Fetch market metrics for ``symbol`` (stub)."""
-    raise NotImplementedError(
-        "fetch_market_metrics is not implemented. Install the IB API and "
-        "provide a concrete implementation to retrieve market metrics."
-    )
+    """Fetch minimal market metrics for ``symbol``."""
+    app = MarketClient(symbol)
+    start_app(app)
+    if hasattr(app, "start_requests"):
+        app.start_requests()
+    if not await_market_data(app, symbol):
+        app.disconnect()
+        return None
+    metrics = {
+        "spot_price": app.spot_price,
+        "hv30": None,
+        "atr14": None,
+        "vix": None,
+        "skew": None,
+        "term_m1_m2": None,
+        "term_m1_m3": None,
+        "iv_rank": None,
+        "implied_volatility": None,
+        "iv_percentile": None,
+    }
+    app.disconnect()
+    return metrics
 
 
 __all__ = ["MarketClient", "start_app", "await_market_data", "fetch_market_metrics"]
