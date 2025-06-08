@@ -5,9 +5,9 @@ import os
 import sys
 from typing import Any, Dict, List, Set
 
-from tomic.logging import logger
+from tomic.logutils import logger
 
-from tomic.logging import setup_logging
+from tomic.logutils import setup_logging
 from .common import prompt
 
 

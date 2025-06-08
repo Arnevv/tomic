@@ -5,7 +5,7 @@ from __future__ import annotations
 from typing import Any, Dict
 from tomic.api.market_utils import start_app, await_market_data
 from tomic.api.combined_app import CombinedApp
-from tomic.logging import logger
+from tomic.logutils import logger
 
 
 def fetch_option_metrics(

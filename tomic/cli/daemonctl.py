@@ -6,7 +6,7 @@ import argparse
 import json
 from typing import Any
 
-from tomic.logging import setup_logging
+from tomic.logutils import setup_logging
 from tomic.proto import rpc, tws_daemon
 
 try:

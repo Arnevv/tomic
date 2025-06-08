@@ -1,10 +1,10 @@
 import json
 from pathlib import Path
 
-from tomic.logging import logger
+from tomic.logutils import logger
 
 from tomic.api.margin_calc import calculate_trade_margin
-from tomic.logging import setup_logging
+from tomic.logutils import setup_logging
 from tomic.config import get as cfg_get
 
 JOURNAL_FILE = Path(cfg_get("JOURNAL_FILE", "journal.json"))

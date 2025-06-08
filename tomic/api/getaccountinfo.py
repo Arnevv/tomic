@@ -14,7 +14,7 @@ from tomic.api.market_utils import count_incomplete
 from tomic.analysis.get_iv_rank import fetch_iv_metrics
 from tomic.analysis.greeks import compute_portfolio_greeks
 from tomic.config import get as cfg_get
-from tomic.logging import logger, setup_logging
+from tomic.logutils import logger, setup_logging
 from tomic.helpers import dump_json
 
 

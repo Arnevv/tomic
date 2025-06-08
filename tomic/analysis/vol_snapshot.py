@@ -6,7 +6,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Callable, Dict, List
 
-from tomic.logging import logger
+from tomic.logutils import logger
 from tomic.config import get as cfg_get
 from tomic.journal.utils import load_json, save_json
 

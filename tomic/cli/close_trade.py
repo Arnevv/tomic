@@ -3,9 +3,9 @@
 from datetime import datetime
 from typing import Any, Dict
 
-from tomic.logging import logger
+from tomic.logutils import logger
 
-from tomic.logging import setup_logging
+from tomic.logutils import setup_logging
 from tomic.journal.service import (
     load_journal,
     update_trade,

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from datetime import date
 
-from tomic.logging import setup_logging
+from tomic.logutils import setup_logging
 from tomic.api.open_interest import fetch_open_interest
 from .common import prompt
 

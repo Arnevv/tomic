@@ -10,7 +10,7 @@ import math
 
 import pandas as pd
 
-from tomic.logging import logger
+from tomic.logutils import logger
 from tomic.api.combined_app import CombinedApp
 from tomic.api.market_utils import (
     fetch_market_metrics,

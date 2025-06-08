@@ -5,7 +5,7 @@ from __future__ import annotations
 from typing import Any, Dict
 
 from .utils import JOURNAL_FILE, load_journal, save_journal
-from tomic.logging import logger
+from tomic.logutils import logger
 
 
 def is_valid_trade_id(tid: Any) -> bool:

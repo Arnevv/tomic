@@ -4,7 +4,7 @@ import sys
 from pathlib import Path
 from typing import List
 
-from tomic.logging import setup_logging, logger
+from tomic.logutils import setup_logging, logger
 from tomic.config import get as cfg_get
 from tomic.analysis.proposal_engine import generate_proposals
 

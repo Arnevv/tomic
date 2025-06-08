@@ -2,10 +2,10 @@ import json
 from statistics import mean
 from typing import Dict, List, Optional
 
-from tomic.logging import logger
+from tomic.logutils import logger
 
 from tomic.utils import today
-from tomic.logging import setup_logging
+from tomic.logutils import setup_logging
 from tomic.journal.utils import load_journal
 from tomic.helpers.account import _fmt_money
 

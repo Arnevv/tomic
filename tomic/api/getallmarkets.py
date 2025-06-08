@@ -8,7 +8,7 @@ import time
 from datetime import datetime
 
 import pandas as pd
-from tomic.logging import logger, setup_logging
+from tomic.logutils import logger, setup_logging
 from tomic.config import get as cfg_get
 from .ib_connection import connect_ib
 from .market_export import export_market_data

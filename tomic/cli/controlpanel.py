@@ -50,7 +50,7 @@ from tomic.cli.common import Menu, prompt
 from tomic.api.ib_connection import connect_ib
 
 from tomic import config as cfg
-from tomic.logging import setup_logging
+from tomic.logutils import setup_logging
 from tomic.analysis.greeks import compute_portfolio_greeks
 from tomic.proto import tws_daemon
 
