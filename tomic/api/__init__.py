@@ -12,6 +12,7 @@ import importlib
 import os
 import sys
 
+
 def _ensure_ibapi() -> None:
     """Ensure the `ibapi` package can be imported.
 
@@ -36,6 +37,9 @@ def _ensure_ibapi() -> None:
     api_path = os.getenv("TWS_API_PATH") or os.getenv("IB_API_PATH")
     if api_path:
         sys.path.insert(0, api_path)
+        proto_path = os.path.join(api_path, "ibapi", "protobuf")
+        if os.path.isdir(proto_path):
+            sys.path.insert(0, proto_path)
         try:
             importlib.import_module("ibapi.contract")
             return
@@ -50,6 +54,9 @@ def _ensure_ibapi() -> None:
     fallback_path = os.path.join(project_root, "lib")
     if os.path.exists(os.path.join(fallback_path, "ibapi")):
         sys.path.insert(0, fallback_path)
+        proto_path = os.path.join(fallback_path, "ibapi", "protobuf")
+        if os.path.isdir(proto_path):
+            sys.path.insert(0, proto_path)
         try:
             importlib.import_module("ibapi.contract")
             return
@@ -63,5 +70,6 @@ def _ensure_ibapi() -> None:
         "No module named 'ibapi'. Install via pip or set TWS_API_PATH/IB_API_PATH "
         "or place 'ibapi' in a local ./lib/ folder."
     )
+
 
 _ensure_ibapi()
