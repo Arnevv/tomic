@@ -10,7 +10,7 @@ from typing import Iterable, List
 
 from tomic.logging import logger, setup_logging
 from tomic.config import get as cfg_get
-from .market_utils import ib_connection_available
+from .ib_connection import connect_ib
 
 from .getallmarkets import run, export_combined_csv
 
@@ -85,7 +85,10 @@ def main(args: list[str] | None = None) -> None:
     parsed = parser.parse_args(args)
 
     setup_logging()
-    if not ib_connection_available():
+    try:
+        app = connect_ib()
+        app.disconnect()
+    except Exception:
         logger.error(
             "❌ IB Gateway/TWS niet bereikbaar. Controleer of de service draait."
         )

@@ -5,7 +5,6 @@ import sys
 from datetime import datetime
 import json
 from pathlib import Path
-import threading
 import os
 import csv
 
@@ -48,8 +47,7 @@ if __package__ is None:
 
 from tomic.cli.common import Menu, prompt
 
-from tomic.api.market_utils import start_app, ib_api_available
-from tomic.api.base_client import BaseIBApp
+from tomic.api.ib_connection import connect_ib
 
 from tomic import config as cfg
 from tomic.logging import setup_logging
@@ -121,34 +119,29 @@ def print_saved_portfolio_greeks() -> None:
         print(f"{key}: {val:+.4f}")
 
 
-class VersionApp(BaseIBApp):
-    """Minimal IB app to retrieve the TWS server version."""
-
-    def __init__(self) -> None:
-        super().__init__()
-        self.ready_event = threading.Event()
-
-    def nextValidId(self, orderId: int) -> None:  # noqa: N802 - IB API callback
-        self.ready_event.set()
-
-
 def print_api_version() -> None:
     """Connect to TWS and display the server version information."""
-    app = VersionApp()
-    start_app(app)
-    if app.ready_event.wait(timeout=5):
+    try:
+        app = connect_ib()
         print(f"Server versie: {app.serverVersion()}")
         print(f"Verbindingstijd: {app.twsConnectionTime()}")
-    else:
+    except Exception:
         print("❌ Geen verbinding met TWS")
-    app.disconnect()
+        return
+    finally:
+        try:
+            app.disconnect()
+        except Exception:
+            pass
 
 
 def check_ib_connection() -> None:
     """Test whether the IB API is reachable."""
-    if ib_api_available():
+    try:
+        app = connect_ib()
+        app.disconnect()
         print("✅ Verbinding met TWS beschikbaar")
-    else:
+    except Exception:
         print("❌ Geen verbinding met TWS")
 
 

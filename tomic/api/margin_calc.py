@@ -1,12 +1,28 @@
-from tomic.core.ib import BaseApp
-from ibapi.order import Order
 import threading
+from ibapi.order import Order
+from ibapi.contract import Contract
 
-from .market_utils import create_option_contract, start_app
+from tomic.api.base_client import BaseIBApp
+from tomic.api.ib_connection import connect_ib
 from tomic.config import get as cfg_get
 
 
-class MarginApp(BaseApp):
+def _create_option_contract(symbol: str, expiry: str, strike: float, right: str) -> Contract:
+    c = Contract()
+    c.symbol = symbol
+    c.secType = "OPT"
+    c.exchange = "SMART"
+    c.primaryExchange = "SMART"
+    c.currency = "USD"
+    c.lastTradeDateOrContractMonth = expiry
+    c.strike = strike
+    c.right = right
+    c.multiplier = "100"
+    c.tradingClass = symbol
+    return c
+
+
+class MarginApp(BaseIBApp):
     """Minimal IB app to request what-if orders for margin."""
 
     def __init__(self):
@@ -41,15 +57,23 @@ def calculate_trade_margin(
     host = host or cfg_get("IB_HOST", "127.0.0.1")
     port = int(port or cfg_get("IB_PORT", 7497))
     app = MarginApp()
-    start_app(app, host=host, port=port, client_id=client_id)
+    try:
+        client = connect_ib(client_id=client_id or 1, host=host, port=port)
+        client.disconnect()
+    except Exception:
+        return None
 
+    app.connect(host, port, client_id or 1)
+    thread = threading.Thread(target=app.run, daemon=True)
+    thread.start()
+    app.reqIds(1)
     if not app.event.wait(timeout=5):
         app.disconnect()
         return None
 
     total = 0.0
     for leg in legs:
-        contract = create_option_contract(symbol, expiry, leg["strike"], leg["type"])
+        contract = _create_option_contract(symbol, expiry, leg["strike"], leg["type"])
         order = Order()
         order.action = leg["action"]
         order.totalQuantity = leg["qty"]

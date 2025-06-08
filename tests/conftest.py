@@ -15,7 +15,20 @@ def stub_external_modules():
 
     contract_stub.Contract = type("Contract", (), {})
     contract_stub.ContractDetails = type("ContractDetails", (), {})
-    client_stub.EClient = type("EClient", (), {})
+    class _EClient:
+        def __init__(self, wrapper=None):
+            pass
+
+        def connect(self, host, port, clientId=0):
+            pass
+
+        def disconnect(self):
+            pass
+
+        def run(self):
+            pass
+
+    client_stub.EClient = _EClient
     wrapper_stub.EWrapper = type("EWrapper", (), {})
     ticktype_stub.TickTypeEnum = type("TickTypeEnum", (), {})
     common_stub.TickerId = int
@@ -45,6 +58,11 @@ def stub_external_modules():
     pd_stub.DataFrame = object
     pd_stub.concat = lambda frames, ignore_index=False: object()
     sys.modules["pandas"] = pd_stub
+
+    sys.modules.setdefault("google", types.ModuleType("google"))
+    sys.modules.setdefault("google.protobuf", types.ModuleType("protobuf"))
+    sys.modules.setdefault("numpy", types.ModuleType("numpy"))
+    sys.modules.setdefault("requests", types.ModuleType("requests"))
 
     # Ensure market_utils is reloaded fresh for each test
     sys.modules.pop("tomic.api.market_utils", None)
