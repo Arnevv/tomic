@@ -5,8 +5,6 @@ import sys
 from tomic.logutils import setup_logging, logger
 from .market_export import export_market_data
 from .ib_connection import connect_ib
-from tomic.proto.rpc import submit_task
-
 
 def run(symbol: str, output_dir: str | None = None, *, queue_job: bool = False) -> bool:
     """Download option chain and market metrics for *symbol*.
