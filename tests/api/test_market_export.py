@@ -120,3 +120,69 @@ def test_write_option_chain_negative_bid(tmp_path):
 
     assert rows[1][-1] == ""
     assert rows[2][-1] == ""
+
+
+def test_fetch_volatility_metrics_parses_new_fields(monkeypatch):
+    import importlib
+
+    html = """
+        \"lastPrice\": 101.5
+        HV 30: 12%
+        Skew -2.5
+        ATR(14): 7.8
+        VIX 19.5
+        M1-M2 -0.3%
+        M1-M3 -0.7%
+        IV Rank 45
+        Implied Volatility 20%
+        IV Percentile 60%
+    """
+
+    mod = importlib.reload(importlib.import_module("tomic.cli.daily_vol_scraper"))
+    monkeypatch.setattr(mod, "download_html", lambda sym: html)
+
+    data = mod.fetch_volatility_metrics("ABC")
+    assert data["atr14"] == 7.8
+    assert data["vix"] == 19.5
+    assert data["term_m1_m2"] == -0.3
+    assert data["term_m1_m3"] == -0.7
+
+
+def test_fetch_market_metrics_includes_new_fields(monkeypatch):
+    import importlib
+    client_mod = importlib.reload(importlib.import_module("tomic.api.market_client"))
+
+    class DummyApp:
+        def __init__(self, symbol: str) -> None:
+            self.symbol = symbol
+            self.spot_price = 99.0
+
+        def disconnect(self) -> None:
+            pass
+
+    monkeypatch.setattr(client_mod, "MarketClient", DummyApp)
+    monkeypatch.setattr(client_mod, "start_app", lambda app: None)
+    monkeypatch.setattr(client_mod, "await_market_data", lambda app, symbol, timeout=10: True)
+
+    monkeypatch.setattr(
+        client_mod,
+        "fetch_volatility_metrics",
+        lambda sym: {
+            "spot_price": 98.0,
+            "hv30": 11.0,
+            "atr14": 5.5,
+            "vix": 17.2,
+            "skew": -1.0,
+            "term_m1_m2": -0.4,
+            "term_m1_m3": -0.9,
+            "iv_rank": 30.0,
+            "implied_volatility": 25.0,
+            "iv_percentile": 70.0,
+        },
+    )
+
+    result = client_mod.fetch_market_metrics("XYZ")
+    assert result["atr14"] == 5.5
+    assert result["vix"] == 17.2
+    assert result["term_m1_m2"] == -0.4
+    assert result["term_m1_m3"] == -0.9
