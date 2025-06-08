@@ -6,6 +6,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Callable, Dict, List
 
+from tomic.models import MarketMetrics
+
 from tomic.logutils import logger
 from tomic.config import get as cfg_get
 from tomic.journal.utils import load_json, save_json
@@ -45,7 +47,7 @@ def store_volatility_snapshot(
 
 def snapshot_symbols(
     symbols: List[str],
-    fetcher: Callable[[str], Dict[str, Any]],
+    fetcher: Callable[[str], MarketMetrics | Dict[str, Any]],
     output_path: str | None = None,
 ) -> None:
     """Take a volatility snapshot for each symbol using the given fetcher."""
@@ -56,14 +58,16 @@ def snapshot_symbols(
         except Exception as exc:  # pragma: no cover - network dependent
             logger.error(f"Failed for {sym}: {exc}")
             continue
+        if isinstance(metrics, dict):
+            metrics = MarketMetrics.from_dict(metrics)
         record = {
             "date": datetime.now(timezone.utc).strftime("%Y-%m-%d"),
             "symbol": sym,
-            "spot": metrics.get("spot_price"),
-            "iv30": metrics.get("implied_volatility"),
-            "hv30": metrics.get("hv30"),
-            "iv_rank": metrics.get("iv_rank"),
-            "skew": metrics.get("skew"),
+            "spot": metrics.spot_price,
+            "iv30": metrics.implied_volatility,
+            "hv30": metrics.hv30,
+            "iv_rank": metrics.iv_rank,
+            "skew": metrics.skew,
         }
         store_volatility_snapshot(record, output_path)
         logger.info(f"Stored snapshot for {sym}")
