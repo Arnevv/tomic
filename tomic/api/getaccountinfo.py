@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from datetime import datetime
-import json
 import threading
 import time
 
@@ -16,6 +15,7 @@ from tomic.analysis.get_iv_rank import fetch_iv_metrics
 from tomic.analysis.greeks import compute_portfolio_greeks
 from tomic.config import get as cfg_get
 from tomic.logging import logger, setup_logging
+from tomic.helpers import dump_json
 
 
 # Alias to avoid NameError if standard logging is accidentally used
@@ -313,8 +313,7 @@ def main(client_id: int | None = None) -> None:
         pos["IV_Rank"] = app.iv_rank_data.get(sym)
         pos["IV_Percentile"] = app.iv_rank_data.get(f"{sym}_pct")
 
-    with open(cfg_get("POSITIONS_FILE", "positions.json"), "w", encoding="utf-8") as f:
-        json.dump(app.positions_data, f, indent=2)
+    dump_json(app.positions_data, cfg_get("POSITIONS_FILE", "positions.json"))
 
     logging.info(
         "💾 Posities opgeslagen in {}",
@@ -324,10 +323,7 @@ def main(client_id: int | None = None) -> None:
     base_currency_vals = {
         k: v for k, v in app.account_values.items() if isinstance(k, str)
     }
-    with open(
-        cfg_get("ACCOUNT_INFO_FILE", "account_info.json"), "w", encoding="utf-8"
-    ) as f:
-        json.dump(base_currency_vals, f, indent=2)
+    dump_json(base_currency_vals, cfg_get("ACCOUNT_INFO_FILE", "account_info.json"))
 
     logger.info(
         f"💾 Accountinfo opgeslagen in {cfg_get('ACCOUNT_INFO_FILE', 'account_info.json')}"
