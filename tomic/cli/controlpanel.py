@@ -217,7 +217,6 @@ def run_dataexporter() -> None:
     )
     menu.run()
 
-
 def run_trade_management() -> None:
     """Menu for journal management tasks."""
 

@@ -156,10 +156,17 @@ class OptionChainClient(MarketClient):
             f"spot_price={self.spot_price}, expirations={expirations[:5]}"
         )
 
+        # Zorg dat spot_price beschikbaar is
         if self.spot_price is None:
-            end = time.time() + 2
-            while self.spot_price is None and time.time() < end:
-                time.sleep(0.1)
+            logger.warning("Spot price not yet available. Waiting for spot price before processing expiries.")
+            deadline = datetime.now() + time.time() + 10
+            while self.spot_price is None and datetime.now() < deadline:
+                time.sleep(0.05)
+
+        # Stop als spot_price nog steeds ontbreekt
+        if self.spot_price is None:
+            logger.error("Spot price not available after timeout. Skipping option data request.")
+            return
 
         future = filter_future_expiries(expirations)
         self.monthlies = extract_monthlies(future, 3)
