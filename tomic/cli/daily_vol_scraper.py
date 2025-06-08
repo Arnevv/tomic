@@ -13,7 +13,7 @@ from tomic.logutils import setup_logging
 
 
 def fetch_volatility_metrics(symbol: str) -> Dict[str, float]:
-    """Fetch spot, IV30, HV30, IV rank and skew for a symbol."""
+    """Fetch key volatility metrics for a symbol."""
     html = download_html(symbol)
     iv_data = parse_patterns(IV_PATTERNS, html)
     extra_data = parse_patterns(EXTRA_PATTERNS, html)
