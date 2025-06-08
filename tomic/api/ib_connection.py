@@ -11,14 +11,25 @@ PROTOBUF_PATH = os.path.join(os.path.dirname(__file__), "..", "ibapi", "protobuf
 sys.path.insert(0, os.path.abspath(PROTOBUF_PATH))
 
 class IBClient(EClient, EWrapper):
-    def __init__(self):
+    def __init__(self) -> None:
         EClient.__init__(self, self)
         self.next_valid_id = None
 
-    def nextValidId(self, orderId: int):
+    def nextValidId(self, orderId: int) -> None:  # noqa: N802 - IB API callback
         self.next_valid_id = orderId
 
-    def error(self, reqId, errorCode, errorString):
+    # Match the signature expected by :class:`ibapi.wrapper.EWrapper` so
+    # callbacks from the decoder don't fail if additional arguments are passed.
+    def error(
+        self,
+        reqId: int,
+        errorTime: int,
+        errorCode: int,
+        errorString: str,
+        advancedOrderRejectJson: str = "",
+    ) -> None:  # noqa: D401 - simple logging
+        """Print an error message from the IB API."""
+
         print(f"IB error {errorCode}: {errorString}")
 
 
