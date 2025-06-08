@@ -10,6 +10,7 @@ from tomic.config import get as cfg_get
 from tomic.logutils import logger
 from tomic.cli.daily_vol_scraper import fetch_volatility_metrics
 from tomic.models import OptionContract
+from tomic.utils import extract_weeklies, extract_monthlies
 try:  # pragma: no cover - optional dependency during tests
     from ibapi.contract import Contract
 except Exception:  # pragma: no cover - tests provide stubs
@@ -65,6 +66,7 @@ class OptionChainClient(MarketClient):
         self.con_id: int | None = None
         self.trading_class: str | None = None
         self.strikes: list[float] = []
+        self._strike_lookup: dict[float, float] = {}
         self._req_id = 50
 
     # Helpers -----------------------------------------------------
@@ -106,10 +108,22 @@ class OptionChainClient(MarketClient):
     ) -> None:  # noqa: N802
         if self.expiries:
             return
-        self.expiries = sorted(expirations)
+
+        regulars = extract_monthlies(expirations, 3)
+        weeklies = extract_weeklies(expirations, 4)
+        self.expiries = sorted(set(regulars + weeklies))
         logger.info(f"Expiries: {', '.join(self.expiries)}")
+
         center = round(self.spot_price or 0)
-        self.strikes = sorted(s for s in strikes if center - 10 <= s <= center + 10)[:10]
+        strike_map: dict[float, float] = {}
+        for strike in sorted(strikes):
+            rounded = round(strike)
+            if center - 3 <= rounded <= center + 3 and rounded not in strike_map:
+                strike_map[rounded] = strike
+            if len(strike_map) == 7:
+                break
+        self.strikes = sorted(strike_map.keys())
+        self._strike_lookup = strike_map
         self.trading_class = tradingClass
         self._request_option_data()
 
@@ -186,16 +200,17 @@ class OptionChainClient(MarketClient):
         )
         for expiry in self.expiries:
             for strike in self.strikes:
+                actual = self._strike_lookup.get(strike, strike)
                 for right in ("C", "P"):
                     info = OptionContract(
                         self.symbol,
                         expiry,
-                        strike,
+                        actual,
                         right,
                         trading_class=self.trading_class,
                     )
                     logger.debug(
-                        f"Building option contract: {info.symbol} {expiry} {strike} {right}"
+                        f"Building option contract: {info.symbol} {expiry} {actual} {right}"
                     )
                     c = info.to_ib()
                     logger.debug(f"Requesting market data with contract: {c}")
