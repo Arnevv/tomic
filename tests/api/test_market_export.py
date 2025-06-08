@@ -123,6 +123,21 @@ def test_write_option_chain_negative_bid(tmp_path):
     assert rows[2][-1] == ""
 
 
+def test_write_option_chain_no_records(tmp_path):
+    """When no market data arrives, no CSV should be written."""
+
+    app = SimpleNamespace(
+        market_data={},
+        invalid_contracts=set(),
+        spot_price=100.0,
+    )
+
+    result = _write_option_chain(app, "ABC", str(tmp_path), "123")
+
+    assert result is None
+    assert list(tmp_path.iterdir()) == []
+
+
 def test_fetch_volatility_metrics_parses_new_fields(monkeypatch):
     import importlib
 
