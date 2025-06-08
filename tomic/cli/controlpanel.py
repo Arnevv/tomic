@@ -215,6 +215,10 @@ def run_dataexporter() -> None:
         "Haal optiedata op per symbool",
         option_lookup_default,
     )
+    menu.add(
+        "Ophalen 1 optie - test",
+        lambda: run_module("tomic.api.fetch_single_option"),
+    )
     menu.run()
 
 def run_trade_management() -> None:
