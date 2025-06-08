@@ -66,7 +66,7 @@ def test_option_params_aggregation():
         "ABC",
         "100",
         {"20240105", "20240119", "20240112"},
-        {95.0, 100.0},
+        {95.2, 100.0},
     )
 
     app.securityDefinitionOptionParameter(
@@ -76,7 +76,7 @@ def test_option_params_aggregation():
         "ABC",
         "100",
         {"20240126", "20240202", "20240216", "20240315", "20240419"},
-        {90.0, 110.0, 105.0, 115.0},
+        {90.7, 110.2, 105.1, 115.9},
     )
 
     app.securityDefinitionOptionParameterEnd(1)
