@@ -336,8 +336,6 @@ def fetch_market_metrics(symbol: str) -> dict[str, Any] | None:
     # Probeer live spot price van IB
     app = MarketClient(symbol)
     start_app(app)
-    if hasattr(app, "start_requests"):
-        app.start_requests()
     if await_market_data(app, symbol):
         metrics["spot_price"] = app.spot_price or metrics["spot_price"]
     app.disconnect()
