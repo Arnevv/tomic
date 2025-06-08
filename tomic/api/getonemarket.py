@@ -2,9 +2,11 @@
 
 import sys
 
-from tomic.logutils import setup_logging, logger, log_result
+from tomic.logutils import setup_logging, logger, log_result, trace_calls
 from .market_export import export_market_data
+from .ib_connection import connect_ib
 
+@trace_calls
 @log_result
 def run(symbol: str, output_dir: str | None = None) -> bool:
     setup_logging()
