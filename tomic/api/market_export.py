@@ -13,6 +13,7 @@ import pandas as pd
 from tomic.logutils import logger
 from tomic.api.market_client import (
     MarketClient,
+    OptionChainClient,
     fetch_market_metrics,
     start_app,
     await_market_data,
@@ -225,7 +226,7 @@ def export_option_chain(symbol: str, output_dir: str | None = None) -> float | N
     if not symbol:
         logger.error("❌ Geen geldig symbool ingevoerd.")
         return None
-    app = MarketClient(symbol)
+    app = OptionChainClient(symbol)
     start_app(app)
     if hasattr(app, "start_requests"):
         app.start_requests()
@@ -263,7 +264,7 @@ def export_market_data(
         logger.error("❌ Geen expiries gevonden voor %s", symbol)
         return None
     metrics = MarketMetrics.from_dict(raw_metrics)
-    app = MarketClient(symbol)
+    app = OptionChainClient(symbol)
     start_app(app)
     if hasattr(app, "start_requests"):
         app.start_requests()
