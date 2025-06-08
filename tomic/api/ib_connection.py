@@ -7,6 +7,8 @@ from ibapi.wrapper import EWrapper
 import sys
 import os
 
+from tomic.logutils import logger, log_result
+
 PROTOBUF_PATH = os.path.join(os.path.dirname(__file__), "..", "ibapi", "protobuf")
 sys.path.insert(0, os.path.abspath(PROTOBUF_PATH))
 
@@ -17,6 +19,7 @@ class IBClient(EClient, EWrapper):
 
     def nextValidId(self, orderId: int) -> None:  # noqa: N802 - IB API callback
         self.next_valid_id = orderId
+        logger.debug(f"IB nextValidId -> {orderId}")
 
     # Match the signature expected by :class:`ibapi.wrapper.EWrapper` so
     # callbacks from the decoder don't fail if additional arguments are passed.
@@ -32,20 +35,22 @@ class IBClient(EClient, EWrapper):
 
         # Fallback als errorTime / advancedOrderRejectJson niet wordt meegegeven
         if errorCode is not None and errorString is not None:
-            print(f"IB error {errorCode}: {errorString}")
+            logger.error(f"IB error {errorCode}: {errorString}")
         else:
-            print(
+            logger.error(
                 f"IB error: unexpected args reqId={reqId}, errorCode={errorCode}, errorString={errorString}"
             )
 
         if advancedOrderRejectJson:
-            print(f"Advanced order reject: {advancedOrderRejectJson}")
+            logger.error(f"Advanced order reject: {advancedOrderRejectJson}")
 
 
-def connect_ib(client_id=1, host="127.0.0.1", port=7497, timeout=5) -> IBClient:
+@log_result
+def connect_ib(client_id: int = 1, host: str = "127.0.0.1", port: int = 7497, timeout: int = 5) -> IBClient:
     app = IBClient()
 
     try:
+        logger.debug(f"Connecting to IB host={host} port={port} client_id={client_id}")
         app.connect(host, port, client_id)
     except socket.error as e:
         raise RuntimeError(f"❌ Kon niet verbinden met TWS op {host}:{port}: {e}")
@@ -59,4 +64,5 @@ def connect_ib(client_id=1, host="127.0.0.1", port=7497, timeout=5) -> IBClient:
             raise TimeoutError("⏱ Timeout bij wachten op nextValidId")
         time.sleep(0.1)
 
+    logger.debug("IB connection established")
     return app
