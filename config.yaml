@@ -31,7 +31,7 @@ IB_HOST: 127.0.0.1
 IB_PORT: 7497
 INTEREST_RATE: 0.05
 JOURNAL_FILE: journal.json
-LOG_LEVEL: DEBUG
+LOG_LEVEL: INFO
 PORTFOLIO_META_FILE: portfolio_meta.json
 POSITIONS_FILE: positions.json
 VOLATILITY_DATA_FILE: volatility_data.json
