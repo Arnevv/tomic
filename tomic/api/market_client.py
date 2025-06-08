@@ -75,6 +75,14 @@ class OptionChainClient(MarketClient):
         c.exchange = "SMART"
         c.primaryExchange = "SMART"
         c.currency = "USD"
+        logger.debug(
+            "Stock contract built: symbol=%s secType=%s exchange=%s primaryExchange=%s currency=%s",
+            c.symbol,
+            c.secType,
+            c.exchange,
+            c.primaryExchange,
+            c.currency,
+        )
         return c
 
     def _next_id(self) -> int:
@@ -153,8 +161,12 @@ class OptionChainClient(MarketClient):
     def _init_requests(self) -> None:
         self.reqMarketDataType(2)
         stk = self._stock_contract()
+        logger.debug("Requesting stock quote with contract: %s", stk)
         spot_id = self._next_id()
         self.reqMktData(spot_id, stk, "", False, False, [])
+        logger.debug(
+            "reqMktData sent: id=%s snapshot=False for stock contract", spot_id
+        )
         start = time.time()
 
         #TODO dit vervangen als onderstaande werkt
@@ -167,6 +179,7 @@ class OptionChainClient(MarketClient):
 
         self.cancelMktData(spot_id)
         self.reqContractDetails(self._next_id(), stk)
+        logger.debug("reqContractDetails sent for: %s", stk)
 
     def _request_option_data(self) -> None:
         if not self.expiries or not self.strikes or self.trading_class is None:
@@ -190,7 +203,15 @@ class OptionChainClient(MarketClient):
                         right,
                         trading_class=self.trading_class,
                     )
+                    logger.debug(
+                        "Building option contract: %s %s %s %s",
+                        info.symbol,
+                        expiry,
+                        strike,
+                        right,
+                    )
                     c = info.to_ib()
+                    logger.debug("Requesting market data with contract: %s", c)
                     req_id = self._next_id()
                     self.market_data[req_id] = {
                         "expiry": expiry,

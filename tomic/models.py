@@ -3,6 +3,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any, Mapping, Optional
 
+from tomic.logutils import logger
+
 try:
     from ibapi.contract import Contract
 except Exception:  # pragma: no cover - optional during testing
@@ -35,6 +37,22 @@ class OptionContract:
         contract.right = self.right
         contract.multiplier = self.multiplier
         contract.tradingClass = self.trading_class or self.symbol
+
+        logger.debug(
+            "IB contract built: symbol=%s secType=%s exchange=%s primaryExchange=%s "
+            "currency=%s expiry=%s strike=%s right=%s multiplier=%s tradingClass=%s",
+            contract.symbol,
+            contract.secType,
+            contract.exchange,
+            contract.primaryExchange,
+            contract.currency,
+            contract.lastTradeDateOrContractMonth,
+            contract.strike,
+            contract.right,
+            contract.multiplier,
+            contract.tradingClass,
+        )
+
         return contract
 
     @classmethod
