@@ -9,33 +9,26 @@ from typing import Optional
 from ibapi.contract import Contract
 from tomic.api.base_client import BaseIBApp
 from tomic.api.ib_connection import connect_ib
+from tomic.models import OptionContract
 
 
-def _create_option_contract(symbol: str, expiry: str, strike: float, right: str) -> Contract:
-    contract = Contract()
-    contract.symbol = symbol
-    contract.secType = "OPT"
-    contract.exchange = "SMART"
-    contract.primaryExchange = "SMART"
-    contract.currency = "USD"
-    contract.lastTradeDateOrContractMonth = expiry
-    contract.strike = strike
-    contract.right = right
-    contract.multiplier = "100"
-    contract.tradingClass = symbol
-    return contract
+def _create_option_contract(info: OptionContract) -> Contract:
+    """Return an IB ``Contract`` for the given option info."""
+
+    return info.to_ib()
 from tomic.logutils import logger
 
 
 class _OpenInterestApp(BaseIBApp):
     """Minimal IB app to fetch open interest."""
 
-    def __init__(self, symbol: str, expiry: str, strike: float, right: str) -> None:
+    def __init__(self, contract: OptionContract) -> None:
         super().__init__()
-        self.symbol = symbol
-        self.expiry = expiry
-        self.strike = strike
-        self.right = right
+        self.contract = contract
+        self.symbol = contract.symbol
+        self.expiry = contract.expiry
+        self.strike = contract.strike
+        self.right = contract.right
         self.open_interest: Optional[int] = None
         self.open_interest_event = threading.Event()
         self.open_interest_source: Optional[str] = None
@@ -49,9 +42,7 @@ class _OpenInterestApp(BaseIBApp):
         logger.debug("Contract details: %s", contract)
 
     def nextValidId(self, orderId: int) -> None:  # noqa: N802 - IB API callback
-        contract = _create_option_contract(
-            self.symbol, self.expiry, self.strike, self.right
-        )
+        contract = _create_option_contract(self.contract)
         # Request volume (100) and open interest (101) generic ticks. Some
         # brokers send open interest via tick types 86/87 instead of 101.
         self._log_request(contract)
@@ -112,7 +103,8 @@ def fetch_open_interest(
     """Return open interest for the specified option contract."""
 
     expiry = expiry.replace("-", "")
-    app = _OpenInterestApp(symbol.upper(), expiry, strike, right.upper())
+    info = OptionContract(symbol.upper(), expiry, strike, right.upper())
+    app = _OpenInterestApp(info)
 
     try:
         probe = connect_ib()

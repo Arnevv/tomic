@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
-from typing import Any, Dict
+from typing import Any
+
+from tomic.models import OptionMetrics
 from tomic.api.market_client import (
     MarketClient,
     start_app,
@@ -13,7 +15,7 @@ from tomic.logutils import logger
 
 def fetch_option_metrics(
     symbol: str, expiry: str, strike: float, right: str | None = None
-) -> Dict[str, Any] | None:
+) -> OptionMetrics | None:
     """Return spot price and volume for ``symbol``.
 
     The ``expiry`` should be provided as ``YYYY-MM-DD`` and ``strike`` as a
@@ -46,7 +48,7 @@ def fetch_option_metrics(
     logger.info(
         f"Data voor {symbol} {expiry} {strike}{right or ''}: spot={spot}, volume={volume}"
     )
-    return {"spot_price": spot, "volume": volume}
+    return OptionMetrics(spot_price=spot, volume=volume)
 
 
 __all__ = ["fetch_option_metrics"]

@@ -43,14 +43,17 @@ sys.modules.pop("tomic.api.market_client", None)
 
 def test_fetch_option_metrics_aggregates():
     result = option_metrics.fetch_option_metrics("ABC", "2025-01-01", 100.0)
-    assert result == {"spot_price": 123.0, "volume": 12}
+    assert result.spot_price == 123.0
+    assert result.volume == 12
 
 
 def test_fetch_option_metrics_filters_call():
     result = option_metrics.fetch_option_metrics("ABC", "2025-01-01", 100.0, "C")
-    assert result == {"spot_price": 123.0, "volume": 5}
+    assert result.spot_price == 123.0
+    assert result.volume == 5
 
 
 def test_fetch_option_metrics_filters_put():
     result = option_metrics.fetch_option_metrics("ABC", "2025-01-01", 100.0, "P")
-    assert result == {"spot_price": 123.0, "volume": 7}
+    assert result.spot_price == 123.0
+    assert result.volume == 7
