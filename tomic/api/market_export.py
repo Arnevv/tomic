@@ -64,6 +64,7 @@ def _write_option_chain(
     ]
     if not records:
         logger.warning(f"Geen optie data ontvangen voor {symbol}")
+        return None
 
     def _mid(bid: float | None, ask: float | None) -> float | None:
         """Return midpoint price when bid/ask are valid and positive."""
