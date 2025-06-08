@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 import threading
-from lib.ibapi import EClient
-from lib.ibapi import EWrapper
+from ibapi.client import EClient
+from ibapi.wrapper import EWrapper
 
 from tomic.config import get as cfg_get
 from tomic.logging import logger
