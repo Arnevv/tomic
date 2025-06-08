@@ -30,9 +30,9 @@ ibapi_pkg.wrapper = wrapper_stub
 ibapi_pkg.ticktype = ticktype_stub
 ibapi_pkg.common = common_stub
 
-import pytest
-from tomic.proto import rpc
-from tomic.cli import daemonctl
+import pytest  # noqa: E402
+from tomic.proto import rpc  # noqa: E402
+from tomic.cli import daemonctl  # noqa: E402
 
 
 def setup_ib_stubs(monkeypatch: pytest.MonkeyPatch) -> None:
