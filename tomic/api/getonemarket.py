@@ -2,7 +2,7 @@
 
 import sys
 
-from tomic.logging import setup_logging, logger
+from tomic.logutils import setup_logging, logger
 from .market_export import export_market_data
 from .ib_connection import connect_ib
 from tomic.proto.rpc import submit_task

@@ -3,10 +3,10 @@
 from datetime import datetime
 from typing import Dict, List
 
-from tomic.logging import logger
+from tomic.logutils import logger
 
 from tomic.config import get as cfg_get
-from tomic.logging import setup_logging
+from tomic.logutils import setup_logging
 from tomic.utils import today
 from tomic.journal.utils import load_json
 

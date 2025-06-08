@@ -5,10 +5,10 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any, Dict, List
 
-from tomic.logging import logger
+from tomic.logutils import logger
 
 from tomic.config import get as cfg_get
-from tomic.logging import setup_logging
+from tomic.logutils import setup_logging
 from tomic.journal.utils import load_journal, save_journal, load_json
 
 JOURNAL_FILE = Path(cfg_get("JOURNAL_FILE", "journal.json"))

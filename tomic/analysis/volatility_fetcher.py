@@ -6,7 +6,7 @@ import re
 import urllib.request
 from typing import Dict, List, Optional
 
-from tomic.logging import logger
+from tomic.logutils import logger
 
 
 def download_html(symbol: str) -> str:

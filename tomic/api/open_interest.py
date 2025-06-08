@@ -24,7 +24,7 @@ def _create_option_contract(symbol: str, expiry: str, strike: float, right: str)
     contract.multiplier = "100"
     contract.tradingClass = symbol
     return contract
-from tomic.logging import logger
+from tomic.logutils import logger
 
 
 class _OpenInterestApp(BaseIBApp):

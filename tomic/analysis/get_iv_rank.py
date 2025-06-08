@@ -4,8 +4,8 @@ from typing import Dict, Optional
 
 from tomic.analysis.iv_patterns import IV_PATTERNS
 from tomic.analysis.volatility_fetcher import download_html, parse_patterns
-from tomic.logging import logger
-from tomic.logging import setup_logging
+from tomic.logutils import logger
+from tomic.logutils import setup_logging
 
 
 def fetch_iv_metrics(symbol: str = "SPY") -> Dict[str, Optional[float]]:

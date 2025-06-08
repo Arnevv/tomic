@@ -10,7 +10,7 @@ import re
 
 from tomic.config import get as cfg_get
 from tomic.utils import today
-from tomic.logging import setup_logging, logger
+from tomic.logutils import setup_logging, logger
 from tomic.helpers.account import _fmt_money, print_account_overview
 from tomic.analysis.strategy import group_strategies
 from tomic.analysis.metrics import compute_term_structure, render_kpi_box

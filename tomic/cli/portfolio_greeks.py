@@ -6,7 +6,7 @@ from typing import Any, Dict, List
 from tomic.analysis.greeks import compute_greeks_by_symbol
 from tomic.config import get as cfg_get
 from tomic.journal.utils import load_json
-from tomic.logging import setup_logging
+from tomic.logutils import setup_logging
 
 
 BENCHMARK_TABLE = [
