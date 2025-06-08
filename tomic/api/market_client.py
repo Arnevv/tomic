@@ -22,6 +22,16 @@ try:  # pragma: no cover - optional dependency during tests
 except Exception:  # pragma: no cover - tests provide stubs
     Contract = object  # type: ignore[misc]
 
+def contract_repr(contract):
+    return (
+        f"{contract.secType} {contract.symbol} "
+        f"{contract.lastTradeDateOrContractMonth or ''} "
+        f"{contract.right or ''}{contract.strike or ''} "
+        f"{contract.exchange or ''} {contract.currency or ''} "
+        f"(conId={contract.conId})"
+    ).strip()
+
+
 
 class MarketClient(BaseIBApp):
     """Minimal IB client used for market data exports."""
@@ -126,6 +136,7 @@ class OptionChainClient(MarketClient):
                 getattr(con, "multiplier", ""),
             )
             # Request market data with validated contract
+            logger.debug(f"reqMktData sent for: {contract_repr(con)}")
             self.reqMktData(reqId, con, "", True, False, [])
             logger.debug(f"reqMktData sent for reqId={reqId} {con.symbol} {con.lastTradeDateOrContractMonth} {con.strike} {con.right}")
             self._pending_details.pop(reqId, None)
@@ -267,8 +278,9 @@ class OptionChainClient(MarketClient):
             time.sleep(0.1)
 
         self.cancelMktData(spot_id)
+        logger.debug(f"Requesting contract details for: symbol={stk.symbol}, expiry={stk.lastTradeDateOrContractMonth}, strike={stk.strike}, right={stk.right}")
         self.reqContractDetails(self._next_id(), stk)
-        logger.debug(f"reqContractDetails sent for: {stk}")
+        logger.debug(f"reqContractDetails sent for: {contract_repr(stk)}")
 
     def _request_option_data(self) -> None:
         if not self.expiries or not self.strikes or self.trading_class is None:
