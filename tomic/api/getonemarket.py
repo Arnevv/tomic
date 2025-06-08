@@ -4,7 +4,7 @@ import sys
 
 from tomic.logging import setup_logging, logger
 from .market_export import export_market_data
-from .market_utils import ib_connection_available, ib_api_available
+from .ib_connection import connect_ib
 from tomic.proto.rpc import submit_task
 
 
@@ -25,15 +25,11 @@ def run(symbol: str, output_dir: str | None = None, *, queue_job: bool = False) 
         )
         logger.success("Job toegevoegd aan queue")
         return True
-    if not ib_connection_available():
-        logger.error(
-            "❌ IB Gateway/TWS niet bereikbaar. Controleer of de service draait."
-        )
-        return False
-    if not ib_api_available():
-        logger.error(
-            "❌ Geen reactie van de TWS API. Controleer of de API is ingeschakeld."
-        )
+    try:
+        app = connect_ib()
+        app.disconnect()
+    except Exception as exc:
+        logger.error(f"❌ Geen verbinding met TWS: {exc}")
         return False
     export_market_data(symbol.strip().upper(), output_dir)
     return True

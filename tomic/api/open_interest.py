@@ -6,8 +6,24 @@ import threading
 import time
 from typing import Optional
 
+from ibapi.contract import Contract
 from tomic.api.base_client import BaseIBApp
-from tomic.api.market_utils import create_option_contract, start_app
+from tomic.api.ib_connection import connect_ib
+
+
+def _create_option_contract(symbol: str, expiry: str, strike: float, right: str) -> Contract:
+    contract = Contract()
+    contract.symbol = symbol
+    contract.secType = "OPT"
+    contract.exchange = "SMART"
+    contract.primaryExchange = "SMART"
+    contract.currency = "USD"
+    contract.lastTradeDateOrContractMonth = expiry
+    contract.strike = strike
+    contract.right = right
+    contract.multiplier = "100"
+    contract.tradingClass = symbol
+    return contract
 from tomic.logging import logger
 
 
@@ -33,7 +49,7 @@ class _OpenInterestApp(BaseIBApp):
         logger.debug("Contract details: %s", contract)
 
     def nextValidId(self, orderId: int) -> None:  # noqa: N802 - IB API callback
-        contract = create_option_contract(
+        contract = _create_option_contract(
             self.symbol, self.expiry, self.strike, self.right
         )
         # Request volume (100) and open interest (101) generic ticks. Some
@@ -97,17 +113,30 @@ def fetch_open_interest(
 
     expiry = expiry.replace("-", "")
     app = _OpenInterestApp(symbol.upper(), expiry, strike, right.upper())
-    start_app(app)
+
+    try:
+        probe = connect_ib()
+        probe.disconnect()
+    except Exception:
+        return None
+
+    app.connect("127.0.0.1", 7497, 1)
+    thread = threading.Thread(target=app.run, daemon=True)
+    thread.start()
+    app.reqIds(1)
 
     logger.debug(f"Waiting up to {WAIT_TIMEOUT} seconds for open interest data")
-
-    if not app.open_interest_event.wait(timeout=WAIT_TIMEOUT):
-        logger.error("❌ Geen open interest ontvangen.")
-        logger.debug(
-            "Ontvangen tick types tijdens wachten: %s", ", ".join(app.received_ticks)
-        )
-        app.disconnect()
-        return None
+    start = time.time()
+    while not app.open_interest_event.is_set():
+        if time.time() - start > WAIT_TIMEOUT:
+            logger.error("❌ Geen open interest ontvangen.")
+            logger.debug(
+                "Ontvangen tick types tijdens wachten: %s",
+                ", ".join(app.received_ticks),
+            )
+            app.disconnect()
+            return None
+        time.sleep(0.1)
 
     oi = app.open_interest
     app.disconnect()

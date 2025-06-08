@@ -97,6 +97,11 @@ def test_event_watcher_main(tmp_path, monkeypatch):
 
 
 def test_controlpanel_main(monkeypatch):
+    tws_stub = types.ModuleType("tomic.proto.tws_daemon")
+    monkeypatch.setitem(sys.modules, "tomic.proto.tws_daemon", tws_stub)
+    rpc_stub = types.ModuleType("tomic.proto.rpc")
+    rpc_stub.submit_task = lambda *a, **k: None
+    monkeypatch.setitem(sys.modules, "tomic.proto.rpc", rpc_stub)
     mod = importlib.import_module("tomic.cli.controlpanel")
     monkeypatch.setattr(mod, "run_module", lambda m: None)
     monkeypatch.setattr(mod, "run_portfolio_menu", lambda: None)
@@ -225,6 +230,11 @@ def test_synthetics_detector_main(tmp_path, monkeypatch):
 
 
 def test_risk_tools_generate_proposals(monkeypatch):
+    tws_stub = types.ModuleType("tomic.proto.tws_daemon")
+    monkeypatch.setitem(sys.modules, "tomic.proto.tws_daemon", tws_stub)
+    rpc_stub = types.ModuleType("tomic.proto.rpc")
+    rpc_stub.submit_task = lambda *a, **k: None
+    monkeypatch.setitem(sys.modules, "tomic.proto.rpc", rpc_stub)
     mod = importlib.import_module("tomic.cli.controlpanel")
     called = []
     monkeypatch.setattr(mod, "run_module", lambda name, *a: called.append(name))
@@ -243,6 +253,7 @@ def test_trading_plan_main(capsys):
 
 
 def test_strategy_dashboard_main(tmp_path, monkeypatch):
+    monkeypatch.setitem(sys.modules, "tomic.api.getaccountinfo", types.ModuleType("getaccountinfo"))
     mod = importlib.import_module("tomic.cli.strategy_dashboard")
     pos = tmp_path / "p.json"
     pos.write_text("[]")
@@ -274,10 +285,12 @@ def test_getonemarket_run(monkeypatch):
     export_stub = types.ModuleType("tomic.api.market_export")
     export_stub.export_market_data = lambda sym, out=None: sym
     monkeypatch.setitem(sys.modules, "tomic.api.market_export", export_stub)
+    rpc_stub = types.ModuleType("tomic.proto.rpc")
+    rpc_stub.submit_task = lambda *a, **k: None
+    monkeypatch.setitem(sys.modules, "tomic.proto.rpc", rpc_stub)
     mod = importlib.reload(importlib.import_module("tomic.api.getonemarket"))
     monkeypatch.setattr(mod, "setup_logging", lambda: None)
-    monkeypatch.setattr(mod, "ib_connection_available", lambda: True)
-    monkeypatch.setattr(mod, "ib_api_available", lambda: True)
+    monkeypatch.setattr(mod, "connect_ib", lambda *a, **k: types.SimpleNamespace(disconnect=lambda: None, next_valid_id=1))
     assert mod.run("ABC") is True
 
 
@@ -286,6 +299,7 @@ def test_getallmarkets_run(monkeypatch):
     export_stub.export_market_data = lambda sym, out=None: sym
     monkeypatch.setitem(sys.modules, "tomic.api.market_export", export_stub)
     mod = importlib.reload(importlib.import_module("tomic.api.getallmarkets"))
+    monkeypatch.setattr(mod, "connect_ib", lambda *a, **k: types.SimpleNamespace(disconnect=lambda: None))
     assert mod.run("XYZ") == "XYZ"
 
 
