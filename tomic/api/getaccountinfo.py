@@ -250,7 +250,7 @@ def main(client_id: int | None = None) -> None:
         client_id = 101
     # Connect using the minimal approach from ``test_connectie.py``
     app.connect(host, port, clientId=client_id)
-    thread = threading.Thread(target=app.run, daemon=True)
+    thread = threading.Thread(target=app.run)
     thread.start()
 
     app.account_event.wait(timeout=10)
