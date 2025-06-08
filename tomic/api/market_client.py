@@ -105,6 +105,7 @@ class OptionChainClient(MarketClient):
             self.market_data.setdefault(reqId, {})["conId"] = con.conId
             # Request market data with validated contract
             self.reqMktData(reqId, con, "", True, False, [])
+            logger.debug(f"reqMktData sent for reqId={reqId} {con.symbol} {con.lastTradeDateOrContractMonth} {con.strike} {con.right}")
             self._pending_details.pop(reqId, None)
             logger.debug(
                 f"contractDetails ontvangen: {con.symbol} {con.lastTradeDateOrContractMonth} {con.strike} {con.right}")
@@ -171,6 +172,9 @@ class OptionChainClient(MarketClient):
         rec["gamma"] = gamma
         rec["vega"] = vega
         rec["theta"] = theta
+        logger.debug(
+            f"tickOptionComputation reqId={reqId} iv={impliedVol} delta={delta} gamma={gamma} vega={vega} theta={theta}"
+        )
 
     def tickPrice(self, reqId: int, tickType: int, price: float, attrib) -> None:  # noqa: N802
         super().tickPrice(reqId, tickType, price, attrib)
@@ -179,10 +183,16 @@ class OptionChainClient(MarketClient):
             rec["bid"] = price
         elif tickType == TickTypeEnum.ASK:
             rec["ask"] = price
+        logger.debug(
+            f"tickPrice reqId={reqId} type={tickType} price={price}"
+        )
 
     def tickGeneric(self, reqId: int, tickType: int, value: float) -> None:  # noqa: N802
         if tickType == 100:
             self.market_data.setdefault(reqId, {})["volume"] = int(value)
+            logger.debug(
+                f"tickGeneric reqId={reqId} type={tickType} value={value}"
+            )
 
     # Request orchestration --------------------------------------
     def start_requests(self) -> None:  # pragma: no cover - runtime behaviour
