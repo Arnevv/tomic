@@ -67,6 +67,9 @@ class OptionChainClient(MarketClient):
         self.trading_class: str | None = None
         self.strikes: list[float] = []
         self._strike_lookup: dict[float, float] = {}
+        self._pending_details: dict[int, OptionContract] = {}
+        self.weeklies: list[str] = []
+        self.monthlies: list[str] = []
         self._req_id = 50
 
     # Helpers -----------------------------------------------------
@@ -95,6 +98,22 @@ class OptionChainClient(MarketClient):
             self.con_id = con.conId
             self.trading_class = con.tradingClass or self.symbol
             self.reqSecDefOptParams(self._next_id(), self.symbol, "", "STK", self.con_id)
+        elif reqId in self._pending_details:
+            logger.debug(
+                f"contractDetails received for reqId={reqId} conId={con.conId}"
+            )
+            self.market_data.setdefault(reqId, {})["conId"] = con.conId
+            # Request market data with validated contract
+            self.reqMktData(reqId, con, "", True, False, [])
+            self._pending_details.pop(reqId, None)
+
+    def contractDetailsEnd(self, reqId: int) -> None:  # noqa: N802
+        if reqId in self._pending_details:
+            info = self._pending_details.pop(reqId)
+            logger.warning(
+                f"Geen contractdetails gevonden voor {info.symbol} {info.expiry} {info.strike} {info.right}"
+            )
+            self.invalid_contracts.add(reqId)
 
     def securityDefinitionOptionParameter(
         self,
@@ -109,19 +128,17 @@ class OptionChainClient(MarketClient):
         if self.expiries:
             return
 
-        regulars = extract_monthlies(expirations, 3)
-        weeklies = extract_weeklies(expirations, 4)
-        self.expiries = sorted(set(regulars + weeklies))
+        self.monthlies = extract_monthlies(expirations, 3)
+        self.weeklies = extract_weeklies(expirations, 4)
+        self.expiries = sorted(set(self.monthlies + self.weeklies))
         logger.info(f"Expiries: {', '.join(self.expiries)}")
 
         center = round(self.spot_price or 0)
         strike_map: dict[float, float] = {}
         for strike in sorted(strikes):
             rounded = round(strike)
-            if center - 3 <= rounded <= center + 3 and rounded not in strike_map:
-                strike_map[rounded] = strike
-            if len(strike_map) == 7:
-                break
+            if abs(rounded - center) <= 10:
+                strike_map.setdefault(rounded, strike)
         self.strikes = sorted(strike_map.keys())
         self._strike_lookup = strike_map
         self.trading_class = tradingClass
@@ -213,14 +230,14 @@ class OptionChainClient(MarketClient):
                         f"Building option contract: {info.symbol} {expiry} {actual} {right}"
                     )
                     c = info.to_ib()
-                    logger.debug(f"Requesting market data with contract: {c}")
                     req_id = self._next_id()
                     self.market_data[req_id] = {
                         "expiry": expiry,
                         "strike": strike,
                         "right": right,
                     }
-                    self.reqMktData(req_id, c, "", True, False, [])
+                    self._pending_details[req_id] = info
+                    self.reqContractDetails(req_id, c)
 
 
 
@@ -240,7 +257,7 @@ def await_market_data(app: MarketClient, symbol: str, timeout: int = 10) -> bool
     """Wait until market data has been populated or timeout occurs."""
     start = time.time()
     while time.time() - start < timeout:
-        if app.market_data.get("bid") is not None:
+        if any("bid" in rec for rec in app.market_data.values()):
             return True
         time.sleep(0.1)
     logger.error(f"❌ Timeout terwijl gewacht werd op data voor {symbol}")
