@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import Any, Dict
 import threading
 import time
+from datetime import datetime
 from ibapi.ticktype import TickTypeEnum
 
 from tomic.api.base_client import BaseIBApp
@@ -154,7 +155,11 @@ class OptionChainClient(MarketClient):
         future = filter_future_expiries(expirations)
         self.monthlies = extract_monthlies(future, 3)
         self.weeklies = extract_weeklies(future, 4)
-        self.expiries = sorted(set(self.monthlies + self.weeklies))
+        unique = {
+            datetime.strptime(e, "%Y%m%d").date()
+            for e in self.monthlies + self.weeklies
+        }
+        self.expiries = [d.strftime("%Y%m%d") for d in sorted(unique)]
         logger.info(f"Expiries: {', '.join(self.expiries)}")
 
         center = round(self.spot_price or 0)
