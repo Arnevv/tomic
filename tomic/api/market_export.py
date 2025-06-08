@@ -235,8 +235,6 @@ def export_option_chain(symbol: str, output_dir: str | None = None) -> float | N
         return None
     app = OptionChainClient(symbol)
     start_app(app)
-    if hasattr(app, "start_requests"):
-        app.start_requests()
     if not await_market_data(app, symbol):
         app.disconnect()
         return None
@@ -274,8 +272,6 @@ def export_market_data(
     metrics = MarketMetrics.from_dict(raw_metrics)
     app = OptionChainClient(symbol)
     start_app(app)
-    if hasattr(app, "start_requests"):
-        app.start_requests()
     if not await_market_data(app, symbol):
         app.disconnect()
         return None
