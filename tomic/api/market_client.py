@@ -122,19 +122,11 @@ class OptionChainClient(MarketClient):
             self.market_data.setdefault(reqId, {})["conId"] = con.conId
             # Log contract fields returned by IB before requesting market data
             logger.debug(
-                "Using contract for reqId=%s: conId=%s symbol=%s expiry=%s "
-                "strike=%s right=%s exchange=%s primaryExchange=%s "
-                "tradingClass=%s multiplier=%s",
-                reqId,
-                con.conId,
-                con.symbol,
-                con.lastTradeDateOrContractMonth,
-                con.strike,
-                con.right,
-                con.exchange,
-                con.primaryExchange,
-                getattr(con, "tradingClass", ""),
-                getattr(con, "multiplier", ""),
+                f"Using contract for reqId={reqId}: "
+                f"conId={con.conId} symbol={con.symbol} "
+                f"expiry={con.lastTradeDateOrContractMonth} strike={con.strike} "
+                f"right={con.right} exchange={con.exchange} primaryExchange={con.primaryExchange} "
+                f"tradingClass={getattr(con, 'tradingClass', '')} multiplier={getattr(con, 'multiplier', '')}"
             )
             # Request market data with validated contract
             logger.debug(f"reqMktData sent for: {contract_repr(con)}")
@@ -228,14 +220,15 @@ class OptionChainClient(MarketClient):
         rec["vega"] = vega
         rec["theta"] = theta
         logger.debug(
-            "tickOptionComputation reqId=%s type=%s iv=%s delta=%s gamma=%s vega=%s theta=%s",
-            reqId,
-            TickTypeEnum.toStr(tickType),
-            impliedVol,
-            delta,
-            gamma,
-            vega,
-            theta,
+            "tickOptionComputation reqId={} type={} iv={} delta={} gamma={} vega={} theta={}".format(
+                reqId,
+                TickTypeEnum.toStr(tickType),
+                impliedVol,
+                delta,
+                gamma,
+                vega,
+                theta,
+            )
         )
 
     def tickPrice(self, reqId: int, tickType: int, price: float, attrib) -> None:  # noqa: N802
@@ -246,10 +239,7 @@ class OptionChainClient(MarketClient):
         elif tickType == TickTypeEnum.ASK:
             rec["ask"] = price
         logger.debug(
-            "tickPrice reqId=%s type=%s price=%s",
-            reqId,
-            TickTypeEnum.toStr(tickType),
-            price,
+            f"tickPrice reqId={reqId} type={TickTypeEnum.toStr(tickType)} price={price}"
         )
 
     def tickGeneric(self, reqId: int, tickType: int, value: float) -> None:  # noqa: N802
