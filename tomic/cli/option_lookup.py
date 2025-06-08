@@ -1,78 +1,35 @@
-"""Interactively fetch option metrics for a symbol."""
+"""Interactively fetch option chain data for a symbol."""
 
 from __future__ import annotations
 
-from datetime import date
-
 from tomic.logutils import setup_logging
-from tomic.api.open_interest import fetch_open_interest
+from tomic.api.market_export import export_option_chain
 from .common import prompt
 
 
 def run() -> None:
-    """Prompt user for parameters and display open interest."""
+    """Prompt user for a symbol and export its option chain."""
     setup_logging()
     symbol = prompt("Ticker symbool: ").upper()
     if not symbol:
         print("Geen symbool opgegeven")
         return
 
-    expiry = prompt("Expiry (YYYY-MM-DD): ")
-    try:
-        date.fromisoformat(expiry)
-    except ValueError:
-        print("❌ Ongeldige datum. Gebruik het formaat YYYY-MM-DD.")
-        return
-    strike_str = prompt("Strike: ")
-    try:
-        strike = float(strike_str)
-    except ValueError:
-        print("Ongeldige strike")
-        return
-
-    right = prompt("Type (C/P): ").upper()
-    if right not in ("C", "P"):
-        print("Ongeldig type")
-        return
-
-    open_interest = fetch_open_interest(symbol, expiry, strike, right)
-    if open_interest is None:
-        print("❌ Ophalen mislukt")
-        return
-
-    print(f"Open interest voor {symbol} {expiry} {strike}{right}: {open_interest}")
+    export_option_chain(symbol)
+    print(f"✅ Optieketen geëxporteerd voor {symbol}")
 
 
 def main(argv: list[str] | None = None) -> None:
-    """CLI entry point for fetching option open interest."""
+    """CLI entry point for exporting an option chain."""
     if argv:
-        if len(argv) != 4:
-            print("Usage: option_lookup SYMBOL EXPIRY STRIKE TYPE")
+        if len(argv) not in (1, 2):
+            print("Usage: option_lookup SYMBOL [OUTPUT_DIR]")
             return
-        symbol, expiry, strike_str, right = argv
-        try:
-            strike = float(strike_str)
-        except ValueError:
-            print("Ongeldige strike")
-            return
+        symbol = argv[0]
+        output_dir = argv[1] if len(argv) == 2 else None
         setup_logging()
-        try:
-            date.fromisoformat(expiry)
-        except ValueError:
-            print("❌ Ongeldige datum. Gebruik het formaat YYYY-MM-DD.")
-            return
-        if right.upper() not in ("C", "P"):
-            print("Ongeldig type")
-            return
-        open_interest = fetch_open_interest(
-            symbol.upper(), expiry, strike, right.upper()
-        )
-        if open_interest is None:
-            print("❌ Ophalen mislukt")
-            return
-        print(
-            f"Open interest voor {symbol.upper()} {expiry} {strike}{right.upper()}: {open_interest}"
-        )
+        export_option_chain(symbol.upper(), output_dir)
+        print(f"✅ Optieketen geëxporteerd voor {symbol.upper()}")
     else:
         run()
 

@@ -299,13 +299,12 @@ def test_getallmarkets_run(monkeypatch):
     assert mod.run("XYZ") == "XYZ"
 
 
-def test_option_lookup_main_invalid_expiry(monkeypatch):
+def test_option_lookup_main_invalid_args(monkeypatch):
     mod = importlib.import_module("tomic.cli.option_lookup")
     monkeypatch.setattr(mod, "setup_logging", lambda: None)
-    monkeypatch.setattr(mod, "fetch_open_interest", lambda *a, **k: None)
     output = []
     monkeypatch.setattr(
         builtins, "print", lambda *a, **k: output.append(" ".join(str(x) for x in a))
     )
-    mod.main(["SPY", "2025-20-06", "100", "C"])
-    assert any("Ongeldige" in line for line in output)
+    mod.main(["SPY", "A", "B", "C"])
+    assert any("Usage" in line for line in output)
