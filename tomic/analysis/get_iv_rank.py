@@ -3,7 +3,7 @@ import sys
 from typing import Dict, Optional
 
 from tomic.analysis.iv_patterns import IV_PATTERNS
-from tomic.analysis.volatility_fetcher import download_html, parse_patterns
+from tomic.webdata.utils import download_html, parse_patterns
 from tomic.logutils import logger
 from tomic.logutils import setup_logging
 
