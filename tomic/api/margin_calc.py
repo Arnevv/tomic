@@ -64,7 +64,7 @@ def calculate_trade_margin(
         return None
 
     app.connect(host, port, client_id or 1)
-    thread = threading.Thread(target=app.run, daemon=True)
+    thread = threading.Thread(target=app.run)
     thread.start()
     app.reqIds(1)
     if not app.event.wait(timeout=5):

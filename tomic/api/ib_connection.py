@@ -50,7 +50,7 @@ def connect_ib(client_id=1, host="127.0.0.1", port=7497, timeout=5) -> IBClient:
     except socket.error as e:
         raise RuntimeError(f"❌ Kon niet verbinden met TWS op {host}:{port}: {e}")
 
-    thread = threading.Thread(target=app.run, daemon=True)
+    thread = threading.Thread(target=app.run)
     thread.start()
 
     start = time.time()
