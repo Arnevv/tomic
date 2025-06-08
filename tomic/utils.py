@@ -26,6 +26,22 @@ def extract_weeklies(expirations: list[str], count: int = 4) -> list[str]:
     return fridays
 
 
+def extract_monthlies(expirations: list[str], count: int = 3) -> list[str]:
+    """Return the next ``count`` third-Friday expiries from ``expirations``."""
+
+    months = []
+    for exp in sorted(expirations):
+        try:
+            dt = datetime.strptime(exp, "%Y%m%d")
+        except Exception:
+            continue
+        if _is_third_friday(dt):
+            months.append(exp)
+        if len(months) == count:
+            break
+    return months
+
+
 def today() -> date:
     """Return TOMIC_TODAY or today's UTC date."""
     env = os.getenv("TOMIC_TODAY")
