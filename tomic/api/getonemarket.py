@@ -4,7 +4,6 @@ import sys
 
 from tomic.logutils import setup_logging, logger
 from .market_export import export_market_data
-from .ib_connection import connect_ib
 
 def run(symbol: str, output_dir: str | None = None) -> bool:
     setup_logging()
