@@ -245,8 +245,12 @@ class IBApp(BaseIBApp):
 
     def count_incomplete(self):
         """Return how many positions are missing market or Greek data."""
-
-        return count_incomplete(self.positions_data)
+        missing_keys = ["bid", "ask", "iv", "delta", "gamma", "vega", "theta"]
+        incomplete = 0
+        for pos in self.positions_data:
+            if any(pos.get(k) is None for k in missing_keys):
+                incomplete += 1
+        return incomplete
 
     IGNORED_ERROR_CODES: set[int] = getattr(BaseIBApp, "IGNORED_ERROR_CODES", set()) | {2150}
     WARNING_ERROR_CODES: set[int] = getattr(BaseIBApp, "WARNING_ERROR_CODES", set())
