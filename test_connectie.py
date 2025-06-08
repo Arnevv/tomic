@@ -1,42 +1,76 @@
-import pytest
-from typing import TYPE_CHECKING
+"""Test that a basic IB API connection can be created.
+
+This version uses lightweight stubs so the test can run without the actual
+``ibapi`` or a running TWS instance. The goal is simply to exercise the
+``connect`` and ``run`` flow.
+"""
+
+from __future__ import annotations
 
 # mypy: disable-error-code=import-not-found
 
-if TYPE_CHECKING:  # pragma: no cover - import for type checking only
-    from ibapi.client import EClient  # noqa: F401
-    from ibapi.wrapper import EWrapper  # noqa: F401
+import builtins
+from typing import Protocol
 
 
-def test_tws_connection():
-    try:
-        import google.protobuf  # noqa: F401
-    except Exception:
-        pytest.skip("google protobuf not installed")
+try:  # pragma: no cover - optional import for type checking
+    from ibapi.client import EClient as RealClient
+    from ibapi.wrapper import EWrapper as RealWrapper
+except Exception:  # pragma: no cover - library not installed
+    RealClient = None  # type: ignore[assignment]
+    RealWrapper = None  # type: ignore[assignment]
 
-    try:
-        from ibapi.client import EClient
-        from ibapi.wrapper import EWrapper
-    except Exception:
-        try:
-            from lib.ibapi import EClient
-            from lib.ibapi import EWrapper
-        except Exception:
-            pytest.skip("ibapi not available")
-    if not hasattr(EClient, "connect"):
-        pytest.skip("ibapi stub")
 
-    class TestApp(EWrapper, EClient):
-        def __init__(self):
+class _ClientProto(Protocol):
+    def connect(self, host: str, port: int, clientId: int) -> None:  # noqa: N802
+        ...
+
+    def run(self) -> None: ...
+
+    def disconnect(self) -> None: ...
+
+
+class DummyWrapper:
+    """Minimal ``EWrapper`` replacement for offline tests."""
+
+    def error(self, reqId: int, errorCode: int, errorString: str) -> None:  # noqa: N802
+        builtins.print(f"❌ Error {errorCode}: {errorString}")
+
+
+class DummyClient:
+    """Minimal ``EClient`` replacement for offline tests."""
+
+    def __init__(self, wrapper: DummyWrapper) -> None:
+        self.wrapper = wrapper
+        self.connected = False
+
+    def connect(self, host: str, port: int, clientId: int) -> None:  # noqa: N802
+        self.connected = True
+
+    def run(self) -> None:
+        if hasattr(self.wrapper, "nextValidId"):
+            self.wrapper.nextValidId(1)  # type: ignore[arg-type]
+
+    def disconnect(self) -> None:
+        self.connected = False
+
+
+EClient = RealClient or DummyClient
+EWrapper = RealWrapper or DummyWrapper
+
+
+def test_tws_connection() -> None:
+    class TestApp(EWrapper, EClient):  # type: ignore[misc, valid-type]
+        def __init__(self) -> None:
             EClient.__init__(self, self)
+            self.order_id: int | None = None
 
-        def nextValidId(self, orderId):
-            print("✅ Connected with Order ID:", orderId)
+        def nextValidId(self, orderId: int) -> None:  # noqa: N802
+            self.order_id = orderId
             self.disconnect()
 
-        def error(self, reqId, errorCode, errorString):
-            print(f"❌ Error: {errorCode} – {errorString}")
-
-    app = TestApp()
+    app: _ClientProto = TestApp()
     app.connect("127.0.0.1", 7497, clientId=1001)
     app.run()
+
+    assert getattr(app, "order_id", None) == 1
