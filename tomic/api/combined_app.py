@@ -211,11 +211,24 @@ class CombinedApp(BaseIBApp):
         logger.debug("option_params_event set")
         self.request_option_market_data()
 
-    def error(self, reqId: TickerId, errorCode: int, errorString: str):  # noqa: N802
+    def error(
+        self,
+        reqId: TickerId,
+        errorTime: int,
+        errorCode: int,
+        errorString: str,
+        advancedOrderRejectJson: str = "",
+    ):  # noqa: N802
         if errorCode == 200 and reqId in self.market_data:
             self.invalid_contracts.add(reqId)
         else:
-            super().error(reqId, errorCode, errorString)
+            super().error(
+                reqId,
+                errorTime,
+                errorCode,
+                errorString,
+                advancedOrderRejectJson,
+            )
 
     def tickPrice(
         self, reqId: TickerId, tickType: int, price: float, attrib
