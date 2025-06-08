@@ -1,8 +1,8 @@
 # Common CombinedApp implementation shared across market utilities.
 from tomic.api.base_client import BaseIBApp
-from lib.ibapi import Contract, ContractDetails
-from lib.ibapi import TickTypeEnum
-from lib.ibapi import TickerId
+from ibapi.contract import Contract, ContractDetails
+from ibapi.ticktype import TickTypeEnum
+from ibapi.common import TickerId
 import threading
 from datetime import datetime
 import time
