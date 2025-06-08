@@ -248,7 +248,7 @@ def main(client_id: int | None = None) -> None:
     host = cfg_get("IB_HOST", "127.0.0.1")
     port = int(cfg_get("IB_PORT", 7497))
     if client_id is None:
-        client_id = 1
+        client_id = 101
     # Connect using the minimal approach from ``test_connectie.py``
     app.connect(host, port, clientId=client_id)
     thread = threading.Thread(target=app.run, daemon=True)
