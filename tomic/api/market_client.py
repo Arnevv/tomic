@@ -1,3 +1,31 @@
+from __future__ import annotations
+
+from typing import Any, Dict
+import threading
+import time
+
+from tomic.api.base_client import BaseIBApp
+from tomic.config import get as cfg_get
+from tomic.logutils import logger
+from tomic.cli.daily_vol_scraper import fetch_volatility_metrics
+
+
+class MarketClient(BaseIBApp):
+    """Minimal IB client used for market data exports."""
+
+    def __init__(self, symbol: str) -> None:
+        super().__init__()
+        self.symbol = symbol.upper()
+        self.market_data: Dict[int, Dict[str, Any]] = {}
+        self.invalid_contracts: set[int] = set()
+        self.spot_price: float | None = None
+        self.expiries: list[str] = []
+
+    def start_requests(self) -> None:  # pragma: no cover - runtime behaviour
+        """Placeholder method to initiate market data requests."""
+        logger.debug("MarketClient.start_requests called - no-op stub")
+
+
 def start_app(app: MarketClient) -> None:
     """Connect to TWS/IB Gateway and start ``app`` in a background thread."""
     host = cfg_get("IB_HOST", "127.0.0.1")
