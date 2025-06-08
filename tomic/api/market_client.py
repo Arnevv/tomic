@@ -156,8 +156,15 @@ class OptionChainClient(MarketClient):
         spot_id = self._next_id()
         self.reqMktData(spot_id, stk, "", False, False, [])
         start = time.time()
-        while self.spot_price is None and time.time() - start < 5:
+
+        #TODO dit vervangen als onderstaande werkt
+        #while self.spot_price is None and time.time() - start < 5:
+        #    time.sleep(0.1)
+
+        timeout = cfg_get("SPOT_TIMEOUT", 20)
+        while self.spot_price is None and time.time() - start < timeout:
             time.sleep(0.1)
+
         self.cancelMktData(spot_id)
         self.reqContractDetails(self._next_id(), stk)
 
@@ -206,12 +213,12 @@ def start_app(app: MarketClient) -> None:
     while not app.connected.is_set() and time.time() - start < 5:
         time.sleep(0.1)
 
-
+print("🚨 Hier kom ik!")
 def await_market_data(app: MarketClient, symbol: str, timeout: int = 10) -> bool:
     """Wait until market data has been populated or timeout occurs."""
     start = time.time()
     while time.time() - start < timeout:
-        if app.market_data or app.spot_price is not None:
+        if app.market_data.get("bid") is not None:
             return True
         time.sleep(0.1)
     logger.error(f"❌ Timeout terwijl gewacht werd op data voor {symbol}")
