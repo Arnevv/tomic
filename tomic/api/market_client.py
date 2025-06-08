@@ -106,6 +106,8 @@ class OptionChainClient(MarketClient):
             # Request market data with validated contract
             self.reqMktData(reqId, con, "", True, False, [])
             self._pending_details.pop(reqId, None)
+            logger.debug(
+                f"contractDetails ontvangen: {con.symbol} {con.lastTradeDateOrContractMonth} {con.strike} {con.right}")
 
     def contractDetailsEnd(self, reqId: int) -> None:  # noqa: N802
         if reqId in self._pending_details:
@@ -253,7 +255,7 @@ def start_app(app: MarketClient) -> None:
     while not app.connected.is_set() and time.time() - start < 5:
         time.sleep(0.1)
 
-def await_market_data(app: MarketClient, symbol: str, timeout: int = 10) -> bool:
+def await_market_data(app: MarketClient, symbol: str, timeout: int = 30) -> bool:
     """Wait until market data has been populated or timeout occurs."""
     start = time.time()
     while time.time() - start < timeout:
