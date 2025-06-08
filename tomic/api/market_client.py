@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import Any, Dict
 import threading
 import time
+from ibapi.ticktype import TickTypeEnum
 
 from tomic.api.base_client import BaseIBApp
 from tomic.config import get as cfg_get
@@ -20,10 +21,31 @@ class MarketClient(BaseIBApp):
         self.invalid_contracts: set[int] = set()
         self.spot_price: float | None = None
         self.expiries: list[str] = []
+        self.connected = threading.Event()
 
     def start_requests(self) -> None:  # pragma: no cover - runtime behaviour
         """Placeholder method to initiate market data requests."""
         logger.debug("MarketClient.start_requests called - no-op stub")
+
+    # IB callbacks -----------------------------------------------------
+    def nextValidId(self, orderId: int) -> None:  # noqa: N802
+        """Called once the connection is established."""
+        logger.info(f"✅ Verbonden. OrderId: {orderId}")
+        self.connected.set()
+        try:
+            self.start_requests()
+        except Exception as exc:  # pragma: no cover - runtime behaviour
+            logger.error(f"start_requests failed: {exc}")
+
+    def tickPrice(self, reqId: int, tickType: int, price: float, attrib) -> None:  # noqa: N802 - IB API callback
+        if tickType in (TickTypeEnum.LAST, TickTypeEnum.DELAYED_LAST):
+            self.spot_price = price
+        rec = self.market_data.setdefault(reqId, {})
+        rec.setdefault("prices", {})[tickType] = price
+
+    def tickSize(self, reqId: int, tickType: int, size: int) -> None:  # noqa: N802 - IB API callback
+        rec = self.market_data.setdefault(reqId, {})
+        rec.setdefault("sizes", {})[tickType] = size
 
 
 def start_app(app: MarketClient) -> None:
@@ -35,7 +57,7 @@ def start_app(app: MarketClient) -> None:
     thread = threading.Thread(target=app.run, daemon=True)
     thread.start()
     start = time.time()
-    while app.next_valid_id is None and time.time() - start < 5:
+    while not app.connected.is_set() and time.time() - start < 5:
         time.sleep(0.1)
 
 

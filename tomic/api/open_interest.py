@@ -7,7 +7,7 @@ import time
 from typing import Optional
 
 from ibapi.contract import Contract
-from tomic.api.base_client import BaseIBApp
+from tomic.api.market_client import MarketClient, start_app
 from tomic.api.ib_connection import connect_ib
 from tomic.models import OptionContract
 
@@ -19,16 +19,15 @@ def _create_option_contract(info: OptionContract) -> Contract:
 from tomic.logutils import logger
 
 
-class _OpenInterestApp(BaseIBApp):
+class _OpenInterestApp(MarketClient):
     """Minimal IB app to fetch open interest."""
 
-    def __init__(self, contract: OptionContract) -> None:
-        super().__init__()
-        self.contract = contract
-        self.symbol = contract.symbol
-        self.expiry = contract.expiry
-        self.strike = contract.strike
-        self.right = contract.right
+    def __init__(self, symbol: str, expiry: str, strike: float, right: str) -> None:
+        super().__init__(symbol)
+        self.symbol = symbol
+        self.expiry = expiry
+        self.strike = strike
+        self.right = right
         self.open_interest: Optional[int] = None
         self.open_interest_event = threading.Event()
         self.open_interest_source: Optional[str] = None
@@ -112,9 +111,7 @@ def fetch_open_interest(
     except Exception:
         return None
 
-    app.connect("127.0.0.1", 7497, 1)
-    thread = threading.Thread(target=app.run)
-    thread.start()
+    start_app(app)
     app.reqIds(1)
 
     logger.debug(f"Waiting up to {WAIT_TIMEOUT} seconds for open interest data")
