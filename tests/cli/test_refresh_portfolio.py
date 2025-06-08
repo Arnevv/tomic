@@ -17,6 +17,8 @@ def test_refresh_portfolio_updates_meta(tmp_path, monkeypatch):
         "tomic.api.getaccountinfo",
         SimpleNamespace(main=fake_main),
     )
+    import tomic.api as api
+    monkeypatch.setattr(api, "getaccountinfo", SimpleNamespace(main=fake_main), raising=False)
     monkeypatch.setattr(
         dash,
         "cfg_get",
