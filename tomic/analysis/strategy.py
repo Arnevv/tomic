@@ -98,19 +98,20 @@ def aggregate_metrics(legs: List[Dict[str, Any]]) -> Dict[str, Any]:
     put_iv: List[float] = []
     iv_hv_spread_vals: List[float] = []
     for leg in legs:
-        qty = leg.get("position", 0)
+        qty = float(leg.get("position", 0) or 0)
         mult = float(leg.get("multiplier") or 1)
         for g in ["delta", "gamma", "vega", "theta"]:
             val = leg.get(g)
             if val is not None:
+                val_f = float(val)
                 if g == "delta":
-                    metrics["delta"] += val * qty
+                    metrics["delta"] += val_f * qty
                 else:
-                    metrics[g] += val * qty * mult
+                    metrics[g] += val_f * qty * mult
         if leg.get("unrealizedPnL") is not None:
             metrics["unrealizedPnL"] += leg["unrealizedPnL"]
         if leg.get("avgCost") is not None:
-            metrics["cost_basis"] += leg["avgCost"] * qty
+            metrics["cost_basis"] += float(leg["avgCost"]) * qty
         if leg.get("IV_Rank") is not None:
             iv_ranks.append(leg["IV_Rank"])
         if leg.get("IV_Percentile") is not None:
