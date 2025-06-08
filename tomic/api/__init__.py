@@ -30,7 +30,11 @@ def _ensure_ibapi() -> None:
     try:
         importlib.import_module("ibapi.contract")
         return
-    except ModuleNotFoundError:  # pragma: no cover - depends on environment
+    except ModuleNotFoundError as exc:  # pragma: no cover - depends on environment
+        if exc.name in {"google", "google.protobuf"}:
+            raise ModuleNotFoundError(
+                "Missing dependency 'protobuf'. Install via 'pip install protobuf'"
+            ) from exc
         pass
 
     api_path = os.getenv("TWS_API_PATH") or os.getenv("IB_API_PATH")
@@ -40,6 +44,10 @@ def _ensure_ibapi() -> None:
             importlib.import_module("ibapi.contract")
             return
         except ModuleNotFoundError as exc:  # pragma: no cover - misconfigured
+            if exc.name in {"google", "google.protobuf"}:
+                raise ModuleNotFoundError(
+                    "Missing dependency 'protobuf'. Install via 'pip install protobuf'"
+                ) from exc
             raise ModuleNotFoundError(
                 "ibapi package not found in provided TWS_API_PATH / IB_API_PATH"
             ) from exc

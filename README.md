@@ -38,7 +38,8 @@ source .venv/bin/activate  # Windows: .venv\Scripts\activate
 pip install -r requirements.txt
 ```
 
-Deze stap installeert ook **Pydantic**, gebruikt voor het laden van `config.py`.
+Deze stap installeert ook **Pydantic** en Google's **protobuf**-pakket, dat
+nodig is voor de geïntegreerde `ibapi` modules.
 
 4. Gebruik je de officiële IB API download i.p.v. de ``pip``-versie? Zet dan de
    omgevingsvariabele ``TWS_API_PATH`` (of ``IB_API_PATH``) naar de map met het
