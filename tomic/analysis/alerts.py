@@ -58,7 +58,7 @@ def generate_risk_alerts(strategy: Dict[str, Any]) -> List[str]:
     if spot and legs:
         delta_dollar = sum(
             (leg.get("delta") or 0)
-            * leg.get("position", 0)
+            * float(leg.get("position", 0) or 0)
             * float(leg.get("multiplier") or 1)
             * spot
             for leg in legs
