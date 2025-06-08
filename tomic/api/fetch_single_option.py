@@ -35,9 +35,8 @@ class SingleOptionClient(BaseIBApp):
         c.symbol = self.symbol
         c.secType = "OPT"
         c.exchange = "SMART"
-        c.PrimaryExchange = "SMART"
+        c.primaryExchange = "SMART"
         c.currency = "USD"
-        c.expiry = "20250620"
         c.lastTradeDateOrContractMonth = self.expiry
         c.strike = self.strike
         c.right = self.right
