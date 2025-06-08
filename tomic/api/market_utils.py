@@ -9,7 +9,7 @@ import socket
 
 from tomic.config import get as cfg_get
 
-from ibapi.contract import Contract
+from lib.ibapi import Contract
 
 from tomic.logging import logger
 from tomic.analysis.get_iv_rank import fetch_iv_metrics
