@@ -20,26 +20,26 @@ class IBClient(EClient, EWrapper):
 
     # Match the signature expected by :class:`ibapi.wrapper.EWrapper` so
     # callbacks from the decoder don't fail if additional arguments are passed.
-
-def error(
-    self,
-    reqId: int,
-    errorCode: int = None,
-    errorString: str = None,
-    errorTime: int = None,
-    advancedOrderRejectJson: str = None,
+    def error(
+        self,
+        reqId: int,
+        errorCode: int = None,
+        errorString: str = None,
+        errorTime: int = None,
+        advancedOrderRejectJson: str = None,
     ) -> None:
-    
-"""Robuuste error handler voor verschillende API versies."""
+        """Robuuste error handler voor verschillende API versies."""
 
-    # Fallback als errorTime / advancedOrderRejectJson niet wordt meegegeven
-    if errorCode is not None and errorString is not None:
-        print(f"IB error {errorCode}: {errorString}")
-    else:
-        print(f"IB error: unexpected args reqId={reqId}, errorCode={errorCode}, errorString={errorString}")
+        # Fallback als errorTime / advancedOrderRejectJson niet wordt meegegeven
+        if errorCode is not None and errorString is not None:
+            print(f"IB error {errorCode}: {errorString}")
+        else:
+            print(
+                f"IB error: unexpected args reqId={reqId}, errorCode={errorCode}, errorString={errorString}"
+            )
 
-    if advancedOrderRejectJson:
-        print(f"Advanced order reject: {advancedOrderRejectJson}")
+        if advancedOrderRejectJson:
+            print(f"Advanced order reject: {advancedOrderRejectJson}")
 
 
 def connect_ib(client_id=1, host="127.0.0.1", port=7497, timeout=5) -> IBClient:
