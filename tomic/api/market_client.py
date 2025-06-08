@@ -116,7 +116,6 @@ class OptionChainClient(MarketClient):
         self.trading_class: str | None = None
         self.strikes: list[float] = []
         self._strike_lookup: dict[float, float] = {}
-        self._pending_details: dict[int, OptionContract] = {}
         self.weeklies: list[str] = []
         self.monthlies: list[str] = []
 
@@ -127,34 +126,6 @@ class OptionChainClient(MarketClient):
             self.con_id = con.conId
             self.trading_class = con.tradingClass or self.symbol
             self.reqSecDefOptParams(self._next_id(), self.symbol, "", "STK", self.con_id)
-        elif reqId in self._pending_details:
-            logger.debug(
-                f"contractDetails received for reqId={reqId} conId={con.conId}"
-            )
-            self.market_data.setdefault(reqId, {})["conId"] = con.conId
-            # Log contract fields returned by IB before requesting market data
-            logger.debug(
-                f"Using contract for reqId={reqId}: "
-                f"conId={con.conId} symbol={con.symbol} "
-                f"expiry={con.lastTradeDateOrContractMonth} strike={con.strike} "
-                f"right={con.right} exchange={con.exchange} primaryExchange={con.primaryExchange} "
-                f"tradingClass={getattr(con, 'tradingClass', '')} multiplier={getattr(con, 'multiplier', '')}"
-            )
-            # Request market data with validated contract
-            logger.debug(f"reqMktData sent for: {contract_repr(con)}")
-            self.reqMktData(reqId, con, "", True, False, [])
-            logger.debug(f"reqMktData sent for reqId={reqId} {con.symbol} {con.lastTradeDateOrContractMonth} {con.strike} {con.right}")
-            self._pending_details.pop(reqId, None)
-            logger.debug(
-                f"contractDetails ontvangen: {con.symbol} {con.lastTradeDateOrContractMonth} {con.strike} {con.right}")
-
-    def contractDetailsEnd(self, reqId: int) -> None:  # noqa: N802
-        if reqId in self._pending_details:
-            info = self._pending_details.pop(reqId)
-            logger.warning(
-                f"Geen contractdetails gevonden voor {info.symbol} {info.expiry} {info.strike} {info.right}"
-            )
-            self.invalid_contracts.add(reqId)
 
     def securityDefinitionOptionParameter(
         self,
@@ -250,6 +221,8 @@ class OptionChainClient(MarketClient):
             rec["bid"] = price
         elif tickType == TickTypeEnum.ASK:
             rec["ask"] = price
+        if price == -1 and tickType in (TickTypeEnum.BID, TickTypeEnum.ASK):
+            self.invalid_contracts.add(reqId)
         logger.debug(
             f"tickPrice reqId={reqId} type={TickTypeEnum.toStr(tickType)} price={price}"
         )
@@ -319,8 +292,7 @@ class OptionChainClient(MarketClient):
                         "strike": strike,
                         "right": right,
                     }
-                    self._pending_details[req_id] = info
-                    self.reqContractDetails(req_id, c)
+                    self.reqMktData(req_id, c, "", True, False, [])
 
 def start_app(app: MarketClient) -> None:
     """Connect to TWS/IB Gateway and start ``app`` in a background thread."""
