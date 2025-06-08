@@ -10,7 +10,7 @@ from ibapi.utils import floatMaxString
 
 from tomic.api.base_client import BaseIBApp
 from tomic.config import get as cfg_get
-from tomic.logutils import logger
+from tomic.logutils import logger, log_result
 from tomic.cli.daily_vol_scraper import fetch_volatility_metrics
 from tomic.models import OptionContract
 from tomic.utils import (
@@ -55,6 +55,7 @@ class MarketClient(BaseIBApp):
         self._req_id = 50
 
     # Helpers -----------------------------------------------------
+    @log_result
     def _stock_contract(self) -> Contract:
         c = Contract()
         c.symbol = self.symbol
@@ -71,10 +72,12 @@ class MarketClient(BaseIBApp):
         )
         return c
 
+    @log_result
     def _next_id(self) -> int:
         self._req_id += 1
         return self._req_id
 
+    @log_result
     def start_requests(self) -> None:  # pragma: no cover - runtime behaviour
         """Request a basic stock quote for ``self.symbol``."""
         contract = self._stock_contract()
@@ -139,6 +142,7 @@ class OptionChainClient(MarketClient):
         self.option_params_complete = threading.Event()                  
 
     # IB callbacks ------------------------------------------------
+    @log_result
     def contractDetails(self, reqId: int, details):  # noqa: N802
         con = details.contract
         if con.secType == "STK" and self.con_id is None:
@@ -147,6 +151,37 @@ class OptionChainClient(MarketClient):
             self.trading_class = con.tradingClass or self.symbol
             self.reqSecDefOptParams(self._next_id(), self.symbol, "", "STK", self.con_id)
 
+        elif reqId in self._pending_details:
+            logger.debug(
+                f"contractDetails received for reqId={reqId} conId={con.conId}"
+            )
+            self.market_data.setdefault(reqId, {})["conId"] = con.conId
+            # Log contract fields returned by IB before requesting market data
+            logger.debug(
+                f"Using contract for reqId={reqId}: "
+                f"conId={con.conId} symbol={con.symbol} "
+                f"expiry={con.lastTradeDateOrContractMonth} strike={con.strike} "
+                f"right={con.right} exchange={con.exchange} primaryExchange={con.primaryExchange} "
+                f"tradingClass={getattr(con, 'tradingClass', '')} multiplier={getattr(con, 'multiplier', '')}"
+            )
+            # Request market data with validated contract
+            logger.debug(f"reqMktData sent for: {contract_repr(con)}")
+            self.reqMktData(reqId, con, "", True, False, [])
+            logger.debug(f"reqMktData sent for reqId={reqId} {con.symbol} {con.lastTradeDateOrContractMonth} {con.strike} {con.right}")
+            self._pending_details.pop(reqId, None)
+            logger.debug(
+                f"contractDetails ontvangen: {con.symbol} {con.lastTradeDateOrContractMonth} {con.strike} {con.right}")
+
+    @log_result
+    def contractDetailsEnd(self, reqId: int) -> None:  # noqa: N802
+        if reqId in self._pending_details:
+            info = self._pending_details.pop(reqId)
+            logger.warning(
+                f"Geen contractdetails gevonden voor {info.symbol} {info.expiry} {info.strike} {info.right}"
+            )
+            self.invalid_contracts.add(reqId)
+
+    @log_result
     def securityDefinitionOptionParameter(
         self,
         reqId: int,
@@ -204,6 +239,7 @@ class OptionChainClient(MarketClient):
         )
         self.option_params_complete.set()
 
+    @log_result
     def error(self, reqId, errorTime, errorCode, errorString, advancedOrderRejectJson=""):  # noqa: D401
         super().error(reqId, errorTime, errorCode, errorString, advancedOrderRejectJson)
         if errorCode == 200:
@@ -212,6 +248,7 @@ class OptionChainClient(MarketClient):
                 logger.debug(f"Invalid contract for id {reqId}: {info}")
             self.invalid_contracts.add(reqId)
 
+    @log_result
     def tickOptionComputation(
         self,
         reqId: int,
@@ -244,6 +281,7 @@ class OptionChainClient(MarketClient):
             )
         )
 
+    @log_result
     def tickPrice(self, reqId: int, tickType: int, price: float, attrib) -> None:  # noqa: N802
         super().tickPrice(reqId, tickType, price, attrib)
         rec = self.market_data.setdefault(reqId, {})
@@ -257,6 +295,7 @@ class OptionChainClient(MarketClient):
             f"tickPrice reqId={reqId} type={TickTypeEnum.toStr(tickType)} price={price}"
         )
 
+    @log_result
     def tickGeneric(self, reqId: int, tickType: int, value: float) -> None:  # noqa: N802
         if tickType == 100:
             self.market_data.setdefault(reqId, {})["volume"] = int(value)
@@ -268,6 +307,7 @@ class OptionChainClient(MarketClient):
     def start_requests(self) -> None:  # pragma: no cover - runtime behaviour
         threading.Thread(target=self._init_requests, daemon=True).start()
 
+    @log_result
     def _init_requests(self) -> None:
         self.reqMarketDataType(2)
         stk = self._stock_contract()
@@ -296,6 +336,7 @@ class OptionChainClient(MarketClient):
             return
         self._request_option_data()
 
+    @log_result
     def _request_option_data(self) -> None:
         if not self.expiries or not self.strikes or self.trading_class is None:
             logger.debug(
@@ -331,31 +372,47 @@ class OptionChainClient(MarketClient):
                     self._pending_details[req_id] = info
                     self.reqMktData(req_id, c, "", True, False, [])
 
+@log_result
 def start_app(app: MarketClient) -> None:
     """Connect to TWS/IB Gateway and start ``app`` in a background thread."""
     host = cfg_get("IB_HOST", "127.0.0.1")
     port = int(cfg_get("IB_PORT", 7497))
     client_id = int(cfg_get("IB_CLIENT_ID", 100))
+    logger.debug(f"Connecting app to host={host} port={port} id={client_id}")
     app.connect(host, port, client_id)
     thread = threading.Thread(target=app.run, daemon=True)
     thread.start()
     start = time.time()
     while not app.connected.is_set() and time.time() - start < 5:
         time.sleep(0.1)
+    logger.debug("IB app connected" if app.connected.is_set() else "IB app connect timeout")
 
+@log_result
 def await_market_data(app: MarketClient, symbol: str, timeout: int = 30) -> bool:
     """Wait until market data has been populated or timeout occurs."""
-    app.data_event.wait(timeout)
-    if app.spot_price is not None:
-        return True
-    if any("bid" in rec or "ask" in rec for rec in app.market_data.values()):
-        return True
+    
+start = time.time()
+app.data_event.wait(timeout)
+
+if app.spot_price is not None:
+    logger.debug(f"Spot price ontvangen binnen {time.time() - start:.2f}s")
+    return True
+
+if any("bid" in rec or "ask" in rec for rec in app.market_data.values()):
+    logger.debug(f"Bid/ask ontvangen binnen {time.time() - start:.2f}s")
+    return True
+
+logger.error(f"❌ Timeout terwijl gewacht werd op data voor {symbol}")
+return False
+
     logger.error(f"❌ Timeout terwijl gewacht werd op data voor {symbol}")
     return False
 
 
+@log_result
 def fetch_market_metrics(symbol: str) -> dict[str, Any] | None:
     """Return key volatility metrics scraped from Barchart + optional spot via IB."""
+    logger.debug(f"Fetching metrics for {symbol}")
     data = fetch_volatility_metrics(symbol.upper())
     metrics: Dict[str, Any] = {
         "spot_price": data.get("spot_price"),
