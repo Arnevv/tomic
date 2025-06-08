@@ -38,6 +38,8 @@ class CombinedApp(BaseIBApp):
         self.req_id_counter = 2000
         self.market_data: dict[int, dict] = {}
         self.invalid_contracts: set[int] = set()
+        self._expirations: set[str] = set()
+        self._strikes: set[float] = set()
 
     def run(self) -> None:  # type: ignore[override]
         """Network loop processing incoming messages."""
@@ -185,20 +187,20 @@ class CombinedApp(BaseIBApp):
         expirations,
         strikes,
     ):  # noqa: D417,N802
-        if self.expiries:
-            return
+        self._expirations.update(expirations)
+        self._strikes.update(s for s in strikes if isinstance(s, (int, float)))
+        self.trading_class = tradingClass
 
-        expiries = sorted(expirations)
+    def securityDefinitionOptionParameterEnd(self, reqId: int):  # noqa: N802
+        expiries = sorted(self._expirations)
         regulars, weeklies = split_expiries(expiries)
         self.expiries = regulars + weeklies
+
         center = round(self.spot_price)
         filtered_strikes = [
-            s
-            for s in strikes
-            if center - 100 <= s <= center + 100 and isinstance(s, (int, float))
+            s for s in self._strikes if center - 100 <= s <= center + 100
         ]
         self.strikes = sorted(filtered_strikes)
-        self.trading_class = tradingClass
         self.option_params_event.set()
         logger.debug("option_params_event set")
         self.request_option_market_data()
