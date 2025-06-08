@@ -8,15 +8,16 @@ def compute_portfolio_greeks(positions: Iterable[Dict[str, Any]]) -> Dict[str, f
     totals = {"Delta": 0.0, "Gamma": 0.0, "Vega": 0.0, "Theta": 0.0}
     for pos in positions:
         mult = float(pos.get("multiplier") or 1)
-        qty = pos.get("position", 0)
+        qty = float(pos.get("position", 0) or 0)
         for greek in ["delta", "gamma", "vega", "theta"]:
             val = pos.get(greek)
             if val is None:
                 continue
+            val_f = float(val)
             if greek == "delta":
-                totals["Delta"] += val * qty
+                totals["Delta"] += val_f * qty
             else:
-                totals[greek.capitalize()] += val * qty * mult
+                totals[greek.capitalize()] += val_f * qty * mult
     return totals
 
 
@@ -33,16 +34,17 @@ def compute_greeks_by_symbol(
             sym, {"Delta": 0.0, "Gamma": 0.0, "Vega": 0.0, "Theta": 0.0}
         )
         mult = float(pos.get("multiplier") or 1)
-        qty = pos.get("position", 0)
+        qty = float(pos.get("position", 0) or 0)
         for greek in ["delta", "gamma", "vega", "theta"]:
             val = pos.get(greek)
             if val is None:
                 continue
+            val_f = float(val)
             key = "Delta" if greek == "delta" else greek.capitalize()
             if greek == "delta":
-                data[key] += val * qty
+                data[key] += val_f * qty
             else:
-                data[key] += val * qty * mult
+                data[key] += val_f * qty * mult
     totals = {"Delta": 0.0, "Gamma": 0.0, "Vega": 0.0, "Theta": 0.0}
     for vals in by_symbol.values():
         for g in totals:
