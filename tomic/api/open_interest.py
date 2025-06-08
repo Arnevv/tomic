@@ -121,7 +121,7 @@ def fetch_open_interest(
         return None
 
     app.connect("127.0.0.1", 7497, 1)
-    thread = threading.Thread(target=app.run, daemon=True)
+    thread = threading.Thread(target=app.run)
     thread.start()
     app.reqIds(1)
 

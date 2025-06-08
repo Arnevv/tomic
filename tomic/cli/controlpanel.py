@@ -157,17 +157,6 @@ def run_dataexporter() -> None:
         except subprocess.CalledProcessError:
             print("❌ Export mislukt")
 
-    def export_one_prototype() -> None:
-        symbol = prompt("Ticker symbool: ")
-        if not symbol:
-            print("Geen symbool opgegeven")
-            return
-        from datetime import datetime
-        from tomic.proto.rpc import submit_task
-
-        submit_task({"type": "get_market_data", "symbol": symbol.strip().upper()})
-        job_id = f"{symbol.strip().upper()}_{datetime.now().strftime('%Y%m%d%H%M%S')}"
-        print(f"Job {job_id} toegevoegd aan queue.")
 
     def csv_check() -> None:
         path = prompt("Pad naar CSV-bestand: ")
@@ -220,10 +209,6 @@ def run_dataexporter() -> None:
 
     menu = Menu("📤 DATA MANAGEMENT")
     menu.add("Exporteer een markt (tomic.api.getonemarket)", export_one)
-    menu.add(
-        "Exporteer een markt (via TwsSessionDaemon prototype)",
-        export_one_prototype,
-    )
     menu.add("Exporteer alle markten (tomic.api.getallmarkets)", export_all)
     menu.add("Controleer CSV-kwaliteit (tomic.cli.csv_quality_check)", csv_check)
     menu.add(
@@ -256,60 +241,6 @@ def run_trade_management() -> None:
     menu.run()
 
 
-def show_daemon_log() -> None:
-    """Display the TWS daemon log."""
-
-    path = Path("daemon.log")
-    if not path.exists():
-        print("⚠️ Geen logbestand gevonden")
-        return
-    print(f"ℹ️ Logbestand: {path}")
-    try:
-        print(path.read_text())
-    except Exception as exc:
-        print(f"⚠️ Kan log niet lezen: {exc}")
-
-
-def run_job_management() -> None:
-    """Menu for TOMIC job management tasks."""
-
-    menu = Menu("JOB MANAGEMENT")
-    menu.add(
-        "Lijst actieve jobs",
-        lambda: run_module("tomic.cli.daemonctl", "ls", "--all"),
-    )
-    menu.add(
-        "Lijst afgehandelde jobs",
-        lambda: run_module("tomic.cli.daemonctl", "done"),
-    )
-
-    def show_job_details() -> None:
-        job_id = prompt("Job ID: ")
-        if not job_id:
-            print("⚠️ Geen Job ID opgegeven")
-            return
-        try:
-            run_module("tomic.cli.daemonctl", "show", job_id)
-        except subprocess.CalledProcessError:
-            print("❌ Jobdetails opvragen mislukt")
-
-    def retry_failed_job() -> None:
-        job_id = prompt("Job ID: ")
-        if not job_id:
-            print("⚠️ Geen Job ID opgegeven")
-            return
-        try:
-            run_module("tomic.cli.daemonctl", "retry", job_id)
-        except subprocess.CalledProcessError:
-            print("❌ Retry mislukt")
-
-    menu.add("Toon jobdetails", show_job_details)
-    menu.add("Retry gefaalde job", retry_failed_job)
-    menu.add(
-        "Bekijk daemon log",
-        lambda: run_module("tomic.cli.daemonctl", "log"),
-    )
-    menu.run()
 
 
 def run_risk_tools() -> None:
@@ -503,7 +434,6 @@ def main() -> None:
     menu.add("Portfolio-overzicht", run_portfolio_menu)
     menu.add("Trade Management", run_trade_management)
     menu.add("Data Management", run_dataexporter)
-    menu.add("Job Management", run_job_management)
     menu.add("Risk Tools", run_risk_tools)
     menu.add("Instellingen", run_settings_menu)
     menu.run()
