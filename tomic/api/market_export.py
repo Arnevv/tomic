@@ -235,7 +235,7 @@ def export_option_chain(symbol: str, output_dir: str | None = None) -> float | N
         return None
     app = OptionChainClient(symbol)
     start_app(app)
-    if not await_market_data(app, symbol):
+    if not await_market_data(app, symbol, timeout=60):
         app.disconnect()
         return None
     if output_dir is None:
@@ -272,7 +272,7 @@ def export_market_data(
     metrics = MarketMetrics.from_dict(raw_metrics)
     app = OptionChainClient(symbol)
     start_app(app)
-    if not await_market_data(app, symbol):
+    if not await_market_data(app, symbol, timeout=60):
         app.disconnect()
         return None
     if output_dir is None:
