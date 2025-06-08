@@ -128,15 +128,15 @@ def test_fetch_volatility_metrics_parses_new_fields(monkeypatch):
 
     html = """
         \"lastPrice\": 101.5
-        HV 30: 12%
-        Skew -2.5
-        ATR(14): 7.8
-        VIX 19.5
-        M1-M2 -0.3%
-        M1-M3 -0.7%
+        HV:</span></span><span><strong>12%</strong></span>
+        Skew:</span> <span><strong>-2.5%</strong></span>
+        ATR(14):</span></span><span><strong>7.8</strong></span>
+        VIX:</span> <span><strong>19.5</strong></span>
+        M1 - M2:</span></span><span><strong>-0.3%</strong></span>
+        M1-M3:</span></span><span><strong>-0.7%</strong></span>
         IV Rank 45
-        Implied Volatility 20%
-        IV Percentile 60%
+        Implied Volatility:</span></span><span><strong>20%</strong></span>
+        IV Percentile:</span></span><span><strong>60%</strong></span>
     """
 
     mod = importlib.reload(importlib.import_module("tomic.cli.daily_vol_scraper"))
