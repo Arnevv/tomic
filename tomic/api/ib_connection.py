@@ -4,6 +4,12 @@ import socket
 from ibapi.client import EClient
 from ibapi.wrapper import EWrapper
 
+import sys
+import os
+
+PROTOBUF_PATH = os.path.join(os.path.dirname(__file__), "..", "ibapi", "protobuf")
+sys.path.insert(0, os.path.abspath(PROTOBUF_PATH))
+
 class IBClient(EClient, EWrapper):
     def __init__(self):
         EClient.__init__(self, self)
