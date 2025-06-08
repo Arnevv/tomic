@@ -1,1 +1,23 @@
-{}
+{
+  "AccountType": "INDIVIDUAL",
+  "Cushion": "0.849694",
+  "LookAheadNextChange": "1749389400",
+  "AccruedCash": "0.00",
+  "AvailableFunds": "8654.71",
+  "BuyingPower": "57698.04",
+  "EquityWithLoanValue": "10369.09",
+  "ExcessLiquidity": "8810.56",
+  "FullAvailableFunds": "8654.71",
+  "FullExcessLiquidity": "8810.56",
+  "FullInitMarginReq": "1714.39",
+  "FullMaintMarginReq": "1558.53",
+  "GrossPositionValue": "4474.20",
+  "InitMarginReq": "1714.39",
+  "LookAheadAvailableFunds": "8654.71",
+  "LookAheadExcessLiquidity": "8810.56",
+  "LookAheadInitMarginReq": "1714.39",
+  "LookAheadMaintMarginReq": "1558.53",
+  "MaintMarginReq": "1558.53",
+  "NetLiquidation": "10369.09",
+  "TotalCashValue": "9048.15"
+}
