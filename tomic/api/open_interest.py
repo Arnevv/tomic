@@ -7,7 +7,7 @@ import time
 from typing import Optional
 
 from tomic.api.base_client import BaseIBApp
-from tomic.api.market_utils import create_option_contract, start_app
+from tomic.api.market_utils import create_option_contract, start_app, round_strike
 from tomic.logging import logger
 
 
@@ -18,7 +18,7 @@ class _OpenInterestApp(BaseIBApp):
         super().__init__()
         self.symbol = symbol
         self.expiry = expiry
-        self.strike = strike
+        self.strike = round_strike(strike)
         self.right = right
         self.open_interest: Optional[int] = None
         self.open_interest_event = threading.Event()

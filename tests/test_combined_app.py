@@ -96,5 +96,5 @@ def test_option_params_aggregation():
 
     assert app.expiries == expected_expiries
     assert app.strikes == [90.0, 95.0, 100.0, 105.0, 110.0, 115.0]
-    assert calls == ["called"]
+    assert calls == []
     assert app.option_params_event.is_set()

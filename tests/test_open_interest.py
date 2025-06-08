@@ -13,6 +13,7 @@ def dummy_start_app(app):
 
 market_utils_stub.start_app = dummy_start_app
 market_utils_stub.create_option_contract = lambda *args, **kwargs: None
+market_utils_stub.round_strike = lambda x: x
 sys.modules["tomic.api.market_utils"] = market_utils_stub
 
 # Stub BaseIBApp

@@ -23,6 +23,7 @@ from tomic.api.market_utils import (
     calculate_hv30,
     calculate_atr14,
     create_underlying,
+    round_strike,
 )
 from tomic.analysis.strategy import determine_strategy_type, collapse_legs
 from tomic.analysis.performance_analyzer import compute_pnl
@@ -223,3 +224,10 @@ def test_create_underlying_rut():
     assert c.exchange == "RUSSELL"
     assert not hasattr(c, "primaryExchange")
     assert c.currency == "USD"
+
+
+def test_round_strike_steps():
+    assert round_strike(431.2) == 430.0
+    assert round_strike(187.7) == 187.5
+    assert round_strike(9.3) == 9.0
+    assert round_strike(2.24) == 2.0

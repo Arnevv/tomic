@@ -203,7 +203,6 @@ class CombinedApp(BaseIBApp):
         self.strikes = sorted(filtered_strikes)
         self.option_params_event.set()
         logger.debug("option_params_event set")
-        self.request_option_market_data()
 
     def error(
         self,
