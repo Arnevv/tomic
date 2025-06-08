@@ -76,12 +76,9 @@ class OptionChainClient(MarketClient):
         c.primaryExchange = "SMART"
         c.currency = "USD"
         logger.debug(
-            "Stock contract built: symbol=%s secType=%s exchange=%s primaryExchange=%s currency=%s",
-            c.symbol,
-            c.secType,
-            c.exchange,
-            c.primaryExchange,
-            c.currency,
+            f"Stock contract built: symbol={c.symbol} secType={c.secType} "
+            f"exchange={c.exchange} primaryExchange={c.primaryExchange} "
+            f"currency={c.currency}"
         )
         return c
 
@@ -161,11 +158,11 @@ class OptionChainClient(MarketClient):
     def _init_requests(self) -> None:
         self.reqMarketDataType(2)
         stk = self._stock_contract()
-        logger.debug("Requesting stock quote with contract: %s", stk)
+        logger.debug(f"Requesting stock quote with contract: {stk}")
         spot_id = self._next_id()
         self.reqMktData(spot_id, stk, "", False, False, [])
         logger.debug(
-            "reqMktData sent: id=%s snapshot=False for stock contract", spot_id
+            f"reqMktData sent: id={spot_id} snapshot=False for stock contract"
         )
         start = time.time()
 
@@ -179,19 +176,17 @@ class OptionChainClient(MarketClient):
 
         self.cancelMktData(spot_id)
         self.reqContractDetails(self._next_id(), stk)
-        logger.debug("reqContractDetails sent for: %s", stk)
+        logger.debug(f"reqContractDetails sent for: {stk}")
 
     def _request_option_data(self) -> None:
         if not self.expiries or not self.strikes or self.trading_class is None:
             logger.debug(
-                "Request option data skipped: expiries=%s strikes=%s trading_class=%s",
-                self.expiries,
-                self.strikes,
-                self.trading_class,
+                f"Request option data skipped: expiries={self.expiries} "
+                f"strikes={self.strikes} trading_class={self.trading_class}"
             )
             return
         logger.debug(
-            "Requesting option data for expiries=%s strikes=%s", self.expiries, self.strikes
+            f"Requesting option data for expiries={self.expiries} strikes={self.strikes}"
         )
         for expiry in self.expiries:
             for strike in self.strikes:
@@ -204,14 +199,10 @@ class OptionChainClient(MarketClient):
                         trading_class=self.trading_class,
                     )
                     logger.debug(
-                        "Building option contract: %s %s %s %s",
-                        info.symbol,
-                        expiry,
-                        strike,
-                        right,
+                        f"Building option contract: {info.symbol} {expiry} {strike} {right}"
                     )
                     c = info.to_ib()
-                    logger.debug("Requesting market data with contract: %s", c)
+                    logger.debug(f"Requesting market data with contract: {c}")
                     req_id = self._next_id()
                     self.market_data[req_id] = {
                         "expiry": expiry,
