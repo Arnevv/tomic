@@ -47,8 +47,19 @@ class BaseApp(EWrapper, EClient):
             self._thread.join()
         self._thread = None
 
-    def error(self, reqId: int, errorCode: int, errorString: str) -> None:  # noqa: N802
-        """Default error handler logging using :mod:`loguru`."""
+    def error(
+        self,
+        reqId: int,
+        errorTime: int,
+        errorCode: int,
+        errorString: str,
+        advancedOrderRejectJson: str = "",
+    ) -> None:  # noqa: N802
+        """Default error handler logging using :mod:`loguru`.
+
+        Parameters mirror :meth:`EWrapper.error` from ``ibapi`` which since
+        version 10 includes ``errorTime`` and ``advancedOrderRejectJson``.
+        """
         if errorCode in self.IGNORED_ERROR_CODES:
             logger.debug("IB: {} {}", errorCode, errorString)
         elif errorCode in self.WARNING_ERROR_CODES:
