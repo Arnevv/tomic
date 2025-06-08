@@ -277,6 +277,7 @@ def test_getonemarket_run(monkeypatch):
     mod = importlib.reload(importlib.import_module("tomic.api.getonemarket"))
     monkeypatch.setattr(mod, "setup_logging", lambda: None)
     monkeypatch.setattr(mod, "ib_connection_available", lambda: True)
+    monkeypatch.setattr(mod, "ib_api_available", lambda: True)
     assert mod.run("ABC") is True
 
 
