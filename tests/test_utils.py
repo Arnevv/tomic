@@ -26,7 +26,7 @@ from tomic.api.market_utils import (
 )
 from tomic.analysis.strategy import determine_strategy_type, collapse_legs
 from tomic.analysis.performance_analyzer import compute_pnl
-from tomic.utils import extract_weeklies
+from tomic.utils import extract_weeklies, split_expiries
 
 
 def test_store_volatility_snapshot_roundtrip(tmp_path):
@@ -179,6 +179,26 @@ def test_extract_weeklies():
     ]
     result = extract_weeklies(expiries)
     assert result == ["20240607", "20240614", "20240628", "20240705"]
+
+
+def test_split_expiries():
+    expiries = [
+        "20240607",
+        "20240614",
+        "20240621",
+        "20240628",
+        "20240705",
+        "20240712",
+        "20240719",
+    ]
+    regulars, weeklies = split_expiries(expiries)
+    assert regulars == ["20240621", "20240719"]
+    assert weeklies == [
+        "20240607",
+        "20240614",
+        "20240628",
+        "20240705",
+    ]
 
 
 def test_create_underlying_stock():
