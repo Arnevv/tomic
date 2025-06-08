@@ -5,6 +5,7 @@ import threading
 import time
 from datetime import datetime
 from ibapi.ticktype import TickTypeEnum
+from datetime import timedelta
 
 from tomic.api.base_client import BaseIBApp
 from tomic.config import get as cfg_get
@@ -159,7 +160,7 @@ class OptionChainClient(MarketClient):
         # Zorg dat spot_price beschikbaar is
         if self.spot_price is None:
             logger.warning("Spot price not yet available. Waiting for spot price before processing expiries.")
-            deadline = datetime.now() + time.time() + 10
+            deadline = datetime.now() + timedelta(seconds=10)
             while self.spot_price is None and datetime.now() < deadline:
                 time.sleep(0.05)
 
