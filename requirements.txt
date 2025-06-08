@@ -1,4 +1,4 @@
-ibapi
+ibapi @ file:///Users/ArnevanVeen/PycharmProjects/Tomic/.venv/Lib/site-packages/ibapi
 pandas
 PyYAML
 pydantic

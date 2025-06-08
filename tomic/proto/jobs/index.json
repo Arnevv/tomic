@@ -1,0 +1,48 @@
+[
+  {
+    "job_id": "bddae3d694664c5c86ffcab5498f8790",
+    "type": "get_market_data",
+    "symbol": "AAPL",
+    "created": "2025-06-07T17:39:43Z",
+    "status": "queued",
+    "retries": 0,
+    "max_retries": 0,
+    "task": {
+      "type": "get_market_data",
+      "symbol": "AAPL",
+      "id": "bddae3d694664c5c86ffcab5498f8790"
+    },
+    "updated": "2025-06-07T18:14:24Z"
+  },
+  {
+    "job_id": "8c23fad1cc4d423b87996b2f12d79d78",
+    "type": "get_market_data",
+    "symbol": "SPY",
+    "created": "2025-06-07T18:07:04Z",
+    "status": "queued",
+    "retries": 0,
+    "max_retries": 0,
+    "task": {
+      "type": "get_market_data",
+      "symbol": "SPY",
+      "id": "8c23fad1cc4d423b87996b2f12d79d78"
+    },
+    "updated": "2025-06-07T18:14:07Z"
+  },
+  {
+    "job_id": "6161007bc88044589587f6661503e5cc",
+    "type": "get_market_data",
+    "symbol": "CRM",
+    "created": "2025-06-07T18:12:26Z",
+    "status": "running",
+    "retries": 0,
+    "max_retries": 0,
+    "task": {
+      "type": "get_market_data",
+      "symbol": "CRM",
+      "id": "6161007bc88044589587f6661503e5cc"
+    },
+    "updated": "2025-06-07T18:12:34Z",
+    "progress": "export"
+  }
+]

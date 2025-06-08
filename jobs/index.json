@@ -1,0 +1,32 @@
+[
+  {
+    "job_id": "291a3b9a1a4f4b60aca5f9d090a5414f",
+    "type": "get_market_data",
+    "symbol": "TSLA",
+    "created": "2025-06-07T17:02:23Z",
+    "status": "queued",
+    "retries": 0,
+    "max_retries": 0,
+    "task": {
+      "type": "get_market_data",
+      "symbol": "TSLA",
+      "id": "291a3b9a1a4f4b60aca5f9d090a5414f"
+    },
+    "updated": "2025-06-07T17:21:33Z"
+  },
+  {
+    "job_id": "4d14e95fc39746f0b4b555db975b286d",
+    "type": "get_market_data",
+    "symbol": "SPY",
+    "created": "2025-06-07T17:23:46Z",
+    "status": "queued",
+    "retries": 0,
+    "max_retries": 0,
+    "task": {
+      "type": "get_market_data",
+      "symbol": "SPY",
+      "id": "4d14e95fc39746f0b4b555db975b286d"
+    },
+    "updated": "2025-06-07T17:24:06Z"
+  }
+]

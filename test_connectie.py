@@ -29,5 +29,5 @@ def test_tws_connection():
             print(f"❌ Error: {errorCode} – {errorString}")
 
     app = TestApp()
-    app.connect("127.0.0.1", 7497, clientId=1)
+    app.connect("127.0.0.1", 7497, clientId=1001)
     app.run()
