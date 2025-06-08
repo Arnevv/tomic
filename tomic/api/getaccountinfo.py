@@ -235,8 +235,8 @@ class IBApp(BaseIBApp):
 
         return count_incomplete(self.positions_data)
 
-    IGNORED_ERROR_CODES = BaseIBApp.IGNORED_ERROR_CODES | {2150}
-    WARNING_ERROR_CODES: set[int] = set()
+    IGNORED_ERROR_CODES: set[int] = getattr(BaseIBApp, "IGNORED_ERROR_CODES", set()) | {2150}
+    WARNING_ERROR_CODES: set[int] = getattr(BaseIBApp, "WARNING_ERROR_CODES", set())
 
 
 def main(client_id: int | None = None) -> None:
