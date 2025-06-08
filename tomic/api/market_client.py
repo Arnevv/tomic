@@ -119,6 +119,7 @@ class OptionChainClient(MarketClient):
         self._pending_details: dict[int, OptionContract] = {}
         self.weeklies: list[str] = []
         self.monthlies: list[str] = []
+        self.option_params_complete = threading.Event()
 
     # IB callbacks ------------------------------------------------
     def contractDetails(self, reqId: int, details):  # noqa: N802
@@ -204,7 +205,13 @@ class OptionChainClient(MarketClient):
         self.strikes = sorted(strike_map.keys())
         self._strike_lookup = strike_map
         self.trading_class = tradingClass
-        self._request_option_data()
+
+    def securityDefinitionOptionParameterEnd(self, reqId: int) -> None:  # noqa: N802
+        """Mark option parameter retrieval as complete."""
+        logger.debug(
+            f"securityDefinitionOptionParameterEnd received for reqId={reqId}"
+        )
+        self.option_params_complete.set()
 
     def error(self, reqId, errorTime, errorCode, errorString, advancedOrderRejectJson=""):  # noqa: D401
         super().error(reqId, errorTime, errorCode, errorString, advancedOrderRejectJson)
@@ -286,6 +293,13 @@ class OptionChainClient(MarketClient):
         )
         self.reqContractDetails(self._next_id(), stk)
         logger.debug(f"reqContractDetails sent for: {contract_repr(stk)}")
+
+        # Wait until all option parameters have been received before
+        # requesting option market data
+        if not self.option_params_complete.wait(timeout=20):
+            logger.error("Timeout waiting for option parameters")
+            return
+        self._request_option_data()
 
     def _request_option_data(self) -> None:
         if not self.expiries or not self.strikes or self.trading_class is None:
