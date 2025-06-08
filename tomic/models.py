@@ -39,18 +39,12 @@ class OptionContract:
         contract.tradingClass = self.trading_class or self.symbol
 
         logger.debug(
-            "IB contract built: symbol=%s secType=%s exchange=%s primaryExchange=%s "
-            "currency=%s expiry=%s strike=%s right=%s multiplier=%s tradingClass=%s",
-            contract.symbol,
-            contract.secType,
-            contract.exchange,
-            contract.primaryExchange,
-            contract.currency,
-            contract.lastTradeDateOrContractMonth,
-            contract.strike,
-            contract.right,
-            contract.multiplier,
-            contract.tradingClass,
+            f"IB contract built: symbol={contract.symbol} "
+            f"secType={contract.secType} exchange={contract.exchange} "
+            f"primaryExchange={contract.primaryExchange} currency={contract.currency} "
+            f"expiry={contract.lastTradeDateOrContractMonth} strike={contract.strike} "
+            f"right={contract.right} multiplier={contract.multiplier} "
+            f"tradingClass={contract.tradingClass}"
         )
 
         return contract
