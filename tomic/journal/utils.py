@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Any, Iterable, List, Union
 
 from tomic.config import get as cfg_get
+from tomic.helpers.json_utils import dump_json
 
 JOURNAL_FILE = Path(cfg_get("JOURNAL_FILE", "journal.json"))
 
@@ -28,8 +29,7 @@ def save_json(data: Any, path: PathLike) -> None:
     """Write ``data`` to ``path`` as JSON."""
 
     p = Path(path)
-    with p.open("w", encoding="utf-8") as f:
-        json.dump(data, f, indent=2)
+    dump_json(data, p)
 
 
 def load_journal(path: PathLike = JOURNAL_FILE) -> List[Any]:
