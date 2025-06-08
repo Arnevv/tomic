@@ -1,10 +1,11 @@
 import os
-from datetime import datetime, timezone, date
+from datetime import datetime, date
 
 
 def filter_future_expiries(expirations: list[str]) -> list[str]:
     """Return expiries after :func:`today` sorted chronologically."""
-    valid: list[str] = []
+
+    future_dates: list[date] = []
     today_date = today()
     for exp in expirations:
         try:
@@ -12,8 +13,10 @@ def filter_future_expiries(expirations: list[str]) -> list[str]:
         except Exception:
             continue
         if dt > today_date:
-            valid.append(exp)
-    return sorted(valid)
+            future_dates.append(dt)
+
+    future_dates.sort()
+    return [d.strftime("%Y%m%d") for d in future_dates]
 
 
 def _is_third_friday(dt: datetime) -> bool:
@@ -51,10 +54,9 @@ def extract_monthlies(expirations: list[str], count: int = 3) -> list[str]:
 
 
 def today() -> date:
-    """Return TOMIC_TODAY or today's UTC date."""
+    """Return ``TOMIC_TODAY`` or today's date."""
+
     env = os.getenv("TOMIC_TODAY")
-    return (
-        datetime.strptime(env, "%Y-%m-%d").date()
-        if env
-        else datetime.now(timezone.utc).date()
-    )
+    if env:
+        return datetime.strptime(env, "%Y-%m-%d").date()
+    return date.today()
