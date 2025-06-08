@@ -64,7 +64,7 @@ def stub_external_modules():
     sys.modules.setdefault("numpy", types.ModuleType("numpy"))
     sys.modules.setdefault("requests", types.ModuleType("requests"))
 
-    # Ensure market_utils is reloaded fresh for each test
-    sys.modules.pop("tomic.api.market_utils", None)
+    # Ensure market_client is reloaded fresh for each test
+    sys.modules.pop("tomic.api.market_client", None)
     sys.modules.pop("tomic.api.base_client", None)
     yield

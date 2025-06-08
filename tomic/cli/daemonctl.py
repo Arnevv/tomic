@@ -7,7 +7,7 @@ import json
 from typing import Any
 
 from tomic.logutils import setup_logging
-from tomic.proto import rpc, tws_daemon
+from tomic.proto import rpc
 
 try:
     from tabulate import tabulate
@@ -112,7 +112,7 @@ def cmd_purge(args: argparse.Namespace) -> None:
 def cmd_log(_args: argparse.Namespace) -> None:
     """Print the daemon log to stdout."""
 
-    path = getattr(tws_daemon, "LOG_FILE", rpc.JOBS_DIR / "daemon.log")
+    path = rpc.JOBS_DIR / "daemon.log"
     if not path.exists():
         print("No log file found")
         return

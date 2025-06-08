@@ -259,7 +259,7 @@ def run_trade_management() -> None:
 def show_daemon_log() -> None:
     """Display the TWS daemon log."""
 
-    path = getattr(tws_daemon, "LOG_FILE", Path("daemon.log"))
+    path = Path("daemon.log")
     if not path.exists():
         print("⚠️ Geen logbestand gevonden")
         return

@@ -97,8 +97,6 @@ def test_event_watcher_main(tmp_path, monkeypatch):
 
 
 def test_controlpanel_main(monkeypatch):
-    tws_stub = types.ModuleType("tomic.proto.tws_daemon")
-    monkeypatch.setitem(sys.modules, "tomic.proto.tws_daemon", tws_stub)
     rpc_stub = types.ModuleType("tomic.proto.rpc")
     rpc_stub.submit_task = lambda *a, **k: None
     monkeypatch.setitem(sys.modules, "tomic.proto.rpc", rpc_stub)
@@ -230,8 +228,6 @@ def test_synthetics_detector_main(tmp_path, monkeypatch):
 
 
 def test_risk_tools_generate_proposals(monkeypatch):
-    tws_stub = types.ModuleType("tomic.proto.tws_daemon")
-    monkeypatch.setitem(sys.modules, "tomic.proto.tws_daemon", tws_stub)
     rpc_stub = types.ModuleType("tomic.proto.rpc")
     rpc_stub.submit_task = lambda *a, **k: None
     monkeypatch.setitem(sys.modules, "tomic.proto.rpc", rpc_stub)

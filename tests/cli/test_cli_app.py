@@ -4,8 +4,6 @@ import sys
 
 
 def test_app_controlpanel(monkeypatch):
-    tws_stub = types.ModuleType("tomic.proto.tws_daemon")
-    monkeypatch.setitem(sys.modules, "tomic.proto.tws_daemon", tws_stub)
     app = importlib.import_module("tomic.cli.app")
     called = []
     monkeypatch.setattr(app.controlpanel, "main", lambda: called.append("cp"))
@@ -14,8 +12,6 @@ def test_app_controlpanel(monkeypatch):
 
 
 def test_app_csv_quality(monkeypatch):
-    tws_stub = types.ModuleType("tomic.proto.tws_daemon")
-    monkeypatch.setitem(sys.modules, "tomic.proto.tws_daemon", tws_stub)
     app = importlib.import_module("tomic.cli.app")
     called = []
     monkeypatch.setattr(app.csv_quality_check, "main", lambda argv=None: called.append(argv))
@@ -24,8 +20,6 @@ def test_app_csv_quality(monkeypatch):
 
 
 def test_app_generate_proposals(monkeypatch):
-    tws_stub = types.ModuleType("tomic.proto.tws_daemon")
-    monkeypatch.setitem(sys.modules, "tomic.proto.tws_daemon", tws_stub)
     app = importlib.import_module("tomic.cli.app")
     called = []
     monkeypatch.setattr(
