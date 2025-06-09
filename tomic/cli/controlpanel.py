@@ -207,6 +207,12 @@ def run_dataexporter() -> None:
         finally:
             os.environ["TOMIC_LOG_LEVEL"] = "INFO"
 
+    def _fetch_option_doc() -> None:
+        try:
+            run_module("tomic.api.fetch_single_option_documentation")
+        except subprocess.CalledProcessError:
+            print("❌ Ophalen van optiedata mislukt (Web API niet bereikbaar)")
+
     menu = Menu("📤 DATA MANAGEMENT")
     menu.add("Exporteer een markt (tomic.api.getonemarket)", export_one)
     menu.add("Exporteer alle markten (tomic.api.getallmarkets)", export_all)
@@ -222,7 +228,7 @@ def run_dataexporter() -> None:
 
     menu.add(
         "Ophalen 1 optie volgens documentatie",
-        lambda: run_module("tomic.api.fetch_single_option_documentation"),
+        lambda: _fetch_option_doc(),
     )
 
     menu.run()
