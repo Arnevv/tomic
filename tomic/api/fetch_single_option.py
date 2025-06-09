@@ -132,6 +132,52 @@ class StepByStepClient(EWrapper, EClient):
 
 # --- geen wijzigingen nodig voor export_csv en main (deze blijven zoals ze zijn) ---
 
+
+def log_contract_details(details: ContractDetails) -> None:
+    """Log kernvelden van een ``ContractDetails`` object."""
+    con = details.contract
+    logger.info(
+        "contract: {sym} {exp} {strike} {right} conId={cid}",
+        sym=con.symbol,
+        exp=con.lastTradeDateOrContractMonth,
+        strike=con.strike,
+        right=con.right,
+        cid=con.conId,
+    )
+
+    fields = [
+        "marketName",
+        "minTick",
+        "orderTypes",
+        "validExchanges",
+        "priceMagnifier",
+        "underConId",
+        "longName",
+        "contractMonth",
+        "industry",
+        "category",
+        "subcategory",
+        "timeZoneId",
+        "tradingHours",
+        "liquidHours",
+        "evRule",
+        "evMultiplier",
+        "aggGroup",
+        "underSymbol",
+        "underSecType",
+        "marketRuleIds",
+        "secIdList",
+        "realExpirationDate",
+        "lastTradeTime",
+        "stockType",
+        "minSize",
+        "sizeIncrement",
+        "suggestedSizeIncrement",
+    ]
+
+    for field in fields:
+        logger.info(f"{field} = {getattr(details, field, None)}")
+
 # --- Stap 7a: test met volledig opgebouwd contract ---
 def test_contractdetails_manueel(client: StepByStepClient):
     logger.info("▶️ START stap 7a - Test contractDetails met volledige parameters")
@@ -148,6 +194,9 @@ def test_contractdetails_manueel(client: StepByStepClient):
     req_id = client._next_id()
     client.reqContractDetails(req_id, c)
     client.contract_received.wait(timeout=10)
+    details = client.option_info.get(req_id)
+    if details:
+        log_contract_details(details)
     logger.info("✅ Test stap 7a afgerond")
 
 
@@ -162,6 +211,9 @@ def test_contractdetails_conid(client: StepByStepClient):
     req_id = client._next_id()
     client.reqContractDetails(req_id, c)
     client.contract_received.wait(timeout=10)
+    details = client.option_info.get(req_id)
+    if details:
+        log_contract_details(details)
     logger.info("✅ Test stap 7b afgerond")
 
 
