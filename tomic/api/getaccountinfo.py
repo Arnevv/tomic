@@ -252,6 +252,32 @@ class IBApp(BaseIBApp):
                 incomplete += 1
         return incomplete
 
+    def request_mktdata_for_index(self, idx: int) -> None:
+        """(Re)request market data for the position at ``idx``."""
+        if idx >= len(self.positions_data):
+            return
+        d = self.positions_data[idx]
+        contract = Contract()
+        contract.conId = d["conId"]
+        contract.symbol = d["symbol"]
+        contract.secType = d["secType"]
+        contract.currency = d.get("currency")
+        contract.exchange = "SMART"
+        contract.primaryExchange = "SMART"
+        contract.localSymbol = d.get("localSymbol")
+        contract.lastTradeDateOrContractMonth = d.get("lastTradeDate")
+        if d.get("strike") is not None:
+            contract.strike = float(d["strike"])
+        if d.get("right"):
+            contract.right = d["right"]
+        if d.get("multiplier"):
+            contract.multiplier = str(d["multiplier"])
+
+        req_id = self.market_req_id
+        self.market_req_map[req_id] = idx
+        self.reqMktData(req_id, contract, "", True, False, [])
+        self.market_req_id += 1
+
     IGNORED_ERROR_CODES: set[int] = getattr(BaseIBApp, "IGNORED_ERROR_CODES", set()) | {2150}
     WARNING_ERROR_CODES: set[int] = getattr(BaseIBApp, "WARNING_ERROR_CODES", set())
 
@@ -312,6 +338,32 @@ def enrich_with_iv_rank(app: IBApp) -> None:
             app.iv_rank_data[f"{sym}_pct"] = None
 
 
+def retry_incomplete_positions(app: IBApp, retries: int = 2, wait: int = 5) -> None:
+    """Retry requesting market data for incomplete legs."""
+    for attempt in range(retries):
+        incomplete = [
+            i
+            for i, p in enumerate(app.positions_data)
+            if any(p.get(k) is None for k in [
+                "bid",
+                "ask",
+                "iv",
+                "delta",
+                "gamma",
+                "vega",
+                "theta",
+            ])
+        ]
+        if not incomplete:
+            return
+        logger.info(f"🔄 Retry {attempt + 1} for {len(incomplete)} incomplete legs")
+        for idx in incomplete:
+            app.request_mktdata_for_index(idx)
+        time.sleep(wait)
+    if app.count_incomplete() > 0:
+        logger.warning("⚠️ Some legs remain incomplete after retries.")
+
+
 def main(client_id: int | None = None) -> None:
     """CLI entry point orchestrating the data collection steps."""
     setup_logging()
@@ -331,7 +383,8 @@ def main(client_id: int | None = None) -> None:
         time.sleep(5)
         waited += 5
     if app.count_incomplete() > 0:
-        logger.warning("⚠️ Some legs remain incomplete.")
+        logger.warning("⚠️ Some legs remain incomplete. Retrying...")
+        retry_incomplete_positions(app)
 
     portfolio = compute_portfolio_greeks(app.positions_data)
 
