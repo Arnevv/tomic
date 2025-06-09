@@ -34,6 +34,7 @@ class IBApp(BaseIBApp):
         self.req_id_to_index = {}
         self.market_req_id = 8000
         self.market_req_map = {}
+        self.contract_req_map = {}
         self.spot_data = {}
         self.hist_event = threading.Event()
         self.hv_data = {}
@@ -77,6 +78,14 @@ class IBApp(BaseIBApp):
                 "vega": None,
                 "theta": None,
             }
+        )
+        logger.debug(
+            "Positie %s: localSymbol=%s exchange=%s strike=%s right=%s",
+            idx,
+            contract.localSymbol,
+            contract.exchange,
+            contract.strike,
+            contract.right,
         )
         self.reqPnLSingle(self.req_id, account, "", contract.conId)
         self.req_id_to_index[self.req_id] = idx
@@ -278,6 +287,24 @@ class IBApp(BaseIBApp):
         self.reqMktData(req_id, contract, "", True, False, [])
         self.market_req_id += 1
 
+    def contractDetails(self, reqId: int, details) -> None:  # noqa: N802
+        idx = self.contract_req_map.get(reqId)
+        con = details.contract
+        logger.debug(
+            "Ontvangen contractdetails voor leg %s: %s %s %s %s",
+            idx,
+            con.localSymbol,
+            con.exchange,
+            con.strike,
+            con.right,
+        )
+        self.contract_req_map.pop(reqId, None)
+
+    def contractDetailsEnd(self, reqId: int) -> None:  # noqa: N802
+        if reqId in self.contract_req_map:
+            idx = self.contract_req_map.pop(reqId)
+            logger.warning(f"Geen contractdetails ontvangen voor leg {idx}")
+
     IGNORED_ERROR_CODES: set[int] = getattr(BaseIBApp, "IGNORED_ERROR_CODES", set()) | {2150}
     WARNING_ERROR_CODES: set[int] = getattr(BaseIBApp, "WARNING_ERROR_CODES", set())
 
@@ -338,29 +365,55 @@ def enrich_with_iv_rank(app: IBApp) -> None:
             app.iv_rank_data[f"{sym}_pct"] = None
 
 
-def retry_incomplete_positions(app: IBApp, retries: int = 2, wait: int = 5) -> None:
+def retry_incomplete_positions(app: IBApp, retries: int = 4, wait: int = 7) -> None:
     """Retry requesting market data for incomplete legs."""
+    missing_keys = ["bid", "ask", "iv", "delta", "gamma", "vega", "theta"]
     for attempt in range(retries):
         incomplete = [
             i
             for i, p in enumerate(app.positions_data)
-            if any(p.get(k) is None for k in [
-                "bid",
-                "ask",
-                "iv",
-                "delta",
-                "gamma",
-                "vega",
-                "theta",
-            ])
+            if any(p.get(k) is None for k in missing_keys)
         ]
         if not incomplete:
             return
+        for idx in incomplete:
+            leg = app.positions_data[idx]
+            logger.warning(
+                "Incomplete leg #%s: localSymbol=%s exchange=%s strike=%s right=%s",
+                idx,
+                leg.get("localSymbol"),
+                leg.get("exchange"),
+                leg.get("strike"),
+                leg.get("right"),
+            )
         logger.info(f"🔄 Retry {attempt + 1} for {len(incomplete)} incomplete legs")
         for idx in incomplete:
             app.request_mktdata_for_index(idx)
+            d = app.positions_data[idx]
+            c = Contract()
+            c.conId = d["conId"]
+            c.symbol = d["symbol"]
+            c.secType = d["secType"]
+            c.currency = d.get("currency")
+            c.exchange = "SMART"
+            c.primaryExchange = "SMART"
+            c.localSymbol = d.get("localSymbol")
+            c.lastTradeDateOrContractMonth = d.get("lastTradeDate")
+            if d.get("strike") is not None:
+                c.strike = float(d["strike"])
+            if d.get("right"):
+                c.right = d["right"]
+            if d.get("multiplier"):
+                c.multiplier = str(d["multiplier"])
+            req_id = app.market_req_id
+            app.contract_req_map[req_id] = idx
+            app.reqContractDetails(req_id, c)
+            app.market_req_id += 1
         time.sleep(wait)
     if app.count_incomplete() > 0:
+        for idx, p in enumerate(app.positions_data):
+            if any(p.get(k) is None for k in missing_keys):
+                logger.warning(f"Leg {idx} nog incompleet: {p}")
         logger.warning("⚠️ Some legs remain incomplete after retries.")
 
 
