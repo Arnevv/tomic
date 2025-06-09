@@ -23,6 +23,7 @@ class OptionContract:
     currency: str = "USD"
     multiplier: str = "100"
     trading_class: Optional[str] = None
+    primary_exchange: Optional[str] = None
 
     def to_ib(self) -> Contract:
         """Create an IB ``Contract`` object."""
@@ -30,7 +31,7 @@ class OptionContract:
         contract.symbol = self.symbol
         contract.secType = "OPT"
         contract.exchange = self.exchange
-        contract.primaryExchange = self.exchange
+        contract.primaryExchange = self.primary_exchange or self.exchange
         contract.currency = self.currency
         contract.lastTradeDateOrContractMonth = self.expiry
         contract.strike = self.strike
@@ -67,6 +68,11 @@ class OptionContract:
             currency=getattr(contract, "currency", "USD"),
             multiplier=getattr(contract, "multiplier", "100"),
             trading_class=getattr(contract, "tradingClass", None),
+            primary_exchange=getattr(
+                contract,
+                "primaryExchange",
+                getattr(contract, "exchange", "SMART"),
+            ),
         )
 
 

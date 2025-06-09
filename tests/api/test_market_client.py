@@ -68,6 +68,8 @@ def test_option_chain_client_events_set():
     client.details_event.clear()
     client.contractDetails(2, details)
     assert client.details_event.is_set()
+    assert client.trading_class == "ABC"
+    assert client.primary_exchange == "SMART"
 
     req_id = client._next_id()
     client._pending_details[req_id] = mod.OptionContract("ABC", "20250101", 100.0, "C")
