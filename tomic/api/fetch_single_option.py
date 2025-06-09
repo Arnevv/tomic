@@ -1,5 +1,3 @@
-"""Standalone script to fetch option chain data step by step via the TWS API."""
-
 from __future__ import annotations
 
 import csv
@@ -18,8 +16,6 @@ from loguru import logger
 
 
 class StepByStepClient(EWrapper, EClient):
-    """Minimal IB client that retrieves option chain data step by step."""
-
     def __init__(self, symbol: str) -> None:
         EWrapper.__init__(self)
         EClient.__init__(self, wrapper=self)
@@ -41,7 +37,6 @@ class StepByStepClient(EWrapper, EClient):
         self.option_info: Dict[int, Dict[str, object]] = {}
         self.market_data: Dict[int, Dict[str, object]] = {}
 
-    # Helpers -----------------------------------------------------
     def _next_id(self) -> int:
         self.req_id += 1
         return self.req_id
@@ -54,11 +49,10 @@ class StepByStepClient(EWrapper, EClient):
         c.currency = "USD"
         return c
 
-    # IB callbacks ------------------------------------------------
-    def nextValidId(self, orderId: int) -> None:  # noqa: N802
+    def nextValidId(self, orderId: int) -> None:
         self.connected.set()
 
-    def tickPrice(self, reqId: int, tickType: int, price: float, attrib) -> None:  # noqa: N802
+    def tickPrice(self, reqId: int, tickType: int, price: float, attrib) -> None:
         if reqId == 1 and tickType in (TickTypeEnum.LAST, TickTypeEnum.DELAYED_LAST):
             if price > 0:
                 self.spot_price = price
@@ -87,7 +81,7 @@ class StepByStepClient(EWrapper, EClient):
         vega: float,
         theta: float,
         undPrice: float,
-    ) -> None:  # noqa: N802
+    ) -> None:
         rec = self.market_data.setdefault(reqId, {})
         rec["iv"] = impliedVol
         rec["delta"] = delta
@@ -95,7 +89,7 @@ class StepByStepClient(EWrapper, EClient):
         rec["vega"] = vega
         rec["theta"] = theta
 
-    def contractDetails(self, reqId: int, details) -> None:  # noqa: N802
+    def contractDetails(self, reqId: int, details) -> None:
         con = details.contract
         if con.secType == "STK":
             self.con_id = con.conId
@@ -105,6 +99,7 @@ class StepByStepClient(EWrapper, EClient):
         elif reqId in self.option_info:
             self.market_data.setdefault(reqId, {})["conId"] = con.conId
             self.reqMktData(reqId, con, "", False, False, [])
+            logger.info(f"✅ contractDetails ontvangen voor reqId {reqId} ({con.localSymbol})")
 
     def securityDefinitionOptionParameter(
         self,
@@ -115,7 +110,7 @@ class StepByStepClient(EWrapper, EClient):
         multiplier: str,
         expirations: List[str],
         strikes: List[float],
-    ) -> None:  # noqa: N802
+    ) -> None:
         if not self.all_expiries and expirations:
             self.all_expiries = sorted(expirations)
             self.all_strikes = sorted(strikes)
@@ -130,39 +125,15 @@ def export_csv(app: StepByStepClient, output_dir: str) -> None:
     )
     with open(path, "w", newline="") as f:
         writer = csv.writer(f)
-        writer.writerow(
-            [
-                "Symbol",
-                "Expiry",
-                "Strike",
-                "Type",
-                "Bid",
-                "Ask",
-                "IV",
-                "Delta",
-                "Gamma",
-                "Vega",
-                "Theta",
-            ]
-        )
+        writer.writerow([
+            "Symbol", "Expiry", "Strike", "Type", "Bid", "Ask", "IV", "Delta", "Gamma", "Vega", "Theta"])
         for rec in app.market_data.values():
             if rec.get("bid") is None and rec.get("ask") is None:
                 continue
-            writer.writerow(
-                [
-                    app.symbol,
-                    rec.get("expiry"),
-                    rec.get("strike"),
-                    rec.get("right"),
-                    rec.get("bid"),
-                    rec.get("ask"),
-                    rec.get("iv"),
-                    rec.get("delta"),
-                    rec.get("gamma"),
-                    rec.get("vega"),
-                    rec.get("theta"),
-                ]
-            )
+            writer.writerow([
+                app.symbol, rec.get("expiry"), rec.get("strike"), rec.get("right"),
+                rec.get("bid"), rec.get("ask"), rec.get("iv"), rec.get("delta"),
+                rec.get("gamma"), rec.get("vega"), rec.get("theta")])
     logger.info(f"✅ SUCCES stap 10 - CSV opgeslagen in {path}")
 
 
@@ -202,9 +173,7 @@ def run(symbol: str, output_dir: str) -> None:
         logger.error("❌ FAIL stap 4: geen contractdetails")
         app.disconnect()
         return
-    logger.info(
-        f"✅ SUCCES stap 4 - conId {app.con_id}, tradingClass {app.trading_class}"
-    )
+    logger.info(f"✅ SUCCES stap 4 - conId {app.con_id}, tradingClass {app.trading_class}")
 
     logger.info("▶️ START stap 5 - Optieparameters ophalen")
     req_id = app._next_id()
@@ -213,9 +182,7 @@ def run(symbol: str, output_dir: str) -> None:
         logger.error("❌ FAIL stap 5: geen optieparameters")
         app.disconnect()
         return
-    logger.info(
-        f"✅ SUCCES stap 5 - {len(app.all_expiries)} expiries, {len(app.all_strikes)} strikes"
-    )
+    logger.info(f"✅ SUCCES stap 5 - {len(app.all_expiries)} expiries, {len(app.all_strikes)} strikes")
 
     logger.info("▶️ START stap 6 - Selectie van relevante expiries en strikes")
     center = round(app.spot_price or 0)
@@ -225,11 +192,10 @@ def run(symbol: str, output_dir: str) -> None:
         logger.error("❌ FAIL stap 6: geen geldige strikes/expiries")
         app.disconnect()
         return
-    logger.info(
-        f"✅ SUCCES stap 6 - {len(app.expiries)} expiries, {len(app.strikes)} strikes"
-    )
+    logger.info(f"✅ SUCCES stap 6 - {len(app.expiries)} expiries, {len(app.strikes)} strikes")
 
     logger.info("▶️ START stap 7 - Optiecontracten bouwen")
+    contracts_requested = 0
     for expiry in app.expiries:
         for strike in app.strikes:
             for right in ("C", "P"):
@@ -244,14 +210,31 @@ def run(symbol: str, output_dir: str) -> None:
                 c.tradingClass = app.trading_class
                 req_id = app._next_id()
                 app.option_info[req_id] = {
-                    "expiry": expiry,
-                    "strike": strike,
-                    "right": right,
+                    "expiry": expiry, "strike": strike, "right": right
                 }
                 app.reqContractDetails(req_id, c)
+                logger.info(f"🟡 reqContractDetails verstuurd voor reqId {req_id}: {symbol} {expiry} {right}{strike}")
+                contracts_requested += 1
+    if contracts_requested == 0:
+        logger.error("❌ FAIL stap 7: geen optiecontracten gegenereerd")
+        app.disconnect()
+        return
+    logger.info(f"✅ SUCCES stap 7 - {contracts_requested} contracten aangevraagd")
 
     logger.info("▶️ START stap 8 - Wachten op contractdetails voor opties")
-    time.sleep(2)  # small delay for callbacks
+    time.sleep(2)
+    received = len(app.market_data)
+    expected = len(app.option_info)
+    for req_id, meta in app.option_info.items():
+        if req_id in app.market_data:
+            logger.info(f"✅ contractDetails OK voor reqId {req_id}: {meta['expiry']} {meta['right']}{meta['strike']}")
+        else:
+            logger.warning(f"❌ contractDetails MISSING voor reqId {req_id}: {meta['expiry']} {meta['right']}{meta['strike']}")
+    if received == 0:
+        logger.error("❌ FAIL stap 8: geen geldige optiecontractdetails ontvangen")
+        app.disconnect()
+        return
+    logger.info(f"✅ SUCCES stap 8 - {received}/{expected} contractdetails ontvangen")
 
     logger.info("▶️ START stap 9 - Ontvangen van market data")
     if not app.market_event.wait(20):
@@ -260,13 +243,13 @@ def run(symbol: str, output_dir: str) -> None:
         return
     logger.info("✅ SUCCES stap 9 - Market data ontvangen")
 
+    logger.info("▶️ START stap 10 - Export naar CSV")
     export_csv(app, output_dir)
     app.disconnect()
 
 
 def main(argv: List[str] | None = None) -> None:
     from loguru import logger as _logger
-
     _logger.remove()
     _logger.add(sys.stderr, level="INFO", format="{level} - {time:HH:mm:ss}: {message}")
 
