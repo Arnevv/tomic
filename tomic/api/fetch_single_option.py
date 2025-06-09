@@ -165,18 +165,6 @@ def test_contractdetails_conid(client: StepByStepClient):
     logger.info("✅ Test stap 7b afgerond")
 
 
-# --- Aangepaste run-functie ---
-def run_tests():
-    logger.info("🧪 Testmodus actief - stap 7 tijdelijk overgeslagen")
-    client = StepByStepClient(symbol="MSFT")
-    client.connect("127.0.0.1", 7497, 999)
-    client_thread = threading.Thread(target=client.run, daemon=True)
-    client_thread.start()
-    client.connected.wait(timeout=5)
-    test_contractdetails_manueel(client)
-    test_contractdetails_conid(client)
-    client.disconnect()
-
 
 def export_csv(app: StepByStepClient, output_dir: str) -> None:
     os.makedirs(output_dir, exist_ok=True)
@@ -278,7 +266,14 @@ def run(symbol: str, output_dir: str) -> None:
                     logger.warning(f"❌ contractDetails MISSING voor reqId {req_id}")
                 contracts_requested += 1
     received = len(app.option_info)
-    logger.info(f"✅ SUCCES stap 7 - {received}/{contracts_requested} contractdetails ontvangen")
+
+    logger.info(
+        f"✅ SUCCES stap 7 - {received}/{contracts_requested} contractdetails ontvangen"
+    )
+
+    # Direct na stap 7 ook de extra contractdetail-tests uitvoeren
+    test_contractdetails_manueel(app)
+    test_contractdetails_conid(app)
 
     if received == 0:
         logger.error("❌ FAIL stap 8: geen geldige optiecontractdetails ontvangen")
