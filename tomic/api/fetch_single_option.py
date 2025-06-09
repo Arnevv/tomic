@@ -313,6 +313,9 @@ def run(symbol: str, output_dir: str) -> None:
                 c.tradingClass = app.trading_class
                 req_id = app._next_id()
                 app.contract_received.clear()
+                logger.info(
+                    f"➡️ reqContractDetails {req_id}: expiry={expiry}, strike={strike}, right={right}, tradingClass={c.tradingClass}"
+                )
                 app.reqContractDetails(req_id, c)
                 if not app.contract_received.wait(2):
                     logger.warning(f"❌ contractDetails MISSING voor reqId {req_id}")
