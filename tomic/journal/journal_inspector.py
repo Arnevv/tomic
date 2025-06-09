@@ -247,6 +247,8 @@ def main() -> None:
 
     journal = load_journal()
     if not journal:
+        print("\n📭 Geen trades gevonden in het journal.")
+        input("Druk op ENTER om terug te keren.")
         return
 
     while True:
