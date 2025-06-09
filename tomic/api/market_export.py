@@ -205,10 +205,13 @@ def export_market_metrics(
     if not symbol:
         logger.error("❌ Geen geldig symbool ingevoerd.")
         return None
+    app = OptionChainClient(symbol)
+    start_app(app)
     try:
-        raw_metrics = fetch_market_metrics(symbol)
+        raw_metrics = fetch_market_metrics(symbol, app=app)
     except Exception as exc:  # pragma: no cover - network failures
         logger.error(f"❌ Marktkenmerken ophalen mislukt: {exc}")
+        app.disconnect()
         return None
     if raw_metrics is None:
         logger.error(f"❌ Geen expiries gevonden voor {symbol}")
@@ -261,17 +264,19 @@ def export_market_data(
     if not symbol:
         logger.error("❌ Geen geldig symbool ingevoerd.")
         return None
+    app = OptionChainClient(symbol)
+    start_app(app)
     try:
-        raw_metrics = fetch_market_metrics(symbol)
+        raw_metrics = fetch_market_metrics(symbol, app=app)
     except Exception as exc:  # pragma: no cover - network failures
         logger.error(f"❌ Marktkenmerken ophalen mislukt: {exc}")
+        app.disconnect()
         return None
     if raw_metrics is None:
         logger.error(f"❌ Geen expiries gevonden voor {symbol}")
+        app.disconnect()
         return None
     metrics = MarketMetrics.from_dict(raw_metrics)
-    app = OptionChainClient(symbol)
-    start_app(app)
     if not await_market_data(app, symbol, timeout=60):
         app.disconnect()
         return None
