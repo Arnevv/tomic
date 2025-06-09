@@ -154,6 +154,9 @@ class OptionChainClient(MarketClient):
         # Voor foutopsporing van contracten
         self._pending_details: dict[int, OptionContract] = {}
 
+        # ContractDetails info for successfully validated options
+        self.option_info: Dict[int, Any] = {}
+
         # Voor synchronisatie van option param callback
         self.option_params_complete = threading.Event()
         self.spot_event = threading.Event()
@@ -195,6 +198,7 @@ class OptionChainClient(MarketClient):
             logger.debug(
                 f"contractDetails received for reqId={reqId} conId={con.conId}"
             )
+            self.option_info[reqId] = details
             self.market_data.setdefault(reqId, {})["conId"] = con.conId
             # Log contract fields returned by IB before requesting market data
             logger.debug(
@@ -538,6 +542,12 @@ class OptionChainClient(MarketClient):
                         logger.warning(
                             f"❌ contractDetails MISSING voor reqId {req_id}"
                         )
+                    if req_id not in self.option_info:
+                        logger.warning(
+                            f"⚠️ Geen optiecontractdetails voor reqId {req_id}; marktdata overgeslagen"
+                        )
+                        self._pending_details.pop(req_id, None)
+                        self.invalid_contracts.add(req_id)
 
         logger.debug(
             f"Aantal contractdetails aangevraagd: {len(self._pending_details)}"
