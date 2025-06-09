@@ -496,8 +496,16 @@ def await_market_data(app: MarketClient, symbol: str, timeout: int = 30) -> bool
 
 
 @log_result
-def fetch_market_metrics(symbol: str) -> dict[str, Any] | None:
-    """Return key volatility metrics scraped from Barchart + optional spot via IB."""
+def fetch_market_metrics(
+    symbol: str, app: MarketClient | None = None
+) -> dict[str, Any] | None:
+    """Return key volatility metrics scraped from Barchart and optional spot price.
+
+    When ``app`` is provided it must already be connected; this function will use
+    it to retrieve the spot price without opening a new IB session. If ``app`` is
+    ``None`` a temporary :class:`MarketClient` session is created and closed.
+    """
+
     logger.debug(f"Fetching metrics for {symbol}")
     data = fetch_volatility_metrics(symbol.upper())
     metrics: Dict[str, Any] = {
@@ -513,12 +521,17 @@ def fetch_market_metrics(symbol: str) -> dict[str, Any] | None:
         "iv_percentile": data.get("iv_percentile"),
     }
 
-    # Probeer live spot price van IB
-    app = MarketClient(symbol)
-    start_app(app)
+    owns_app = False
+    if app is None:
+        app = MarketClient(symbol)
+        start_app(app)
+        owns_app = True
+
     if await_market_data(app, symbol):
         metrics["spot_price"] = app.spot_price or metrics["spot_price"]
-    app.disconnect()
+
+    if owns_app:
+        app.disconnect()
 
     logger.debug(f"Fetched metrics for {symbol}: {metrics}")
     return metrics

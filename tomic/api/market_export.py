@@ -207,10 +207,13 @@ def export_market_metrics(
     if not symbol:
         logger.error("❌ Geen geldig symbool ingevoerd.")
         return None
+    app = OptionChainClient(symbol)
+    start_app(app)
     try:
-        raw_metrics = fetch_market_metrics(symbol)
+        raw_metrics = fetch_market_metrics(symbol, app=app)
     except Exception as exc:  # pragma: no cover - network failures
         logger.error(f"❌ Marktkenmerken ophalen mislukt: {exc}")
+        app.disconnect()
         return None
     if raw_metrics is None:
         logger.error(f"❌ Geen expiries gevonden voor {symbol}")
@@ -264,22 +267,24 @@ def export_market_data(
     """Export option chain and market metrics for ``symbol`` to CSV files."""
     logger.info("▶️ START stap 1 - Invoer van symbool")
     symbol = symbol.strip().upper()
-    if not symbol or not symbol.replace(".", "").isalnum():
-        logger.error("❌ FAIL stap 1: ongeldig symbool.")
-        return None
-    logger.info(f"✅ {symbol} ontvangen, ga nu aan de slag!")
-    logger.info("▶️ START stap 2 - Initialiseren client + verbinden met IB")
+if not symbol or not symbol.replace(".", "").isalnum():
+    logger.error("❌ FAIL stap 1: ongeldig symbool.")
+    return None
+logger.info(f"✅ {symbol} ontvangen, ga nu aan de slag!")
+logger.info("▶️ START stap 2 - Initialiseren client + verbinden met IB")
+app = OptionChainClient(symbol)
+start_app(app)
     try:
-        raw_metrics = fetch_market_metrics(symbol)
+        raw_metrics = fetch_market_metrics(symbol, app=app)
     except Exception as exc:  # pragma: no cover - network failures
         logger.error(f"❌ Marktkenmerken ophalen mislukt: {exc}")
+        app.disconnect()
         return None
     if raw_metrics is None:
         logger.error(f"❌ Geen expiries gevonden voor {symbol}")
+        app.disconnect()
         return None
     metrics = MarketMetrics.from_dict(raw_metrics)
-    app = OptionChainClient(symbol)
-    start_app(app)
     if not await_market_data(app, symbol, timeout=60):
         app.disconnect()
         return None
