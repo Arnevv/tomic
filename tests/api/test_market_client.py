@@ -145,3 +145,26 @@ def test_request_reuses_known_con_id(monkeypatch):
 
     assert captured and captured[0] == 555
 
+
+def test_request_contract_details_timeout(monkeypatch):
+    mod = importlib.import_module("tomic.api.market_client")
+    client = mod.OptionChainClient("ABC")
+    client.trading_class = "ABC"
+    client.expiries = ["20250101"]
+    client.strikes = [100.0]
+    client._strike_lookup = {100.0: 100.0}
+    client.option_params_complete.set()
+
+    monkeypatch.setattr(client, "reqContractDetails", lambda *a, **k: None, raising=False)
+    monkeypatch.setattr(client.contract_received, "wait", lambda t=None: False)
+    monkeypatch.setattr(
+        mod,
+        "cfg_get",
+        lambda name, default=None: 0 if name in {"CONTRACT_DETAILS_TIMEOUT", "CONTRACT_DETAILS_RETRIES"} else default,
+    )
+
+    client._request_option_data()
+
+    assert client.invalid_contracts
+    assert not client._pending_details
+
