@@ -220,15 +220,6 @@ def run_dataexporter() -> None:
         lambda: run_module("tomic.api.fetch_single_option", "MSFT"),
     )
 
-    menu.add(
-        "Ophalen 1 optie - om alleen optie 7a en 7b aan te roepen",
-        lambda: __import__("tomic.api.fetch_single_option", fromlist=["run_tests", "StepByStepClient"])
-        .run_tests(
-            __import__("tomic.api.fetch_single_option", fromlist=["StepByStepClient"])
-            .StepByStepClient()
-        ),
-    )
-
     menu.run()
 
 def run_trade_management() -> None:
