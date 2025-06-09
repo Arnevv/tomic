@@ -60,3 +60,23 @@ def today() -> date:
     if env:
         return datetime.strptime(env, "%Y-%m-%d").date()
     return date.today()
+
+
+def select_near_atm(
+    strikes: list[float],
+    expiries: list[str],
+    spot_price: float | None,
+    *,
+    width: int = 10,
+    count: int = 4,
+) -> tuple[list[str], list[float]]:
+    """Return the first ``count`` expiries and strikes near ``spot_price``.
+
+    Strikes are included when their rounded value is within ``width`` points of
+    ``round(spot_price)``. This mirrors the subset used in
+    :func:`fetch_single_option.run`.
+    """
+
+    center = round(spot_price or 0)
+    sel_strikes = [s for s in strikes if abs(round(s) - center) <= width]
+    return expiries[:count], sel_strikes
