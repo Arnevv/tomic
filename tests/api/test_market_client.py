@@ -29,3 +29,67 @@ def test_start_requests_requests_stock(monkeypatch):
     req = next(call for call in app.calls if call[0] == "req")
     assert req[2].secType == "STK"
     assert ("cancel", req[1]) in app.calls
+
+
+def test_option_chain_client_events_set():
+    mod = importlib.import_module("tomic.api.market_client")
+    client = mod.OptionChainClient("ABC")
+    client.reqSecDefOptParams = lambda *a, **k: None
+    client.reqMktData = lambda *a, **k: None
+
+    if not hasattr(mod.TickTypeEnum, "LAST"):
+        mod.TickTypeEnum.LAST = 68
+    if not hasattr(mod.TickTypeEnum, "BID"):
+        mod.TickTypeEnum.BID = 1
+    if not hasattr(mod.TickTypeEnum, "DELAYED_LAST"):
+        mod.TickTypeEnum.DELAYED_LAST = 69
+    if not hasattr(mod.TickTypeEnum, "ASK"):
+        mod.TickTypeEnum.ASK = 2
+    if not hasattr(mod.TickTypeEnum, "DELAYED_BID"):
+        mod.TickTypeEnum.DELAYED_BID = 3
+    if not hasattr(mod.TickTypeEnum, "DELAYED_ASK"):
+        mod.TickTypeEnum.DELAYED_ASK = 4
+    if not hasattr(mod.TickTypeEnum, "toStr"):
+        mod.TickTypeEnum.toStr = classmethod(lambda cls, v: str(v))
+
+    client._spot_req_id = 1
+    client.spot_event.clear()
+    client.tickPrice(1, mod.TickTypeEnum.LAST, 10.0, None)
+    assert client.spot_event.is_set()
+
+    details = types.SimpleNamespace(
+        contract=types.SimpleNamespace(
+            secType="STK",
+            conId=2,
+            tradingClass="ABC",
+            primaryExchange="SMART",
+        )
+    )
+    client.details_event.clear()
+    client.contractDetails(2, details)
+    assert client.details_event.is_set()
+
+    req_id = client._next_id()
+    client._pending_details[req_id] = mod.OptionContract("ABC", "20250101", 100.0, "C")
+    opt_details = types.SimpleNamespace(
+        contract=types.SimpleNamespace(
+            secType="OPT",
+            conId=123,
+            symbol="ABC",
+            lastTradeDateOrContractMonth="20250101",
+            strike=100.0,
+            right="C",
+            exchange="SMART",
+            primaryExchange="SMART",
+            currency="USD",
+            tradingClass="ABC",
+            multiplier="100",
+        )
+    )
+    client.contract_received.clear()
+    client.contractDetails(req_id, opt_details)
+    assert client.contract_received.is_set()
+
+    client.market_event.clear()
+    client.tickPrice(req_id, mod.TickTypeEnum.BID, 1.2, None)
+    assert client.market_event.is_set()
