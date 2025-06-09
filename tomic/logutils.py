@@ -107,6 +107,13 @@ def trace_calls(func: Callable[..., T]) -> Callable[..., T]:
 
     @wraps(func)
     def wrapper(*args: Any, **kwargs: Any) -> T:
+        debug_env = os.getenv("TOMIC_DEBUG", "0")
+        level_name = os.getenv("TOMIC_LOG_LEVEL", cfg_get("LOG_LEVEL", "INFO"))
+        is_debug = debug_env not in {"0", "", "false", "False"} or level_name.upper() == "DEBUG"
+
+        if not is_debug:
+            return func(*args, **kwargs)
+
         def tracer(frame, event, arg):
             if event not in {"call", "return"}:
                 return tracer
