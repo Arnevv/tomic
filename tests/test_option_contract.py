@@ -32,3 +32,18 @@ def test_con_id_roundtrip():
     restored = mod.OptionContract.from_ib(contract)
     assert restored.con_id == 42
 
+
+def test_multiplier_roundtrip():
+    mod = importlib.import_module("tomic.models")
+    info = mod.OptionContract(
+        "ABC",
+        "20250101",
+        100.0,
+        "C",
+        multiplier="50",
+    )
+    contract = info.to_ib()
+    assert contract.multiplier == "50"
+    restored = mod.OptionContract.from_ib(contract)
+    assert restored.multiplier == "50"
+
