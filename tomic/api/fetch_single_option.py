@@ -107,6 +107,9 @@ class StepByStepClient(EWrapper, EClient):
                 "strike": con.strike,
                 "right": con.right,
             })
+            logger.info(
+                f"[contractDetails] {con.symbol} {con.lastTradeDateOrContractMonth} {con.strike} {con.right} conId={con.conId}"
+            )
             self.reqMktData(reqId, con, "", False, False, [])
             logger.info(f"✅ contractDetails ontvangen voor reqId {reqId} ({con.localSymbol})")
             self.contract_received.set()
