@@ -216,8 +216,8 @@ def run_dataexporter() -> None:
         option_lookup_default,
     )
     menu.add(
-        "Ophalen 1 optie - test",
-        lambda: run_module("tomic.api.fetch_single_option", "MSFT"),
+        "Ophalen 1 optie volgens documentatie",
+        lambda: run_module("tomic.api.fetch_single_option_documentation"),
     )
 
     menu.run()
