@@ -93,3 +93,26 @@ def test_option_chain_client_events_set():
     client.market_event.clear()
     client.tickPrice(req_id, mod.TickTypeEnum.BID, 1.2, None)
     assert client.market_event.is_set()
+
+
+def test_request_skips_without_details(monkeypatch):
+    mod = importlib.import_module("tomic.api.market_client")
+    client = mod.OptionChainClient("ABC")
+    client.trading_class = "ABC"
+    client.expiries = ["20250101"]
+    client.strikes = [100.0]
+    client._strike_lookup = {100.0: 100.0}
+    client.option_params_complete.set()
+
+    calls = []
+
+    def fake_reqContractDetails(reqId, contract):
+        client.contract_received.set()
+
+    monkeypatch.setattr(client, "reqContractDetails", fake_reqContractDetails, raising=False)
+    monkeypatch.setattr(client, "reqMktData", lambda *a, **k: calls.append(a), raising=False)
+
+    client._request_option_data()
+    assert calls == []
+    assert client.invalid_contracts
+    assert not client._pending_details
