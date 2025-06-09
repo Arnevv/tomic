@@ -155,6 +155,10 @@ class OptionChainClient(MarketClient):
         # Voor synchronisatie van option param callback
         self.option_params_complete = threading.Event()
         self._logged_data: set[int] = set()
+        self._step6_logged = False
+        self._step7_logged = False
+        self._step8_logged = False
+        self._step9_logged = False
 
     # IB callbacks ------------------------------------------------
     @log_result
@@ -176,6 +180,9 @@ class OptionChainClient(MarketClient):
             )
 
         elif reqId in self._pending_details:
+            if not self._step8_logged:
+                logger.info("▶️ START stap 8 - Callback: contractDetails() voor opties")
+                self._step8_logged = True
             logger.debug(
                 f"contractDetails received for reqId={reqId} conId={con.conId}"
             )
@@ -243,6 +250,11 @@ class OptionChainClient(MarketClient):
             )
             return
 
+        if not self._step6_logged:
+            logger.info(
+                "▶️ START stap 6 - Selectie van relevante expiries + strikes (binnen ±10 pts spot)"
+            )
+            self._step6_logged = True
         future = filter_future_expiries(expirations)
         self.monthlies = extract_monthlies(future, 3)
         self.weeklies = extract_weeklies(future, 4)
@@ -304,6 +316,11 @@ class OptionChainClient(MarketClient):
         rec["vega"] = vega
         rec["theta"] = theta
         if reqId not in self._logged_data:
+            if not self._step9_logged:
+                logger.info(
+                    "▶️ START stap 9 - Ontvangen van market data (bid/ask/Greeks)"
+                )
+                self._step9_logged = True
             logger.info(f"✅ Marktdata ontvangen voor reqId {reqId}")
             self._logged_data.add(reqId)
         logger.debug(
@@ -331,6 +348,11 @@ class OptionChainClient(MarketClient):
         if price == -1 and tickType in (TickTypeEnum.BID, TickTypeEnum.ASK):
             self.invalid_contracts.add(reqId)
         if price != -1 and tickType in (TickTypeEnum.BID, TickTypeEnum.ASK) and reqId not in self._logged_data:
+            if not self._step9_logged:
+                logger.info(
+                    "▶️ START stap 9 - Ontvangen van market data (bid/ask/Greeks)"
+                )
+                self._step9_logged = True
             logger.info(f"✅ Marktdata ontvangen voor reqId {reqId}")
             self._logged_data.add(reqId)
         logger.debug(
@@ -413,6 +435,11 @@ class OptionChainClient(MarketClient):
         logger.debug(
             f"Requesting option data for expiries={self.expiries} strikes={self.strikes}"
         )
+        if not self._step7_logged:
+            logger.info(
+                "▶️ START stap 7 - Per combinatie optiecontract bouwen en reqContractDetails()"
+            )
+            self._step7_logged = True
         for expiry in self.expiries:
             for strike in self.strikes:
                 actual = self._strike_lookup.get(strike, strike)
