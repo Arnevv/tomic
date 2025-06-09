@@ -1,17 +1,26 @@
 from __future__ import annotations
 
 import csv
+import os
 import sys
 from typing import List, Dict
 
 import requests
 
-BASE_URL = "http://localhost:5000/v1/api"
+try:  # Handle minimal stubs without requests.exceptions
+    from requests.exceptions import RequestException
+except Exception:  # pragma: no cover - for test stubs
+    RequestException = Exception
+
+# Allow overriding the Web API base URL via environment variable
+BASE_URL = os.environ.get("TOMIC_WEB_API_URL", "http://localhost:5000/v1/api")
 
 
 def fetch_contracts(symbol: str, expiry: str, base_url: str = BASE_URL) -> List[Dict]:
     """Fetch option contracts for ``symbol`` and ``expiry`` via WebAPI."""
-    r = requests.get(f"{base_url}/iserver/secdef/search", params={"symbol": symbol})
+    r = requests.get(
+        f"{base_url}/iserver/secdef/search", params={"symbol": symbol}
+    )
     r.raise_for_status()
     search = r.json()
     if not search:
@@ -33,7 +42,9 @@ def fetch_contracts(symbol: str, expiry: str, base_url: str = BASE_URL) -> List[
                 "strike": strike,
                 "right": right,
             }
-            info_resp = requests.get(f"{base_url}/iserver/secdef/info", params=params)
+            info_resp = requests.get(
+                f"{base_url}/iserver/secdef/info", params=params
+            )
             info_resp.raise_for_status()
             info = info_resp.json()
             if isinstance(info, list):
@@ -65,7 +76,10 @@ def save_contracts(rows: List[Dict], path: str) -> None:
 
 def run(symbol: str = "AAPL", expiry: str = "2025-06-20") -> str:
     """Fetch option contracts and save them to ``MayContracts.csv``."""
-    rows = fetch_contracts(symbol, expiry)
+    try:
+        rows = fetch_contracts(symbol, expiry)
+    except RequestException as exc:
+        raise SystemExit(f"❌ Kan geen verbinding maken met de Web API: {exc}")
     output = "MayContracts.csv"
     save_contracts(rows, output)
     return output
