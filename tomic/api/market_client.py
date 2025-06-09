@@ -246,7 +246,8 @@ class OptionChainClient(MarketClient):
         # Stop als spot_price nog steeds ontbreekt
         if self.spot_price is None:
             logger.error(
-                "Spot price not available after timeout. Skipping option data request."
+                "❌ FAIL stap 3: Spot price not available after timeout. "
+                "Skipping option data request."
             )
             return
 
@@ -405,7 +406,7 @@ class OptionChainClient(MarketClient):
             self.cancelMktData(spot_id)
 
         if self.spot_price is None:
-            logger.error("❌ Spot price not available after all retries")
+            logger.error("❌ FAIL stap 3: Spot price not available after all retries")
 
         if self.con_id is None:
             logger.info("▶️ START stap 4 - ContractDetails ophalen voor STK")
@@ -418,7 +419,7 @@ class OptionChainClient(MarketClient):
         # Wait until all option parameters have been received before
         # requesting option market data
         if not self.option_params_complete.wait(timeout=20):
-            logger.error("Timeout waiting for option parameters")
+            logger.error("❌ FAIL stap 5: Timeout waiting for option parameters")
             return
 
         self._request_option_data()
