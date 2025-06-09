@@ -225,6 +225,10 @@ def run_dataexporter() -> None:
         "Ophalen 1 optie single script",
         lambda: run_module("tomic.api.fetch_single_option", "MSFT"),
     )
+    menu.add(
+        "Ophalen 1 optie volgens documentatie",
+        lambda: _fetch_option_doc(),
+    )
 
     menu.run()
 

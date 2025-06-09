@@ -25,7 +25,12 @@ client_stub.start_app = lambda *a, **k: None
 client_stub.await_market_data = lambda *a, **k: True
 sys.modules.setdefault("tomic.api.market_client", client_stub)
 
-from tomic.api.market_export import _write_option_chain, _HEADERS_CHAIN
+from tomic.api.market_export import (
+    _write_option_chain,
+    _write_option_chain_simple,
+    _HEADERS_CHAIN,
+    _HEADERS_SIMPLE,
+)
 
 
 def test_write_option_chain_skips_invalid(tmp_path):
@@ -202,3 +207,49 @@ def test_fetch_market_metrics_includes_new_fields(monkeypatch):
     assert result["vix"] == 17.2
     assert result["term_m1_m2"] == -0.4
     assert result["term_m1_m3"] == -0.9
+
+
+def test_write_option_chain_simple(tmp_path):
+    market_data = {
+        1: {"expiry": "20240101", "right": "C", "strike": 100, "bid": 1.0, "ask": 1.2},
+        2: {"expiry": "20240101", "right": "P", "strike": 90, "bid": 0.8, "ask": 1.0},
+        3: {"expiry": "20240101", "right": "C", "strike": 110, "bid": None, "ask": None},
+    }
+    app = SimpleNamespace(
+        market_data=market_data,
+        invalid_contracts={3},
+        _spot_req_id=1,
+    )
+
+    _write_option_chain_simple(app, "ABC", str(tmp_path), "123")
+
+    path = tmp_path / "option_chain_ABC_123.csv"
+    with open(path, newline="") as f:
+        rows = list(csv.reader(f))
+
+    assert rows[0] == _HEADERS_SIMPLE
+    assert len(rows) == 3 - 1  # skip spot id and invalid/no bid/ask
+
+
+def test_export_option_chain_simple_flag(monkeypatch, tmp_path):
+    import importlib
+
+    mod = importlib.reload(importlib.import_module("tomic.api.market_export"))
+
+    dummy_app = SimpleNamespace(market_data={}, invalid_contracts=set(), disconnect=lambda: None)
+
+    monkeypatch.setattr(mod, "OptionChainClient", lambda sym: dummy_app)
+    monkeypatch.setattr(mod, "start_app", lambda app: None)
+    monkeypatch.setattr(mod, "await_market_data", lambda app, symbol, timeout=60: True)
+
+    called = []
+    monkeypatch.setattr(
+        mod,
+        "_write_option_chain_simple",
+        lambda app, sym, out, ts: called.append((sym, out)),
+    )
+    monkeypatch.setattr(mod, "_write_option_chain", lambda *a, **k: None)
+
+    mod.export_option_chain("XYZ", str(tmp_path), simple=True)
+
+    assert called == [("XYZ", str(tmp_path))]

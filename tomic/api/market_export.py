@@ -52,6 +52,20 @@ _HEADERS_METRICS = [
     "Avg_Parity_Deviation",
 ]
 
+_HEADERS_SIMPLE = [
+    "Symbol",
+    "Expiry",
+    "Strike",
+    "Type",
+    "Bid",
+    "Ask",
+    "IV",
+    "Delta",
+    "Gamma",
+    "Vega",
+    "Theta",
+]
+
 
 @log_result
 def _write_option_chain(
@@ -167,6 +181,41 @@ def _write_option_chain(
 
 
 @log_result
+def _write_option_chain_simple(
+    app: MarketClient, symbol: str, export_dir: str, timestamp: str
+) -> None:
+    """Write a basic option chain without parity calculations."""
+
+    path = os.path.join(export_dir, f"option_chain_{symbol}_{timestamp}.csv")
+    with open(path, "w", newline="") as file:
+        writer = csv.writer(file)
+        writer.writerow(_HEADERS_SIMPLE)
+        for req_id, rec in app.market_data.items():
+            if req_id == getattr(app, "_spot_req_id", None):
+                continue
+            if req_id in getattr(app, "invalid_contracts", set()):
+                continue
+            if rec.get("bid") is None and rec.get("ask") is None:
+                continue
+            writer.writerow(
+                [
+                    symbol,
+                    rec.get("expiry"),
+                    rec.get("strike"),
+                    rec.get("right"),
+                    rec.get("bid"),
+                    rec.get("ask"),
+                    rec.get("iv"),
+                    rec.get("delta"),
+                    rec.get("gamma"),
+                    rec.get("vega"),
+                    rec.get("theta"),
+                ]
+            )
+    logger.info(f"✅ [stap 10] CSV opgeslagen als: {path}")
+
+
+@log_result
 def _write_metrics_csv(
     metrics: MarketMetrics,
     symbol: str,
@@ -232,7 +281,9 @@ def export_market_metrics(
 
 
 @log_result
-def export_option_chain(symbol: str, output_dir: str | None = None) -> float | None:
+def export_option_chain(
+    symbol: str, output_dir: str | None = None, *, simple: bool = False
+) -> float | None:
     """Export only the option chain for ``symbol`` to a CSV file."""
     logger.info("▶️ START stap 1 - Invoer van symbool")
     symbol = symbol.strip().upper()
@@ -253,7 +304,11 @@ def export_option_chain(symbol: str, output_dir: str | None = None) -> float | N
         export_dir = output_dir
     os.makedirs(export_dir, exist_ok=True)
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    avg_parity = _write_option_chain(app, symbol, export_dir, timestamp)
+    if simple:
+        _write_option_chain_simple(app, symbol, export_dir, timestamp)
+        avg_parity = None
+    else:
+        avg_parity = _write_option_chain(app, symbol, export_dir, timestamp)
     app.disconnect()
     time.sleep(1)
     logger.success(f"✅ Optieketen verwerkt voor {symbol}")
