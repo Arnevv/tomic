@@ -409,15 +409,21 @@ def run_settings_menu() -> None:
             cfg.update({"DEFAULT_SYMBOLS": symbols})
 
     def change_log_level() -> None:
-        print("Beschikbare log-niveaus:")
-        for name in LOG_LEVEL_CHOICES:
-            print(f"  {name}")
-        level = prompt(f"Log level ({cfg.CONFIG.LOG_LEVEL}): ").upper()
-        if level and level in LOG_LEVEL_CHOICES:
-            cfg.update({"LOG_LEVEL": level})
+        sub = Menu("Kies log-niveau")
+
+        def set_info() -> None:
+            cfg.update({"LOG_LEVEL": "INFO"})
+            os.environ["TOMIC_LOG_LEVEL"] = "INFO"
             setup_logging()
-        elif level:
-            print("❌ Ongeldig log-niveau")
+
+        def set_debug() -> None:
+            cfg.update({"LOG_LEVEL": "DEBUG"})
+            os.environ["TOMIC_LOG_LEVEL"] = "DEBUG"
+            setup_logging()
+
+        sub.add("info", set_info)
+        sub.add("debug", set_debug)
+        sub.run()
 
     def change_rate() -> None:
         rate_str = prompt(f"Rente ({cfg.CONFIG.INTEREST_RATE}): ")
@@ -433,7 +439,7 @@ def run_settings_menu() -> None:
     menu.add("Toon huidige configuratie", show_config)
     menu.add("Pas IB host/poort aan", change_host)
     menu.add("Pas default symbols aan", change_symbols)
-    menu.add(f"Pas log-niveau aan ({', '.join(LOG_LEVEL_CHOICES)})", change_log_level)
+    menu.add("Pas log-niveau aan (INFO/DEBUG)", change_log_level)
     menu.add("Pas interest rate aan", change_rate)
     menu.add("Test TWS-verbinding", check_ib_connection)
     menu.add("Haal TWS API-versie op", print_api_version)
