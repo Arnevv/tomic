@@ -24,6 +24,7 @@ class OptionContract:
     multiplier: str = "100"
     trading_class: Optional[str] = None
     primary_exchange: Optional[str] = None
+    con_id: Optional[int] = None
 
     def to_ib(self) -> Contract:
         """Create an IB ``Contract`` object."""
@@ -37,6 +38,8 @@ class OptionContract:
         contract.strike = self.strike
         contract.right = self.right
         contract.multiplier = "100"
+        if self.con_id is not None:
+            contract.conId = self.con_id
         if not self.trading_class:
             logger.warning(
                 f"⚠️ tradingClass ontbreekt voor {self.symbol} - fallback naar {self.symbol.upper()}"
@@ -73,6 +76,7 @@ class OptionContract:
                 "primaryExchange",
                 getattr(contract, "exchange", "SMART"),
             ),
+            con_id=getattr(contract, "conId", None),
         )
 
 

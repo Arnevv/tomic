@@ -160,6 +160,7 @@ class OptionChainClient(MarketClient):
 
         # ContractDetails info for successfully validated options
         self.option_info: Dict[int, Any] = {}
+        self.con_ids: Dict[tuple[str, float, str], int] = {}
 
         # Voor synchronisatie van option param callback
         self.option_params_complete = threading.Event()
@@ -206,6 +207,10 @@ class OptionChainClient(MarketClient):
             )
             self.option_info[reqId] = details
             self.market_data.setdefault(reqId, {})["conId"] = con.conId
+            info = self._pending_details.get(reqId)
+            if info is not None:
+                info.con_id = con.conId
+                self.con_ids[(info.expiry, info.strike, info.right)] = con.conId
             # Log contract fields returned by IB before requesting market data
             logger.debug(
                 f"Using contract for reqId={reqId}: "
@@ -515,6 +520,7 @@ class OptionChainClient(MarketClient):
                         right,
                         trading_class=self.trading_class,
                         primary_exchange=self.primary_exchange,
+                        con_id=self.con_ids.get((expiry, actual, right)),
                     )
                     logger.debug(
                         f"Building option contract: {info.symbol} {expiry} {actual} {right}"
