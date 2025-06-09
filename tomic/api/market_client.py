@@ -63,6 +63,7 @@ class MarketClient(BaseIBApp):
         self.connected = threading.Event()
         self.data_event = threading.Event()
         self._req_id = 50
+        self._spot_req_id: int | None = None
 
     # Helpers -----------------------------------------------------
     @log_result
@@ -95,6 +96,7 @@ class MarketClient(BaseIBApp):
         req_id = self._next_id()
         logger.debug(f"Requesting stock quote for symbol={contract.symbol} id={req_id}")
         self.reqMktData(req_id, contract, "", False, False, [])
+        self._spot_req_id = req_id
         timeout = cfg_get("SPOT_TIMEOUT", 10)
         self.data_event.clear()
         self.data_event.wait(timeout)
@@ -104,7 +106,7 @@ class MarketClient(BaseIBApp):
     # IB callbacks -----------------------------------------------------
     def nextValidId(self, orderId: int) -> None:  # noqa: N802
         """Called once the connection is established."""
-        logger.info(f"✅ Verbonden. OrderId: {orderId}")
+        logger.info(f"✅ [stap 2] Verbonden. OrderId: {orderId}")
         self.connected.set()
         try:
             self.start_requests()
@@ -117,7 +119,7 @@ class MarketClient(BaseIBApp):
         if tickType in (TickTypeEnum.LAST, TickTypeEnum.DELAYED_LAST):
             self.spot_price = price
             if price > 0:
-                logger.info(f"✅ Spotprijs: {price}")
+                logger.info(f"✅ [stap 3] Spotprijs: {price}")
         if tickType in (
             TickTypeEnum.LAST,
             TickTypeEnum.BID,
@@ -172,7 +174,7 @@ class OptionChainClient(MarketClient):
             self.stock_con_id = con.conId
             self.trading_class = con.tradingClass or self.symbol
             logger.info(
-                f"✅ ConId: {self.con_id}, TradingClass: {self.trading_class}. primaryExchange: {con.primaryExchange}"
+                f"✅ [stap 4] ConId: {self.con_id}, TradingClass: {self.trading_class}. primaryExchange: {con.primaryExchange}"
             )
             logger.info("▶️ START stap 5 - reqSecDefOptParams() voor optieparameters")
             self.reqSecDefOptParams(
@@ -316,13 +318,29 @@ class OptionChainClient(MarketClient):
         rec["gamma"] = gamma
         rec["vega"] = vega
         rec["theta"] = theta
-        if reqId not in self._logged_data:
+        if reqId != self._spot_req_id and reqId not in self._logged_data:
             if not self._step9_logged:
                 logger.info(
                     "▶️ START stap 9 - Ontvangen van market data (bid/ask/Greeks)"
                 )
                 self._step9_logged = True
-            logger.info(f"✅ Marktdata ontvangen voor reqId {reqId}")
+            details = []
+            if "bid" in rec:
+                details.append(f"bid={rec['bid']}")
+            if "ask" in rec:
+                details.append(f"ask={rec['ask']}")
+            if "iv" in rec:
+                details.append(f"iv={rec['iv']}")
+            if "delta" in rec:
+                details.append(f"delta={rec['delta']}")
+            if "gamma" in rec:
+                details.append(f"gamma={rec['gamma']}")
+            if "vega" in rec:
+                details.append(f"vega={rec['vega']}")
+            if "theta" in rec:
+                details.append(f"theta={rec['theta']}")
+            info = ", ".join(details)
+            logger.info(f"✅ [stap 9] Marktdata ontvangen voor reqId {reqId}: {info}")
             self._logged_data.add(reqId)
         logger.debug(
             "tickOptionComputation reqId={} type={} iv={} delta={} gamma={} vega={} theta={}".format(
@@ -348,13 +366,24 @@ class OptionChainClient(MarketClient):
             rec["ask"] = price
         if price == -1 and tickType in (TickTypeEnum.BID, TickTypeEnum.ASK):
             self.invalid_contracts.add(reqId)
-        if price != -1 and tickType in (TickTypeEnum.BID, TickTypeEnum.ASK) and reqId not in self._logged_data:
+        if (
+            price != -1
+            and tickType in (TickTypeEnum.BID, TickTypeEnum.ASK)
+            and reqId not in self._logged_data
+            and reqId != self._spot_req_id
+        ):
             if not self._step9_logged:
                 logger.info(
                     "▶️ START stap 9 - Ontvangen van market data (bid/ask/Greeks)"
                 )
                 self._step9_logged = True
-            logger.info(f"✅ Marktdata ontvangen voor reqId {reqId}")
+            details = []
+            if "bid" in rec:
+                details.append(f"bid={rec['bid']}")
+            if "ask" in rec:
+                details.append(f"ask={rec['ask']}")
+            info = ", ".join(details)
+            logger.info(f"✅ [stap 9] Marktdata ontvangen voor reqId {reqId}: {info}")
             self._logged_data.add(reqId)
         logger.debug(
             f"tickPrice reqId={reqId} type={TickTypeEnum.toStr(tickType)} price={price}"
@@ -386,6 +415,7 @@ class OptionChainClient(MarketClient):
             logger.debug(f"reqMarketDataType({data_type})")
             spot_id = self._next_id()
             self.reqMktData(spot_id, stk, "", False, False, [])
+            self._spot_req_id = spot_id
             logger.debug(
                 f"reqMktData sent: id={spot_id} snapshot=False for stock contract"
             )
