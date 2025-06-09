@@ -226,11 +226,6 @@ def run_dataexporter() -> None:
         lambda: run_module("tomic.api.fetch_single_option", "MSFT"),
     )
 
-    menu.add(
-        "Ophalen 1 optie volgens documentatie",
-        lambda: _fetch_option_doc(),
-    )
-
     menu.run()
 
 def run_trade_management() -> None:
