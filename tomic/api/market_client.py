@@ -157,6 +157,9 @@ class OptionChainClient(MarketClient):
     @log_result
     def contractDetails(self, reqId: int, details):  # noqa: N802
         con = details.contract
+        logger.info(
+            f"contractDetails callback: reqId={reqId}, conId={con.conId}, type={con.secType}"
+        )
         if con.secType == "STK" and self.con_id is None:
             self.con_id = con.conId
             self.stock_con_id = con.conId
@@ -403,6 +406,9 @@ class OptionChainClient(MarketClient):
                     )
                     c = info.to_ib()
                     req_id = self._next_id()
+                    logger.debug(
+                        f"reqId for {c.symbol} {c.lastTradeDateOrContractMonth} {c.strike} {c.right} is {req_id}"
+                    )
                     self.market_data[req_id] = {
                         "expiry": expiry,
                         "strike": strike,
@@ -411,6 +417,10 @@ class OptionChainClient(MarketClient):
                     self._pending_details[req_id] = info
                     # Request contract details first to validate the option
                     self.reqContractDetails(req_id, c)
+
+        logger.info(
+            f"Aantal contractdetails aangevraagd: {len(self._pending_details)}"
+        )
 
 
 @log_result
