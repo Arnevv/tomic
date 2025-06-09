@@ -109,6 +109,9 @@ class StepByStepClient(EWrapper, EClient):
                 "strike": con.strike,
                 "right": con.right,
             })
+            logger.info(
+                f"[contractDetails] {con.symbol} {con.lastTradeDateOrContractMonth} {con.strike} {con.right} conId={con.conId}"
+            )
             self.reqMktData(reqId, con, "", False, False, [])
             logger.info(f"✅ contractDetails ontvangen voor reqId {reqId} ({con.localSymbol})")
             self.contract_received.set()
@@ -319,6 +322,9 @@ def run(symbol: str, output_dir: str) -> None:
                 c.multiplier = app.option_multiplier
                 req_id = app._next_id()
                 app.contract_received.clear()
+                logger.info(
+                    f"➡️ reqContractDetails {req_id}: expiry={expiry}, strike={strike}, right={right}, tradingClass={c.tradingClass}"
+                )
                 app.reqContractDetails(req_id, c)
                 if not app.contract_received.wait(2):
                     logger.warning(f"❌ contractDetails MISSING voor reqId {req_id}")
