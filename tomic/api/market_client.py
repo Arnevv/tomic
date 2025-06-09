@@ -231,7 +231,11 @@ class OptionChainClient(MarketClient):
         if self.expiries:
             return
 
-        logger.debug(f"spot_price={self.spot_price}, expirations={expirations[:5]}")
+        # ``expirations`` is returned as a ``set`` by the IB API.  It cannot be
+        # sliced directly, so convert it to a sorted list first for logging and
+        # further processing.
+        exp_list = sorted(expirations)
+        logger.debug(f"spot_price={self.spot_price}, expirations={exp_list[:5]}")
 
         logger.info(
             f"✅ Optieparameters ontvangen: {len(expirations)} expiries, {len(strikes)} strikes"
@@ -258,7 +262,7 @@ class OptionChainClient(MarketClient):
                 "▶️ START stap 6 - Selectie van relevante expiries + strikes (binnen ±10 pts spot)"
             )
             self._step6_logged = True
-        future = filter_future_expiries(expirations)
+        future = filter_future_expiries(exp_list)
         self.monthlies = extract_monthlies(future, 3)
         self.weeklies = extract_weeklies(future, 4)
         unique = {
