@@ -160,7 +160,7 @@ def _write_option_chain(
                     rec.get("parity_deviation"),
                 ]
             )
-    logger.info(f"✅ Optieketen opgeslagen in: {chain_file}")
+    logger.info(f"✅ [stap 10] Optieketen opgeslagen in: {chain_file}")
     if parity_values:
         return round(sum(parity_values) / len(parity_values), 4)
     return None
@@ -194,7 +194,7 @@ def _write_metrics_csv(
         writer = csv.writer(file)
         writer.writerow(_HEADERS_METRICS)
         writer.writerow(values_metrics)
-    logger.info(f"✅ CSV opgeslagen als: {metrics_file}")
+    logger.info(f"✅ [stap 10] CSV opgeslagen als: {metrics_file}")
     return pd.DataFrame([values_metrics], columns=_HEADERS_METRICS)
 
 
@@ -239,7 +239,7 @@ def export_option_chain(symbol: str, output_dir: str | None = None) -> float | N
     if not symbol or not symbol.replace(".", "").isalnum():
         logger.error("❌ FAIL stap 1: ongeldig symbool.")
         return None
-    logger.info(f"✅ {symbol} ontvangen, ga nu aan de slag!")
+    logger.info(f"✅ [stap 1] {symbol} ontvangen, ga nu aan de slag!")
     logger.info("▶️ START stap 2 - Initialiseren client + verbinden met IB")
     app = OptionChainClient(symbol)
     start_app(app)
@@ -270,7 +270,7 @@ def export_market_data(
     if not symbol or not symbol.replace(".", "").isalnum():
         logger.error("❌ FAIL stap 1: ongeldig symbool.")
         return None
-    logger.info(f"✅ {symbol} ontvangen, ga nu aan de slag!")
+    logger.info(f"✅ [stap 1] {symbol} ontvangen, ga nu aan de slag!")
     logger.info("▶️ START stap 2 - Initialiseren client + verbinden met IB")
     app = OptionChainClient(symbol)
     start_app(app)
