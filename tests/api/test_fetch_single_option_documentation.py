@@ -42,7 +42,7 @@ def test_dataexporter_menu_invokes_new_script(monkeypatch):
     mod = importlib.import_module("tomic.cli.controlpanel")
     called = []
     monkeypatch.setattr(mod, "run_module", lambda name, *a: called.append(name))
-    inputs = iter(["5", "6"])
+    inputs = iter(["5", "6", "7"])
     monkeypatch.setattr("builtins.input", lambda *a: next(inputs))
     mod.run_dataexporter()
     assert "tomic.api.fetch_single_option_documentation" in called

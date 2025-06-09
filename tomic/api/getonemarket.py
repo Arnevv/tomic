@@ -10,7 +10,11 @@ from .ib_connection import connect_ib
 @log_result
 def run(symbol: str, output_dir: str | None = None) -> bool:
     setup_logging()
-    export_market_data(symbol.strip().upper(), output_dir)
+    app = connect_ib()
+    try:
+        export_market_data(symbol.strip().upper(), output_dir)
+    finally:
+        app.disconnect()
     return True
 
 
