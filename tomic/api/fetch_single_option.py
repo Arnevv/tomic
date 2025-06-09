@@ -12,6 +12,7 @@ from ibapi.client import EClient
 from ibapi.contract import Contract
 from ibapi.wrapper import EWrapper
 from ibapi.ticktype import TickTypeEnum
+from ibapi.contract import ContractDetails
 from loguru import logger
 
 
@@ -34,9 +35,9 @@ class StepByStepClient(EWrapper, EClient):
         self.all_expiries: List[str] = []
         self.strikes: List[float] = []
         self.expiries: List[str] = []
-        self.option_info: Dict[int, Dict[str, object]] = {}
+        self.option_info: Dict[int, ContractDetails] = {}
         self.market_data: Dict[int, Dict[str, object]] = {}
-        self.conid_map: Dict[tuple, int] = {}
+        self.contract_received: threading.Event = threading.Event()
 
     def _next_id(self) -> int:
         self.req_id += 1
@@ -58,7 +59,7 @@ class StepByStepClient(EWrapper, EClient):
             if price > 0:
                 self.spot_price = price
                 self.spot_event.set()
-        else:
+        elif reqId != 1:
             rec = self.market_data.setdefault(reqId, {})
             if tickType == TickTypeEnum.BID:
                 rec["bid"] = price
@@ -90,17 +91,28 @@ class StepByStepClient(EWrapper, EClient):
         rec["vega"] = vega
         rec["theta"] = theta
 
-    def contractDetails(self, reqId: int, details) -> None:
+    def contractDetails(self, reqId: int, details: ContractDetails) -> None:
         con = details.contract
         if con.secType == "STK":
             self.con_id = con.conId
             self.trading_class = con.tradingClass or self.symbol
             self.primary_exchange = con.primaryExchange or "SMART"
             self.details_event.set()
-        elif reqId in self.option_info:
-            self.market_data.setdefault(reqId, {})["conId"] = con.conId
+        elif con.secType == "OPT":
+            self.option_info[reqId] = details
+            rec = self.market_data.setdefault(reqId, {})
+            rec.update({
+                "conId": con.conId,
+                "expiry": con.lastTradeDateOrContractMonth,
+                "strike": con.strike,
+                "right": con.right,
+            })
             self.reqMktData(reqId, con, "", False, False, [])
             logger.info(f"✅ contractDetails ontvangen voor reqId {reqId} ({con.localSymbol})")
+            self.contract_received.set()
+
+    def contractDetailsEnd(self, reqId: int):
+        self.contract_received.set()
 
     def securityDefinitionOptionParameter(
         self,
@@ -118,6 +130,54 @@ class StepByStepClient(EWrapper, EClient):
             self.params_event.set()
 
 
+# --- geen wijzigingen nodig voor export_csv en main (deze blijven zoals ze zijn) ---
+
+# --- Stap 7a: test met volledig opgebouwd contract ---
+def test_contractdetails_manueel(client: StepByStepClient):
+    logger.info("▶️ START stap 7a - Test contractDetails met volledige parameters")
+    c = Contract()
+    c.symbol = "MSFT"
+    c.secType = "OPT"
+    c.exchange = "SMART"
+    c.currency = "USD"
+    c.lastTradeDateOrContractMonth = "20250620"
+    c.strike = 472.5
+    c.right = "C"
+    c.multiplier = "100"
+    c.tradingClass = "MSFT"
+    req_id = client._next_id()
+    client.reqContractDetails(req_id, c)
+    client.contract_received.wait(timeout=10)
+    logger.info("✅ Test stap 7a afgerond")
+
+
+# --- Stap 7b: test met alleen conId ---
+def test_contractdetails_conid(client: StepByStepClient):
+    logger.info("▶️ START stap 7b - Test contractDetails met alleen conId")
+    c = Contract()
+    c.conId = 785501851
+    c.secType = "OPT"
+    c.exchange = "SMART"
+    c.currency = "USD"
+    req_id = client._next_id()
+    client.reqContractDetails(req_id, c)
+    client.contract_received.wait(timeout=10)
+    logger.info("✅ Test stap 7b afgerond")
+
+
+# --- Aangepaste run-functie ---
+def run_tests():
+    logger.info("🧪 Testmodus actief - stap 7 tijdelijk overgeslagen")
+    client = StepByStepClient(symbol="MSFT")
+    client.connect("127.0.0.1", 7497, 999)
+    client_thread = threading.Thread(target=client.run, daemon=True)
+    client_thread.start()
+    client.connected.wait(timeout=5)
+    test_contractdetails_manueel(client)
+    test_contractdetails_conid(client)
+    client.disconnect()
+
+
 def export_csv(app: StepByStepClient, output_dir: str) -> None:
     os.makedirs(output_dir, exist_ok=True)
     path = os.path.join(
@@ -128,7 +188,9 @@ def export_csv(app: StepByStepClient, output_dir: str) -> None:
         writer = csv.writer(f)
         writer.writerow([
             "Symbol", "Expiry", "Strike", "Type", "Bid", "Ask", "IV", "Delta", "Gamma", "Vega", "Theta"])
-        for rec in app.market_data.values():
+        for req_id, rec in app.market_data.items():
+            if req_id == 1:
+                continue  # skip spotprijs request
             if rec.get("bid") is None and rec.get("ask") is None:
                 continue
             writer.writerow([
@@ -187,15 +249,15 @@ def run(symbol: str, output_dir: str) -> None:
 
     logger.info("▶️ START stap 6 - Selectie van relevante expiries en strikes")
     center = round(app.spot_price or 0)
-    app.strikes = [s for s in app.all_strikes if abs(s - center) <= center * 0.05]
-    app.expiries = [e for e in app.all_expiries if (datetime.strptime(e, "%Y%m%d") - datetime.now()).days <= 30]
+    app.strikes = [s for s in app.all_strikes if abs(round(s) - center) <= 10]
+    app.expiries = app.all_expiries[:4]
     if not app.strikes or not app.expiries:
         logger.error("❌ FAIL stap 6: geen geldige strikes/expiries")
         app.disconnect()
         return
     logger.info(f"✅ SUCCES stap 6 - {len(app.expiries)} expiries, {len(app.strikes)} strikes")
 
-    logger.info("▶️ START stap 7 - Optiecontracten bouwen")
+    logger.info("▶️ START stap 7 - Optiecontracten ophalen via IB")
     contracts_requested = 0
     for expiry in app.expiries:
         for strike in app.strikes:
@@ -203,40 +265,25 @@ def run(symbol: str, output_dir: str) -> None:
                 c = Contract()
                 c.symbol = symbol
                 c.secType = "OPT"
-                c.exchange = "SMART"
                 c.currency = "USD"
+                c.exchange = "SMART"
                 c.lastTradeDateOrContractMonth = expiry
                 c.strike = strike
                 c.right = right
-                c.tradingClass = app.trading_class or symbol
-                c.primaryExchange = app.primary_exchange or "SMART"
+                c.tradingClass = app.trading_class
                 req_id = app._next_id()
-                app.option_info[req_id] = {
-                    "expiry": expiry, "strike": strike, "right": right
-                }
+                app.contract_received.clear()
                 app.reqContractDetails(req_id, c)
-                logger.info(f"🟡 reqContractDetails verstuurd voor reqId {req_id}: {symbol} {expiry} {right}{strike} ({c.secType}, exch={c.exchange}, class={c.tradingClass}, primary={c.primaryExchange})")
+                if not app.contract_received.wait(2):
+                    logger.warning(f"❌ contractDetails MISSING voor reqId {req_id}")
                 contracts_requested += 1
-    if contracts_requested == 0:
-        logger.error("❌ FAIL stap 7: geen optiecontracten gegenereerd")
-        app.disconnect()
-        return
-    logger.info(f"✅ SUCCES stap 7 - {contracts_requested} contracten aangevraagd")
+    received = len(app.option_info)
+    logger.info(f"✅ SUCCES stap 7 - {received}/{contracts_requested} contractdetails ontvangen")
 
-    logger.info("▶️ START stap 8 - Wachten op contractdetails voor opties")
-    time.sleep(2)
-    received = len(app.market_data)
-    expected = len(app.option_info)
-    for req_id, meta in app.option_info.items():
-        if req_id in app.market_data:
-            logger.info(f"✅ contractDetails OK voor reqId {req_id}: {meta['expiry']} {meta['right']}{meta['strike']}")
-        else:
-            logger.warning(f"❌ contractDetails MISSING voor reqId {req_id}: {meta['expiry']} {meta['right']}{meta['strike']}")
     if received == 0:
         logger.error("❌ FAIL stap 8: geen geldige optiecontractdetails ontvangen")
         app.disconnect()
         return
-    logger.info(f"✅ SUCCES stap 8 - {received}/{expected} contractdetails ontvangen")
 
     logger.info("▶️ START stap 9 - Ontvangen van market data")
     if not app.market_event.wait(20):
