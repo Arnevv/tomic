@@ -154,6 +154,7 @@ class OptionChainClient(MarketClient):
         self._strike_lookup: dict[float, float] = {}
         self.weeklies: list[str] = []
         self.monthlies: list[str] = []
+        self.multiplier: str = "100"
 
         # Voor foutopsporing van contracten
         self._pending_details: dict[int, OptionContract] = {}
@@ -254,6 +255,8 @@ class OptionChainClient(MarketClient):
     ) -> None:  # noqa: N802
         if self.expiries:
             return
+
+        self.multiplier = multiplier
 
         # ``expirations`` is returned as a ``set`` by the IB API.  It cannot be
         # sliced directly, so convert it to a sorted list first for logging and
@@ -553,7 +556,8 @@ class OptionChainClient(MarketClient):
                         right,
                         trading_class=self.trading_class,
                         primary_exchange=self.primary_exchange,
-                        con_id=self.con_ids.get((expiry, actual, right)),
+                        multiplier=self.multiplier,
+                        con_id=self.con_ids.get((expiry, strike, right)),
                     )
                     logger.debug(
                         f"Building option contract: {info.symbol} {expiry} {actual} {right}"
