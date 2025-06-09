@@ -42,6 +42,8 @@ Stel bovendien exchange en market data type correct in:
 - `contract.exchange = "SMART"` of de gewenste beurs
 - `reqMarketDataType(2)` voor real‑time of `reqMarketDataType(3)` voor delayed
   quotes.
+- Optieketen selectie: de eerste 4 expiries en strikes binnen ±10 punten van de
+  afgeronde spotprijs (zoals gebruikt in `fetch_single_option`).
 
 📂 Projectstructuur
 tomic/

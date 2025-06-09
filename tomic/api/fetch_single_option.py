@@ -15,6 +15,8 @@ from ibapi.ticktype import TickTypeEnum
 from ibapi.contract import ContractDetails
 from loguru import logger
 
+from tomic.utils import select_near_atm
+
 
 class StepByStepClient(EWrapper, EClient):
     def __init__(self, symbol: str) -> None:
@@ -296,9 +298,11 @@ def run(symbol: str, output_dir: str) -> None:
     logger.info(f"✅ SUCCES stap 5 - {len(app.all_expiries)} expiries, {len(app.all_strikes)} strikes")
 
     logger.info("▶️ START stap 6 - Selectie van relevante expiries en strikes")
-    center = round(app.spot_price or 0)
-    app.strikes = [s for s in app.all_strikes if abs(round(s) - center) <= 10]
-    app.expiries = app.all_expiries[:4]
+    app.expiries, app.strikes = select_near_atm(
+        app.all_strikes,
+        app.all_expiries,
+        app.spot_price,
+    )
     if not app.strikes or not app.expiries:
         logger.error("❌ FAIL stap 6: geen geldige strikes/expiries")
         app.disconnect()

@@ -20,11 +20,7 @@ from tomic.config import get as cfg_get
 from tomic.logutils import logger, log_result
 from tomic.cli.daily_vol_scraper import fetch_volatility_metrics
 from tomic.models import OptionContract
-from tomic.utils import (
-    extract_weeklies,
-    extract_monthlies,
-    filter_future_expiries,
-)
+from tomic.utils import select_near_atm
 
 try:  # pragma: no cover - optional dependency during tests
     from ibapi.contract import Contract
@@ -277,22 +273,13 @@ class OptionChainClient(MarketClient):
                 "▶️ START stap 6 - Selectie van relevante expiries + strikes (binnen ±10 pts spot)"
             )
             self._step6_logged = True
-        future = filter_future_expiries(exp_list)
-        self.monthlies = extract_monthlies(future, 3)
-        self.weeklies = extract_weeklies(future, 4)
-        unique = {
-            datetime.strptime(e, "%Y%m%d").date()
-            for e in self.monthlies + self.weeklies
-        }
-        self.expiries = [d.strftime("%Y%m%d") for d in sorted(unique)]
+        self.expiries, near_strikes = select_near_atm(strikes, exp_list, self.spot_price)
         logger.info(f"✅ [stap 6] Geselecteerde expiries: {', '.join(self.expiries)}")
 
-        center = round(self.spot_price or 0)
         strike_map: dict[float, float] = {}
-        for strike in sorted(strikes):
+        for strike in near_strikes:
             rounded = round(strike)
-            if abs(rounded - center) <= 10:
-                strike_map.setdefault(rounded, strike)
+            strike_map.setdefault(rounded, strike)
         self.strikes = sorted(strike_map.keys())
         self._strike_lookup = strike_map
         self.trading_class = tradingClass
