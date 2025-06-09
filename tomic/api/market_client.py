@@ -492,6 +492,39 @@ class OptionChainClient(MarketClient):
 
         self._request_option_data()
 
+    def _request_contract_details(self, contract: Contract, req_id: int) -> bool:
+        """Request contract details with timeout/retries.
+
+        Returns ``True`` when details were received within the configured
+        timeout, otherwise ``False``. The number of retry attempts is
+        controlled via the ``CONTRACT_DETAILS_RETRIES`` config option.
+        """
+
+        timeout = cfg_get("CONTRACT_DETAILS_TIMEOUT", 2)
+        retries = int(cfg_get("CONTRACT_DETAILS_RETRIES", 0))
+
+        for attempt in range(retries + 1):
+            self.contract_received.clear()
+            self.reqContractDetails(req_id, contract)
+            prefix = "✅ [stap 7]" if attempt == 0 else "🔄 retry"
+            logger.info(
+                f"{prefix} reqId {req_id} contract {contract.symbol} "
+                f"{contract.lastTradeDateOrContractMonth} {contract.strike} {contract.right} sent"
+            )
+            logger.debug(
+                f"reqContractDetails attempt {attempt + 1} for: {contract_repr(contract)}"
+            )
+
+            if self.contract_received.wait(timeout) and req_id in self.option_info:
+                return True
+
+            logger.warning(
+                f"❌ contractDetails MISSING voor reqId {req_id} na {timeout}s"
+                f" (attempt {attempt + 1})"
+            )
+
+        return False
+
     @log_result
     def _request_option_data(self) -> None:
         if not self.expiries or not self.strikes or self.trading_class is None:
@@ -536,17 +569,7 @@ class OptionChainClient(MarketClient):
                         "right": right,
                     }
                     self._pending_details[req_id] = info
-                    # Request contract details first to validate the option
-                    self.contract_received.clear()
-                    self.reqContractDetails(req_id, c)
-                    logger.info(
-                        f"✅ [stap 7] reqId {req_id} contract {c.symbol} {c.lastTradeDateOrContractMonth} {c.strike} {c.right} sent"
-                    )
-                    if not self.contract_received.wait(2):
-                        logger.warning(
-                            f"❌ contractDetails MISSING voor reqId {req_id}"
-                        )
-                    if req_id not in self.option_info:
+                    if not self._request_contract_details(c, req_id):
                         logger.warning(
                             f"⚠️ Geen optiecontractdetails voor reqId {req_id}; marktdata overgeslagen"
                         )
