@@ -201,7 +201,7 @@ class OptionChainClient(MarketClient):
             logger.debug(f"reqMktData sent for: {contract_repr(con)}")
             self.reqMktData(reqId, con, "", True, False, [])
             logger.info(
-                f"✅ reqMktData sent for {con.symbol} {con.lastTradeDateOrContractMonth} {con.strike} {con.right}"
+                f"✅ [stap 8] reqMktData sent for {con.symbol} {con.lastTradeDateOrContractMonth} {con.strike} {con.right}"
             )
             self._pending_details.pop(reqId, None)
             logger.debug(
@@ -238,7 +238,7 @@ class OptionChainClient(MarketClient):
         logger.debug(f"spot_price={self.spot_price}, expirations={exp_list[:5]}")
 
         logger.info(
-            f"✅ Optieparameters ontvangen: {len(expirations)} expiries, {len(strikes)} strikes"
+            f"✅ [stap 5] Optieparameters ontvangen: {len(expirations)} expiries, {len(strikes)} strikes"
         )
 
         # Zorg dat spot_price beschikbaar is
@@ -270,7 +270,7 @@ class OptionChainClient(MarketClient):
             for e in self.monthlies + self.weeklies
         }
         self.expiries = [d.strftime("%Y%m%d") for d in sorted(unique)]
-        logger.info(f"✅ Geselecteerde expiries: {', '.join(self.expiries)}")
+        logger.info(f"✅ [stap 6] Geselecteerde expiries: {', '.join(self.expiries)}")
 
         center = round(self.spot_price or 0)
         strike_map: dict[float, float] = {}
@@ -282,7 +282,7 @@ class OptionChainClient(MarketClient):
         self._strike_lookup = strike_map
         self.trading_class = tradingClass
         logger.info(
-            f"✅ Geselecteerde strikes: {', '.join(str(s) for s in self.strikes)}"
+            f"✅ [stap 6] Geselecteerde strikes: {', '.join(str(s) for s in self.strikes)}"
         )
 
     def securityDefinitionOptionParameterEnd(self, reqId: int) -> None:  # noqa: N802
@@ -503,7 +503,7 @@ class OptionChainClient(MarketClient):
                     # Request contract details first to validate the option
                     self.reqContractDetails(req_id, c)
                     logger.info(
-                        f"✅ reqId {req_id} contract {c.symbol} {c.lastTradeDateOrContractMonth} {c.strike} {c.right} sent"
+                        f"✅ [stap 7] reqId {req_id} contract {c.symbol} {c.lastTradeDateOrContractMonth} {c.strike} {c.right} sent"
                     )
 
         logger.debug(
