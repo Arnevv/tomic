@@ -98,13 +98,29 @@ def test_option_chain_client_events_set():
     assert client.market_event.is_set()
 
 
+def test_security_def_option_parameter_records_multiplier():
+    mod = importlib.import_module("tomic.api.market_client")
+    client = mod.OptionChainClient("ABC")
+    client.spot_price = 100.0
+    client.securityDefinitionOptionParameter(
+        1,
+        "SMART",
+        123,
+        "OPTCLS",
+        "25",
+        ["20250101"],
+        [100.0],
+    )
+    assert client.multiplier == "25"
+
+
 def test_request_skips_without_details(monkeypatch):
     mod = importlib.import_module("tomic.api.market_client")
     client = mod.OptionChainClient("ABC")
     client.trading_class = "ABC"
     client.expiries = ["20250101"]
     client.strikes = [100.0]
-    client._strike_lookup = {100.0: 100.0}
+    client._strike_lookup = {100.0: 101.0}
     client.option_params_complete.set()
 
     calls = []
@@ -127,7 +143,7 @@ def test_request_reuses_known_con_id(monkeypatch):
     client.trading_class = "ABC"
     client.expiries = ["20250101"]
     client.strikes = [100.0]
-    client._strike_lookup = {100.0: 100.0}
+    client._strike_lookup = {100.0: 101.0}
     client.option_params_complete.set()
 
     client.con_ids[("20250101", 100.0, "C")] = 555
@@ -144,6 +160,35 @@ def test_request_reuses_known_con_id(monkeypatch):
     client._request_option_data()
 
     assert captured and captured[0] == 555
+
+
+def test_request_uses_stored_multiplier(monkeypatch):
+    mod = importlib.import_module("tomic.api.market_client")
+    client = mod.OptionChainClient("ABC")
+    client.spot_price = 100.0
+    client.securityDefinitionOptionParameter(
+        1,
+        "SMART",
+        123,
+        "OPTCLS",
+        "75",
+        ["20250101"],
+        [100.0],
+    )
+    client.option_params_complete.set()
+
+    captured = []
+
+    def fake_reqContractDetails(reqId, contract):
+        captured.append(contract.multiplier)
+        client.contract_received.set()
+
+    monkeypatch.setattr(client, "reqContractDetails", fake_reqContractDetails, raising=False)
+    monkeypatch.setattr(client, "reqMktData", lambda *a, **k: None, raising=False)
+
+    client._request_option_data()
+
+    assert captured and captured[0] == "75"
 
 
 def test_request_contract_details_timeout(monkeypatch):

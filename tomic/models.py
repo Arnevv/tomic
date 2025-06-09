@@ -37,7 +37,7 @@ class OptionContract:
         contract.lastTradeDateOrContractMonth = self.expiry
         contract.strike = self.strike
         contract.right = self.right
-        contract.multiplier = "100"
+        contract.multiplier = self.multiplier
         if self.con_id is not None:
             contract.conId = self.con_id
         if not self.trading_class:
