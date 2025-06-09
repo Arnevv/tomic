@@ -217,7 +217,7 @@ def run_dataexporter() -> None:
     )
     menu.add(
         "Ophalen 1 optie - test",
-        lambda: run_module("tomic.api.fetch_single_option"),
+        lambda: run_module("tomic.api.fetch_single_option", "MSFT"),
     )
     menu.run()
 
