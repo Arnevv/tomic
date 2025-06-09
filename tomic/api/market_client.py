@@ -186,6 +186,7 @@ class OptionChainClient(MarketClient):
             self.reqSecDefOptParams(
                 self._next_id(), self.symbol, "", "STK", self.con_id
             )
+            self.contract_received.set()
 
         elif reqId in self._pending_details:
             if not self._step8_logged:
@@ -533,7 +534,10 @@ class OptionChainClient(MarketClient):
                     logger.info(
                         f"✅ [stap 7] reqId {req_id} contract {c.symbol} {c.lastTradeDateOrContractMonth} {c.strike} {c.right} sent"
                     )
-                    self.contract_received.wait(2)
+                    if not self.contract_received.wait(2):
+                        logger.warning(
+                            f"❌ contractDetails MISSING voor reqId {req_id}"
+                        )
 
         logger.debug(
             f"Aantal contractdetails aangevraagd: {len(self._pending_details)}"
