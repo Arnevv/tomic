@@ -1,4 +1,10 @@
-"""Shared market data export helpers."""
+"""Shared market data export helpers.
+
+``OptionChainClient`` retrieves only a subset of the option chain.  It keeps
+the first four expiries and strikes whose rounded value is within ±10 points of
+the rounded spot price.  The helpers in this module work with that same
+selection.
+"""
 
 from __future__ import annotations
 
