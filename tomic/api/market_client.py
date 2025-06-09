@@ -1,5 +1,13 @@
 from __future__ import annotations
 
+"""Market data clients for retrieving spot prices and option chains.
+
+``OptionChainClient.contractDetails`` stores the underlying's
+``trading_class`` and ``primary_exchange`` when it receives details for the
+stock contract.  ``OptionContract.to_ib`` then uses these values when building
+option contracts so that requests match the underlying's market data.
+"""
+
 from typing import Any, Dict
 import threading
 import time
@@ -177,6 +185,8 @@ class OptionChainClient(MarketClient):
             self.con_id = con.conId
             self.stock_con_id = con.conId
             self.trading_class = con.tradingClass or self.symbol
+            if con.primaryExchange:
+                self.primary_exchange = con.primaryExchange
             logger.info(
                 f"✅ [stap 4] ConId: {self.con_id}, TradingClass: {self.trading_class}. primaryExchange: {con.primaryExchange}"
             )
@@ -504,6 +514,7 @@ class OptionChainClient(MarketClient):
                         actual,
                         right,
                         trading_class=self.trading_class,
+                        primary_exchange=self.primary_exchange,
                     )
                     logger.debug(
                         f"Building option contract: {info.symbol} {expiry} {actual} {right}"
