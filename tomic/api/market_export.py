@@ -57,6 +57,7 @@ _HEADERS_METRICS = [
 def _write_option_chain(
     app: MarketClient, symbol: str, export_dir: str, timestamp: str
 ) -> float | None:
+    logger.info("▶️ START stap 10 - Exporteren van data naar CSV")
     chain_file = os.path.join(export_dir, f"option_chain_{symbol}_{timestamp}.csv")
     records = [
         data
@@ -173,6 +174,7 @@ def _write_metrics_csv(
     timestamp: str,
     avg_parity_dev: float | None,
 ) -> pd.DataFrame:
+    logger.info("▶️ START stap 10 - Exporteren van data naar CSV")
     metrics_file = os.path.join(export_dir, f"other_data_{symbol}_{timestamp}.csv")
     values_metrics = [
         symbol,
@@ -229,10 +231,13 @@ def export_market_metrics(
 @log_result
 def export_option_chain(symbol: str, output_dir: str | None = None) -> float | None:
     """Export only the option chain for ``symbol`` to a CSV file."""
+    logger.info("▶️ START stap 1 - Invoer van symbool")
     symbol = symbol.strip().upper()
-    if not symbol:
-        logger.error("❌ Geen geldig symbool ingevoerd.")
+    if not symbol or not symbol.replace(".", "").isalnum():
+        logger.error("❌ FAIL stap 1: ongeldig symbool.")
         return None
+    logger.info(f"✅ {symbol} ontvangen, ga nu aan de slag!")
+    logger.info("▶️ START stap 2 - Initialiseren client + verbinden met IB")
     app = OptionChainClient(symbol)
     start_app(app)
     if not await_market_data(app, symbol, timeout=60):
@@ -257,10 +262,13 @@ def export_market_data(
     symbol: str, output_dir: str | None = None
 ) -> pd.DataFrame | None:
     """Export option chain and market metrics for ``symbol`` to CSV files."""
+    logger.info("▶️ START stap 1 - Invoer van symbool")
     symbol = symbol.strip().upper()
-    if not symbol:
-        logger.error("❌ Geen geldig symbool ingevoerd.")
+    if not symbol or not symbol.replace(".", "").isalnum():
+        logger.error("❌ FAIL stap 1: ongeldig symbool.")
         return None
+    logger.info(f"✅ {symbol} ontvangen, ga nu aan de slag!")
+    logger.info("▶️ START stap 2 - Initialiseren client + verbinden met IB")
     try:
         raw_metrics = fetch_market_metrics(symbol)
     except Exception as exc:  # pragma: no cover - network failures
