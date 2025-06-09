@@ -31,6 +31,8 @@ class StepByStepClient(EWrapper, EClient):
         self.con_id: int | None = None
         self.trading_class: str | None = None
         self.primary_exchange: str | None = None
+        self.option_trading_class: str | None = None
+        self.option_multiplier: str | None = None
         self.all_strikes: List[float] = []
         self.all_expiries: List[str] = []
         self.strikes: List[float] = []
@@ -124,6 +126,9 @@ class StepByStepClient(EWrapper, EClient):
         expirations: List[str],
         strikes: List[float],
     ) -> None:
+        if self.option_trading_class is None:
+            self.option_trading_class = tradingClass
+            self.option_multiplier = multiplier
         if not self.all_expiries and expirations:
             self.all_expiries = sorted(expirations)
             self.all_strikes = sorted(strikes)
@@ -310,7 +315,8 @@ def run(symbol: str, output_dir: str) -> None:
                 c.lastTradeDateOrContractMonth = expiry
                 c.strike = strike
                 c.right = right
-                c.tradingClass = app.trading_class
+                c.tradingClass = app.option_trading_class
+                c.multiplier = app.option_multiplier
                 req_id = app._next_id()
                 app.contract_received.clear()
                 app.reqContractDetails(req_id, c)
