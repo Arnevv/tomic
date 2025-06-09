@@ -36,6 +36,7 @@ class StepByStepClient(EWrapper, EClient):
         self.expiries: List[str] = []
         self.option_info: Dict[int, Dict[str, object]] = {}
         self.market_data: Dict[int, Dict[str, object]] = {}
+        self.conid_map: Dict[tuple, int] = {}
 
     def _next_id(self) -> int:
         self.req_id += 1
@@ -173,7 +174,7 @@ def run(symbol: str, output_dir: str) -> None:
         logger.error("❌ FAIL stap 4: geen contractdetails")
         app.disconnect()
         return
-    logger.info(f"✅ SUCCES stap 4 - conId {app.con_id}, tradingClass {app.trading_class}")
+    logger.info(f"✅ SUCCES stap 4 - conId {app.con_id}, tradingClass {app.trading_class}, primaryExchange {app.primary_exchange}")
 
     logger.info("▶️ START stap 5 - Optieparameters ophalen")
     req_id = app._next_id()
@@ -186,8 +187,8 @@ def run(symbol: str, output_dir: str) -> None:
 
     logger.info("▶️ START stap 6 - Selectie van relevante expiries en strikes")
     center = round(app.spot_price or 0)
-    app.strikes = [s for s in app.all_strikes if abs(round(s) - center) <= 10]
-    app.expiries = app.all_expiries[:1]
+    app.strikes = [s for s in app.all_strikes if abs(s - center) <= center * 0.05]
+    app.expiries = [e for e in app.all_expiries if (datetime.strptime(e, "%Y%m%d") - datetime.now()).days <= 30]
     if not app.strikes or not app.expiries:
         logger.error("❌ FAIL stap 6: geen geldige strikes/expiries")
         app.disconnect()
@@ -202,18 +203,19 @@ def run(symbol: str, output_dir: str) -> None:
                 c = Contract()
                 c.symbol = symbol
                 c.secType = "OPT"
-                c.exchange = app.primary_exchange or "SMART"
+                c.exchange = "SMART"
                 c.currency = "USD"
                 c.lastTradeDateOrContractMonth = expiry
                 c.strike = strike
                 c.right = right
-                c.tradingClass = app.trading_class
+                c.tradingClass = app.trading_class or symbol
+                c.primaryExchange = app.primary_exchange or "SMART"
                 req_id = app._next_id()
                 app.option_info[req_id] = {
                     "expiry": expiry, "strike": strike, "right": right
                 }
                 app.reqContractDetails(req_id, c)
-                logger.info(f"🟡 reqContractDetails verstuurd voor reqId {req_id}: {symbol} {expiry} {right}{strike}")
+                logger.info(f"🟡 reqContractDetails verstuurd voor reqId {req_id}: {symbol} {expiry} {right}{strike} ({c.secType}, exch={c.exchange}, class={c.tradingClass}, primary={c.primaryExchange})")
                 contracts_requested += 1
     if contracts_requested == 0:
         logger.error("❌ FAIL stap 7: geen optiecontracten gegenereerd")
