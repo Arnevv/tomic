@@ -243,17 +243,11 @@ class OptionChainClient(MarketClient):
                 f"right={con.right} exchange={con.exchange} primaryExchange={con.primaryExchange} "
                 f"tradingClass={getattr(con, 'tradingClass', '')} multiplier={getattr(con, 'multiplier', '')}"
             )
-            # Request market data with validated contract using fallback
+            # Request option market data using delayed quotes
             logger.debug(f"reqMktData sent for: {contract_repr(con)}")
-            self.reqMarketDataType(1)
-            logger.debug("reqMarketDataType(1) - live")
-            self.reqMktData(reqId, con, "", True, False, [])
-            time.sleep(0.25)
-            self.reqMarketDataType(2)
-            logger.debug("reqMarketDataType(2) - frozen")
-            time.sleep(0.25)
             self.reqMarketDataType(3)
             logger.debug("reqMarketDataType(3) - delayed")
+            self.reqMktData(reqId, con, "", True, False, [])
             logger.info(
                 f"✅ [stap 8] reqMktData sent for {con.symbol} {con.lastTradeDateOrContractMonth} {con.strike} {con.right}"
             )
