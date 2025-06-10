@@ -146,8 +146,14 @@ class MarketClient(BaseIBApp):
 class OptionChainClient(MarketClient):
     """IB client that retrieves a basic option chain."""
 
-    def __init__(self, symbol: str, primary_exchange: str | None = None) -> None:
+    def __init__(
+        self,
+        symbol: str,
+        primary_exchange: str | None = None,
+        max_concurrent_requests: int = 5,
+    ) -> None:
         super().__init__(symbol, primary_exchange=primary_exchange)
+        self._detail_semaphore = threading.Semaphore(max_concurrent_requests)
         self.con_id: int | None = None
         self.trading_class: str | None = None
         self.strikes: list[float] = []
@@ -226,7 +232,9 @@ class OptionChainClient(MarketClient):
             logger.info(
                 f"✅ [stap 8] reqMktData sent for {con.symbol} {con.lastTradeDateOrContractMonth} {con.strike} {con.right}"
             )
-            self._pending_details.pop(reqId, None)
+            if reqId in self._pending_details:
+                self._pending_details.pop(reqId, None)
+                self._detail_semaphore.release()
             logger.debug(
                 f"contractDetails ontvangen: {con.symbol} {con.lastTradeDateOrContractMonth} {con.strike} {con.right}"
             )
@@ -240,6 +248,7 @@ class OptionChainClient(MarketClient):
                 f"Geen contractdetails gevonden voor {info.symbol} {info.expiry} {info.strike} {info.right}"
             )
             self.invalid_contracts.add(reqId)
+            self._detail_semaphore.release()
         self.contract_received.set()
 
     @log_result
@@ -580,6 +589,8 @@ class OptionChainClient(MarketClient):
                         "right": right,
                     }
                     self._pending_details[req_id] = info
+                    self._detail_semaphore.acquire()
+                    time.sleep(0.01)
                     if not self._request_contract_details(c, req_id):
                         logger.warning(
                             f"⚠️ Geen optiecontractdetails voor reqId {req_id}; marktdata overgeslagen"
