@@ -360,6 +360,10 @@ def group_strategies(
 
             strat.update(parse_plan_metrics(trade_data.get("Plan", "")))
 
+            exit_text = trade_data.get("Exitstrategie")
+            if exit_text:
+                strat["exit_strategy"] = exit_text
+
             ge = trade_data.get("Greeks_Entry")
             if isinstance(ge, dict):
                 strat["delta_entry"] = ge.get("Delta")
