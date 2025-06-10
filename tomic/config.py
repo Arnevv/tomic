@@ -50,6 +50,9 @@ class AppConfig(BaseModel):
     LOG_LEVEL: str = "INFO"
     INTEREST_RATE: float = 0.05
     PRIMARY_EXCHANGE: str = "SMART"
+    STRIKE_RANGE: int = 50
+    DELTA_MIN: float = -0.8
+    DELTA_MAX: float = 0.8
 
 
 _BASE_DIR = Path(__file__).resolve().parent.parent
