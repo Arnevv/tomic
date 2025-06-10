@@ -106,3 +106,88 @@ def test_export_combined_csv_skips_no_columns(tmp_path):
 
     assert captured_concat == [df_valid]
     assert combined_result.saved_path == str(tmp_path / "Overzicht_Marktkenmerken.csv")
+
+
+class FakeSeries:
+    def __init__(self, value: str) -> None:
+        self.value = value
+
+    @property
+    def iloc(self) -> "FakeSeries":
+        return self
+
+    def __getitem__(self, idx: int) -> str:
+        return self.value
+
+
+class FakeFrameRun:
+    def __init__(self, symbol: str) -> None:
+        self.symbol = symbol
+        self.columns = ["Symbol"]
+
+    @property
+    def empty(self) -> bool:
+        return False
+
+    def isna(self):
+        class _Stage1:
+            def all(self) -> "_Stage2":
+                class _Stage2:
+                    def all(self) -> bool:
+                        return False
+
+                return _Stage2()
+
+        return _Stage1()
+
+    def __getitem__(self, key: str) -> FakeSeries:
+        assert key == "Symbol"
+        return FakeSeries(self.symbol)
+
+
+def test_run_all_passes_flags(monkeypatch, tmp_path):
+    mod = importlib.reload(importlib.import_module("tomic.api.getallmarkets"))
+
+    calls = []
+
+    def fake_run(sym, out=None, *, fetch_metrics=True, fetch_chains=True):
+        calls.append((sym, out, fetch_metrics, fetch_chains))
+        return FakeFrameRun(sym)
+
+    monkeypatch.setattr(mod, "run", fake_run)
+    monkeypatch.setattr(mod, "export_combined_csv", lambda *a, **k: None)
+    monkeypatch.setattr(mod, "connect_ib", lambda *a, **k: types.SimpleNamespace(disconnect=lambda: None))
+
+    result = mod.run_all(["AAA"], str(tmp_path), fetch_metrics=False, fetch_chains=True)
+
+    assert [f.symbol for f in result] == ["AAA"]
+    assert calls == [("AAA", str(tmp_path), False, True)]
+
+
+def test_run_all_uses_defaults(monkeypatch, tmp_path):
+    mod = importlib.reload(importlib.import_module("tomic.api.getallmarkets"))
+
+    monkeypatch.setattr(mod, "connect_ib", lambda *a, **k: types.SimpleNamespace(disconnect=lambda: None))
+    monkeypatch.setattr(mod, "export_combined_csv", lambda *a, **k: None)
+
+    def fake_cfg_get(key, default=None):
+        if key == "DEFAULT_SYMBOLS":
+            return ["A", "B"]
+        if key == "EXPORT_DIR":
+            return str(tmp_path)
+        return default
+
+    monkeypatch.setattr(mod, "cfg_get", fake_cfg_get)
+
+    called = []
+
+    def fake_run(sym, out=None, *, fetch_metrics=True, fetch_chains=True):
+        called.append(sym)
+        return FakeFrameRun(sym)
+
+    monkeypatch.setattr(mod, "run", fake_run)
+
+    frames = mod.run_all()
+
+    assert called == ["A", "B"]
+    assert [f.symbol for f in frames] == ["A", "B"]
