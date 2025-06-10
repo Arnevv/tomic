@@ -243,12 +243,17 @@ class OptionChainClient(MarketClient):
                 f"right={con.right} exchange={con.exchange} primaryExchange={con.primaryExchange} "
                 f"tradingClass={getattr(con, 'tradingClass', '')} multiplier={getattr(con, 'multiplier', '')}"
             )
-            # Request market data with validated contract
-            data_type = int(cfg_get("OPTION_MKT_DATA_TYPE", 2))
-            self.reqMarketDataType(data_type)
-            logger.debug(f"reqMarketDataType({data_type}) - options")
+            # Request market data with validated contract using fallback
             logger.debug(f"reqMktData sent for: {contract_repr(con)}")
+            self.reqMarketDataType(1)
+            logger.debug("reqMarketDataType(1) - live")
             self.reqMktData(reqId, con, "", True, False, [])
+            time.sleep(0.25)
+            self.reqMarketDataType(2)
+            logger.debug("reqMarketDataType(2) - frozen")
+            time.sleep(0.25)
+            self.reqMarketDataType(3)
+            logger.debug("reqMarketDataType(3) - delayed")
             logger.info(
                 f"✅ [stap 8] reqMktData sent for {con.symbol} {con.lastTradeDateOrContractMonth} {con.strike} {con.right}"
             )
@@ -371,6 +376,9 @@ class OptionChainClient(MarketClient):
         rec["gamma"] = gamma
         rec["vega"] = vega
         rec["theta"] = theta
+        evt = rec.get("event")
+        if isinstance(evt, threading.Event):
+            evt.set()
         if reqId != self._spot_req_id and reqId not in self._logged_data:
             if not self._step9_logged:
                 logger.info(
@@ -424,6 +432,9 @@ class OptionChainClient(MarketClient):
             rec["bid"] = price
         elif tickType == TickTypeEnum.ASK:
             rec["ask"] = price
+        evt = rec.get("event")
+        if isinstance(evt, threading.Event):
+            evt.set()
         if price == -1 and tickType in (TickTypeEnum.BID, TickTypeEnum.ASK):
             self.invalid_contracts.add(reqId)
         if (
@@ -610,6 +621,7 @@ class OptionChainClient(MarketClient):
                         "expiry": expiry,
                         "strike": strike,
                         "right": right,
+                        "event": threading.Event(),
                     }
                     self._pending_details[req_id] = info
                     self._detail_semaphore.acquire()
