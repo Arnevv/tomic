@@ -50,6 +50,7 @@ class AppConfig(BaseModel):
     LOG_LEVEL: str = "INFO"
     INTEREST_RATE: float = 0.05
     PRIMARY_EXCHANGE: str = "SMART"
+    OPTION_MKT_DATA_TYPE: int = 2
 
 
 _BASE_DIR = Path(__file__).resolve().parent.parent

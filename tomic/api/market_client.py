@@ -227,6 +227,9 @@ class OptionChainClient(MarketClient):
                 f"tradingClass={getattr(con, 'tradingClass', '')} multiplier={getattr(con, 'multiplier', '')}"
             )
             # Request market data with validated contract
+            data_type = int(cfg_get("OPTION_MKT_DATA_TYPE", 2))
+            self.reqMarketDataType(data_type)
+            logger.debug(f"reqMarketDataType({data_type}) - options")
             logger.debug(f"reqMktData sent for: {contract_repr(con)}")
             self.reqMktData(reqId, con, "", True, False, [])
             logger.info(
