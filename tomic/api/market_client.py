@@ -336,9 +336,10 @@ class OptionChainClient(MarketClient):
             )
             return
 
+        strike_range = int(cfg_get("STRIKE_RANGE", 10))
         if not self._step6_logged:
             logger.info(
-                "▶️ START stap 6 - Selectie van relevante expiries + strikes (binnen ±10 pts spot)"
+                f"▶️ START stap 6 - Selectie van relevante expiries + strikes (binnen ±{strike_range} pts spot)"
             )
             self._step6_logged = True
 
@@ -372,7 +373,7 @@ class OptionChainClient(MarketClient):
         strike_map: dict[float, float] = {}
         for strike in sorted(strikes):
             rounded = round(strike)
-            if abs(rounded - center) <= 10:
+            if abs(rounded - center) <= strike_range:
                 strike_map.setdefault(rounded, strike)
         self.strikes = sorted(strike_map.keys())
         self._strike_lookup = strike_map
@@ -424,7 +425,15 @@ class OptionChainClient(MarketClient):
         rec["gamma"] = gamma
         rec["vega"] = vega
         rec["theta"] = theta
+        d_min = float(cfg_get("DELTA_MIN", -1))
+        d_max = float(cfg_get("DELTA_MAX", 1))
         evt = rec.get("event")
+        if delta is not None and (delta < d_min or delta > d_max):
+            self.invalid_contracts.add(reqId)
+            if isinstance(evt, threading.Event) and not evt.is_set():
+                evt.set()
+            self._mark_complete(reqId)
+            return
         if isinstance(evt, threading.Event):
             if not evt.is_set():
                 evt.set()

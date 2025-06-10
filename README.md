@@ -44,8 +44,9 @@ marktdata-opvragingen te verwerken.
   valt zo nodig terug naar `reqMarketDataType(2)` (frozen) en daarna
   `reqMarketDataType(3)` (delayed). Optieprijzen worden direct met
   `reqMarketDataType(3)` (delayed) aangevraagd.
-- Optieketen selectie: de eerste 4 expiries en strikes binnen ±10 punten van de
-  afgeronde spotprijs (zoals gebruikt in `fetch_single_option`).
+- Optieketen selectie: de eerste 4 expiries en strikes binnen ±50 punten van de
+  afgeronde spotprijs (aanpasbaar via `STRIKE_RANGE`). Opties met een delta
+  buiten de grenzen `DELTA_MIN` en `DELTA_MAX` worden genegeerd.
 
 📂 Projectstructuur
 tomic/
@@ -66,10 +67,10 @@ tests/                 # Pytest-modules
 3. Spot price ophalen
 4. ContractDetails ophalen voor STK
 5. reqSecDefOptParams() voor optieparameters
-6. Selectie van relevante expiries + strikes (binnen ±10 pts spot)
+6. Selectie van relevante expiries + strikes (binnen ±50 pts spot)
 7. Per combinatie optiecontract bouwen en reqContractDetails()
 8. Callback: contractDetails() voor opties
-9. Ontvangen van market data (bid/ask/Greeks)
+9. Ontvangen van market data (bid/ask/Greeks) en filteren op delta
 10. Exporteren van data naar CSV
 
 
