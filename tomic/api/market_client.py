@@ -94,17 +94,34 @@ class MarketClient(BaseIBApp):
 
     @log_result
     def start_requests(self) -> None:  # pragma: no cover - runtime behaviour
-        """Request a basic stock quote for ``self.symbol``."""
+        """Request a basic stock quote for ``self.symbol`` with data type fallback."""
         contract = self._stock_contract()
-        self.reqMarketDataType(2)
-        req_id = self._next_id()
-        logger.debug(f"Requesting stock quote for symbol={contract.symbol} id={req_id}")
-        self.reqMktData(req_id, contract, "", False, False, [])
-        self._spot_req_id = req_id
-        timeout = cfg_get("SPOT_TIMEOUT", 10)
-        self.data_event.clear()
-        self.data_event.wait(timeout)
-        if self.spot_price is not None:
+
+        data_type_success = None
+        short_timeout = cfg_get("DATA_TYPE_TIMEOUT", 2)
+        for data_type in (1, 2, 3):
+            self.reqMarketDataType(data_type)
+            logger.debug(f"reqMarketDataType({data_type})")
+            req_id = self._next_id()
+            self.data_event.clear()
+            self.reqMktData(req_id, contract, "", False, False, [])
+            self._spot_req_id = req_id
+            logger.debug(
+                f"Requesting stock quote for symbol={contract.symbol} id={req_id}"
+            )
+            if self.data_event.wait(short_timeout) or self.spot_price is not None:
+                data_type_success = data_type
+                self.cancelMktData(req_id)
+                break
+            self.cancelMktData(req_id)
+
+        if self.spot_price is None:
+            timeout = cfg_get("SPOT_TIMEOUT", 10)
+            self.data_event.clear()
+            if data_type_success is not None:
+                self.reqMarketDataType(data_type_success)
+            self.reqMktData(req_id, contract, "", False, False, [])
+            self.data_event.wait(timeout)
             self.cancelMktData(req_id)
 
     # IB callbacks -----------------------------------------------------
@@ -454,7 +471,7 @@ class OptionChainClient(MarketClient):
 
         data_type_success = None
         short_timeout = cfg_get("DATA_TYPE_TIMEOUT", 2)
-        for data_type in (1, 3, 4):
+        for data_type in (1, 2, 3):
             self.reqMarketDataType(data_type)
             logger.debug(f"reqMarketDataType({data_type})")
             spot_id = self._next_id()

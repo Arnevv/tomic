@@ -286,9 +286,15 @@ def run(symbol: str, output_dir: str) -> None:
     logger.info("▶️ START stap 3 - Spotprijs ophalen")
     spot_id = SPOT_REQ_ID
     app.spot_req_id = spot_id
-    app.reqMarketDataType(1)
-    app.reqMktData(spot_id, app._stock_contract(), "", False, False, [])
-    if not app.spot_event.wait(10):
+    for data_type in (1, 2, 3):
+        app.reqMarketDataType(data_type)
+        logger.debug(f"reqMarketDataType({data_type})")
+        app.reqMktData(spot_id, app._stock_contract(), "", False, False, [])
+        if app.spot_event.wait(3):
+            break
+        app.cancelMktData(spot_id)
+        app.spot_event.clear()
+    if not app.spot_event.wait(7):
         logger.error("❌ FAIL stap 3: geen spotprijs ontvangen")
         app.disconnect()
         return
