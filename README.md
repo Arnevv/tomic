@@ -38,12 +38,12 @@ Wacht na het verbinden tot de callback `nextValidId()` is aangeroepen voordat
 je verzoeken naar TWS stuurt. Pas dan is de client klaar om orders of
 marktdata-opvragingen te verwerken.
 
-Stel bovendien exchange en market data type correct in:
-- `contract.exchange = "SMART"` of de gewenste beurs
-- `OPTION_MKT_DATA_TYPE` in `config.yaml` bepaalt of optiequotes via
-  `reqMarketDataType(2)` (real‑time/frozen) of `reqMarketDataType(3)` (delayed)
-  worden opgevraagd. TOMIC roept dit automatisch aan vóór `reqMktData()` voor
-  elke optie.
+- Stel bovendien exchange correct in:
+  `contract.exchange = "SMART"` of de gewenste beurs.
+- Voor alle marktdata probeert TOMIC eerst `reqMarketDataType(1)` (live) en
+  valt zo nodig terug naar `reqMarketDataType(2)` (frozen) en daarna
+  `reqMarketDataType(3)` (delayed). Dit gebeurt automatisch vóór elke
+  `reqMktData()`‑aanroep.
 - Optieketen selectie: de eerste 4 expiries en strikes binnen ±10 punten van de
   afgeronde spotprijs (zoals gebruikt in `fetch_single_option`).
 
