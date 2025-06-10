@@ -17,6 +17,9 @@ from loguru import logger
 
 from tomic.utils import select_near_atm
 
+# Request id used for the initial spot price lookup
+SPOT_REQ_ID = 1
+
 
 class StepByStepClient(EWrapper, EClient):
     def __init__(self, symbol: str) -> None:
@@ -25,6 +28,7 @@ class StepByStepClient(EWrapper, EClient):
         self.symbol = symbol
         self.req_id = 0
         self.connected = threading.Event()
+        self.spot_req_id = SPOT_REQ_ID
         self.spot_event = threading.Event()
         self.details_event = threading.Event()
         self.params_event = threading.Event()
@@ -59,11 +63,11 @@ class StepByStepClient(EWrapper, EClient):
         self.connected.set()
 
     def tickPrice(self, reqId: int, tickType: int, price: float, attrib) -> None:
-        if reqId == 1 and tickType in (TickTypeEnum.LAST, TickTypeEnum.DELAYED_LAST):
+        if reqId == self.spot_req_id and tickType in (TickTypeEnum.LAST, TickTypeEnum.DELAYED_LAST):
             if price > 0:
                 self.spot_price = price
                 self.spot_event.set()
-        elif reqId != 1:
+        elif reqId != self.spot_req_id:
             rec = self.market_data.setdefault(reqId, {})
             if tickType == TickTypeEnum.BID:
                 rec["bid"] = price
@@ -250,7 +254,7 @@ def export_csv(app: StepByStepClient, output_dir: str) -> None:
         writer.writerow([
             "Symbol", "Expiry", "Strike", "Type", "Bid", "Ask", "IV", "Delta", "Gamma", "Vega", "Theta"])
         for req_id, rec in app.market_data.items():
-            if req_id == 1:
+            if req_id == app.spot_req_id:
                 continue  # skip spotprijs request
             if rec.get("bid") is None and rec.get("ask") is None:
                 continue
@@ -280,7 +284,8 @@ def run(symbol: str, output_dir: str) -> None:
     logger.info("✅ SUCCES stap 2 - Verbonden")
 
     logger.info("▶️ START stap 3 - Spotprijs ophalen")
-    spot_id = 1
+    spot_id = SPOT_REQ_ID
+    app.spot_req_id = spot_id
     app.reqMarketDataType(1)
     app.reqMktData(spot_id, app._stock_contract(), "", False, False, [])
     if not app.spot_event.wait(10):
