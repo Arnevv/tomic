@@ -1,4 +1,4 @@
-ACCOUNT_INFO_FILE: account_info.json
+ACCOUNT_INFO_FILE: tomic/data/account_info.json
 DEFAULT_SYMBOLS:
 - AAPL
 - ASML
@@ -30,9 +30,9 @@ EXPORT_DIR: exports
 IB_HOST: 127.0.0.1
 IB_PORT: 7497
 INTEREST_RATE: 0.05
-JOURNAL_FILE: journal.json
+JOURNAL_FILE: tomic/data/journal.json
 LOG_LEVEL: INFO
-PORTFOLIO_META_FILE: portfolio_meta.json
-POSITIONS_FILE: positions.json
+PORTFOLIO_META_FILE: tomic/data/portfolio_meta.json
+POSITIONS_FILE: tomic/data/positions.json
 PRIMARY_EXCHANGE: SMART
-VOLATILITY_DATA_FILE: volatility_data.json
+VOLATILITY_DATA_FILE: tomic/data/volatility_data.json
