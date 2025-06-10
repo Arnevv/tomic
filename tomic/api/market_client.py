@@ -42,7 +42,7 @@ def contract_repr(contract):
         f"{contract.lastTradeDateOrContractMonth or ''} "
         f"{contract.right or ''}{floatMaxString(contract.strike)} "
         f"{contract.exchange or ''} {contract.currency or ''} "
-        f"(conId={contract.conId})"
+        f"(conId={getattr(contract, 'conId', None)})"
     ).strip()
 
 
@@ -369,6 +369,8 @@ class OptionChainClient(MarketClient):
             info = self._pending_details.get(reqId)
             if info is not None:
                 logger.debug(f"Invalid contract for id {reqId}: {info}")
+                self._detail_semaphore.release()
+            self._pending_details.pop(reqId, None)
             self.invalid_contracts.add(reqId)
             self._mark_complete(reqId)
 
@@ -652,6 +654,7 @@ class OptionChainClient(MarketClient):
                             f"⚠️ Geen optiecontractdetails voor reqId {req_id}; marktdata overgeslagen"
                         )
                         self._pending_details.pop(req_id, None)
+                        self._detail_semaphore.release()
                         self.invalid_contracts.add(req_id)
                         self._mark_complete(req_id)
 

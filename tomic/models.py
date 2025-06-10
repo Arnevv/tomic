@@ -32,15 +32,13 @@ class OptionContract:
         contract.symbol = self.symbol
         contract.secType = "OPT"
         contract.exchange = self.exchange
-        if self.primary_exchange is not None:
-            contract.primaryExchange = self.primary_exchange
+        contract.primaryExchange = self.primary_exchange or self.exchange
         contract.currency = self.currency
         contract.lastTradeDateOrContractMonth = self.expiry
         contract.strike = self.strike
         contract.right = self.right
         contract.multiplier = self.multiplier
-        if self.con_id is not None:
-            contract.conId = self.con_id
+        contract.conId = self.con_id or 0
         if not self.trading_class:
             logger.warning(
                 f"⚠️ tradingClass ontbreekt voor {self.symbol} - fallback naar {self.symbol.upper()}"
