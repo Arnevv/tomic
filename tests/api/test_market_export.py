@@ -209,6 +209,53 @@ def test_fetch_market_metrics_includes_new_fields(monkeypatch):
     assert result["term_m1_m3"] == -0.9
 
 
+def test_fetch_market_metrics_computes_term_structure(monkeypatch):
+    import importlib
+
+    client_mod = importlib.reload(importlib.import_module("tomic.api.market_client"))
+
+    class DummyApp:
+        def __init__(self, symbol: str) -> None:
+            self.symbol = symbol
+            self.spot_price = 100.0
+            self.market_data = {
+                1: {"expiry": "20240101", "strike": 100.0, "iv": 0.2},
+                2: {"expiry": "20240201", "strike": 100.0, "iv": 0.21},
+                3: {"expiry": "20240301", "strike": 100.0, "iv": 0.22},
+            }
+            self.invalid_contracts = set()
+            self.expiries = ["20240101", "20240201", "20240301"]
+
+        def disconnect(self) -> None:
+            pass
+
+    monkeypatch.setattr(client_mod, "OptionChainClient", DummyApp)
+    monkeypatch.setattr(client_mod, "start_app", lambda app: None)
+    monkeypatch.setattr(client_mod, "await_market_data", lambda app, symbol, timeout=10: True)
+    monkeypatch.setattr(
+        client_mod,
+        "fetch_volatility_metrics",
+        lambda sym: {
+            "spot_price": None,
+            "hv30": 11.0,
+            "atr14": 5.5,
+            "vix": 17.2,
+            "skew": -1.0,
+            "term_m1_m2": None,
+            "term_m1_m3": None,
+            "iv_rank": 30.0,
+            "implied_volatility": 25.0,
+            "iv_percentile": 70.0,
+        },
+    )
+
+    app = DummyApp("XYZ")
+    result = client_mod.fetch_market_metrics("XYZ", app=app)
+
+    assert result["term_m1_m2"] == -1.0
+    assert result["term_m1_m3"] == -2.0
+
+
 def test_write_option_chain_simple(tmp_path):
     market_data = {
         1: {"expiry": "20240101", "right": "C", "strike": 100, "bid": 1.0, "ask": 1.2},
