@@ -512,7 +512,14 @@ class OptionChainClient(MarketClient):
             prefix = "✅ [stap 7]" if attempt == 0 else "🔄 retry"
             logger.info(
                 f"{prefix} reqId {req_id} contract {contract.symbol} "
-                f"{contract.lastTradeDateOrContractMonth} {contract.strike} {contract.right} sent"
+                f"expiry={contract.lastTradeDateOrContractMonth} "
+                f"strike={contract.strike} right={contract.right} "
+                f"currency={getattr(contract, 'currency', '')} "
+                f"multiplier={getattr(contract, 'multiplier', '')} "
+                f"exchange={contract.exchange} "
+                f"tradingClass={getattr(contract, 'tradingClass', '')} "
+                f"primaryExchange={contract.primaryExchange} "
+                f"conId={getattr(contract, 'conId', None)} sent"
             )
             logger.debug(
                 f"reqContractDetails attempt {attempt + 1} for: {contract_repr(contract)}"
