@@ -40,8 +40,10 @@ marktdata-opvragingen te verwerken.
 
 Stel bovendien exchange en market data type correct in:
 - `contract.exchange = "SMART"` of de gewenste beurs
-- `reqMarketDataType(2)` voor real‑time of `reqMarketDataType(3)` voor delayed
-  quotes.
+- `OPTION_MKT_DATA_TYPE` in `config.yaml` bepaalt of optiequotes via
+  `reqMarketDataType(2)` (real‑time/frozen) of `reqMarketDataType(3)` (delayed)
+  worden opgevraagd. TOMIC roept dit automatisch aan vóór `reqMktData()` voor
+  elke optie.
 - Optieketen selectie: de eerste 4 expiries en strikes binnen ±10 punten van de
   afgeronde spotprijs (zoals gebruikt in `fetch_single_option`).
 
