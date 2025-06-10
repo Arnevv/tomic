@@ -552,6 +552,9 @@ class OptionChainClient(MarketClient):
                 f"strikes={self.strikes} trading_class={self.trading_class}"
             )
             return
+        # Ensure live data is requested for option Greeks
+        getattr(self, "reqMarketDataType", lambda *a, **k: None)(1)
+        logger.debug("reqMarketDataType(1) for option requests")
         logger.debug(f"Spot price at _request_option_data: {self.spot_price}")
         logger.debug(
             f"Requesting option data for expiries={self.expiries} strikes={self.strikes}"
@@ -633,15 +636,21 @@ def await_market_data(app: MarketClient, symbol: str, timeout: int = 30) -> bool
         event = getattr(app, "market_event", app.data_event)
         event.wait(remaining)
 
-        if app.spot_price is not None and (
-            not isinstance(app, OptionChainClient) or getattr(app, "market_event", app.data_event).is_set()
-        ):
-            logger.debug(f"Market data ontvangen binnen {time.time() - start:.2f}s")
-            return True
-
-        if any("bid" in rec or "ask" in rec for rec in app.market_data.values()):
-            logger.debug(f"Bid/ask ontvangen binnen {time.time() - start:.2f}s")
-            return True
+        if app.spot_price is not None:
+            if isinstance(app, OptionChainClient):
+                if any(
+                    any(k in rec for k in ("iv", "delta", "gamma", "vega", "theta"))
+                    for rec in app.market_data.values()
+                ):
+                    logger.debug(
+                        f"Market data ontvangen binnen {time.time() - start:.2f}s"
+                    )
+                    return True
+            else:
+                logger.debug(
+                    f"Market data ontvangen binnen {time.time() - start:.2f}s"
+                )
+                return True
 
         event.clear()
 

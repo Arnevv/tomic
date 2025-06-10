@@ -52,7 +52,7 @@ class OptionContract:
         logger.debug(
             f"IB contract built: symbol={contract.symbol} "
             f"secType={contract.secType} exchange={contract.exchange} "
-            f"primaryExchange={contract.primaryExchange} currency={contract.currency} "
+            f"primaryExchange={getattr(contract, 'primaryExchange', '')} currency={contract.currency} "
             f"expiry={contract.lastTradeDateOrContractMonth} strike={contract.strike} "
             f"right={contract.right} multiplier={contract.multiplier} "
             f"tradingClass={contract.tradingClass}"
