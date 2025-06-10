@@ -79,10 +79,11 @@ def _write_option_chain(
 ) -> float | None:
     logger.info("▶️ START stap 10 - Exporteren van data naar CSV")
     chain_file = os.path.join(export_dir, f"option_chain_{symbol}_{timestamp}.csv")
+    spot_id = getattr(app, "_spot_req_id", None)
     records = [
         data
         for req_id, data in app.market_data.items()
-        if req_id not in app.invalid_contracts
+        if req_id not in app.invalid_contracts and req_id != spot_id
     ]
     if not records:
         logger.warning(f"Geen optie data ontvangen voor {symbol}")
