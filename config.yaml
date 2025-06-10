@@ -39,3 +39,4 @@ POSITIONS_FILE: tomic/data/positions.json
 PRIMARY_EXCHANGE: SMART
 STRIKE_RANGE: 50
 VOLATILITY_DATA_FILE: tomic/data/volatility_data.json
+MAX_CONCURRENT_REQUESTS: 5
