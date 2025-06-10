@@ -382,6 +382,12 @@ def print_strategy(strategy, rule=None, *, details: bool = False):
     print("📊 KPI BOX")
     print(render_kpi_box(strategy))
 
+    exit_text = strategy.get("exit_strategy")
+    if exit_text:
+        print("🚪 EXITCRITERIA")
+        for line in str(exit_text).strip().splitlines():
+            print(f"  {line}")
+
     alerts = list(strategy.get("entry_alerts", [])) + list(strategy.get("alerts", []))
     if rule:
         spot = strategy.get("spot")
