@@ -9,7 +9,7 @@ from tomic.logutils import setup_logging
 from tomic.journal.utils import load_journal
 from tomic.helpers.account import _fmt_money
 
-DEFAULT_JOURNAL_PATH = "journal.json"
+DEFAULT_JOURNAL_PATH = "tomic/data/journal.json"
 
 
 def compute_pnl(trade: dict) -> Optional[float]:

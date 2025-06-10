@@ -1,12 +1,9 @@
 🧠 TOMIC – Tactical Option Modeling & Insight Console
+
 TOMIC is jouw persoonlijke handelsassistent voor het vinden van de beste optietrades op basis van:
-
 📈 Marketdata (spot, IV, skew, HV, ATR)
-
 💼 Portfolio-fit (Greeks, margin)
-
 🧠 TOMIC-strategie (PoS, EV, diversificatie)
-
 📓 Journaling (entry, exit, risk)
 
 Geen automatische trading – TOMIC ondersteunt, jij beslist.
