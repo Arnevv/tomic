@@ -173,9 +173,11 @@ class OptionChainClient(MarketClient):
         self,
         symbol: str,
         primary_exchange: str | None = None,
-        max_concurrent_requests: int = 5,
+        max_concurrent_requests: int | None = None,
     ) -> None:
         super().__init__(symbol, primary_exchange=primary_exchange)
+        if max_concurrent_requests is None:
+            max_concurrent_requests = int(cfg_get("MAX_CONCURRENT_REQUESTS", 5))
         self._detail_semaphore = threading.Semaphore(max_concurrent_requests)
         self.con_id: int | None = None
         self.trading_class: str | None = None
