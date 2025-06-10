@@ -37,6 +37,7 @@ def test_option_chain_client_events_set():
     client = mod.OptionChainClient("ABC")
     client.reqSecDefOptParams = lambda *a, **k: None
     client.reqMktData = lambda *a, **k: None
+    client.reqMarketDataType = lambda *a, **k: None
 
     if not hasattr(mod.TickTypeEnum, "LAST"):
         mod.TickTypeEnum.LAST = 68
@@ -131,6 +132,7 @@ def test_request_skips_without_details(monkeypatch):
 
     monkeypatch.setattr(client, "reqContractDetails", fake_reqContractDetails, raising=False)
     monkeypatch.setattr(client, "reqMktData", lambda *a, **k: calls.append(a), raising=False)
+    monkeypatch.setattr(client, "reqMarketDataType", lambda *a, **k: None, raising=False)
 
     client._request_option_data()
     assert calls == []
@@ -157,6 +159,7 @@ def test_request_reuses_known_con_id(monkeypatch):
 
     monkeypatch.setattr(client, "reqContractDetails", fake_reqContractDetails, raising=False)
     monkeypatch.setattr(client, "reqMktData", lambda *a, **k: None, raising=False)
+    monkeypatch.setattr(client, "reqMarketDataType", lambda *a, **k: None, raising=False)
 
     client._request_option_data()
 
@@ -186,6 +189,7 @@ def test_request_uses_stored_multiplier(monkeypatch):
 
     monkeypatch.setattr(client, "reqContractDetails", fake_reqContractDetails, raising=False)
     monkeypatch.setattr(client, "reqMktData", lambda *a, **k: None, raising=False)
+    monkeypatch.setattr(client, "reqMarketDataType", lambda *a, **k: None, raising=False)
 
     client._request_option_data()
 
@@ -244,6 +248,7 @@ def test_concurrent_contract_request_limit(monkeypatch):
     monkeypatch.setattr(client, "reqContractDetails", fake_reqContractDetails, raising=False)
     monkeypatch.setattr(client, "_request_contract_details", lambda c, r: [client.reqContractDetails(r, c), True][1])
     monkeypatch.setattr(client, "reqMktData", lambda *a, **k: None, raising=False)
+    monkeypatch.setattr(client, "reqMarketDataType", lambda *a, **k: None, raising=False)
 
     original_end = client.contractDetailsEnd
 
