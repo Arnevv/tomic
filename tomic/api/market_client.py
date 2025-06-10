@@ -571,7 +571,7 @@ class OptionChainClient(MarketClient):
                         actual,
                         right,
                         trading_class=self.trading_class,
-                        primary_exchange=self.primary_exchange,
+                        primary_exchange=None,
                         multiplier=self.multiplier,
                         con_id=self.con_ids.get((expiry, strike, right)),
                     )
