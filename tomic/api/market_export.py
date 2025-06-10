@@ -303,7 +303,7 @@ def export_option_chain(
     logger.info("▶️ START stap 2 - Initialiseren client + verbinden met IB")
     app = OptionChainClient(symbol)
     start_app(app)
-    if not await_market_data(app, symbol, timeout=60):
+    if not await_market_data(app, symbol, timeout=999):
         app.disconnect()
         return None
     if output_dir is None:
@@ -349,7 +349,7 @@ def export_market_data(
         app.disconnect()
         return None
     metrics = MarketMetrics.from_dict(raw_metrics)
-    if not await_market_data(app, symbol, timeout=60):
+    if not await_market_data(app, symbol, timeout=999):
         app.disconnect()
         return None
     if output_dir is None:
