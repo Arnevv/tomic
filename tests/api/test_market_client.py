@@ -53,6 +53,8 @@ def test_option_chain_client_events_set():
         mod.TickTypeEnum.DELAYED_ASK = 4
     if not hasattr(mod.TickTypeEnum, "toStr"):
         mod.TickTypeEnum.toStr = classmethod(lambda cls, v: str(v))
+    if not hasattr(mod.TickTypeEnum, "toStr"):
+        mod.TickTypeEnum.toStr = classmethod(lambda cls, v: str(v))
 
     client._spot_req_id = 1
     client.spot_event.clear()
@@ -114,6 +116,7 @@ def test_security_def_option_parameter_records_multiplier():
         [100.0],
     )
     assert client.multiplier == "25"
+    assert client.expected_contracts == len(client.expiries) * len(client.strikes) * 2
 
 
 def test_request_skips_without_details(monkeypatch):
@@ -265,4 +268,32 @@ def test_concurrent_contract_request_limit(monkeypatch):
         t.join()
 
     assert max_seen <= max_req
+
+
+def test_all_data_event_set(monkeypatch):
+    mod = importlib.import_module("tomic.api.market_client")
+    client = mod.OptionChainClient("ABC")
+    if not hasattr(mod.TickTypeEnum, "BID"):
+        mod.TickTypeEnum.BID = 1
+    if not hasattr(mod.TickTypeEnum, "LAST"):
+        mod.TickTypeEnum.LAST = 68
+    if not hasattr(mod.TickTypeEnum, "DELAYED_LAST"):
+        mod.TickTypeEnum.DELAYED_LAST = 69
+    if not hasattr(mod.TickTypeEnum, "ASK"):
+        mod.TickTypeEnum.ASK = 2
+    if not hasattr(mod.TickTypeEnum, "DELAYED_BID"):
+        mod.TickTypeEnum.DELAYED_BID = 3
+    if not hasattr(mod.TickTypeEnum, "DELAYED_ASK"):
+        mod.TickTypeEnum.DELAYED_ASK = 4
+
+    client.expected_contracts = 2
+    if not hasattr(mod.TickTypeEnum, "toStr"):
+        mod.TickTypeEnum.toStr = classmethod(lambda cls, v: str(v))
+    client.market_data[1] = {"event": threading.Event()}
+    client.market_data[2] = {"event": threading.Event()}
+
+    client.tickPrice(1, mod.TickTypeEnum.BID, 1.0, None)
+    assert not client.all_data_event.is_set()
+    client.error(2, "", 200, "")
+    assert client.all_data_event.is_set()
 
