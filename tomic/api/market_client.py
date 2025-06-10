@@ -28,7 +28,10 @@ from tomic.config import get as cfg_get
 from tomic.logutils import logger, log_result
 from tomic.cli.daily_vol_scraper import fetch_volatility_metrics
 from tomic.models import OptionContract
-from tomic.utils import select_near_atm
+from tomic.utils import (
+    _is_weekly,
+    _is_third_friday,
+)
 
 try:  # pragma: no cover - optional dependency during tests
     from ibapi.contract import Contract
@@ -338,13 +341,39 @@ class OptionChainClient(MarketClient):
                 "▶️ START stap 6 - Selectie van relevante expiries + strikes (binnen ±10 pts spot)"
             )
             self._step6_logged = True
-        self.expiries, near_strikes = select_near_atm(strikes, exp_list, self.spot_price)
+
+        monthlies: list[str] = []
+        weeklies: list[str] = []
+        for exp in sorted(exp_list):
+            try:
+                dt = datetime.strptime(exp, "%Y%m%d")
+            except Exception:
+                continue
+            if _is_third_friday(dt) and len(monthlies) < 3:
+                monthlies.append(exp)
+            elif _is_weekly(dt) and len(weeklies) < 4:
+                weeklies.append(exp)
+            if len(monthlies) >= 3 and len(weeklies) >= 4:
+                break
+
+        self.monthlies = monthlies
+        self.weeklies = weeklies
+        if monthlies or weeklies:
+            unique = {
+                datetime.strptime(e, "%Y%m%d").date()
+                for e in monthlies + weeklies
+            }
+            self.expiries = [d.strftime("%Y%m%d") for d in sorted(unique)]
+        else:
+            self.expiries = exp_list[:4]
         logger.info(f"✅ [stap 6] Geselecteerde expiries: {', '.join(self.expiries)}")
 
+        center = round(self.spot_price or 0)
         strike_map: dict[float, float] = {}
-        for strike in near_strikes:
+        for strike in sorted(strikes):
             rounded = round(strike)
-            strike_map.setdefault(rounded, strike)
+            if abs(rounded - center) <= 10:
+                strike_map.setdefault(rounded, strike)
         self.strikes = sorted(strike_map.keys())
         self._strike_lookup = strike_map
         self.trading_class = tradingClass
