@@ -184,6 +184,10 @@ def _write_option_chain(
                 ]
             )
     logger.info(f"✅ [stap 10] Optieketen opgeslagen in: {chain_file}")
+    total = len(getattr(app, "market_data", {})) - (1 if spot_id is not None else 0)
+    logger.info(
+        f"Contracts verwerkt: {len(records)} geldig, {total - len(records)} ongeldig"
+    )
     if parity_values:
         return round(sum(parity_values) / len(parity_values), 4)
     return None
@@ -222,6 +226,17 @@ def _write_option_chain_simple(
                 ]
             )
     logger.info(f"✅ [stap 10] CSV opgeslagen als: {path}")
+    total = len(getattr(app, "market_data", {})) - (
+        1 if getattr(app, "_spot_req_id", None) is not None else 0
+    )
+    valid = sum(
+        1
+        for req_id, rec in app.market_data.items()
+        if req_id not in getattr(app, "invalid_contracts", set())
+        and req_id != getattr(app, "_spot_req_id", None)
+        and not (rec.get("bid") is None and rec.get("ask") is None)
+    )
+    logger.info(f"Contracts verwerkt: {valid} geldig, {total - valid} ongeldig")
 
 
 @log_result

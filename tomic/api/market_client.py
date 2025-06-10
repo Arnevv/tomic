@@ -269,7 +269,7 @@ class OptionChainClient(MarketClient):
             self.reqMarketDataType(3)
             logger.debug("reqMarketDataType(3) - delayed")
             self.reqMktData(reqId, con, "", True, False, [])
-            logger.info(
+            logger.debug(
                 f"✅ [stap 8] reqMktData sent for {con.symbol} {con.lastTradeDateOrContractMonth} {con.strike} {con.right}"
             )
             if reqId in self._pending_details:
@@ -460,7 +460,9 @@ class OptionChainClient(MarketClient):
             if "theta" in rec:
                 details.append(f"theta={rec['theta']}")
             info = ", ".join(details)
-            logger.info(f"✅ [stap 9] Marktdata ontvangen voor reqId {reqId}: {info}")
+            logger.debug(
+                f"✅ [stap 9] Marktdata ontvangen voor reqId {reqId}: {info}"
+            )
             self._logged_data.add(reqId)
             self.market_event.set()
         logger.debug(
@@ -516,7 +518,9 @@ class OptionChainClient(MarketClient):
             if "ask" in rec:
                 details.append(f"ask={rec['ask']}")
             info = ", ".join(details)
-            logger.info(f"✅ [stap 9] Marktdata ontvangen voor reqId {reqId}: {info}")
+            logger.debug(
+                f"✅ [stap 9] Marktdata ontvangen voor reqId {reqId}: {info}"
+            )
             self._logged_data.add(reqId)
             self.market_event.set()
         logger.debug(
@@ -612,7 +616,7 @@ class OptionChainClient(MarketClient):
             self.contract_received.clear()
             self.reqContractDetails(req_id, contract)
             prefix = "✅ [stap 7]" if attempt == 0 else "🔄 retry"
-            logger.info(
+            logger.debug(
                 f"{prefix} reqId {req_id} contract {contract.symbol} "
                 f"expiry={contract.lastTradeDateOrContractMonth} "
                 f"strike={contract.strike} right={contract.right} "
