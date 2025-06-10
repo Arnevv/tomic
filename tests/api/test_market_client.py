@@ -222,6 +222,27 @@ def test_request_contract_details_timeout(monkeypatch):
     assert not client._pending_details
 
 
+def test_semaphore_released_on_invalid_contract(monkeypatch):
+    mod = importlib.import_module("tomic.api.market_client")
+    client = mod.OptionChainClient("ABC", max_concurrent_requests=1)
+    client.trading_class = "ABC"
+    client.expiries = ["20250101"]
+    client.strikes = [100.0]
+    client._strike_lookup = {100.0: 100.0}
+    client.option_params_complete.set()
+
+    monkeypatch.setattr(client, "_request_contract_details", lambda c, r: False, raising=False)
+    monkeypatch.setattr(client, "reqMktData", lambda *a, **k: None, raising=False)
+    monkeypatch.setattr(client, "reqMarketDataType", lambda *a, **k: None, raising=False)
+
+    client._request_option_data()
+
+    assert client.invalid_contracts
+    assert not client._pending_details
+    assert client._detail_semaphore.acquire(blocking=False)
+    client._detail_semaphore.release()
+
+
 def test_concurrent_contract_request_limit(monkeypatch):
     mod = importlib.import_module("tomic.api.market_client")
     max_req = 2
