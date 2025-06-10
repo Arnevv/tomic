@@ -59,6 +59,50 @@ def export_combined_csv(data_per_market: list[pd.DataFrame], output_dir: str) ->
     logger.info(f"{len(valid_frames)} markten verwerkt. CSV geëxporteerd.")
 
 
+def run_all(
+    symbols: list[str] | None = None,
+    output_dir: str | None = None,
+    *,
+    fetch_metrics: bool = True,
+    fetch_chains: bool = True,
+) -> list[pd.DataFrame]:
+    """Download data for ``symbols`` using :func:`run` for each entry."""
+
+    setup_logging()
+    try:
+        app = connect_ib()
+        app.disconnect()
+    except Exception:
+        logger.error(
+            "❌ IB Gateway/TWS niet bereikbaar. Controleer of de service draait."
+        )
+        raise
+
+    if symbols is None:
+        symbols = cfg_get("DEFAULT_SYMBOLS", [])
+
+    if output_dir is None:
+        today_str = datetime.now().strftime("%Y%m%d")
+        export_dir = os.path.join(cfg_get("EXPORT_DIR", "exports"), today_str)
+    else:
+        export_dir = output_dir
+
+    data_frames: list[pd.DataFrame] = []
+    for sym in symbols:
+        logger.info(f"🔄 Ophalen voor {sym}...")
+        df = run(sym, export_dir, fetch_metrics=fetch_metrics, fetch_chains=fetch_chains)
+        if df is not None:
+            data_frames.append(df)
+        time.sleep(2)
+
+    unique_markets = {df["Symbol"].iloc[0] for df in data_frames if "Symbol" in getattr(df, "columns", [])}
+    if fetch_metrics and len(unique_markets) > 1:
+        export_combined_csv(data_frames, export_dir)
+
+    logger.success(f"✅ Export afgerond voor {len(unique_markets)} markten")
+    return data_frames
+
+
 if __name__ == "__main__":
     import argparse
 
@@ -84,44 +128,18 @@ if __name__ == "__main__":
     )
     args = parser.parse_args()
 
-    setup_logging()
-    try:
-        app = connect_ib()
-        app.disconnect()
-    except Exception:
-        logger.error(
-            "❌ IB Gateway/TWS niet bereikbaar. Controleer of de service draait."
-        )
-        sys.exit(1)
-
-    logger.info("🚀 Start export")
-
-    symbols = args.symbols or cfg_get("DEFAULT_SYMBOLS", [])
-
-    if args.output_dir is None:
-        today_str = datetime.now().strftime("%Y%m%d")
-        export_dir = os.path.join(cfg_get("EXPORT_DIR", "exports"), today_str)
-    else:
-        export_dir = args.output_dir
-
     if args.only_metrics and args.only_chains:
         fetch_metrics = fetch_chains = True
     else:
         fetch_metrics = not args.only_chains
         fetch_chains = not args.only_metrics
 
-    data_frames = []
-    for sym in symbols:
-        logger.info(f"🔄 Ophalen voor {sym}...")
-        df = run(
-            sym, export_dir, fetch_metrics=fetch_metrics, fetch_chains=fetch_chains
+    try:
+        run_all(
+            args.symbols or None,
+            args.output_dir,
+            fetch_metrics=fetch_metrics,
+            fetch_chains=fetch_chains,
         )
-        if df is not None:
-            data_frames.append(df)
-        time.sleep(2)
-
-    unique_markets = {df["Symbol"].iloc[0] for df in data_frames}
-    if fetch_metrics and len(unique_markets) > 1:
-        export_combined_csv(data_frames, export_dir)
-
-    logger.success(f"✅ Export afgerond voor {len(unique_markets)} markten")
+    except Exception:
+        sys.exit(1)
