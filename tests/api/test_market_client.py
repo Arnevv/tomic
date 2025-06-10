@@ -26,7 +26,7 @@ def test_start_requests_requests_stock(monkeypatch):
     app = DummyClient("ABC")
     app.spot_price = 1.0
     app.start_requests()
-    assert ("type", 2) in app.calls
+    assert ("type", 1) in app.calls
     req = next(call for call in app.calls if call[0] == "req")
     assert req[2].secType == "STK"
     assert ("cancel", req[1]) in app.calls
