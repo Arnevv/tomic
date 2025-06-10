@@ -59,6 +59,20 @@ tomic/
 ├── ibapi/             # Lokale TWS API (met protobuf)
 tests/                 # Pytest-modules
 
+
+📋 Stappenplan data ophalen
+1. Invoer van symbool
+2. Initialiseren client + verbinden met IB
+3. Spot price ophalen
+4. ContractDetails ophalen voor STK
+5. reqSecDefOptParams() voor optieparameters
+6. Selectie van relevante expiries + strikes (binnen ±10 pts spot)
+7. Per combinatie optiecontract bouwen en reqContractDetails()
+8. Callback: contractDetails() voor opties
+9. Ontvangen van market data (bid/ask/Greeks)
+10. Exporteren van data naar CSV
+
+
 ✅ Tests
 Run alle basistests met:
 pytest tests/
