@@ -253,6 +253,29 @@ def test_write_option_chain_skips_spot_id(tmp_path):
     assert len(rows) == 2  # header + one option record
 
 
+def test_write_option_chain_all_rows_exported(tmp_path):
+    market_data = {
+        10: {"expiry": "20240101", "right": "C", "strike": 100, "bid": 1.0, "ask": 1.2},
+        11: {"expiry": "20240101", "right": "P", "strike": 100, "bid": 0.8, "ask": 1.0},
+        12: {"expiry": "20240101", "right": "C", "strike": 110, "bid": 1.5, "ask": 1.7},
+        13: {"expiry": "20240101", "right": "P", "strike": 110, "bid": 1.3, "ask": 1.6},
+    }
+    app = SimpleNamespace(
+        market_data=market_data,
+        invalid_contracts=set(),
+        _spot_req_id=1,
+        spot_price=100.0,
+    )
+
+    _write_option_chain(app, "ABC", str(tmp_path), "999")
+
+    path = tmp_path / "option_chain_ABC_999.csv"
+    with open(path, newline="") as f:
+        rows = list(csv.reader(f))
+
+    assert len(rows) == 5  # header + four option records
+
+
 def test_export_option_chain_simple_flag(monkeypatch, tmp_path):
     import importlib
 
