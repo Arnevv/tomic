@@ -112,7 +112,18 @@ class StepByStepClient(EWrapper, EClient):
                 "right": con.right,
             })
             logger.info(
-                f"[contractDetails] {con.symbol} {con.lastTradeDateOrContractMonth} {con.strike} {con.right} conId={con.conId}"
+                "[contractDetails] expiry={exp} strike={strike} right={right} "
+                "currency={cur} multiplier={mult} exchange={exch} tradingClass={tc} "
+                "primaryExchange={pexch} conId={cid}",
+                exp=con.lastTradeDateOrContractMonth,
+                strike=con.strike,
+                right=con.right,
+                cur=getattr(con, "currency", ""),
+                mult=getattr(con, "multiplier", ""),
+                exch=con.exchange,
+                tc=getattr(con, "tradingClass", ""),
+                pexch=getattr(con, "primaryExchange", ""),
+                cid=con.conId,
             )
             self.reqMktData(reqId, con, "", False, False, [])
             logger.info(f"✅ contractDetails ontvangen voor reqId {reqId} ({con.localSymbol})")
@@ -327,7 +338,19 @@ def run(symbol: str, output_dir: str) -> None:
                 req_id = app._next_id()
                 app.contract_received.clear()
                 logger.info(
-                    f"➡️ reqContractDetails {req_id}: expiry={expiry}, strike={strike}, right={right}, tradingClass={c.tradingClass}"
+                    "➡️ reqContractDetails {req_id}: expiry={exp} strike={strike} "
+                    "right={right} currency={cur} multiplier={mult} exchange={exch} "
+                    "tradingClass={tc} primaryExchange={pexch} conId={cid}",
+                    req_id=req_id,
+                    exp=expiry,
+                    strike=strike,
+                    right=right,
+                    cur=c.currency,
+                    mult=c.multiplier,
+                    exch=c.exchange,
+                    tc=c.tradingClass,
+                    pexch=app.primary_exchange,
+                    cid=getattr(c, "conId", None),
                 )
                 app.reqContractDetails(req_id, c)
                 if not app.contract_received.wait(2):
