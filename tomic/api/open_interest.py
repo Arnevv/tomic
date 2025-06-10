@@ -46,27 +46,12 @@ class _OpenInterestApp(MarketClient):
         # Request volume (100) and open interest (101) generic ticks. Some
         # brokers send open interest via tick types 86/87 instead of 101.
         self._log_request(contract)
-        # First attempt with live market data
-        self.reqMarketDataType(1)
-        logger.debug("reqMarketDataType(1) - live")
+        # Request delayed market data for open interest
+        self.reqMarketDataType(3)
+        logger.debug("reqMarketDataType(3) - delayed")
         self.reqMktData(1001, contract, "100,101", False, False, [])
         logger.debug(
             "reqMktData sent: id=1001 tickList=100,101 snapshot=False regulatory=False"
-        )
-        # Brief pause before requesting frozen and delayed data as fallbacks
-        time.sleep(0.25)
-        self.reqMarketDataType(2)
-        logger.debug("reqMarketDataType(2) - frozen")
-        self.reqMktData(1002, contract, "100,101", False, False, [])
-        logger.debug(
-            "reqMktData sent: id=1002 tickList=100,101 snapshot=False regulatory=False"
-        )
-        time.sleep(0.25)
-        self.reqMarketDataType(3)
-        logger.debug("reqMarketDataType(3) - delayed")
-        self.reqMktData(1003, contract, "100,101", False, False, [])
-        logger.debug(
-            "reqMktData sent: id=1003 tickList=100,101 snapshot=False regulatory=False"
         )
 
     def tickGeneric(

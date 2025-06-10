@@ -40,10 +40,10 @@ marktdata-opvragingen te verwerken.
 
 - Stel bovendien exchange correct in:
   `contract.exchange = "SMART"` of de gewenste beurs.
-- Voor alle marktdata probeert TOMIC eerst `reqMarketDataType(1)` (live) en
+- Voor spotprijzen probeert TOMIC eerst `reqMarketDataType(1)` (live) en
   valt zo nodig terug naar `reqMarketDataType(2)` (frozen) en daarna
-  `reqMarketDataType(3)` (delayed). Dit gebeurt automatisch vóór elke
-  `reqMktData()`‑aanroep.
+  `reqMarketDataType(3)` (delayed). Optieprijzen worden direct met
+  `reqMarketDataType(3)` (delayed) aangevraagd.
 - Optieketen selectie: de eerste 4 expiries en strikes binnen ±10 punten van de
   afgeronde spotprijs (zoals gebruikt in `fetch_single_option`).
 
