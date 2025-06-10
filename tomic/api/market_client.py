@@ -137,7 +137,10 @@ class MarketClient(BaseIBApp):
     def tickPrice(
         self, reqId: int, tickType: int, price: float, attrib
     ) -> None:  # noqa: N802 - IB API callback
-        if tickType in (TickTypeEnum.LAST, TickTypeEnum.DELAYED_LAST):
+        if (
+            reqId == self._spot_req_id
+            and tickType in (TickTypeEnum.LAST, TickTypeEnum.DELAYED_LAST)
+        ):
             self.spot_price = price
             if price > 0:
                 logger.info(f"✅ [stap 3] Spotprijs: {price}")
