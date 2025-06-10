@@ -45,7 +45,9 @@ class IBApp(BaseIBApp):
 
     def nextValidId(self, orderId: int):
         logger.info(f"✅ Verbonden. OrderId: {orderId}")
-        self.reqMarketDataType(2)
+        for data_type in (1, 2, 3):
+            self.reqMarketDataType(data_type)
+            time.sleep(0.2)
         self.account_event.clear()
         self.position_event.clear()
         self.reqAccountSummary(9001, "All", AccountSummaryTags.AllTags)
