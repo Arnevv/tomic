@@ -17,6 +17,8 @@ import math
 import pandas as pd
 
 from tomic.logutils import logger, log_result
+import asyncio
+from typing import Any
 from tomic.api.market_client import (
     MarketClient,
     OptionChainClient,
@@ -367,8 +369,120 @@ def export_market_data(
     return df_metrics
 
 
+async def start_app_async(app: MarketClient) -> None:
+    """Async wrapper for :func:`start_app`."""
+    await asyncio.to_thread(start_app, app)
+
+
+async def await_market_data_async(
+    app: MarketClient, symbol: str, timeout: int = 30
+) -> bool:
+    """Async wrapper for :func:`await_market_data`."""
+    return await asyncio.to_thread(await_market_data, app, symbol, timeout)
+
+
+async def fetch_market_metrics_async(
+    symbol: str, app: MarketClient | None = None
+) -> dict[str, Any] | None:
+    """Async wrapper for :func:`fetch_market_metrics`."""
+    return await asyncio.to_thread(fetch_market_metrics, symbol, app=app)
+
+
+async def export_option_chain_async(
+    symbol: str, output_dir: str | None = None, *, simple: bool = False
+) -> float | None:
+    """Async version of :func:`export_option_chain`."""
+
+    logger.info("▶️ START stap 1 - Invoer van symbool")
+    symbol = symbol.strip().upper()
+    if not symbol or not symbol.replace(".", "").isalnum():
+        logger.error("❌ FAIL stap 1: ongeldig symbool.")
+        return None
+    logger.info(f"✅ [stap 1] {symbol} ontvangen, ga nu aan de slag!")
+    logger.info("▶️ START stap 2 - Initialiseren client + verbinden met IB")
+    app = OptionChainClient(symbol)
+    await start_app_async(app)
+    ok = await await_market_data_async(app, symbol, timeout=60)
+    if not ok:
+        app.disconnect()
+        return None
+    if output_dir is None:
+        today_str = datetime.now().strftime("%Y%m%d")
+        export_dir = os.path.join(cfg_get("EXPORT_DIR", "exports"), today_str)
+    else:
+        export_dir = output_dir
+    os.makedirs(export_dir, exist_ok=True)
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    if simple:
+        await asyncio.to_thread(
+            _write_option_chain_simple, app, symbol, export_dir, timestamp
+        )
+        avg_parity = None
+    else:
+        avg_parity = await asyncio.to_thread(
+            _write_option_chain, app, symbol, export_dir, timestamp
+        )
+    app.disconnect()
+    await asyncio.sleep(1)
+    logger.success(f"✅ Optieketen verwerkt voor {symbol}")
+    return avg_parity
+
+
+async def export_market_data_async(
+    symbol: str, output_dir: str | None = None
+) -> pd.DataFrame | None:
+    """Async version of :func:`export_market_data`."""
+
+    logger.info("▶️ START stap 1 - Invoer van symbool")
+    symbol = symbol.strip().upper()
+    if not symbol or not symbol.replace(".", "").isalnum():
+        logger.error("❌ FAIL stap 1: ongeldig symbool.")
+        return None
+    logger.info(f"✅ [stap 1] {symbol} ontvangen, ga nu aan de slag!")
+    logger.info("▶️ START stap 2 - Initialiseren client + verbinden met IB")
+    app = OptionChainClient(symbol)
+    await start_app_async(app)
+    try:
+        raw_metrics = await fetch_market_metrics_async(symbol, app=app)
+    except Exception as exc:  # pragma: no cover - network failures
+        logger.error(f"❌ Marktkenmerken ophalen mislukt: {exc}")
+        app.disconnect()
+        return None
+    if raw_metrics is None:
+        logger.error(f"❌ Geen expiries gevonden voor {symbol}")
+        app.disconnect()
+        return None
+    metrics = MarketMetrics.from_dict(raw_metrics)
+    ok = await await_market_data_async(app, symbol, timeout=60)
+    if not ok:
+        app.disconnect()
+        return None
+    if output_dir is None:
+        today_str = datetime.now().strftime("%Y%m%d")
+        export_dir = os.path.join(cfg_get("EXPORT_DIR", "exports"), today_str)
+    else:
+        export_dir = output_dir
+    os.makedirs(export_dir, exist_ok=True)
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    avg_parity = await asyncio.to_thread(
+        _write_option_chain, app, symbol, export_dir, timestamp
+    )
+    df_metrics = await asyncio.to_thread(
+        _write_metrics_csv, metrics, symbol, export_dir, timestamp, avg_parity
+    )
+    app.disconnect()
+    await asyncio.sleep(1)
+    logger.success(f"✅ Marktdata verwerkt voor {symbol}")
+    return df_metrics
+
+
 __all__ = [
     "export_market_data",
     "export_market_metrics",
     "export_option_chain",
+    "export_market_data_async",
+    "export_option_chain_async",
+    "start_app_async",
+    "await_market_data_async",
+    "fetch_market_metrics_async",
 ]
