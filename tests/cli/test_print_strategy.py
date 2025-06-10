@@ -32,3 +32,16 @@ def test_print_strategy_entry_greeks(capsys):
     print_strategy(strat)
     captured = capsys.readouterr().out
     assert "Delta: +0.100 | Gamma: +0.200 | Vega: -0.300 | Theta: +0.400" in captured
+
+
+def test_print_strategy_exit_criteria(capsys):
+    strat = {
+        "symbol": "XYZ",
+        "type": "Test",
+        "exit_strategy": "❌ Stop\n✅ Profit"
+    }
+    print_strategy(strat)
+    out = capsys.readouterr().out
+    assert "🚪 EXITCRITERIA" in out
+    assert "Stop" in out
+    assert "Profit" in out
