@@ -347,6 +347,17 @@ def print_strategy(strategy, rule=None, *, details: bool = False):
         days_line.append(f"{dit}d in trade")
     if days_line:
         mgmt_lines.append("- " + " | ".join(days_line))
+
+    cost_basis = strategy.get("cost_basis")
+    if cost_basis is not None:
+        total_contracts = sum(
+            abs(leg.get("position", 0)) * float(leg.get("multiplier") or 1)
+            for leg in strategy.get("legs", [])
+        )
+        if total_contracts:
+            avg_price = cost_basis / total_contracts
+            mgmt_lines.append(f"- Gem. prijs: {avg_price:+.2f}")
+
     pnl_val = strategy.get("unrealizedPnL")
     if pnl_val is not None:
         margin_ref = strategy.get("init_margin") or strategy.get("margin_used") or 1000
