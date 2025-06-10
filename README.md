@@ -72,6 +72,8 @@ tests/                 # Pytest-modules
 8. Callback: contractDetails() voor opties
 9. Ontvangen van market data (bid/ask/Greeks) en filteren op delta
 10. Exporteren van data naar CSV
+11. Ontbreekt de webscrape-term structure, dan wordt deze berekend uit de
+    ontvangen IV's rond de spotprijs
 
 
 ✅ Tests

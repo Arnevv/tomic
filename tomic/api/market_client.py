@@ -755,6 +755,51 @@ def await_market_data(app: MarketClient, symbol: str, timeout: int = 30) -> bool
 
 
 @log_result
+def compute_iv_term_structure(app: OptionChainClient, *, strike_window: int | None = None) -> dict[str, float]:
+    """Return front-month term structure metrics based on retrieved IVs.
+
+    Parameters
+    ----------
+    app:
+        Running :class:`OptionChainClient` with populated ``market_data``.
+    strike_window:
+        Absolute distance from the spot price used to select strikes. Defaults
+        to ``5`` when not provided.
+    """
+
+    if app.spot_price is None:
+        return {}
+
+    if strike_window is None:
+        strike_window = int(cfg_get("TERM_STRIKE_WINDOW", 5))
+
+    grouped: Dict[str, list[float]] = {}
+    for req_id, rec in app.market_data.items():
+        if req_id in app.invalid_contracts:
+            continue
+        iv = rec.get("iv")
+        strike = rec.get("strike")
+        expiry = rec.get("expiry")
+        if iv is None or strike is None or expiry is None:
+            continue
+        if abs(float(strike) - float(app.spot_price)) <= strike_window:
+            grouped.setdefault(str(expiry), []).append(float(iv))
+
+    avgs: list[tuple[str, float]] = []
+    for expiry, ivs in grouped.items():
+        if ivs:
+            avgs.append((expiry, sum(ivs) / len(ivs)))
+
+    avgs.sort(key=lambda x: x[0])
+    result: Dict[str, float] = {}
+    if len(avgs) >= 2:
+        result["term_m1_m2"] = round((avgs[0][1] - avgs[1][1]) * 100, 2)
+    if len(avgs) >= 3:
+        result["term_m1_m3"] = round((avgs[0][1] - avgs[2][1]) * 100, 2)
+    return result
+
+
+@log_result
 def fetch_market_metrics(
     symbol: str, app: MarketClient | None = None
 ) -> dict[str, Any] | None:
@@ -788,6 +833,12 @@ def fetch_market_metrics(
 
     if await_market_data(app, symbol):
         metrics["spot_price"] = app.spot_price or metrics["spot_price"]
+        if isinstance(app, OptionChainClient):
+            term = compute_iv_term_structure(app)
+            if metrics.get("term_m1_m2") is None and term.get("term_m1_m2") is not None:
+                metrics["term_m1_m2"] = term["term_m1_m2"]
+            if metrics.get("term_m1_m3") is None and term.get("term_m1_m3") is not None:
+                metrics["term_m1_m3"] = term["term_m1_m3"]
 
     if owns_app:
         app.disconnect()
@@ -801,5 +852,6 @@ __all__ = [
     "OptionChainClient",
     "start_app",
     "await_market_data",
+    "compute_iv_term_structure",
     "fetch_market_metrics",
 ]
