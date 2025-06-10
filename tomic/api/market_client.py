@@ -193,11 +193,26 @@ class OptionChainClient(MarketClient):
         self.params_event = threading.Event()
         self.contract_received = threading.Event()
         self.market_event = threading.Event()
+        self.all_data_event = threading.Event()
+        self.expected_contracts = 0
+        self._completed_requests: set[int] = set()
         self._logged_data: set[int] = set()
         self._step6_logged = False
         self._step7_logged = False
         self._step8_logged = False
         self._step9_logged = False
+
+    def _mark_complete(self, req_id: int) -> None:
+        """Record completion of a contract request and set ``all_data_event`` when done."""
+        if req_id in self._completed_requests:
+            return
+        self._completed_requests.add(req_id)
+        if self.expected_contracts and len(self._completed_requests) >= self.expected_contracts:
+            self.all_data_event.set()
+
+    def all_data_received(self) -> bool:
+        """Return ``True`` when all requested option data has been received."""
+        return self.all_data_event.is_set()
 
     # IB callbacks ------------------------------------------------
     @log_result
@@ -268,6 +283,7 @@ class OptionChainClient(MarketClient):
             )
             self.invalid_contracts.add(reqId)
             self._detail_semaphore.release()
+        self._mark_complete(reqId)
         self.contract_received.set()
 
     @log_result
@@ -332,6 +348,9 @@ class OptionChainClient(MarketClient):
         logger.info(
             f"✅ [stap 6] Geselecteerde strikes: {', '.join(str(s) for s in self.strikes)}"
         )
+        self.expected_contracts = len(self.expiries) * len(self.strikes) * 2
+        if self.expected_contracts == 0:
+            self.all_data_event.set()
 
     def securityDefinitionOptionParameterEnd(self, reqId: int) -> None:  # noqa: N802
         """Mark option parameter retrieval as complete."""
@@ -348,6 +367,7 @@ class OptionChainClient(MarketClient):
             if info is not None:
                 logger.debug(f"Invalid contract for id {reqId}: {info}")
             self.invalid_contracts.add(reqId)
+            self._mark_complete(reqId)
 
     @log_result
     def tickOptionComputation(
@@ -372,7 +392,9 @@ class OptionChainClient(MarketClient):
         rec["theta"] = theta
         evt = rec.get("event")
         if isinstance(evt, threading.Event):
-            evt.set()
+            if not evt.is_set():
+                evt.set()
+                self._mark_complete(reqId)
         if reqId != self._spot_req_id and reqId not in self._logged_data:
             if not self._step9_logged:
                 logger.info(
@@ -428,9 +450,12 @@ class OptionChainClient(MarketClient):
             rec["ask"] = price
         evt = rec.get("event")
         if isinstance(evt, threading.Event):
-            evt.set()
+            if not evt.is_set():
+                evt.set()
+                self._mark_complete(reqId)
         if price == -1 and tickType in (TickTypeEnum.BID, TickTypeEnum.ASK):
             self.invalid_contracts.add(reqId)
+            self._mark_complete(reqId)
         if (
             price != -1
             and tickType in (TickTypeEnum.BID, TickTypeEnum.ASK)
@@ -577,6 +602,8 @@ class OptionChainClient(MarketClient):
                 f"strikes={self.strikes} trading_class={self.trading_class}"
             )
             return
+        self.all_data_event.clear()
+        self._completed_requests.clear()
         logger.debug(f"Spot price at _request_option_data: {self.spot_price}")
         logger.debug(
             f"Requesting option data for expiries={self.expiries} strikes={self.strikes}"
@@ -623,6 +650,7 @@ class OptionChainClient(MarketClient):
                         )
                         self._pending_details.pop(req_id, None)
                         self.invalid_contracts.add(req_id)
+                        self._mark_complete(req_id)
 
         logger.debug(
             f"Aantal contractdetails aangevraagd: {len(self._pending_details)}"
@@ -656,18 +684,25 @@ def await_market_data(app: MarketClient, symbol: str, timeout: int = 30) -> bool
         remaining = timeout - (time.time() - start)
         if remaining <= 0:
             break
-        event = getattr(app, "market_event", app.data_event)
+        if isinstance(app, OptionChainClient):
+            event = getattr(app, "all_data_event", app.market_event)
+        else:
+            event = getattr(app, "market_event", app.data_event)
+
         event.wait(remaining)
 
-        if app.spot_price is not None and (
-            not isinstance(app, OptionChainClient) or getattr(app, "market_event", app.data_event).is_set()
-        ):
-            logger.debug(f"Market data ontvangen binnen {time.time() - start:.2f}s")
-            return True
+        if isinstance(app, OptionChainClient):
+            if getattr(app, "all_data_event", event).is_set() and app.spot_price is not None:
+                logger.debug(f"Market data ontvangen binnen {time.time() - start:.2f}s")
+                return True
+        else:
+            if app.spot_price is not None and event.is_set():
+                logger.debug(f"Market data ontvangen binnen {time.time() - start:.2f}s")
+                return True
 
-        if any("bid" in rec or "ask" in rec for rec in app.market_data.values()):
-            logger.debug(f"Bid/ask ontvangen binnen {time.time() - start:.2f}s")
-            return True
+            if any("bid" in rec or "ask" in rec for rec in app.market_data.values()):
+                logger.debug(f"Bid/ask ontvangen binnen {time.time() - start:.2f}s")
+                return True
 
         event.clear()
 
