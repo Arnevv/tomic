@@ -1,5 +1,6 @@
 import importlib
 import types
+import threading
 
 
 def test_start_requests_requests_stock(monkeypatch):
@@ -212,4 +213,51 @@ def test_request_contract_details_timeout(monkeypatch):
 
     assert client.invalid_contracts
     assert not client._pending_details
+
+
+def test_concurrent_contract_request_limit(monkeypatch):
+    mod = importlib.import_module("tomic.api.market_client")
+    max_req = 2
+    client = mod.OptionChainClient("ABC", max_concurrent_requests=max_req)
+    client.trading_class = "ABC"
+    client.expiries = ["20250101"]
+    client.strikes = [1.0, 2.0, 3.0, 4.0]
+    client._strike_lookup = {s: s for s in client.strikes}
+    client.option_params_complete.set()
+
+    active = 0
+    max_seen = 0
+    timers = []
+
+    def fake_reqContractDetails(reqId, contract):
+        nonlocal active, max_seen
+        active += 1
+        max_seen = max(max_seen, active)
+
+        def finish():
+            client.contractDetailsEnd(reqId)
+
+        t = threading.Timer(0.001, finish)
+        timers.append(t)
+        t.start()
+
+    monkeypatch.setattr(client, "reqContractDetails", fake_reqContractDetails, raising=False)
+    monkeypatch.setattr(client, "_request_contract_details", lambda c, r: [client.reqContractDetails(r, c), True][1])
+    monkeypatch.setattr(client, "reqMktData", lambda *a, **k: None, raising=False)
+
+    original_end = client.contractDetailsEnd
+
+    def end_wrapper(reqId):
+        nonlocal active
+        original_end(reqId)
+        active -= 1
+
+    monkeypatch.setattr(client, "contractDetailsEnd", end_wrapper)
+
+    client._request_option_data()
+
+    for t in timers:
+        t.join()
+
+    assert max_seen <= max_req
 
