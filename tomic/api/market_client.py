@@ -349,10 +349,13 @@ class OptionChainClient(MarketClient):
             if self.data_type_success is not None:
                 data_type = self.data_type_success
             else:
-                data_type = 1 if self.market_open else 3
+                data_type = 1 if self.market_open else 4
             logger.debug(f"reqMktData sent for: {contract_repr(con)}")
             self.reqMarketDataType(data_type)
-            logger.debug(f"reqMarketDataType({data_type})")
+            logger.debug(
+                f"[reqId={reqId}] marketDataType={data_type} voor optie {con.symbol} "
+                f"{con.lastTradeDateOrContractMonth} {con.strike} {con.right}"
+            )
             self.reqMktData(reqId, con, "", True, False, [])
             logger.debug(
                 f"✅ [stap 8] reqMktData sent for {con.symbol} {con.lastTradeDateOrContractMonth} {con.strike} {con.right}"
