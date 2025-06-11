@@ -4,7 +4,7 @@ import types
 
 # Stub dependencies before importing the module
 client_stub = types.ModuleType("tomic.api.market_client")
-client_stub.start_app = lambda app: None
+client_stub.start_app = lambda app, **k: None
 client_stub.await_market_data = lambda app, symbol: True
 sys.modules["tomic.api.market_client"] = client_stub
 

@@ -26,21 +26,22 @@ def run(
     *,
     fetch_metrics: bool = True,
     fetch_chains: bool = True,
+    client_id: int | None = None,
 ) -> pd.DataFrame | None:
     """Download market data and/or option chain for ``symbol``."""
 
     if fetch_metrics and fetch_chains:
-        return export_market_data(symbol, output_dir)
+        return export_market_data(symbol, output_dir, client_id=client_id)
     if fetch_metrics:
         if export_market_metrics is None:
             logger.error("export_market_metrics not available")
             return None
-        return export_market_metrics(symbol, output_dir)
+        return export_market_metrics(symbol, output_dir, client_id=client_id)
     if fetch_chains:
         if export_option_chain is None:
             logger.error("export_option_chain not available")
             return None
-        export_option_chain(symbol, output_dir)
+        export_option_chain(symbol, output_dir, client_id=client_id)
     return None
 
 

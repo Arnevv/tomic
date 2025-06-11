@@ -273,7 +273,7 @@ def _write_metrics_csv(
 
 @log_result
 def export_market_metrics(
-    symbol: str, output_dir: str | None = None
+    symbol: str, output_dir: str | None = None, *, client_id: int | None = None
 ) -> pd.DataFrame | None:
     """Export only market metrics for ``symbol`` to a CSV file."""
     symbol = symbol.strip().upper()
@@ -281,7 +281,7 @@ def export_market_metrics(
         logger.error("❌ Geen geldig symbool ingevoerd.")
         return None
     app = OptionChainClient(symbol)
-    start_app(app)
+    start_app(app, client_id=client_id)
     try:
         raw_metrics = fetch_market_metrics(symbol, app=app)
     except Exception as exc:  # pragma: no cover - network failures
@@ -306,7 +306,7 @@ def export_market_metrics(
 
 @log_result
 def export_option_chain(
-    symbol: str, output_dir: str | None = None, *, simple: bool = False
+    symbol: str, output_dir: str | None = None, *, simple: bool = False, client_id: int | None = None
 ) -> float | None:
     """Export only the option chain for ``symbol`` to a CSV file."""
     logger.info("▶️ START stap 1 - Invoer van symbool")
@@ -317,7 +317,7 @@ def export_option_chain(
     logger.info(f"✅ [stap 1] {symbol} ontvangen, ga nu aan de slag!")
     logger.info("▶️ START stap 2 - Initialiseren client + verbinden met IB")
     app = OptionChainClient(symbol)
-    start_app(app)
+    start_app(app, client_id=client_id)
     if not await_market_data(app, symbol, timeout=999):
         app.disconnect()
         return None
@@ -341,7 +341,7 @@ def export_option_chain(
 
 @log_result
 def export_market_data(
-    symbol: str, output_dir: str | None = None
+    symbol: str, output_dir: str | None = None, *, client_id: int | None = None
 ) -> pd.DataFrame | None:
     """Export option chain and market metrics for ``symbol`` to CSV files."""
     logger.info("▶️ START stap 1 - Invoer van symbool")
@@ -352,7 +352,7 @@ def export_market_data(
     logger.info(f"✅ [stap 1] {symbol} ontvangen, ga nu aan de slag!")
     logger.info("▶️ START stap 2 - Initialiseren client + verbinden met IB")
     app = OptionChainClient(symbol)
-    start_app(app)
+    start_app(app, client_id=client_id)
     try:
         raw_metrics = fetch_market_metrics(symbol, app=app)
     except Exception as exc:  # pragma: no cover - network failures
@@ -384,9 +384,9 @@ def export_market_data(
     return df_metrics
 
 
-async def start_app_async(app: MarketClient) -> None:
+async def start_app_async(app: MarketClient, *, client_id: int | None = None) -> None:
     """Async wrapper for :func:`start_app`."""
-    await asyncio.to_thread(start_app, app)
+    await asyncio.to_thread(start_app, app, client_id=client_id)
 
 
 async def await_market_data_async(
@@ -404,7 +404,7 @@ async def fetch_market_metrics_async(
 
 
 async def export_option_chain_async(
-    symbol: str, output_dir: str | None = None, *, simple: bool = False
+    symbol: str, output_dir: str | None = None, *, simple: bool = False, client_id: int | None = None
 ) -> float | None:
     """Async version of :func:`export_option_chain`."""
 
@@ -416,7 +416,7 @@ async def export_option_chain_async(
     logger.info(f"✅ [stap 1] {symbol} ontvangen, ga nu aan de slag!")
     logger.info("▶️ START stap 2 - Initialiseren client + verbinden met IB")
     app = OptionChainClient(symbol)
-    await start_app_async(app)
+    await start_app_async(app, client_id=client_id)
     ok = await await_market_data_async(app, symbol, timeout=60)
     if not ok:
         app.disconnect()
@@ -444,7 +444,7 @@ async def export_option_chain_async(
 
 
 async def export_market_data_async(
-    symbol: str, output_dir: str | None = None
+    symbol: str, output_dir: str | None = None, *, client_id: int | None = None
 ) -> pd.DataFrame | None:
     """Async version of :func:`export_market_data`."""
 
@@ -456,7 +456,7 @@ async def export_market_data_async(
     logger.info(f"✅ [stap 1] {symbol} ontvangen, ga nu aan de slag!")
     logger.info("▶️ START stap 2 - Initialiseren client + verbinden met IB")
     app = OptionChainClient(symbol)
-    await start_app_async(app)
+    await start_app_async(app, client_id=client_id)
     try:
         raw_metrics = await fetch_market_metrics_async(symbol, app=app)
     except Exception as exc:  # pragma: no cover - network failures
