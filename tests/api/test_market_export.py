@@ -20,6 +20,7 @@ sys.modules.setdefault("ibapi.contract", contract_stub)
 client_stub = types.ModuleType("tomic.api.market_client")
 client_stub.MarketClient = object
 client_stub.OptionChainClient = object
+client_stub.TermStructureClient = object
 client_stub.fetch_market_metrics = lambda *a, **k: None
 client_stub.start_app = lambda *a, **k: None
 client_stub.await_market_data = lambda *a, **k: True
@@ -165,8 +166,8 @@ def test_fetch_volatility_metrics_parses_new_fields(monkeypatch):
     data = mod.fetch_volatility_metrics("ABC")
     assert data["atr14"] == 7.8
     assert data["vix"] == 19.5
-    assert data["term_m1_m2"] == -0.3
-    assert data["term_m1_m3"] == -0.7
+    assert "term_m1_m2" not in data
+    assert "term_m1_m3" not in data
 
 
 def test_fetch_market_metrics_includes_new_fields(monkeypatch):
@@ -194,8 +195,6 @@ def test_fetch_market_metrics_includes_new_fields(monkeypatch):
             "atr14": 5.5,
             "vix": 17.2,
             "skew": -1.0,
-            "term_m1_m2": -0.4,
-            "term_m1_m3": -0.9,
             "iv_rank": 30.0,
             "implied_volatility": 25.0,
             "iv_percentile": 70.0,
@@ -205,8 +204,8 @@ def test_fetch_market_metrics_includes_new_fields(monkeypatch):
     result = client_mod.fetch_market_metrics("XYZ")
     assert result["atr14"] == 5.5
     assert result["vix"] == 17.2
-    assert result["term_m1_m2"] == -0.4
-    assert result["term_m1_m3"] == -0.9
+    assert result["term_m1_m2"] is None
+    assert result["term_m1_m3"] is None
 
 
 def test_fetch_market_metrics_computes_term_structure(monkeypatch):
@@ -241,8 +240,6 @@ def test_fetch_market_metrics_computes_term_structure(monkeypatch):
             "atr14": 5.5,
             "vix": 17.2,
             "skew": -1.0,
-            "term_m1_m2": None,
-            "term_m1_m3": None,
             "iv_rank": 30.0,
             "implied_volatility": 25.0,
             "iv_percentile": 70.0,

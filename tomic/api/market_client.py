@@ -897,6 +897,50 @@ class OptionChainClient(MarketClient):
         )
 
 
+class TermStructureClient(OptionChainClient):
+    """Lightweight ``OptionChainClient`` for quick term structure snapshots."""
+
+    def __init__(self, symbol: str, *, expiries: int = 3, strike_window: int = 1) -> None:
+        super().__init__(symbol)
+        self._ts_expiries = expiries
+        self._ts_window = strike_window
+
+    def securityDefinitionOptionParameter(
+        self,
+        reqId: int,
+        exchange: str,
+        underlyingConId: int,
+        tradingClass: str,
+        multiplier: str,
+        expirations: list[str],
+        strikes: list[float],
+    ) -> None:  # noqa: N802
+        super().securityDefinitionOptionParameter(
+            reqId,
+            exchange,
+            underlyingConId,
+            tradingClass,
+            multiplier,
+            expirations,
+            strikes,
+        )
+        if self.expiries:
+            self.expiries = self.expiries[: self._ts_expiries]
+        if self.spot_price is not None and self.strikes:
+            center = round(self.spot_price)
+            allowed = [s for s in self.strikes if abs(s - center) <= self._ts_window]
+            if not allowed:
+                closest = min(self.strikes, key=lambda x: abs(x - center))
+                allowed = [closest]
+            self.strikes = sorted(set(allowed))
+            self._strike_lookup = {
+                k: self._strike_lookup[k] for k in self.strikes if k in self._strike_lookup
+            }
+        self.expected_contracts = len(self.expiries) * len(self.strikes) * 2
+        if self.expected_contracts == 0:
+            self.all_data_event.set()
+
+
 @log_result
 def start_app(app: MarketClient, *, client_id: int | None = None) -> None:
     """Connect to TWS/IB Gateway and start ``app`` in a background thread."""
@@ -1016,8 +1060,8 @@ def fetch_market_metrics(
         "atr14": data.get("atr14"),
         "vix": data.get("vix"),
         "skew": data.get("skew"),
-        "term_m1_m2": data.get("term_m1_m2"),
-        "term_m1_m3": data.get("term_m1_m3"),
+        "term_m1_m2": None,
+        "term_m1_m3": None,
         "iv_rank": data.get("iv_rank"),
         "implied_volatility": data.get("implied_volatility"),
         "iv_percentile": data.get("iv_percentile"),
@@ -1025,7 +1069,7 @@ def fetch_market_metrics(
 
     owns_app = False
     if app is None:
-        app = MarketClient(symbol)
+        app = TermStructureClient(symbol)
         start_app(app)
         owns_app = True
 
@@ -1033,9 +1077,9 @@ def fetch_market_metrics(
         metrics["spot_price"] = app.spot_price or metrics["spot_price"]
         if isinstance(app, OptionChainClient):
             term = compute_iv_term_structure(app)
-            if metrics.get("term_m1_m2") is None and term.get("term_m1_m2") is not None:
+            if term.get("term_m1_m2") is not None:
                 metrics["term_m1_m2"] = term["term_m1_m2"]
-            if metrics.get("term_m1_m3") is None and term.get("term_m1_m3") is not None:
+            if term.get("term_m1_m3") is not None:
                 metrics["term_m1_m3"] = term["term_m1_m3"]
 
     if owns_app:
@@ -1048,6 +1092,7 @@ def fetch_market_metrics(
 __all__ = [
     "MarketClient",
     "OptionChainClient",
+    "TermStructureClient",
     "start_app",
     "await_market_data",
     "compute_iv_term_structure",
