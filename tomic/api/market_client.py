@@ -803,11 +803,13 @@ class OptionChainClient(MarketClient):
 
 
 @log_result
-def start_app(app: MarketClient) -> None:
+def start_app(app: MarketClient, *, client_id: int | None = None) -> None:
     """Connect to TWS/IB Gateway and start ``app`` in a background thread."""
+
     host = cfg_get("IB_HOST", "127.0.0.1")
     port = int(cfg_get("IB_PORT", 7497))
-    client_id = int(cfg_get("IB_CLIENT_ID", 100))
+    if client_id is None:
+        client_id = int(cfg_get("IB_CLIENT_ID", 100))
     logger.debug(f"Connecting app to host={host} port={port} id={client_id}")
     app.connect(host, port, client_id)
     thread = threading.Thread(target=app.run, daemon=True)
