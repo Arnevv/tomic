@@ -38,11 +38,12 @@ def test_fetch_single_option_documentation_writes_csv(tmp_path, monkeypatch):
     assert calls[2][0].endswith("/info")
 
 
-def test_dataexporter_menu_invokes_new_script(monkeypatch):
+def test_dataexporter_menu_invokes_new_scripts(monkeypatch):
     mod = importlib.import_module("tomic.cli.controlpanel")
     called = []
     monkeypatch.setattr(mod, "run_module", lambda name, *a: called.append(name))
-    inputs = iter(["5", "6", "7"])
+    inputs = iter(["4", "AAPL MSFT", "5", "IBM", "6"])
     monkeypatch.setattr("builtins.input", lambda *a: next(inputs))
     mod.run_dataexporter()
-    assert "tomic.api.fetch_single_option_documentation" in called
+    assert "tomic.analysis.bench_getonemarket" in called
+    assert "tomic.api.getonemarket_async" in called
