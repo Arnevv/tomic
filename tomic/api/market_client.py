@@ -364,6 +364,13 @@ class OptionChainClient(MarketClient):
                 f"✅ [stap 4] ConId: {self.con_id}, TradingClass: {self.trading_class}. primaryExchange: {con.primaryExchange}"
             )
             self.details_event.set()
+            # Wait for the spot price to become available before requesting
+            # option parameters. This prevents ``reqSecDefOptParams`` from being
+            # triggered multiple times when the price arrives after the
+            # contract details callback.
+            if self.spot_price is None:
+                logger.debug("Waiting for spot price before requesting option parameters")
+                self.spot_event.wait(2)
             logger.info("▶️ START stap 5 - reqSecDefOptParams() voor optieparameters")
             self.reqSecDefOptParams(
                 self._next_id(), self.symbol, "", "STK", self.con_id
