@@ -151,8 +151,10 @@ class MarketClient(BaseIBApp):
 
         data_type_success = None
         short_timeout = cfg_get("DATA_TYPE_TIMEOUT", 2)
-        # Try live, frozen, and delayed market data regardless of market status
-        data_types = (1, 2, 3, 4)
+        if self.market_open:
+            data_types = (1, 2, 3, 4)
+        else:
+            data_types = (4, 3, 2)
         for data_type in data_types:
             self.reqMarketDataType(data_type)
             logger.debug(f"reqMarketDataType({data_type})")
@@ -170,6 +172,8 @@ class MarketClient(BaseIBApp):
             self.cancelMktData(req_id)
 
         self.data_type_success = data_type_success
+        if self.data_type_success is None:
+            self.data_type_success = 4 if not self.market_open else 1
 
         if self.spot_price is None or self.spot_price <= 0:
             timeout = cfg_get("SPOT_TIMEOUT", 10)
@@ -651,8 +655,10 @@ class OptionChainClient(MarketClient):
 
         data_type_success = None
         short_timeout = cfg_get("DATA_TYPE_TIMEOUT", 2)
-        # Always cycle through live, frozen and delayed quotes
-        data_types = (1, 2, 3, 4)
+        if self.market_open:
+            data_types = (1, 2, 3, 4)
+        else:
+            data_types = (4, 3, 2)
         for data_type in data_types:
             self.reqMarketDataType(data_type)
             logger.debug(f"reqMarketDataType({data_type})")
@@ -671,6 +677,8 @@ class OptionChainClient(MarketClient):
             self.cancelMktData(spot_id)
 
         self.data_type_success = data_type_success
+        if self.data_type_success is None:
+            self.data_type_success = 4 if not self.market_open else 1
 
         if self.spot_price is None:
             timeout = cfg_get("SPOT_TIMEOUT", 20)
