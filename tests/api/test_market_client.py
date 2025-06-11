@@ -22,6 +22,16 @@ def test_start_requests_requests_stock(monkeypatch):
         def cancelMktData(self, reqId: int) -> None:
             self.calls.append(("cancel", reqId))
 
+        def reqContractDetails(self, reqId, contract):
+            details = types.SimpleNamespace(
+                tradingHours="20200101:0930-1600",
+                contract=types.SimpleNamespace(secType="STK"),
+            )
+            self.contractDetails(reqId, details)
+
+        def reqCurrentTime(self):
+            self.currentTime(1577880000)  # 2020-01-01 12:00 UTC
+
     monkeypatch.setattr(market_client, "cfg_get", lambda name, default=None: 0)
     app = DummyClient("ABC")
     app.spot_price = 1.0
@@ -30,6 +40,41 @@ def test_start_requests_requests_stock(monkeypatch):
     req = next(call for call in app.calls if call[0] == "req")
     assert req[2].secType == "STK"
     assert ("cancel", req[1]) in app.calls
+
+
+def test_start_requests_delayed_when_closed(monkeypatch):
+    market_client = importlib.import_module("tomic.api.market_client")
+    MarketClient = market_client.MarketClient
+
+    class DummyClient(MarketClient):
+        def __init__(self, symbol: str) -> None:
+            super().__init__(symbol)
+            self.calls = []
+
+        def reqMarketDataType(self, data_type: int) -> None:
+            self.calls.append(("type", data_type))
+
+        def reqMktData(self, reqId, contract, tickList, snapshot, regSnapshot, opts):
+            self.calls.append(("req", reqId, contract))
+
+        def cancelMktData(self, reqId: int) -> None:
+            self.calls.append(("cancel", reqId))
+
+        def reqContractDetails(self, reqId, contract):
+            details = types.SimpleNamespace(
+                tradingHours="20200101:CLOSED",
+                contract=types.SimpleNamespace(secType="STK"),
+            )
+            self.contractDetails(reqId, details)
+
+        def reqCurrentTime(self):
+            self.currentTime(1577880000)
+
+    monkeypatch.setattr(market_client, "cfg_get", lambda name, default=None: 0)
+    app = DummyClient("ABC")
+    app.spot_price = 1.0
+    app.start_requests()
+    assert ("type", 3) in app.calls
 
 
 def test_option_chain_client_events_set():
