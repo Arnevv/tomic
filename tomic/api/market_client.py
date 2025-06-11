@@ -11,9 +11,8 @@ option contracts so that requests match the underlying's market data.
 from typing import Any, Dict
 import threading
 import time
-from datetime import datetime
+from datetime import datetime, timedelta
 from ibapi.ticktype import TickTypeEnum
-from datetime import timedelta
 
 try:  # pragma: no cover - optional dependency during tests
     from ibapi.utils import floatMaxString
@@ -49,6 +48,31 @@ def contract_repr(contract):
     ).strip()
 
 
+def is_market_open(trading_hours: str, now: datetime) -> bool:
+    """Return ``True`` if ``now`` falls within ``trading_hours``."""
+
+    day = now.strftime("%Y%m%d")
+    for part in trading_hours.split(";"):
+        if ":" not in part:
+            continue
+        date_part, hours_part = part.split(":", 1)
+        if date_part != day:
+            continue
+        if hours_part == "CLOSED":
+            return False
+        for session in hours_part.split(","):
+            try:
+                start_str, end_str = session.split("-")
+            except ValueError:
+                continue
+            start_dt = datetime.strptime(day + start_str, "%Y%m%d%H%M")
+            end_dt = datetime.strptime(day + end_str, "%Y%m%d%H%M")
+            if start_dt <= now <= end_dt:
+                return True
+        return False
+    return False
+
+
 class MarketClient(BaseIBApp):
     """Minimal IB client used for market data exports."""
 
@@ -71,6 +95,10 @@ class MarketClient(BaseIBApp):
         self.data_event = threading.Event()
         self._req_id = 50
         self._spot_req_id: int | None = None
+        self.trading_hours: str | None = None
+        self.server_time: datetime | None = None
+        self._time_event = threading.Event()
+        self._details_event = threading.Event()
 
     # Helpers -----------------------------------------------------
     @log_result
@@ -100,9 +128,21 @@ class MarketClient(BaseIBApp):
         """Request a basic stock quote for ``self.symbol`` with data type fallback."""
         contract = self._stock_contract()
 
+        # Determine whether the market is currently open
+        self._details_event.clear()
+        self.reqContractDetails(self._next_id(), contract)
+        self._details_event.wait(2)
+        self._time_event.clear()
+        self.reqCurrentTime()
+        self._time_event.wait(2)
+        market_open = False
+        if self.trading_hours and self.server_time:
+            market_open = is_market_open(self.trading_hours, self.server_time)
+
         data_type_success = None
         short_timeout = cfg_get("DATA_TYPE_TIMEOUT", 2)
-        for data_type in (1, 2, 3):
+        data_types = (1, 2, 3) if market_open else (3,)
+        for data_type in data_types:
             self.reqMarketDataType(data_type)
             logger.debug(f"reqMarketDataType({data_type})")
             req_id = self._next_id()
@@ -164,6 +204,14 @@ class MarketClient(BaseIBApp):
     ) -> None:  # noqa: N802 - IB API callback
         rec = self.market_data.setdefault(reqId, {})
         rec.setdefault("sizes", {})[tickType] = size
+
+    def currentTime(self, time: int) -> None:  # noqa: N802
+        self.server_time = datetime.fromtimestamp(time)
+        self._time_event.set()
+
+    def contractDetails(self, reqId: int, details) -> None:  # noqa: N802
+        self.trading_hours = getattr(details, "tradingHours", "")
+        self._details_event.set()
 
 
 class OptionChainClient(MarketClient):
@@ -230,6 +278,8 @@ class OptionChainClient(MarketClient):
             f"contractDetails callback: reqId={reqId}, conId={con.conId}, type={con.secType}"
         )
         if con.secType == "STK" and self.con_id is None:
+            self.trading_hours = getattr(details, "tradingHours", "")
+            self._details_event.set()
             self.con_id = con.conId
             self.stock_con_id = con.conId
             self.trading_class = con.tradingClass or self.symbol
@@ -546,11 +596,23 @@ class OptionChainClient(MarketClient):
         stk = self._stock_contract()
         logger.debug(f"Requesting stock quote with contract: {stk}")
 
+        # Determine market status
+        self._details_event.clear()
+        self.reqContractDetails(self._next_id(), stk)
+        self._details_event.wait(2)
+        self._time_event.clear()
+        self.reqCurrentTime()
+        self._time_event.wait(2)
+        market_open = False
+        if self.trading_hours and self.server_time:
+            market_open = is_market_open(self.trading_hours, self.server_time)
+
         logger.info("▶️ START stap 3 - Spot price ophalen")
 
         data_type_success = None
         short_timeout = cfg_get("DATA_TYPE_TIMEOUT", 2)
-        for data_type in (1, 2, 3):
+        data_types = (1, 2, 3) if market_open else (3,)
+        for data_type in data_types:
             self.reqMarketDataType(data_type)
             logger.debug(f"reqMarketDataType({data_type})")
             spot_id = self._next_id()
