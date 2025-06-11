@@ -65,8 +65,14 @@ def is_market_open(trading_hours: str, now: datetime) -> bool:
                 start_str, end_str = session.split("-")
             except ValueError:
                 continue
+            # remove any appended date information (e.g. "1700-0611:2000")
+            start_str = start_str.split(":")[-1][:4]
+            end_str = end_str.split(":")[0][:4]
             start_dt = datetime.strptime(day + start_str, "%Y%m%d%H%M")
             end_dt = datetime.strptime(day + end_str, "%Y%m%d%H%M")
+            # handle sessions that cross midnight
+            if end_dt <= start_dt:
+                end_dt += timedelta(days=1)
             if start_dt <= now <= end_dt:
                 return True
         return False
