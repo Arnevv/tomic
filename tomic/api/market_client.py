@@ -49,7 +49,12 @@ def contract_repr(contract):
 
 
 def is_market_open(trading_hours: str, now: datetime) -> bool:
-    """Return ``True`` if ``now`` falls within ``trading_hours``."""
+    """Return ``True`` if ``now`` falls within ``trading_hours``.
+
+    ``trading_hours`` should contain **regular** trading sessions only. If a
+    string with extended hours is provided, ensure it has been filtered to
+    regular hours first.
+    """
 
     day = now.strftime("%Y%m%d")
     for part in trading_hours.split(";"):
@@ -82,7 +87,8 @@ def is_market_open(trading_hours: str, now: datetime) -> bool:
 def market_hours_today(trading_hours: str, now: datetime) -> tuple[str, str] | None:
     """Return the market open and close time (HH:MM) for ``now``.
 
-    Returns ``None`` if the market is closed or no session matches ``now``'s
+    ``trading_hours`` should represent regular trading hours. The function
+    returns ``None`` if the market is closed or no session matches ``now``'s
     date.
     """
 
@@ -285,7 +291,9 @@ class MarketClient(BaseIBApp):
         self._time_event.set()
 
     def contractDetails(self, reqId: int, details) -> None:  # noqa: N802
-        self.trading_hours = getattr(details, "tradingHours", "")
+        self.trading_hours = getattr(
+            details, "liquidHours", getattr(details, "tradingHours", "")
+        )
         self._details_event.set()
 
 
@@ -353,7 +361,9 @@ class OptionChainClient(MarketClient):
             f"contractDetails callback: reqId={reqId}, conId={con.conId}, type={con.secType}"
         )
         if con.secType == "STK" and self.con_id is None:
-            self.trading_hours = getattr(details, "tradingHours", "")
+            self.trading_hours = getattr(
+                details, "liquidHours", getattr(details, "tradingHours", "")
+            )
             self._details_event.set()
             self.con_id = con.conId
             self.stock_con_id = con.conId
