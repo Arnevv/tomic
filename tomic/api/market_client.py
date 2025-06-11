@@ -163,7 +163,7 @@ class MarketClient(BaseIBApp):
             logger.debug(
                 f"Requesting stock quote for symbol={contract.symbol} id={req_id}"
             )
-            if self.data_event.wait(short_timeout) or self.spot_price is not None:
+            if self.data_event.wait(short_timeout) and self.spot_price is not None:
                 data_type_success = data_type
                 self.cancelMktData(req_id)
                 break
@@ -171,11 +171,10 @@ class MarketClient(BaseIBApp):
 
         self.data_type_success = data_type_success
 
-        if self.spot_price is None:
+        if self.spot_price is None or self.spot_price <= 0:
             timeout = cfg_get("SPOT_TIMEOUT", 10)
             self.data_event.clear()
-            if data_type_success is not None:
-                self.reqMarketDataType(data_type_success)
+            self.reqMarketDataType(4)
             self.reqMktData(req_id, contract, "", False, False, [])
             self.data_event.wait(timeout)
             self.cancelMktData(req_id)
@@ -214,13 +213,17 @@ class MarketClient(BaseIBApp):
             self.spot_price = price
             if price > 0:
                 logger.info(f"✅ [stap 3] Spotprijs: {price}")
-        if tickType in (
-            TickTypeEnum.LAST,
-            TickTypeEnum.BID,
-            TickTypeEnum.ASK,
-            getattr(TickTypeEnum, "DELAYED_LAST", TickTypeEnum.LAST),
-            getattr(TickTypeEnum, "DELAYED_BID", TickTypeEnum.BID),
-            getattr(TickTypeEnum, "DELAYED_ASK", TickTypeEnum.ASK),
+        if (
+            price != -1
+            and tickType
+            in (
+                TickTypeEnum.LAST,
+                TickTypeEnum.BID,
+                TickTypeEnum.ASK,
+                getattr(TickTypeEnum, "DELAYED_LAST", TickTypeEnum.LAST),
+                getattr(TickTypeEnum, "DELAYED_BID", TickTypeEnum.BID),
+                getattr(TickTypeEnum, "DELAYED_ASK", TickTypeEnum.ASK),
+            )
         ):
             self.data_event.set()
         rec = self.market_data.setdefault(reqId, {})
