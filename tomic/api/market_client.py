@@ -176,12 +176,14 @@ class MarketClient(BaseIBApp):
             self.data_event.wait(timeout)
             self.cancelMktData(req_id)
 
-        if self.spot_price is None and not market_open:
+        if (self.spot_price is None or self.spot_price <= 0):
             fallback = fetch_volatility_metrics(self.symbol).get("spot_price")
             if fallback is not None:
                 try:
                     self.spot_price = float(fallback)
-                    logger.info(f"✅ [stap 3] Spotprijs fallback: {self.spot_price}")
+                    logger.info(
+                        f"✅ [stap 3] Spotprijs fallback: {self.spot_price}"
+                    )
                 except (TypeError, ValueError):
                     logger.warning("Fallback spot price could not be parsed")
 
@@ -660,7 +662,7 @@ class OptionChainClient(MarketClient):
             self._spot_req_id = spot_id
             self.spot_event.wait(timeout)
             self.cancelMktData(spot_id)
-        if self.spot_price is None and not market_open:
+        if (self.spot_price is None or self.spot_price <= 0):
             fallback = fetch_volatility_metrics(self.symbol).get("spot_price")
             if fallback is not None:
                 try:
