@@ -243,6 +243,42 @@ def test_security_def_option_parameter_records_multiplier():
     assert client.expected_contracts == len(client.expiries) * len(client.strikes) * 2
 
 
+def test_req_secdefopt_waits_for_spot(monkeypatch):
+    mod = importlib.import_module("tomic.api.market_client")
+    client = mod.OptionChainClient("ABC")
+
+    calls = []
+
+    def fake_callback(*a, **k):
+        calls.append(1)
+
+    def fake_reqSecDefOptParams(*a, **k):
+        client.securityDefinitionOptionParameter(1, "SMART", 1, "TC", "100", [], [])
+
+    monkeypatch.setattr(client, "securityDefinitionOptionParameter", fake_callback, raising=False)
+    client.reqSecDefOptParams = fake_reqSecDefOptParams
+
+    details = types.SimpleNamespace(
+        contract=types.SimpleNamespace(
+            secType="STK",
+            conId=1,
+            tradingClass="TC",
+            primaryExchange="SMART",
+        )
+    )
+
+    def set_spot():
+        client.spot_price = 10.0
+        client.spot_event.set()
+
+    t = threading.Timer(0.01, set_spot)
+    t.start()
+    client.contractDetails(1, details)
+    t.join()
+
+    assert len(calls) == 1
+
+
 def test_request_skips_without_details(monkeypatch):
     mod = importlib.import_module("tomic.api.market_client")
     client = mod.OptionChainClient("ABC")
