@@ -32,7 +32,7 @@ class OptionContract:
         contract.symbol = self.symbol
         contract.secType = "OPT"
         contract.exchange = self.exchange
-        contract.primaryExchange = self.primary_exchange or self.exchange
+        contract.primaryExchange = self.primary_exchange or ""
         contract.currency = self.currency
         contract.lastTradeDateOrContractMonth = self.expiry
         contract.strike = self.strike
