@@ -71,10 +71,13 @@ def test_start_requests_delayed_when_closed(monkeypatch):
             self.currentTime(1577880000)
 
     monkeypatch.setattr(market_client, "cfg_get", lambda name, default=None: 0)
+    # Patch fetch_volatility_metrics to avoid network access during tests
+    monkeypatch.setattr(market_client, "fetch_volatility_metrics", lambda s: {})
     app = DummyClient("ABC")
-    app.spot_price = 1.0
+    # No spot price to force cycling through market data types
     app.start_requests()
-    assert ("type", 3) in app.calls
+    type_calls = [t[1] for t in app.calls if t[0] == "type"]
+    assert type_calls[:3] == [1, 2, 3]
 
 
 def test_option_chain_client_events_set():
