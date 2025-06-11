@@ -182,7 +182,7 @@ def test_fetch_market_metrics_includes_new_fields(monkeypatch):
             pass
 
     monkeypatch.setattr(client_mod, "MarketClient", DummyApp)
-    monkeypatch.setattr(client_mod, "start_app", lambda app: None)
+    monkeypatch.setattr(client_mod, "start_app", lambda app, **k: None)
     monkeypatch.setattr(client_mod, "await_market_data", lambda app, symbol, timeout=10: True)
 
     monkeypatch.setattr(
@@ -230,7 +230,7 @@ def test_fetch_market_metrics_computes_term_structure(monkeypatch):
             pass
 
     monkeypatch.setattr(client_mod, "OptionChainClient", DummyApp)
-    monkeypatch.setattr(client_mod, "start_app", lambda app: None)
+    monkeypatch.setattr(client_mod, "start_app", lambda app, **k: None)
     monkeypatch.setattr(client_mod, "await_market_data", lambda app, symbol, timeout=10: True)
     monkeypatch.setattr(
         client_mod,
@@ -331,7 +331,7 @@ def test_export_option_chain_simple_flag(monkeypatch, tmp_path):
     dummy_app = SimpleNamespace(market_data={}, invalid_contracts=set(), disconnect=lambda: None)
 
     monkeypatch.setattr(mod, "OptionChainClient", lambda sym: dummy_app)
-    monkeypatch.setattr(mod, "start_app", lambda app: None)
+    monkeypatch.setattr(mod, "start_app", lambda app, **k: None)
     monkeypatch.setattr(mod, "await_market_data", lambda app, symbol, timeout=60: True)
 
     called = []

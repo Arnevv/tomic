@@ -21,6 +21,7 @@ async def run_async(
     *,
     fetch_metrics: bool = True,
     fetch_chains: bool = True,
+    client_id: int | None = None,
 ) -> object | None:
     """Run ``tomic.api.getallmarkets.run`` in a background thread."""
 
@@ -30,6 +31,7 @@ async def run_async(
         output_dir,
         fetch_metrics=fetch_metrics,
         fetch_chains=fetch_chains,
+        client_id=client_id,
     )
 
 
@@ -42,14 +44,16 @@ async def gather_markets(
 ) -> list[object]:
     """Fetch data for multiple markets concurrently."""
 
+    base_id = int(cfg_get("IB_CLIENT_ID", 100))
     tasks = [
         run_async(
             sym,
             output_dir,
             fetch_metrics=fetch_metrics,
             fetch_chains=fetch_chains,
+            client_id=base_id + idx,
         )
-        for sym in symbols
+        for idx, sym in enumerate(symbols)
     ]
     results: List = await asyncio.gather(*tasks)
 
