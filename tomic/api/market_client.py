@@ -692,6 +692,17 @@ class OptionChainClient(MarketClient):
             market_open = is_market_open(self.trading_hours, self.server_time)
         self.market_open = market_open
 
+        if self.trading_hours and self.server_time:
+            hours = market_hours_today(self.trading_hours, self.server_time)
+            if hours is not None:
+                start, end = hours
+                status = "open" if self.market_open else "dicht"
+                now_str = self.server_time.strftime("%H:%M")
+                logger.info(
+                    f"✅ [stap 2] De markt ({self.symbol}) is open tussen {start} en {end}, "
+                    f"het is nu {now_str} dus de markt is {status}"
+                )
+
         logger.info("▶️ START stap 3 - Spot price ophalen")
 
         data_type_success = None
