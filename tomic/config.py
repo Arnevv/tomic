@@ -54,6 +54,13 @@ class AppConfig(BaseModel):
     DELTA_MIN: float = -0.8
     DELTA_MAX: float = 0.8
 
+    # Network tuning -------------------------------------------------
+    MAX_CONCURRENT_REQUESTS: int = 5
+    CONTRACT_DETAILS_TIMEOUT: int = 2
+    CONTRACT_DETAILS_RETRIES: int = 0
+    DOWNLOAD_TIMEOUT: int = 10
+    DOWNLOAD_RETRIES: int = 2
+
 
 _BASE_DIR = Path(__file__).resolve().parent.parent
 
