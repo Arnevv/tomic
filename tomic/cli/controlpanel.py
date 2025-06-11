@@ -192,42 +192,35 @@ def run_dataexporter() -> None:
         )
         sub.run()
 
-    def option_lookup_default() -> None:
-        os.environ["TOMIC_LOG_LEVEL"] = "DEBUG"
+    def bench_getonemarket() -> None:
+        raw = prompt("Symbolen (spatiegescheiden): ")
+        symbols = [s.strip().upper() for s in raw.split() if s.strip()]
+        if not symbols:
+            print("Geen symbolen opgegeven")
+            return
         try:
-            run_module(
-                "tomic.cli.option_lookup",
-                "AAPL",
-                "2025-06-20",
-                "200",
-                "C",
-            )
+            run_module("tomic.analysis.bench_getonemarket", *symbols)
         except subprocess.CalledProcessError:
-            print("❌ Ophalen van optiedata mislukt")
-        finally:
-            os.environ["TOMIC_LOG_LEVEL"] = "INFO"
+            print("❌ Benchmark mislukt")
 
-    def _fetch_option_doc() -> None:
+    def export_one_async() -> None:
+        symbol = prompt("Ticker symbool: ")
+        if not symbol:
+            print("Geen symbool opgegeven")
+            return
         try:
-            run_module("tomic.api.fetch_single_option_documentation")
+            run_module("tomic.api.getonemarket_async", symbol)
         except subprocess.CalledProcessError:
-            print("❌ Ophalen van optiedata mislukt (Web API niet bereikbaar)")
+            print("❌ Export mislukt")
 
     menu = Menu("📤 DATA MANAGEMENT")
     menu.add("Exporteer een markt (tomic.api.getonemarket)", export_one)
     menu.add("Exporteer alle markten (tomic.api.getallmarkets)", export_all)
     menu.add("Controleer CSV-kwaliteit (tomic.cli.csv_quality_check)", csv_check)
+    menu.add("Benchmark getonemarket (analysis)", bench_getonemarket)
     menu.add(
-        "Haal optiedata op per symbool",
-        option_lookup_default,
-    )
-    menu.add(
-        "Ophalen 1 optie single script",
-        lambda: run_module("tomic.api.fetch_single_option", "MSFT"),
-    )
-    menu.add(
-        "Ophalen 1 optie volgens documentatie",
-        lambda: _fetch_option_doc(),
+        "Exporteer een markt asynchroon",
+        export_one_async,
     )
 
     menu.run()
