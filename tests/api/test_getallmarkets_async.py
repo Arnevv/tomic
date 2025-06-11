@@ -44,7 +44,7 @@ def test_gather_markets_passes_flags(monkeypatch):
 
     calls = []
 
-    def fake_run(sym, out=None, *, fetch_metrics=True, fetch_chains=True):
+    def fake_run(sym, out=None, *, fetch_metrics=True, fetch_chains=True, client_id=None):
         calls.append((sym, out, fetch_metrics, fetch_chains))
         return FakeFrame(sym)
 
@@ -65,7 +65,7 @@ def test_gather_markets_exports_when_metrics(tmp_path, monkeypatch):
     monkeypatch.setattr(
         mod,
         "run",
-        lambda sym, out=None, *, fetch_metrics=True, fetch_chains=True: FakeFrame(sym),
+        lambda sym, out=None, *, fetch_metrics=True, fetch_chains=True, client_id=None: FakeFrame(sym),
     )
     paths = []
     monkeypatch.setattr(
