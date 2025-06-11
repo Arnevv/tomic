@@ -22,6 +22,7 @@ from typing import Any
 from tomic.api.market_client import (
     MarketClient,
     OptionChainClient,
+    TermStructureClient,
     fetch_market_metrics,
     start_app,
     await_market_data,
@@ -280,7 +281,7 @@ def export_market_metrics(
     if not symbol:
         logger.error("❌ Geen geldig symbool ingevoerd.")
         return None
-    app = OptionChainClient(symbol)
+    app = TermStructureClient(symbol)
     start_app(app, client_id=client_id)
     try:
         raw_metrics = fetch_market_metrics(symbol, app=app)
