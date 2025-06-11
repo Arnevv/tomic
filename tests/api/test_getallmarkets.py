@@ -73,6 +73,7 @@ sys.modules.setdefault("ibapi.contract", contract_stub)
 client_stub = types.ModuleType("tomic.api.market_client")
 client_stub.MarketClient = object
 client_stub.OptionChainClient = object
+client_stub.TermStructureClient = object
 client_stub.fetch_market_metrics = lambda *a, **k: None
 client_stub.start_app = lambda *a, **k: None
 client_stub.await_market_data = lambda *a, **k: True
