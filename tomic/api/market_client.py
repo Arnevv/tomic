@@ -106,6 +106,7 @@ class MarketClient(BaseIBApp):
         self._time_event = threading.Event()
         self._details_event = threading.Event()
         self.market_open: bool = False
+        self.data_type_success: int | None = None
 
     # Helpers -----------------------------------------------------
     @log_result
@@ -150,7 +151,8 @@ class MarketClient(BaseIBApp):
 
         data_type_success = None
         short_timeout = cfg_get("DATA_TYPE_TIMEOUT", 2)
-        data_types = (1, 2, 3) if market_open else (3,)
+        # Try live, frozen, and delayed market data regardless of market status
+        data_types = (1, 2, 3, 4)
         for data_type in data_types:
             self.reqMarketDataType(data_type)
             logger.debug(f"reqMarketDataType({data_type})")
@@ -166,6 +168,8 @@ class MarketClient(BaseIBApp):
                 self.cancelMktData(req_id)
                 break
             self.cancelMktData(req_id)
+
+        self.data_type_success = data_type_success
 
         if self.spot_price is None:
             timeout = cfg_get("SPOT_TIMEOUT", 10)
@@ -339,8 +343,13 @@ class OptionChainClient(MarketClient):
                 f"right={con.right} exchange={con.exchange} primaryExchange={con.primaryExchange} "
                 f"tradingClass={getattr(con, 'tradingClass', '')} multiplier={getattr(con, 'multiplier', '')}"
             )
-            # Request option market data using live or delayed quotes
-            data_type = 1 if self.market_open else 3
+            # Request option market data using the type that succeeded for the
+            # stock quote fallback, defaulting to live when open or delayed when
+            # closed.
+            if self.data_type_success is not None:
+                data_type = self.data_type_success
+            else:
+                data_type = 1 if self.market_open else 3
             logger.debug(f"reqMktData sent for: {contract_repr(con)}")
             self.reqMarketDataType(data_type)
             logger.debug(f"reqMarketDataType({data_type})")
@@ -636,7 +645,8 @@ class OptionChainClient(MarketClient):
 
         data_type_success = None
         short_timeout = cfg_get("DATA_TYPE_TIMEOUT", 2)
-        data_types = (1, 2, 3) if market_open else (3,)
+        # Always cycle through live, frozen and delayed quotes
+        data_types = (1, 2, 3, 4)
         for data_type in data_types:
             self.reqMarketDataType(data_type)
             logger.debug(f"reqMarketDataType({data_type})")
@@ -653,6 +663,8 @@ class OptionChainClient(MarketClient):
                 logger.debug(f"Market data type {data_type} succeeded")
                 break
             self.cancelMktData(spot_id)
+
+        self.data_type_success = data_type_success
 
         if self.spot_price is None:
             timeout = cfg_get("SPOT_TIMEOUT", 20)
