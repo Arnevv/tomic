@@ -8,6 +8,29 @@ def test_start_requests_requests_stock(monkeypatch):
     market_client = importlib.import_module("tomic.api.market_client")
     MarketClient = market_client.MarketClient
 
+    if not hasattr(market_client.TickTypeEnum, "LAST"):
+        market_client.TickTypeEnum.LAST = 68
+    if not hasattr(market_client.TickTypeEnum, "BID"):
+        market_client.TickTypeEnum.BID = 1
+    if not hasattr(market_client.TickTypeEnum, "DELAYED_LAST"):
+        market_client.TickTypeEnum.DELAYED_LAST = 69
+    if not hasattr(market_client.TickTypeEnum, "ASK"):
+        market_client.TickTypeEnum.ASK = 2
+    if not hasattr(market_client.TickTypeEnum, "DELAYED_BID"):
+        market_client.TickTypeEnum.DELAYED_BID = 3
+    if not hasattr(market_client.TickTypeEnum, "DELAYED_ASK"):
+        market_client.TickTypeEnum.DELAYED_ASK = 4
+    if not hasattr(market_client.TickTypeEnum, "BID"):
+        market_client.TickTypeEnum.BID = 1
+    if not hasattr(market_client.TickTypeEnum, "DELAYED_LAST"):
+        market_client.TickTypeEnum.DELAYED_LAST = 69
+    if not hasattr(market_client.TickTypeEnum, "ASK"):
+        market_client.TickTypeEnum.ASK = 2
+    if not hasattr(market_client.TickTypeEnum, "DELAYED_BID"):
+        market_client.TickTypeEnum.DELAYED_BID = 3
+    if not hasattr(market_client.TickTypeEnum, "DELAYED_ASK"):
+        market_client.TickTypeEnum.DELAYED_ASK = 4
+
     class DummyClient(MarketClient):
         def __init__(self, symbol: str) -> None:
             super().__init__(symbol)
@@ -18,6 +41,8 @@ def test_start_requests_requests_stock(monkeypatch):
 
         def reqMktData(self, reqId, contract, tickList, snapshot, regSnapshot, opts):
             self.calls.append(("req", reqId, contract))
+            # Simulate receiving a valid tick price to satisfy the wait
+            self.tickPrice(reqId, market_client.TickTypeEnum.LAST, 10.0, None)
 
         def cancelMktData(self, reqId: int) -> None:
             self.calls.append(("cancel", reqId))
@@ -34,7 +59,6 @@ def test_start_requests_requests_stock(monkeypatch):
 
     monkeypatch.setattr(market_client, "cfg_get", lambda name, default=None: 0)
     app = DummyClient("ABC")
-    app.spot_price = 1.0
     app.start_requests()
     assert ("type", 1) in app.calls
     req = next(call for call in app.calls if call[0] == "req")
@@ -78,6 +102,58 @@ def test_start_requests_delayed_when_closed(monkeypatch):
     app.start_requests()
     type_calls = [t[1] for t in app.calls if t[0] == "type"]
     assert type_calls[:3] == [1, 2, 3]
+
+
+def test_start_requests_skips_invalid_tick(monkeypatch):
+    market_client = importlib.import_module("tomic.api.market_client")
+    MarketClient = market_client.MarketClient
+
+    if not hasattr(market_client.TickTypeEnum, "LAST"):
+        market_client.TickTypeEnum.LAST = 68
+    if not hasattr(market_client.TickTypeEnum, "BID"):
+        market_client.TickTypeEnum.BID = 1
+    if not hasattr(market_client.TickTypeEnum, "DELAYED_LAST"):
+        market_client.TickTypeEnum.DELAYED_LAST = 69
+    if not hasattr(market_client.TickTypeEnum, "ASK"):
+        market_client.TickTypeEnum.ASK = 2
+    if not hasattr(market_client.TickTypeEnum, "DELAYED_BID"):
+        market_client.TickTypeEnum.DELAYED_BID = 3
+    if not hasattr(market_client.TickTypeEnum, "DELAYED_ASK"):
+        market_client.TickTypeEnum.DELAYED_ASK = 4
+
+    class DummyClient(MarketClient):
+        def __init__(self, symbol: str) -> None:
+            super().__init__(symbol)
+            self.calls = []
+
+        def reqMarketDataType(self, data_type: int) -> None:
+            self.calls.append(("type", data_type))
+
+        def reqMktData(self, reqId, contract, tickList, snapshot, regSnapshot, opts):
+            self.calls.append(("req", reqId, contract))
+            # Simulate tickPrice callback with an invalid price
+            self.tickPrice(reqId, market_client.TickTypeEnum.LAST, -1, None)
+
+        def cancelMktData(self, reqId: int) -> None:
+            self.calls.append(("cancel", reqId))
+
+        def reqContractDetails(self, reqId, contract):
+            details = types.SimpleNamespace(
+                tradingHours="20200101:CLOSED",
+                contract=types.SimpleNamespace(secType="STK"),
+            )
+            self.contractDetails(reqId, details)
+
+        def reqCurrentTime(self):
+            self.currentTime(1577880000)
+
+    monkeypatch.setattr(market_client, "cfg_get", lambda name, default=None: 0)
+    monkeypatch.setattr(market_client, "fetch_volatility_metrics", lambda s: {})
+    app = DummyClient("ABC")
+    app.start_requests()
+    type_calls = [t[1] for t in app.calls if t[0] == "type"]
+    # The invalid tick should cause a retry with the next data type
+    assert type_calls[:2] == [1, 2]
 
 
 def test_option_chain_client_events_set():
