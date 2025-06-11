@@ -105,6 +105,7 @@ class MarketClient(BaseIBApp):
         self.server_time: datetime | None = None
         self._time_event = threading.Event()
         self._details_event = threading.Event()
+        self.market_open: bool = False
 
     # Helpers -----------------------------------------------------
     @log_result
@@ -141,9 +142,11 @@ class MarketClient(BaseIBApp):
         self._time_event.clear()
         self.reqCurrentTime()
         self._time_event.wait(2)
+
         market_open = False
         if self.trading_hours and self.server_time:
             market_open = is_market_open(self.trading_hours, self.server_time)
+        self.market_open = market_open
 
         data_type_success = None
         short_timeout = cfg_get("DATA_TYPE_TIMEOUT", 2)
@@ -334,10 +337,11 @@ class OptionChainClient(MarketClient):
                 f"right={con.right} exchange={con.exchange} primaryExchange={con.primaryExchange} "
                 f"tradingClass={getattr(con, 'tradingClass', '')} multiplier={getattr(con, 'multiplier', '')}"
             )
-            # Request option market data using delayed quotes
+            # Request option market data using live or delayed quotes
+            data_type = 1 if self.market_open else 3
             logger.debug(f"reqMktData sent for: {contract_repr(con)}")
-            self.reqMarketDataType(3)
-            logger.debug("reqMarketDataType(3) - delayed")
+            self.reqMarketDataType(data_type)
+            logger.debug(f"reqMarketDataType({data_type})")
             self.reqMktData(reqId, con, "", True, False, [])
             logger.debug(
                 f"✅ [stap 8] reqMktData sent for {con.symbol} {con.lastTradeDateOrContractMonth} {con.strike} {con.right}"
@@ -624,6 +628,7 @@ class OptionChainClient(MarketClient):
         market_open = False
         if self.trading_hours and self.server_time:
             market_open = is_market_open(self.trading_hours, self.server_time)
+        self.market_open = market_open
 
         logger.info("▶️ START stap 3 - Spot price ophalen")
 
