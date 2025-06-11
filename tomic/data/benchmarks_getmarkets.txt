@@ -1,3 +1,12 @@
+Vaste settings, als ik daarvan afwijk dan zet ik het erbij
+MSFT
+STRIKE_RANGE: 10
+Delta's: -0.8 / +0.8
+DOWNLOAD_RETRIES: 2
+DOWNLOAD_TIMEOUT: 10
+LOG_LEVEL: INFO
+MAX_CONCURRENT_REQUESTS: 5
+
 
 11-6-2025 / 19:10
 sync: 115.72s
