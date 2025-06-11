@@ -79,6 +79,37 @@ def is_market_open(trading_hours: str, now: datetime) -> bool:
     return False
 
 
+def market_hours_today(trading_hours: str, now: datetime) -> tuple[str, str] | None:
+    """Return the market open and close time (HH:MM) for ``now``.
+
+    Returns ``None`` if the market is closed or no session matches ``now``'s
+    date.
+    """
+
+    day = now.strftime("%Y%m%d")
+    for part in trading_hours.split(";"):
+        if ":" not in part:
+            continue
+        date_part, hours_part = part.split(":", 1)
+        if date_part != day:
+            continue
+        if hours_part == "CLOSED":
+            return None
+        session = hours_part.split(",")[0]
+        try:
+            start_str, end_str = session.split("-")
+        except ValueError:
+            return None
+        start_str = start_str.split(":")[-1][:4]
+        end_str = end_str.split(":")[0][:4]
+        start_dt = datetime.strptime(day + start_str, "%Y%m%d%H%M")
+        end_dt = datetime.strptime(day + end_str, "%Y%m%d%H%M")
+        if end_dt <= start_dt:
+            end_dt += timedelta(days=1)
+        return start_dt.strftime("%H:%M"), end_dt.strftime("%H:%M")
+    return None
+
+
 class MarketClient(BaseIBApp):
     """Minimal IB client used for market data exports."""
 
@@ -204,6 +235,16 @@ class MarketClient(BaseIBApp):
         self.connected.set()
         try:
             self.start_requests()
+            if self.trading_hours and self.server_time:
+                hours = market_hours_today(self.trading_hours, self.server_time)
+                if hours is not None:
+                    start, end = hours
+                    status = "open" if self.market_open else "dicht"
+                    now_str = self.server_time.strftime("%H:%M")
+                    logger.info(
+                        f"✅ [stap 2] De markt ({self.symbol}) is open tussen {start} en {end}, "
+                        f"het is nu {now_str} dus de markt is {status}"
+                    )
         except Exception as exc:  # pragma: no cover - runtime behaviour
             logger.error(f"start_requests failed: {exc}")
 
