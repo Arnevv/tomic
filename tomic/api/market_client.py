@@ -173,6 +173,18 @@ class MarketClient(BaseIBApp):
             self.data_event.wait(timeout)
             self.cancelMktData(req_id)
 
+        if self.spot_price is None and not market_open:
+            fallback = fetch_volatility_metrics(self.symbol).get("spot_price")
+            if fallback is not None:
+                try:
+                    self.spot_price = float(fallback)
+                    logger.info(f"✅ [stap 3] Spotprijs fallback: {self.spot_price}")
+                except (TypeError, ValueError):
+                    logger.warning("Fallback spot price could not be parsed")
+
+        if self.spot_price is None:
+            logger.error("❌ FAIL stap 3: Spot price not available after all retries")
+
     # IB callbacks -----------------------------------------------------
     def nextValidId(self, orderId: int) -> None:  # noqa: N802
         """Called once the connection is established."""
@@ -643,6 +655,14 @@ class OptionChainClient(MarketClient):
             self._spot_req_id = spot_id
             self.spot_event.wait(timeout)
             self.cancelMktData(spot_id)
+        if self.spot_price is None and not market_open:
+            fallback = fetch_volatility_metrics(self.symbol).get("spot_price")
+            if fallback is not None:
+                try:
+                    self.spot_price = float(fallback)
+                    logger.info(f"✅ [stap 3] Spotprijs fallback: {self.spot_price}")
+                except (TypeError, ValueError):
+                    logger.warning("Fallback spot price could not be parsed")
 
         if self.spot_price is None:
             logger.error("❌ FAIL stap 3: Spot price not available after all retries")
