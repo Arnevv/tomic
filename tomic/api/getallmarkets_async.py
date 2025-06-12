@@ -45,16 +45,17 @@ async def gather_markets(
     """Fetch data for multiple markets concurrently."""
 
     base_id = int(cfg_get("IB_CLIENT_ID", 100))
-    results: List = []
-    for idx, sym in enumerate(symbols):
-        res = await run_async(
+    tasks = [
+        run_async(
             sym,
             output_dir,
             fetch_metrics=fetch_metrics,
             fetch_chains=fetch_chains,
             client_id=base_id + idx,
         )
-        results.append(res)
+        for idx, sym in enumerate(symbols)
+    ]
+    results: List = list(await asyncio.gather(*tasks))
 
     if output_dir is None:
         today_str = datetime.now().strftime("%Y%m%d")
