@@ -161,7 +161,11 @@ def test_fetch_volatility_metrics_parses_new_fields(monkeypatch):
     """
 
     mod = importlib.reload(importlib.import_module("tomic.cli.daily_vol_scraper"))
-    monkeypatch.setattr(mod, "download_html", lambda sym: html)
+
+    async def fake_download(sym):
+        return html
+
+    monkeypatch.setattr(mod, "download_html_async", fake_download)
 
     data = mod.fetch_volatility_metrics("ABC")
     assert data["atr14"] == 7.8

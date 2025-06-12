@@ -64,6 +64,38 @@ def stub_external_modules():
     sys.modules.setdefault("numpy", types.ModuleType("numpy"))
     sys.modules.setdefault("requests", types.ModuleType("requests"))
 
+    aiohttp_stub = types.ModuleType("aiohttp")
+    aiohttp_stub.ClientError = Exception
+    aiohttp_stub.ClientTimeout = lambda total=None: types.SimpleNamespace(total=total)
+    class _DummySession:
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, exc_type, exc, tb):
+            pass
+
+        async def get(self, *a, **k):
+            class _Resp:
+                async def __aenter__(self):
+                    return self
+
+                async def __aexit__(self, exc_type, exc, tb):
+                    pass
+
+                async def json(self):
+                    return {}
+
+                async def text(self):
+                    return ""
+
+                def raise_for_status(self):
+                    pass
+
+            return _Resp()
+
+    aiohttp_stub.ClientSession = lambda *a, **k: _DummySession()
+    sys.modules.setdefault("aiohttp", aiohttp_stub)
+
     # Ensure market_client is reloaded fresh for each test
     sys.modules.pop("tomic.api.market_client", None)
     sys.modules.pop("tomic.api.base_client", None)
