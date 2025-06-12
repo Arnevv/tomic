@@ -5,10 +5,11 @@ import os
 import sys
 from typing import List, Dict
 
-import requests
+import asyncio
+import aiohttp
 
-try:  # Handle minimal stubs without requests.exceptions
-    from requests.exceptions import RequestException
+try:  # Handle minimal stubs without aiohttp installed
+    from aiohttp import ClientError as RequestException
 except Exception:  # pragma: no cover - for test stubs
     RequestException = Exception
 
@@ -16,52 +17,62 @@ except Exception:  # pragma: no cover - for test stubs
 BASE_URL = os.environ.get("TOMIC_WEB_API_URL", "http://localhost:5000/v1/api")
 
 
-def fetch_contracts(symbol: str, expiry: str, base_url: str = BASE_URL) -> List[Dict]:
-    """Fetch option contracts for ``symbol`` and ``expiry`` via WebAPI."""
-    r = requests.get(
-        f"{base_url}/iserver/secdef/search", params={"symbol": symbol}
-    )
-    r.raise_for_status()
-    search = r.json()
+async def fetch_contracts_async(
+    symbol: str, expiry: str, base_url: str = BASE_URL
+) -> List[Dict]:
+    """Asynchronously fetch option contracts for ``symbol`` and ``expiry`` via WebAPI."""
+
+    async with aiohttp.ClientSession() as session:
+        async with session.get(
+            f"{base_url}/iserver/secdef/search", params={"symbol": symbol}
+        ) as r:
+            r.raise_for_status()
+            search = await r.json()
     if not search:
         return []
     conid = search[0].get("conid")
-    r = requests.get(
-        f"{base_url}/iserver/secdef/strikes",
-        params={"conid": conid, "sectype": "OPT"},
-    )
-    r.raise_for_status()
-    strikes = r.json().get("strikes", [])
-    rows: List[Dict] = []
-    for strike in strikes:
-        for right in ("C", "P"):
-            params = {
-                "conid": conid,
-                "sectype": "OPT",
-                "month": expiry.replace("-", ""),
-                "strike": strike,
-                "right": right,
-            }
-            info_resp = requests.get(
-                f"{base_url}/iserver/secdef/info", params=params
-            )
-            info_resp.raise_for_status()
-            info = info_resp.json()
-            if isinstance(info, list):
-                if info:
-                    info = info[0]
-                else:
-                    info = {}
-            row = {
-                "symbol": symbol,
-                "expiry": expiry,
-                "strike": strike,
-                "right": right,
-            }
-            if isinstance(info, dict):
-                row.update(info)
-            rows.append(row)
+    async with aiohttp.ClientSession() as session:
+        async with session.get(
+            f"{base_url}/iserver/secdef/strikes",
+            params={"conid": conid, "sectype": "OPT"},
+        ) as r:
+            r.raise_for_status()
+            strikes = (await r.json()).get("strikes", [])
+        rows: List[Dict] = []
+        for strike in strikes:
+            for right in ("C", "P"):
+                params = {
+                    "conid": conid,
+                    "sectype": "OPT",
+                    "month": expiry.replace("-", ""),
+                    "strike": strike,
+                    "right": right,
+                }
+                async with session.get(
+                    f"{base_url}/iserver/secdef/info", params=params
+                ) as info_resp:
+                    info_resp.raise_for_status()
+                    info = await info_resp.json()
+                if isinstance(info, list):
+                    if info:
+                        info = info[0]
+                    else:
+                        info = {}
+                row = {
+                    "symbol": symbol,
+                    "expiry": expiry,
+                    "strike": strike,
+                    "right": right,
+                }
+                if isinstance(info, dict):
+                    row.update(info)
+                rows.append(row)
     return rows
+
+
+def fetch_contracts(symbol: str, expiry: str, base_url: str = BASE_URL) -> List[Dict]:
+    """Synchronous wrapper for :func:`fetch_contracts_async`."""
+    return asyncio.run(fetch_contracts_async(symbol, expiry, base_url=base_url))
 
 
 def save_contracts(rows: List[Dict], path: str) -> None:

@@ -3,7 +3,8 @@
 from __future__ import annotations
 
 import re
-import time
+import asyncio
+import aiohttp
 import urllib.request
 from typing import Dict, List, Optional
 
@@ -11,13 +12,13 @@ from tomic.logutils import logger
 from tomic.config import get as cfg_get
 
 
-def download_html(
+async def download_html_async(
     symbol: str,
     *,
     max_retries: int | None = None,
     timeout: int | None = None,
 ) -> str:
-    """Return raw HTML for the given symbol from Barchart.
+    """Asynchronously return raw HTML for the given symbol from Barchart.
 
     Parameters
     ----------
@@ -40,17 +41,29 @@ def download_html(
 
     for attempt in range(1, max_retries + 1):
         logger.debug(f"Requesting URL: {url} (attempt {attempt})")
-        req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
         try:
-            with urllib.request.urlopen(req, timeout=timeout) as response:
-                html = response.read().decode("utf-8", errors="ignore")
+            timeout_obj = aiohttp.ClientTimeout(total=timeout)
+            async with aiohttp.ClientSession(timeout=timeout_obj) as session:
+                async with session.get(url, headers={"User-Agent": "Mozilla/5.0"}) as response:
+                    response.raise_for_status()
+                    html = await response.text()
             logger.debug(f"Downloaded {len(html)} characters")
             return html
         except Exception as exc:  # pragma: no cover - network errors
             logger.error(f"Download failed: {exc}")
             if attempt >= max_retries:
                 raise
-            time.sleep(1)
+            await asyncio.sleep(1)
+
+
+def download_html(
+    symbol: str,
+    *,
+    max_retries: int | None = None,
+    timeout: int | None = None,
+) -> str:
+    """Synchronous wrapper for :func:`download_html_async`."""
+    return asyncio.run(download_html_async(symbol, max_retries=max_retries, timeout=timeout))
 
 
 def parse_patterns(patterns: Dict[str, List[str]], html: str) -> Dict[str, Optional[float]]:
@@ -77,4 +90,4 @@ def parse_patterns(patterns: Dict[str, List[str]], html: str) -> Dict[str, Optio
     return results
 
 
-__all__ = ["download_html", "parse_patterns"]
+__all__ = ["download_html", "download_html_async", "parse_patterns"]
