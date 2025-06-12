@@ -299,7 +299,7 @@ def export_market_metrics(
     else:
         export_dir = output_dir
     os.makedirs(export_dir, exist_ok=True)
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
     df_metrics = _write_metrics_csv(metrics, symbol, export_dir, timestamp, None)
     logger.success(f"✅ Marktdata verwerkt voor {symbol}")
     return df_metrics
@@ -328,7 +328,7 @@ def export_option_chain(
     else:
         export_dir = output_dir
     os.makedirs(export_dir, exist_ok=True)
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
     if simple:
         _write_option_chain_simple(app, symbol, export_dir, timestamp)
         avg_parity = None
@@ -374,7 +374,7 @@ def export_market_data(
     else:
         export_dir = output_dir
     os.makedirs(export_dir, exist_ok=True)
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
     avg_parity = _write_option_chain(app, symbol, export_dir, timestamp)
     df_metrics = _write_metrics_csv(
         metrics, symbol, export_dir, timestamp, avg_parity
@@ -428,7 +428,7 @@ async def export_option_chain_async(
     else:
         export_dir = output_dir
     os.makedirs(export_dir, exist_ok=True)
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
     if simple:
         await asyncio.to_thread(
             _write_option_chain_simple, app, symbol, export_dir, timestamp
@@ -479,7 +479,7 @@ async def export_market_data_async(
     else:
         export_dir = output_dir
     os.makedirs(export_dir, exist_ok=True)
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
     avg_parity = await asyncio.to_thread(
         _write_option_chain, app, symbol, export_dir, timestamp
     )
