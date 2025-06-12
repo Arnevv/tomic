@@ -23,6 +23,7 @@ import pandas as pd
 from tomic.logutils import logger, log_result
 import asyncio
 from typing import Any
+import threading
 from tomic.api.market_client import (
     MarketClient,
     OptionChainClient,
@@ -395,17 +396,38 @@ async def start_app_async(app: MarketClient, *, client_id: int | None = None) ->
 
 
 async def await_market_data_async(
-    app: MarketClient, symbol: str, timeout: int = 30
+    app: MarketClient,
+    symbol: str,
+    timeout: int = 30,
+    *,
+    lock: threading.Lock | None = None,
 ) -> bool:
     """Async wrapper for :func:`await_market_data`."""
-    return await asyncio.to_thread(await_market_data, app, symbol, timeout)
+
+    def runner() -> bool:
+        if lock is None:
+            return await_market_data(app, symbol, timeout)
+        with lock:
+            return await_market_data(app, symbol, timeout)
+
+    return await asyncio.to_thread(runner)
 
 
 async def fetch_market_metrics_async(
-    symbol: str, app: MarketClient | None = None
+    symbol: str,
+    app: MarketClient | None = None,
+    *,
+    lock: threading.Lock | None = None,
 ) -> dict[str, Any] | None:
     """Async wrapper for :func:`fetch_market_metrics`."""
-    return await asyncio.to_thread(fetch_market_metrics, symbol, app=app)
+
+    def runner() -> dict[str, Any] | None:
+        if lock is None:
+            return fetch_market_metrics(symbol, app=app)
+        with lock:
+            return fetch_market_metrics(symbol, app=app)
+
+    return await asyncio.to_thread(runner)
 
 
 async def export_option_chain_async(
@@ -462,8 +484,12 @@ async def export_market_data_async(
     logger.info("▶️ START stap 2 - Initialiseren client + verbinden met IB")
     app = OptionChainClient(symbol)
     await start_app_async(app, client_id=client_id)
+    lock = threading.Lock()
     try:
-        raw_metrics = await fetch_market_metrics_async(symbol, app=app)
+        raw_metrics, ok = await asyncio.gather(
+            fetch_market_metrics_async(symbol, app=app, lock=lock),
+            await_market_data_async(app, symbol, timeout=60, lock=lock),
+        )
     except Exception as exc:  # pragma: no cover - network failures
         logger.error(f"❌ Marktkenmerken ophalen mislukt: {exc}")
         app.disconnect()
@@ -473,7 +499,6 @@ async def export_market_data_async(
         app.disconnect()
         return None
     metrics = MarketMetrics.from_dict(raw_metrics)
-    ok = await await_market_data_async(app, symbol, timeout=60)
     if not ok:
         app.disconnect()
         return None
