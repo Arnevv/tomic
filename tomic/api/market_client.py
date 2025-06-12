@@ -828,7 +828,7 @@ class OptionChainClient(MarketClient):
             if self.contract_received.wait(timeout) and req_id in self.option_info:
                 return True
 
-            logger.warning(
+            logger.debug(
                 f"❌ contractDetails MISSING voor reqId {req_id} na {timeout}s"
                 f" (attempt {attempt + 1})"
             )
