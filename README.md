@@ -68,7 +68,8 @@ tests/                 # Pytest-modules
 7. Per combinatie optiecontract bouwen en reqContractDetails()
 8. Callback: contractDetails() voor opties
 9. Ontvangen van market data (bid/ask/Greeks) en filteren op delta
-10. Exporteren van data naar CSV
+10. Na ontvangst van alle data wordt de verbinding verbroken en worden de CSV-
+    bestanden weggeschreven
 11. Ontbreekt de webscrape-term structure, dan wordt deze berekend uit de
     ontvangen IV's rond de spotprijs
 
