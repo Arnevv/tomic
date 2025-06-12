@@ -247,7 +247,7 @@ def export_csv(app: StepByStepClient, output_dir: str) -> None:
     os.makedirs(output_dir, exist_ok=True)
     path = os.path.join(
         output_dir,
-        f"option_chain_{app.symbol}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv",
+        f"option_chain_{app.symbol}_{datetime.now().strftime('%Y%m%d_%H%M%S_%f')}.csv",
     )
     with open(path, "w", newline="") as f:
         writer = csv.writer(f)
