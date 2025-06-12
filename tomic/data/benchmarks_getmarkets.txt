@@ -8,6 +8,17 @@ LOG_LEVEL: INFO
 MAX_CONCURRENT_REQUESTS: 5
 
 
+12-6-2025 / 16u
+sync: 127.91s
+async: 60.24s
+Opvallend, eerste fix heeft geen verbetering gebracht
+
+11-6-2025 / 21:28
+sync: 146.14s / kwaliteit:
+async: 60.24s / kwaliteit:
+MAX_CONCURRENT_REQUESTS: 10
+
+
 11-6-2025 / 19:10
-sync: 115.72s
-async: 60.22s
+sync: 115.72s / kwaliteit:
+async: 60.22s / kwaliteit:
