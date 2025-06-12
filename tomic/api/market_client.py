@@ -547,8 +547,8 @@ class OptionChainClient(MarketClient):
     def error(
         self, reqId, errorTime, errorCode, errorString, advancedOrderRejectJson=""
     ):  # noqa: D401
-        super().error(reqId, errorTime, errorCode, errorString, advancedOrderRejectJson)
         if errorCode == 200:
+            logger.debug(f"IB error {errorCode}: {errorString}")
             info = self._pending_details.get(reqId)
             if info is not None:
                 logger.debug(f"Invalid contract for id {reqId}: {info}")
@@ -556,6 +556,8 @@ class OptionChainClient(MarketClient):
             self._pending_details.pop(reqId, None)
             self.invalid_contracts.add(reqId)
             self._mark_complete(reqId)
+        else:
+            super().error(reqId, errorTime, errorCode, errorString, advancedOrderRejectJson)
 
     @log_result
     def tickOptionComputation(
