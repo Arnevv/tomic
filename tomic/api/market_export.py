@@ -4,6 +4,10 @@
 first four expiries and strikes whose rounded value is within ±STRIKE_RANGE
 points of the rounded spot price (configured via ``STRIKE_RANGE``). The helpers
 in this module work with that same selection.
+
+All export routines disconnect from Interactive Brokers as soon as all market
+data has been received. The files are written after the disconnect so the TWS
+connection is not kept open longer than necessary.
 """
 
 from __future__ import annotations
@@ -322,6 +326,8 @@ def export_option_chain(
     if not await_market_data(app, symbol, timeout=999):
         app.disconnect()
         return None
+    app.disconnect()
+    time.sleep(1)
     if output_dir is None:
         today_str = datetime.now().strftime("%Y%m%d")
         export_dir = os.path.join(cfg_get("EXPORT_DIR", "exports"), today_str)
@@ -334,8 +340,6 @@ def export_option_chain(
         avg_parity = None
     else:
         avg_parity = _write_option_chain(app, symbol, export_dir, timestamp)
-    app.disconnect()
-    time.sleep(1)
     logger.success(f"✅ Optieketen verwerkt voor {symbol}")
     return avg_parity
 
@@ -368,6 +372,8 @@ def export_market_data(
     if not await_market_data(app, symbol, timeout=999):
         app.disconnect()
         return None
+    app.disconnect()
+    time.sleep(1)
     if output_dir is None:
         today_str = datetime.now().strftime("%Y%m%d")
         export_dir = os.path.join(cfg_get("EXPORT_DIR", "exports"), today_str)
@@ -379,8 +385,6 @@ def export_market_data(
     df_metrics = _write_metrics_csv(
         metrics, symbol, export_dir, timestamp, avg_parity
     )
-    app.disconnect()
-    time.sleep(1)
     logger.success(f"✅ Marktdata verwerkt voor {symbol}")
     return df_metrics
 
@@ -422,6 +426,8 @@ async def export_option_chain_async(
     if not ok:
         app.disconnect()
         return None
+    app.disconnect()
+    await asyncio.sleep(1)
     if output_dir is None:
         today_str = datetime.now().strftime("%Y%m%d")
         export_dir = os.path.join(cfg_get("EXPORT_DIR", "exports"), today_str)
@@ -438,8 +444,6 @@ async def export_option_chain_async(
         avg_parity = await asyncio.to_thread(
             _write_option_chain, app, symbol, export_dir, timestamp
         )
-    app.disconnect()
-    await asyncio.sleep(1)
     logger.success(f"✅ Optieketen verwerkt voor {symbol}")
     return avg_parity
 
@@ -473,6 +477,8 @@ async def export_market_data_async(
     if not ok:
         app.disconnect()
         return None
+    app.disconnect()
+    await asyncio.sleep(1)
     if output_dir is None:
         today_str = datetime.now().strftime("%Y%m%d")
         export_dir = os.path.join(cfg_get("EXPORT_DIR", "exports"), today_str)
@@ -486,8 +492,6 @@ async def export_market_data_async(
     df_metrics = await asyncio.to_thread(
         _write_metrics_csv, metrics, symbol, export_dir, timestamp, avg_parity
     )
-    app.disconnect()
-    await asyncio.sleep(1)
     logger.success(f"✅ Marktdata verwerkt voor {symbol}")
     return df_metrics
 
