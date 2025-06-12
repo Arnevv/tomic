@@ -27,8 +27,17 @@ async def fetch_volatility_metrics_async(symbol: str) -> Dict[str, float]:
 
 
 def fetch_volatility_metrics(symbol: str) -> Dict[str, float]:
-    """Fetch key volatility metrics for a symbol."""
-    return asyncio.run(fetch_volatility_metrics_async(symbol))
+    """Fetch key volatility metrics for a symbol.
+
+    Any network related errors are caught and logged so callers do not
+    crash when the remote source is unavailable. In that case an empty
+    dict is returned.
+    """
+    try:
+        return asyncio.run(fetch_volatility_metrics_async(symbol))
+    except Exception as exc:  # pragma: no cover - network errors
+        logger.error(f"Failed to fetch volatility metrics for {symbol}: {exc}")
+        return {}
 
 
 def main(argv: List[str] | None = None) -> None:
