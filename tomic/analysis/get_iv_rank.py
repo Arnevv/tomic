@@ -3,15 +3,21 @@ import sys
 from typing import Dict, Optional
 
 from tomic.analysis.iv_patterns import IV_PATTERNS
-from tomic.webdata.utils import download_html, parse_patterns
+import asyncio
+from tomic.webdata.utils import download_html, download_html_async, parse_patterns
 from tomic.logutils import logger
 from tomic.logutils import setup_logging
 
 
+async def fetch_iv_metrics_async(symbol: str = "SPY") -> Dict[str, Optional[float]]:
+    """Async helper to fetch IV metrics for the symbol."""
+    html = await download_html_async(symbol)
+    return parse_patterns(IV_PATTERNS, html)
+
+
 def fetch_iv_metrics(symbol: str = "SPY") -> Dict[str, Optional[float]]:
     """Return IV Rank, Implied Volatility and IV Percentile for the symbol."""
-    html = download_html(symbol)
-    return parse_patterns(IV_PATTERNS, html)
+    return asyncio.run(fetch_iv_metrics_async(symbol))
 
 
 def fetch_iv_rank(symbol: str = "SPY") -> float:

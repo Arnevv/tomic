@@ -6,3 +6,4 @@ protobuf
 pytest
 loguru
 tabulate
+aiohttp

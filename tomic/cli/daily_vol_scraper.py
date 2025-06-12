@@ -6,19 +6,29 @@ from tomic.logutils import logger
 
 from tomic.config import get as cfg_get
 
-from tomic.webdata.utils import download_html, parse_patterns
+import asyncio
+from tomic.webdata.utils import (
+    download_html,
+    download_html_async,
+    parse_patterns,
+)
 from tomic.analysis.iv_patterns import IV_PATTERNS, EXTRA_PATTERNS
 from tomic.analysis.vol_snapshot import snapshot_symbols
 from tomic.logutils import setup_logging
 
 
-def fetch_volatility_metrics(symbol: str) -> Dict[str, float]:
-    """Fetch key volatility metrics for a symbol."""
-    html = download_html(symbol)
+async def fetch_volatility_metrics_async(symbol: str) -> Dict[str, float]:
+    """Async helper to fetch volatility metrics."""
+    html = await download_html_async(symbol)
     iv_data = parse_patterns(IV_PATTERNS, html)
     extra_data = parse_patterns(EXTRA_PATTERNS, html)
     data = {**iv_data, **extra_data}
     return data
+
+
+def fetch_volatility_metrics(symbol: str) -> Dict[str, float]:
+    """Fetch key volatility metrics for a symbol."""
+    return asyncio.run(fetch_volatility_metrics_async(symbol))
 
 
 def main(argv: List[str] | None = None) -> None:
