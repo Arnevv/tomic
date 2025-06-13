@@ -474,6 +474,20 @@ def test_all_data_event_set(monkeypatch):
     client.market_data[2] = {"event": threading.Event()}
 
     client.tickPrice(1, mod.TickTypeEnum.BID, 1.0, None)
+    client.tickPrice(1, mod.TickTypeEnum.ASK, 1.2, None)
+    client.tickOptionComputation(
+        1,
+        0,
+        None,
+        0.3,
+        0.1,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        100.0,
+    )
     assert not client.all_data_event.is_set()
     client.error(2, "", 200, "")
     assert client.all_data_event.is_set()
