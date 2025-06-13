@@ -138,6 +138,7 @@ class MarketClient(BaseIBApp):
         self.data_event = threading.Event()
         self._req_id = 50
         self._spot_req_id: int | None = None
+        self._spot_req_ids: set[int] = set()
         self.trading_hours: str | None = None
         self.server_time: datetime | None = None
         self._time_event = threading.Event()
@@ -199,14 +200,17 @@ class MarketClient(BaseIBApp):
             self.data_event.clear()
             self.reqMktData(req_id, contract, "", False, False, [])
             self._spot_req_id = req_id
+            self._spot_req_ids.add(req_id)
             logger.debug(
                 f"Requesting stock quote for symbol={contract.symbol} id={req_id}"
             )
             if self.data_event.wait(short_timeout) and self.spot_price is not None:
                 data_type_success = data_type
                 self.cancelMktData(req_id)
+                self.invalid_contracts.add(req_id)
                 break
             self.cancelMktData(req_id)
+            self.invalid_contracts.add(req_id)
 
         self.data_type_success = data_type_success
         if self.data_type_success is None:
@@ -217,8 +221,10 @@ class MarketClient(BaseIBApp):
             self.data_event.clear()
             self.reqMarketDataType(4)
             self.reqMktData(req_id, contract, "", False, False, [])
+            self._spot_req_ids.add(req_id)
             self.data_event.wait(timeout)
             self.cancelMktData(req_id)
+            self.invalid_contracts.add(req_id)
 
         if (self.spot_price is None or self.spot_price <= 0):
             fallback = fetch_volatility_metrics(self.symbol).get("spot_price")
@@ -753,15 +759,18 @@ class OptionChainClient(MarketClient):
             self.spot_event.clear()
             self.reqMktData(spot_id, stk, "", False, False, [])
             self._spot_req_id = spot_id
+            self._spot_req_ids.add(spot_id)
             logger.debug(
                 f"reqMktData sent: id={spot_id} snapshot=False for stock contract"
             )
             if self.spot_event.wait(short_timeout):
                 data_type_success = data_type
                 self.cancelMktData(spot_id)
+                self.invalid_contracts.add(spot_id)
                 logger.debug(f"Market data type {data_type} succeeded")
                 break
             self.cancelMktData(spot_id)
+            self.invalid_contracts.add(spot_id)
 
         self.data_type_success = data_type_success
         if self.data_type_success is None:
@@ -773,8 +782,10 @@ class OptionChainClient(MarketClient):
             spot_id = self._next_id()
             self.reqMktData(spot_id, stk, "", False, False, [])
             self._spot_req_id = spot_id
+            self._spot_req_ids.add(spot_id)
             self.spot_event.wait(timeout)
             self.cancelMktData(spot_id)
+            self.invalid_contracts.add(spot_id)
         if (self.spot_price is None or self.spot_price <= 0):
             fallback = fetch_volatility_metrics(self.symbol).get("spot_price")
             if fallback is not None:

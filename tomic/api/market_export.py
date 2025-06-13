@@ -88,11 +88,14 @@ def _write_option_chain(
 ) -> float | None:
     logger.info("▶️ START stap 10 - Exporteren van data naar CSV")
     chain_file = os.path.join(export_dir, f"option_chain_{symbol}_{timestamp}.csv")
-    spot_id = getattr(app, "_spot_req_id", None)
+    spot_ids = set(getattr(app, "_spot_req_ids", []))
+    single = getattr(app, "_spot_req_id", None)
+    if single is not None:
+        spot_ids.add(single)
     records = [
         data
         for req_id, data in app.market_data.items()
-        if req_id not in app.invalid_contracts and req_id != spot_id
+        if req_id not in app.invalid_contracts and req_id not in spot_ids
     ]
     if not records:
         logger.warning(f"Geen optie data ontvangen voor {symbol}")
@@ -192,7 +195,7 @@ def _write_option_chain(
                 ]
             )
     logger.info(f"✅ [stap 10] Optieketen opgeslagen in: {chain_file}")
-    total = len(getattr(app, "market_data", {})) - (1 if spot_id is not None else 0)
+    total = len(getattr(app, "market_data", {})) - len(spot_ids)
     logger.info(
         f"Contracts verwerkt: {len(records)} geldig, {total - len(records)} ongeldig"
     )
@@ -211,8 +214,12 @@ def _write_option_chain_simple(
     with open(path, "w", newline="") as file:
         writer = csv.writer(file)
         writer.writerow(_HEADERS_SIMPLE)
+        spot_ids = set(getattr(app, "_spot_req_ids", []))
+        single = getattr(app, "_spot_req_id", None)
+        if single is not None:
+            spot_ids.add(single)
         for req_id, rec in app.market_data.items():
-            if req_id == getattr(app, "_spot_req_id", None):
+            if req_id in spot_ids:
                 continue
             if req_id in getattr(app, "invalid_contracts", set()):
                 continue
@@ -234,14 +241,12 @@ def _write_option_chain_simple(
                 ]
             )
     logger.info(f"✅ [stap 10] CSV opgeslagen als: {path}")
-    total = len(getattr(app, "market_data", {})) - (
-        1 if getattr(app, "_spot_req_id", None) is not None else 0
-    )
+    total = len(getattr(app, "market_data", {})) - len(spot_ids)
     valid = sum(
         1
         for req_id, rec in app.market_data.items()
         if req_id not in getattr(app, "invalid_contracts", set())
-        and req_id != getattr(app, "_spot_req_id", None)
+        and req_id not in spot_ids
         and not (rec.get("bid") is None and rec.get("ask") is None)
     )
     logger.info(f"Contracts verwerkt: {valid} geldig, {total - valid} ongeldig")
