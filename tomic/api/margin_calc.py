@@ -56,14 +56,15 @@ def calculate_trade_margin(
     expiry = expiry.replace("-", "")
     host = host or cfg_get("IB_HOST", "127.0.0.1")
     port = int(port or cfg_get("IB_PORT", 7497))
+    cid = client_id if client_id is not None else int(cfg_get("IB_CLIENT_ID", 100))
     app = MarginApp()
     try:
-        client = connect_ib(client_id=client_id or 1, host=host, port=port)
+        client = connect_ib(client_id=cid, host=host, port=port)
         client.disconnect()
     except Exception:
         return None
 
-    app.connect(host, port, client_id or 1)
+    app.connect(host, port, cid)
     thread = threading.Thread(target=app.run)
     thread.start()
     app.reqIds(1)
