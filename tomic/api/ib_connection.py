@@ -65,8 +65,9 @@ def connect_ib(
     except socket.error as e:
         raise RuntimeError(f"❌ Kon niet verbinden met TWS op {host}:{port}: {e}")
 
-    thread = threading.Thread(target=app.run)
+    thread = threading.Thread(target=app.run, daemon=True)
     thread.start()
+    app._thread = thread
 
     start = time.time()
     while app.next_valid_id is None:

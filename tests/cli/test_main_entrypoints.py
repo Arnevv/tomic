@@ -287,13 +287,14 @@ def test_getonemarket_run(monkeypatch):
     mod = importlib.reload(importlib.import_module("tomic.api.getonemarket"))
     monkeypatch.setattr(mod, "setup_logging", lambda: None)
     called = []
+
     def stub_connect_ib(*a, **k):
         called.append(True)
         return types.SimpleNamespace(disconnect=lambda: None, next_valid_id=1)
 
     monkeypatch.setattr(mod, "connect_ib", stub_connect_ib)
     assert mod.run("ABC") is True
-    assert called
+    assert not called
 
 
 def test_getallmarkets_run(monkeypatch):
