@@ -592,6 +592,10 @@ class OptionChainClient(MarketClient):
         undPrice: float,
     ) -> None:  # noqa: N802
         rec = self.market_data.setdefault(reqId, {})
+        logger.debug(
+            f"[tickOptionComputation] reqId={reqId} tickType={tickType} "
+            f"delta={delta} iv={impliedVol}"
+        )
         rec["iv"] = impliedVol
         rec["delta"] = delta
         rec["gamma"] = gamma
