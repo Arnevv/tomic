@@ -4,10 +4,12 @@ from __future__ import annotations
 
 import csv
 from dataclasses import dataclass
+from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Optional
 
 from tomic.analysis.greeks import compute_greeks_by_symbol
+from tomic.analysis.strategy import heuristic_risk_metrics
 from tomic.journal.utils import load_json
 
 
@@ -20,6 +22,8 @@ class Leg:
     gamma: float
     vega: float
     theta: float
+    bid: float = 0.0
+    ask: float = 0.0
     position: int = 0
 
 
@@ -48,6 +52,8 @@ def load_chain_csv(path: str) -> List[Leg]:
                         gamma=_parse_float(row.get("Gamma")) or 0.0,
                         vega=_parse_float(row.get("Vega")) or 0.0,
                         theta=_parse_float(row.get("Theta")) or 0.0,
+                        bid=_parse_float(row.get("Bid")) or 0.0,
+                        ask=_parse_float(row.get("Ask")) or 0.0,
                     )
                 )
             except Exception:
@@ -70,6 +76,44 @@ def _find_chain_file(directory: Path, symbol: str) -> Optional[Path]:
     pattern = f"option_chain_{symbol}_"
     candidates = sorted(directory.glob(f"*{pattern}*.csv"))
     return candidates[-1] if candidates else None
+
+
+def _dte(expiry: str) -> Optional[int]:
+    """Return days to expiry for ``expiry`` in YYYYMMDD format."""
+    try:
+        exp = datetime.strptime(expiry, "%Y%m%d").date()
+    except Exception:
+        return None
+    return (exp - datetime.utcnow().date()).days
+
+
+def _mid_price(leg: Leg) -> float:
+    return (leg.bid + leg.ask) / 2 if leg.bid or leg.ask else 0.0
+
+
+def _cost_basis(legs: Iterable[Leg]) -> float:
+    cost = 0.0
+    for leg in legs:
+        price = _mid_price(leg)
+        cost += price if leg.position > 0 else -price
+    return cost * 100
+
+
+def _calc_rr_rom(legs: List[Leg]) -> Dict[str, Optional[float]]:
+    """Return rough risk/reward and ROM for ``legs``."""
+    cb = _cost_basis(legs)
+    legs_dict = [
+        {"strike": leg.strike, "right": leg.type, "position": leg.position}
+        for leg in legs
+    ]
+    risk = heuristic_risk_metrics(legs_dict, cb)
+    max_profit = risk.get("max_profit")
+    max_loss = risk.get("max_loss")
+    rr = risk.get("risk_reward")
+    rom = None
+    if max_profit is not None and max_loss:
+        rom = (max_profit / abs(max_loss)) * 100
+    return {"ROM": rom, "RR": rr, "max_profit": max_profit, "max_loss": max_loss}
 
 
 def _make_vertical(chain: List[Leg], bullish: bool) -> Optional[List[Leg]]:
@@ -103,6 +147,9 @@ def _make_condor(chain: List[Leg]) -> Optional[List[Leg]]:
         Leg(**{**puts[-1].__dict__, "position": -1}),
         Leg(**{**puts[-2].__dict__, "position": 1}),
     ]
+    dte = _dte(legs[0].expiry)
+    if dte is not None and 0 < dte < 365 and (dte < 30 or dte > 45):
+        return None
     return legs
 
 
@@ -121,10 +168,20 @@ def _make_calendar(chain: List[Leg]) -> Optional[List[Leg]]:
     )
     if other is None:
         return None
-    return [
+    legs = [
         Leg(**{**first.__dict__, "position": -1}),
         Leg(**{**other.__dict__, "position": 1}),
     ]
+    front_dte = _dte(legs[0].expiry)
+    back_dte = _dte(legs[1].expiry)
+    if front_dte is not None and back_dte is not None:
+        if (
+            0 < front_dte < 365
+            and 0 < back_dte < 365
+            and (front_dte < 20 or front_dte > 30 or back_dte < 45 or back_dte > 60)
+        ):
+            return None
+    return legs
 
 
 def _tomic_score(after: Dict[str, float]) -> float:
@@ -138,16 +195,28 @@ def _tomic_score(after: Dict[str, float]) -> float:
 
 
 def suggest_strategies(
-    symbol: str, chain: List[Leg], exposure: Dict[str, float]
+    symbol: str,
+    chain: List[Leg],
+    exposure: Dict[str, float],
+    *,
+    metrics: Optional[Any] = None,
+    vix: Optional[float] = None,
 ) -> List[Dict[str, Any]]:
     """Return a list of strategy proposals for ``symbol``."""
     suggestions: List[Dict[str, Any]] = []
+    iv_rank = getattr(metrics, "iv_rank", None) if metrics else None
+    iv_pct = getattr(metrics, "iv_percentile", None) if metrics else None
+    term_slope = getattr(metrics, "term_m1_m2", None)
+    if term_slope is None:
+        term_slope = getattr(metrics, "term_m1_m3", None)
+
     if abs(exposure.get("Delta", 0.0)) > 25:
         bullish = exposure["Delta"] < 0
         legs = _make_vertical(chain, bullish)
         if legs:
             impact = _sum_greeks(legs)
             after = {k: exposure.get(k, 0.0) + impact[k] for k in impact}
+            risk = _calc_rr_rom(legs)
             suggestions.append(
                 {
                     "strategy": "Vertical",
@@ -155,41 +224,80 @@ def suggest_strategies(
                     "impact": impact,
                     "score": _tomic_score(after),
                     "reason": "Delta-balancering",
+                    "ROM": risk.get("ROM"),
+                    "RR": risk.get("RR"),
                 }
             )
     if exposure.get("Vega", 0.0) > 50:
         legs = _make_condor(chain)
-        if legs:
+        if legs and not (
+            (iv_rank is not None and iv_rank < 60)
+            or (iv_pct is not None and iv_pct < 60)
+            or (vix is not None and vix > 25)
+        ):
             impact = _sum_greeks(legs)
             after = {k: exposure.get(k, 0.0) + impact[k] for k in impact}
-            suggestions.append(
-                {
-                    "strategy": "Iron Condor",
-                    "legs": [leg.__dict__ for leg in legs],
-                    "impact": impact,
-                    "score": _tomic_score(after),
-                    "reason": "Vega verlagen",
-                }
-            )
+            risk = _calc_rr_rom(legs)
+            rom = risk.get("ROM")
+            rr = risk.get("RR")
+            if metrics or vix is not None:
+                if rom is not None and rom < 10:
+                    risk_ok = False
+                elif rr is not None and rr < 1.0:
+                    risk_ok = False
+                else:
+                    risk_ok = True
+            else:
+                risk_ok = True
+            if risk_ok:
+                suggestions.append(
+                    {
+                        "strategy": "Iron Condor",
+                        "legs": [leg.__dict__ for leg in legs],
+                        "impact": impact,
+                        "score": _tomic_score(after),
+                        "reason": "Vega verlagen",
+                        "ROM": rom,
+                        "RR": rr,
+                    }
+                )
     if exposure.get("Vega", 0.0) < -50:
         legs = _make_calendar(chain)
-        if legs:
+        if legs and not (
+            (iv_rank is not None and iv_rank > 60)
+            or (iv_pct is not None and iv_pct > 30)
+            or (term_slope is not None and term_slope <= 1.0)
+            or (vix is not None and vix < 14)
+        ):
             impact = _sum_greeks(legs)
             after = {k: exposure.get(k, 0.0) + impact[k] for k in impact}
-            suggestions.append(
-                {
-                    "strategy": "Calendar Spread",
-                    "legs": [leg.__dict__ for leg in legs],
-                    "impact": impact,
-                    "score": _tomic_score(after),
-                    "reason": "Vega verhogen",
-                }
-            )
+            risk = _calc_rr_rom(legs)
+            rom = risk.get("ROM")
+            if metrics or vix is not None:
+                risk_ok = rom is None or rom >= 10
+            else:
+                risk_ok = True
+            if risk_ok:
+                suggestions.append(
+                    {
+                        "strategy": "Calendar Spread",
+                        "legs": [leg.__dict__ for leg in legs],
+                        "impact": impact,
+                        "score": _tomic_score(after),
+                        "reason": "Vega verhogen",
+                        "ROM": rom,
+                        "RR": risk.get("RR"),
+                    }
+                )
     return suggestions
 
 
 def generate_proposals(
-    positions_file: str, chain_dir: str
+    positions_file: str,
+    chain_dir: str,
+    *,
+    metrics: Optional[Dict[str, Any]] = None,
+    vix: Optional[float] = None,
 ) -> Dict[str, List[Dict[str, Any]]]:
     """Combine portfolio Greeks with chain data and return proposals."""
     positions = load_json(positions_file)
@@ -204,7 +312,13 @@ def generate_proposals(
         if not chain_path:
             continue
         chain = load_chain_csv(str(chain_path))
-        props = suggest_strategies(sym, chain, greeks)
+        props = suggest_strategies(
+            sym,
+            chain,
+            greeks,
+            metrics=metrics.get(sym) if metrics else None,
+            vix=vix,
+        )
         if props:
             result[sym] = props
     return result
