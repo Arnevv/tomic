@@ -7,7 +7,7 @@ from tomic.logutils import setup_logging, logger, log_result, trace_calls
 def _market_export():
     from . import market_export
     return market_export
-from .ib_connection import connect_ib
+
 
 @trace_calls
 @log_result
@@ -15,15 +15,11 @@ def run(
     symbol: str, output_dir: str | None = None, *, simple: bool = False
 ) -> bool:
     setup_logging()
-    app = connect_ib()
-    try:
-        export = _market_export()
-        if simple:
-            export.export_option_chain(symbol.strip().upper(), output_dir, simple=True)
-        else:
-            export.export_market_data(symbol.strip().upper(), output_dir)
-    finally:
-        app.disconnect()
+    export = _market_export()
+    if simple:
+        export.export_option_chain(symbol.strip().upper(), output_dir, simple=True)
+    else:
+        export.export_market_data(symbol.strip().upper(), output_dir)
     return True
 
 
