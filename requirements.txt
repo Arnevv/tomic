@@ -1,4 +1,3 @@
-ibapi @ file://./lib/ibapi
 pandas
 PyYAML
 pydantic
