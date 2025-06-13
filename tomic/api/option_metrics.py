@@ -44,11 +44,15 @@ def fetch_option_metrics(
 
     spot = app.spot_price
     volume = sum(r.get("volume", 0) or 0 for r in records)
+    open_interest = sum(r.get("open_interest", 0) or 0 for r in records)
     app.disconnect()
     logger.info(
-        f"Data voor {symbol} {expiry} {strike}{right or ''}: spot={spot}, volume={volume}"
+        f"Data voor {symbol} {expiry} {strike}{right or ''}: "
+        f"spot={spot}, volume={volume}, open_interest={open_interest}"
     )
-    return OptionMetrics(spot_price=spot, volume=volume)
+    return OptionMetrics(
+        spot_price=spot, volume=volume, open_interest=open_interest
+    )
 
 
 __all__ = ["fetch_option_metrics"]
