@@ -597,6 +597,8 @@ class OptionChainClient(MarketClient):
         rec["gamma"] = gamma
         rec["vega"] = vega
         rec["theta"] = theta
+        flags = rec.setdefault("flags", set())
+        flags.add("option")
         d_min = float(cfg_get("DELTA_MIN", -1))
         d_max = float(cfg_get("DELTA_MAX", 1))
         evt = rec.get("event")
@@ -606,8 +608,8 @@ class OptionChainClient(MarketClient):
                 evt.set()
             self._mark_complete(reqId)
             return
-        if isinstance(evt, threading.Event):
-            if not evt.is_set():
+        if isinstance(evt, threading.Event) and not evt.is_set():
+            if {"bid", "ask", "option"} <= flags:
                 evt.set()
                 self._mark_complete(reqId)
         if reqId != self._spot_req_id and reqId not in self._logged_data:
@@ -661,20 +663,25 @@ class OptionChainClient(MarketClient):
         ):
             if price > 0:
                 self.spot_event.set()
+        flags = rec.setdefault("flags", set())
         if tickType == TickTypeEnum.BID:
             rec["bid"] = price
+            flags.add("bid")
         elif tickType == TickTypeEnum.ASK:
             rec["ask"] = price
+            flags.add("ask")
         elif tickType in (86, 87):
             rec["open_interest"] = int(price)
         evt = rec.get("event")
-        if isinstance(evt, threading.Event):
-            if not evt.is_set():
-                evt.set()
-                self._mark_complete(reqId)
         if price == -1 and tickType in (TickTypeEnum.BID, TickTypeEnum.ASK):
             self.invalid_contracts.add(reqId)
+            if isinstance(evt, threading.Event) and not evt.is_set():
+                evt.set()
             self._mark_complete(reqId)
+        elif isinstance(evt, threading.Event) and not evt.is_set():
+            if {"bid", "ask", "option"} <= flags:
+                evt.set()
+                self._mark_complete(reqId)
         if (
             price != -1
             and tickType in (TickTypeEnum.BID, TickTypeEnum.ASK)
