@@ -7,6 +7,8 @@ from ibapi.wrapper import EWrapper
 import sys
 import os
 
+from tomic.config import get as cfg_get
+
 from tomic.logutils import logger, log_result
 
 PROTOBUF_PATH = os.path.join(os.path.dirname(__file__), "..", "ibapi", "protobuf")
@@ -46,7 +48,15 @@ class IBClient(EClient, EWrapper):
 
 
 @log_result
-def connect_ib(client_id: int = 1, host: str = "127.0.0.1", port: int = 7497, timeout: int = 5) -> IBClient:
+def connect_ib(
+    client_id: int | None = None,
+    host: str = "127.0.0.1",
+    port: int = 7497,
+    timeout: int = 5,
+) -> IBClient:
+    """Connect to IB using ``client_id`` from config when not provided."""
+    if client_id is None:
+        client_id = int(cfg_get("IB_CLIENT_ID", 100))
     app = IBClient()
 
     try:
