@@ -8,6 +8,13 @@ from .metrics import (
     historical_volatility,
     average_true_range,
 )
+from .vol_db import (
+    PriceRecord,
+    VolRecord,
+    init_db,
+    save_price_history,
+    save_vol_stats,
+)
 
 __all__ = [
     "compute_portfolio_greeks",
@@ -16,6 +23,11 @@ __all__ = [
     "render_kpi_box",
     "historical_volatility",
     "average_true_range",
+    "PriceRecord",
+    "VolRecord",
+    "init_db",
+    "save_price_history",
+    "save_vol_stats",
     "download_html",
     "parse_patterns",
 ]
