@@ -421,7 +421,9 @@ class OptionChainClient(MarketClient):
                 f"[reqId={reqId}] marketDataType={data_type} voor optie {con.symbol} "
                 f"{con.lastTradeDateOrContractMonth} {con.strike} {con.right}"
             )
-            self.reqMktData(reqId, con, "", True, False, [])
+            # Request volume (100) and open interest (101) generic ticks
+            # alongside regular option market data
+            self.reqMktData(reqId, con, "100,101", True, False, [])
             logger.debug(
                 f"✅ [stap 8] reqMktData sent for {con.symbol} {con.lastTradeDateOrContractMonth} {con.strike} {con.right}"
             )
@@ -648,6 +650,8 @@ class OptionChainClient(MarketClient):
             rec["bid"] = price
         elif tickType == TickTypeEnum.ASK:
             rec["ask"] = price
+        elif tickType in (86, 87):
+            rec["open_interest"] = int(price)
         evt = rec.get("event")
         if isinstance(evt, threading.Event):
             if not evt.is_set():
@@ -686,9 +690,12 @@ class OptionChainClient(MarketClient):
     def tickGeneric(
         self, reqId: int, tickType: int, value: float
     ) -> None:  # noqa: N802
+        rec = self.market_data.setdefault(reqId, {})
         if tickType == 100:
-            self.market_data.setdefault(reqId, {})["volume"] = int(value)
-            logger.debug(f"tickGeneric reqId={reqId} type={tickType} value={value}")
+            rec["volume"] = int(value)
+        elif tickType == 101:
+            rec["open_interest"] = int(value)
+        logger.debug(f"tickGeneric reqId={reqId} type={tickType} value={value}")
 
     # Request orchestration --------------------------------------
     def start_requests(self) -> None:  # pragma: no cover - runtime behaviour

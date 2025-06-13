@@ -35,15 +35,13 @@ async def run_async(
     """Asynchronous entry point for ``getonemarket``."""
 
     setup_logging()
-    app = connect_ib()
-    try:
-        export = _market_export()
-        if simple:
-            await export.export_option_chain_async(symbol.strip().upper(), output_dir, simple=True)
-        else:
-            await export.export_market_data_async(symbol.strip().upper(), output_dir)
-    finally:
-        app.disconnect()
+    export = _market_export()
+    if simple:
+        await export.export_option_chain_async(
+            symbol.strip().upper(), output_dir, simple=True
+        )
+    else:
+        await export.export_market_data_async(symbol.strip().upper(), output_dir)
     return True
 
 
