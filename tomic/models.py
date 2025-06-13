@@ -132,11 +132,13 @@ class OptionMetrics:
 
     spot_price: Optional[float]
     volume: int
+    open_interest: int
 
     @classmethod
     def from_dict(cls, data: Mapping[str, Any]) -> "OptionMetrics":
         return cls(
             spot_price=data.get("spot_price"),
             volume=int(data.get("volume", 0) or 0),
+            open_interest=int(data.get("open_interest", 0) or 0),
         )
 
