@@ -299,7 +299,8 @@ def export_market_metrics(
         raw_metrics = fetch_market_metrics(symbol, app=app)
     except Exception as exc:  # pragma: no cover - network failures
         logger.error(f"❌ Marktkenmerken ophalen mislukt: {exc}")
-        app.disconnect()
+        if owns_app:
+            app.disconnect()
         return None
     if raw_metrics is None:
         logger.error(f"❌ Geen expiries gevonden voor {symbol}")
@@ -354,7 +355,11 @@ def export_option_chain(
 
 @log_result
 def export_market_data(
-    symbol: str, output_dir: str | None = None, *, client_id: int | None = None
+    symbol: str,
+    output_dir: str | None = None,
+    *,
+    client_id: int | None = None,
+    app: OptionChainClient | None = None,
 ) -> pd.DataFrame | None:
     """Export option chain and market metrics for ``symbol`` to CSV files."""
     logger.info("▶️ START stap 1 - Invoer van symbool")
@@ -364,24 +369,31 @@ def export_market_data(
         return None
     logger.info(f"✅ [stap 1] {symbol} ontvangen, ga nu aan de slag!")
     logger.info("▶️ START stap 2 - Initialiseren client + verbinden met IB")
-    app = OptionChainClient(symbol)
-    start_app(app, client_id=client_id)
+    owns_app = False
+    if app is None:
+        app = OptionChainClient(symbol)
+        start_app(app, client_id=client_id)
+        owns_app = True
     try:
         raw_metrics = fetch_market_metrics(symbol, app=app)
     except Exception as exc:  # pragma: no cover - network failures
         logger.error(f"❌ Marktkenmerken ophalen mislukt: {exc}")
-        app.disconnect()
+        if owns_app:
+            app.disconnect()
         return None
     if raw_metrics is None:
         logger.error(f"❌ Geen expiries gevonden voor {symbol}")
-        app.disconnect()
+        if owns_app:
+            app.disconnect()
         return None
     metrics = MarketMetrics.from_dict(raw_metrics)
     if not await_market_data(app, symbol, timeout=999):
-        app.disconnect()
+        if owns_app:
+            app.disconnect()
         return None
-    app.disconnect()
-    time.sleep(1)
+    if owns_app:
+        app.disconnect()
+        time.sleep(1)
     if output_dir is None:
         today_str = datetime.now().strftime("%Y%m%d")
         export_dir = os.path.join(cfg_get("EXPORT_DIR", "exports"), today_str)
@@ -478,7 +490,11 @@ async def export_option_chain_async(
 
 
 async def export_market_data_async(
-    symbol: str, output_dir: str | None = None, *, client_id: int | None = None
+    symbol: str,
+    output_dir: str | None = None,
+    *,
+    client_id: int | None = None,
+    app: OptionChainClient | None = None,
 ) -> pd.DataFrame | None:
     """Async version of :func:`export_market_data`."""
 
@@ -489,8 +505,11 @@ async def export_market_data_async(
         return None
     logger.info(f"✅ [stap 1] {symbol} ontvangen, ga nu aan de slag!")
     logger.info("▶️ START stap 2 - Initialiseren client + verbinden met IB")
-    app = OptionChainClient(symbol)
-    await start_app_async(app, client_id=client_id)
+    owns_app = False
+    if app is None:
+        app = OptionChainClient(symbol)
+        await start_app_async(app, client_id=client_id)
+        owns_app = True
     lock = threading.Lock()
     try:
         raw_metrics, ok = await asyncio.gather(
@@ -499,18 +518,22 @@ async def export_market_data_async(
         )
     except Exception as exc:  # pragma: no cover - network failures
         logger.error(f"❌ Marktkenmerken ophalen mislukt: {exc}")
-        app.disconnect()
+        if owns_app:
+            app.disconnect()
         return None
     if raw_metrics is None:
         logger.error(f"❌ Geen expiries gevonden voor {symbol}")
-        app.disconnect()
+        if owns_app:
+            app.disconnect()
         return None
     metrics = MarketMetrics.from_dict(raw_metrics)
     if not ok:
-        app.disconnect()
+        if owns_app:
+            app.disconnect()
         return None
-    app.disconnect()
-    await asyncio.sleep(1)
+    if owns_app:
+        app.disconnect()
+        await asyncio.sleep(1)
     if output_dir is None:
         today_str = datetime.now().strftime("%Y%m%d")
         export_dir = os.path.join(cfg_get("EXPORT_DIR", "exports"), today_str)

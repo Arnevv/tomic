@@ -22,7 +22,8 @@ def test_run_async_does_not_connect(monkeypatch):
     monkeypatch.setattr(mod, "setup_logging", lambda: None)
 
     called = []
-    monkeypatch.setattr(mod, "connect_ib", lambda *a, **k: called.append(True))
+    if hasattr(mod, "connect_ib"):
+        monkeypatch.setattr(mod, "connect_ib", lambda *a, **k: called.append(True))
 
     result = asyncio.run(mod.run_async("ABC"))
 
