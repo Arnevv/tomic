@@ -47,6 +47,7 @@ class AppConfig(BaseModel):
     EXPORT_DIR: str = "exports"
     IB_HOST: str = "127.0.0.1"
     IB_PORT: int = 7497
+    IB_CLIENT_ID: int = 100
     LOG_LEVEL: str = "INFO"
     INTEREST_RATE: float = 0.05
     PRIMARY_EXCHANGE: str = "SMART"
