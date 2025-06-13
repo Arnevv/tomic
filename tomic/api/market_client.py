@@ -505,6 +505,8 @@ class OptionChainClient(MarketClient):
             )
             self._step6_logged = True
 
+        reg_count = int(cfg_get("AMOUNT_REGULARS", 3))
+        week_count = int(cfg_get("AMOUNT_WEEKLIES", 4))
         monthlies: list[str] = []
         weeklies: list[str] = []
         for exp in sorted(exp_list):
@@ -512,11 +514,11 @@ class OptionChainClient(MarketClient):
                 dt = datetime.strptime(exp, "%Y%m%d")
             except Exception:
                 continue
-            if _is_third_friday(dt) and len(monthlies) < 3:
+            if _is_third_friday(dt) and len(monthlies) < reg_count:
                 monthlies.append(exp)
-            elif _is_weekly(dt) and len(weeklies) < 4:
+            elif _is_weekly(dt) and len(weeklies) < week_count:
                 weeklies.append(exp)
-            if len(monthlies) >= 3 and len(weeklies) >= 4:
+            if len(monthlies) >= reg_count and len(weeklies) >= week_count:
                 break
 
         self.monthlies = monthlies
@@ -528,7 +530,7 @@ class OptionChainClient(MarketClient):
             }
             self.expiries = [d.strftime("%Y%m%d") for d in sorted(unique)]
         else:
-            self.expiries = exp_list[:4]
+            self.expiries = exp_list[: reg_count + week_count]
         logger.info(f"✅ [stap 6] Geselecteerde expiries: {', '.join(self.expiries)}")
 
         center = round(self.spot_price or 0)

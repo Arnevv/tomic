@@ -420,14 +420,94 @@ def run_settings_menu() -> None:
                 return
             cfg.update({"INTEREST_RATE": rate})
 
+    def change_path(key: str) -> None:
+        current = getattr(cfg.CONFIG, key)
+        value = prompt(f"{key} ({current}): ")
+        if value:
+            cfg.update({key: value})
+
+    def change_int(key: str) -> None:
+        current = getattr(cfg.CONFIG, key)
+        val = prompt(f"{key} ({current}): ")
+        if val:
+            try:
+                cfg.update({key: int(val)})
+            except ValueError:
+                print("❌ Ongeldige waarde")
+
+    def change_float(key: str) -> None:
+        current = getattr(cfg.CONFIG, key)
+        val = prompt(f"{key} ({current}): ")
+        if val:
+            try:
+                cfg.update({key: float(val)})
+            except ValueError:
+                print("❌ Ongeldige waarde")
+
+    def change_str(key: str) -> None:
+        current = getattr(cfg.CONFIG, key)
+        val = prompt(f"{key} ({current}): ", current)
+        if val:
+            cfg.update({key: val})
+
+    def run_connection_menu() -> None:
+        sub = Menu("Verbinding")
+        sub.add("Pas IB host/poort aan", change_host)
+        sub.add("Test TWS-verbinding", check_ib_connection)
+        sub.add("Haal TWS API-versie op", print_api_version)
+        sub.run()
+
+    def run_general_menu() -> None:
+        sub = Menu("Algemeen")
+        sub.add("Pas default symbols aan", change_symbols)
+        sub.add("Pas log-niveau aan (INFO/DEBUG)", change_log_level)
+        sub.add("Pas interest rate aan", change_rate)
+        sub.run()
+
+    def run_paths_menu() -> None:
+        sub = Menu("Bestanden")
+        sub.add("ACCOUNT_INFO_FILE", lambda: change_path("ACCOUNT_INFO_FILE"))
+        sub.add("JOURNAL_FILE", lambda: change_path("JOURNAL_FILE"))
+        sub.add("POSITIONS_FILE", lambda: change_path("POSITIONS_FILE"))
+        sub.add("PORTFOLIO_META_FILE", lambda: change_path("PORTFOLIO_META_FILE"))
+        sub.add("VOLATILITY_DATA_FILE", lambda: change_path("VOLATILITY_DATA_FILE"))
+        sub.add("EXPORT_DIR", lambda: change_path("EXPORT_DIR"))
+        sub.run()
+
+    def run_network_menu() -> None:
+        sub = Menu("Netwerk")
+        sub.add(
+            "CONTRACT_DETAILS_TIMEOUT",
+            lambda: change_int("CONTRACT_DETAILS_TIMEOUT"),
+        )
+        sub.add(
+            "CONTRACT_DETAILS_RETRIES",
+            lambda: change_int("CONTRACT_DETAILS_RETRIES"),
+        )
+        sub.add("DOWNLOAD_TIMEOUT", lambda: change_int("DOWNLOAD_TIMEOUT"))
+        sub.add("DOWNLOAD_RETRIES", lambda: change_int("DOWNLOAD_RETRIES"))
+        sub.add(
+            "MAX_CONCURRENT_REQUESTS",
+            lambda: change_int("MAX_CONCURRENT_REQUESTS"),
+        )
+        sub.run()
+
+    def run_option_menu() -> None:
+        sub = Menu("Optie parameters")
+        sub.add("PRIMARY_EXCHANGE", lambda: change_str("PRIMARY_EXCHANGE"))
+        sub.add("STRIKE_RANGE", lambda: change_int("STRIKE_RANGE"))
+        sub.add("DELTA_MIN", lambda: change_float("DELTA_MIN"))
+        sub.add("AMOUNT_REGULARS", lambda: change_int("AMOUNT_REGULARS"))
+        sub.add("AMOUNT_WEEKLIES", lambda: change_int("AMOUNT_WEEKLIES"))
+        sub.run()
+
     menu = Menu("INSTELLINGEN")
     menu.add("Toon huidige configuratie", show_config)
-    menu.add("Pas IB host/poort aan", change_host)
-    menu.add("Pas default symbols aan", change_symbols)
-    menu.add("Pas log-niveau aan (INFO/DEBUG)", change_log_level)
-    menu.add("Pas interest rate aan", change_rate)
-    menu.add("Test TWS-verbinding", check_ib_connection)
-    menu.add("Haal TWS API-versie op", print_api_version)
+    menu.add("Verbinding", run_connection_menu)
+    menu.add("Algemene opties", run_general_menu)
+    menu.add("Bestanden", run_paths_menu)
+    menu.add("Netwerk", run_network_menu)
+    menu.add("Optie parameters", run_option_menu)
     menu.run()
 
 

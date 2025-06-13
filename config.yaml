@@ -20,4 +20,6 @@ PORTFOLIO_META_FILE: tomic/data/portfolio_meta.json
 POSITIONS_FILE: tomic/data/positions.json
 PRIMARY_EXCHANGE: SMART
 STRIKE_RANGE: 10
+AMOUNT_REGULARS: 3
+AMOUNT_WEEKLIES: 4
 VOLATILITY_DATA_FILE: tomic/data/volatility_data.json
