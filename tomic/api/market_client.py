@@ -345,6 +345,12 @@ class OptionChainClient(MarketClient):
         """Record completion of a contract request and set ``all_data_event`` when done."""
         if req_id in self._completed_requests:
             return
+        # Cancel streaming market data since generic ticks cannot be
+        # requested as snapshots.
+        try:
+            self.cancelMktData(req_id)
+        except Exception:
+            pass
         self._completed_requests.add(req_id)
         if self.expected_contracts and len(self._completed_requests) >= self.expected_contracts:
             self.all_data_event.set()
@@ -422,8 +428,9 @@ class OptionChainClient(MarketClient):
                 f"{con.lastTradeDateOrContractMonth} {con.strike} {con.right}"
             )
             # Request volume (100) and open interest (101) generic ticks
-            # alongside regular option market data
-            self.reqMktData(reqId, con, "100,101", True, False, [])
+            # alongside regular option market data. Generic tick requests
+            # cannot be snapshots, so use streaming and cancel once complete.
+            self.reqMktData(reqId, con, "100,101", False, False, [])
             logger.debug(
                 f"✅ [stap 8] reqMktData sent for {con.symbol} {con.lastTradeDateOrContractMonth} {con.strike} {con.right}"
             )
