@@ -359,6 +359,8 @@ class OptionChainClient(MarketClient):
         self._step7_logged = False
         self._step8_logged = False
         self._step9_logged = False
+        # Timers for delayed invalidation of option market data requests
+        self._invalid_timers: dict[int, threading.Timer] = {}
 
     def _mark_complete(self, req_id: int) -> None:
         """Record completion of a contract request and set ``all_data_event`` when done."""
@@ -373,6 +375,32 @@ class OptionChainClient(MarketClient):
         self._completed_requests.add(req_id)
         if self.expected_contracts and len(self._completed_requests) >= self.expected_contracts:
             self.all_data_event.set()
+
+    def _invalidate_request(self, req_id: int) -> None:
+        """Mark request ``req_id`` as invalid and cancel streaming data."""
+        self._invalid_timers.pop(req_id, None)
+        self.invalid_contracts.add(req_id)
+        evt = self.market_data.get(req_id, {}).get("event")
+        if isinstance(evt, threading.Event) and not evt.is_set():
+            evt.set()
+        self._mark_complete(req_id)
+
+    def _cancel_invalid_timer(self, req_id: int) -> None:
+        timer = self._invalid_timers.pop(req_id, None)
+        if timer is not None:
+            timer.cancel()
+
+    def _schedule_invalid_timer(self, req_id: int) -> None:
+        if req_id in self._invalid_timers:
+            return
+        timeout = cfg_get("BID_ASK_TIMEOUT", 5)
+        if timeout <= 0:
+            self._invalidate_request(req_id)
+            return
+        timer = threading.Timer(timeout, self._invalidate_request, args=[req_id])
+        timer.daemon = True
+        self._invalid_timers[req_id] = timer
+        timer.start()
 
     def all_data_received(self) -> bool:
         """Return ``True`` when all requested option data has been received."""
@@ -604,6 +632,7 @@ class OptionChainClient(MarketClient):
         undPrice: float,
     ) -> None:  # noqa: N802
         rec = self.market_data.setdefault(reqId, {})
+        self._cancel_invalid_timer(reqId)
         logger.debug(
             f"[tickOptionComputation] reqId={reqId} tickType={tickType} "
             f"delta={delta} iv={impliedVol}"
@@ -683,18 +712,21 @@ class OptionChainClient(MarketClient):
         if tickType == TickTypeEnum.BID:
             rec["bid"] = price
             flags.add("bid")
+            if price == -1:
+                self._schedule_invalid_timer(reqId)
+            else:
+                self._cancel_invalid_timer(reqId)
         elif tickType == TickTypeEnum.ASK:
             rec["ask"] = price
             flags.add("ask")
+            if price == -1:
+                self._schedule_invalid_timer(reqId)
+            else:
+                self._cancel_invalid_timer(reqId)
         elif tickType in (86, 87):
             rec["open_interest"] = int(price)
         evt = rec.get("event")
-        if price == -1 and tickType in (TickTypeEnum.BID, TickTypeEnum.ASK):
-            self.invalid_contracts.add(reqId)
-            if isinstance(evt, threading.Event) and not evt.is_set():
-                evt.set()
-            self._mark_complete(reqId)
-        elif isinstance(evt, threading.Event) and not evt.is_set():
+        if isinstance(evt, threading.Event) and not evt.is_set():
             if {"bid", "ask", "option"} <= flags:
                 evt.set()
                 self._mark_complete(reqId)

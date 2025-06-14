@@ -492,3 +492,37 @@ def test_all_data_event_set(monkeypatch):
     client.error(2, "", 200, "")
     assert client.all_data_event.is_set()
 
+
+def test_tick_price_negative_delays_invalidation(monkeypatch):
+    mod = importlib.import_module("tomic.api.market_client")
+    client = mod.OptionChainClient("ABC")
+
+    if not hasattr(mod.TickTypeEnum, "BID"):
+        mod.TickTypeEnum.BID = 1
+    if not hasattr(mod.TickTypeEnum, "toStr"):
+        mod.TickTypeEnum.toStr = classmethod(lambda cls, v: str(v))
+
+    monkeypatch.setattr(mod, "cfg_get", lambda n, d=None: 999 if n == "BID_ASK_TIMEOUT" else d)
+    client.market_data[1] = {"event": threading.Event()}
+
+    client.tickPrice(1, mod.TickTypeEnum.BID, -1, None)
+
+    assert 1 not in client.invalid_contracts
+
+
+def test_tick_price_invalidates_after_timeout(monkeypatch):
+    mod = importlib.import_module("tomic.api.market_client")
+    client = mod.OptionChainClient("ABC")
+
+    if not hasattr(mod.TickTypeEnum, "BID"):
+        mod.TickTypeEnum.BID = 1
+    if not hasattr(mod.TickTypeEnum, "toStr"):
+        mod.TickTypeEnum.toStr = classmethod(lambda cls, v: str(v))
+
+    monkeypatch.setattr(mod, "cfg_get", lambda n, d=None: 0 if n == "BID_ASK_TIMEOUT" else d)
+    client.market_data[1] = {"event": threading.Event()}
+
+    client.tickPrice(1, mod.TickTypeEnum.BID, -1, None)
+
+    assert 1 in client.invalid_contracts
+
