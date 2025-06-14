@@ -33,5 +33,9 @@ def test_fetch_prices_main(monkeypatch):
 
     monkeypatch.setattr(mod, "connect_ib", lambda: FakeApp())
 
+    called = []
+    monkeypatch.setattr(mod, "compute_volstats_main", lambda syms: called.append(syms))
+
     mod.main(["ABC"])
     assert captured
+    assert called and called[0] == ["ABC"]
