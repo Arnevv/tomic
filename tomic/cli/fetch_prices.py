@@ -13,6 +13,7 @@ from tomic.config import get as cfg_get
 from tomic.logutils import logger, setup_logging
 from tomic.api.ib_connection import connect_ib
 from tomic.analysis.vol_db import PriceRecord, init_db, save_price_history
+from .compute_volstats import main as compute_volstats_main
 
 
 def _format_date(raw: str) -> str:
@@ -89,6 +90,9 @@ def main(argv: List[str] | None = None) -> None:
     finally:
         conn.close()
     logger.success("✅ Historische prijzen opgeslagen")
+
+    # Immediately compute volatility statistics for the fetched symbols
+    compute_volstats_main(symbols)
 
 
 if __name__ == "__main__":
