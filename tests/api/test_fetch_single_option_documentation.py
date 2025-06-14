@@ -30,7 +30,7 @@ def test_dataexporter_menu_invokes_new_scripts(monkeypatch):
     mod = importlib.import_module("tomic.cli.controlpanel")
     called = []
     monkeypatch.setattr(mod, "run_module", lambda name, *a: called.append(name))
-    inputs = iter(["4", "AAPL MSFT", "5", "IBM", "6", "", "7"])
+    inputs = iter(["4", "AAPL MSFT", "5", "IBM", "6", "", "9"])
     monkeypatch.setattr("builtins.input", lambda *a: next(inputs))
     mod.run_dataexporter()
     assert "tomic.analysis.bench_getonemarket" in called
