@@ -201,15 +201,6 @@ def run_dataexporter() -> None:
         except subprocess.CalledProcessError:
             print("❌ Benchmark mislukt")
 
-    def export_one_async() -> None:
-        symbol = prompt("Ticker symbool: ")
-        if not symbol:
-            print("Geen symbool opgegeven")
-            return
-        try:
-            run_module("tomic.api.getonemarket_async", symbol)
-        except subprocess.CalledProcessError:
-            print("❌ Export mislukt")
 
     def fetch_prices() -> None:
         raw = prompt("Symbolen (spatiegescheiden, leeg=default): ")
@@ -244,15 +235,11 @@ def run_dataexporter() -> None:
         except subprocess.CalledProcessError:
             print("❌ Tonen van volatiliteitsdata mislukt")
 
-    menu = Menu("📤 DATA MANAGEMENT")
-    menu.add("Exporteer een markt (tomic.api.getonemarket)", export_one)
-    menu.add("Exporteer alle markten (tomic.api.getallmarkets)", export_all)
-    menu.add("Controleer CSV-kwaliteit (tomic.cli.csv_quality_check)", csv_check)
-    menu.add("Benchmark getonemarket (analysis)", bench_getonemarket)
-    menu.add(
-        "Exporteer een markt asynchroon",
-        export_one_async,
-    )
+    menu = Menu("📁 DATA & MARKTDATA")
+    menu.add("Exporteer een markt", export_one)
+    menu.add("Exporteer alle markten", export_all)
+    menu.add("Controleer CSV-kwaliteit", csv_check)
+    menu.add("Benchmark getonemarket", bench_getonemarket)
     menu.add("Ophalen historische prijzen", fetch_prices)
     menu.add("Toon historische data", show_history)
     menu.add("Toon volatiliteitsdata", show_volstats)
@@ -262,7 +249,7 @@ def run_dataexporter() -> None:
 def run_trade_management() -> None:
     """Menu for journal management tasks."""
 
-    menu = Menu("TRADE MANAGEMENT")
+    menu = Menu("⚙️ TRADES & JOURNAL")
     menu.add(
         "Overzicht bekijken", lambda: run_module("tomic.journal.journal_inspector")
     )
@@ -287,14 +274,10 @@ def run_trade_management() -> None:
 def run_risk_tools() -> None:
     """Menu for risk analysis helpers."""
 
-    menu = Menu("RISK TOOLS")
+    menu = Menu("🚦 RISICO TOOLS & SYNTHETICA")
+    menu.add("Entry checker", lambda: run_module("tomic.cli.entry_checker"))
     menu.add("Scenario-analyse", lambda: run_module("tomic.cli.portfolio_scenario"))
     menu.add("Event watcher", lambda: run_module("tomic.cli.event_watcher"))
-    menu.add("Entry checker", lambda: run_module("tomic.cli.entry_checker"))
-    menu.add(
-        "Strategievoorstellen",
-        lambda: run_module("tomic.cli.generate_proposals"),
-    )
     menu.add("Synthetics detector", lambda: run_module("tomic.cli.synthetics_detector"))
     menu.add("Cone visualizer", lambda: run_module("tomic.cli.cone_visualizer"))
     menu.run()
@@ -402,11 +385,12 @@ def run_portfolio_menu() -> None:
         except subprocess.CalledProcessError:
             print("❌ Strategievoorstellen genereren mislukt")
 
-    menu = Menu("PORTFOLIO OVERZICHT")
-    menu.add("Portfolio overzicht opnieuw ophalen van TWS", fetch_and_show)
-    menu.add("Laatst opgehaalde portfolio-overzicht tonen", show_saved)
+    menu = Menu("📊 ANALYSE & STRATEGIE")
+    menu.add("Trading Plan", lambda: run_module("tomic.cli.trading_plan"))
+    menu.add("Portfolio ophalen en tonen", fetch_and_show)
+    menu.add("Laatst opgehaalde portfolio tonen", show_saved)
     menu.add("Toon portfolio greeks", show_greeks)
-    menu.add("Genereer strategieen obv portfolio greeks", generate_proposals_now)
+    menu.add("Strategie voorstellen", generate_proposals_now)
     menu.run()
 
 
@@ -544,7 +528,7 @@ def run_settings_menu() -> None:
         sub.add("AMOUNT_WEEKLIES", lambda: change_int("AMOUNT_WEEKLIES"))
         sub.run()
 
-    menu = Menu("INSTELLINGEN")
+    menu = Menu("🔧 CONFIGURATIE")
     menu.add("Toon huidige configuratie", show_config)
     menu.add("Verbinding", run_connection_menu)
     menu.add("Algemene opties", run_general_menu)
@@ -558,12 +542,11 @@ def main() -> None:
     """Start the interactive control panel."""
 
     menu = Menu("TOMIC CONTROL PANEL", exit_text="Stoppen")
-    menu.add("Trading Plan", lambda: run_module("tomic.cli.trading_plan"))
-    menu.add("Portfolio-overzicht", run_portfolio_menu)
-    menu.add("Trade Management", run_trade_management)
-    menu.add("Data Management", run_dataexporter)
-    menu.add("Risk Tools", run_risk_tools)
-    menu.add("Instellingen", run_settings_menu)
+    menu.add("Analyse & Strategie", run_portfolio_menu)
+    menu.add("Data & Marktdata", run_dataexporter)
+    menu.add("Trades & Journal", run_trade_management)
+    menu.add("Risicotools & Synthetica", run_risk_tools)
+    menu.add("Configuratie", run_settings_menu)
     menu.run()
     print("Tot ziens.")
 
