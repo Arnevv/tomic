@@ -3,6 +3,7 @@
 import sys
 
 from tomic.logutils import setup_logging, logger, log_result, trace_calls
+from .ib_connection import connect_ib  # backwards compat for tests
 
 def _market_export():
     from . import market_export
