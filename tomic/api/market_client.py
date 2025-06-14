@@ -198,6 +198,7 @@ class MarketClient(BaseIBApp):
         data_type_success = None
         short_timeout = cfg_get("DATA_TYPE_TIMEOUT", 2)
         data_types = (1, 2, 3, 4)
+        logger.info("▶️ START stap 3 - Spot price ophalen")
         for data_type in data_types:
             self.reqMarketDataType(data_type)
             logger.info(
@@ -808,8 +809,6 @@ class OptionChainClient(MarketClient):
                     f"✅ [stap 2] De markt ({self.symbol}) is vandaag gesloten, "
                     f"het is nu {now_str}"
                 )
-
-        logger.info("▶️ START stap 3 - Spot price ophalen")
 
         if self.con_id is None:
             logger.info("▶️ START stap 4 - ContractDetails ophalen voor STK")
