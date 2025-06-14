@@ -60,7 +60,7 @@ def test_start_requests_requests_stock(monkeypatch):
     monkeypatch.setattr(market_client, "cfg_get", lambda name, default=None: 0)
     app = DummyClient("ABC")
     app.start_requests()
-    assert ("type", 4) in app.calls
+    assert ("type", 1) in app.calls
     req = next(call for call in app.calls if call[0] == "req")
     assert req[2].secType == "STK"
     assert ("cancel", req[1]) in app.calls
@@ -101,7 +101,7 @@ def test_start_requests_delayed_when_closed(monkeypatch):
     # No spot price to force cycling through market data types
     app.start_requests()
     type_calls = [t[1] for t in app.calls if t[0] == "type"]
-    assert type_calls[:3] == [4, 3, 2]
+    assert type_calls[:4] == [1, 2, 3, 4]
 
 
 def test_start_requests_skips_invalid_tick(monkeypatch):
@@ -153,7 +153,7 @@ def test_start_requests_skips_invalid_tick(monkeypatch):
     app.start_requests()
     type_calls = [t[1] for t in app.calls if t[0] == "type"]
     # The invalid tick should cause a retry with the next data type
-    assert type_calls[:2] == [4, 3]
+    assert type_calls[:2] == [1, 2]
 
 
 def test_option_chain_client_events_set():
@@ -175,6 +175,8 @@ def test_option_chain_client_events_set():
         mod.TickTypeEnum.DELAYED_BID = 3
     if not hasattr(mod.TickTypeEnum, "DELAYED_ASK"):
         mod.TickTypeEnum.DELAYED_ASK = 4
+    if not hasattr(mod.TickTypeEnum, "CLOSE"):
+        mod.TickTypeEnum.CLOSE = 9
     if not hasattr(mod.TickTypeEnum, "toStr"):
         mod.TickTypeEnum.toStr = classmethod(lambda cls, v: str(v))
     if not hasattr(mod.TickTypeEnum, "toStr"):
@@ -491,4 +493,89 @@ def test_all_data_event_set(monkeypatch):
     assert not client.all_data_event.is_set()
     client.error(2, "", 200, "")
     assert client.all_data_event.is_set()
+
+
+def test_tick_price_negative_delays_invalidation(monkeypatch):
+    mod = importlib.import_module("tomic.api.market_client")
+    client = mod.OptionChainClient("ABC")
+
+    if not hasattr(mod.TickTypeEnum, "BID"):
+        mod.TickTypeEnum.BID = 1
+    if not hasattr(mod.TickTypeEnum, "toStr"):
+        mod.TickTypeEnum.toStr = classmethod(lambda cls, v: str(v))
+
+    monkeypatch.setattr(mod, "cfg_get", lambda n, d=None: 999 if n == "BID_ASK_TIMEOUT" else d)
+    client.market_data[1] = {"event": threading.Event()}
+
+    client.tickPrice(1, mod.TickTypeEnum.BID, -1, None)
+
+    assert 1 not in client.invalid_contracts
+
+
+def test_tick_price_invalidates_after_timeout(monkeypatch):
+    mod = importlib.import_module("tomic.api.market_client")
+    client = mod.OptionChainClient("ABC")
+
+    if not hasattr(mod.TickTypeEnum, "BID"):
+        mod.TickTypeEnum.BID = 1
+    if not hasattr(mod.TickTypeEnum, "toStr"):
+        mod.TickTypeEnum.toStr = classmethod(lambda cls, v: str(v))
+
+    monkeypatch.setattr(mod, "cfg_get", lambda n, d=None: 0 if n == "BID_ASK_TIMEOUT" else d)
+    client.market_data[1] = {"event": threading.Event()}
+
+    client.tickPrice(1, mod.TickTypeEnum.BID, -1, None)
+
+    assert 1 in client.invalid_contracts
+
+
+def test_tick_price_close_keeps_contract_valid(monkeypatch):
+    mod = importlib.import_module("tomic.api.market_client")
+    client = mod.OptionChainClient("ABC")
+
+    if not hasattr(mod.TickTypeEnum, "CLOSE"):
+        mod.TickTypeEnum.CLOSE = 9
+    if not hasattr(mod.TickTypeEnum, "BID"):
+        mod.TickTypeEnum.BID = 1
+    if not hasattr(mod.TickTypeEnum, "LAST"):
+        mod.TickTypeEnum.LAST = 68
+    if not hasattr(mod.TickTypeEnum, "DELAYED_LAST"):
+        mod.TickTypeEnum.DELAYED_LAST = 69
+    if not hasattr(mod.TickTypeEnum, "ASK"):
+        mod.TickTypeEnum.ASK = 2
+    if not hasattr(mod.TickTypeEnum, "DELAYED_BID"):
+        mod.TickTypeEnum.DELAYED_BID = 3
+    if not hasattr(mod.TickTypeEnum, "DELAYED_ASK"):
+        mod.TickTypeEnum.DELAYED_ASK = 4
+    if not hasattr(mod.TickTypeEnum, "toStr"):
+        mod.TickTypeEnum.toStr = classmethod(lambda cls, v: str(v))
+
+    client.market_data[1] = {"event": threading.Event()}
+
+    scheduled = []
+    monkeypatch.setattr(client, "_schedule_invalid_timer", lambda r: scheduled.append(r))
+    monkeypatch.setattr(client, "_cancel_invalid_timer", lambda r: scheduled.remove(r) if r in scheduled else None)
+
+    client.tickPrice(1, mod.TickTypeEnum.BID, -1, None)
+    assert scheduled == [1]
+
+    client.tickPrice(1, mod.TickTypeEnum.CLOSE, 2.5, None)
+    assert scheduled == []
+    assert client.market_data[1]["close"] == 2.5
+
+    client.tickOptionComputation(
+        1,
+        0,
+        None,
+        0.2,
+        0.1,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        100.0,
+    )
+    assert client.market_data[1]["event"].is_set()
+    assert 1 not in client.invalid_contracts
 

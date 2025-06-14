@@ -36,3 +36,4 @@ def test_dataexporter_menu_invokes_new_scripts(monkeypatch):
     assert "tomic.analysis.bench_getonemarket" in called
     assert "tomic.api.getonemarket_async" in called
     assert "tomic.cli.fetch_prices" in called
+    assert "tomic.cli.show_pricehistory" in called
