@@ -42,6 +42,7 @@ _HEADERS_CHAIN = [
     "Strike",
     "Bid",
     "Ask",
+    "Close",
     "IV",
     "Delta",
     "Gamma",
@@ -74,6 +75,7 @@ _HEADERS_SIMPLE = [
     "Type",
     "Bid",
     "Ask",
+    "Close",
     "IV",
     "Delta",
     "Gamma",
@@ -168,6 +170,7 @@ def _write_option_chain(
                     rec.get("strike"),
                     rec.get("bid"),
                     rec.get("ask"),
+                    rec.get("close"),
                     round(rec.get("iv"), 3) if rec.get("iv") is not None else None,
                     (
                         round(rec.get("delta"), 3)
@@ -223,7 +226,11 @@ def _write_option_chain_simple(
                 continue
             if req_id in getattr(app, "invalid_contracts", set()):
                 continue
-            if rec.get("bid") is None and rec.get("ask") is None:
+            if (
+                rec.get("bid") is None
+                and rec.get("ask") is None
+                and rec.get("close") is None
+            ):
                 continue
             writer.writerow(
                 [
@@ -233,6 +240,7 @@ def _write_option_chain_simple(
                     rec.get("right"),
                     rec.get("bid"),
                     rec.get("ask"),
+                    rec.get("close"),
                     rec.get("iv"),
                     rec.get("delta"),
                     rec.get("gamma"),
@@ -247,7 +255,11 @@ def _write_option_chain_simple(
         for req_id, rec in app.market_data.items()
         if req_id not in getattr(app, "invalid_contracts", set())
         and req_id not in spot_ids
-        and not (rec.get("bid") is None and rec.get("ask") is None)
+        and not (
+            rec.get("bid") is None
+            and rec.get("ask") is None
+            and rec.get("close") is None
+        )
     )
     logger.info(f"Contracts verwerkt: {valid} geldig, {total - valid} ongeldig")
 
@@ -299,7 +311,8 @@ def export_market_metrics(
         raw_metrics = fetch_market_metrics(symbol, app=app)
     except Exception as exc:  # pragma: no cover - network failures
         logger.error(f"❌ Marktkenmerken ophalen mislukt: {exc}")
-        app.disconnect()
+        if owns_app:
+            app.disconnect()
         return None
     if raw_metrics is None:
         logger.error(f"❌ Geen expiries gevonden voor {symbol}")
@@ -354,7 +367,11 @@ def export_option_chain(
 
 @log_result
 def export_market_data(
-    symbol: str, output_dir: str | None = None, *, client_id: int | None = None
+    symbol: str,
+    output_dir: str | None = None,
+    *,
+    client_id: int | None = None,
+    app: OptionChainClient | None = None,
 ) -> pd.DataFrame | None:
     """Export option chain and market metrics for ``symbol`` to CSV files."""
     logger.info("▶️ START stap 1 - Invoer van symbool")
@@ -364,24 +381,31 @@ def export_market_data(
         return None
     logger.info(f"✅ [stap 1] {symbol} ontvangen, ga nu aan de slag!")
     logger.info("▶️ START stap 2 - Initialiseren client + verbinden met IB")
-    app = OptionChainClient(symbol)
-    start_app(app, client_id=client_id)
+    owns_app = False
+    if app is None:
+        app = OptionChainClient(symbol)
+        start_app(app, client_id=client_id)
+        owns_app = True
     try:
         raw_metrics = fetch_market_metrics(symbol, app=app)
     except Exception as exc:  # pragma: no cover - network failures
         logger.error(f"❌ Marktkenmerken ophalen mislukt: {exc}")
-        app.disconnect()
+        if owns_app:
+            app.disconnect()
         return None
     if raw_metrics is None:
         logger.error(f"❌ Geen expiries gevonden voor {symbol}")
-        app.disconnect()
+        if owns_app:
+            app.disconnect()
         return None
     metrics = MarketMetrics.from_dict(raw_metrics)
     if not await_market_data(app, symbol, timeout=999):
-        app.disconnect()
+        if owns_app:
+            app.disconnect()
         return None
-    app.disconnect()
-    time.sleep(1)
+    if owns_app:
+        app.disconnect()
+        time.sleep(1)
     if output_dir is None:
         today_str = datetime.now().strftime("%Y%m%d")
         export_dir = os.path.join(cfg_get("EXPORT_DIR", "exports"), today_str)
@@ -478,7 +502,11 @@ async def export_option_chain_async(
 
 
 async def export_market_data_async(
-    symbol: str, output_dir: str | None = None, *, client_id: int | None = None
+    symbol: str,
+    output_dir: str | None = None,
+    *,
+    client_id: int | None = None,
+    app: OptionChainClient | None = None,
 ) -> pd.DataFrame | None:
     """Async version of :func:`export_market_data`."""
 
@@ -489,8 +517,11 @@ async def export_market_data_async(
         return None
     logger.info(f"✅ [stap 1] {symbol} ontvangen, ga nu aan de slag!")
     logger.info("▶️ START stap 2 - Initialiseren client + verbinden met IB")
-    app = OptionChainClient(symbol)
-    await start_app_async(app, client_id=client_id)
+    owns_app = False
+    if app is None:
+        app = OptionChainClient(symbol)
+        await start_app_async(app, client_id=client_id)
+        owns_app = True
     lock = threading.Lock()
     try:
         raw_metrics, ok = await asyncio.gather(
@@ -499,18 +530,22 @@ async def export_market_data_async(
         )
     except Exception as exc:  # pragma: no cover - network failures
         logger.error(f"❌ Marktkenmerken ophalen mislukt: {exc}")
-        app.disconnect()
+        if owns_app:
+            app.disconnect()
         return None
     if raw_metrics is None:
         logger.error(f"❌ Geen expiries gevonden voor {symbol}")
-        app.disconnect()
+        if owns_app:
+            app.disconnect()
         return None
     metrics = MarketMetrics.from_dict(raw_metrics)
     if not ok:
-        app.disconnect()
+        if owns_app:
+            app.disconnect()
         return None
-    app.disconnect()
-    await asyncio.sleep(1)
+    if owns_app:
+        app.disconnect()
+        await asyncio.sleep(1)
     if output_dir is None:
         today_str = datetime.now().strftime("%Y%m%d")
         export_dir = os.path.join(cfg_get("EXPORT_DIR", "exports"), today_str)

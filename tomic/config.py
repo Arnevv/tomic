@@ -44,6 +44,7 @@ class AppConfig(BaseModel):
     PORTFOLIO_META_FILE: str = "portfolio_meta.json"
     JOURNAL_FILE: str = "journal.json"
     VOLATILITY_DATA_FILE: str = "volatility_data.json"
+    VOLATILITY_DB: str = "data/volatility.db"
     EXPORT_DIR: str = "exports"
     IB_HOST: str = "127.0.0.1"
     IB_PORT: int = 7497
@@ -63,6 +64,7 @@ class AppConfig(BaseModel):
     CONTRACT_DETAILS_RETRIES: int = 0
     DOWNLOAD_TIMEOUT: int = 10
     DOWNLOAD_RETRIES: int = 2
+    BID_ASK_TIMEOUT: int = 5
 
 
 _BASE_DIR = Path(__file__).resolve().parent.parent
