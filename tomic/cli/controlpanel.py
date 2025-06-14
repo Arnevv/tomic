@@ -218,6 +218,14 @@ def run_dataexporter() -> None:
         except subprocess.CalledProcessError:
             print("❌ Ophalen van prijzen mislukt")
 
+    def show_prices() -> None:
+        raw = prompt("Symbolen (spatiegescheiden, leeg=default): ")
+        symbols = [s.strip().upper() for s in raw.split() if s.strip()]
+        try:
+            run_module("tomic.cli.show_pricehistory", *symbols)
+        except subprocess.CalledProcessError:
+            print("❌ Historische data kon niet worden getoond")
+
     menu = Menu("📤 DATA MANAGEMENT")
     menu.add("Exporteer een markt (tomic.api.getonemarket)", export_one)
     menu.add("Exporteer alle markten (tomic.api.getallmarkets)", export_all)
@@ -228,6 +236,7 @@ def run_dataexporter() -> None:
         export_one_async,
     )
     menu.add("Ophalen historische prijzen", fetch_prices)
+    menu.add("Toon historische data", show_prices)
 
     menu.run()
 
