@@ -52,6 +52,7 @@ from tomic.api.ib_connection import connect_ib
 from tomic import config as cfg
 from tomic.logutils import setup_logging
 from tomic.analysis.greeks import compute_portfolio_greeks
+from tomic.analysis.vol_db import init_db
 
 setup_logging()
 try:
@@ -218,13 +219,30 @@ def run_dataexporter() -> None:
         except subprocess.CalledProcessError:
             print("❌ Ophalen van prijzen mislukt")
 
-    def show_prices() -> None:
-        raw = prompt("Symbolen (spatiegescheiden, leeg=default): ")
-        symbols = [s.strip().upper() for s in raw.split() if s.strip()]
+    def show_history() -> None:
+        symbol = prompt("Ticker symbool: ")
+        if not symbol:
+            print("Geen symbool opgegeven")
+            return
+        conn = init_db(cfg.get("VOLATILITY_DB", "data/volatility.db"))
         try:
-            run_module("tomic.cli.show_pricehistory", *symbols)
+            cur = conn.execute(
+                "SELECT date, close FROM PriceHistory WHERE symbol=? ORDER BY date DESC LIMIT 10",
+                (symbol.upper(),),
+            )
+            rows = cur.fetchall()
+        finally:
+            conn.close()
+        if not rows:
+            print("⚠️ Geen data gevonden")
+            return
+        print(tabulate(rows, headers=["Datum", "Close"], tablefmt="github"))
+
+    def show_volstats() -> None:
+        try:
+            run_module("tomic.cli.show_volstats")
         except subprocess.CalledProcessError:
-            print("❌ Historische data kon niet worden getoond")
+            print("❌ Tonen van volatiliteitsdata mislukt")
 
     menu = Menu("📤 DATA MANAGEMENT")
     menu.add("Exporteer een markt (tomic.api.getonemarket)", export_one)
@@ -236,7 +254,8 @@ def run_dataexporter() -> None:
         export_one_async,
     )
     menu.add("Ophalen historische prijzen", fetch_prices)
-    menu.add("Toon historische data", show_prices)
+    menu.add("Toon historische data", show_history)
+    menu.add("Toon volatiliteitsdata", show_volstats)
 
     menu.run()
 
