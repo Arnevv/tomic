@@ -37,6 +37,10 @@ class VolRecord:
 
 def init_db(path: str | Path) -> sqlite3.Connection:
     """Initialise SQLite database and return connection."""
+    path = Path(path)
+    # Ensure parent directories exist to avoid OperationalError on open
+    if path.parent and not path.parent.exists():
+        path.parent.mkdir(parents=True, exist_ok=True)
     conn = sqlite3.connect(str(path))
     cur = conn.cursor()
     cur.execute(
