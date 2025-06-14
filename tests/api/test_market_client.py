@@ -60,7 +60,7 @@ def test_start_requests_requests_stock(monkeypatch):
     monkeypatch.setattr(market_client, "cfg_get", lambda name, default=None: 0)
     app = DummyClient("ABC")
     app.start_requests()
-    assert ("type", 4) in app.calls
+    assert ("type", 1) in app.calls
     req = next(call for call in app.calls if call[0] == "req")
     assert req[2].secType == "STK"
     assert ("cancel", req[1]) in app.calls
@@ -101,7 +101,7 @@ def test_start_requests_delayed_when_closed(monkeypatch):
     # No spot price to force cycling through market data types
     app.start_requests()
     type_calls = [t[1] for t in app.calls if t[0] == "type"]
-    assert type_calls[:3] == [4, 3, 2]
+    assert type_calls[:4] == [1, 2, 3, 4]
 
 
 def test_start_requests_skips_invalid_tick(monkeypatch):
@@ -153,7 +153,7 @@ def test_start_requests_skips_invalid_tick(monkeypatch):
     app.start_requests()
     type_calls = [t[1] for t in app.calls if t[0] == "type"]
     # The invalid tick should cause a retry with the next data type
-    assert type_calls[:2] == [4, 3]
+    assert type_calls[:2] == [1, 2]
 
 
 def test_option_chain_client_events_set():
