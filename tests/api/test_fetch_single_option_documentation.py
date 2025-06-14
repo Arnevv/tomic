@@ -1,6 +1,5 @@
 import importlib
 
-
 def test_fetch_single_option_documentation_writes_csv(tmp_path, monkeypatch):
     mod = importlib.import_module("tomic.api.fetch_single_option_documentation")
 
