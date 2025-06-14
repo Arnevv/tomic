@@ -9,6 +9,7 @@ option contracts so that requests match the underlying's market data.
 """
 
 from typing import Any, Dict
+import asyncio
 import threading
 import time
 from datetime import datetime, timedelta
@@ -170,11 +171,10 @@ class MarketClient(BaseIBApp):
         return self._req_id
 
     @log_result
-    def start_requests(self) -> None:  # pragma: no cover - runtime behaviour
-        """Request a basic stock quote for ``self.symbol`` with data type fallback."""
+    def _init_market(self) -> None:
+        """Determine market status and retrieve a stock quote."""
         contract = self._stock_contract()
 
-        # Determine whether the market is currently open
         self._details_event.clear()
         self.reqContractDetails(self._next_id(), contract)
         self._details_event.wait(2)
@@ -189,10 +189,7 @@ class MarketClient(BaseIBApp):
 
         data_type_success = None
         short_timeout = cfg_get("DATA_TYPE_TIMEOUT", 2)
-        if self.market_open:
-            data_types = (1, 2, 3, 4)
-        else:
-            data_types = (4, 3, 2)
+        data_types = (1, 2, 3, 4)
         for data_type in data_types:
             self.reqMarketDataType(data_type)
             logger.debug(f"reqMarketDataType({data_type})")
@@ -216,29 +213,38 @@ class MarketClient(BaseIBApp):
         if self.data_type_success is None:
             self.data_type_success = 4 if not self.market_open else 1
 
+        self.reqMarketDataType(self.data_type_success)
+
         if self.spot_price is None or self.spot_price <= 0:
             timeout = cfg_get("SPOT_TIMEOUT", 10)
             self.data_event.clear()
-            self.reqMarketDataType(4)
             self.reqMktData(req_id, contract, "", False, False, [])
             self._spot_req_ids.add(req_id)
             self.data_event.wait(timeout)
             self.cancelMktData(req_id)
             self.invalid_contracts.add(req_id)
 
-        if (self.spot_price is None or self.spot_price <= 0):
+        if self.spot_price is None or self.spot_price <= 0:
             fallback = fetch_volatility_metrics(self.symbol).get("spot_price")
             if fallback is not None:
                 try:
                     self.spot_price = float(fallback)
-                    logger.info(
-                        f"✅ [stap 3] Spotprijs fallback: {self.spot_price}"
-                    )
+                    logger.info(f"✅ [stap 3] Spotprijs fallback: {self.spot_price}")
                 except (TypeError, ValueError):
                     logger.warning("Fallback spot price could not be parsed")
 
         if self.spot_price is None:
             logger.error("❌ FAIL stap 3: Spot price not available after all retries")
+
+    @log_result
+    def start_requests(self) -> None:  # pragma: no cover - runtime behaviour
+        """Request a basic stock quote for ``self.symbol``."""
+        self._init_market()
+
+    async def start_requests_async(self) -> None:  # pragma: no cover - runtime behaviour
+        """Asynchronous wrapper around :meth:`start_requests`."""
+        loop = asyncio.get_running_loop()
+        await loop.run_in_executor(None, self.start_requests)
 
     # IB callbacks -----------------------------------------------------
     def nextValidId(self, orderId: int) -> None:  # noqa: N802
@@ -433,7 +439,6 @@ class OptionChainClient(MarketClient):
             else:
                 data_type = 1 if self.market_open else 4
             logger.debug(f"reqMktData sent for: {contract_repr(con)}")
-            self.reqMarketDataType(data_type)
             logger.debug(
                 f"[reqId={reqId}] marketDataType={data_type} voor optie {con.symbol} "
                 f"{con.lastTradeDateOrContractMonth} {con.strike} {con.right}"
@@ -734,20 +739,10 @@ class OptionChainClient(MarketClient):
 
     @log_result
     def _init_requests(self) -> None:
+        self._init_market()
+
         stk = self._stock_contract()
         logger.debug(f"Requesting stock quote with contract: {stk}")
-
-        # Determine market status
-        self._details_event.clear()
-        self.reqContractDetails(self._next_id(), stk)
-        self._details_event.wait(2)
-        self._time_event.clear()
-        self.reqCurrentTime()
-        self._time_event.wait(2)
-        market_open = False
-        if self.trading_hours and self.server_time:
-            market_open = is_market_open(self.trading_hours, self.server_time)
-        self.market_open = market_open
 
         if self.trading_hours and self.server_time:
             hours = market_hours_today(self.trading_hours, self.server_time)
@@ -766,58 +761,6 @@ class OptionChainClient(MarketClient):
                 )
 
         logger.info("▶️ START stap 3 - Spot price ophalen")
-
-        data_type_success = None
-        short_timeout = cfg_get("DATA_TYPE_TIMEOUT", 2)
-        if self.market_open:
-            data_types = (1, 2, 3, 4)
-        else:
-            data_types = (4, 3, 2)
-        for data_type in data_types:
-            self.reqMarketDataType(data_type)
-            logger.debug(f"reqMarketDataType({data_type})")
-            spot_id = self._next_id()
-            self.spot_event.clear()
-            self.reqMktData(spot_id, stk, "", False, False, [])
-            self._spot_req_id = spot_id
-            self._spot_req_ids.add(spot_id)
-            logger.debug(
-                f"reqMktData sent: id={spot_id} snapshot=False for stock contract"
-            )
-            if self.spot_event.wait(short_timeout):
-                data_type_success = data_type
-                self.cancelMktData(spot_id)
-                self.invalid_contracts.add(spot_id)
-                logger.debug(f"Market data type {data_type} succeeded")
-                break
-            self.cancelMktData(spot_id)
-            self.invalid_contracts.add(spot_id)
-
-        self.data_type_success = data_type_success
-        if self.data_type_success is None:
-            self.data_type_success = 4 if not self.market_open else 1
-
-        if self.spot_price is None:
-            timeout = cfg_get("SPOT_TIMEOUT", 20)
-            self.spot_event.clear()
-            spot_id = self._next_id()
-            self.reqMktData(spot_id, stk, "", False, False, [])
-            self._spot_req_id = spot_id
-            self._spot_req_ids.add(spot_id)
-            self.spot_event.wait(timeout)
-            self.cancelMktData(spot_id)
-            self.invalid_contracts.add(spot_id)
-        if (self.spot_price is None or self.spot_price <= 0):
-            fallback = fetch_volatility_metrics(self.symbol).get("spot_price")
-            if fallback is not None:
-                try:
-                    self.spot_price = float(fallback)
-                    logger.info(f"✅ [stap 3] Spotprijs fallback: {self.spot_price}")
-                except (TypeError, ValueError):
-                    logger.warning("Fallback spot price could not be parsed")
-
-        if self.spot_price is None:
-            logger.error("❌ FAIL stap 3: Spot price not available after all retries")
 
         if self.con_id is None:
             logger.info("▶️ START stap 4 - ContractDetails ophalen voor STK")
