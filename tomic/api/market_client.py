@@ -654,7 +654,7 @@ class OptionChainClient(MarketClient):
             self._mark_complete(reqId)
             return
         if isinstance(evt, threading.Event) and not evt.is_set():
-            if {"bid", "ask", "option"} <= flags:
+            if {"option"} <= flags and ("close" in flags or {"bid", "ask"} <= flags):
                 evt.set()
                 self._mark_complete(reqId)
         if reqId != self._spot_req_id and reqId not in self._logged_data:
@@ -723,11 +723,16 @@ class OptionChainClient(MarketClient):
                 self._schedule_invalid_timer(reqId)
             else:
                 self._cancel_invalid_timer(reqId)
+        elif tickType == TickTypeEnum.CLOSE:
+            rec["close"] = price
+            flags.add("close")
+            if price != -1:
+                self._cancel_invalid_timer(reqId)
         elif tickType in (86, 87):
             rec["open_interest"] = int(price)
         evt = rec.get("event")
         if isinstance(evt, threading.Event) and not evt.is_set():
-            if {"bid", "ask", "option"} <= flags:
+            if {"option"} <= flags and ({"bid", "ask"} <= flags or "close" in flags):
                 evt.set()
                 self._mark_complete(reqId)
         if (
