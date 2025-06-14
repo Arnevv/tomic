@@ -116,6 +116,14 @@ def market_hours_today(trading_hours: str, now: datetime) -> tuple[str, str] | N
         return start_dt.strftime("%H:%M"), end_dt.strftime("%H:%M")
     return None
 
+# Descriptions for Interactive Brokers market data types
+DATA_TYPE_DESCRIPTIONS: dict[int, str] = {
+    1: "realtime",
+    2: "frozen",
+    3: "delayed",
+    4: "delayed frozen",
+}
+
 
 class MarketClient(BaseIBApp):
     """Minimal IB client used for market data exports."""
@@ -192,7 +200,9 @@ class MarketClient(BaseIBApp):
         data_types = (1, 2, 3, 4)
         for data_type in data_types:
             self.reqMarketDataType(data_type)
-            logger.debug(f"reqMarketDataType({data_type})")
+            logger.info(
+                f"reqMarketDataType({data_type}) - {DATA_TYPE_DESCRIPTIONS.get(data_type, '')}"
+            )
             req_id = self._next_id()
             self.data_event.clear()
             self.reqMktData(req_id, contract, "", False, False, [])
