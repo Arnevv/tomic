@@ -190,10 +190,11 @@ class MarketClient(BaseIBApp):
         self.reqCurrentTime()
         self._time_event.wait(2)
 
-        market_open = False
-        if self.trading_hours and self.server_time:
-            market_open = is_market_open(self.trading_hours, self.server_time)
-        self.market_open = market_open
+        if self.trading_hours is None or self.server_time is None:
+            logger.error("❌ FAIL stap 2: Market status kon niet bepaald worden")
+            return
+
+        self.market_open = is_market_open(self.trading_hours, self.server_time)
 
         if self.trading_hours and self.server_time:
             hours = market_hours_today(self.trading_hours, self.server_time)
@@ -211,47 +212,25 @@ class MarketClient(BaseIBApp):
                     f"het is nu {now_str}"
                 )
 
-        data_type_success = None
-        short_timeout = cfg_get("DATA_TYPE_TIMEOUT", 2)
-        data_types = (1, 2, 3, 4)
         logger.info("▶️ START stap 3 - Spot price ophalen")
-        for data_type in data_types:
-            self.reqMarketDataType(data_type)
-            logger.info(
-                f"reqMarketDataType({data_type}) - {DATA_TYPE_DESCRIPTIONS.get(data_type, '')}"
-            )
-            req_id = self._next_id()
-            self.data_event.clear()
-            self.reqMktData(req_id, contract, "", False, False, [])
-            self._spot_req_id = req_id
-            self._spot_req_ids.add(req_id)
-            logger.debug(
-                f"Requesting stock quote for symbol={contract.symbol} id={req_id}"
-            )
-            if self.data_event.wait(short_timeout) and self.spot_price is not None:
-                data_type_success = data_type
-                self.cancelMktData(req_id)
-                self.invalid_contracts.add(req_id)
-                break
-            self.cancelMktData(req_id)
-            self.invalid_contracts.add(req_id)
-
-        self.data_type_success = data_type_success
-        if self.data_type_success is None:
-            self.data_type_success = 4 if not self.market_open else 1
-
+        self.data_type_success = 1 if self.market_open else 4
         self.reqMarketDataType(self.data_type_success)
+        logger.info(
+            f"reqMarketDataType({self.data_type_success}) - {DATA_TYPE_DESCRIPTIONS.get(self.data_type_success, '')}"
+        )
 
-        if self.spot_price is None or self.spot_price <= 0:
-            timeout = cfg_get("SPOT_TIMEOUT", 10)
-            self.data_event.clear()
-            req_id = self._next_id()
-            self.reqMktData(req_id, contract, "", False, False, [])
-            self._spot_req_id = req_id
-            self._spot_req_ids.add(req_id)
-            self.data_event.wait(timeout)
-            self.cancelMktData(req_id)
-            self.invalid_contracts.add(req_id)
+        timeout = cfg_get("SPOT_TIMEOUT", 10)
+        self.data_event.clear()
+        req_id = self._next_id()
+        self.reqMktData(req_id, contract, "", False, False, [])
+        self._spot_req_id = req_id
+        self._spot_req_ids.add(req_id)
+        logger.debug(
+            f"Requesting stock quote for symbol={contract.symbol} id={req_id}"
+        )
+        self.data_event.wait(timeout)
+        self.cancelMktData(req_id)
+        self.invalid_contracts.add(req_id)
 
         if self.spot_price is None or self.spot_price <= 0:
             fallback = fetch_volatility_metrics(self.symbol).get("spot_price")

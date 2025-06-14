@@ -98,10 +98,9 @@ def test_start_requests_delayed_when_closed(monkeypatch):
     # Patch fetch_volatility_metrics to avoid network access during tests
     monkeypatch.setattr(market_client, "fetch_volatility_metrics", lambda s: {})
     app = DummyClient("ABC")
-    # No spot price to force cycling through market data types
     app.start_requests()
     type_calls = [t[1] for t in app.calls if t[0] == "type"]
-    assert type_calls[:4] == [1, 2, 3, 4]
+    assert type_calls == [4]
 
 
 def test_start_requests_skips_invalid_tick(monkeypatch):
@@ -152,8 +151,7 @@ def test_start_requests_skips_invalid_tick(monkeypatch):
     app = DummyClient("ABC")
     app.start_requests()
     type_calls = [t[1] for t in app.calls if t[0] == "type"]
-    # The invalid tick should cause a retry with the next data type
-    assert type_calls[:2] == [1, 2]
+    assert type_calls == [4]
 
 
 def test_option_chain_client_events_set():
