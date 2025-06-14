@@ -33,6 +33,7 @@ INTEREST_RATE: 0.05
 JOURNAL_FILE: tomic/data/journal.json
 LOG_LEVEL: DEBUG
 MAX_CONCURRENT_REQUESTS: 10
+BID_ASK_TIMEOUT: 5
 PORTFOLIO_META_FILE: tomic/data/portfolio_meta.json
 POSITIONS_FILE: tomic/data/positions.json
 PRIMARY_EXCHANGE: SMART
