@@ -175,6 +175,8 @@ def test_option_chain_client_events_set():
         mod.TickTypeEnum.DELAYED_BID = 3
     if not hasattr(mod.TickTypeEnum, "DELAYED_ASK"):
         mod.TickTypeEnum.DELAYED_ASK = 4
+    if not hasattr(mod.TickTypeEnum, "CLOSE"):
+        mod.TickTypeEnum.CLOSE = 9
     if not hasattr(mod.TickTypeEnum, "toStr"):
         mod.TickTypeEnum.toStr = classmethod(lambda cls, v: str(v))
     if not hasattr(mod.TickTypeEnum, "toStr"):
@@ -525,4 +527,55 @@ def test_tick_price_invalidates_after_timeout(monkeypatch):
     client.tickPrice(1, mod.TickTypeEnum.BID, -1, None)
 
     assert 1 in client.invalid_contracts
+
+
+def test_tick_price_close_keeps_contract_valid(monkeypatch):
+    mod = importlib.import_module("tomic.api.market_client")
+    client = mod.OptionChainClient("ABC")
+
+    if not hasattr(mod.TickTypeEnum, "CLOSE"):
+        mod.TickTypeEnum.CLOSE = 9
+    if not hasattr(mod.TickTypeEnum, "BID"):
+        mod.TickTypeEnum.BID = 1
+    if not hasattr(mod.TickTypeEnum, "LAST"):
+        mod.TickTypeEnum.LAST = 68
+    if not hasattr(mod.TickTypeEnum, "DELAYED_LAST"):
+        mod.TickTypeEnum.DELAYED_LAST = 69
+    if not hasattr(mod.TickTypeEnum, "ASK"):
+        mod.TickTypeEnum.ASK = 2
+    if not hasattr(mod.TickTypeEnum, "DELAYED_BID"):
+        mod.TickTypeEnum.DELAYED_BID = 3
+    if not hasattr(mod.TickTypeEnum, "DELAYED_ASK"):
+        mod.TickTypeEnum.DELAYED_ASK = 4
+    if not hasattr(mod.TickTypeEnum, "toStr"):
+        mod.TickTypeEnum.toStr = classmethod(lambda cls, v: str(v))
+
+    client.market_data[1] = {"event": threading.Event()}
+
+    scheduled = []
+    monkeypatch.setattr(client, "_schedule_invalid_timer", lambda r: scheduled.append(r))
+    monkeypatch.setattr(client, "_cancel_invalid_timer", lambda r: scheduled.remove(r) if r in scheduled else None)
+
+    client.tickPrice(1, mod.TickTypeEnum.BID, -1, None)
+    assert scheduled == [1]
+
+    client.tickPrice(1, mod.TickTypeEnum.CLOSE, 2.5, None)
+    assert scheduled == []
+    assert client.market_data[1]["close"] == 2.5
+
+    client.tickOptionComputation(
+        1,
+        0,
+        None,
+        0.2,
+        0.1,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        100.0,
+    )
+    assert client.market_data[1]["event"].is_set()
+    assert 1 not in client.invalid_contracts
 

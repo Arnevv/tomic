@@ -42,6 +42,7 @@ _HEADERS_CHAIN = [
     "Strike",
     "Bid",
     "Ask",
+    "Close",
     "IV",
     "Delta",
     "Gamma",
@@ -74,6 +75,7 @@ _HEADERS_SIMPLE = [
     "Type",
     "Bid",
     "Ask",
+    "Close",
     "IV",
     "Delta",
     "Gamma",
@@ -168,6 +170,7 @@ def _write_option_chain(
                     rec.get("strike"),
                     rec.get("bid"),
                     rec.get("ask"),
+                    rec.get("close"),
                     round(rec.get("iv"), 3) if rec.get("iv") is not None else None,
                     (
                         round(rec.get("delta"), 3)
@@ -223,7 +226,11 @@ def _write_option_chain_simple(
                 continue
             if req_id in getattr(app, "invalid_contracts", set()):
                 continue
-            if rec.get("bid") is None and rec.get("ask") is None:
+            if (
+                rec.get("bid") is None
+                and rec.get("ask") is None
+                and rec.get("close") is None
+            ):
                 continue
             writer.writerow(
                 [
@@ -233,6 +240,7 @@ def _write_option_chain_simple(
                     rec.get("right"),
                     rec.get("bid"),
                     rec.get("ask"),
+                    rec.get("close"),
                     rec.get("iv"),
                     rec.get("delta"),
                     rec.get("gamma"),
@@ -247,7 +255,11 @@ def _write_option_chain_simple(
         for req_id, rec in app.market_data.items()
         if req_id not in getattr(app, "invalid_contracts", set())
         and req_id not in spot_ids
-        and not (rec.get("bid") is None and rec.get("ask") is None)
+        and not (
+            rec.get("bid") is None
+            and rec.get("ask") is None
+            and rec.get("close") is None
+        )
     )
     logger.info(f"Contracts verwerkt: {valid} geldig, {total - valid} ongeldig")
 
