@@ -279,6 +279,27 @@ def test_write_option_chain_simple(tmp_path):
     assert len(rows) == 3 - 1  # skip spot id and invalid/no bid/ask
 
 
+def test_write_option_chain_simple_close_only(tmp_path):
+    market_data = {
+        1: {"expiry": "20240101", "right": "C", "strike": 100, "close": 2.0},
+    }
+    app = SimpleNamespace(
+        market_data=market_data,
+        invalid_contracts=set(),
+    )
+
+    _write_option_chain_simple(app, "ABC", str(tmp_path), "123")
+
+    path = tmp_path / "option_chain_ABC_123.csv"
+    with open(path, newline="") as f:
+        rows = list(csv.reader(f))
+
+    assert rows[0] == _HEADERS_SIMPLE
+    assert len(rows) == 2
+    idx = _HEADERS_SIMPLE.index("Close")
+    assert rows[1][idx] == "2.0"
+
+
 def test_write_option_chain_skips_spot_id(tmp_path):
     market_data = {
         1: {"expiry": "20240101", "right": "C", "strike": 100, "bid": 1.0, "ask": 1.2},
