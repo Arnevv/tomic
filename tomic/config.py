@@ -44,6 +44,7 @@ class AppConfig(BaseModel):
     PORTFOLIO_META_FILE: str = "portfolio_meta.json"
     JOURNAL_FILE: str = "journal.json"
     VOLATILITY_DATA_FILE: str = "volatility_data.json"
+    VOLATILITY_DB: str = "data/volatility.db"
     EXPORT_DIR: str = "exports"
     IB_HOST: str = "127.0.0.1"
     IB_PORT: int = 7497

@@ -57,6 +57,10 @@ tomic/
 ├── ibapi/             # Lokale TWS API (met protobuf)
 tests/                 # Pytest-modules
 
+📄 Configuratie
+De locatie van de volatiliteitsdatabase wordt ingesteld via `VOLATILITY_DB` in
+`config.yaml`. Standaard wijst dit naar `data/volatility.db`.
+
 
 📋 Stappenplan data ophalen
 1. Invoer van symbool

@@ -54,6 +54,11 @@ from tomic.logutils import setup_logging
 from tomic.analysis.greeks import compute_portfolio_greeks
 
 setup_logging()
+try:
+    cfg.update({"VOLATILITY_DB": "data/volatility.db"})
+except RuntimeError:
+    # Optional PyYAML dependency not available during some unit tests
+    pass
 
 # Available log levels for loguru/logging
 LOG_LEVEL_CHOICES = [
@@ -480,6 +485,7 @@ def run_settings_menu() -> None:
         sub.add("POSITIONS_FILE", lambda: change_path("POSITIONS_FILE"))
         sub.add("PORTFOLIO_META_FILE", lambda: change_path("PORTFOLIO_META_FILE"))
         sub.add("VOLATILITY_DATA_FILE", lambda: change_path("VOLATILITY_DATA_FILE"))
+        sub.add("VOLATILITY_DB", lambda: change_path("VOLATILITY_DB"))
         sub.add("EXPORT_DIR", lambda: change_path("EXPORT_DIR"))
         sub.run()
 
