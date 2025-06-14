@@ -218,7 +218,9 @@ class MarketClient(BaseIBApp):
         if self.spot_price is None or self.spot_price <= 0:
             timeout = cfg_get("SPOT_TIMEOUT", 10)
             self.data_event.clear()
+            req_id = self._next_id()
             self.reqMktData(req_id, contract, "", False, False, [])
+            self._spot_req_id = req_id
             self._spot_req_ids.add(req_id)
             self.data_event.wait(timeout)
             self.cancelMktData(req_id)
