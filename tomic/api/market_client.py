@@ -195,6 +195,22 @@ class MarketClient(BaseIBApp):
             market_open = is_market_open(self.trading_hours, self.server_time)
         self.market_open = market_open
 
+        if self.trading_hours and self.server_time:
+            hours = market_hours_today(self.trading_hours, self.server_time)
+            now_str = self.server_time.strftime("%H:%M")
+            if hours is not None:
+                start, end = hours
+                status = "open" if self.market_open else "dicht"
+                logger.info(
+                    f"✅ [stap 2] De markt ({self.symbol}) is open tussen {start} en {end}, "
+                    f"het is nu {now_str} dus de markt is {status}"
+                )
+            else:
+                logger.info(
+                    f"✅ [stap 2] De markt ({self.symbol}) is vandaag gesloten, "
+                    f"het is nu {now_str}"
+                )
+
         data_type_success = None
         short_timeout = cfg_get("DATA_TYPE_TIMEOUT", 2)
         data_types = (1, 2, 3, 4)
@@ -800,14 +816,13 @@ class OptionChainClient(MarketClient):
             if hours is not None:
                 start, end = hours
                 status = "open" if self.market_open else "dicht"
-                logger.info(
-                    f"✅ [stap 2] De markt ({self.symbol}) is open tussen {start} en {end}, "
+                logger.debug(
+                    f"De markt ({self.symbol}) is open tussen {start} en {end}, "
                     f"het is nu {now_str} dus de markt is {status}"
                 )
             else:
-                logger.info(
-                    f"✅ [stap 2] De markt ({self.symbol}) is vandaag gesloten, "
-                    f"het is nu {now_str}"
+                logger.debug(
+                    f"De markt ({self.symbol}) is vandaag gesloten, het is nu {now_str}"
                 )
 
         if self.con_id is None:
