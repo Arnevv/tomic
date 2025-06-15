@@ -37,10 +37,9 @@ marktdata-opvragingen te verwerken.
 
 - Stel bovendien exchange correct in:
   `contract.exchange = "SMART"` of de gewenste beurs.
-- Voor spotprijzen probeert TOMIC eerst `reqMarketDataType(1)` (live) en
-  valt zo nodig terug naar `reqMarketDataType(2)` (frozen) en daarna
-  `reqMarketDataType(3)` (delayed). Optieprijzen worden direct met
-  `reqMarketDataType(3)` (delayed) aangevraagd.
+- Voor spotprijzen en optiedata hanteert TOMIC bij een open markt `reqMarketDataType(1)` (live). 
+- Als de markt dicht is, switcht TOMIC naar snapshots en `reqMarketDataType(4)`. TOMIC accepteert 
+  dat er geen OI en volume is bij snapshots.
 - Optieketen selectie: de eerste 4 expiries en strikes binnen ±50 punten van de
   afgeronde spotprijs (aanpasbaar via `STRIKE_RANGE`). Opties met een delta
   buiten de grenzen `DELTA_MIN` en `DELTA_MAX` worden genegeerd.
@@ -70,7 +69,7 @@ terug opgehaald en in deze database opgeslagen.
 3. Spot price ophalen
 4. ContractDetails ophalen voor STK
 5. reqSecDefOptParams() voor optieparameters
-6. Selectie van relevante expiries + strikes (binnen ±50 pts spot)
+6. Selectie van relevante expiries + strikes
 7. Per combinatie optiecontract bouwen en reqContractDetails()
 8. Callback: contractDetails() voor opties
 9. Ontvangen van market data (bid/ask/Greeks) en filteren op delta
