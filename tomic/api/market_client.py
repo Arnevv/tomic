@@ -353,6 +353,7 @@ class OptionChainClient(MarketClient):
         if max_concurrent_requests is None:
             max_concurrent_requests = int(cfg_get("MAX_CONCURRENT_REQUESTS", 5))
         self._detail_semaphore = threading.Semaphore(max_concurrent_requests)
+        self.data_lock = threading.RLock()
         self.con_id: int | None = None
         self.trading_class: str | None = None
         self.strikes: list[float] = []
@@ -389,45 +390,50 @@ class OptionChainClient(MarketClient):
 
     def _mark_complete(self, req_id: int) -> None:
         """Record completion of a contract request and set ``all_data_event`` when done."""
-        if req_id in self._completed_requests:
-            return
-        # Cancel streaming market data since generic ticks cannot be
-        # requested as snapshots.
-        try:
-            self.cancelMktData(req_id)
-        except Exception:
-            pass
-        self._completed_requests.add(req_id)
-        if (
-            self.expected_contracts
-            and len(self._completed_requests) >= self.expected_contracts
-        ):
-            self.all_data_event.set()
+        with self.data_lock:
+            if req_id in self._completed_requests:
+                return
+            # Cancel streaming market data since generic ticks cannot be
+            # requested as snapshots.
+            try:
+                self.cancelMktData(req_id)
+            except Exception:
+                pass
+            self._completed_requests.add(req_id)
+            if (
+                self.expected_contracts
+                and len(self._completed_requests) >= self.expected_contracts
+            ):
+                self.all_data_event.set()
 
     def _invalidate_request(self, req_id: int) -> None:
         """Mark request ``req_id`` as invalid and cancel streaming data."""
-        self._invalid_timers.pop(req_id, None)
-        self.invalid_contracts.add(req_id)
-        evt = self.market_data.get(req_id, {}).get("event")
+        with self.data_lock:
+            self._invalid_timers.pop(req_id, None)
+            self.invalid_contracts.add(req_id)
+            evt = self.market_data.get(req_id, {}).get("event")
         if isinstance(evt, threading.Event) and not evt.is_set():
             evt.set()
         self._mark_complete(req_id)
 
     def _cancel_invalid_timer(self, req_id: int) -> None:
-        timer = self._invalid_timers.pop(req_id, None)
+        with self.data_lock:
+            timer = self._invalid_timers.pop(req_id, None)
         if timer is not None:
             timer.cancel()
 
     def _schedule_invalid_timer(self, req_id: int) -> None:
-        if req_id in self._invalid_timers:
-            return
+        with self.data_lock:
+            if req_id in self._invalid_timers:
+                return
         timeout = cfg_get("BID_ASK_TIMEOUT", 5)
         if timeout <= 0:
             self._invalidate_request(req_id)
             return
         timer = threading.Timer(timeout, self._invalidate_request, args=[req_id])
         timer.daemon = True
-        self._invalid_timers[req_id] = timer
+        with self.data_lock:
+            self._invalid_timers[req_id] = timer
         timer.start()
 
     def all_data_received(self) -> bool:
@@ -478,7 +484,8 @@ class OptionChainClient(MarketClient):
                 f"contractDetails received for reqId={reqId} conId={con.conId}"
             )
             self.option_info[reqId] = details
-            self.market_data.setdefault(reqId, {})["conId"] = con.conId
+            with self.data_lock:
+                self.market_data.setdefault(reqId, {})["conId"] = con.conId
             info = self._pending_details.get(reqId)
             if info is not None:
                 info.con_id = con.conId
@@ -524,7 +531,8 @@ class OptionChainClient(MarketClient):
             logger.warning(
                 f"Geen contractdetails gevonden voor {info.symbol} {info.expiry} {info.strike} {info.right}"
             )
-            self.invalid_contracts.add(reqId)
+            with self.data_lock:
+                self.invalid_contracts.add(reqId)
             self._detail_semaphore.release()
         self._mark_complete(reqId)
         self.contract_received.set()
@@ -639,7 +647,8 @@ class OptionChainClient(MarketClient):
                 logger.debug(f"Invalid contract for id {reqId}: {info}")
                 self._detail_semaphore.release()
             self._pending_details.pop(reqId, None)
-            self.invalid_contracts.add(reqId)
+            with self.data_lock:
+                self.invalid_contracts.add(reqId)
             self._mark_complete(reqId)
         else:
             super().error(
@@ -661,36 +670,37 @@ class OptionChainClient(MarketClient):
         theta: float,
         undPrice: float,
     ) -> None:  # noqa: N802
-        rec = self.market_data.setdefault(reqId, {})
-        self._cancel_invalid_timer(reqId)
-        logger.debug(
-            f"[tickOptionComputation] reqId={reqId} tickType={tickType} "
-            f"delta={delta} iv={impliedVol}"
-        )
-        rec["iv"] = impliedVol
-        rec["delta"] = delta
-        rec["gamma"] = gamma
-        rec["vega"] = vega
-        rec["theta"] = theta
-        flags = rec.setdefault("flags", set())
-        flags.add("option")
-        d_min = float(cfg_get("DELTA_MIN", -1))
-        d_max = float(cfg_get("DELTA_MAX", 1))
-        evt = rec.get("event")
-        if delta is not None and (delta < d_min or delta > d_max):
-            self.invalid_contracts.add(reqId)
-            if isinstance(evt, threading.Event) and not evt.is_set():
-                evt.set()
-            self._mark_complete(reqId)
-            return
-        if isinstance(evt, threading.Event) and not evt.is_set():
-            if {"option"} <= flags and (
-                "close" in flags
-                or {"bid", "ask"} <= flags
-                or (rec.get("iv") is not None and rec.get("delta") is not None)
-            ):
-                evt.set()
+        with self.data_lock:
+            rec = self.market_data.setdefault(reqId, {})
+            self._cancel_invalid_timer(reqId)
+            logger.debug(
+                f"[tickOptionComputation] reqId={reqId} tickType={tickType} "
+                f"delta={delta} iv={impliedVol}"
+            )
+            rec["iv"] = impliedVol
+            rec["delta"] = delta
+            rec["gamma"] = gamma
+            rec["vega"] = vega
+            rec["theta"] = theta
+            flags = rec.setdefault("flags", set())
+            flags.add("option")
+            d_min = float(cfg_get("DELTA_MIN", -1))
+            d_max = float(cfg_get("DELTA_MAX", 1))
+            evt = rec.get("event")
+            if delta is not None and (delta < d_min or delta > d_max):
+                self.invalid_contracts.add(reqId)
+                if isinstance(evt, threading.Event) and not evt.is_set():
+                    evt.set()
                 self._mark_complete(reqId)
+                return
+            if isinstance(evt, threading.Event) and not evt.is_set():
+                if {"option"} <= flags and (
+                    "close" in flags
+                    or {"bid", "ask"} <= flags
+                    or (rec.get("iv") is not None and rec.get("delta") is not None)
+                ):
+                    evt.set()
+                    self._mark_complete(reqId)
         if reqId != self._spot_req_id and reqId not in self._logged_data:
             if not self._step9_logged:
                 logger.info(
@@ -732,49 +742,50 @@ class OptionChainClient(MarketClient):
     def tickPrice(
         self, reqId: int, tickType: int, price: float, attrib
     ) -> None:  # noqa: N802
-        super().tickPrice(reqId, tickType, price, attrib)
-        rec = self.market_data.setdefault(reqId, {})
-        if reqId == self._spot_req_id and tickType in (
-            TickTypeEnum.LAST,
-            getattr(TickTypeEnum, "DELAYED_LAST", TickTypeEnum.LAST),
-        ):
-            if price > 0:
-                self.spot_event.set()
-        flags = rec.setdefault("flags", set())
-        if tickType == TickTypeEnum.BID:
-            rec["bid"] = price
-            flags.add("bid")
-            if price == -1:
-                self._schedule_invalid_timer(reqId)
-                if self._use_snapshot:
-                    logger.warning(
-                        f"⚠️ Snapshot levert geen geldige BID/ASK voor reqId {reqId}"
-                    )
-            else:
-                self._cancel_invalid_timer(reqId)
-        elif tickType == TickTypeEnum.ASK:
-            rec["ask"] = price
-            flags.add("ask")
-            if price == -1:
-                self._schedule_invalid_timer(reqId)
-                if self._use_snapshot:
-                    logger.warning(
-                        f"⚠️ Snapshot levert geen geldige BID/ASK voor reqId {reqId}"
-                    )
-            else:
-                self._cancel_invalid_timer(reqId)
-        elif tickType == TickTypeEnum.CLOSE:
-            rec["close"] = price
-            flags.add("close")
-            if price != -1:
-                self._cancel_invalid_timer(reqId)
-        elif tickType in (86, 87):
-            rec["open_interest"] = int(price)
-        evt = rec.get("event")
-        if isinstance(evt, threading.Event) and not evt.is_set():
-            if {"option"} <= flags and ({"bid", "ask"} <= flags or "close" in flags):
-                evt.set()
-                self._mark_complete(reqId)
+        with self.data_lock:
+            super().tickPrice(reqId, tickType, price, attrib)
+            rec = self.market_data.setdefault(reqId, {})
+            if reqId == self._spot_req_id and tickType in (
+                TickTypeEnum.LAST,
+                getattr(TickTypeEnum, "DELAYED_LAST", TickTypeEnum.LAST),
+            ):
+                if price > 0:
+                    self.spot_event.set()
+            flags = rec.setdefault("flags", set())
+            if tickType == TickTypeEnum.BID:
+                rec["bid"] = price
+                flags.add("bid")
+                if price == -1:
+                    self._schedule_invalid_timer(reqId)
+                    if self._use_snapshot:
+                        logger.warning(
+                            f"⚠️ Snapshot levert geen geldige BID/ASK voor reqId {reqId}"
+                        )
+                else:
+                    self._cancel_invalid_timer(reqId)
+            elif tickType == TickTypeEnum.ASK:
+                rec["ask"] = price
+                flags.add("ask")
+                if price == -1:
+                    self._schedule_invalid_timer(reqId)
+                    if self._use_snapshot:
+                        logger.warning(
+                            f"⚠️ Snapshot levert geen geldige BID/ASK voor reqId {reqId}"
+                        )
+                else:
+                    self._cancel_invalid_timer(reqId)
+            elif tickType == TickTypeEnum.CLOSE:
+                rec["close"] = price
+                flags.add("close")
+                if price != -1:
+                    self._cancel_invalid_timer(reqId)
+            elif tickType in (86, 87):
+                rec["open_interest"] = int(price)
+            evt = rec.get("event")
+            if isinstance(evt, threading.Event) and not evt.is_set():
+                if {"option"} <= flags and ({"bid", "ask"} <= flags or "close" in flags):
+                    evt.set()
+                    self._mark_complete(reqId)
         if (
             price != -1
             and tickType in (TickTypeEnum.BID, TickTypeEnum.ASK)
@@ -799,15 +810,20 @@ class OptionChainClient(MarketClient):
             f"tickPrice reqId={reqId} type={TickTypeEnum.toStr(tickType)} price={price}"
         )
 
+    def tickSize(self, reqId: int, tickType: int, size: int) -> None:  # noqa: N802
+        with self.data_lock:
+            super().tickSize(reqId, tickType, size)
+
     @log_result
     def tickGeneric(
         self, reqId: int, tickType: int, value: float
     ) -> None:  # noqa: N802
-        rec = self.market_data.setdefault(reqId, {})
-        if tickType == 100:
-            rec["volume"] = int(value)
-        elif tickType == 101:
-            rec["open_interest"] = int(value)
+        with self.data_lock:
+            rec = self.market_data.setdefault(reqId, {})
+            if tickType == 100:
+                rec["volume"] = int(value)
+            elif tickType == 101:
+                rec["open_interest"] = int(value)
         logger.debug(f"tickGeneric reqId={reqId} type={tickType} value={value}")
 
     # Request orchestration --------------------------------------
@@ -909,7 +925,8 @@ class OptionChainClient(MarketClient):
             )
             return
         self.all_data_event.clear()
-        self._completed_requests.clear()
+        with self.data_lock:
+            self._completed_requests.clear()
         self._use_snapshot = not self.market_open
         logger.debug(f"Spot price at _request_option_data: {self.spot_price}")
         logger.debug(
@@ -942,13 +959,14 @@ class OptionChainClient(MarketClient):
                     logger.debug(
                         f"reqId for {c.symbol} {c.lastTradeDateOrContractMonth} {c.strike} {c.right} is {req_id}"
                     )
-                    self.market_data[req_id] = {
-                        "expiry": expiry,
-                        "strike": strike,
-                        "right": right,
-                        "event": threading.Event(),
-                    }
-                    self._pending_details[req_id] = info
+                    with self.data_lock:
+                        self.market_data[req_id] = {
+                            "expiry": expiry,
+                            "strike": strike,
+                            "right": right,
+                            "event": threading.Event(),
+                        }
+                        self._pending_details[req_id] = info
                     self._detail_semaphore.acquire()
                     time.sleep(0.01)
                     if not self._request_contract_details(c, req_id):
@@ -957,7 +975,8 @@ class OptionChainClient(MarketClient):
                         )
                         self._pending_details.pop(req_id, None)
                         self._detail_semaphore.release()
-                        self.invalid_contracts.add(req_id)
+                        with self.data_lock:
+                            self.invalid_contracts.add(req_id)
                         self._mark_complete(req_id)
 
         logger.debug(
