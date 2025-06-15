@@ -185,10 +185,10 @@ class MarketClient(BaseIBApp):
 
         self._details_event.clear()
         self.reqContractDetails(self._next_id(), contract)
-        self._details_event.wait(2)
+        self._details_event.wait(5)
         self._time_event.clear()
         self.reqCurrentTime()
-        self._time_event.wait(2)
+        self._time_event.wait(5)
 
         if self.trading_hours is None or self.server_time is None:
             logger.error("❌ FAIL stap 2: Market status kon niet bepaald worden")
