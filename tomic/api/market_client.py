@@ -725,6 +725,10 @@ class OptionChainClient(MarketClient):
             flags.add("bid")
             if price == -1:
                 self._schedule_invalid_timer(reqId)
+                if self._use_snapshot:
+                    logger.warning(
+                        f"⚠️ Snapshot levert geen geldige BID/ASK voor reqId {reqId}"
+                    )
             else:
                 self._cancel_invalid_timer(reqId)
         elif tickType == TickTypeEnum.ASK:
@@ -732,6 +736,10 @@ class OptionChainClient(MarketClient):
             flags.add("ask")
             if price == -1:
                 self._schedule_invalid_timer(reqId)
+                if self._use_snapshot:
+                    logger.warning(
+                        f"⚠️ Snapshot levert geen geldige BID/ASK voor reqId {reqId}"
+                    )
             else:
                 self._cancel_invalid_timer(reqId)
         elif tickType == TickTypeEnum.CLOSE:
