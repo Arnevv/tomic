@@ -96,8 +96,8 @@ class IBApp(BaseIBApp):
         mkt_id = self.market_req_id
         self.market_req_map[mkt_id] = idx
         if not getattr(contract, "exchange", None):
-            contract.exchange = "SMART"
-            contract.primaryExchange = "SMART"
+            contract.exchange = cfg_get("OPTIONS_EXCHANGE", "SMART")
+            contract.primaryExchange = cfg_get("OPTIONS_PRIMARY_EXCHANGE", "ARCA")
         self.reqMktData(mkt_id, contract, "", True, False, [])
         self.market_req_id += 1
 
@@ -105,8 +105,8 @@ class IBApp(BaseIBApp):
             u = Contract()
             u.symbol = contract.symbol
             u.secType = "STK"
-            u.exchange = "SMART"
-            u.primaryExchange = "ARCA"
+            u.exchange = cfg_get("UNDERLYING_EXCHANGE", "SMART")
+            u.primaryExchange = cfg_get("UNDERLYING_PRIMARY_EXCHANGE", "ARCA")
             u.currency = contract.currency
             spot_id = self.market_req_id
             self.market_req_map[spot_id] = {"underlying": contract.symbol}
@@ -273,8 +273,8 @@ class IBApp(BaseIBApp):
         contract.symbol = d["symbol"]
         contract.secType = d["secType"]
         contract.currency = d.get("currency")
-        contract.exchange = "SMART"
-        contract.primaryExchange = "SMART"
+        contract.exchange = cfg_get("OPTIONS_EXCHANGE", "SMART")
+        contract.primaryExchange = cfg_get("OPTIONS_PRIMARY_EXCHANGE", "ARCA")
         contract.localSymbol = d.get("localSymbol")
         contract.lastTradeDateOrContractMonth = d.get("lastTradeDate")
         if d.get("strike") is not None:
@@ -331,8 +331,8 @@ def fetch_historical_metrics(app: IBApp) -> None:
         contract = Contract()
         contract.symbol = sym
         contract.secType = "STK"
-        contract.exchange = "SMART"
-        contract.primaryExchange = "ARCA"
+        contract.exchange = cfg_get("UNDERLYING_EXCHANGE", "SMART")
+        contract.primaryExchange = cfg_get("UNDERLYING_PRIMARY_EXCHANGE", "ARCA")
         contract.currency = "USD"
         queryTime = datetime.now().strftime("%Y%m%d-%H:%M:%S")
         req_id = app.market_req_id
@@ -397,8 +397,8 @@ def retry_incomplete_positions(app: IBApp, retries: int = 4, wait: int = 7) -> N
             c.symbol = d["symbol"]
             c.secType = d["secType"]
             c.currency = d.get("currency")
-            c.exchange = "SMART"
-            c.primaryExchange = "SMART"
+            c.exchange = cfg_get("OPTIONS_EXCHANGE", "SMART")
+            c.primaryExchange = cfg_get("OPTIONS_PRIMARY_EXCHANGE", "ARCA")
             c.localSymbol = d.get("localSymbol")
             c.lastTradeDateOrContractMonth = d.get("lastTradeDate")
             if d.get("strike") is not None:

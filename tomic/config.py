@@ -52,7 +52,12 @@ class AppConfig(BaseModel):
     IB_CLIENT_ID: int = 100
     LOG_LEVEL: str = "INFO"
     INTEREST_RATE: float = 0.05
-    PRIMARY_EXCHANGE: str = "SMART"
+    # Default venues for retrieving market data
+    UNDERLYING_EXCHANGE: str = "SMART"
+    UNDERLYING_PRIMARY_EXCHANGE: str = "ARCA"
+    OPTIONS_EXCHANGE: str = "SMART"
+    OPTIONS_PRIMARY_EXCHANGE: str = "ARCA"
+    PRIMARY_EXCHANGE: str = "SMART"  # deprecated, kept for backwards compatibility
     STRIKE_RANGE: int = 50
     AMOUNT_REGULARS: int = 3
     AMOUNT_WEEKLIES: int = 4
