@@ -136,3 +136,28 @@ def save_vol_stats(
         ),
     )
     conn.commit()
+
+
+def get_latest_vol_stats(conn: sqlite3.Connection, symbol: str) -> VolRecord | None:
+    """Return the most recent ``VolRecord`` for ``symbol`` or ``None``."""
+    cur = conn.execute(
+        "SELECT symbol, date, iv, hv30, hv60, hv90, iv_rank, iv_percentile "
+        "FROM VolStats WHERE symbol=? ORDER BY date DESC LIMIT 1",
+        (symbol,),
+    )
+    row = cur.fetchone()
+    if not row:
+        return None
+    return VolRecord(*row)
+
+
+def load_latest_stats(
+    conn: sqlite3.Connection, symbols: Iterable[str]
+) -> dict[str, VolRecord]:
+    """Return a mapping of symbol to latest ``VolRecord`` for ``symbols``."""
+    result: dict[str, VolRecord] = {}
+    for sym in symbols:
+        rec = get_latest_vol_stats(conn, sym)
+        if rec is not None:
+            result[sym] = rec
+    return result
