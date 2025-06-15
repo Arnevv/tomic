@@ -43,6 +43,9 @@ marktdata-opvragingen te verwerken.
 - Optieketen selectie: de eerste 4 expiries en strikes binnen ±50 punten van de
   afgeronde spotprijs (aanpasbaar via `STRIKE_RANGE`). Opties met een delta
   buiten de grenzen `DELTA_MIN` en `DELTA_MAX` worden genegeerd.
+- Deel je een `MarketClient`-instantie tussen taken? Gebruik altijd een
+  `threading.Lock`. De async helpers gebruiken standaard de interne lock van de
+  client om IB-aanroepen te beschermen.
 
 📂 Projectstructuur
 tomic/
