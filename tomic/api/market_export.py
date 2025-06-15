@@ -433,12 +433,14 @@ async def await_market_data_async(
     *,
     lock: threading.Lock | None = None,
 ) -> bool:
-    """Async wrapper for :func:`await_market_data`."""
+    """Async wrapper for :func:`await_market_data`.
+
+    If ``lock`` is not provided the client's internal lock is used.
+    """
 
     def runner() -> bool:
-        if lock is None:
-            return await_market_data(app, symbol, timeout)
-        with lock:
+        used_lock = lock or app._lock
+        with used_lock:
             return await_market_data(app, symbol, timeout)
 
     return await asyncio.to_thread(runner)
@@ -450,12 +452,17 @@ async def fetch_market_metrics_async(
     *,
     lock: threading.Lock | None = None,
 ) -> dict[str, Any] | None:
-    """Async wrapper for :func:`fetch_market_metrics`."""
+    """Async wrapper for :func:`fetch_market_metrics`.
+
+    If ``lock`` is not provided and ``app`` is supplied, the client's internal
+    lock is used.
+    """
 
     def runner() -> dict[str, Any] | None:
-        if lock is None:
+        used_lock = lock or (app._lock if app is not None else None)
+        if used_lock is None:
             return fetch_market_metrics(symbol, app=app)
-        with lock:
+        with used_lock:
             return fetch_market_metrics(symbol, app=app)
 
     return await asyncio.to_thread(runner)
