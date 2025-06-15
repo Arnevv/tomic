@@ -357,6 +357,61 @@ def test_option_chain_client_events_set():
     assert client.market_event.is_set()
 
 
+def test_spot_event_set_close_before_last(monkeypatch):
+    mod = importlib.import_module("tomic.api.market_client")
+    client = mod.OptionChainClient("ABC")
+    if not hasattr(mod.TickTypeEnum, "CLOSE"):
+        mod.TickTypeEnum.CLOSE = 9
+    if not hasattr(mod.TickTypeEnum, "LAST"):
+        mod.TickTypeEnum.LAST = 68
+    if not hasattr(mod.TickTypeEnum, "BID"):
+        mod.TickTypeEnum.BID = 1
+    if not hasattr(mod.TickTypeEnum, "ASK"):
+        mod.TickTypeEnum.ASK = 2
+    if not hasattr(mod.TickTypeEnum, "DELAYED_LAST"):
+        mod.TickTypeEnum.DELAYED_LAST = 69
+    if not hasattr(mod.TickTypeEnum, "DELAYED_BID"):
+        mod.TickTypeEnum.DELAYED_BID = 3
+    if not hasattr(mod.TickTypeEnum, "DELAYED_ASK"):
+        mod.TickTypeEnum.DELAYED_ASK = 4
+    if not hasattr(mod.TickTypeEnum, "toStr"):
+        mod.TickTypeEnum.toStr = classmethod(lambda cls, v: str(v))
+
+    client._spot_req_id = 1
+    client.spot_price = None
+    client.spot_event.clear()
+
+    client.tickPrice(1, mod.TickTypeEnum.CLOSE, 9.0, None)
+    assert client.spot_event.is_set()
+
+
+def test_spot_event_set_last_before_close(monkeypatch):
+    mod = importlib.import_module("tomic.api.market_client")
+    client = mod.OptionChainClient("ABC")
+    if not hasattr(mod.TickTypeEnum, "LAST"):
+        mod.TickTypeEnum.LAST = 68
+    if not hasattr(mod.TickTypeEnum, "CLOSE"):
+        mod.TickTypeEnum.CLOSE = 9
+    if not hasattr(mod.TickTypeEnum, "BID"):
+        mod.TickTypeEnum.BID = 1
+    if not hasattr(mod.TickTypeEnum, "ASK"):
+        mod.TickTypeEnum.ASK = 2
+    if not hasattr(mod.TickTypeEnum, "DELAYED_LAST"):
+        mod.TickTypeEnum.DELAYED_LAST = 69
+    if not hasattr(mod.TickTypeEnum, "DELAYED_BID"):
+        mod.TickTypeEnum.DELAYED_BID = 3
+    if not hasattr(mod.TickTypeEnum, "DELAYED_ASK"):
+        mod.TickTypeEnum.DELAYED_ASK = 4
+    if not hasattr(mod.TickTypeEnum, "toStr"):
+        mod.TickTypeEnum.toStr = classmethod(lambda cls, v: str(v))
+
+    client._spot_req_id = 1
+    client.spot_event.clear()
+
+    client.tickPrice(1, mod.TickTypeEnum.LAST, 10.0, None)
+    assert client.spot_event.is_set()
+
+
 def test_security_def_option_parameter_records_multiplier():
     mod = importlib.import_module("tomic.api.market_client")
     client = mod.OptionChainClient("ABC")
