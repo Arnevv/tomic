@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import threading
 from pathlib import Path
 from typing import Any, Dict, List
 
@@ -136,6 +137,7 @@ def save_config(config: AppConfig, path: Path | None = None) -> None:
 
 
 CONFIG = load_config()
+LOCK = threading.Lock()
 
 
 def get(name: str, default: Any | None = None) -> Any:
@@ -146,12 +148,14 @@ def get(name: str, default: Any | None = None) -> Any:
 def reload() -> None:
     """Reload configuration from disk into the global CONFIG object."""
     global CONFIG
-    CONFIG = load_config()
+    with LOCK:
+        CONFIG = load_config()
 
 
 def update(values: Dict[str, Any]) -> None:
     """Update global configuration with provided key/value pairs and persist."""
-    for key, val in values.items():
-        if hasattr(CONFIG, key):
-            setattr(CONFIG, key, val)
-    save_config(CONFIG)
+    with LOCK:
+        for key, val in values.items():
+            if hasattr(CONFIG, key):
+                setattr(CONFIG, key, val)
+        save_config(CONFIG)
