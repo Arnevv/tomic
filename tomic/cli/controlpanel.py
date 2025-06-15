@@ -7,6 +7,7 @@ import json
 from pathlib import Path
 import os
 import csv
+import tempfile
 
 try:
     from tabulate import tabulate
@@ -52,7 +53,7 @@ from tomic.api.ib_connection import connect_ib
 from tomic import config as cfg
 from tomic.logutils import setup_logging
 from tomic.analysis.greeks import compute_portfolio_greeks
-from tomic.analysis.vol_db import init_db
+from tomic.analysis.vol_db import init_db, load_latest_stats
 
 setup_logging()
 try:
@@ -340,7 +341,13 @@ def run_portfolio_menu() -> None:
         if latest is None:
             print("⚠️ Geen exportmap gevonden")
             return
+        try:
+            positions = json.loads(POSITIONS_FILE.read_text())
+        except Exception:
+            print("⚠️ Kan portfolio niet laden voor strategie-overzicht.")
+            return
         overview = latest / "Overzicht_Marktkenmerken.csv"
+        metrics: dict[str, dict] = {}
         if overview.exists():
             print(f"ℹ️ Marktkenmerken uit {overview}")
             try:
@@ -353,6 +360,40 @@ def run_portfolio_menu() -> None:
                 print(f"⚠️ Kan overzicht niet lezen: {exc}")
         else:
             print(f"⚠️ {overview.name} ontbreekt in {latest}")
+            symbols = {p.get("symbol") for p in positions if p.get("symbol")}
+            conn = init_db(cfg.get("VOLATILITY_DB", "data/volatility.db"))
+            try:
+                stats = load_latest_stats(conn, symbols)
+            finally:
+                conn.close()
+            if stats:
+                headers = [
+                    "Symbol",
+                    "Date",
+                    "IV",
+                    "HV30",
+                    "HV60",
+                    "HV90",
+                    "Rank",
+                    "Pct",
+                ]
+                rows = [
+                    [
+                        r.symbol,
+                        r.date,
+                        r.iv,
+                        r.hv30,
+                        r.hv60,
+                        r.hv90,
+                        r.iv_rank,
+                        r.iv_percentile,
+                    ]
+                    for r in stats.values()
+                ]
+                print(tabulate(rows, headers=headers, tablefmt="github"))
+                metrics = {sym: rec.__dict__ for sym, rec in stats.items()}
+            else:
+                print("⚠️ Geen volatiliteitsdata in database")
 
         try:
             positions = json.loads(POSITIONS_FILE.read_text())
@@ -377,11 +418,23 @@ def run_portfolio_menu() -> None:
                 print(f"- {s}")
 
         try:
-            run_module(
-                "tomic.cli.generate_proposals",
-                str(POSITIONS_FILE),
-                str(latest),
-            )
+            if metrics:
+                with tempfile.NamedTemporaryFile(delete=False, suffix=".json") as fh:
+                    fh.write(json.dumps(metrics).encode())
+                    metrics_path = fh.name
+                run_module(
+                    "tomic.cli.generate_proposals",
+                    str(POSITIONS_FILE),
+                    str(latest),
+                    metrics_path,
+                )
+                os.unlink(metrics_path)
+            else:
+                run_module(
+                    "tomic.cli.generate_proposals",
+                    str(POSITIONS_FILE),
+                    str(latest),
+                )
         except subprocess.CalledProcessError:
             print("❌ Strategievoorstellen genereren mislukt")
 
