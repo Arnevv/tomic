@@ -40,7 +40,7 @@ def test_start_requests_requests_stock(monkeypatch):
             self.calls.append(("type", data_type))
 
         def reqMktData(self, reqId, contract, tickList, snapshot, regSnapshot, opts):
-            self.calls.append(("req", reqId, contract))
+            self.calls.append(("req", reqId, tickList, snapshot, contract))
             # Simulate receiving a valid tick price to satisfy the wait
             self.tickPrice(reqId, market_client.TickTypeEnum.LAST, 10.0, None)
 
@@ -62,7 +62,9 @@ def test_start_requests_requests_stock(monkeypatch):
     app.start_requests()
     assert ("type", 1) in app.calls
     req = next(call for call in app.calls if call[0] == "req")
-    assert req[2].secType == "STK"
+    assert req[4].secType == "STK"
+    assert req[2] == "100,101"
+    assert req[3] is False
     assert ("cancel", req[1]) in app.calls
 
 
@@ -79,7 +81,7 @@ def test_start_requests_delayed_when_closed(monkeypatch):
             self.calls.append(("type", data_type))
 
         def reqMktData(self, reqId, contract, tickList, snapshot, regSnapshot, opts):
-            self.calls.append(("req", reqId, contract))
+            self.calls.append(("req", reqId, tickList, snapshot, contract))
 
         def cancelMktData(self, reqId: int) -> None:
             self.calls.append(("cancel", reqId))
@@ -101,6 +103,9 @@ def test_start_requests_delayed_when_closed(monkeypatch):
     app.start_requests()
     type_calls = [t[1] for t in app.calls if t[0] == "type"]
     assert type_calls == [4]
+    req = next(call for call in app.calls if call[0] == "req")
+    assert req[2] == ""
+    assert req[3] is True
 
 
 def test_start_requests_skips_invalid_tick(monkeypatch):
@@ -154,9 +159,57 @@ def test_start_requests_skips_invalid_tick(monkeypatch):
     assert type_calls == [4]
 
 
+def test_fallback_called_after_timeout(monkeypatch):
+    market_client = importlib.import_module("tomic.api.market_client")
+    MarketClient = market_client.MarketClient
+
+    calls = []
+
+    class DummyClient(MarketClient):
+        def __init__(self, symbol: str) -> None:
+            super().__init__(symbol)
+            self.calls = []
+
+        def reqMarketDataType(self, data_type: int) -> None:
+            self.calls.append(("type", data_type))
+
+        def reqMktData(self, reqId, contract, tickList, snapshot, regSnapshot, opts):
+            self.calls.append(("req", reqId))
+
+        def cancelMktData(self, reqId: int) -> None:
+            self.calls.append(("cancel", reqId))
+
+        def reqContractDetails(self, reqId, contract):
+            details = types.SimpleNamespace(
+                tradingHours="20200101:CLOSED",
+                contract=types.SimpleNamespace(secType="STK"),
+            )
+            self.contractDetails(reqId, details)
+
+        def reqCurrentTime(self):
+            self.currentTime(1577880000)
+
+    def fake_fetch(symbol):
+        calls.append(symbol)
+        return {"spot_price": 5.0}
+
+    monkeypatch.setattr(market_client, "cfg_get", lambda name, default=None: 0)
+    monkeypatch.setattr(market_client, "fetch_volatility_metrics", fake_fetch)
+
+    app = DummyClient("ABC")
+    app.start_requests()
+
+    assert calls == ["ABC"]
+    assert app.spot_price == 5.0
+
+
 def test_option_chain_client_events_set():
     mod = importlib.import_module("tomic.api.market_client")
     client = mod.OptionChainClient("ABC")
+    if not hasattr(mod.TickTypeEnum, "BID"):
+        mod.TickTypeEnum.BID = 1
+    if not hasattr(mod.TickTypeEnum, "ASK"):
+        mod.TickTypeEnum.ASK = 2
     client.reqSecDefOptParams = lambda *a, **k: None
     client.reqMktData = lambda *a, **k: None
     client.reqMarketDataType = lambda *a, **k: None
@@ -576,4 +629,69 @@ def test_tick_price_close_keeps_contract_valid(monkeypatch):
     )
     assert client.market_data[1]["event"].is_set()
     assert 1 not in client.invalid_contracts
+
+
+def test_option_chain_snapshot_no_volume(monkeypatch):
+    mod = importlib.import_module("tomic.api.market_client")
+    client = mod.OptionChainClient("ABC")
+    if not hasattr(mod.TickTypeEnum, "LAST"):
+        mod.TickTypeEnum.LAST = 68
+    if not hasattr(mod.TickTypeEnum, "BID"):
+        mod.TickTypeEnum.BID = 1
+    if not hasattr(mod.TickTypeEnum, "DELAYED_LAST"):
+        mod.TickTypeEnum.DELAYED_LAST = 69
+    if not hasattr(mod.TickTypeEnum, "ASK"):
+        mod.TickTypeEnum.ASK = 2
+    if not hasattr(mod.TickTypeEnum, "DELAYED_BID"):
+        mod.TickTypeEnum.DELAYED_BID = 3
+    if not hasattr(mod.TickTypeEnum, "DELAYED_ASK"):
+        mod.TickTypeEnum.DELAYED_ASK = 4
+    if not hasattr(mod.TickTypeEnum, "CLOSE"):
+        mod.TickTypeEnum.CLOSE = 9
+    if not hasattr(mod.TickTypeEnum, "toStr"):
+        mod.TickTypeEnum.toStr = classmethod(lambda cls, v: str(v))
+    client.market_open = False
+    client.trading_class = "ABC"
+    client.expiries = ["20250101"]
+    client.strikes = [100.0]
+    client._strike_lookup = {100.0: 100.0}
+    client.option_params_complete.set()
+
+    calls = []
+
+    def fake_reqContractDetails(reqId, contract):
+        details = types.SimpleNamespace(
+            contract=types.SimpleNamespace(
+                secType="OPT",
+                conId=reqId,
+                symbol="ABC",
+                lastTradeDateOrContractMonth="20250101",
+                strike=100.0,
+                right="C",
+                exchange="SMART",
+                primaryExchange="SMART",
+                tradingClass="ABC",
+                multiplier="100",
+                currency="USD",
+            )
+        )
+        client.contractDetails(reqId, details)
+
+    monkeypatch.setattr(client, "_request_contract_details", lambda c, r: [fake_reqContractDetails(r, c), True][1])
+    monkeypatch.setattr(client, "reqContractDetails", fake_reqContractDetails, raising=False)
+
+    def fake_reqMktData(reqId, contract, tickList, snapshot, regSnapshot, opts):
+        calls.append((tickList, snapshot))
+        client.tickPrice(reqId, mod.TickTypeEnum.BID, 1.0, None)
+        client.tickPrice(reqId, mod.TickTypeEnum.ASK, 1.1, None)
+
+    monkeypatch.setattr(client, "reqMktData", fake_reqMktData, raising=False)
+    monkeypatch.setattr(client, "reqMarketDataType", lambda *a, **k: None, raising=False)
+    monkeypatch.setattr(mod, "cfg_get", lambda n, d=None: 0)
+
+    client._request_option_data()
+
+    assert calls and calls[0] == ("", True)
+    rec = next(iter(client.market_data.values()))
+    assert "open_interest" not in rec
 
