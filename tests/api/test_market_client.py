@@ -102,7 +102,7 @@ def test_start_requests_delayed_when_closed(monkeypatch):
     app = DummyClient("ABC")
     app.start_requests()
     type_calls = [t[1] for t in app.calls if t[0] == "type"]
-    assert type_calls == [4]
+    assert type_calls == [2]
     req = next(call for call in app.calls if call[0] == "req")
     assert req[2] == ""
     assert req[3] is True
@@ -156,7 +156,7 @@ def test_start_requests_skips_invalid_tick(monkeypatch):
     app = DummyClient("ABC")
     app.start_requests()
     type_calls = [t[1] for t in app.calls if t[0] == "type"]
-    assert type_calls == [4]
+    assert type_calls == [2]
 
 
 def test_fallback_called_after_timeout(monkeypatch):

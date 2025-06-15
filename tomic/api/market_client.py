@@ -213,7 +213,9 @@ class MarketClient(BaseIBApp):
 
         logger.info("▶️ START stap 3 - Spot price ophalen")
         use_snapshot = not self.market_open
-        self.data_type_success = 1 if not use_snapshot else 4
+        # Store the market data type that succeeded when requesting a stock
+        # quote so it can be reused for option requests.
+        self.data_type_success = 1 if self.market_open else 2
         self.reqMarketDataType(self.data_type_success)
         logger.info(
             f"reqMarketDataType({self.data_type_success}) - {DATA_TYPE_DESCRIPTIONS.get(self.data_type_success, '')}"
@@ -488,12 +490,12 @@ class OptionChainClient(MarketClient):
                 f"tradingClass={getattr(con, 'tradingClass', '')} multiplier={getattr(con, 'multiplier', '')}"
             )
             # Request option market data using the type that succeeded for the
-            # stock quote fallback, defaulting to live when open or delayed when
+            # stock quote fallback, defaulting to live when open or frozen when
             # closed.
             if self.data_type_success is not None:
                 data_type = self.data_type_success
             else:
-                data_type = 1 if self.market_open else 4
+                data_type = 1 if self.market_open else 2
             logger.debug(f"reqMktData sent for: {contract_repr(con)}")
             logger.debug(
                 f"[reqId={reqId}] marketDataType={data_type} voor optie {con.symbol} "
