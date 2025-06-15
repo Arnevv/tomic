@@ -8,11 +8,12 @@ stock contract.  ``OptionContract.to_ib`` then uses these values when building
 option contracts so that requests match the underlying's market data.
 """
 
-from typing import Any, Dict
 import asyncio
 import threading
 import time
 from datetime import datetime, timedelta
+from typing import Any, Dict
+
 from ibapi.ticktype import TickTypeEnum
 
 try:  # pragma: no cover - optional dependency during tests
@@ -24,14 +25,11 @@ except Exception:  # pragma: no cover - tests provide stub
 
 
 from tomic.api.base_client import BaseIBApp
-from tomic.config import get as cfg_get
-from tomic.logutils import logger, log_result
 from tomic.cli.daily_vol_scraper import fetch_volatility_metrics
+from tomic.config import get as cfg_get
+from tomic.logutils import log_result, logger
 from tomic.models import OptionContract
-from tomic.utils import (
-    _is_weekly,
-    _is_third_friday,
-)
+from tomic.utils import _is_third_friday, _is_weekly
 
 try:  # pragma: no cover - optional dependency during tests
     from ibapi.contract import Contract
@@ -115,6 +113,7 @@ def market_hours_today(trading_hours: str, now: datetime) -> tuple[str, str] | N
             end_dt += timedelta(days=1)
         return start_dt.strftime("%H:%M"), end_dt.strftime("%H:%M")
     return None
+
 
 # Descriptions for Interactive Brokers market data types
 DATA_TYPE_DESCRIPTIONS: dict[int, str] = {
@@ -227,10 +226,14 @@ class MarketClient(BaseIBApp):
         self.reqMktData(req_id, contract, generic_ticks, use_snapshot, False, [])
         self._spot_req_id = req_id
         self._spot_req_ids.add(req_id)
-        logger.debug(
-            f"Requesting stock quote for symbol={contract.symbol} id={req_id}"
-        )
+        logger.debug(f"Requesting stock quote for symbol={contract.symbol} id={req_id}")
         received = self.data_event.wait(timeout)
+        if not received and self.spot_price is None:
+            logger.warning(
+                "No tick received within %ss; waiting short grace period",
+                timeout,
+            )
+            received = self.data_event.wait(1.5)
         self.cancelMktData(req_id)
         self.invalid_contracts.add(req_id)
 
@@ -251,7 +254,9 @@ class MarketClient(BaseIBApp):
         """Request a basic stock quote for ``self.symbol``."""
         self._init_market()
 
-    async def start_requests_async(self) -> None:  # pragma: no cover - runtime behaviour
+    async def start_requests_async(
+        self,
+    ) -> None:  # pragma: no cover - runtime behaviour
         """Asynchronous wrapper around :meth:`start_requests`."""
         loop = asyncio.get_running_loop()
         await loop.run_in_executor(None, self.start_requests)
@@ -284,25 +289,29 @@ class MarketClient(BaseIBApp):
     def tickPrice(
         self, reqId: int, tickType: int, price: float, attrib
     ) -> None:  # noqa: N802 - IB API callback
-        if (
-            reqId == self._spot_req_id
-            and tickType in (TickTypeEnum.LAST, TickTypeEnum.DELAYED_LAST)
+        if reqId == self._spot_req_id and tickType in (
+            TickTypeEnum.LAST,
+            TickTypeEnum.DELAYED_LAST,
         ):
             self.spot_price = price
             if price > 0:
                 logger.info(f"✅ [stap 3] Spotprijs: {price}")
-        if (
-            price != -1
-            and tickType
-            in (
-                TickTypeEnum.LAST,
-                TickTypeEnum.BID,
-                TickTypeEnum.ASK,
-                getattr(TickTypeEnum, "DELAYED_LAST", TickTypeEnum.LAST),
-                getattr(TickTypeEnum, "DELAYED_BID", TickTypeEnum.BID),
-                getattr(TickTypeEnum, "DELAYED_ASK", TickTypeEnum.ASK),
-                getattr(TickTypeEnum, "CLOSE", 9),
-            )
+        elif (
+            reqId == self._spot_req_id
+            and tickType == getattr(TickTypeEnum, "CLOSE", 9)
+            and self.spot_price is None
+        ):
+            self.spot_price = price
+            if price > 0:
+                logger.info(f"✅ [stap 3] Spotprijs (CLOSE): {price}")
+        if price != -1 and tickType in (
+            TickTypeEnum.LAST,
+            TickTypeEnum.BID,
+            TickTypeEnum.ASK,
+            getattr(TickTypeEnum, "DELAYED_LAST", TickTypeEnum.LAST),
+            getattr(TickTypeEnum, "DELAYED_BID", TickTypeEnum.BID),
+            getattr(TickTypeEnum, "DELAYED_ASK", TickTypeEnum.ASK),
+            getattr(TickTypeEnum, "CLOSE", 9),
         ):
             self.data_event.set()
         rec = self.market_data.setdefault(reqId, {})
@@ -385,7 +394,10 @@ class OptionChainClient(MarketClient):
         except Exception:
             pass
         self._completed_requests.add(req_id)
-        if self.expected_contracts and len(self._completed_requests) >= self.expected_contracts:
+        if (
+            self.expected_contracts
+            and len(self._completed_requests) >= self.expected_contracts
+        ):
             self.all_data_event.set()
 
     def _invalidate_request(self, req_id: int) -> None:
@@ -444,7 +456,9 @@ class OptionChainClient(MarketClient):
             # triggered multiple times when the price arrives after the
             # contract details callback.
             if self.spot_price is None:
-                logger.debug("Waiting for spot price before requesting option parameters")
+                logger.debug(
+                    "Waiting for spot price before requesting option parameters"
+                )
                 self.spot_event.wait(2)
             logger.info("▶️ START stap 5 - reqSecDefOptParams() voor optieparameters")
             self.reqSecDefOptParams(
@@ -582,8 +596,7 @@ class OptionChainClient(MarketClient):
         self.weeklies = weeklies
         if monthlies or weeklies:
             unique = {
-                datetime.strptime(e, "%Y%m%d").date()
-                for e in monthlies + weeklies
+                datetime.strptime(e, "%Y%m%d").date() for e in monthlies + weeklies
             }
             self.expiries = [d.strftime("%Y%m%d") for d in sorted(unique)]
         else:
@@ -625,7 +638,9 @@ class OptionChainClient(MarketClient):
             self.invalid_contracts.add(reqId)
             self._mark_complete(reqId)
         else:
-            super().error(reqId, errorTime, errorCode, errorString, advancedOrderRejectJson)
+            super().error(
+                reqId, errorTime, errorCode, errorString, advancedOrderRejectJson
+            )
 
     @log_result
     def tickOptionComputation(
@@ -690,9 +705,7 @@ class OptionChainClient(MarketClient):
             if "theta" in rec:
                 details.append(f"theta={rec['theta']}")
             info = ", ".join(details)
-            logger.debug(
-                f"✅ [stap 9] Marktdata ontvangen voor reqId {reqId}: {info}"
-            )
+            logger.debug(f"✅ [stap 9] Marktdata ontvangen voor reqId {reqId}: {info}")
             self._logged_data.add(reqId)
             self.market_event.set()
         logger.debug(
@@ -763,9 +776,7 @@ class OptionChainClient(MarketClient):
             if "ask" in rec:
                 details.append(f"ask={rec['ask']}")
             info = ", ".join(details)
-            logger.debug(
-                f"✅ [stap 9] Marktdata ontvangen voor reqId {reqId}: {info}"
-            )
+            logger.debug(f"✅ [stap 9] Marktdata ontvangen voor reqId {reqId}: {info}")
             self._logged_data.add(reqId)
             self.market_event.set()
         logger.debug(
@@ -941,7 +952,9 @@ class OptionChainClient(MarketClient):
 class TermStructureClient(OptionChainClient):
     """Lightweight ``OptionChainClient`` for quick term structure snapshots."""
 
-    def __init__(self, symbol: str, *, expiries: int = 3, strike_window: int = 1) -> None:
+    def __init__(
+        self, symbol: str, *, expiries: int = 3, strike_window: int = 1
+    ) -> None:
         super().__init__(symbol)
         self._ts_expiries = expiries
         self._ts_window = strike_window
@@ -975,7 +988,9 @@ class TermStructureClient(OptionChainClient):
                 allowed = [closest]
             self.strikes = sorted(set(allowed))
             self._strike_lookup = {
-                k: self._strike_lookup[k] for k in self.strikes if k in self._strike_lookup
+                k: self._strike_lookup[k]
+                for k in self.strikes
+                if k in self._strike_lookup
             }
         self.expected_contracts = len(self.expiries) * len(self.strikes) * 2
         if self.expected_contracts == 0:
@@ -1019,7 +1034,10 @@ def await_market_data(app: MarketClient, symbol: str, timeout: int = 30) -> bool
         event.wait(remaining)
 
         if isinstance(app, OptionChainClient):
-            if getattr(app, "all_data_event", event).is_set() and app.spot_price is not None:
+            if (
+                getattr(app, "all_data_event", event).is_set()
+                and app.spot_price is not None
+            ):
                 logger.debug(f"Market data ontvangen binnen {time.time() - start:.2f}s")
                 return True
         else:
@@ -1038,7 +1056,9 @@ def await_market_data(app: MarketClient, symbol: str, timeout: int = 30) -> bool
 
 
 @log_result
-def compute_iv_term_structure(app: OptionChainClient, *, strike_window: int | None = None) -> dict[str, float]:
+def compute_iv_term_structure(
+    app: OptionChainClient, *, strike_window: int | None = None
+) -> dict[str, float]:
     """Return front-month term structure metrics based on retrieved IVs.
 
     Parameters
