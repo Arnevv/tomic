@@ -1,6 +1,6 @@
 import importlib
-import types
 import threading
+import types
 
 
 def test_start_requests_requests_stock(monkeypatch):
@@ -203,6 +203,84 @@ def test_fallback_called_after_timeout(monkeypatch):
     assert app.spot_price == 5.0
 
 
+def test_close_tick_sets_spot_and_skips_fallback(monkeypatch):
+    market_client = importlib.import_module("tomic.api.market_client")
+    MarketClient = market_client.MarketClient
+
+    if not hasattr(market_client.TickTypeEnum, "LAST"):
+        market_client.TickTypeEnum.LAST = 68
+    if not hasattr(market_client.TickTypeEnum, "BID"):
+        market_client.TickTypeEnum.BID = 1
+    if not hasattr(market_client.TickTypeEnum, "DELAYED_LAST"):
+        market_client.TickTypeEnum.DELAYED_LAST = 69
+    if not hasattr(market_client.TickTypeEnum, "ASK"):
+        market_client.TickTypeEnum.ASK = 2
+    if not hasattr(market_client.TickTypeEnum, "DELAYED_BID"):
+        market_client.TickTypeEnum.DELAYED_BID = 3
+    if not hasattr(market_client.TickTypeEnum, "DELAYED_ASK"):
+        market_client.TickTypeEnum.DELAYED_ASK = 4
+    if not hasattr(market_client.TickTypeEnum, "CLOSE"):
+        market_client.TickTypeEnum.CLOSE = 9
+    if not hasattr(market_client.TickTypeEnum, "toStr"):
+        market_client.TickTypeEnum.toStr = classmethod(lambda cls, v: str(v))
+
+    fallback = []
+
+    class DummyClient(MarketClient):
+        def __init__(self, symbol: str) -> None:
+            super().__init__(symbol)
+            self.timer = None
+
+        def reqMarketDataType(self, data_type: int) -> None:
+            pass
+
+        def reqMktData(self, reqId, contract, tickList, snapshot, regSnapshot, opts):
+            self.timer = threading.Timer(
+                0.01,
+                self.tickPrice,
+                args=(
+                    reqId,
+                    getattr(market_client.TickTypeEnum, "CLOSE", 9),
+                    12.0,
+                    None,
+                ),
+            )
+            self.timer.start()
+
+        def cancelMktData(self, reqId: int) -> None:
+            pass
+
+        def reqContractDetails(self, reqId, contract):
+            details = types.SimpleNamespace(
+                tradingHours="20200101:CLOSED",
+                contract=types.SimpleNamespace(secType="STK"),
+            )
+            self.contractDetails(reqId, details)
+
+        def reqCurrentTime(self):
+            self.currentTime(1577880000)
+
+    def fake_cfg(name, default=None):
+        if name == "SPOT_TIMEOUT":
+            return 0
+        return default
+
+    monkeypatch.setattr(market_client, "cfg_get", fake_cfg)
+    monkeypatch.setattr(
+        market_client,
+        "fetch_volatility_metrics",
+        lambda s: (fallback.append(s) or {}),
+    )
+
+    app = DummyClient("ABC")
+    app.start_requests()
+    if app.timer:
+        app.timer.join()
+
+    assert app.spot_price == 12.0
+    assert fallback == []
+
+
 def test_option_chain_client_events_set():
     mod = importlib.import_module("tomic.api.market_client")
     client = mod.OptionChainClient("ABC")
@@ -308,7 +386,9 @@ def test_req_secdefopt_waits_for_spot(monkeypatch):
     def fake_reqSecDefOptParams(*a, **k):
         client.securityDefinitionOptionParameter(1, "SMART", 1, "TC", "100", [], [])
 
-    monkeypatch.setattr(client, "securityDefinitionOptionParameter", fake_callback, raising=False)
+    monkeypatch.setattr(
+        client, "securityDefinitionOptionParameter", fake_callback, raising=False
+    )
     client.reqSecDefOptParams = fake_reqSecDefOptParams
 
     details = types.SimpleNamespace(
@@ -346,9 +426,15 @@ def test_request_skips_without_details(monkeypatch):
     def fake_reqContractDetails(reqId, contract):
         client.contract_received.set()
 
-    monkeypatch.setattr(client, "reqContractDetails", fake_reqContractDetails, raising=False)
-    monkeypatch.setattr(client, "reqMktData", lambda *a, **k: calls.append(a), raising=False)
-    monkeypatch.setattr(client, "reqMarketDataType", lambda *a, **k: None, raising=False)
+    monkeypatch.setattr(
+        client, "reqContractDetails", fake_reqContractDetails, raising=False
+    )
+    monkeypatch.setattr(
+        client, "reqMktData", lambda *a, **k: calls.append(a), raising=False
+    )
+    monkeypatch.setattr(
+        client, "reqMarketDataType", lambda *a, **k: None, raising=False
+    )
 
     client._request_option_data()
     assert calls == []
@@ -373,9 +459,13 @@ def test_request_reuses_known_con_id(monkeypatch):
         captured.append(contract.conId)
         client.contract_received.set()
 
-    monkeypatch.setattr(client, "reqContractDetails", fake_reqContractDetails, raising=False)
+    monkeypatch.setattr(
+        client, "reqContractDetails", fake_reqContractDetails, raising=False
+    )
     monkeypatch.setattr(client, "reqMktData", lambda *a, **k: None, raising=False)
-    monkeypatch.setattr(client, "reqMarketDataType", lambda *a, **k: None, raising=False)
+    monkeypatch.setattr(
+        client, "reqMarketDataType", lambda *a, **k: None, raising=False
+    )
 
     client._request_option_data()
 
@@ -403,9 +493,13 @@ def test_request_uses_stored_multiplier(monkeypatch):
         captured.append(contract.multiplier)
         client.contract_received.set()
 
-    monkeypatch.setattr(client, "reqContractDetails", fake_reqContractDetails, raising=False)
+    monkeypatch.setattr(
+        client, "reqContractDetails", fake_reqContractDetails, raising=False
+    )
     monkeypatch.setattr(client, "reqMktData", lambda *a, **k: None, raising=False)
-    monkeypatch.setattr(client, "reqMarketDataType", lambda *a, **k: None, raising=False)
+    monkeypatch.setattr(
+        client, "reqMarketDataType", lambda *a, **k: None, raising=False
+    )
 
     client._request_option_data()
 
@@ -421,12 +515,18 @@ def test_request_contract_details_timeout(monkeypatch):
     client._strike_lookup = {100.0: 100.0}
     client.option_params_complete.set()
 
-    monkeypatch.setattr(client, "reqContractDetails", lambda *a, **k: None, raising=False)
+    monkeypatch.setattr(
+        client, "reqContractDetails", lambda *a, **k: None, raising=False
+    )
     monkeypatch.setattr(client.contract_received, "wait", lambda t=None: False)
     monkeypatch.setattr(
         mod,
         "cfg_get",
-        lambda name, default=None: 0 if name in {"CONTRACT_DETAILS_TIMEOUT", "CONTRACT_DETAILS_RETRIES"} else default,
+        lambda name, default=None: (
+            0
+            if name in {"CONTRACT_DETAILS_TIMEOUT", "CONTRACT_DETAILS_RETRIES"}
+            else default
+        ),
     )
 
     client._request_option_data()
@@ -444,9 +544,13 @@ def test_semaphore_released_on_invalid_contract(monkeypatch):
     client._strike_lookup = {100.0: 100.0}
     client.option_params_complete.set()
 
-    monkeypatch.setattr(client, "_request_contract_details", lambda c, r: False, raising=False)
+    monkeypatch.setattr(
+        client, "_request_contract_details", lambda c, r: False, raising=False
+    )
     monkeypatch.setattr(client, "reqMktData", lambda *a, **k: None, raising=False)
-    monkeypatch.setattr(client, "reqMarketDataType", lambda *a, **k: None, raising=False)
+    monkeypatch.setattr(
+        client, "reqMarketDataType", lambda *a, **k: None, raising=False
+    )
 
     client._request_option_data()
 
@@ -482,10 +586,18 @@ def test_concurrent_contract_request_limit(monkeypatch):
         timers.append(t)
         t.start()
 
-    monkeypatch.setattr(client, "reqContractDetails", fake_reqContractDetails, raising=False)
-    monkeypatch.setattr(client, "_request_contract_details", lambda c, r: [client.reqContractDetails(r, c), True][1])
+    monkeypatch.setattr(
+        client, "reqContractDetails", fake_reqContractDetails, raising=False
+    )
+    monkeypatch.setattr(
+        client,
+        "_request_contract_details",
+        lambda c, r: [client.reqContractDetails(r, c), True][1],
+    )
     monkeypatch.setattr(client, "reqMktData", lambda *a, **k: None, raising=False)
-    monkeypatch.setattr(client, "reqMarketDataType", lambda *a, **k: None, raising=False)
+    monkeypatch.setattr(
+        client, "reqMarketDataType", lambda *a, **k: None, raising=False
+    )
 
     original_end = client.contractDetailsEnd
 
@@ -555,7 +667,9 @@ def test_tick_price_negative_delays_invalidation(monkeypatch):
     if not hasattr(mod.TickTypeEnum, "toStr"):
         mod.TickTypeEnum.toStr = classmethod(lambda cls, v: str(v))
 
-    monkeypatch.setattr(mod, "cfg_get", lambda n, d=None: 999 if n == "BID_ASK_TIMEOUT" else d)
+    monkeypatch.setattr(
+        mod, "cfg_get", lambda n, d=None: 999 if n == "BID_ASK_TIMEOUT" else d
+    )
     client.market_data[1] = {"event": threading.Event()}
 
     client.tickPrice(1, mod.TickTypeEnum.BID, -1, None)
@@ -572,7 +686,9 @@ def test_tick_price_invalidates_after_timeout(monkeypatch):
     if not hasattr(mod.TickTypeEnum, "toStr"):
         mod.TickTypeEnum.toStr = classmethod(lambda cls, v: str(v))
 
-    monkeypatch.setattr(mod, "cfg_get", lambda n, d=None: 0 if n == "BID_ASK_TIMEOUT" else d)
+    monkeypatch.setattr(
+        mod, "cfg_get", lambda n, d=None: 0 if n == "BID_ASK_TIMEOUT" else d
+    )
     client.market_data[1] = {"event": threading.Event()}
 
     client.tickPrice(1, mod.TickTypeEnum.BID, -1, None)
@@ -604,8 +720,14 @@ def test_tick_price_close_keeps_contract_valid(monkeypatch):
     client.market_data[1] = {"event": threading.Event()}
 
     scheduled = []
-    monkeypatch.setattr(client, "_schedule_invalid_timer", lambda r: scheduled.append(r))
-    monkeypatch.setattr(client, "_cancel_invalid_timer", lambda r: scheduled.remove(r) if r in scheduled else None)
+    monkeypatch.setattr(
+        client, "_schedule_invalid_timer", lambda r: scheduled.append(r)
+    )
+    monkeypatch.setattr(
+        client,
+        "_cancel_invalid_timer",
+        lambda r: scheduled.remove(r) if r in scheduled else None,
+    )
 
     client.tickPrice(1, mod.TickTypeEnum.BID, -1, None)
     assert scheduled == [1]
@@ -677,8 +799,14 @@ def test_option_chain_snapshot_no_volume(monkeypatch):
         )
         client.contractDetails(reqId, details)
 
-    monkeypatch.setattr(client, "_request_contract_details", lambda c, r: [fake_reqContractDetails(r, c), True][1])
-    monkeypatch.setattr(client, "reqContractDetails", fake_reqContractDetails, raising=False)
+    monkeypatch.setattr(
+        client,
+        "_request_contract_details",
+        lambda c, r: [fake_reqContractDetails(r, c), True][1],
+    )
+    monkeypatch.setattr(
+        client, "reqContractDetails", fake_reqContractDetails, raising=False
+    )
 
     def fake_reqMktData(reqId, contract, tickList, snapshot, regSnapshot, opts):
         calls.append((tickList, snapshot))
@@ -686,7 +814,9 @@ def test_option_chain_snapshot_no_volume(monkeypatch):
         client.tickPrice(reqId, mod.TickTypeEnum.ASK, 1.1, None)
 
     monkeypatch.setattr(client, "reqMktData", fake_reqMktData, raising=False)
-    monkeypatch.setattr(client, "reqMarketDataType", lambda *a, **k: None, raising=False)
+    monkeypatch.setattr(
+        client, "reqMarketDataType", lambda *a, **k: None, raising=False
+    )
     monkeypatch.setattr(mod, "cfg_get", lambda n, d=None: 0)
 
     client._request_option_data()
@@ -694,4 +824,3 @@ def test_option_chain_snapshot_no_volume(monkeypatch):
     assert calls and calls[0] == ("", True)
     rec = next(iter(client.market_data.values()))
     assert "open_interest" not in rec
-
