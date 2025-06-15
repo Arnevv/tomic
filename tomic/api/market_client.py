@@ -680,7 +680,11 @@ class OptionChainClient(MarketClient):
             self._mark_complete(reqId)
             return
         if isinstance(evt, threading.Event) and not evt.is_set():
-            if {"option"} <= flags and ("close" in flags or {"bid", "ask"} <= flags):
+            if {"option"} <= flags and (
+                "close" in flags
+                or {"bid", "ask"} <= flags
+                or (rec.get("iv") is not None and rec.get("delta") is not None)
+            ):
                 evt.set()
                 self._mark_complete(reqId)
         if reqId != self._spot_req_id and reqId not in self._logged_data:
