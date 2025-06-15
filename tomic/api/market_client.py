@@ -741,6 +741,21 @@ class OptionChainClient(MarketClient):
             logger.debug(f"✅ [stap 9] Marktdata ontvangen voor reqId {reqId}: {info}")
             self._logged_data.add(reqId)
             self.market_event.set()
+        if getattr(self, "data_type_success", None) == 2:
+            fields = {
+                "impliedVol": impliedVol,
+                "delta": delta,
+                "gamma": gamma,
+                "vega": vega,
+                "theta": theta,
+            }
+            missing = [k for k, v in fields.items() if v is None]
+            if missing:
+                self.log.debug(
+                    f"[snapshot] reqId={reqId} missing Greeks: {', '.join(missing)}"
+                )
+            else:
+                self.log.debug(f"[snapshot] reqId={reqId} all IV and Greeks provided")
         self.log.debug(
             "tickOptionComputation reqId={} type={} iv={} delta={} gamma={} vega={} theta={}".format(
                 reqId,
