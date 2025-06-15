@@ -145,6 +145,7 @@ class MarketClient(BaseIBApp):
         self.connected = threading.Event()
         self.data_event = threading.Event()
         self._req_id = 50
+        self._lock = threading.Lock()
         self._spot_req_id: int | None = None
         self._spot_req_ids: set[int] = set()
         self.trading_hours: str | None = None
@@ -174,8 +175,9 @@ class MarketClient(BaseIBApp):
 
     @log_result
     def _next_id(self) -> int:
-        self._req_id += 1
-        return self._req_id
+        with self._lock:
+            self._req_id += 1
+            return self._req_id
 
     @log_result
     def _init_market(self) -> None:

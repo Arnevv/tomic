@@ -27,6 +27,7 @@ class StepByStepClient(EWrapper, EClient):
         EClient.__init__(self, wrapper=self)
         self.symbol = symbol
         self.req_id = 0
+        self._lock = threading.Lock()
         self.connected = threading.Event()
         self.spot_req_id = SPOT_REQ_ID
         self.spot_event = threading.Event()
@@ -48,8 +49,9 @@ class StepByStepClient(EWrapper, EClient):
         self.contract_received: threading.Event = threading.Event()
 
     def _next_id(self) -> int:
-        self.req_id += 1
-        return self.req_id
+        with self._lock:
+            self.req_id += 1
+            return self.req_id
 
     def _stock_contract(self) -> Contract:
         c = Contract()
