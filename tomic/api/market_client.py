@@ -758,6 +758,7 @@ class OptionChainClient(MarketClient):
         self, reqId: int, tickType: int, price: float, attrib
     ) -> None:  # noqa: N802
         with self.data_lock:
+            spot_was_none = self.spot_price is None
             super().tickPrice(reqId, tickType, price, attrib)
             rec = self.market_data.setdefault(reqId, {})
             if reqId == self._spot_req_id and tickType in (
@@ -794,6 +795,13 @@ class OptionChainClient(MarketClient):
                 flags.add("close")
                 if price != -1:
                     self._cancel_invalid_timer(reqId)
+                    if (
+                        reqId == self._spot_req_id
+                        and spot_was_none
+                        and self.spot_price is not None
+                        and price > 0
+                    ):
+                        self.spot_event.set()
             elif tickType in (86, 87):
                 rec["open_interest"] = int(price)
             evt = rec.get("event")
