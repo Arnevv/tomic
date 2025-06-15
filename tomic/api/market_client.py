@@ -213,7 +213,8 @@ class MarketClient(BaseIBApp):
                 )
 
         logger.info("▶️ START stap 3 - Spot price ophalen")
-        self.data_type_success = 1 if self.market_open else 4
+        use_snapshot = not self.market_open
+        self.data_type_success = 1 if not use_snapshot else 4
         self.reqMarketDataType(self.data_type_success)
         logger.info(
             f"reqMarketDataType({self.data_type_success}) - {DATA_TYPE_DESCRIPTIONS.get(self.data_type_success, '')}"
@@ -222,17 +223,18 @@ class MarketClient(BaseIBApp):
         timeout = cfg_get("SPOT_TIMEOUT", 10)
         self.data_event.clear()
         req_id = self._next_id()
-        self.reqMktData(req_id, contract, "", False, False, [])
+        generic_ticks = "" if use_snapshot else "100,101"
+        self.reqMktData(req_id, contract, generic_ticks, use_snapshot, False, [])
         self._spot_req_id = req_id
         self._spot_req_ids.add(req_id)
         logger.debug(
             f"Requesting stock quote for symbol={contract.symbol} id={req_id}"
         )
-        self.data_event.wait(timeout)
+        received = self.data_event.wait(timeout)
         self.cancelMktData(req_id)
         self.invalid_contracts.add(req_id)
 
-        if self.spot_price is None or self.spot_price <= 0:
+        if not received and self.spot_price is None:
             fallback = fetch_volatility_metrics(self.symbol).get("spot_price")
             if fallback is not None:
                 try:
@@ -299,11 +301,14 @@ class MarketClient(BaseIBApp):
                 getattr(TickTypeEnum, "DELAYED_LAST", TickTypeEnum.LAST),
                 getattr(TickTypeEnum, "DELAYED_BID", TickTypeEnum.BID),
                 getattr(TickTypeEnum, "DELAYED_ASK", TickTypeEnum.ASK),
+                getattr(TickTypeEnum, "CLOSE", 9),
             )
         ):
             self.data_event.set()
         rec = self.market_data.setdefault(reqId, {})
         rec.setdefault("prices", {})[tickType] = price
+        if tickType == getattr(TickTypeEnum, "CLOSE", 9):
+            rec["close"] = price
 
     def tickSize(
         self, reqId: int, tickType: int, size: int
@@ -367,6 +372,7 @@ class OptionChainClient(MarketClient):
         self._step9_logged = False
         # Timers for delayed invalidation of option market data requests
         self._invalid_timers: dict[int, threading.Timer] = {}
+        self._use_snapshot: bool = False
 
     def _mark_complete(self, req_id: int) -> None:
         """Record completion of a contract request and set ``all_data_event`` when done."""
@@ -479,10 +485,9 @@ class OptionChainClient(MarketClient):
                 f"[reqId={reqId}] marketDataType={data_type} voor optie {con.symbol} "
                 f"{con.lastTradeDateOrContractMonth} {con.strike} {con.right}"
             )
-            # Request volume (100) and open interest (101) generic ticks
-            # alongside regular option market data. Generic tick requests
-            # cannot be snapshots, so use streaming and cancel once complete.
-            self.reqMktData(reqId, con, "100,101", False, False, [])
+            use_snapshot = getattr(self, "_use_snapshot", not self.market_open)
+            generic_ticks = "" if use_snapshot else "100,101"
+            self.reqMktData(reqId, con, generic_ticks, use_snapshot, False, [])
             logger.debug(
                 f"✅ [stap 8] reqMktData sent for {con.symbol} {con.lastTradeDateOrContractMonth} {con.strike} {con.right}"
             )
@@ -878,6 +883,7 @@ class OptionChainClient(MarketClient):
             return
         self.all_data_event.clear()
         self._completed_requests.clear()
+        self._use_snapshot = not self.market_open
         logger.debug(f"Spot price at _request_option_data: {self.spot_price}")
         logger.debug(
             f"Requesting option data for expiries={self.expiries} strikes={self.strikes}"
