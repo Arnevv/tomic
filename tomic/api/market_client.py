@@ -141,7 +141,16 @@ class MarketClient(BaseIBApp):
     def __init__(self, symbol: str, primary_exchange: str | None = None) -> None:
         super().__init__()
         self.symbol = symbol.upper()
-        self.primary_exchange = primary_exchange or cfg_get("PRIMARY_EXCHANGE", "SMART")
+        self.underlying_exchange = cfg_get("UNDERLYING_EXCHANGE", "SMART")
+        self.primary_exchange = (
+            primary_exchange
+            or cfg_get("UNDERLYING_PRIMARY_EXCHANGE", "ARCA")
+        )
+        self.options_exchange = cfg_get("OPTIONS_EXCHANGE", "SMART")
+        self.options_primary_exchange = cfg_get(
+            "OPTIONS_PRIMARY_EXCHANGE",
+            "ARCA",
+        )
         self.stock_con_id: int | None = None
         self.market_data: Dict[int, Dict[str, Any]] = {}
         self.invalid_contracts: set[int] = set()
@@ -166,7 +175,7 @@ class MarketClient(BaseIBApp):
         c = Contract()
         c.symbol = self.symbol
         c.secType = "STK"
-        c.exchange = "SMART"
+        c.exchange = self.underlying_exchange
         c.primaryExchange = self.primary_exchange
         c.currency = "USD"
         if self.stock_con_id is not None:
@@ -678,9 +687,10 @@ class OptionChainClient(MarketClient):
         with self.data_lock:
             rec = self.market_data.setdefault(reqId, {})
             self._cancel_invalid_timer(reqId)
-            logger.debug(
-                f"[tickOptionComputation] reqId={reqId} tickType={tickType} "
-                f"delta={delta} iv={impliedVol}"
+            self.log.debug(
+                f"[tickOptionComputation] reqId={reqId}, tickType={tickType} | "
+                f"IV={impliedVol}, Delta={delta}, Gamma={gamma}, Vega={vega}, "
+                f"Theta={theta}, OptPrice={optPrice}, UndPrice={undPrice}"
             )
             rec["iv"] = impliedVol
             rec["delta"] = delta
@@ -731,7 +741,7 @@ class OptionChainClient(MarketClient):
             logger.debug(f"✅ [stap 9] Marktdata ontvangen voor reqId {reqId}: {info}")
             self._logged_data.add(reqId)
             self.market_event.set()
-        logger.debug(
+        self.log.debug(
             "tickOptionComputation reqId={} type={} iv={} delta={} gamma={} vega={} theta={}".format(
                 reqId,
                 TickTypeEnum.toStr(tickType),
@@ -951,8 +961,9 @@ class OptionChainClient(MarketClient):
                         expiry,
                         actual,
                         right,
+                        exchange=self.options_exchange,
                         trading_class=self.trading_class,
-                        primary_exchange=None,
+                        primary_exchange=self.options_primary_exchange,
                         multiplier=self.multiplier,
                         con_id=self.con_ids.get((expiry, strike, right)),
                     )

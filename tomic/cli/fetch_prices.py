@@ -40,8 +40,8 @@ def _request_bars(app, symbol: str) -> Iterable[PriceRecord]:
     contract = Contract()
     contract.symbol = symbol
     contract.secType = "STK"
-    contract.exchange = "SMART"
-    contract.primaryExchange = cfg_get("PRIMARY_EXCHANGE", "ARCA")
+    contract.exchange = cfg_get("UNDERLYING_EXCHANGE", "SMART")
+    contract.primaryExchange = cfg_get("UNDERLYING_PRIMARY_EXCHANGE", "ARCA")
     contract.currency = "USD"
 
     query_time = datetime.now().strftime("%Y%m%d-%H:%M:%S")
