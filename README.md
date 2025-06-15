@@ -38,8 +38,11 @@ marktdata-opvragingen te verwerken.
 - Stel bovendien exchange correct in:
   `contract.exchange = "SMART"` of de gewenste beurs.
 - Voor spotprijzen en optiedata hanteert TOMIC bij een open markt `reqMarketDataType(1)` (live). 
-- Als de markt dicht is, switcht TOMIC naar snapshots en `reqMarketDataType(4)`. TOMIC accepteert 
+- Als de markt dicht is, switcht TOMIC naar snapshots en `reqMarketDataType(2)`. TOMIC accepteert
   dat er geen OI en volume is bij snapshots.
+- Ontvangt de client binnen `SPOT_TIMEOUT` geen tick, dan wordt de melding
+  "No tick received within …; waiting short grace period" gelogd en wacht de
+  client circa 1,5 s op de snapshot voor het programma verdergaat.
 - Optieketen selectie: de eerste 4 expiries en strikes binnen ±50 punten van de
   afgeronde spotprijs (aanpasbaar via `STRIKE_RANGE`). Opties met een delta
   buiten de grenzen `DELTA_MIN` en `DELTA_MAX` worden genegeerd.
