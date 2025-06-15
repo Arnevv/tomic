@@ -11,8 +11,8 @@ def _create_option_contract(symbol: str, expiry: str, strike: float, right: str)
     c = Contract()
     c.symbol = symbol
     c.secType = "OPT"
-    c.exchange = "SMART"
-    c.primaryExchange = "SMART"
+    c.exchange = cfg_get("OPTIONS_EXCHANGE", "SMART")
+    c.primaryExchange = cfg_get("OPTIONS_PRIMARY_EXCHANGE", "ARCA")
     c.currency = "USD"
     c.lastTradeDateOrContractMonth = expiry
     c.strike = strike

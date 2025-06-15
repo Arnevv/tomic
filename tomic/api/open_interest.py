@@ -94,13 +94,20 @@ def fetch_open_interest(
     """Return open interest for the specified option contract."""
 
     expiry = expiry.replace("-", "")
-    info = OptionContract(symbol.upper(), expiry, strike, right.upper())
+    info = OptionContract(
+        symbol.upper(),
+        expiry,
+        strike,
+        right.upper(),
+        exchange=cfg_get("OPTIONS_EXCHANGE", "SMART"),
+        primary_exchange=cfg_get("OPTIONS_PRIMARY_EXCHANGE", "ARCA"),
+    )
     app = _OpenInterestApp(
         info.symbol,
         info.expiry,
         info.strike,
         info.right,
-        primary_exchange=cfg_get("PRIMARY_EXCHANGE", "SMART"),
+        primary_exchange=cfg_get("UNDERLYING_PRIMARY_EXCHANGE", "ARCA"),
     )
 
     try:

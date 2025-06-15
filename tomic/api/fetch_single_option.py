@@ -16,6 +16,7 @@ from ibapi.contract import ContractDetails
 from loguru import logger
 
 from tomic.utils import select_near_atm
+from tomic.config import get as cfg_get
 
 # Request id used for the initial spot price lookup
 SPOT_REQ_ID = 1
@@ -26,6 +27,7 @@ class StepByStepClient(EWrapper, EClient):
         EWrapper.__init__(self)
         EClient.__init__(self, wrapper=self)
         self.symbol = symbol
+        self.log = logger
         self.req_id = 0
         self._lock = threading.Lock()
         self.connected = threading.Event()
@@ -57,7 +59,8 @@ class StepByStepClient(EWrapper, EClient):
         c = Contract()
         c.symbol = self.symbol
         c.secType = "STK"
-        c.exchange = "SMART"
+        c.exchange = cfg_get("UNDERLYING_EXCHANGE", "SMART")
+        c.primaryExchange = cfg_get("UNDERLYING_PRIMARY_EXCHANGE", "ARCA")
         c.currency = "USD"
         return c
 
@@ -94,6 +97,11 @@ class StepByStepClient(EWrapper, EClient):
         theta: float,
         undPrice: float,
     ) -> None:
+        self.log.debug(
+            f"[tickOptionComputation] reqId={reqId}, tickType={tickType} | "
+            f"IV={impliedVol}, Delta={delta}, Gamma={gamma}, Vega={vega}, "
+            f"Theta={theta}, OptPrice={optPrice}, UndPrice={undPrice}"
+        )
         rec = self.market_data.setdefault(reqId, {})
         rec["iv"] = impliedVol
         rec["delta"] = delta
@@ -342,7 +350,8 @@ def run(symbol: str, output_dir: str) -> None:
                 c.symbol = symbol
                 c.secType = "OPT"
                 c.currency = "USD"
-                c.exchange = "SMART"
+                c.exchange = cfg_get("OPTIONS_EXCHANGE", "SMART")
+                c.primaryExchange = cfg_get("OPTIONS_PRIMARY_EXCHANGE", "ARCA")
                 c.lastTradeDateOrContractMonth = expiry
                 c.strike = strike
                 c.right = right

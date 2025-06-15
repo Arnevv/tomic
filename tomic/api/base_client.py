@@ -17,6 +17,8 @@ class BaseIBApp(IBClient):
 
     def __init__(self) -> None:
         super().__init__()
+        # Provide a ``log`` attribute for convenient logging within callbacks
+        self.log = logger
 
     # The IB API wrapper expects an ``error`` callback with the full
     # signature ``(reqId, errorTime, errorCode, errorString, advancedOrderRejectJson)``.
