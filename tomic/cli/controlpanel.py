@@ -419,23 +419,6 @@ def run_settings_menu() -> None:
             symbols = [s.strip().upper() for s in raw.split(",") if s.strip()]
             cfg.update({"DEFAULT_SYMBOLS": symbols})
 
-    def change_log_level() -> None:
-        sub = Menu("Kies log-niveau")
-
-        def set_info() -> None:
-            cfg.update({"LOG_LEVEL": "INFO"})
-            os.environ["TOMIC_LOG_LEVEL"] = "INFO"
-            setup_logging()
-
-        def set_debug() -> None:
-            cfg.update({"LOG_LEVEL": "DEBUG"})
-            os.environ["TOMIC_LOG_LEVEL"] = "DEBUG"
-            setup_logging()
-
-        sub.add("info", set_info)
-        sub.add("debug", set_debug)
-        sub.run()
-
     def change_rate() -> None:
         rate_str = prompt(f"Rente ({cfg.CONFIG.INTEREST_RATE}): ")
         if rate_str:
@@ -477,21 +460,37 @@ def run_settings_menu() -> None:
             cfg.update({key: val})
 
     def run_connection_menu() -> None:
-        sub = Menu("Verbinding")
+        sub = Menu("\U0001F50C Verbinding & API – TWS instellingen en tests")
         sub.add("Pas IB host/poort aan", change_host)
         sub.add("Test TWS-verbinding", check_ib_connection)
         sub.add("Haal TWS API-versie op", print_api_version)
         sub.run()
 
     def run_general_menu() -> None:
-        sub = Menu("Algemeen")
+        sub = Menu("\U0001F4C8 Portfolio & Analyse")
         sub.add("Pas default symbols aan", change_symbols)
-        sub.add("Pas log-niveau aan (INFO/DEBUG)", change_log_level)
         sub.add("Pas interest rate aan", change_rate)
         sub.run()
 
+    def run_logging_menu() -> None:
+        sub = Menu("\U0001FAB5 Logging & Gedrag")
+
+        def set_info() -> None:
+            cfg.update({"LOG_LEVEL": "INFO"})
+            os.environ["TOMIC_LOG_LEVEL"] = "INFO"
+            setup_logging()
+
+        def set_debug() -> None:
+            cfg.update({"LOG_LEVEL": "DEBUG"})
+            os.environ["TOMIC_LOG_LEVEL"] = "DEBUG"
+            setup_logging()
+
+        sub.add("Stel logniveau in op INFO", set_info)
+        sub.add("Stel logniveau in op DEBUG", set_debug)
+        sub.run()
+
     def run_paths_menu() -> None:
-        sub = Menu("Bestanden")
+        sub = Menu("\U0001F4C1 Bestandslocaties")
         sub.add("ACCOUNT_INFO_FILE", lambda: change_path("ACCOUNT_INFO_FILE"))
         sub.add("JOURNAL_FILE", lambda: change_path("JOURNAL_FILE"))
         sub.add("POSITIONS_FILE", lambda: change_path("POSITIONS_FILE"))
@@ -502,7 +501,7 @@ def run_settings_menu() -> None:
         sub.run()
 
     def run_network_menu() -> None:
-        sub = Menu("Netwerk")
+        sub = Menu("\U0001F310 Netwerk & Snelheid")
         sub.add(
             "CONTRACT_DETAILS_TIMEOUT",
             lambda: change_int("CONTRACT_DETAILS_TIMEOUT"),
@@ -520,7 +519,7 @@ def run_settings_menu() -> None:
         sub.run()
 
     def run_option_menu() -> None:
-        sub = Menu("Optie parameters")
+        sub = Menu("\U0001F4DD Optie-strategie parameters")
         sub.add("PRIMARY_EXCHANGE", lambda: change_str("PRIMARY_EXCHANGE"))
         sub.add("STRIKE_RANGE", lambda: change_int("STRIKE_RANGE"))
         sub.add("DELTA_MIN", lambda: change_float("DELTA_MIN"))
@@ -528,13 +527,14 @@ def run_settings_menu() -> None:
         sub.add("AMOUNT_WEEKLIES", lambda: change_int("AMOUNT_WEEKLIES"))
         sub.run()
 
-    menu = Menu("🔧 CONFIGURATIE")
-    menu.add("Toon huidige configuratie", show_config)
-    menu.add("Verbinding", run_connection_menu)
-    menu.add("Algemene opties", run_general_menu)
-    menu.add("Bestanden", run_paths_menu)
-    menu.add("Netwerk", run_network_menu)
-    menu.add("Optie parameters", run_option_menu)
+    menu = Menu("\u2699\ufe0f INSTELLINGEN & CONFIGURATIE")
+    menu.add("Portfolio & Analyse", run_general_menu)
+    menu.add("Verbinding & API", run_connection_menu)
+    menu.add("Netwerk & Snelheid", run_network_menu)
+    menu.add("Bestandslocaties", run_paths_menu)
+    menu.add("Optie-strategie parameters", run_option_menu)
+    menu.add("Logging & Gedrag", run_logging_menu)
+    menu.add("Toon volledige configuratie", show_config)
     menu.run()
 
 
