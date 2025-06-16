@@ -553,7 +553,7 @@ class OptionChainClient(MarketClient):
             with self.data_lock:
                 self.invalid_contracts.add(reqId)
             self._detail_semaphore.release()
-        self._mark_complete(reqId)
+            self._mark_complete(reqId)
         self.contract_received.set()
 
     @log_result
