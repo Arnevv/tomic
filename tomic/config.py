@@ -71,6 +71,7 @@ class AppConfig(BaseModel):
     DOWNLOAD_TIMEOUT: int = 10
     DOWNLOAD_RETRIES: int = 2
     BID_ASK_TIMEOUT: int = 5
+    MARKET_DATA_TIMEOUT: int = 120
 
 
 _BASE_DIR = Path(__file__).resolve().parent.parent
