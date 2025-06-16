@@ -40,6 +40,9 @@ marktdata-opvragingen te verwerken.
 - Voor spotprijzen en optiedata hanteert TOMIC bij een open markt `reqMarketDataType(1)` (live). 
 - Als de markt dicht is, switcht TOMIC naar snapshots en `reqMarketDataType(2)`. TOMIC accepteert
   dat er geen OI en volume is bij snapshots.
+- Bij het ophalen van `ContractDetails` wordt nu `timeZoneId` opgeslagen en
+  wordt de server tijd omgezet naar de juiste markt-tijdzone voordat de
+  openingsstatus wordt bepaald.
 - Ontvangt de client binnen `SPOT_TIMEOUT` geen tick, dan wordt de melding
   "No tick received within …; waiting short grace period" gelogd en wacht de
   client circa 1,5 s op de snapshot voor het programma verdergaat.
