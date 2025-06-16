@@ -1217,7 +1217,11 @@ def fetch_market_metrics(
         owns_app = True
 
     wait_time = timeout if timeout is not None else cfg_get("MARKET_DATA_TIMEOUT", 30)
-    if isinstance(app, OptionChainClient) and not app.expiries:
+    if (
+        timeout is None
+        and isinstance(app, OptionChainClient)
+        and not app.expiries
+    ):
         wait_time = cfg_get("SPOT_TIMEOUT", 10)
 
     if await_market_data(app, symbol, timeout=wait_time):
