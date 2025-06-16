@@ -46,9 +46,16 @@ marktdata-opvragingen te verwerken.
 - Optieketen selectie: de eerste 4 expiries en strikes binnen ±50 punten van de
   afgeronde spotprijs (aanpasbaar via `STRIKE_RANGE`). Opties met een delta
   buiten de grenzen `DELTA_MIN` en `DELTA_MAX` worden genegeerd.
-- Deel je een `MarketClient`-instantie tussen taken? Gebruik altijd een
-  `threading.Lock`. De async helpers gebruiken standaard de interne lock van de
-  client om IB-aanroepen te beschermen.
+- Deel je een `MarketClient`-instantie tussen taken? Gebruik de interne
+  `data_lock` (``threading.RLock``) om toegang tot ``market_data`` te beveiligen
+  en om invalidatie-timers in sync te houden. De gewone ``_lock`` blijft nodig
+  om IB-aanroepen te serialiseren en wordt automatisch gebruikt door de async
+  helpers. Voorbeeld:
+
+  ```python
+  with client.data_lock:
+      price = client.spot_price
+  ```
 
 📂 Projectstructuur
 tomic/
@@ -67,6 +74,9 @@ De locatie van de volatiliteitsdatabase wordt ingesteld via `VOLATILITY_DB` in
 `config.yaml`. Standaard wijst dit naar `data/volatility.db`.
 Dagelijkse prijsdata wordt met `tomic/cli/fetch_prices.py` tot maximaal 90 dagen
 terug opgehaald en in deze database opgeslagen.
+
+Alle configuratiefuncties gebruiken een interne lock zodat reads en writes vanaf
+meerdere threads veilig zijn.
 
 
 📋 Stappenplan data ophalen
