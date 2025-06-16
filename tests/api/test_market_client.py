@@ -720,6 +720,20 @@ def test_concurrent_contract_request_limit(monkeypatch):
     assert max_seen <= max_req
 
 
+def test_error_300_releases_semaphore(monkeypatch):
+    mod = importlib.import_module("tomic.api.market_client")
+    client = mod.OptionChainClient("ABC", max_concurrent_requests=1)
+    client._pending_details[1] = mod.OptionContract("ABC", "20250101", 100.0, "C")
+    client._detail_semaphore.acquire()
+
+    client.error(1, "", 300, "Can't find EId with tickerId:1")
+
+    assert 1 in client.invalid_contracts
+    assert 1 not in client._pending_details
+    assert client._detail_semaphore.acquire(blocking=False)
+    client._detail_semaphore.release()
+
+
 def test_all_data_event_set(monkeypatch):
     mod = importlib.import_module("tomic.api.market_client")
     client = mod.OptionChainClient("ABC")
