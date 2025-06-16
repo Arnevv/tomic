@@ -75,8 +75,9 @@ De locatie van de volatiliteitsdatabase wordt ingesteld via `VOLATILITY_DB` in
 Dagelijkse prijsdata wordt met `tomic/cli/fetch_prices.py` tot maximaal 90 dagen
 terug opgehaald en in deze database opgeslagen.
 
-Alle configuratiefuncties gebruiken een interne lock zodat reads en writes vanaf
-meerdere threads veilig zijn.
+Alle configuratiefuncties gebruiken een interne lock. Zowel lezen via
+``config.get()`` als schrijven met ``update()`` of ``reload()`` is hierdoor
+gesynchroniseerd en veilig vanaf meerdere threads.
 
 
 📋 Stappenplan data ophalen
