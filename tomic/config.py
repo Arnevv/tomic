@@ -146,8 +146,13 @@ LOCK = threading.Lock()
 
 
 def get(name: str, default: Any | None = None) -> Any:
-    """Return configuration value for name with optional fallback."""
-    return getattr(CONFIG, name, default)
+    """Return configuration value for name with optional fallback.
+
+    Both reads and writes are synchronized using ``LOCK`` so concurrent
+    access from multiple threads is safe.
+    """
+    with LOCK:
+        return getattr(CONFIG, name, default)
 
 
 def reload() -> None:
