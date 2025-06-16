@@ -68,6 +68,55 @@ def test_start_requests_requests_stock(monkeypatch):
     assert ("cancel", req[1]) in app.calls
 
 
+def test_market_open_with_timezone(monkeypatch):
+    market_client = importlib.import_module("tomic.api.market_client")
+    MarketClient = market_client.MarketClient
+
+    if not hasattr(market_client.TickTypeEnum, "LAST"):
+        market_client.TickTypeEnum.LAST = 68
+    if not hasattr(market_client.TickTypeEnum, "BID"):
+        market_client.TickTypeEnum.BID = 1
+    if not hasattr(market_client.TickTypeEnum, "DELAYED_LAST"):
+        market_client.TickTypeEnum.DELAYED_LAST = 69
+    if not hasattr(market_client.TickTypeEnum, "ASK"):
+        market_client.TickTypeEnum.ASK = 2
+    if not hasattr(market_client.TickTypeEnum, "DELAYED_BID"):
+        market_client.TickTypeEnum.DELAYED_BID = 3
+    if not hasattr(market_client.TickTypeEnum, "DELAYED_ASK"):
+        market_client.TickTypeEnum.DELAYED_ASK = 4
+
+    class DummyClient(MarketClient):
+        def __init__(self, symbol: str) -> None:
+            super().__init__(symbol)
+            self.calls = []
+
+        def reqMarketDataType(self, data_type: int) -> None:
+            self.calls.append(("type", data_type))
+
+        def reqMktData(self, reqId, contract, tickList, snapshot, regSnapshot, opts):
+            self.calls.append(("req", reqId, tickList, snapshot, contract))
+            self.tickPrice(reqId, market_client.TickTypeEnum.LAST, 10.0, None)
+
+        def cancelMktData(self, reqId: int) -> None:
+            self.calls.append(("cancel", reqId))
+
+        def reqContractDetails(self, reqId, contract):
+            details = types.SimpleNamespace(
+                tradingHours="20200101:0930-1600",
+                timeZoneId="America/New_York",
+                contract=types.SimpleNamespace(secType="STK"),
+            )
+            self.contractDetails(reqId, details)
+
+        def reqCurrentTime(self):
+            self.currentTime(1577890800)  # 2020-01-01 15:00 UTC -> 10:00 NY
+
+    monkeypatch.setattr(market_client, "cfg_get", lambda name, default=None: 0)
+    app = DummyClient("ABC")
+    app.start_requests()
+    assert app.market_open is True
+
+
 def test_start_requests_delayed_when_closed(monkeypatch):
     market_client = importlib.import_module("tomic.api.market_client")
     MarketClient = market_client.MarketClient
