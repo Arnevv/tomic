@@ -879,3 +879,62 @@ def test_option_chain_snapshot_no_volume(monkeypatch):
     assert calls and calls[0] == ("", True)
     rec = next(iter(client.market_data.values()))
     assert "open_interest" not in rec
+
+
+def test_invalid_timer_cancel_race(monkeypatch):
+    mod = importlib.import_module("tomic.api.market_client")
+    client = mod.OptionChainClient("ABC")
+
+    class DummyTimer:
+        def __init__(self, interval, fn, args=None, kwargs=None):
+            self.fn = fn
+            self.args = args or []
+            self.kwargs = kwargs or {}
+            self.cancelled = False
+
+        def start(self):
+            pass
+
+        def run(self):
+            if not self.cancelled:
+                self.fn(*self.args, **self.kwargs)
+
+        def cancel(self):
+            self.cancelled = True
+
+    monkeypatch.setattr(mod.threading, "Timer", DummyTimer)
+    monkeypatch.setattr(mod, "cfg_get", lambda n, d=None: 0.01 if n == "BID_ASK_TIMEOUT" else d)
+
+    events = []
+    orig_inv = client._invalidate_request
+
+    def record_inv(rid):
+        events.append(rid)
+        orig_inv(rid)
+
+    monkeypatch.setattr(client, "_invalidate_request", record_inv)
+
+    client.market_data[1] = {"event": threading.Event()}
+    client._schedule_invalid_timer(1)
+    timer = client._invalid_timers[1]
+
+    start_evt = threading.Event()
+
+    def expire():
+        start_evt.wait()
+        timer.run()
+
+    def cancel():
+        start_evt.wait()
+        client._cancel_invalid_timer(1)
+
+    t1 = threading.Thread(target=expire)
+    t2 = threading.Thread(target=cancel)
+    t1.start()
+    t2.start()
+    start_evt.set()
+    t1.join()
+    t2.join()
+
+    assert 1 not in client._invalid_timers
+    assert events in ([], [1])
