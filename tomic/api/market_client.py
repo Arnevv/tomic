@@ -11,7 +11,8 @@ option contracts so that requests match the underlying's market data.
 import asyncio
 import threading
 import time
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone, tzinfo
+from zoneinfo import ZoneInfo
 from typing import Any, Dict
 
 from ibapi.ticktype import TickTypeEnum
@@ -47,7 +48,7 @@ def contract_repr(contract):
     ).strip()
 
 
-def is_market_open(trading_hours: str, now: datetime) -> bool:
+def is_market_open(trading_hours: str, now: datetime, tz: tzinfo | None = None) -> bool:
     """Return ``True`` if ``now`` falls within ``trading_hours``.
 
     ``trading_hours`` should contain **regular** trading sessions only. If a
@@ -55,6 +56,7 @@ def is_market_open(trading_hours: str, now: datetime) -> bool:
     regular hours first.
     """
 
+    tz = tz or now.tzinfo
     day = now.strftime("%Y%m%d")
     for part in trading_hours.split(";"):
         if ":" not in part:
@@ -72,8 +74,8 @@ def is_market_open(trading_hours: str, now: datetime) -> bool:
             # remove any appended date information (e.g. "1700-0611:2000")
             start_str = start_str.split(":")[-1][:4]
             end_str = end_str.split(":")[0][:4]
-            start_dt = datetime.strptime(day + start_str, "%Y%m%d%H%M")
-            end_dt = datetime.strptime(day + end_str, "%Y%m%d%H%M")
+            start_dt = datetime.strptime(day + start_str, "%Y%m%d%H%M").replace(tzinfo=tz)
+            end_dt = datetime.strptime(day + end_str, "%Y%m%d%H%M").replace(tzinfo=tz)
             # handle sessions that cross midnight
             if end_dt <= start_dt:
                 end_dt += timedelta(days=1)
@@ -83,7 +85,9 @@ def is_market_open(trading_hours: str, now: datetime) -> bool:
     return False
 
 
-def market_hours_today(trading_hours: str, now: datetime) -> tuple[str, str] | None:
+def market_hours_today(
+    trading_hours: str, now: datetime, tz: tzinfo | None = None
+) -> tuple[str, str] | None:
     """Return the market open and close time (HH:MM) for ``now``.
 
     ``trading_hours`` should represent regular trading hours. The function
@@ -91,6 +95,7 @@ def market_hours_today(trading_hours: str, now: datetime) -> tuple[str, str] | N
     date.
     """
 
+    tz = tz or now.tzinfo
     day = now.strftime("%Y%m%d")
     for part in trading_hours.split(";"):
         if ":" not in part:
@@ -107,8 +112,8 @@ def market_hours_today(trading_hours: str, now: datetime) -> tuple[str, str] | N
             return None
         start_str = start_str.split(":")[-1][:4]
         end_str = end_str.split(":")[0][:4]
-        start_dt = datetime.strptime(day + start_str, "%Y%m%d%H%M")
-        end_dt = datetime.strptime(day + end_str, "%Y%m%d%H%M")
+        start_dt = datetime.strptime(day + start_str, "%Y%m%d%H%M").replace(tzinfo=tz)
+        end_dt = datetime.strptime(day + end_str, "%Y%m%d%H%M").replace(tzinfo=tz)
         if end_dt <= start_dt:
             end_dt += timedelta(days=1)
         return start_dt.strftime("%H:%M"), end_dt.strftime("%H:%M")
@@ -168,6 +173,7 @@ class MarketClient(BaseIBApp):
         self._spot_req_ids: set[int] = set()
         self.trading_hours: str | None = None
         self.server_time: datetime | None = None
+        self.market_tz: tzinfo = timezone.utc
         self._time_event = threading.Event()
         self._details_event = threading.Event()
         self.market_open: bool = False
@@ -213,11 +219,16 @@ class MarketClient(BaseIBApp):
             logger.error("❌ FAIL stap 2: Market status kon niet bepaald worden")
             return
 
-        self.market_open = is_market_open(self.trading_hours, self.server_time)
+        market_time = self.server_time.astimezone(self.market_tz)
+        self.market_open = is_market_open(
+            self.trading_hours, market_time, tz=self.market_tz
+        )
 
         if self.trading_hours and self.server_time:
-            hours = market_hours_today(self.trading_hours, self.server_time)
-            now_str = self.server_time.strftime("%H:%M")
+            hours = market_hours_today(
+                self.trading_hours, market_time, tz=self.market_tz
+            )
+            now_str = market_time.strftime("%H:%M")
             if hours is not None:
                 start, end = hours
                 status = "open" if self.market_open else "dicht"
@@ -291,8 +302,11 @@ class MarketClient(BaseIBApp):
         try:
             self.start_requests()
             if self.trading_hours and self.server_time:
-                hours = market_hours_today(self.trading_hours, self.server_time)
-                now_str = self.server_time.strftime("%H:%M")
+                market_time = self.server_time.astimezone(self.market_tz)
+                hours = market_hours_today(
+                    self.trading_hours, market_time, tz=self.market_tz
+                )
+                now_str = market_time.strftime("%H:%M")
                 if hours is not None:
                     start, end = hours
                     status = "open" if self.market_open else "dicht"
@@ -350,13 +364,19 @@ class MarketClient(BaseIBApp):
             rec.setdefault("sizes", {})[tickType] = size
 
     def currentTime(self, time: int) -> None:  # noqa: N802
-        self.server_time = datetime.fromtimestamp(time)
+        self.server_time = datetime.fromtimestamp(time, timezone.utc)
         self._time_event.set()
 
     def contractDetails(self, reqId: int, details) -> None:  # noqa: N802
         self.trading_hours = getattr(
             details, "liquidHours", getattr(details, "tradingHours", "")
         )
+        tz_id = getattr(details, "timeZoneId", None)
+        if tz_id:
+            try:
+                self.market_tz = ZoneInfo(tz_id)
+            except Exception:
+                self.market_tz = timezone.utc
         self._details_event.set()
 
 
@@ -470,6 +490,12 @@ class OptionChainClient(MarketClient):
             self.trading_hours = getattr(
                 details, "liquidHours", getattr(details, "tradingHours", "")
             )
+            tz_id = getattr(details, "timeZoneId", None)
+            if tz_id:
+                try:
+                    self.market_tz = ZoneInfo(tz_id)
+                except Exception:
+                    self.market_tz = timezone.utc
             self._details_event.set()
             self.con_id = con.conId
             self.stock_con_id = con.conId
@@ -877,8 +903,11 @@ class OptionChainClient(MarketClient):
         logger.debug(f"Requesting stock quote with contract: {stk}")
 
         if self.trading_hours and self.server_time:
-            hours = market_hours_today(self.trading_hours, self.server_time)
-            now_str = self.server_time.strftime("%H:%M")
+            market_time = self.server_time.astimezone(self.market_tz)
+            hours = market_hours_today(
+                self.trading_hours, market_time, tz=self.market_tz
+            )
+            now_str = market_time.strftime("%H:%M")
             if hours is not None:
                 start, end = hours
                 status = "open" if self.market_open else "dicht"
