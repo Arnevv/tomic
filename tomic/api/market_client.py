@@ -127,9 +127,11 @@ DATA_TYPE_DESCRIPTIONS: dict[int, str] = {
 class MarketClient(BaseIBApp):
     """Minimal IB client used for market data exports.
 
-    The client maintains an internal ``threading.Lock``. When sharing a single
-    instance across threads or asynchronous tasks, protect all IB requests with
-    this lock to avoid race conditions.
+    The client maintains an internal ``threading.Lock`` for coordinating IB
+    requests and exposes ``data_lock`` (a ``threading.RLock``) to guard shared
+    market data. When a single instance is shared between threads or
+    asynchronous tasks, wrap calls that modify or read these structures with the
+    appropriate lock to avoid race conditions.
     """
 
     WARNING_ERROR_CODES: set[int] = getattr(BaseIBApp, "WARNING_ERROR_CODES", set()) | {
