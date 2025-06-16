@@ -473,7 +473,7 @@ def test_request_skips_without_details(monkeypatch):
     client.trading_class = "ABC"
     client.expiries = ["20250101"]
     client.strikes = [100.0]
-    client._strike_lookup = {100.0: 101.0}
+    client._strike_lookup = {100.0: 100.0}
     client.option_params_complete.set()
 
     calls = []
@@ -503,7 +503,7 @@ def test_request_reuses_known_con_id(monkeypatch):
     client.trading_class = "ABC"
     client.expiries = ["20250101"]
     client.strikes = [100.0]
-    client._strike_lookup = {100.0: 101.0}
+    client._strike_lookup = {100.0: 100.0}
     client.option_params_complete.set()
 
     client.con_ids[("20250101", 100.0, "C")] = 555

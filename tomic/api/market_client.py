@@ -634,14 +634,10 @@ class OptionChainClient(MarketClient):
             self.expiries = exp_list[: reg_count + week_count]
         logger.info(f"✅ [stap 6] Geselecteerde expiries: {', '.join(self.expiries)}")
 
-        center = round(self.spot_price or 0)
-        strike_map: dict[float, float] = {}
-        for strike in sorted(strikes):
-            rounded = round(strike)
-            if abs(rounded - center) <= strike_range:
-                strike_map.setdefault(rounded, strike)
-        self.strikes = sorted(strike_map.keys())
-        self._strike_lookup = strike_map
+        center = self.spot_price or 0.0
+        allowed = [s for s in sorted(strikes) if abs(s - center) <= strike_range]
+        self.strikes = allowed
+        self._strike_lookup = {s: s for s in allowed}
         self.trading_class = tradingClass
         logger.info(
             f"✅ [stap 6] Geselecteerde strikes: {', '.join(str(s) for s in self.strikes)}"
@@ -1066,11 +1062,7 @@ class TermStructureClient(OptionChainClient):
                 closest = min(self.strikes, key=lambda x: abs(x - center))
                 allowed = [closest]
             self.strikes = sorted(set(allowed))
-            self._strike_lookup = {
-                k: self._strike_lookup[k]
-                for k in self.strikes
-                if k in self._strike_lookup
-            }
+            self._strike_lookup = {s: s for s in self.strikes}
         self.expected_contracts = len(self.expiries) * len(self.strikes) * 2
         if self.expected_contracts == 0:
             self.all_data_event.set()
