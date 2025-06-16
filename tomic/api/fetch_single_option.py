@@ -68,6 +68,9 @@ class StepByStepClient(EWrapper, EClient):
         self.connected.set()
 
     def tickPrice(self, reqId: int, tickType: int, price: float, attrib) -> None:
+        logger.debug(
+            f"tickPrice: reqId={reqId} type={tickType} price={price}"
+        )
         if reqId == self.spot_req_id and tickType in (TickTypeEnum.LAST, TickTypeEnum.DELAYED_LAST):
             if price > 0:
                 self.spot_price = price
@@ -97,10 +100,14 @@ class StepByStepClient(EWrapper, EClient):
         theta: float,
         undPrice: float,
     ) -> None:
-        self.log.debug(
-            f"[tickOptionComputation] reqId={reqId}, tickType={tickType} | "
-            f"IV={impliedVol}, Delta={delta}, Gamma={gamma}, Vega={vega}, "
-            f"Theta={theta}, OptPrice={optPrice}, UndPrice={undPrice}"
+        logger.debug(
+            "tickOptionComputation: reqId=%s IV=%s delta=%s gamma=%s vega=%s theta=%s",
+            reqId,
+            impliedVol,
+            delta,
+            gamma,
+            vega,
+            theta,
         )
         rec = self.market_data.setdefault(reqId, {})
         rec["iv"] = impliedVol
