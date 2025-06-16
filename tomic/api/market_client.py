@@ -160,6 +160,8 @@ class MarketClient(BaseIBApp):
         self.data_event = threading.Event()
         self._req_id = 50
         self._lock = threading.Lock()
+        # Protect access to market data from callback threads
+        self.data_lock = threading.RLock()
         self._spot_req_id: int | None = None
         self._spot_req_ids: set[int] = set()
         self.trading_hours: str | None = None
@@ -307,41 +309,43 @@ class MarketClient(BaseIBApp):
     def tickPrice(
         self, reqId: int, tickType: int, price: float, attrib
     ) -> None:  # noqa: N802 - IB API callback
-        if reqId == self._spot_req_id and tickType in (
-            TickTypeEnum.LAST,
-            TickTypeEnum.DELAYED_LAST,
-        ):
-            self.spot_price = price
-            if price > 0:
-                logger.info(f"✅ [stap 3] Spotprijs: {price}")
-        elif (
-            reqId == self._spot_req_id
-            and tickType == getattr(TickTypeEnum, "CLOSE", 9)
-            and self.spot_price is None
-        ):
-            self.spot_price = price
-            if price > 0:
-                logger.info(f"✅ [stap 3] Spotprijs (CLOSE): {price}")
-        if price != -1 and tickType in (
-            TickTypeEnum.LAST,
-            TickTypeEnum.BID,
-            TickTypeEnum.ASK,
-            getattr(TickTypeEnum, "DELAYED_LAST", TickTypeEnum.LAST),
-            getattr(TickTypeEnum, "DELAYED_BID", TickTypeEnum.BID),
-            getattr(TickTypeEnum, "DELAYED_ASK", TickTypeEnum.ASK),
-            getattr(TickTypeEnum, "CLOSE", 9),
-        ):
-            self.data_event.set()
-        rec = self.market_data.setdefault(reqId, {})
-        rec.setdefault("prices", {})[tickType] = price
-        if tickType == getattr(TickTypeEnum, "CLOSE", 9):
-            rec["close"] = price
+        with self.data_lock:
+            if reqId == self._spot_req_id and tickType in (
+                TickTypeEnum.LAST,
+                TickTypeEnum.DELAYED_LAST,
+            ):
+                self.spot_price = price
+                if price > 0:
+                    logger.info(f"✅ [stap 3] Spotprijs: {price}")
+            elif (
+                reqId == self._spot_req_id
+                and tickType == getattr(TickTypeEnum, "CLOSE", 9)
+                and self.spot_price is None
+            ):
+                self.spot_price = price
+                if price > 0:
+                    logger.info(f"✅ [stap 3] Spotprijs (CLOSE): {price}")
+            if price != -1 and tickType in (
+                TickTypeEnum.LAST,
+                TickTypeEnum.BID,
+                TickTypeEnum.ASK,
+                getattr(TickTypeEnum, "DELAYED_LAST", TickTypeEnum.LAST),
+                getattr(TickTypeEnum, "DELAYED_BID", TickTypeEnum.BID),
+                getattr(TickTypeEnum, "DELAYED_ASK", TickTypeEnum.ASK),
+                getattr(TickTypeEnum, "CLOSE", 9),
+            ):
+                self.data_event.set()
+            rec = self.market_data.setdefault(reqId, {})
+            rec.setdefault("prices", {})[tickType] = price
+            if tickType == getattr(TickTypeEnum, "CLOSE", 9):
+                rec["close"] = price
 
     def tickSize(
         self, reqId: int, tickType: int, size: int
     ) -> None:  # noqa: N802 - IB API callback
-        rec = self.market_data.setdefault(reqId, {})
-        rec.setdefault("sizes", {})[tickType] = size
+        with self.data_lock:
+            rec = self.market_data.setdefault(reqId, {})
+            rec.setdefault("sizes", {})[tickType] = size
 
     def currentTime(self, time: int) -> None:  # noqa: N802
         self.server_time = datetime.fromtimestamp(time)
