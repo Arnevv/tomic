@@ -681,7 +681,7 @@ class OptionChainClient(MarketClient):
     def error(
         self, reqId, errorTime, errorCode, errorString, advancedOrderRejectJson=""
     ):  # noqa: D401
-        if errorCode == 200:
+        if errorCode in {200, 300}:
             logger.debug(f"IB error {errorCode}: {errorString}")
             info = self._pending_details.get(reqId)
             if info is not None:
