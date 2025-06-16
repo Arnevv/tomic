@@ -437,13 +437,10 @@ class OptionChainClient(MarketClient):
     def _cancel_invalid_timer(self, req_id: int) -> None:
         with self.data_lock:
             timer = self._invalid_timers.pop(req_id, None)
-        if timer is not None:
-            timer.cancel()
+            if timer is not None:
+                timer.cancel()
 
     def _schedule_invalid_timer(self, req_id: int) -> None:
-        with self.data_lock:
-            if req_id in self._invalid_timers:
-                return
         timeout = cfg_get("BID_ASK_TIMEOUT", 5)
         if timeout <= 0:
             self._invalidate_request(req_id)
@@ -451,8 +448,10 @@ class OptionChainClient(MarketClient):
         timer = threading.Timer(timeout, self._invalidate_request, args=[req_id])
         timer.daemon = True
         with self.data_lock:
+            if req_id in self._invalid_timers:
+                return
             self._invalid_timers[req_id] = timer
-        timer.start()
+            timer.start()
 
     def all_data_received(self) -> bool:
         """Return ``True`` when all requested option data has been received."""
