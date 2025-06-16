@@ -43,6 +43,7 @@ marktdata-opvragingen te verwerken.
 - Ontvangt de client binnen `SPOT_TIMEOUT` geen tick, dan wordt de melding
   "No tick received within …; waiting short grace period" gelogd en wacht de
   client circa 1,5 s op de snapshot voor het programma verdergaat.
+- Is de optieketen groot? Verleng dan de wachttijd met `MARKET_DATA_TIMEOUT`.
 - Optieketen selectie: de eerste 4 expiries en strikes binnen ±50 punten van de
   afgeronde spotprijs (aanpasbaar via `STRIKE_RANGE`). Opties met een delta
   buiten de grenzen `DELTA_MIN` en `DELTA_MAX` worden genegeerd.

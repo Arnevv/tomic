@@ -308,7 +308,11 @@ def export_market_metrics(
     app = TermStructureClient(symbol)
     start_app(app, client_id=client_id)
     try:
-        raw_metrics = fetch_market_metrics(symbol, app=app)
+        raw_metrics = fetch_market_metrics(
+            symbol,
+            app=app,
+            timeout=cfg_get("MARKET_DATA_TIMEOUT", 120),
+        )
     except Exception as exc:  # pragma: no cover - network failures
         logger.error(f"❌ Marktkenmerken ophalen mislukt: {exc}")
         if owns_app:
@@ -387,7 +391,11 @@ def export_market_data(
         start_app(app, client_id=client_id)
         owns_app = True
     try:
-        raw_metrics = fetch_market_metrics(symbol, app=app)
+        raw_metrics = fetch_market_metrics(
+            symbol,
+            app=app,
+            timeout=cfg_get("MARKET_DATA_TIMEOUT", 120),
+        )
     except Exception as exc:  # pragma: no cover - network failures
         logger.error(f"❌ Marktkenmerken ophalen mislukt: {exc}")
         if owns_app:
@@ -461,9 +469,17 @@ async def fetch_market_metrics_async(
     def runner() -> dict[str, Any] | None:
         used_lock = lock or (app._lock if app is not None else None)
         if used_lock is None:
-            return fetch_market_metrics(symbol, app=app)
+            return fetch_market_metrics(
+                symbol,
+                app=app,
+                timeout=cfg_get("MARKET_DATA_TIMEOUT", 120),
+            )
         with used_lock:
-            return fetch_market_metrics(symbol, app=app)
+            return fetch_market_metrics(
+                symbol,
+                app=app,
+                timeout=cfg_get("MARKET_DATA_TIMEOUT", 120),
+            )
 
     return await asyncio.to_thread(runner)
 
