@@ -205,7 +205,7 @@ def test_fetch_market_metrics_includes_new_fields(monkeypatch):
         },
     )
 
-    result = client_mod.fetch_market_metrics("XYZ")
+    result = client_mod.fetch_market_metrics("XYZ", timeout=10)
     assert result["atr14"] == 5.5
     assert result["vix"] == 17.2
     assert result["term_m1_m2"] is None
@@ -251,7 +251,7 @@ def test_fetch_market_metrics_computes_term_structure(monkeypatch):
     )
 
     app = DummyApp("XYZ")
-    result = client_mod.fetch_market_metrics("XYZ", app=app)
+    result = client_mod.fetch_market_metrics("XYZ", app=app, timeout=10)
 
     assert result["term_m1_m2"] == -1.0
     assert result["term_m1_m3"] == -2.0

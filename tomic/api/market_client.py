@@ -1183,7 +1183,10 @@ def compute_iv_term_structure(
 
 @log_result
 def fetch_market_metrics(
-    symbol: str, app: MarketClient | None = None
+    symbol: str,
+    app: MarketClient | None = None,
+    *,
+    timeout: int | None = None,
 ) -> dict[str, Any] | None:
     """Return key volatility metrics scraped from Barchart and optional spot price.
 
@@ -1213,7 +1216,11 @@ def fetch_market_metrics(
         start_app(app)
         owns_app = True
 
-    if await_market_data(app, symbol):
+    wait_time = timeout if timeout is not None else cfg_get("MARKET_DATA_TIMEOUT", 30)
+    if isinstance(app, OptionChainClient) and not app.expiries:
+        wait_time = cfg_get("SPOT_TIMEOUT", 10)
+
+    if await_market_data(app, symbol, timeout=wait_time):
         metrics["spot_price"] = app.spot_price or metrics["spot_price"]
         if isinstance(app, OptionChainClient):
             term = compute_iv_term_structure(app)
