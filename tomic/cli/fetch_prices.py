@@ -79,15 +79,13 @@ def main(argv: List[str] | None = None) -> None:
     symbols = [s.upper() for s in argv] if argv else [s.upper() for s in cfg_get("DEFAULT_SYMBOLS", [])]
 
     conn = init_db(cfg_get("VOLATILITY_DB", "data/volatility.db"))
+    app = connect_ib()
     try:
         for sym in symbols:
-            app = connect_ib()
-            try:
-                records = list(_request_bars(app, sym))
-                save_price_history(conn, records)
-            finally:
-                app.disconnect()
+            records = list(_request_bars(app, sym))
+            save_price_history(conn, records)
     finally:
+        app.disconnect()
         conn.close()
     logger.success("✅ Historische prijzen opgeslagen")
 
