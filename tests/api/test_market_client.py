@@ -63,7 +63,7 @@ def test_start_requests_requests_stock(monkeypatch):
     assert ("type", 1) in app.calls
     req = next(call for call in app.calls if call[0] == "req")
     assert req[4].secType == "STK"
-    assert req[2] == "100,101"
+    assert req[2] == "100,101,106"
     assert req[3] is False
     assert ("cancel", req[1]) in app.calls
 
