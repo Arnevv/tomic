@@ -349,7 +349,7 @@ def export_option_chain(
     logger.info("▶️ START stap 2 - Initialiseren client + verbinden met IB")
     app = OptionChainClient(symbol)
     start_app(app, client_id=client_id)
-    if not await_market_data(app, symbol, timeout=120):
+    if not await_market_data(app, symbol, timeout=30):
         logger.warning("⚠️ Marktdata onvolledig, ga verder met beschikbare data")
         app.disconnect()
         time.sleep(1)
@@ -412,7 +412,7 @@ def export_market_data(
         raw_metrics = fetch_market_metrics(
             symbol,
             app=app,
-            timeout=cfg_get("MARKET_DATA_TIMEOUT", 120),
+            timeout=cfg_get("MARKET_DATA_TIMEOUT", 30),
         )
     except Exception as exc:  # pragma: no cover - network failures
         logger.error(f"❌ Marktkenmerken ophalen mislukt: {exc}")
@@ -425,7 +425,7 @@ def export_market_data(
             app.disconnect()
         return None
     metrics = MarketMetrics.from_dict(raw_metrics)
-    if not await_market_data(app, symbol, timeout=120):
+    if not await_market_data(app, symbol, timeout=30):
         logger.warning("⚠️ Marktdata onvolledig, exporteer beschikbare data")
         if owns_app:
             app.disconnect()
