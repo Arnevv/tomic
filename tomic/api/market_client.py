@@ -523,6 +523,9 @@ class OptionChainClient(MarketClient):
             if details is None:
                 continue
             con = details.contract
+            logger.info(
+                f"🔄 retry reqId {rid} contract {contract_repr(con)}"
+            )
             evt = threading.Event()
             with self.data_lock:
                 self.market_data[rid]["event"] = evt
