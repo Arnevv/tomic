@@ -61,6 +61,7 @@ class AppConfig(BaseModel):
     STRIKE_RANGE: int = 50
     AMOUNT_REGULARS: int = 3
     AMOUNT_WEEKLIES: int = 4
+    FIRST_EXPIRY_MIN_DTE: int = 15
     DELTA_MIN: float = -0.8
     DELTA_MAX: float = 0.8
     USE_HISTORICAL_IV_WHEN_CLOSED: bool = True
