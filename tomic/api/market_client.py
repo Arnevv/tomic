@@ -31,6 +31,7 @@ from tomic.config import get as cfg_get
 from tomic.logutils import log_result, logger
 from tomic.models import OptionContract
 from tomic.utils import _is_third_friday, _is_weekly
+from .historical_iv import fetch_historical_iv
 
 try:  # pragma: no cover - optional dependency during tests
     from ibapi.contract import Contract
@@ -556,7 +557,17 @@ class OptionChainClient(MarketClient):
                 f"{con.lastTradeDateOrContractMonth} {con.strike} {con.right}"
             )
             use_snapshot = getattr(self, "_use_snapshot", not self.market_open)
-            generic_ticks = "" if use_snapshot else "100,101,106"
+            include_greeks = (
+                not cfg_get("INCLUDE_GREEKS_ONLY_IF_MARKET_OPEN", False)
+                or self.market_open
+            )
+            if use_snapshot:
+                generic_ticks = ""
+            else:
+                ticks = ["100", "101"]
+                if include_greeks:
+                    ticks.append("106")
+                generic_ticks = ",".join(ticks)
             self.reqMktData(reqId, con, generic_ticks, use_snapshot, False, [])
             logger.debug(
                 f"✅ [stap 8] reqMktData sent for {con.symbol} {con.lastTradeDateOrContractMonth} {con.strike} {con.right}"
@@ -996,6 +1007,10 @@ class OptionChainClient(MarketClient):
         with self.data_lock:
             self._completed_requests.clear()
         self._use_snapshot = not self.market_open
+        use_hist_iv = (
+            not self.market_open
+            and cfg_get("USE_HISTORICAL_IV_WHEN_CLOSED", False)
+        )
         logger.debug(f"Spot price at _request_option_data: {self.spot_price}")
         logger.debug(
             f"Requesting option data for expiries={self.expiries} strikes={self.strikes}"
@@ -1028,6 +1043,17 @@ class OptionChainClient(MarketClient):
                     logger.debug(
                         f"reqId for {c.symbol} {c.lastTradeDateOrContractMonth} {c.strike} {c.right} is {req_id}"
                     )
+                    if use_hist_iv:
+                        iv = fetch_historical_iv(c)
+                        with self.data_lock:
+                            self.market_data[req_id] = {
+                                "expiry": expiry,
+                                "strike": strike,
+                                "right": right,
+                                "iv": iv,
+                            }
+                            self._completed_requests.add(req_id)
+                        continue
                     with self.data_lock:
                         self.market_data[req_id] = {
                             "expiry": expiry,
@@ -1047,6 +1073,9 @@ class OptionChainClient(MarketClient):
                         with self.data_lock:
                             self.invalid_contracts.add(req_id)
                         self._mark_complete(req_id)
+        if use_hist_iv:
+            self.all_data_event.set()
+            return
 
         logger.debug(
             f"Aantal contractdetails aangevraagd: {len(self._pending_details)}"
