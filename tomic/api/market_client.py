@@ -445,6 +445,14 @@ class OptionChainClient(MarketClient):
         self._use_snapshot: bool = False
         self._retry_rounds = int(cfg_get("OPTION_DATA_RETRIES", 0))
 
+    def _log_step9_start(self) -> None:
+        """Log the start of step 9 with a summary of received contract details."""
+        logger.info("▶️ START stap 9 - Ontvangen van market data (bid/ask/Greeks)")
+        logger.info(
+            f"✅ [stap 9] Er zijn {len(self.option_info)} volledige optiecontractdetails ontvangen van de in totaal {self.expected_contracts} mogelijke combinaties"
+        )
+        self._step9_logged = True
+
     def _mark_complete(self, req_id: int) -> None:
         """Record completion of a contract request and set ``all_data_event`` when done."""
         with self.data_lock:
@@ -748,6 +756,9 @@ class OptionChainClient(MarketClient):
             f"✅ [stap 6] Geselecteerde strikes: {', '.join(str(s) for s in self.strikes)}"
         )
         self.expected_contracts = len(self.expiries) * len(self.strikes) * 2
+        logger.info(
+            f"✅ [stap 6] Er zijn {len(self.expiries)} expiries en {len(self.strikes)} strikes dus {self.expected_contracts} combinaties"
+        )
         if self.expected_contracts == 0:
             self.all_data_event.set()
 
@@ -824,10 +835,7 @@ class OptionChainClient(MarketClient):
                     self._mark_complete(reqId)
         if reqId != self._spot_req_id and reqId not in self._logged_data:
             if not self._step9_logged:
-                logger.info(
-                    "▶️ START stap 9 - Ontvangen van market data (bid/ask/Greeks)"
-                )
-                self._step9_logged = True
+                self._log_step9_start()
             details = []
             if "bid" in rec:
                 details.append(f"bid={rec['bid']}")
@@ -937,10 +945,7 @@ class OptionChainClient(MarketClient):
             and reqId != self._spot_req_id
         ):
             if not self._step9_logged:
-                logger.info(
-                    "▶️ START stap 9 - Ontvangen van market data (bid/ask/Greeks)"
-                )
-                self._step9_logged = True
+                self._log_step9_start()
             details = []
             if "bid" in rec:
                 details.append(f"bid={rec['bid']}")
@@ -1190,6 +1195,9 @@ class TermStructureClient(OptionChainClient):
             self.strikes = sorted(set(allowed))
             self._strike_lookup = {s: s for s in self.strikes}
         self.expected_contracts = len(self.expiries) * len(self.strikes) * 2
+        logger.info(
+            f"✅ [stap 6] Er zijn {len(self.expiries)} expiries en {len(self.strikes)} strikes dus {self.expected_contracts} combinaties"
+        )
         if self.expected_contracts == 0:
             self.all_data_event.set()
 
