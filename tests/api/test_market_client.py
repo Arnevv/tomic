@@ -944,6 +944,47 @@ def test_option_chain_snapshot_no_volume(monkeypatch):
     assert "open_interest" not in rec
 
 
+def test_greeks_skipped_when_closed(monkeypatch):
+    mod = importlib.import_module("tomic.api.market_client")
+    client = mod.OptionChainClient("ABC")
+    if not hasattr(mod.TickTypeEnum, "BID"):
+        mod.TickTypeEnum.BID = 1
+    if not hasattr(mod.TickTypeEnum, "ASK"):
+        mod.TickTypeEnum.ASK = 2
+    client.market_open = False
+    client._use_snapshot = False
+    client._pending_details[1] = mod.OptionContract("ABC", "20250101", 100.0, "C")
+
+    calls = []
+
+    def fake_reqMktData(reqId, contract, tickList, snapshot, regSnapshot, opts):
+        calls.append(tickList)
+
+    monkeypatch.setattr(client, "reqMktData", fake_reqMktData, raising=False)
+    monkeypatch.setattr(client._detail_semaphore, "release", lambda: None)
+    monkeypatch.setattr(mod, "cfg_get", lambda n, d=None: True if n == "INCLUDE_GREEKS_ONLY_IF_MARKET_OPEN" else False)
+
+    details = types.SimpleNamespace(
+        contract=types.SimpleNamespace(
+            secType="OPT",
+            conId=1,
+            symbol="ABC",
+            lastTradeDateOrContractMonth="20250101",
+            strike=100.0,
+            right="C",
+            exchange="SMART",
+            primaryExchange="SMART",
+            tradingClass="ABC",
+            multiplier="100",
+            currency="USD",
+        )
+    )
+
+    client.contractDetails(1, details)
+
+    assert calls and calls[0] == "100,101"
+
+
 def test_invalid_timer_cancel_race(monkeypatch):
     mod = importlib.import_module("tomic.api.market_client")
     client = mod.OptionChainClient("ABC")
