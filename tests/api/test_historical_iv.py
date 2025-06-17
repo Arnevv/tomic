@@ -23,6 +23,9 @@ def test_fetch_historical_iv(monkeypatch):
         def disconnect(self):
             self.disconnected = True
 
+        def error(self, *a, **k):
+            pass
+
     monkeypatch.setattr(mod, "connect_ib", lambda: FakeApp())
 
     result = mod.fetch_historical_iv(contract_stub)
