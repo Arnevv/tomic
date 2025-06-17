@@ -30,7 +30,7 @@ from tomic.cli.daily_vol_scraper import fetch_volatility_metrics
 from tomic.config import get as cfg_get
 from tomic.logutils import log_result, logger
 from tomic.models import OptionContract
-from tomic.utils import _is_third_friday, _is_weekly
+from tomic.utils import _is_third_friday, _is_weekly, today
 from .historical_iv import fetch_historical_iv
 
 try:  # pragma: no cover - optional dependency during tests
@@ -690,6 +690,20 @@ class OptionChainClient(MarketClient):
         # further processing.
         exp_list = sorted(expirations)
         logger.debug(f"spot_price={self.spot_price}, expirations={exp_list[:5]}")
+
+        min_dte = int(cfg_get("FIRST_EXPIRY_MIN_DTE", 15))
+        if min_dte > 0:
+            today_date = today()
+            filtered = []
+            for exp in exp_list:
+                try:
+                    dt = datetime.strptime(exp, "%Y%m%d").date()
+                except Exception:
+                    continue
+                if (dt - today_date).days >= min_dte:
+                    filtered.append(exp)
+            if filtered:
+                exp_list = filtered
 
         logger.info(
             f"✅ [stap 5] Optieparameters ontvangen: {len(expirations)} expiries, {len(strikes)} strikes"
