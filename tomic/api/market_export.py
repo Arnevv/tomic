@@ -350,8 +350,25 @@ def export_option_chain(
     app = OptionChainClient(symbol)
     start_app(app, client_id=client_id)
     if not await_market_data(app, symbol, timeout=120):
+        logger.warning("⚠️ Marktdata onvolledig, ga verder met beschikbare data")
         app.disconnect()
-        return None
+        time.sleep(1)
+        if output_dir is None:
+            today_str = datetime.now().strftime("%Y%m%d")
+            export_dir = os.path.join(cfg_get("EXPORT_DIR", "exports"), today_str)
+        else:
+            export_dir = output_dir
+        os.makedirs(export_dir, exist_ok=True)
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
+        if simple:
+            _write_option_chain_simple(app, symbol, export_dir, timestamp)
+            logger.success(f"✅ Optieketen verwerkt voor {symbol}")
+            return None
+        avg_parity = _write_option_chain(app, symbol, export_dir, timestamp)
+        logger.success(f"✅ Optieketen verwerkt voor {symbol}")
+        return avg_parity
+
+    app.disconnect()
     app.disconnect()
     time.sleep(1)
     if output_dir is None:
@@ -409,9 +426,23 @@ def export_market_data(
         return None
     metrics = MarketMetrics.from_dict(raw_metrics)
     if not await_market_data(app, symbol, timeout=120):
+        logger.warning("⚠️ Marktdata onvolledig, exporteer beschikbare data")
         if owns_app:
             app.disconnect()
-        return None
+            time.sleep(1)
+        if output_dir is None:
+            today_str = datetime.now().strftime("%Y%m%d")
+            export_dir = os.path.join(cfg_get("EXPORT_DIR", "exports"), today_str)
+        else:
+            export_dir = output_dir
+        os.makedirs(export_dir, exist_ok=True)
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
+        avg_parity = _write_option_chain(app, symbol, export_dir, timestamp)
+        df_metrics = _write_metrics_csv(
+            metrics, symbol, export_dir, timestamp, avg_parity
+        )
+        logger.success(f"✅ Marktdata verwerkt voor {symbol}")
+        return df_metrics
     if owns_app:
         app.disconnect()
         time.sleep(1)
@@ -501,8 +532,27 @@ async def export_option_chain_async(
     await start_app_async(app, client_id=client_id)
     ok = await await_market_data_async(app, symbol, timeout=60)
     if not ok:
+        logger.warning("⚠️ Marktdata onvolledig, ga verder met beschikbare data")
         app.disconnect()
-        return None
+        await asyncio.sleep(1)
+        if output_dir is None:
+            today_str = datetime.now().strftime("%Y%m%d")
+            export_dir = os.path.join(cfg_get("EXPORT_DIR", "exports"), today_str)
+        else:
+            export_dir = output_dir
+        os.makedirs(export_dir, exist_ok=True)
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
+        if simple:
+            await asyncio.to_thread(
+                _write_option_chain_simple, app, symbol, export_dir, timestamp
+            )
+            logger.success(f"✅ Optieketen verwerkt voor {symbol}")
+            return None
+        avg_parity = await asyncio.to_thread(
+            _write_option_chain, app, symbol, export_dir, timestamp
+        )
+        logger.success(f"✅ Optieketen verwerkt voor {symbol}")
+        return avg_parity
     app.disconnect()
     await asyncio.sleep(1)
     if output_dir is None:
@@ -564,9 +614,25 @@ async def export_market_data_async(
         return None
     metrics = MarketMetrics.from_dict(raw_metrics)
     if not ok:
+        logger.warning("⚠️ Marktdata onvolledig, exporteer beschikbare data")
         if owns_app:
             app.disconnect()
-        return None
+            await asyncio.sleep(1)
+        if output_dir is None:
+            today_str = datetime.now().strftime("%Y%m%d")
+            export_dir = os.path.join(cfg_get("EXPORT_DIR", "exports"), today_str)
+        else:
+            export_dir = output_dir
+        os.makedirs(export_dir, exist_ok=True)
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
+        avg_parity = await asyncio.to_thread(
+            _write_option_chain, app, symbol, export_dir, timestamp
+        )
+        df_metrics = await asyncio.to_thread(
+            _write_metrics_csv, metrics, symbol, export_dir, timestamp, avg_parity
+        )
+        logger.success(f"✅ Marktdata verwerkt voor {symbol}")
+        return df_metrics
     if owns_app:
         app.disconnect()
         await asyncio.sleep(1)
