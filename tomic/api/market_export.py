@@ -315,11 +315,11 @@ def export_market_metrics(
         )
     except Exception as exc:  # pragma: no cover - network failures
         logger.error(f"❌ Marktkenmerken ophalen mislukt: {exc}")
-        if owns_app:
-            app.disconnect()
+        app.disconnect()
         return None
     if raw_metrics is None:
         logger.error(f"❌ Geen expiries gevonden voor {symbol}")
+        app.disconnect()
         return None
     metrics = MarketMetrics.from_dict(raw_metrics)
     if output_dir is None:
@@ -330,6 +330,7 @@ def export_market_metrics(
     os.makedirs(export_dir, exist_ok=True)
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
     df_metrics = _write_metrics_csv(metrics, symbol, export_dir, timestamp, None)
+    app.disconnect()
     logger.success(f"✅ Marktdata verwerkt voor {symbol}")
     return df_metrics
 
