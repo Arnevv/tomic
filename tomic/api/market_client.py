@@ -443,6 +443,7 @@ class OptionChainClient(MarketClient):
         # Timers for delayed invalidation of option market data requests
         self._invalid_timers: dict[int, threading.Timer] = {}
         self._use_snapshot: bool = False
+        self._retry_rounds = int(cfg_get("OPTION_DATA_RETRIES", 0))
 
     def _mark_complete(self, req_id: int) -> None:
         """Record completion of a contract request and set ``all_data_event`` when done."""
@@ -490,6 +491,58 @@ class OptionChainClient(MarketClient):
                 return
             self._invalid_timers[req_id] = timer
             timer.start()
+
+    def incomplete_requests(self) -> list[int]:
+        """Return request IDs missing essential market data."""
+        required = ["bid", "ask", "iv", "delta", "gamma", "vega", "theta"]
+        with self.data_lock:
+            return [
+                rid
+                for rid, rec in self.market_data.items()
+                if rid not in self.invalid_contracts
+                and any(rec.get(k) is None for k in required)
+            ]
+
+    def retry_incomplete_requests(self) -> bool:
+        """Re-request market data for incomplete option contracts."""
+        wait = int(cfg_get("OPTION_RETRY_WAIT", 1))
+        ids = self.incomplete_requests()
+        if not ids:
+            return False
+        logger.info(f"🔄 Retry for {len(ids)} incomplete contracts")
+        for rid in ids:
+            details = self.option_info.get(rid)
+            if details is None:
+                continue
+            con = details.contract
+            evt = threading.Event()
+            with self.data_lock:
+                self.market_data[rid]["event"] = evt
+                self.invalid_contracts.discard(rid)
+                self._completed_requests.discard(rid)
+            if self.data_type_success is not None:
+                data_type = self.data_type_success
+            else:
+                data_type = 1 if self.market_open else 2
+            self.reqMarketDataType(data_type)
+            use_snapshot = getattr(self, "_use_snapshot", not self.market_open)
+            include_greeks = (
+                not cfg_get("INCLUDE_GREEKS_ONLY_IF_MARKET_OPEN", False)
+                or self.market_open
+            )
+            if use_snapshot:
+                generic = ""
+            else:
+                ticks = ["100", "101"]
+                if include_greeks:
+                    ticks.append("106")
+                generic = ",".join(ticks)
+            self.reqMktData(rid, con, generic, use_snapshot, False, [])
+            self._schedule_invalid_timer(rid)
+        if wait > 0:
+            time.sleep(wait)
+        self.all_data_event.clear()
+        return True
 
     def all_data_received(self) -> bool:
         """Return ``True`` when all requested option data has been received."""
@@ -1169,6 +1222,7 @@ def await_market_data(app: MarketClient, symbol: str, timeout: int = 30) -> bool
     function can safely be called from multiple threads.
     """
     start = time.time()
+    retries = int(cfg_get("OPTION_DATA_RETRIES", 0)) if isinstance(app, OptionChainClient) else 0
 
     while time.time() - start < timeout:
         remaining = timeout - (time.time() - start)
@@ -1186,7 +1240,14 @@ def await_market_data(app: MarketClient, symbol: str, timeout: int = 30) -> bool
                 getattr(app, "all_data_event", event).is_set()
                 and app.spot_price is not None
             ):
-                logger.debug(f"Market data ontvangen binnen {time.time() - start:.2f}s")
+                if retries > 0 and app.incomplete_requests():
+                    app.retry_incomplete_requests()
+                    retries -= 1
+                    start = time.time()
+                    continue
+                logger.debug(
+                    f"Market data ontvangen binnen {time.time() - start:.2f}s"
+                )
                 return True
         else:
             if app.spot_price is not None and event.is_set():
