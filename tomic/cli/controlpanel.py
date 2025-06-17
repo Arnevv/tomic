@@ -576,6 +576,7 @@ def run_settings_menu() -> None:
         sub.add("PRIMARY_EXCHANGE", lambda: change_str("PRIMARY_EXCHANGE"))
         sub.add("STRIKE_RANGE", lambda: change_int("STRIKE_RANGE"))
         sub.add("DELTA_MIN", lambda: change_float("DELTA_MIN"))
+        sub.add("DELTA_MAX", lambda: change_float("DELTA_MAX"))
         sub.add("AMOUNT_REGULARS", lambda: change_int("AMOUNT_REGULARS"))
         sub.add("AMOUNT_WEEKLIES", lambda: change_int("AMOUNT_WEEKLIES"))
         sub.run()
