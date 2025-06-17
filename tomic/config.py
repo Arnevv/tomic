@@ -74,6 +74,8 @@ class AppConfig(BaseModel):
     DOWNLOAD_RETRIES: int = 2
     BID_ASK_TIMEOUT: int = 5
     MARKET_DATA_TIMEOUT: int = 120
+    OPTION_DATA_RETRIES: int = 0
+    OPTION_RETRY_WAIT: int = 1
 
 
 _BASE_DIR = Path(__file__).resolve().parent.parent
