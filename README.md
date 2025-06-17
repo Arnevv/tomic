@@ -85,7 +85,7 @@ tests/                 # Pytest-modules
 📄 Configuratie
 De locatie van de volatiliteitsdatabase wordt ingesteld via `VOLATILITY_DB` in
 `config.yaml`. Standaard wijst dit naar `data/volatility.db`.
-Dagelijkse prijsdata wordt met `tomic/cli/fetch_prices.py` tot maximaal 90 dagen
+Dagelijkse prijsdata wordt met `tomic/cli/fetch_prices.py` tot maximaal 252 dagen
 terug opgehaald en in deze database opgeslagen.
 
 Alle configuratiefuncties gebruiken een interne lock. Zowel lezen via
