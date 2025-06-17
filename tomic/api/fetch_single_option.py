@@ -261,6 +261,12 @@ def test_contractdetails_conid(client: StepByStepClient):
 
 
 def export_csv(app: StepByStepClient, output_dir: str) -> None:
+    """Write collected option data to ``output_dir``.
+
+    Call ``disconnect()`` before invoking this function to prevent callbacks
+    from modifying ``market_data`` while the CSV is written.
+    """
+
     os.makedirs(output_dir, exist_ok=True)
     path = os.path.join(
         output_dir,
@@ -408,8 +414,8 @@ def run(symbol: str, output_dir: str) -> None:
     logger.info("✅ SUCCES stap 9 - Market data ontvangen")
 
     logger.info("▶️ START stap 10 - Export naar CSV")
-    export_csv(app, output_dir)
     app.disconnect()
+    export_csv(app, output_dir)
 
 
 def main(argv: List[str] | None = None) -> None:
