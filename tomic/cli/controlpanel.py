@@ -46,7 +46,7 @@ if __package__ is None:
     # Allow running this file directly without ``-m`` by adjusting ``sys.path``
     sys.path.append(str(Path(__file__).resolve().parents[1]))
 
-from tomic.cli.common import Menu, prompt
+from tomic.cli.common import Menu, prompt, prompt_yes_no
 
 from tomic.api.ib_connection import connect_ib
 
@@ -62,16 +62,6 @@ except RuntimeError:
     # Optional PyYAML dependency not available during some unit tests
     pass
 
-# Available log levels for loguru/logging
-LOG_LEVEL_CHOICES = [
-    "TRACE",
-    "DEBUG",
-    "INFO",
-    "SUCCESS",
-    "WARNING",
-    "ERROR",
-    "CRITICAL",
-]
 
 POSITIONS_FILE = Path(cfg.get("POSITIONS_FILE", "positions.json"))
 ACCOUNT_INFO_FILE = Path(cfg.get("ACCOUNT_INFO_FILE", "account_info.json"))
@@ -512,9 +502,15 @@ def run_settings_menu() -> None:
         if val:
             cfg.update({key: val})
 
+    def change_bool(key: str) -> None:
+        current = getattr(cfg.CONFIG, key)
+        val = prompt_yes_no(f"{key}?", current)
+        cfg.update({key: val})
+
     def run_connection_menu() -> None:
         sub = Menu("\U0001F50C Verbinding & API – TWS instellingen en tests")
         sub.add("Pas IB host/poort aan", change_host)
+        sub.add("Wijzig client ID", lambda: change_int("IB_CLIENT_ID"))
         sub.add("Test TWS-verbinding", check_ib_connection)
         sub.add("Haal TWS API-versie op", print_api_version)
         sub.run()
@@ -523,6 +519,14 @@ def run_settings_menu() -> None:
         sub = Menu("\U0001F4C8 Portfolio & Analyse")
         sub.add("Pas default symbols aan", change_symbols)
         sub.add("Pas interest rate aan", change_rate)
+        sub.add(
+            "USE_HISTORICAL_IV_WHEN_CLOSED",
+            lambda: change_bool("USE_HISTORICAL_IV_WHEN_CLOSED"),
+        )
+        sub.add(
+            "INCLUDE_GREEKS_ONLY_IF_MARKET_OPEN",
+            lambda: change_bool("INCLUDE_GREEKS_ONLY_IF_MARKET_OPEN"),
+        )
         sub.run()
 
     def run_logging_menu() -> None:
@@ -569,16 +573,30 @@ def run_settings_menu() -> None:
             "MAX_CONCURRENT_REQUESTS",
             lambda: change_int("MAX_CONCURRENT_REQUESTS"),
         )
+        sub.add("BID_ASK_TIMEOUT", lambda: change_int("BID_ASK_TIMEOUT"))
+        sub.add("MARKET_DATA_TIMEOUT", lambda: change_int("MARKET_DATA_TIMEOUT"))
+        sub.add("OPTION_DATA_RETRIES", lambda: change_int("OPTION_DATA_RETRIES"))
+        sub.add("OPTION_RETRY_WAIT", lambda: change_int("OPTION_RETRY_WAIT"))
         sub.run()
 
     def run_option_menu() -> None:
         sub = Menu("\U0001F4DD Optie-strategie parameters")
-        sub.add("PRIMARY_EXCHANGE", lambda: change_str("PRIMARY_EXCHANGE"))
         sub.add("STRIKE_RANGE", lambda: change_int("STRIKE_RANGE"))
+        sub.add("FIRST_EXPIRY_MIN_DTE", lambda: change_int("FIRST_EXPIRY_MIN_DTE"))
         sub.add("DELTA_MIN", lambda: change_float("DELTA_MIN"))
         sub.add("DELTA_MAX", lambda: change_float("DELTA_MAX"))
         sub.add("AMOUNT_REGULARS", lambda: change_int("AMOUNT_REGULARS"))
         sub.add("AMOUNT_WEEKLIES", lambda: change_int("AMOUNT_WEEKLIES"))
+        sub.add("UNDERLYING_EXCHANGE", lambda: change_str("UNDERLYING_EXCHANGE"))
+        sub.add(
+            "UNDERLYING_PRIMARY_EXCHANGE",
+            lambda: change_str("UNDERLYING_PRIMARY_EXCHANGE"),
+        )
+        sub.add("OPTIONS_EXCHANGE", lambda: change_str("OPTIONS_EXCHANGE"))
+        sub.add(
+            "OPTIONS_PRIMARY_EXCHANGE",
+            lambda: change_str("OPTIONS_PRIMARY_EXCHANGE"),
+        )
         sub.run()
 
     menu = Menu("\u2699\ufe0f INSTELLINGEN & CONFIGURATIE")
