@@ -116,9 +116,14 @@ def save_vol_stats(
     closes: Sequence[float],
 ) -> None:
     hv_series = rolling_hv(closes, window=30)
-    rank = iv_rank(record.iv or 0.0, hv_series) if record.iv is not None else None
+    # ``historical_volatility`` returns values as percentages (e.g. ``20`` for
+    # ``20%``) whereas ``record.iv`` is stored as a decimal (e.g. ``0.2`` for
+    # ``20%``).  Convert the IV to the same scale as the HV series before
+    # computing rank and percentile so the statistics are meaningful.
+    scaled_iv = record.iv * 100 if record.iv is not None else None
+    rank = iv_rank(scaled_iv or 0.0, hv_series) if scaled_iv is not None else None
     pct = (
-        iv_percentile(record.iv or 0.0, hv_series) if record.iv is not None else None
+        iv_percentile(scaled_iv or 0.0, hv_series) if scaled_iv is not None else None
     )
     cur = conn.cursor()
     cur.execute(
