@@ -569,6 +569,11 @@ def test_req_secdefopt_waits_for_spot(monkeypatch):
 
 def test_request_skips_without_details(monkeypatch):
     mod = importlib.import_module("tomic.api.market_client")
+    monkeypatch.setattr(
+        mod,
+        "cfg_get",
+        lambda n, d=None: False if n == "USE_HISTORICAL_IV_WHEN_CLOSED" else d,
+    )
     client = mod.OptionChainClient("ABC")
     client.trading_class = "ABC"
     client.expiries = ["20250101"]
@@ -599,6 +604,11 @@ def test_request_skips_without_details(monkeypatch):
 
 def test_request_reuses_known_con_id(monkeypatch):
     mod = importlib.import_module("tomic.api.market_client")
+    monkeypatch.setattr(
+        mod,
+        "cfg_get",
+        lambda n, d=None: False if n == "USE_HISTORICAL_IV_WHEN_CLOSED" else d,
+    )
     client = mod.OptionChainClient("ABC")
     client.trading_class = "ABC"
     client.expiries = ["20250101"]
@@ -629,6 +639,11 @@ def test_request_reuses_known_con_id(monkeypatch):
 
 def test_request_uses_stored_multiplier(monkeypatch):
     mod = importlib.import_module("tomic.api.market_client")
+    monkeypatch.setattr(
+        mod,
+        "cfg_get",
+        lambda n, d=None: False if n == "USE_HISTORICAL_IV_WHEN_CLOSED" else d,
+    )
     client = mod.OptionChainClient("ABC")
     client.spot_price = 100.0
     client.securityDefinitionOptionParameter(
@@ -692,6 +707,11 @@ def test_request_contract_details_timeout(monkeypatch):
 
 def test_semaphore_released_on_invalid_contract(monkeypatch):
     mod = importlib.import_module("tomic.api.market_client")
+    monkeypatch.setattr(
+        mod,
+        "cfg_get",
+        lambda n, d=None: False if n == "USE_HISTORICAL_IV_WHEN_CLOSED" else d,
+    )
     client = mod.OptionChainClient("ABC", max_concurrent_requests=1)
     client.trading_class = "ABC"
     client.expiries = ["20250101"]
@@ -717,6 +737,11 @@ def test_semaphore_released_on_invalid_contract(monkeypatch):
 
 def test_concurrent_contract_request_limit(monkeypatch):
     mod = importlib.import_module("tomic.api.market_client")
+    monkeypatch.setattr(
+        mod,
+        "cfg_get",
+        lambda n, d=None: False if n == "USE_HISTORICAL_IV_WHEN_CLOSED" else d,
+    )
     max_req = 2
     client = mod.OptionChainClient("ABC", max_concurrent_requests=max_req)
     client.trading_class = "ABC"
@@ -867,6 +892,11 @@ def test_tick_price_invalidates_after_timeout(monkeypatch):
 
 def test_tick_price_close_keeps_contract_valid(monkeypatch):
     mod = importlib.import_module("tomic.api.market_client")
+    monkeypatch.setattr(
+        mod,
+        "cfg_get",
+        lambda n, d=None: False if n == "USE_HISTORICAL_IV_WHEN_CLOSED" else d,
+    )
     client = mod.OptionChainClient("ABC")
 
     if not hasattr(mod.TickTypeEnum, "CLOSE"):
