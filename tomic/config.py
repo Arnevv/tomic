@@ -63,6 +63,8 @@ class AppConfig(BaseModel):
     AMOUNT_WEEKLIES: int = 4
     DELTA_MIN: float = -0.8
     DELTA_MAX: float = 0.8
+    USE_HISTORICAL_IV_WHEN_CLOSED: bool = True
+    INCLUDE_GREEKS_ONLY_IF_MARKET_OPEN: bool = True
 
     # Network tuning -------------------------------------------------
     MAX_CONCURRENT_REQUESTS: int = 5
@@ -91,12 +93,48 @@ def _load_env(path: Path) -> Dict[str, Any]:
 
 
 def _load_yaml(path: Path) -> Dict[str, Any]:
-    """Load configuration from a YAML file using PyYAML if available."""
+    """Load configuration from a YAML file.
+
+    Falls back to a very small built-in parser when ``PyYAML`` is not
+    available. The fallback supports simple ``key: value`` pairs with
+    boolean, integer and floating point values.
+    """
     try:
         import yaml  # type: ignore
-    except Exception as exc:  # pragma: no cover - optional dependency
-        raise RuntimeError("PyYAML required for YAML config") from exc
-
+    except Exception:  # pragma: no cover - optional dependency
+        data: Dict[str, Any] = {}
+        current_key: str | None = None
+        for line in path.read_text().splitlines():
+            line = line.rstrip()
+            if not line or line.lstrip().startswith("#"):
+                continue
+            if (
+                line.startswith("- ")
+                and current_key
+                and isinstance(data.get(current_key), list)
+            ):
+                data[current_key].append(line[2:].strip())
+                continue
+            if ":" in line:
+                key, val = line.split(":", 1)
+                key = key.strip()
+                val = val.strip()
+                if not val:
+                    data[key] = []
+                    current_key = key
+                    continue
+                current_key = key
+                if val.lower() in {"true", "false"}:
+                    data[key] = val.lower() == "true"
+                    continue
+                try:
+                    if "." in val:
+                        data[key] = float(val)
+                    else:
+                        data[key] = int(val)
+                except ValueError:
+                    data[key] = val
+        return data
     with open(path, "r", encoding="utf-8") as f:
         content = yaml.safe_load(f)
     return content or {}
