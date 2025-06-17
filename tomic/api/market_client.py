@@ -261,22 +261,37 @@ class MarketClient(BaseIBApp):
         self._spot_req_id = req_id
         self._spot_req_ids.add(req_id)
         logger.debug(f"Requesting stock quote for symbol={contract.symbol} id={req_id}")
-        received = self.data_event.wait(timeout)
-        if not received and self.spot_price is None:
+
+        start = time.time()
+        received_any = False
+        while time.time() - start < timeout and self.spot_price is None:
+            remaining = timeout - (time.time() - start)
+            if remaining <= 0:
+                break
+            received = self.data_event.wait(remaining)
+            if received:
+                received_any = True
+                if self.spot_price is None:
+                    self.data_event.clear()
+
+        if not received_any and self.spot_price is None:
             logger.warning(
                 "No tick received within %ss; waiting short grace period",
                 timeout,
             )
-            received = self.data_event.wait(1.5)
+            self.data_event.wait(1.5)
+
         self.cancelMktData(req_id)
         self.invalid_contracts.add(req_id)
 
-        if not received and self.spot_price is None:
+        if self.spot_price is None:
             fallback = fetch_volatility_metrics(self.symbol).get("spot_price")
             if fallback is not None:
                 try:
                     self.spot_price = float(fallback)
                     logger.info(f"✅ [stap 3] Spotprijs fallback: {self.spot_price}")
+                    if hasattr(self, "spot_event"):
+                        self.spot_event.set()
                 except (TypeError, ValueError):
                     logger.warning("Fallback spot price could not be parsed")
 

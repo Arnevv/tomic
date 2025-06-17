@@ -252,6 +252,57 @@ def test_fallback_called_after_timeout(monkeypatch):
     assert app.spot_price == 5.0
 
 
+def test_bid_ask_before_last_uses_fallback(monkeypatch):
+    market_client = importlib.import_module("tomic.api.market_client")
+    MarketClient = market_client.MarketClient
+
+    if not hasattr(market_client.TickTypeEnum, "LAST"):
+        market_client.TickTypeEnum.LAST = 68
+    if not hasattr(market_client.TickTypeEnum, "BID"):
+        market_client.TickTypeEnum.BID = 1
+    if not hasattr(market_client.TickTypeEnum, "ASK"):
+        market_client.TickTypeEnum.ASK = 2
+
+    class DummyClient(MarketClient):
+        def __init__(self, symbol: str) -> None:
+            super().__init__(symbol)
+
+        def reqMarketDataType(self, data_type: int) -> None:
+            pass
+
+        def reqMktData(self, reqId, contract, tickList, snapshot, regSnapshot, opts):
+            # Emit BID/ASK ticks but no LAST tick
+            self.tickPrice(reqId, market_client.TickTypeEnum.BID, 9.8, None)
+            self.tickPrice(reqId, market_client.TickTypeEnum.ASK, 10.2, None)
+
+        def cancelMktData(self, reqId: int) -> None:
+            pass
+
+        def reqContractDetails(self, reqId, contract):
+            details = types.SimpleNamespace(
+                tradingHours="20200101:CLOSED",
+                contract=types.SimpleNamespace(secType="STK"),
+            )
+            self.contractDetails(reqId, details)
+
+        def reqCurrentTime(self):
+            self.currentTime(1577880000)
+
+    monkeypatch.setattr(
+        market_client,
+        "cfg_get",
+        lambda name, default=None: 0.01 if name == "SPOT_TIMEOUT" else 0,
+    )
+    monkeypatch.setattr(
+        market_client, "fetch_volatility_metrics", lambda s: {"spot_price": 7.5}
+    )
+
+    app = DummyClient("ABC")
+    app.start_requests()
+
+    assert app.spot_price == 7.5
+
+
 def test_close_tick_sets_spot_and_skips_fallback(monkeypatch):
     market_client = importlib.import_module("tomic.api.market_client")
     MarketClient = market_client.MarketClient
