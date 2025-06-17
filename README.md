@@ -46,6 +46,9 @@ marktdata-opvragingen te verwerken.
 - Ontvangt de client binnen `SPOT_TIMEOUT` geen tick, dan wordt de melding
   "No tick received within …; waiting short grace period" gelogd en wacht de
   client circa 1,5 s op de snapshot voor het programma verdergaat.
+- Komt er wel BID/ASK binnen maar geen geldige LAST, dan blijft de wachlus
+  actief tot de timeout en wordt daarna de fallback-spotprijs toegepast zodat
+  `OptionChainClient` niet blijft hangen.
 - Is de optieketen groot? Verleng dan de wachttijd met `MARKET_DATA_TIMEOUT`.
 - Optieketen selectie: de eerste 4 expiries en strikes binnen ±50 punten van de
   afgeronde spotprijs (aanpasbaar via `STRIKE_RANGE`). Opties met een delta
