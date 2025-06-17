@@ -61,6 +61,12 @@ marktdata-opvragingen te verwerken.
       price = client.spot_price
   ```
 
+- De functies ``await_market_data`` en ``compute_iv_term_structure`` nemen
+  deze lock intern over. Ze kunnen daardoor veilig vanuit meerdere threads
+  worden aangeroepen. Andere helpers zoals ``export_csv`` verwachten dat je
+  zelf de verbinding verbreekt of de lock houdt tijdens het wegschrijven van
+  data.
+
 📂 Projectstructuur
 tomic/
 ├── api/               # IB-connectie, accountdata, marketdata

@@ -1119,7 +1119,11 @@ def start_app(app: MarketClient, *, client_id: int | None = None) -> None:
 
 @log_result
 def await_market_data(app: MarketClient, symbol: str, timeout: int = 30) -> bool:
-    """Wait until market data has been populated or timeout occurs."""
+    """Wait until market data has been populated or timeout occurs.
+
+    Access to ``app.market_data`` is protected by ``app.data_lock`` so the
+    function can safely be called from multiple threads.
+    """
     start = time.time()
 
     while time.time() - start < timeout:
@@ -1145,8 +1149,19 @@ def await_market_data(app: MarketClient, symbol: str, timeout: int = 30) -> bool
                 logger.debug(f"Market data ontvangen binnen {time.time() - start:.2f}s")
                 return True
 
-            if any("bid" in rec or "ask" in rec for rec in app.market_data.values()):
-                logger.debug(f"Bid/ask ontvangen binnen {time.time() - start:.2f}s")
+            if hasattr(app, "data_lock"):
+                with app.data_lock:
+                    has_bidask = any(
+                        "bid" in rec or "ask" in rec for rec in app.market_data.values()
+                    )
+            else:
+                has_bidask = any(
+                    "bid" in rec or "ask" in rec for rec in app.market_data.values()
+                )
+            if has_bidask:
+                logger.debug(
+                    f"Bid/ask ontvangen binnen {time.time() - start:.2f}s"
+                )
                 return True
 
         event.clear()
@@ -1165,6 +1180,8 @@ def compute_iv_term_structure(
     ----------
     app:
         Running :class:`OptionChainClient` with populated ``market_data``.
+        Access to the data is synchronized with ``app.data_lock`` so this
+        function is thread-safe.
     strike_window:
         Absolute distance from the spot price used to select strikes. Defaults
         to ``5`` when not provided.
@@ -1177,7 +1194,12 @@ def compute_iv_term_structure(
         strike_window = int(cfg_get("TERM_STRIKE_WINDOW", 5))
 
     grouped: Dict[str, list[float]] = {}
-    for req_id, rec in app.market_data.items():
+    if hasattr(app, "data_lock"):
+        with app.data_lock:
+            items = list(app.market_data.items())
+    else:
+        items = list(app.market_data.items())
+    for req_id, rec in items:
         if req_id in app.invalid_contracts:
             continue
         iv = rec.get("iv")
