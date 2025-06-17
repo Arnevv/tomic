@@ -53,9 +53,18 @@ def connect_ib(
     host: str = "127.0.0.1",
     port: int = 7497,
     timeout: int = 5,
+    *,
+    unique: bool = False,
 ) -> IBClient:
-    """Connect to IB using ``client_id`` from config when not provided."""
-    if client_id is None:
+    """Connect to IB.
+
+    When ``unique`` is ``True`` a unique ``client_id`` is generated so
+    multiple connections can be opened simultaneously without client id
+    clashes.
+    """
+    if unique:
+        client_id = int(time.time() * 1000) % 2_000_000
+    elif client_id is None:
         client_id = int(cfg_get("IB_CLIENT_ID", 100))
     app = IBClient()
 
