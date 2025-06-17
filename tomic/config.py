@@ -57,7 +57,6 @@ class AppConfig(BaseModel):
     UNDERLYING_PRIMARY_EXCHANGE: str = "ARCA"
     OPTIONS_EXCHANGE: str = "SMART"
     OPTIONS_PRIMARY_EXCHANGE: str = "ARCA"
-    PRIMARY_EXCHANGE: str = "SMART"  # deprecated, kept for backwards compatibility
     STRIKE_RANGE: int = 50
     AMOUNT_REGULARS: int = 3
     AMOUNT_WEEKLIES: int = 4
