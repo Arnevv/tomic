@@ -89,6 +89,13 @@ Alle configuratiefuncties gebruiken een interne lock. Zowel lezen via
 ``config.get()`` als schrijven met ``update()`` of ``reload()`` is hierdoor
 gesynchroniseerd en veilig vanaf meerdere threads.
 
+Extra opties in `config.yaml`:
+- `USE_HISTORICAL_IV_WHEN_CLOSED`: gebruik historische IV wanneer de markt
+  gesloten is. De optieketen wordt dan opgebouwd met `reqHistoricalData` in
+  plaats van `reqMktData`.
+- `INCLUDE_GREEKS_ONLY_IF_MARKET_OPEN`: voeg Greek-gegevens alleen toe als de
+  markt open is.
+
 
 📋 Stappenplan data ophalen
 1. Invoer van symbool
