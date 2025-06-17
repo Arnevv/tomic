@@ -389,7 +389,7 @@ def run(symbol: str, output_dir: str) -> None:
                 )
                 app.reqContractDetails(req_id, c)
                 if not app.contract_received.wait(2):
-                    logger.debug(f"❌ contractDetails MISSING voor reqId {req_id}")
+                    logger.info(f"❌ contractDetails MISSING voor reqId {req_id}")
                 contracts_requested += 1
     received = len(app.option_info)
 
