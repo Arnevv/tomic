@@ -12,7 +12,13 @@ from .ib_connection import connect_ib
 def fetch_historical_iv(contract: Contract) -> float | None:
     """Return the last implied volatility for ``contract`` using historical data."""
 
-    app = connect_ib()
+    # Use a unique client ID to avoid clashes with existing connections. When
+    # running tests, ``connect_ib`` may be patched with a simple stub that does
+    # not accept the ``unique`` keyword, so fall back gracefully if needed.
+    try:
+        app = connect_ib(unique=True)
+    except TypeError:
+        app = connect_ib()
     iv: float | None = None
     done = threading.Event()
 
