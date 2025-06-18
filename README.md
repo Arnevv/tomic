@@ -121,7 +121,7 @@ De gegenereerde expiries en strikes worden gefilterd en gelogd:
 Voor elke combinatie van expiry × strike × {Call, Put} wordt een OptionContract opgebouwd en reqContractDetails() aangeroepen.
 Een Semaphore beperkt het aantal parallelle verzoeken (bijv. 5 tegelijk).
 
-📌 Als USE_HISTORICAL_IV_WHEN_CLOSED actief is, worden Greeks overgeslagen en wordt enkel IV via fetch_historical_iv() ingevuld.
+📌 Als USE_HISTORICAL_IV_WHEN_CLOSED actief is, worden Greeks overgeslagen en wordt voor alle contracts de laatste IV en close opgehaald via fetch_historical_option_data().
 
 8. Callback op contractDetails() voor elke optie
 Zodra contractdetails zijn ontvangen voor een optiecontract, wordt direct reqMktData() gestuurd om live of snapshot data (bid/ask/Greeks) op te halen.

@@ -1180,18 +1180,25 @@ class OptionChainClient(MarketClient):
                         self._mark_complete(req_id)
         if use_hist_iv:
             results = fetch_historical_option_data(contract_map)
-            for rid, data in results.items():
+            for rid, contract in contract_map.items():
+                iv = results.get(rid, {}).get("iv")
+                close = results.get(rid, {}).get("close")
+                logger.debug(
+                    f"Fallback result for {contract_repr(contract)}: IV={iv}, Close={close}"
+                )
+                if iv is None and close is None:
+                    continue
                 with self.data_lock:
                     rec = self.market_data.get(rid, {})
-                    rec["iv"] = data.get("iv")
-                    rec["close"] = data.get("close")
+                    rec["iv"] = iv
+                    rec["close"] = close
                     self.market_data[rid] = rec
                     self._completed_requests.add(rid)
-                if data.get("iv") is None:
-                    logger.warning(f"⚠️ Historische IV ontbreekt voor reqId {rid}")
-                else:
-                    logger.debug(f"✅ Historische IV ontvangen voor reqId {rid}")
-                if data.get("close") is not None:
+                if iv is None:
+                    logger.warning(
+                        f"⚠️ Historische IV ontbreekt voor reqId {rid}"
+                    )
+                if close is not None:
                     logger.debug(f"✅ Close ontvangen voor reqId {rid}")
             self.all_data_event.set()
             return
