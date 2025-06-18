@@ -1123,3 +1123,34 @@ def test_invalid_timer_cancel_race(monkeypatch):
 
     assert 1 not in client._invalid_timers
     assert events in ([], [1])
+
+
+def test_request_option_data_historical(monkeypatch):
+    mod = importlib.import_module("tomic.api.market_client")
+    monkeypatch.setattr(
+        mod,
+        "cfg_get",
+        lambda n, d=None: True if n == "USE_HISTORICAL_IV_WHEN_CLOSED" else d,
+    )
+    called = {}
+
+    def fake_fetch(map):
+        called['map'] = map
+        return {rid: {"iv": 0.5, "close": 1.2} for rid in map}
+
+    monkeypatch.setattr(mod, "fetch_historical_option_data", fake_fetch)
+
+    client = mod.OptionChainClient("ABC")
+    client.market_open = False
+    client.trading_class = "ABC"
+    client.expiries = ["20250101"]
+    client.strikes = [100.0]
+    client._strike_lookup = {100.0: 100.0}
+    client.option_params_complete.set()
+
+    client._request_option_data()
+
+    assert called['map']
+    assert client.all_data_event.is_set()
+    assert all(r.get("iv") == 0.5 and r.get("close") == 1.2 for r in client.market_data.values())
+
