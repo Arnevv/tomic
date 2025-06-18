@@ -31,7 +31,7 @@ from tomic.config import get as cfg_get
 from tomic.logutils import log_result, logger
 from tomic.models import OptionContract
 from tomic.utils import _is_third_friday, _is_weekly, today
-from .historical_iv import fetch_historical_iv, fetch_historical_option_data
+from .historical_iv import fetch_historical_option_data
 
 try:  # pragma: no cover - optional dependency during tests
     from ibapi.contract import Contract
@@ -1179,27 +1179,18 @@ class OptionChainClient(MarketClient):
                             self.invalid_contracts.add(req_id)
                         self._mark_complete(req_id)
         if use_hist_iv:
-            results = fetch_historical_option_data(contract_map)
-            for rid, contract in contract_map.items():
-                iv = results.get(rid, {}).get("iv")
-                close = results.get(rid, {}).get("close")
-                logger.debug(
-                    f"Fallback result for {contract_repr(contract)}: IV={iv}, Close={close}"
-                )
-                if iv is None and close is None:
-                    continue
-                with self.data_lock:
-                    rec = self.market_data.get(rid, {})
-                    rec["iv"] = iv
-                    rec["close"] = close
-                    self.market_data[rid] = rec
-                    self._completed_requests.add(rid)
-                if iv is None:
-                    logger.warning(
-                        f"⚠️ Historische IV ontbreekt voor reqId {rid}"
-                    )
-                if close is not None:
-                    logger.debug(f"✅ Close ontvangen voor reqId {rid}")
+            contracts = {rid: c for rid, c in contract_map.items()}
+            bulk_results = fetch_historical_option_data(contracts)
+            for rid, result in bulk_results.items():
+                if rid not in self.market_data:
+                    self.market_data[rid] = {}
+
+                iv = result.get("iv")
+                close = result.get("close")
+
+                self.market_data[rid]["iv"] = iv
+                self.market_data[rid]["close"] = close
+
             self.all_data_event.set()
             return
 
