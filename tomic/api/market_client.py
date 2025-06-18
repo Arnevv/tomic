@@ -31,7 +31,7 @@ from tomic.config import get as cfg_get
 from tomic.logutils import log_result, logger
 from tomic.models import OptionContract
 from tomic.utils import _is_third_friday, _is_weekly, today
-from .historical_iv import fetch_historical_iv
+from .historical_iv import fetch_historical_iv, fetch_historical_option_data
 
 try:  # pragma: no cover - optional dependency during tests
     from ibapi.contract import Contract
@@ -1126,6 +1126,7 @@ class OptionChainClient(MarketClient):
                 "▶️ START stap 7 - Per combinatie optiecontract bouwen en reqContractDetails()"
             )
             self._step7_logged = True
+        contract_map: dict[int, Contract] = {}
         for expiry in self.expiries:
             for strike in self.strikes:
                 actual = self._strike_lookup.get(strike, strike)
@@ -1150,15 +1151,13 @@ class OptionChainClient(MarketClient):
                         f"reqId for {c.symbol} {c.lastTradeDateOrContractMonth} {c.strike} {c.right} is {req_id}"
                     )
                     if use_hist_iv:
-                        iv = fetch_historical_iv(c)
                         with self.data_lock:
                             self.market_data[req_id] = {
                                 "expiry": expiry,
                                 "strike": strike,
                                 "right": right,
-                                "iv": iv,
                             }
-                            self._completed_requests.add(req_id)
+                        contract_map[req_id] = c
                         continue
                     with self.data_lock:
                         self.market_data[req_id] = {
@@ -1180,6 +1179,20 @@ class OptionChainClient(MarketClient):
                             self.invalid_contracts.add(req_id)
                         self._mark_complete(req_id)
         if use_hist_iv:
+            results = fetch_historical_option_data(contract_map)
+            for rid, data in results.items():
+                with self.data_lock:
+                    rec = self.market_data.get(rid, {})
+                    rec["iv"] = data.get("iv")
+                    rec["close"] = data.get("close")
+                    self.market_data[rid] = rec
+                    self._completed_requests.add(rid)
+                if data.get("iv") is None:
+                    logger.warning(f"⚠️ Historische IV ontbreekt voor reqId {rid}")
+                else:
+                    logger.debug(f"✅ Historische IV ontvangen voor reqId {rid}")
+                if data.get("close") is not None:
+                    logger.debug(f"✅ Close ontvangen voor reqId {rid}")
             self.all_data_event.set()
             return
 

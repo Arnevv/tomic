@@ -20,31 +20,41 @@ def _contract_repr(contract: Contract) -> str:
     ).strip()
 
 
-def fetch_historical_iv(contract: Contract) -> float | None:
-    """Return the last implied volatility for ``contract`` using historical data."""
+def fetch_historical_option_data(
+    contracts: dict[int, Contract], *, what: str = "TRADES"
+) -> dict[int, dict[str, float | None]]:
+    """Return last IV and close price for provided contracts."""
 
-    # Use a unique client ID to avoid clashes with existing connections. When
-    # running tests, ``connect_ib`` may be patched with a simple stub that does
-    # not accept the ``unique`` keyword, so fall back gracefully if needed.
     try:
         app = connect_ib(unique=True)
     except TypeError:
         app = connect_ib()
     except Exception as exc:  # pragma: no cover - safety for missing stub
-        logger.debug(
-            "connect_ib failed for %s: %s", _contract_repr(contract), exc
-        )
-        return None
-    iv: float | None = None
+        logger.debug("connect_ib failed for bulk request: %s", exc)
+        return {rid: {"iv": None, "close": None} for rid in contracts}
+
+    results: dict[int, dict[str, float | None]] = {
+        rid: {"iv": None, "close": None} for rid in contracts
+    }
+    req_map: dict[int, tuple[int, str, Contract]] = {}
+    pending: set[int] = set()
     done = threading.Event()
+    lock = threading.Lock()
 
     def hist(self, reqId: int, bar) -> None:  # noqa: N802 - IB callback
-        nonlocal iv
-        if getattr(bar, "close", None) not in (None, -1):
-            iv = bar.close
+        with lock:
+            info = req_map.get(reqId)
+            if not info:
+                return
+            rid, key, con = info
+            if getattr(bar, "close", None) not in (None, -1):
+                results[rid][key] = bar.close
 
     def hist_end(self, reqId: int, start: str, end: str) -> None:  # noqa: N802
-        done.set()
+        with lock:
+            pending.discard(reqId)
+            if not pending:
+                done.set()
 
     app.historicalData = MethodType(hist, app)
     app.historicalDataEnd = MethodType(hist_end, app)
@@ -59,11 +69,13 @@ def fetch_historical_iv(contract: Contract) -> float | None:
         errorTime: int | None = None,
         advancedOrderRejectJson: str | None = None,
     ) -> None:
-        if errorCode in (200, 162):
+        info = req_map.get(reqId)
+        con = info[2] if info else None
+        if errorCode in (200, 162) and con:
             logger.debug(
                 "reqHistoricalData error %s for %s: %s",
                 errorCode,
-                _contract_repr(contract),
+                _contract_repr(con),
                 errorString,
             )
         orig_error(reqId, errorCode, errorString, errorTime, advancedOrderRejectJson)
@@ -71,14 +83,24 @@ def fetch_historical_iv(contract: Contract) -> float | None:
     app.error = MethodType(hist_error, app)
 
     query_time = datetime.now().strftime("%Y%m%d-%H:%M:%S")
-    logger.debug(
-        "reqHistoricalData sent: reqId=1, contract=%s, query_time=%s, duration=1 D, barSize=1 day, what=OPTION_IMPLIED_VOLATILITY",
-        _contract_repr(contract),
-        query_time,
-    )
-    try:
+    next_id = 1
+    for rid, contract in contracts.items():
+        iv_id = next_id
+        next_id += 1
+        close_id = next_id
+        next_id += 1
+        req_map[iv_id] = (rid, "iv", contract)
+        req_map[close_id] = (rid, "close", contract)
+        pending.add(iv_id)
+        pending.add(close_id)
+        logger.debug(
+            "reqHistoricalData sent: reqId=%s, contract=%s, query_time=%s, duration=1 D, barSize=1 day, what=OPTION_IMPLIED_VOLATILITY",
+            iv_id,
+            _contract_repr(contract),
+            query_time,
+        )
         app.reqHistoricalData(
-            1,
+            iv_id,
             contract,
             query_time,
             "1 D",
@@ -89,19 +111,41 @@ def fetch_historical_iv(contract: Contract) -> float | None:
             False,
             [],
         )
-        done.wait(10)
-    except Exception as exc:  # pragma: no cover - safety for missing stub
         logger.debug(
-            "reqHistoricalData failed for %s: %s",
+            "reqHistoricalData sent: reqId=%s, contract=%s, query_time=%s, duration=1 D, barSize=1 day, what=%s",
+            close_id,
             _contract_repr(contract),
-            exc,
+            query_time,
+            what,
         )
-    finally:
-        try:
-            app.disconnect()
-        except Exception:
-            pass
-    return iv
+        app.reqHistoricalData(
+            close_id,
+            contract,
+            query_time,
+            "1 D",
+            "1 day",
+            what,
+            0,
+            1,
+            False,
+            [],
+        )
+
+    done.wait(10)
+
+    try:
+        app.disconnect()
+    except Exception:
+        pass
+
+    return results
 
 
-__all__ = ["fetch_historical_iv"]
+def fetch_historical_iv(contract: Contract) -> float | None:
+    """Return the last implied volatility for ``contract`` using historical data."""
+
+    res = fetch_historical_option_data({1: contract})
+    return res.get(1, {}).get("iv")
+
+
+__all__ = ["fetch_historical_iv", "fetch_historical_option_data"]
