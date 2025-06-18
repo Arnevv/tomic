@@ -146,8 +146,9 @@ def _write_option_chain(
                     raise ValueError("invalid mid")
                 exp_date = datetime.strptime(str(expiry), "%Y%m%d").date()
                 t = max((exp_date - today).days, 0) / 365
-                parity = (call_mid - put_mid) - (
-                    app.spot_price - strike * math.exp(-r * t)
+                parity = abs(
+                    (call_mid - put_mid)
+                    - (app.spot_price - strike * math.exp(-r * t))
                 )
                 parity = round(parity, 4)
             except Exception:
