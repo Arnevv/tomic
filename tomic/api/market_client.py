@@ -444,6 +444,7 @@ class OptionChainClient(MarketClient):
         self._invalid_timers: dict[int, threading.Timer] = {}
         self._use_snapshot: bool = False
         self._retry_rounds = int(cfg_get("OPTION_DATA_RETRIES", 0))
+        self._request_retries: dict[int, int] = {}
 
     def _log_step9_start(self) -> None:
         """Log the start of step 9 with a summary of received contract details."""
@@ -464,6 +465,7 @@ class OptionChainClient(MarketClient):
                 self.cancelMktData(req_id)
             except Exception:
                 pass
+            self._request_retries.pop(req_id, None)
             self._completed_requests.add(req_id)
             if (
                 self.expected_contracts
@@ -481,23 +483,34 @@ class OptionChainClient(MarketClient):
             evt.set()
         self._mark_complete(req_id)
 
+    def _retry_or_invalidate(self, req_id: int) -> None:
+        """Retry a request when retries remain; otherwise invalidate it."""
+        retries = self._request_retries.get(req_id, 0)
+        if retries > 0:
+            self._request_retries[req_id] = retries - 1
+            self.retry_incomplete_requests([req_id], wait=False)
+        else:
+            self._invalidate_request(req_id)
+
     def _cancel_invalid_timer(self, req_id: int) -> None:
         with self.data_lock:
             timer = self._invalid_timers.pop(req_id, None)
             if timer is not None:
                 timer.cancel()
+            self._request_retries.pop(req_id, None)
 
     def _schedule_invalid_timer(self, req_id: int) -> None:
         timeout = cfg_get("BID_ASK_TIMEOUT", 5)
         if timeout <= 0:
-            self._invalidate_request(req_id)
+            self._retry_or_invalidate(req_id)
             return
-        timer = threading.Timer(timeout, self._invalidate_request, args=[req_id])
+        timer = threading.Timer(timeout, self._retry_or_invalidate, args=[req_id])
         timer.daemon = True
         with self.data_lock:
             if req_id in self._invalid_timers:
                 return
             self._invalid_timers[req_id] = timer
+            self._request_retries.setdefault(req_id, self._retry_rounds)
             timer.start()
 
     def incomplete_requests(self) -> list[int]:
@@ -511,10 +524,13 @@ class OptionChainClient(MarketClient):
                 and any(rec.get(k) is None for k in required)
             ]
 
-    def retry_incomplete_requests(self) -> bool:
+    def retry_incomplete_requests(
+        self, ids: list[int] | None = None, *, wait: bool = True
+    ) -> bool:
         """Re-request market data for incomplete option contracts."""
-        wait = int(cfg_get("OPTION_RETRY_WAIT", 1))
-        ids = self.incomplete_requests()
+        wait_time = int(cfg_get("OPTION_RETRY_WAIT", 1)) if wait else 0
+        if ids is None:
+            ids = self.incomplete_requests()
         if not ids:
             return False
         logger.info(f"🔄 Retry for {len(ids)} incomplete contracts")
@@ -550,8 +566,8 @@ class OptionChainClient(MarketClient):
                 generic = ",".join(ticks)
             self.reqMktData(rid, con, generic, use_snapshot, False, [])
             self._schedule_invalid_timer(rid)
-        if wait > 0:
-            time.sleep(wait)
+        if wait_time > 0:
+            time.sleep(wait_time)
         self.all_data_event.clear()
         return True
 
@@ -1248,6 +1264,7 @@ def await_market_data(app: MarketClient, symbol: str, timeout: int = 30) -> bool
     """
     start = time.time()
     retries = int(cfg_get("OPTION_DATA_RETRIES", 0)) if isinstance(app, OptionChainClient) else 0
+    interval = 1
 
     while time.time() - start < timeout:
         remaining = timeout - (time.time() - start)
@@ -1258,7 +1275,11 @@ def await_market_data(app: MarketClient, symbol: str, timeout: int = 30) -> bool
         else:
             event = getattr(app, "market_event", app.data_event)
 
-        event.wait(remaining)
+        wait_time = min(interval, remaining)
+        event.wait(wait_time)
+        if not event.is_set():
+            event.clear()
+            continue
 
         if isinstance(app, OptionChainClient):
             if (
@@ -1266,7 +1287,7 @@ def await_market_data(app: MarketClient, symbol: str, timeout: int = 30) -> bool
                 and app.spot_price is not None
             ):
                 if retries > 0 and app.incomplete_requests():
-                    app.retry_incomplete_requests()
+                    app.retry_incomplete_requests(wait=False)
                     retries -= 1
                     start = time.time()
                     continue
