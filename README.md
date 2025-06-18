@@ -22,7 +22,7 @@ pip install -r requirements.txt
 
 Start TWS / IB Gateway
 
-Zorg dat TWS actief is op poort 7497.
+Zorg dat TWS actief is op poort 7497 voor paper trading of 7496 voor live trading.
 
 Test de verbinding
 python tests/test_ib_connection.py
@@ -34,41 +34,6 @@ python tomic/cli/controlpanel.py
 Wacht na het verbinden tot de callback `nextValidId()` is aangeroepen voordat
 je verzoeken naar TWS stuurt. Pas dan is de client klaar om orders of
 marktdata-opvragingen te verwerken.
-
-- Stel bovendien exchange correct in:
-  `contract.exchange = "SMART"` of de gewenste beurs.
-- Voor spotprijzen en optiedata hanteert TOMIC bij een open markt `reqMarketDataType(1)` (live). 
-- Als de markt dicht is, switcht TOMIC naar snapshots en `reqMarketDataType(2)`. TOMIC accepteert
-  dat er geen OI en volume is bij snapshots.
-- Bij het ophalen van `ContractDetails` wordt nu `timeZoneId` opgeslagen en
-  wordt de server tijd omgezet naar de juiste markt-tijdzone voordat de
-  openingsstatus wordt bepaald.
-- Ontvangt de client binnen `SPOT_TIMEOUT` geen tick, dan wordt de melding
-  "No tick received within …; waiting short grace period" gelogd en wacht de
-  client circa 1,5 s op de snapshot voor het programma verdergaat.
-- Komt er wel BID/ASK binnen maar geen geldige LAST, dan blijft de wachlus
-  actief tot de timeout en wordt daarna de fallback-spotprijs toegepast zodat
-  `OptionChainClient` niet blijft hangen.
-- Is de optieketen groot? Verleng dan de wachttijd met `MARKET_DATA_TIMEOUT`.
-- Optieketen selectie: de eerste 4 expiries en strikes binnen ±50 punten van de
-  afgeronde spotprijs (aanpasbaar via `STRIKE_RANGE`). Opties met een delta
-  buiten de grenzen `DELTA_MIN` en `DELTA_MAX` worden genegeerd.
-- Deel je een `MarketClient`-instantie tussen taken? Gebruik de interne
-  `data_lock` (``threading.RLock``) om toegang tot ``market_data`` te beveiligen
-  en om invalidatie-timers in sync te houden. De gewone ``_lock`` blijft nodig
-  om IB-aanroepen te serialiseren en wordt automatisch gebruikt door de async
-  helpers. Voorbeeld:
-
-  ```python
-  with client.data_lock:
-      price = client.spot_price
-  ```
-
-- De functies ``await_market_data`` en ``compute_iv_term_structure`` nemen
-  deze lock intern over. Ze kunnen daardoor veilig vanuit meerdere threads
-  worden aangeroepen. Andere helpers zoals ``export_csv`` verwachten dat je
-  zelf de verbinding verbreekt of de lock houdt tijdens het wegschrijven van
-  data.
 
 📂 Projectstructuur
 tomic/
@@ -91,6 +56,23 @@ terug opgehaald en in deze database opgeslagen.
 Alle configuratiefuncties gebruiken een interne lock. Zowel lezen via
 ``config.get()`` als schrijven met ``update()`` of ``reload()`` is hierdoor
 gesynchroniseerd en veilig vanaf meerdere threads.
+
+Deel je een `MarketClient`-instantie tussen taken? Gebruik de interne
+  `data_lock` (``threading.RLock``) om toegang tot ``market_data`` te beveiligen
+  en om invalidatie-timers in sync te houden. De gewone ``_lock`` blijft nodig
+  om IB-aanroepen te serialiseren en wordt automatisch gebruikt door de async
+  helpers. Voorbeeld:
+
+  ```python
+  with client.data_lock:
+      price = client.spot_price
+  ```
+
+De functies ``await_market_data`` en ``compute_iv_term_structure`` nemen
+deze lock intern over. Ze kunnen daardoor veilig vanuit meerdere threads
+worden aangeroepen. Andere helpers zoals ``export_csv`` verwachten dat je
+zelf de verbinding verbreekt of de lock houdt tijdens het wegschrijven van
+data.
 
 Extra opties in `config.yaml`:
 - `USE_HISTORICAL_IV_WHEN_CLOSED`: gebruik historische IV wanneer de markt
