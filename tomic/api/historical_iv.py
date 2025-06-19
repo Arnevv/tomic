@@ -133,7 +133,7 @@ def fetch_historical_option_data(
             [],
         )
 
-    done.wait(10)
+    done.wait(60)
 
     try:
         app.disconnect()
