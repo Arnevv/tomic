@@ -588,35 +588,15 @@ class OptionChainClient(MarketClient):
 
         with self.data_lock:
             for req_id, data in results.items():
-                contract = contracts.get(req_id)
-                if contract is None:
-                    continue
-                strike = getattr(contract, "strike", None)
-                expiry = getattr(contract, "lastTradeDateOrContractMonth", None)
-                right = getattr(contract, "right", None)
-
-                matches = [
-                    rid
-                    for rid, rec in self.market_data.items()
-                    if rec.get("strike") == strike
-                    and rec.get("expiry") == expiry
-                    and rec.get("right") == right
-                ]
-
-                if len(matches) > 1:
+                if req_id not in self.market_data:
                     logger.warning(
-                        "⚠️ meerdere market_data matches voor %s %s %s: %s",
-                        expiry,
-                        strike,
-                        right,
-                        matches,
+                        "⚠️ historical data for unknown reqId %s", req_id
                     )
+                    continue
 
-                target_ids = matches if matches else [req_id]
-                for rid in target_ids:
-                    rec = self.market_data.setdefault(rid, {})
-                    rec["iv"] = data.get("iv")
-                    rec["close"] = data.get("close")
+                rec = self.market_data[req_id]
+                rec["iv"] = data.get("iv")
+                rec["close"] = data.get("close")
 
     # IB callbacks ------------------------------------------------
     @log_result
