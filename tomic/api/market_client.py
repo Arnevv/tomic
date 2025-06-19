@@ -1204,7 +1204,14 @@ class OptionChainClient(MarketClient):
         if self.use_hist_iv:
             contracts = {rid: c for rid, c in contract_map.items()}
             bulk_results = fetch_historical_option_data(contracts)
-            self._merge_historical_data(contracts, bulk_results)
+            for req_id, result in bulk_results.items():
+                if req_id in self.market_data:
+                    self.market_data[req_id]["close"] = result.get("close")
+                    self.market_data[req_id]["iv"] = result.get("iv")
+                else:
+                    logger.warning(
+                        f"⚠️ req_id {req_id} uit historical_result niet gevonden in market_data"
+                    )
             self.all_data_event.set()
             return
 
