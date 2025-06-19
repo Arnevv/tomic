@@ -579,6 +579,45 @@ class OptionChainClient(MarketClient):
         """Return ``True`` when all requested option data has been received."""
         return self.all_data_event.is_set()
 
+    def _merge_historical_data(
+        self,
+        contracts: dict[int, Contract],
+        results: dict[int, dict[str, float | None]],
+    ) -> None:
+        """Merge IV and close from historical lookup into ``market_data``."""
+
+        with self.data_lock:
+            for req_id, data in results.items():
+                contract = contracts.get(req_id)
+                if contract is None:
+                    continue
+                strike = getattr(contract, "strike", None)
+                expiry = getattr(contract, "lastTradeDateOrContractMonth", None)
+                right = getattr(contract, "right", None)
+
+                matches = [
+                    rid
+                    for rid, rec in self.market_data.items()
+                    if rec.get("strike") == strike
+                    and rec.get("expiry") == expiry
+                    and rec.get("right") == right
+                ]
+
+                if len(matches) > 1:
+                    logger.warning(
+                        "⚠️ meerdere market_data matches voor %s %s %s: %s",
+                        expiry,
+                        strike,
+                        right,
+                        matches,
+                    )
+
+                target_ids = matches if matches else [req_id]
+                for rid in target_ids:
+                    rec = self.market_data.setdefault(rid, {})
+                    rec["iv"] = data.get("iv")
+                    rec["close"] = data.get("close")
+
     # IB callbacks ------------------------------------------------
     @log_result
     def contractDetails(self, reqId: int, details):  # noqa: N802
@@ -1185,16 +1224,7 @@ class OptionChainClient(MarketClient):
         if self.use_hist_iv:
             contracts = {rid: c for rid, c in contract_map.items()}
             bulk_results = fetch_historical_option_data(contracts)
-            for rid, result in bulk_results.items():
-                if rid not in self.market_data:
-                    self.market_data[rid] = {}
-
-                iv = result.get("iv")
-                close = result.get("close")
-
-                self.market_data[rid]["iv"] = iv
-                self.market_data[rid]["close"] = close
-
+            self._merge_historical_data(contracts, bulk_results)
             self.all_data_event.set()
             return
 
