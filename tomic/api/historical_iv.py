@@ -99,6 +99,7 @@ def fetch_historical_option_data(
             _contract_repr(contract),
             query_time,
         )
+        logger.debug(contract.__dict__)
         app.reqHistoricalData(
             iv_id,
             contract,
@@ -118,6 +119,7 @@ def fetch_historical_option_data(
             query_time,
             what,
         )
+        logger.debug(contract.__dict__)
         app.reqHistoricalData(
             close_id,
             contract,
