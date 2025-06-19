@@ -445,6 +445,7 @@ class OptionChainClient(MarketClient):
         self._use_snapshot: bool = False
         self._retry_rounds = int(cfg_get("OPTION_DATA_RETRIES", 0))
         self._request_retries: dict[int, int] = {}
+        self.use_hist_iv: bool = False
 
     def _log_step9_start(self) -> None:
         """Log the start of step 9 with a summary of received contract details."""
@@ -515,7 +516,10 @@ class OptionChainClient(MarketClient):
 
     def incomplete_requests(self) -> list[int]:
         """Return request IDs missing essential market data."""
-        required = ["bid", "ask", "iv", "delta", "gamma", "vega", "theta"]
+        if self.use_hist_iv:
+            required = ["iv", "close"]
+        else:
+            required = ["bid", "ask", "iv", "delta", "gamma", "vega", "theta"]
         with self.data_lock:
             return [
                 rid
@@ -1113,7 +1117,7 @@ class OptionChainClient(MarketClient):
         with self.data_lock:
             self._completed_requests.clear()
         self._use_snapshot = not self.market_open
-        use_hist_iv = (
+        self.use_hist_iv = (
             not self.market_open
             and cfg_get("USE_HISTORICAL_IV_WHEN_CLOSED", False)
         )
@@ -1150,7 +1154,7 @@ class OptionChainClient(MarketClient):
                     logger.debug(
                         f"reqId for {c.symbol} {c.lastTradeDateOrContractMonth} {c.strike} {c.right} is {req_id}"
                     )
-                    if use_hist_iv:
+                    if self.use_hist_iv:
                         with self.data_lock:
                             self.market_data[req_id] = {
                                 "expiry": expiry,
@@ -1178,7 +1182,7 @@ class OptionChainClient(MarketClient):
                         with self.data_lock:
                             self.invalid_contracts.add(req_id)
                         self._mark_complete(req_id)
-        if use_hist_iv:
+        if self.use_hist_iv:
             contracts = {rid: c for rid, c in contract_map.items()}
             bulk_results = fetch_historical_option_data(contracts)
             for rid, result in bulk_results.items():
@@ -1293,11 +1297,12 @@ def await_market_data(app: MarketClient, symbol: str, timeout: int = 30) -> bool
             continue
 
         if isinstance(app, OptionChainClient):
+            hist = getattr(app, "use_hist_iv", False)
             if (
                 getattr(app, "all_data_event", event).is_set()
                 and app.spot_price is not None
             ):
-                if retries > 0 and app.incomplete_requests():
+                if not hist and retries > 0 and app.incomplete_requests():
                     app.retry_incomplete_requests(wait=False)
                     retries -= 1
                     start = time.time()
