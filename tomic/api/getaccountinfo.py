@@ -337,6 +337,7 @@ def fetch_historical_metrics(app: IBApp) -> None:
         queryTime = datetime.now().strftime("%Y%m%d-%H:%M:%S")
         req_id = app.market_req_id
         app.market_req_id += 1
+        logger.debug(contract.__dict__)
         app.reqHistoricalData(
             req_id,
             contract,

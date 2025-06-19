@@ -45,6 +45,7 @@ def _request_bars(app, symbol: str) -> Iterable[PriceRecord]:
     contract.currency = "USD"
 
     query_time = datetime.now().strftime("%Y%m%d-%H:%M:%S")
+    logger.debug(contract.__dict__)
     app.reqHistoricalData(
         1,
         contract,
