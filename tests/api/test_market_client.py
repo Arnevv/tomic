@@ -1154,3 +1154,44 @@ def test_request_option_data_historical(monkeypatch):
     assert client.all_data_event.is_set()
     assert all(r.get("iv") == 0.5 and r.get("close") == 1.2 for r in client.market_data.values())
 
+
+def test_await_market_data_historical_no_retry(monkeypatch):
+    mod = importlib.import_module("tomic.api.market_client")
+
+    def fake_cfg(name, default=None):
+        if name == "USE_HISTORICAL_IV_WHEN_CLOSED":
+            return True
+        if name == "OPTION_DATA_RETRIES":
+            return 1
+        return default
+
+    monkeypatch.setattr(mod, "cfg_get", fake_cfg)
+    monkeypatch.setattr(
+        mod,
+        "fetch_historical_option_data",
+        lambda m: {rid: {"iv": 0.4, "close": 1.1} for rid in m},
+    )
+
+    client = mod.OptionChainClient("ABC")
+    client.market_open = False
+    client.trading_class = "ABC"
+    client.expiries = ["20250101"]
+    client.strikes = [100.0]
+    client._strike_lookup = {100.0: 100.0}
+    client.option_params_complete.set()
+    client.spot_price = 10.0
+
+    client._request_option_data()
+
+    called = []
+    monkeypatch.setattr(
+        client,
+        "retry_incomplete_requests",
+        lambda ids=None, wait=True: called.append(ids),
+    )
+
+    ok = mod.await_market_data(client, "ABC", timeout=0.1)
+
+    assert ok is True
+    assert called == []
+
