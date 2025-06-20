@@ -60,6 +60,10 @@ def _request_bars(app, symbol: str) -> Iterable[PriceRecord]:
         [],
     )
     app.hist_event.wait(10)
+    if not app.historical_data:
+        logger.error(f"⚠️ Geen koersdata ontvangen voor {symbol}")
+        return []
+
     records = [
         PriceRecord(
             symbol=symbol,
@@ -82,14 +86,18 @@ def main(argv: List[str] | None = None) -> None:
 
     conn = init_db(cfg_get("VOLATILITY_DB", "data/volatility.db"))
     app = connect_ib()
+    stored = 0
     try:
         for sym in symbols:
             records = list(_request_bars(app, sym))
+            if not records:
+                continue
             save_price_history(conn, records)
+            stored += 1
     finally:
         app.disconnect()
         conn.close()
-    logger.success("✅ Historische prijzen opgeslagen")
+    logger.success(f"✅ Historische prijzen opgeslagen voor {stored} symbolen")
 
     # Immediately compute volatility statistics for the fetched symbols
     compute_volstats_main(symbols)

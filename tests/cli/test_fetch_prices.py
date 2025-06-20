@@ -39,3 +39,30 @@ def test_fetch_prices_main(monkeypatch):
     mod.main(["ABC"])
     assert captured
     assert called and called[0] == ["ABC"]
+
+
+def test_fetch_prices_no_data(monkeypatch):
+    mod = importlib.import_module("tomic.cli.fetch_prices")
+
+    conn = types.SimpleNamespace(close=lambda: None)
+    monkeypatch.setattr(mod, "init_db", lambda path: conn)
+
+    captured = []
+    monkeypatch.setattr(mod, "save_price_history", lambda c, recs: captured.append(recs))
+
+    class FakeApp:
+        def __init__(self):
+            self.next_valid_id = 1
+            self.disconnected = False
+
+        def reqHistoricalData(self, *a, **k):
+            self.historicalDataEnd(1, "", "")
+
+        def disconnect(self):
+            self.disconnected = True
+
+    monkeypatch.setattr(mod, "connect_ib", lambda: FakeApp())
+    monkeypatch.setattr(mod, "compute_volstats_main", lambda syms: None)
+
+    mod.main(["XYZ"])
+    assert not captured
