@@ -95,8 +95,8 @@ Na verbinding wordt gecontroleerd of de markt momenteel geopend is:
 📌 Extra logica: tijdzone van de markt wordt uit contractDetails.timeZoneId gehaald en meegegeven aan alle tijdsberekeningen.
 
 3. Spot price ophalen
-De actuele spotprijs wordt opgevraagd met reqMktData() voor het onderliggende aandeel.
-Indien geen geldige ticks worden ontvangen binnen de timeout, wordt een fallback gebruikt: fetch_volatility_metrics() (webscrape).
+De actuele spotprijs wordt opgevraagd met reqMktData() voor het onderliggende aandeel. Het doel van het ophalen van deze spotprice is het
+kunnen bepalen van de strikerange. Indien geen geldige ticks worden ontvangen binnen de timeout, wordt een fallback gebruikt: fetch_volatility_metrics() (webscrape).
 📌 Snapshot fallback (data_type = 2) wordt automatisch gebruikt als de markt gesloten is.
 
 4. ContractDetails ophalen voor de underlying
@@ -108,7 +108,6 @@ Zodra de conId bekend is én een spotprijs beschikbaar is, worden optieparameter
 - Verkrijgbaar via securityDefinitionOptionParameter()
 - Bevat alle mogelijke expiries en strikes.
 Er wordt gefilterd op basis van: Minimale DTE (bijv. 15 dagen), Aantal reguliere en wekelijkse expiries (bijv. 3 + 4) en Strike-afstand tot spot (±10 punten of uit config)
-
 📌 Deze stap kan falen als de spotprijs niet tijdig beschikbaar is.
 
 6. Selectie van relevante expiries en strikes
@@ -118,14 +117,14 @@ De gegenereerde expiries en strikes worden gefilterd en gelogd:
 - Het totaal aantal optiecombinaties wordt berekend.
 
 7. Bouwen van optiecontracten en opvragen van contractdetails
-Voor elke combinatie van expiry × strike × {Call, Put} wordt een OptionContract opgebouwd en reqContractDetails() aangeroepen.
-Een Semaphore beperkt het aantal parallelle verzoeken (bijv. 5 tegelijk).
+Voor elke combinatie van expiry × strike × {Call, Put} wordt een OptionContract opgebouwd en reqContractDetails() aangeroepen om een conId terug te krijgen.
+Een Semaphore beperkt het aantal parallelle verzoeken (bijv. 5 tegelijk). 
 
 📌 Als USE_HISTORICAL_IV_WHEN_CLOSED actief is, worden Greeks overgeslagen en wordt voor alle contracts de laatste IV en close opgehaald via fetch_historical_option_data().
 
 8. Callback op contractDetails() voor elke optie
-Zodra contractdetails zijn ontvangen voor een optiecontract, wordt direct reqMktData() gestuurd om live data (bid/ask/Greeks) op te halen.
-De contractinfo wordt gelogd en opgeslagen. 
+Op dit moment krijgt TOMIC een volledig gevuld contract terug, inclusief conID. Zodra contractdetails zijn ontvangen voor een optiecontract, wordt direct reqMktData() gestuurd 
+om live data (bid/ask/Greeks) op te halen. De contractinfo wordt gelogd en opgeslagen. 
 
 TODO: uitwerken hoe dit werkt als USE_HISTORICAL_IV_WHEN_CLOSED actief is.
 
@@ -134,7 +133,7 @@ TODO: uitwerken hoe dit werkt als USE_HISTORICAL_IV_WHEN_CLOSED actief is.
 9. Ontvangen van market data (Greeks, bid/ask) en filtering
 In deze stap wordt alle inkomende marktdata verzameld en opgeslagen:
 - Prijzen: Bid, Ask, Close (bid/ask als de markt open is en close of last als de markt gesloten is)
-- IV
+- IV (bij zowel markt open als markt dicht)
 - Greeks: Delta, Gamma, Vega, Theta (alleen als de markt open is, als de markt dicht is, dan is deze info niet beschikbaar)
 - Open Interest & Volume (dit werkt nog niet, moet nog goed worden geimplementeerd)
 
