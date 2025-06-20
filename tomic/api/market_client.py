@@ -419,6 +419,8 @@ class OptionChainClient(MarketClient):
         self.trading_class: str | None = None
         self.strikes: list[float] = []
         self._strike_lookup: dict[float, float] = {}
+        self._exp_strike_lookup: dict[str, dict[float, float]] = {}
+        self._expiry_min_tick: dict[str, float] = {}
         self.weeklies: list[str] = []
         self.monthlies: list[str] = []
         self.multiplier: str = "100"
@@ -659,6 +661,14 @@ class OptionChainClient(MarketClient):
             if info is not None:
                 info.con_id = con.conId
                 self.con_ids[(info.expiry, info.strike, info.right)] = con.conId
+                min_tick = getattr(details, "minTick", None)
+                if min_tick and info.expiry not in self._expiry_min_tick:
+                    self._expiry_min_tick[info.expiry] = float(min_tick)
+                    lookup = {}
+                    for s in self.strikes:
+                        adj = round(round(s / min_tick) * min_tick, 10)
+                        lookup[s] = adj
+                    self._exp_strike_lookup[info.expiry] = lookup
             # Log contract fields returned by IB before requesting market data
             logger.debug(
                 f"Using contract for reqId={reqId}: "
@@ -845,6 +855,8 @@ class OptionChainClient(MarketClient):
             allowed = [s for s in sorted(strikes) if abs(s - center) <= stddev]
         self.strikes = allowed
         self._strike_lookup = {s: s for s in allowed}
+        self._exp_strike_lookup = {}
+        self._expiry_min_tick = {}
         logger.info(
             f"✅ [stap 6] Geselecteerde strikes: {', '.join(str(s) for s in self.strikes)}"
         )
@@ -1244,7 +1256,9 @@ class OptionChainClient(MarketClient):
         contract_map: dict[int, Contract] = {}
         for expiry in self.expiries:
             for strike in self.strikes:
-                actual = self._strike_lookup.get(strike, strike)
+                actual = self._exp_strike_lookup.get(expiry, {}).get(
+                    strike, self._strike_lookup.get(strike, strike)
+                )
                 for right in ("C", "P"):
                     info = OptionContract(
                         self.symbol,

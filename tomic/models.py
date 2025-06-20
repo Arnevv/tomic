@@ -38,7 +38,8 @@ class OptionContract:
         contract.strike = self.strike
         contract.right = self.right
         contract.multiplier = self.multiplier
-        contract.conId = self.con_id or 0
+        if self.con_id is not None:
+            contract.conId = self.con_id
         if not self.trading_class:
             logger.warning(
                 f"⚠️ tradingClass ontbreekt voor {self.symbol} - fallback naar {self.symbol.upper()}"
