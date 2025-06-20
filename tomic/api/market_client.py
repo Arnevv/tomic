@@ -11,6 +11,7 @@ option contracts so that requests match the underlying's market data.
 import asyncio
 import threading
 import time
+import math
 from datetime import datetime, timedelta, timezone, tzinfo
 from zoneinfo import ZoneInfo
 from typing import Any, Dict
@@ -771,6 +772,7 @@ class OptionChainClient(MarketClient):
             return
 
         strike_range = int(cfg_get("STRIKE_RANGE", 10))
+        stddev_mult = float(cfg_get("STRIKE_STDDEV_MULTIPLIER", 1.0))
         if not self._step6_logged:
             logger.info(
                 f"▶️ START stap 6 - Selectie van relevante expiries + strikes (binnen ±{strike_range} pts spot)"
@@ -804,11 +806,41 @@ class OptionChainClient(MarketClient):
             self.expiries = exp_list[: reg_count + week_count]
         logger.info(f"✅ [stap 6] Geselecteerde expiries: {', '.join(self.expiries)}")
 
+        self.trading_class = tradingClass
+
         center = self.spot_price or 0.0
-        allowed = [s for s in sorted(strikes) if abs(s - center) <= strike_range]
+        atm_expiry = None
+        today_date = today()
+        for exp in monthlies:
+            try:
+                dte = (datetime.strptime(exp, "%Y%m%d").date() - today_date).days
+            except Exception:
+                continue
+            if dte > 15:
+                atm_expiry = exp
+                break
+
+        atm_strike = min(strikes, key=lambda x: abs(x - center)) if strikes else None
+        iv = None
+        stddev = None
+        if atm_expiry and atm_strike is not None:
+            logger.info(
+                f"IV bepaling via expiry {atm_expiry} en ATM strike {atm_strike}"
+            )
+            iv = self._fetch_iv_for_expiry(atm_expiry, atm_strike)
+            if iv is not None:
+                dte = (datetime.strptime(atm_expiry, "%Y%m%d").date() - today_date).days
+                stddev = center * iv * math.sqrt(dte / 365) * stddev_mult
+                logger.info(
+                    f"IV ontvangen: {iv} -> stddev {stddev:.2f} (multiplier {stddev_mult})"
+                )
+        if iv is None or stddev is None:
+            logger.debug("IV niet beschikbaar, fallback naar STRIKE_RANGE")
+            allowed = [s for s in sorted(strikes) if abs(s - center) <= strike_range]
+        else:
+            allowed = [s for s in sorted(strikes) if abs(s - center) <= stddev]
         self.strikes = allowed
         self._strike_lookup = {s: s for s in allowed}
-        self.trading_class = tradingClass
         logger.info(
             f"✅ [stap 6] Geselecteerde strikes: {', '.join(str(s) for s in self.strikes)}"
         )
@@ -1124,6 +1156,61 @@ class OptionChainClient(MarketClient):
             )
 
         return False
+
+    def _fetch_iv_for_expiry(self, expiry: str, strike: float) -> float | None:
+        """Return implied volatility for the specified ATM option.
+
+        This helper builds a temporary option contract and waits briefly for
+        ``tickOptionComputation`` data. When no data is received or the client
+        is not connected, ``None`` is returned.
+        """
+
+        if not getattr(self, "isConnected", lambda: False)():
+            return None
+
+        info = OptionContract(
+            self.symbol,
+            expiry,
+            strike,
+            "C",
+            exchange=self.options_exchange,
+            trading_class=self.trading_class or self.symbol,
+            primary_exchange=self.options_primary_exchange,
+            multiplier=self.multiplier,
+        )
+
+        req_id = self._next_id()
+        self._pending_details[req_id] = info
+        with self.data_lock:
+            self.market_data[req_id] = {}
+        self._detail_semaphore.acquire()
+        if not self._request_contract_details(info.to_ib(), req_id):
+            self._pending_details.pop(req_id, None)
+            with self.data_lock:
+                self.market_data.pop(req_id, None)
+            self._detail_semaphore.release()
+            return None
+
+        start = time.time()
+        iv = None
+        timeout = 5
+        while time.time() - start < timeout:
+            with self.data_lock:
+                iv = self.market_data.get(req_id, {}).get("iv")
+            if iv is not None:
+                break
+            time.sleep(0.1)
+
+        try:
+            self.cancelMktData(req_id)
+        except Exception:
+            pass
+        with self.data_lock:
+            self.market_data.pop(req_id, None)
+        self.option_info.pop(req_id, None)
+        self.invalid_contracts.discard(req_id)
+        self._completed_requests.discard(req_id)
+        return iv
 
     @log_result
     def _request_option_data(self) -> None:
