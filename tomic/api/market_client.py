@@ -824,20 +824,20 @@ class OptionChainClient(MarketClient):
         iv = None
         stddev = None
         if atm_expiry and atm_strike is not None:
-            logger.debug(
+            logger.info(
                 f"IV bepaling via expiry {atm_expiry} en ATM strike {atm_strike}"
             )
             iv = self._fetch_iv_for_expiry(atm_expiry, atm_strike)
             if iv is not None:
                 dte = (datetime.strptime(atm_expiry, "%Y%m%d").date() - today_date).days
                 stddev = center * iv * math.sqrt(dte / 365) * stddev_mult
+                logger.info(
+                    f"IV ontvangen: {iv} -> stddev {stddev:.2f} (multiplier {stddev_mult})"
+                )
         if iv is None or stddev is None:
             logger.debug("IV niet beschikbaar, fallback naar STRIKE_RANGE")
             allowed = [s for s in sorted(strikes) if abs(s - center) <= strike_range]
         else:
-            logger.info(
-                f"IV ontvangen: {iv} -> stddev {stddev:.2f} (multiplier {stddev_mult})"
-            )
             allowed = [s for s in sorted(strikes) if abs(s - center) <= stddev]
         self.strikes = allowed
         self._strike_lookup = {s: s for s in allowed}
@@ -1186,6 +1186,9 @@ class OptionChainClient(MarketClient):
         self._detail_semaphore.acquire()
         if not self._request_contract_details(info.to_ib(), req_id):
             self._pending_details.pop(req_id, None)
+            with self.data_lock:
+                self.market_data.pop(req_id, None)
+            self._detail_semaphore.release()
             return None
 
         start = time.time()
