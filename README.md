@@ -124,16 +124,19 @@ Een Semaphore beperkt het aantal parallelle verzoeken (bijv. 5 tegelijk).
 📌 Als USE_HISTORICAL_IV_WHEN_CLOSED actief is, worden Greeks overgeslagen en wordt voor alle contracts de laatste IV en close opgehaald via fetch_historical_option_data().
 
 8. Callback op contractDetails() voor elke optie
-Zodra contractdetails zijn ontvangen voor een optiecontract, wordt direct reqMktData() gestuurd om live of snapshot data (bid/ask/Greeks) op te halen.
-De contractinfo wordt gelogd en opgeslagen.
+Zodra contractdetails zijn ontvangen voor een optiecontract, wordt direct reqMktData() gestuurd om live data (bid/ask/Greeks) op te halen.
+De contractinfo wordt gelogd en opgeslagen. 
+
+TODO: uitwerken hoe dit werkt als USE_HISTORICAL_IV_WHEN_CLOSED actief is.
 
 📌 Dezelfde data_type wordt gebruikt als succesvol was bij spot price (1=realtime, 2=frozen).
 
 9. Ontvangen van market data (Greeks, bid/ask) en filtering
 In deze stap wordt alle inkomende marktdata verzameld en opgeslagen:
-- Greeks: IV, Delta, Gamma, Vega, Theta
-- Prijzen: Bid, Ask, Close
-- Open Interest & Volume
+- Prijzen: Bid, Ask, Close (bid/ask als de markt open is en close of last als de markt gesloten is)
+- IV
+- Greeks: Delta, Gamma, Vega, Theta (alleen als de markt open is, als de markt dicht is, dan is deze info niet beschikbaar)
+- Open Interest & Volume (dit werkt nog niet, moet nog goed worden geimplementeerd)
 
 Contracten met delta buiten bereik (DELTA_MIN en DELTA_MAX) worden gemarkeerd als ongeldig.
 Verzoeken zonder geldige data worden herhaald volgens OPTION_DATA_RETRIES, met een timeout per poging (BID_ASK_TIMEOUT).
