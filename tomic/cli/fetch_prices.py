@@ -43,6 +43,7 @@ def _request_bars(app, symbol: str) -> Iterable[PriceRecord]:
     contract.exchange = cfg_get("UNDERLYING_EXCHANGE", "SMART")
     contract.primaryExchange = cfg_get("UNDERLYING_PRIMARY_EXCHANGE", "ARCA")
     contract.currency = "USD"
+    contract.includeExpired = True
 
     query_time = datetime.now().strftime("%Y%m%d-%H:%M:%S")
     logger.debug(contract.__dict__)
