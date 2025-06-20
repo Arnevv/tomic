@@ -580,6 +580,10 @@ def test_request_skips_without_details(monkeypatch):
     client.strikes = [100.0]
     client._strike_lookup = {100.0: 100.0}
     client.option_params_complete.set()
+    client.expected_contracts = len(client.expiries) * len(client.strikes) * 2
+    client.expected_contracts = len(client.expiries) * len(client.strikes) * 2
+    client.expected_contracts = len(client.expiries) * len(client.strikes) * 2
+    client.expected_contracts = len(client.expiries) * len(client.strikes) * 2
 
     calls = []
 
@@ -1134,19 +1138,32 @@ def test_request_option_data_historical(monkeypatch):
     )
     called = {}
 
-    def fake_fetch(map):
+    def fake_fetch(map, app=None):
         called['map'] = map
+        called['app'] = app
+        assert all(getattr(c, 'conId', 0) for c in map.values())
         return {rid: {"iv": 0.5, "close": 1.2} for rid in map}
 
     monkeypatch.setattr(mod, "fetch_historical_option_data", fake_fetch)
 
     client = mod.OptionChainClient("ABC")
+
+    def fake_reqContractDetails(req_id, contract):
+        contract.conId = req_id + 100
+        details = types.SimpleNamespace(contract=contract)
+        client.contractDetails(req_id, details)
+        client.contractDetailsEnd(req_id)
+
+    monkeypatch.setattr(client, "reqContractDetails", fake_reqContractDetails, raising=False)
+    monkeypatch.setattr(client, "reqMktData", lambda *a, **k: None, raising=False)
+    monkeypatch.setattr(client, "reqMarketDataType", lambda *a, **k: None, raising=False)
     client.market_open = False
     client.trading_class = "ABC"
     client.expiries = ["20250101"]
     client.strikes = [100.0]
     client._strike_lookup = {100.0: 100.0}
     client.option_params_complete.set()
+    client.expected_contracts = len(client.expiries) * len(client.strikes) * 2
 
     client._request_option_data()
 
@@ -1169,7 +1186,7 @@ def test_await_market_data_historical_no_retry(monkeypatch):
     monkeypatch.setattr(
         mod,
         "fetch_historical_option_data",
-        lambda m: {rid: {"iv": 0.4, "close": 1.1} for rid in m},
+        lambda m, app=None: {rid: {"iv": 0.4, "close": 1.1} for rid in m},
     )
 
     client = mod.OptionChainClient("ABC")
@@ -1180,6 +1197,12 @@ def test_await_market_data_historical_no_retry(monkeypatch):
     client._strike_lookup = {100.0: 100.0}
     client.option_params_complete.set()
     client.spot_price = 10.0
+    client.expected_contracts = len(client.expiries) * len(client.strikes) * 2
+
+    monkeypatch.setattr(client, "_request_contract_details", lambda c, r: True)
+    monkeypatch.setattr(client, "reqContractDetails", lambda *a, **k: None, raising=False)
+    monkeypatch.setattr(client, "reqMktData", lambda *a, **k: None, raising=False)
+    monkeypatch.setattr(client, "reqMarketDataType", lambda *a, **k: None, raising=False)
 
     client._request_option_data()
 
