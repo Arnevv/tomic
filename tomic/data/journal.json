@@ -313,5 +313,72 @@
       "Gamma": -0.007,
       "Vega": 0.454
     }
+  },
+  {
+    "TradeID": "6",
+    "DatumIn": "2025-06-20",
+    "DatumUit": null,
+    "Symbool": "MSFT",
+    "Type": "Iron Butterfly",
+    "Expiry": "2025-07-18",
+    "Richting": "Sideways",
+    "Status": "Open",
+    "Premium": 7.92,
+    "EntryPrice": 7.92,
+    "ExitPrice": null,
+    "ReturnOnMargin": null,
+    "InitMargin": 208,
+    "StopPct": 210,
+    "IV_Entry": 17.95,
+    "HV_Entry": 12.79,
+    "IV_Rank": 3.92,
+    "IV_Percentile": 9.0,
+    "VIX": 0.0,
+    "ATR_14": 20.0,
+    "Skew": -0.3,
+    "Spot": 478.81,
+    "DaysInTrade": null,
+    "Plan": "| Kenmerk           | Waarde                   |\n|-------------------|--------------------------|\n| Short call        | 480                      |\n| Short put         | 480                      |\n| Long call         | 490                      |\n| Long put          | 470                      |\n| Netto premie      | $7.92                    |\n| Max verlies       | \u2013$208.00                 |\n| Verwachte waarde  | Winst bij stilstand rond 480 |\n\n| Greek               | Betekenis                                                                                 |\n|--------------------|-------------------------------------------------------------------------------------------|\n| \u2705 **Delta ~0.00**     | Neutraal: de trade verdient bij stilstand rond de midden-strike                        |\n| \u2705 **Theta +0.14**     | Tijd werkt in je voordeel: je profiteert dagelijks van premie-erosie rond 480         |\n| \u26a0\ufe0f **Vega \u20130.12**      | Je verliest bij stijgende implied volatility (IV is nu al relatief laag)               |\n| \u2705 **Gamma \u00b10.10**     | Je hebt beperkte gamma: stabiele risk zolang spot rond ATM blijft                      |\n",
+    "Reden": "Waarom dit werkt:\n- MSFT staat momenteel rond $480 met lage implied volatility (IV \u2248 17%) en beperkte prijsactie\n- De gekozen Iron Butterfly verkoopt dure tijdswaarde op de ATM-strike en koopt bescherming op \u00b110 punten afstand\n- De totale ontvangen premie ($7.92) zorgt voor een zeer gunstige risk/reward (3.8\u00d7) met max verlies van slechts $208\n- De IV Rank is laag (<15) \u2192 premie-opbouw mogelijk bij mean reversion\n- De skew is vlak \u2192 geen directional bias vanuit de volatility-structuur\n\n\u26a0\ufe0f Waarop letten:\n- Bij stijging van implied volatility \u2192 vega werkt tegen (maar beperkt)\n- Grote prijsbewegingen buiten 470\u2013490 kunnen risico verhogen\n- IV is momenteel laag: kans op beweging in VIX of earnings \u2192 extra waakzaamheid vereist",
+    "Exitstrategie": "\u274c Sluiten bij verlies:\n- Als de waarde van de butterfly oploopt tot boven ~$10.00 (\u2248 \u2153 verlies t.o.v. max reward)\n- Of als MSFT fors buiten de range 470\u2013490 beweegt met momentum (gamma-risk)\n\n\u2705 Winstnemen:\n- Bij terugkoop rond $2.50 of lager (\u2248 65\u201370% winst)\n- Of als spot stabiliseert rond $480 en premie snel wegsmelt\n\n\ud83d\udfe1 Tijd-exit:\n- 5\u20137 dagen voor expiratie (rond 11\u201313 juli) evalueren op sluiten of doorrollen\n- Sluiten als theta wegvalt of IV toeneemt zonder prijsvoordeel",
+    "Evaluatie": null,
+    "Resultaat": null,
+    "Opmerkingen": "",
+    "Legs": [
+      {
+        "strike": 470.0,
+        "type": "PUT",
+        "action": "BUY",
+        "qty": 1,
+        "conId": 742180224
+      },
+      {
+        "strike": 480.0,
+        "type": "PUT",
+        "action": "SELL",
+        "qty": 1,
+        "conId": 742180408
+      },
+      {
+        "strike": 480.0,
+        "type": "CALL",
+        "action": "SELL",
+        "qty": 1,
+        "conId": 742177375
+      },
+      {
+        "strike": 490.0,
+        "type": "CALL",
+        "action": "BUY",
+        "qty": 1,
+        "conId": 742177520
+      }
+    ],
+    "Greeks_Entry": {
+      "Delta": -0.019,
+      "Gamma": -0.003,
+      "Vega": -0.075,
+      "Theta": 0.025
+    }
   }
 ]
