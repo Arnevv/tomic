@@ -37,6 +37,7 @@ def test_fetch_historical_iv(monkeypatch):
     result = mod.fetch_historical_iv(contract_stub)
     assert result == 0.25
 
-    res = mod.fetch_historical_option_data({1: contract_stub})
+    fake_app = FakeApp()
+    res = mod.fetch_historical_option_data({1: contract_stub}, app=fake_app)
     assert res[1]["iv"] == 0.25
     assert res[1]["close"] == 1.0
