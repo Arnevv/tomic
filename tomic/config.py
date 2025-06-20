@@ -58,6 +58,7 @@ class AppConfig(BaseModel):
     OPTIONS_EXCHANGE: str = "SMART"
     OPTIONS_PRIMARY_EXCHANGE: str = "ARCA"
     STRIKE_RANGE: int = 50
+    STRIKE_STDDEV_MULTIPLIER: float = 1.0
     AMOUNT_REGULARS: int = 3
     AMOUNT_WEEKLIES: int = 4
     FIRST_EXPIRY_MIN_DTE: int = 15
