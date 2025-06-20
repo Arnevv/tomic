@@ -49,3 +49,31 @@ def test_compute_volstats_main(monkeypatch):
     assert rec.hv60 == 0.2
     assert rec.hv90 == 0.3
 
+
+def test_compute_volstats_no_history(monkeypatch):
+    mod = importlib.import_module("tomic.cli.compute_volstats")
+
+    # Stub config
+    monkeypatch.setattr(mod, "cfg_get", lambda name, default=None: ["XYZ"] if name == "DEFAULT_SYMBOLS" else default)
+
+    class FakeConn:
+        def __init__(self):
+            self.closed = False
+        def close(self):
+            self.closed = True
+    conn = FakeConn()
+    monkeypatch.setattr(mod, "init_db", lambda path: conn)
+
+    monkeypatch.setattr(mod, "_get_closes", lambda c, sym: [])
+
+    captured: list[types.SimpleNamespace] = []
+    monkeypatch.setattr(mod, "save_vol_stats", lambda *a, **k: captured.append(1))
+
+    warnings: list[str] = []
+    monkeypatch.setattr(mod.logger, "warning", lambda msg, *a, **k: warnings.append(msg % a if a else msg))
+
+    mod.main([])
+
+    assert not captured
+    assert any("No price history" in w for w in warnings)
+
