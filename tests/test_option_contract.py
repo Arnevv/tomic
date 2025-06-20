@@ -47,3 +47,16 @@ def test_multiplier_roundtrip():
     restored = mod.OptionContract.from_ib(contract)
     assert restored.multiplier == "50"
 
+
+def test_to_ib_skips_con_id_when_none(monkeypatch):
+    mod = importlib.import_module("tomic.models")
+
+    class DummyContract:
+        pass
+
+    monkeypatch.setattr(mod, "Contract", DummyContract)
+
+    info = mod.OptionContract("ABC", "20250101", 100.0, "C")
+    contract = info.to_ib()
+    assert not hasattr(contract, "conId")
+
