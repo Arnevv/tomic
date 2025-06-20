@@ -1172,6 +1172,60 @@ def test_request_option_data_historical(monkeypatch):
     assert all(r.get("iv") == 0.5 and r.get("close") == 1.2 for r in client.market_data.values())
 
 
+def test_request_option_data_historical_uses_option_info(monkeypatch):
+    mod = importlib.import_module("tomic.api.market_client")
+    monkeypatch.setattr(
+        mod,
+        "cfg_get",
+        lambda n, d=None: True if n == "USE_HISTORICAL_IV_WHEN_CLOSED" else d,
+    )
+    called: dict[str, dict] = {}
+
+    def fake_fetch(map, app=None):
+        called["contracts"] = map
+        return {rid: {"iv": 0.4, "close": 1.1} for rid in map}
+
+    monkeypatch.setattr(mod, "fetch_historical_option_data", fake_fetch)
+
+    client = mod.OptionChainClient("ABC")
+
+    def fake_reqContractDetails(req_id, contract):
+        from ibapi.contract import Contract
+
+        con = Contract()
+        con.symbol = contract.symbol
+        con.secType = contract.secType
+        con.lastTradeDateOrContractMonth = contract.lastTradeDateOrContractMonth
+        con.strike = contract.strike
+        con.right = contract.right
+        con.exchange = "SMART"
+        con.primaryExchange = "SMART"
+        con.tradingClass = "ABC"
+        con.multiplier = "100"
+        con.currency = "USD"
+        con.conId = req_id + 100
+        details = types.SimpleNamespace(contract=con)
+        client.contractDetails(req_id, details)
+        client.contractDetailsEnd(req_id)
+
+    monkeypatch.setattr(client, "reqContractDetails", fake_reqContractDetails, raising=False)
+    monkeypatch.setattr(client, "reqMktData", lambda *a, **k: None, raising=False)
+    monkeypatch.setattr(client, "reqMarketDataType", lambda *a, **k: None, raising=False)
+    client.market_open = False
+    client.trading_class = "ABC"
+    client.expiries = ["20250101"]
+    client.strikes = [100.0]
+    client._strike_lookup = {100.0: 100.0}
+    client.option_params_complete.set()
+    client.expected_contracts = len(client.expiries) * len(client.strikes) * 2
+
+    client._request_option_data()
+
+    assert called["contracts"]
+    for rid, con in called["contracts"].items():
+        assert con is client.option_info[rid].contract
+
+
 def test_await_market_data_historical_no_retry(monkeypatch):
     mod = importlib.import_module("tomic.api.market_client")
 
@@ -1199,7 +1253,13 @@ def test_await_market_data_historical_no_retry(monkeypatch):
     client.spot_price = 10.0
     client.expected_contracts = len(client.expiries) * len(client.strikes) * 2
 
-    monkeypatch.setattr(client, "_request_contract_details", lambda c, r: True)
+    def fake_request_details(contract, req_id):
+        contract.conId = req_id + 100
+        details = types.SimpleNamespace(contract=contract)
+        client.option_info[req_id] = details
+        return True
+
+    monkeypatch.setattr(client, "_request_contract_details", fake_request_details)
     monkeypatch.setattr(client, "reqContractDetails", lambda *a, **k: None, raising=False)
     monkeypatch.setattr(client, "reqMktData", lambda *a, **k: None, raising=False)
     monkeypatch.setattr(client, "reqMarketDataType", lambda *a, **k: None, raising=False)
