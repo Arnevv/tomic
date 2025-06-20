@@ -65,6 +65,9 @@ def main(argv: List[str] | None = None) -> None:
     try:
         for sym in symbols:
             closes = _get_closes(conn, sym)
+            if not closes:
+                logger.warning(f"No price history for {sym}")
+                continue
             hv30 = historical_volatility(closes, window=30)
             hv60 = historical_volatility(closes, window=60)
             hv90 = historical_volatility(closes, window=90)
