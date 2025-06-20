@@ -1195,7 +1195,11 @@ class OptionChainClient(MarketClient):
                             self.invalid_contracts.add(req_id)
                         self._mark_complete(req_id)
         if self.use_hist_iv:
-            contracts = {rid: c for rid, c in contract_map.items()}
+            contracts = {
+                rid: self.option_info[rid].contract
+                for rid in contract_map
+                if rid in self.option_info
+            }
             bulk_results = fetch_historical_option_data(contracts, app=self)
             self._merge_historical_data(contracts, bulk_results)
             for rid in contracts:
