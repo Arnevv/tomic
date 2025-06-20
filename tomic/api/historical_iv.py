@@ -104,6 +104,7 @@ def fetch_historical_option_data(
     query_time = datetime.now().strftime("%Y%m%d-%H:%M:%S")
     next_id = 1
     for rid, contract in contracts.items():
+        contract.includeExpired = True
         iv_id = next_id
         next_id += 1
         close_id = next_id
