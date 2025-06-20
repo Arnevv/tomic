@@ -37,7 +37,7 @@ def fetch_historical_option_data(
         except TypeError:
             app = connect_ib()
         except Exception as exc:  # pragma: no cover - safety for missing stub
-            logger.debug("connect_ib failed for bulk request: %s", exc)
+            logger.debug(f"connect_ib failed for bulk request: {exc}")
             return {rid: {"iv": None, "close": None} for rid in contracts}
         own_client = True
 
@@ -59,9 +59,7 @@ def fetch_historical_option_data(
             if info:
                 rid, key, _ = info
                 logger.debug(
-                    "\ud83d\udce5 historicalData callback: reqId=%s, bar=%s",
-                    reqId,
-                    vars(bar),
+                    f"\ud83d\udce5 historicalData callback: reqId={reqId}, bar={vars(bar)}"
                 )
                 if getattr(bar, "close", None) not in (None, -1):
                     results[rid][key] = bar.close
@@ -91,10 +89,7 @@ def fetch_historical_option_data(
         con = info[2] if info else None
         if errorCode in (200, 162) and con:
             logger.debug(
-                "reqHistoricalData error %s for %s: %s",
-                errorCode,
-                _contract_repr(con),
-                errorString,
+                f"reqHistoricalData error {errorCode} for {_contract_repr(con)}: {errorString}"
             )
         if orig_error:
             orig_error(reqId, errorCode, errorString, errorTime, advancedOrderRejectJson)
@@ -114,19 +109,10 @@ def fetch_historical_option_data(
         pending.add(iv_id)
         pending.add(close_id)
         logger.debug(
-            "reqHistoricalData sent: reqId=%s, contract=%s, query_time=%s, duration=1 D, barSize=1 day, what=%s",
-            iv_id,
-            _contract_repr(contract),
-            query_time,
-            "OPTION_IMPLIED_VOLATILITY",
+            f"reqHistoricalData sent: reqId={iv_id}, contract={_contract_repr(contract)}, query_time={query_time}, duration=1 D, barSize=1 day, what=OPTION_IMPLIED_VOLATILITY"
         )
         logger.debug(
-            "\ud83d\udce4 reqHistoricalData raw params: useRTH=%s, includeExpired=%s, whatToShow=%s, conId=%s, primaryExchange=%s",
-            0,
-            getattr(contract, "includeExpired", None),
-            "OPTION_IMPLIED_VOLATILITY",
-            getattr(contract, "conId", None),
-            getattr(contract, "primaryExchange", None),
+            f"\ud83d\udce4 reqHistoricalData raw params: useRTH=0, includeExpired={getattr(contract, 'includeExpired', None)}, whatToShow=OPTION_IMPLIED_VOLATILITY, conId={getattr(contract, 'conId', None)}, primaryExchange={getattr(contract, 'primaryExchange', None)}"
         )
         logger.debug(contract.__dict__)
         app.reqHistoricalData(
@@ -142,19 +128,10 @@ def fetch_historical_option_data(
             [],
         )
         logger.debug(
-            "reqHistoricalData sent: reqId=%s, contract=%s, query_time=%s, duration=1 D, barSize=1 day, what=%s",
-            close_id,
-            _contract_repr(contract),
-            query_time,
-            what,
+            f"reqHistoricalData sent: reqId={close_id}, contract={_contract_repr(contract)}, query_time={query_time}, duration=1 D, barSize=1 day, what={what}"
         )
         logger.debug(
-            "\ud83d\udce4 reqHistoricalData raw params: useRTH=%s, includeExpired=%s, whatToShow=%s, conId=%s, primaryExchange=%s",
-            0,
-            getattr(contract, "includeExpired", None),
-            what,
-            getattr(contract, "conId", None),
-            getattr(contract, "primaryExchange", None),
+            f"\ud83d\udce4 reqHistoricalData raw params: useRTH=0, includeExpired={getattr(contract, 'includeExpired', None)}, whatToShow={what}, conId={getattr(contract, 'conId', None)}, primaryExchange={getattr(contract, 'primaryExchange', None)}"
         )
         logger.debug(contract.__dict__)
         app.reqHistoricalData(
