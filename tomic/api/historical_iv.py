@@ -21,17 +21,25 @@ def _contract_repr(contract: Contract) -> str:
 
 
 def fetch_historical_option_data(
-    contracts: dict[int, Contract], *, what: str = "TRADES"
+    contracts: dict[int, Contract], *, app=None, what: str = "TRADES"
 ) -> dict[int, dict[str, float | None]]:
-    """Return last IV and close price for provided contracts."""
+    """Return last IV and close price for provided contracts.
 
-    try:
-        app = connect_ib(unique=True)
-    except TypeError:
-        app = connect_ib()
-    except Exception as exc:  # pragma: no cover - safety for missing stub
-        logger.debug("connect_ib failed for bulk request: %s", exc)
-        return {rid: {"iv": None, "close": None} for rid in contracts}
+    When ``app`` is ``None`` a temporary IB connection is opened.  When an
+    existing client instance is provided it will be reused and callbacks are
+    restored afterwards.
+    """
+
+    own_client = False
+    if app is None:
+        try:
+            app = connect_ib(unique=True)
+        except TypeError:
+            app = connect_ib()
+        except Exception as exc:  # pragma: no cover - safety for missing stub
+            logger.debug("connect_ib failed for bulk request: %s", exc)
+            return {rid: {"iv": None, "close": None} for rid in contracts}
+        own_client = True
 
     results: dict[int, dict[str, float | None]] = {
         rid: {"iv": None, "close": None} for rid in contracts
@@ -41,25 +49,30 @@ def fetch_historical_option_data(
     done = threading.Event()
     lock = threading.Lock()
 
+    orig_hist = getattr(app, "historicalData", None)
+    orig_end = getattr(app, "historicalDataEnd", None)
+    orig_error = getattr(app, "error", None)
+
     def hist(self, reqId: int, bar) -> None:  # noqa: N802 - IB callback
         with lock:
             info = req_map.get(reqId)
-            if not info:
-                return
-            rid, key, con = info
-            if getattr(bar, "close", None) not in (None, -1):
-                results[rid][key] = bar.close
+            if info:
+                rid, key, _ = info
+                if getattr(bar, "close", None) not in (None, -1):
+                    results[rid][key] = bar.close
+        if orig_hist:
+            orig_hist(reqId, bar)
 
     def hist_end(self, reqId: int, start: str, end: str) -> None:  # noqa: N802
         with lock:
             pending.discard(reqId)
             if not pending:
                 done.set()
+        if orig_end:
+            orig_end(reqId, start, end)
 
     app.historicalData = MethodType(hist, app)
     app.historicalDataEnd = MethodType(hist_end, app)
-
-    orig_error = app.error
 
     def hist_error(
         self,
@@ -78,7 +91,8 @@ def fetch_historical_option_data(
                 _contract_repr(con),
                 errorString,
             )
-        orig_error(reqId, errorCode, errorString, errorTime, advancedOrderRejectJson)
+        if orig_error:
+            orig_error(reqId, errorCode, errorString, errorTime, advancedOrderRejectJson)
 
     app.error = MethodType(hist_error, app)
 
@@ -135,10 +149,18 @@ def fetch_historical_option_data(
 
     done.wait(60)
 
-    try:
-        app.disconnect()
-    except Exception:
-        pass
+    if own_client:
+        try:
+            app.disconnect()
+        except Exception:
+            pass
+    else:
+        if orig_hist is not None:
+            app.historicalData = orig_hist
+        if orig_end is not None:
+            app.historicalDataEnd = orig_end
+        if orig_error is not None:
+            app.error = orig_error
 
     return results
 

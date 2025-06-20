@@ -662,34 +662,35 @@ class OptionChainClient(MarketClient):
                 f"right={con.right} exchange={con.exchange} primaryExchange={con.primaryExchange} "
                 f"tradingClass={getattr(con, 'tradingClass', '')} multiplier={getattr(con, 'multiplier', '')}"
             )
-            # Request option market data using the type that succeeded for the
-            # stock quote fallback, defaulting to live when open or frozen when
-            # closed.
-            if self.data_type_success is not None:
-                data_type = self.data_type_success
-            else:
-                data_type = 1 if self.market_open else 2
-            logger.debug(f"reqMktData sent for: {contract_repr(con)}")
-            logger.debug(
-                f"[reqId={reqId}] marketDataType={data_type} voor optie {con.symbol} "
-                f"{con.lastTradeDateOrContractMonth} {con.strike} {con.right}"
-            )
-            use_snapshot = getattr(self, "_use_snapshot", not self.market_open)
-            include_greeks = (
-                not cfg_get("INCLUDE_GREEKS_ONLY_IF_MARKET_OPEN", False)
-                or self.market_open
-            )
-            if use_snapshot:
-                generic_ticks = ""
-            else:
-                ticks = ["100", "101"]
-                if include_greeks:
-                    ticks.append("106")
-                generic_ticks = ",".join(ticks)
-            self.reqMktData(reqId, con, generic_ticks, use_snapshot, False, [])
-            logger.debug(
-                f"✅ [stap 8] reqMktData sent for {con.symbol} {con.lastTradeDateOrContractMonth} {con.strike} {con.right}"
-            )
+            if not self.use_hist_iv:
+                # Request option market data using the type that succeeded for the
+                # stock quote fallback, defaulting to live when open or frozen when
+                # closed.
+                if self.data_type_success is not None:
+                    data_type = self.data_type_success
+                else:
+                    data_type = 1 if self.market_open else 2
+                logger.debug(f"reqMktData sent for: {contract_repr(con)}")
+                logger.debug(
+                    f"[reqId={reqId}] marketDataType={data_type} voor optie {con.symbol} "
+                    f"{con.lastTradeDateOrContractMonth} {con.strike} {con.right}"
+                )
+                use_snapshot = getattr(self, "_use_snapshot", not self.market_open)
+                include_greeks = (
+                    not cfg_get("INCLUDE_GREEKS_ONLY_IF_MARKET_OPEN", False)
+                    or self.market_open
+                )
+                if use_snapshot:
+                    generic_ticks = ""
+                else:
+                    ticks = ["100", "101"]
+                    if include_greeks:
+                        ticks.append("106")
+                    generic_ticks = ",".join(ticks)
+                self.reqMktData(reqId, con, generic_ticks, use_snapshot, False, [])
+                logger.debug(
+                    f"✅ [stap 8] reqMktData sent for {con.symbol} {con.lastTradeDateOrContractMonth} {con.strike} {con.right}"
+                )
             if reqId in self._pending_details:
                 self._pending_details.pop(reqId, None)
                 self._detail_semaphore.release()
@@ -1173,15 +1174,6 @@ class OptionChainClient(MarketClient):
                     logger.debug(
                         f"reqId for {c.symbol} {c.lastTradeDateOrContractMonth} {c.strike} {c.right} is {req_id}"
                     )
-                    if self.use_hist_iv:
-                        with self.data_lock:
-                            self.market_data[req_id] = {
-                                "expiry": expiry,
-                                "strike": strike,
-                                "right": right,
-                            }
-                        contract_map[req_id] = c
-                        continue
                     with self.data_lock:
                         self.market_data[req_id] = {
                             "expiry": expiry,
@@ -1190,6 +1182,7 @@ class OptionChainClient(MarketClient):
                             "event": threading.Event(),
                         }
                         self._pending_details[req_id] = info
+                    contract_map[req_id] = c
                     self._detail_semaphore.acquire()
                     time.sleep(0.01)
                     if not self._request_contract_details(c, req_id):
@@ -1203,16 +1196,10 @@ class OptionChainClient(MarketClient):
                         self._mark_complete(req_id)
         if self.use_hist_iv:
             contracts = {rid: c for rid, c in contract_map.items()}
-            bulk_results = fetch_historical_option_data(contracts)
-            for req_id, result in bulk_results.items():
-                if req_id in self.market_data:
-                    self.market_data[req_id]["close"] = result.get("close")
-                    self.market_data[req_id]["iv"] = result.get("iv")
-                else:
-                    logger.warning(
-                        f"⚠️ req_id {req_id} uit historical_result niet gevonden in market_data"
-                    )
-            self.all_data_event.set()
+            bulk_results = fetch_historical_option_data(contracts, app=self)
+            self._merge_historical_data(contracts, bulk_results)
+            for rid in contracts:
+                self._mark_complete(rid)
             return
 
         logger.debug(
