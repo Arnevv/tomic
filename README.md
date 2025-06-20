@@ -107,7 +107,7 @@ Deze informatie wordt later hergebruikt bij het opbouwen van optiecontracten.
 Zodra de conId bekend is én een spotprijs beschikbaar is, worden optieparameters opgehaald:
 - Verkrijgbaar via securityDefinitionOptionParameter()
 - Bevat alle mogelijke expiries en strikes.
-Er wordt gefilterd op basis van: Minimale DTE (bijv. 15 dagen), Aantal reguliere en wekelijkse expiries (bijv. 3 + 4) en Strike-afstand tot spot (±10 punten of uit config)
+Er wordt gefilterd op basis van: Minimale DTE (bijv. 15 dagen), Aantal reguliere en wekelijkse expiries (bijv. 3 + 4) en Strike-afstand tot spot (StDev obv van IV of ±X punten of uit config)
 📌 Deze stap kan falen als de spotprijs niet tijdig beschikbaar is.
 
 6. Selectie van relevante expiries en strikes
