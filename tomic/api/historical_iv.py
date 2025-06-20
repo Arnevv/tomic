@@ -58,6 +58,11 @@ def fetch_historical_option_data(
             info = req_map.get(reqId)
             if info:
                 rid, key, _ = info
+                logger.debug(
+                    "\ud83d\udce5 historicalData callback: reqId=%s, bar=%s",
+                    reqId,
+                    vars(bar),
+                )
                 if getattr(bar, "close", None) not in (None, -1):
                     results[rid][key] = bar.close
         if orig_hist:
@@ -108,10 +113,19 @@ def fetch_historical_option_data(
         pending.add(iv_id)
         pending.add(close_id)
         logger.debug(
-            "reqHistoricalData sent: reqId=%s, contract=%s, query_time=%s, duration=1 D, barSize=1 day, what=OPTION_IMPLIED_VOLATILITY",
+            "reqHistoricalData sent: reqId=%s, contract=%s, query_time=%s, duration=1 D, barSize=1 day, what=%s",
             iv_id,
             _contract_repr(contract),
             query_time,
+            "OPTION_IMPLIED_VOLATILITY",
+        )
+        logger.debug(
+            "\ud83d\udce4 reqHistoricalData raw params: useRTH=%s, includeExpired=%s, whatToShow=%s, conId=%s, primaryExchange=%s",
+            0,
+            getattr(contract, "includeExpired", None),
+            "OPTION_IMPLIED_VOLATILITY",
+            getattr(contract, "conId", None),
+            getattr(contract, "primaryExchange", None),
         )
         logger.debug(contract.__dict__)
         app.reqHistoricalData(
@@ -132,6 +146,14 @@ def fetch_historical_option_data(
             _contract_repr(contract),
             query_time,
             what,
+        )
+        logger.debug(
+            "\ud83d\udce4 reqHistoricalData raw params: useRTH=%s, includeExpired=%s, whatToShow=%s, conId=%s, primaryExchange=%s",
+            0,
+            getattr(contract, "includeExpired", None),
+            what,
+            getattr(contract, "conId", None),
+            getattr(contract, "primaryExchange", None),
         )
         logger.debug(contract.__dict__)
         app.reqHistoricalData(
