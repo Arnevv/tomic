@@ -180,6 +180,7 @@ class MarketClient(BaseIBApp):
         self._details_event = threading.Event()
         self.market_open: bool = False
         self.data_type_success: int | None = None
+        self._logged_spot = False
 
     # Helpers -----------------------------------------------------
     @log_result
@@ -291,6 +292,7 @@ class MarketClient(BaseIBApp):
                 try:
                     self.spot_price = float(fallback)
                     logger.info(f"✅ [stap 3] Spotprijs fallback: {self.spot_price}")
+                    self._logged_spot = True
                     if hasattr(self, "spot_event"):
                         self.spot_event.set()
                 except (TypeError, ValueError):
@@ -348,16 +350,18 @@ class MarketClient(BaseIBApp):
                 TickTypeEnum.DELAYED_LAST,
             ):
                 self.spot_price = price
-                if price > 0:
+                if price > 0 and not self._logged_spot:
                     logger.info(f"✅ [stap 3] Spotprijs: {price}")
+                    self._logged_spot = True
             elif (
                 reqId == self._spot_req_id
                 and tickType == getattr(TickTypeEnum, "CLOSE", 9)
                 and self.spot_price is None
             ):
                 self.spot_price = price
-                if price > 0:
+                if price > 0 and not self._logged_spot:
                     logger.info(f"✅ [stap 3] Spotprijs (CLOSE): {price}")
+                    self._logged_spot = True
             if price != -1 and tickType in (
                 TickTypeEnum.LAST,
                 TickTypeEnum.BID,
