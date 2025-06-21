@@ -258,7 +258,14 @@ class MarketClient(BaseIBApp):
         timeout = cfg_get("SPOT_TIMEOUT", 10)
         self.data_event.clear()
         req_id = self._next_id()
-        generic_ticks = "" if use_snapshot else "100,101,106"
+        if use_snapshot:
+            generic_ticks = ""
+        else:
+            tick_cfg = cfg_get("MKT_GENERIC_TICKS", "")
+            if tick_cfg:
+                generic_ticks = tick_cfg
+            else:
+                generic_ticks = "100,101,106"
         self.reqMktData(req_id, contract, generic_ticks, use_snapshot, False, [])
         self._spot_req_id = req_id
         self._spot_req_ids.add(req_id)
@@ -698,10 +705,14 @@ class OptionChainClient(MarketClient):
                 if use_snapshot:
                     generic_ticks = ""
                 else:
-                    ticks = ["100", "101"]
-                    if include_greeks:
-                        ticks.append("106")
-                    generic_ticks = ",".join(ticks)
+                    tick_cfg = cfg_get("MKT_GENERIC_TICKS", "")
+                    if tick_cfg:
+                        generic_ticks = tick_cfg
+                    else:
+                        ticks = ["100", "101"]
+                        if include_greeks:
+                            ticks.append("106")
+                        generic_ticks = ",".join(ticks)
                 self.reqMktData(reqId, con, generic_ticks, use_snapshot, False, [])
                 logger.debug(
                     f"✅ [stap 8] reqMktData sent for {con.symbol} {con.lastTradeDateOrContractMonth} {con.strike} {con.right}"

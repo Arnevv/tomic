@@ -8,6 +8,7 @@ from ibapi.contract import Contract
 
 from .ib_connection import connect_ib
 from tomic.logutils import logger
+from tomic.config import get as cfg_get
 
 
 def _contract_repr(contract: Contract) -> str:
@@ -97,6 +98,9 @@ def fetch_historical_option_data(
     app.error = MethodType(hist_error, app)
 
     query_time = datetime.now().strftime("%Y%m%d-%H:%M:%S")
+    duration = cfg_get("HIST_DURATION", "1 D")
+    bar_size = cfg_get("HIST_BARSIZE", "1 day")
+    close_what = cfg_get("HIST_WHAT", what)
     next_id = 1
     for rid, contract in contracts.items():
         contract.includeExpired = True
@@ -109,7 +113,7 @@ def fetch_historical_option_data(
         pending.add(iv_id)
         pending.add(close_id)
         logger.debug(
-            f"reqHistoricalData sent: reqId={iv_id}, contract={_contract_repr(contract)}, query_time={query_time}, duration=1 D, barSize=1 day, what=OPTION_IMPLIED_VOLATILITY"
+            f"reqHistoricalData sent: reqId={iv_id}, contract={_contract_repr(contract)}, query_time={query_time}, duration={duration}, barSize={bar_size}, what=OPTION_IMPLIED_VOLATILITY"
         )
         logger.debug(
             f"\ud83d\udce4 reqHistoricalData raw params: useRTH=0, includeExpired={getattr(contract, 'includeExpired', None)}, whatToShow=OPTION_IMPLIED_VOLATILITY, conId={getattr(contract, 'conId', None)}, primaryExchange={getattr(contract, 'primaryExchange', None)}"
@@ -119,8 +123,8 @@ def fetch_historical_option_data(
             iv_id,
             contract,
             query_time,
-            "1 D",
-            "1 day",
+            duration,
+            bar_size,
             "OPTION_IMPLIED_VOLATILITY",
             0,
             1,
@@ -128,19 +132,19 @@ def fetch_historical_option_data(
             [],
         )
         logger.debug(
-            f"reqHistoricalData sent: reqId={close_id}, contract={_contract_repr(contract)}, query_time={query_time}, duration=1 D, barSize=1 day, what={what}"
+            f"reqHistoricalData sent: reqId={close_id}, contract={_contract_repr(contract)}, query_time={query_time}, duration={duration}, barSize={bar_size}, what={close_what}"
         )
         logger.debug(
-            f"\ud83d\udce4 reqHistoricalData raw params: useRTH=0, includeExpired={getattr(contract, 'includeExpired', None)}, whatToShow={what}, conId={getattr(contract, 'conId', None)}, primaryExchange={getattr(contract, 'primaryExchange', None)}"
+            f"\ud83d\udce4 reqHistoricalData raw params: useRTH=0, includeExpired={getattr(contract, 'includeExpired', None)}, whatToShow={close_what}, conId={getattr(contract, 'conId', None)}, primaryExchange={getattr(contract, 'primaryExchange', None)}"
         )
         logger.debug(contract.__dict__)
         app.reqHistoricalData(
             close_id,
             contract,
             query_time,
-            "1 D",
-            "1 day",
-            what,
+            duration,
+            bar_size,
+            close_what,
             0,
             1,
             False,

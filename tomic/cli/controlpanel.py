@@ -580,6 +580,65 @@ def run_settings_menu() -> None:
         sub.run()
 
     def run_option_menu() -> None:
+        def show_open_settings() -> None:
+            print("Huidige reqMktData instellingen:")
+            print(
+                f"MKT_GENERIC_TICKS: {cfg.get('MKT_GENERIC_TICKS', '100,101,106')}"
+            )
+            print(
+                f"UNDERLYING_PRIMARY_EXCHANGE: {cfg.get('UNDERLYING_PRIMARY_EXCHANGE', '')}"
+            )
+            print(
+                f"OPTIONS_PRIMARY_EXCHANGE: {cfg.get('OPTIONS_PRIMARY_EXCHANGE', '')}"
+            )
+
+        def show_closed_settings() -> None:
+            print("Huidige reqHistoricalData instellingen:")
+            print(f"USE_HISTORICAL_IV_WHEN_CLOSED: {cfg.get('USE_HISTORICAL_IV_WHEN_CLOSED', True)}")
+            print(f"HIST_DURATION: {cfg.get('HIST_DURATION', '1 D')}")
+            print(f"HIST_BARSIZE: {cfg.get('HIST_BARSIZE', '1 day')}")
+            print(f"HIST_WHAT: {cfg.get('HIST_WHAT', 'TRADES')}")
+            print(
+                f"UNDERLYING_PRIMARY_EXCHANGE: {cfg.get('UNDERLYING_PRIMARY_EXCHANGE', '')}"
+            )
+            print(
+                f"OPTIONS_PRIMARY_EXCHANGE: {cfg.get('OPTIONS_PRIMARY_EXCHANGE', '')}"
+            )
+
+        def run_open_menu() -> None:
+            show_open_settings()
+            menu = Menu("Markt open – reqMktData")
+            menu.add("MKT_GENERIC_TICKS", lambda: change_str("MKT_GENERIC_TICKS"))
+            menu.add(
+                "UNDERLYING_PRIMARY_EXCHANGE",
+                lambda: change_str("UNDERLYING_PRIMARY_EXCHANGE"),
+            )
+            menu.add(
+                "OPTIONS_PRIMARY_EXCHANGE",
+                lambda: change_str("OPTIONS_PRIMARY_EXCHANGE"),
+            )
+            menu.run()
+
+        def run_closed_menu() -> None:
+            show_closed_settings()
+            menu = Menu("Markt dicht – reqHistoricalData")
+            menu.add(
+                "USE_HISTORICAL_IV_WHEN_CLOSED",
+                lambda: change_bool("USE_HISTORICAL_IV_WHEN_CLOSED"),
+            )
+            menu.add("HIST_DURATION", lambda: change_str("HIST_DURATION"))
+            menu.add("HIST_BARSIZE", lambda: change_str("HIST_BARSIZE"))
+            menu.add("HIST_WHAT", lambda: change_str("HIST_WHAT"))
+            menu.add(
+                "UNDERLYING_PRIMARY_EXCHANGE",
+                lambda: change_str("UNDERLYING_PRIMARY_EXCHANGE"),
+            )
+            menu.add(
+                "OPTIONS_PRIMARY_EXCHANGE",
+                lambda: change_str("OPTIONS_PRIMARY_EXCHANGE"),
+            )
+            menu.run()
+
         sub = Menu("\U0001F4DD Optie-strategie parameters")
         sub.add("STRIKE_RANGE", lambda: change_int("STRIKE_RANGE"))
         sub.add("FIRST_EXPIRY_MIN_DTE", lambda: change_int("FIRST_EXPIRY_MIN_DTE"))
@@ -597,6 +656,8 @@ def run_settings_menu() -> None:
             "OPTIONS_PRIMARY_EXCHANGE",
             lambda: change_str("OPTIONS_PRIMARY_EXCHANGE"),
         )
+        sub.add("Markt open – reqMktData", run_open_menu)
+        sub.add("Markt dicht – reqHistoricalData", run_closed_menu)
         sub.run()
 
     menu = Menu("\u2699\ufe0f INSTELLINGEN & CONFIGURATIE")
