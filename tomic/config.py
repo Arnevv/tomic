@@ -78,6 +78,12 @@ class AppConfig(BaseModel):
     OPTION_DATA_RETRIES: int = 0
     OPTION_RETRY_WAIT: int = 1
 
+    # Historical and market data settings ---------------------------------
+    HIST_DURATION: str = "1 D"
+    HIST_BARSIZE: str = "1 day"
+    HIST_WHAT: str = "TRADES"
+    MKT_GENERIC_TICKS: str = "100,101,106"
+
 
 _BASE_DIR = Path(__file__).resolve().parent.parent
 
