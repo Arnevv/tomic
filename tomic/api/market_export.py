@@ -32,7 +32,8 @@ from tomic.api.market_client import (
     start_app,
     await_market_data,
 )
-from tomic.models import MarketMetrics
+from ibapi.contract import Contract
+from tomic.models import MarketMetrics, OptionContract
 from tomic.config import get as cfg_get
 
 
@@ -388,6 +389,211 @@ def export_option_chain(
     return avg_parity
 
 
+class BulkOptionChainClient(OptionChainClient):
+    """Lightweight client using bulk contract qualification."""
+
+    def __init__(self, symbol: str) -> None:
+        super().__init__(symbol)
+        self.error_count = 0
+
+    def error(
+        self, reqId, errorTime, errorCode, errorString, advancedOrderRejectJson=""
+    ):  # noqa: D401
+        if errorCode in {200, 300}:
+            self.error_count += 1
+        super().error(reqId, errorTime, errorCode, errorString, advancedOrderRejectJson)
+
+    def contractDetails(self, reqId: int, details):  # noqa: N802
+        con = details.contract
+        if con.secType == "STK" and self.con_id is None:
+            super().contractDetails(reqId, details)
+            return
+        if reqId in self._pending_details:
+            if not self._step8_logged:
+                logger.info("▶️ START stap 8 - Callback: contractDetails() voor opties")
+                self._step8_logged = True
+            self.option_info[reqId] = details
+            with self.data_lock:
+                self.market_data.setdefault(reqId, {})["conId"] = con.conId
+            info = self._pending_details.get(reqId)
+            if info is not None:
+                info.con_id = con.conId
+                self.con_ids[(info.expiry, info.strike, info.right)] = con.conId
+                min_tick = getattr(details, "minTick", None)
+                if min_tick and info.expiry not in self._expiry_min_tick:
+                    self._expiry_min_tick[info.expiry] = float(min_tick)
+                    lookup = {s: round(round(s / min_tick) * min_tick, 10) for s in self.strikes}
+                    self._exp_strike_lookup[info.expiry] = lookup
+            if reqId in self._pending_details:
+                self._pending_details.pop(reqId, None)
+                self._detail_semaphore.release()
+            self.contract_received.set()
+
+    def _request_option_data(self) -> None:
+        if not self.expiries or not self.strikes or self.trading_class is None:
+            return
+        self.all_data_event.clear()
+        with self.data_lock:
+            self._completed_requests.clear()
+        self._use_snapshot = not self.market_open
+        self.use_hist_iv = (
+            not self.market_open and cfg_get("USE_HISTORICAL_IV_WHEN_CLOSED", False)
+        )
+
+        contract_map: dict[int, Contract] = {}
+        for expiry in self.expiries:
+            for strike in self.strikes:
+                actual = self._exp_strike_lookup.get(expiry, {}).get(
+                    strike, self._strike_lookup.get(strike, strike)
+                )
+                for right in ("C", "P"):
+                    info = OptionContract(
+                        self.symbol,
+                        expiry,
+                        actual,
+                        right,
+                        exchange=self.options_exchange,
+                        trading_class=self.trading_class,
+                        primary_exchange=self.options_primary_exchange,
+                        multiplier=self.multiplier,
+                        con_id=self.con_ids.get((expiry, strike, right)),
+                    )
+                    c = info.to_ib()
+                    req_id = self._next_id()
+                    with self.data_lock:
+                        self.market_data[req_id] = {
+                            "expiry": expiry,
+                            "strike": strike,
+                            "right": right,
+                            "event": threading.Event(),
+                        }
+                        self._pending_details[req_id] = info
+                    contract_map[req_id] = c
+                    self._detail_semaphore.acquire()
+                    self.reqContractDetails(req_id, c)
+                    time.sleep(0.01)
+
+        timeout = cfg_get("CONTRACT_DETAILS_TIMEOUT", 2) * (
+            int(cfg_get("CONTRACT_DETAILS_RETRIES", 0)) + 1
+        )
+        start = time.time()
+        while time.time() - start < timeout and self._pending_details:
+            self.contract_received.wait(timeout - (time.time() - start))
+            self.contract_received.clear()
+
+        for rid, info in list(self._pending_details.items()):
+            logger.warning(
+                f"Geen contractdetails gevonden voor {info.symbol} {info.expiry} {info.strike} {info.right}"
+            )
+            with self.data_lock:
+                self.invalid_contracts.add(rid)
+            self._detail_semaphore.release()
+            self._pending_details.pop(rid, None)
+
+        logger.info(
+            f"✅ BULK validatie: {len(self.option_info)} van {len(contract_map)} contracts goedgekeurd"
+        )
+
+        if self.use_hist_iv:
+            contracts = {
+                rid: self.option_info[rid].contract for rid in self.option_info
+            }
+            bulk_results = fetch_historical_option_data(contracts, app=self)
+            self._merge_historical_data(contracts, bulk_results)
+            for rid in contracts:
+                self._mark_complete(rid)
+            return
+
+        for rid, details in self.option_info.items():
+            con = details.contract
+            if self.data_type_success is not None:
+                data_type = self.data_type_success
+            else:
+                data_type = 1 if self.market_open else 2
+            use_snapshot = self._use_snapshot
+            include_greeks = (
+                not cfg_get("INCLUDE_GREEKS_ONLY_IF_MARKET_OPEN", False)
+                or self.market_open
+            )
+            if use_snapshot:
+                generic = ""
+            else:
+                tick_cfg = cfg_get("MKT_GENERIC_TICKS", "")
+                if tick_cfg:
+                    generic = tick_cfg
+                else:
+                    ticks = ["100", "101"]
+                    if include_greeks:
+                        ticks.append("106")
+                    generic = ",".join(ticks)
+            self.reqMktData(rid, con, generic, use_snapshot, False, [])
+            self._schedule_invalid_timer(rid)
+
+
+@log_result
+def export_option_chain_bulk(
+    symbol: str,
+    output_dir: str | None = None,
+    *,
+    simple: bool = False,
+    client_id: int | None = None,
+) -> float | None:
+    """Export option chain using the BulkQualifyFlow."""
+
+    logger.info("▶️ START stap 1 - Invoer van symbool")
+    symbol = symbol.strip().upper()
+    if not symbol or not symbol.replace(".", "").isalnum():
+        logger.error("❌ FAIL stap 1: ongeldig symbool.")
+        return None
+    logger.info(f"✅ [stap 1] {symbol} ontvangen, ga nu aan de slag!")
+    logger.info("▶️ START stap 2 - Initialiseren client + verbinden met IB")
+    app = BulkOptionChainClient(symbol)
+    start_app(app, client_id=client_id)
+    if not await_market_data(app, symbol, timeout=60):
+        logger.warning("⚠️ Marktdata onvolledig, ga verder met beschikbare data")
+        app.disconnect()
+        time.sleep(1)
+        if output_dir is None:
+            today_str = datetime.now().strftime("%Y%m%d")
+            export_dir = os.path.join(cfg_get("EXPORT_DIR", "exports"), today_str)
+        else:
+            export_dir = output_dir
+        os.makedirs(export_dir, exist_ok=True)
+        ts = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
+        ts = f"BULK_{ts}"
+        if simple:
+            _write_option_chain_simple(app, symbol, export_dir, ts)
+            logger.success(f"✅ Optieketen verwerkt voor {symbol}")
+            return None
+        avg_parity = _write_option_chain(app, symbol, export_dir, ts)
+        logger.success(f"✅ Optieketen verwerkt voor {symbol}")
+        return avg_parity
+
+    app.disconnect()
+    time.sleep(1)
+    if output_dir is None:
+        today_str = datetime.now().strftime("%Y%m%d")
+        export_dir = os.path.join(cfg_get("EXPORT_DIR", "exports"), today_str)
+    else:
+        export_dir = output_dir
+    os.makedirs(export_dir, exist_ok=True)
+    ts = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
+    ts = f"BULK_{ts}"
+    if simple:
+        _write_option_chain_simple(app, symbol, export_dir, ts)
+        avg_parity = None
+    else:
+        avg_parity = _write_option_chain(app, symbol, export_dir, ts)
+    logger.success(f"✅ Optieketen verwerkt voor {symbol}")
+    logger.info(
+        f"🆕 BULK valid contracts: {len(app.market_data) - len(app.invalid_contracts)} / {len(app.market_data)}"
+    )
+    if app.error_count:
+        logger.info(f"🆕 BULK vermeden errors 200/300: {app.error_count}")
+    return avg_parity
+
+
+
 @log_result
 def export_market_data(
     symbol: str,
@@ -658,6 +864,7 @@ __all__ = [
     "export_market_data",
     "export_market_metrics",
     "export_option_chain",
+    "export_option_chain_bulk",
     "export_market_data_async",
     "export_option_chain_async",
     "start_app_async",
