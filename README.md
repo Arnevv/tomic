@@ -78,6 +78,11 @@ Extra opties in `config.yaml`:
 - `USE_HISTORICAL_IV_WHEN_CLOSED`: gebruik historische IV wanneer de markt
   gesloten is. De optieketen wordt dan opgebouwd met `reqHistoricalData` in
   plaats van `reqMktData`.
+- `HIST_DURATION`: duurparameter voor `reqHistoricalData` (default `1 D`).
+- `HIST_BARSIZE`: barSize voor `reqHistoricalData` (default `1 day`).
+- `HIST_WHAT`: whatToShow voor sluitprijzen (default `TRADES`).
+- `MKT_GENERIC_TICKS`: ticklijst voor `reqMktData` wanneer snapshots niet
+  worden gebruikt (default `100,101,106`).
 - `INCLUDE_GREEKS_ONLY_IF_MARKET_OPEN`: voeg Greek-gegevens alleen toe als de
   markt open is.
 
