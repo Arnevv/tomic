@@ -60,3 +60,36 @@ def test_to_ib_skips_con_id_when_none(monkeypatch):
     contract = info.to_ib()
     assert not hasattr(contract, "conId")
 
+
+def test_to_ib_skips_con_id_when_zero(monkeypatch):
+    mod = importlib.import_module("tomic.models")
+
+    class DummyContract:
+        pass
+
+    monkeypatch.setattr(mod, "Contract", DummyContract)
+
+    info = mod.OptionContract("ABC", "20250101", 100.0, "C", con_id=0)
+    contract = info.to_ib()
+    assert not hasattr(contract, "conId")
+
+
+def test_from_ib_returns_none_for_zero_con_id():
+    mod = importlib.import_module("tomic.models")
+
+    class DummyContract:
+        symbol = "ABC"
+        lastTradeDateOrContractMonth = "20250101"
+        strike = 100.0
+        right = "C"
+        exchange = "SMART"
+        currency = "USD"
+        multiplier = "100"
+        tradingClass = None
+        primaryExchange = "SMART"
+        conId = 0
+
+    contract = DummyContract()
+    info = mod.OptionContract.from_ib(contract)
+    assert info.con_id is None
+
