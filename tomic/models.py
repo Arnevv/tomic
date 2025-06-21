@@ -38,7 +38,7 @@ class OptionContract:
         contract.strike = self.strike
         contract.right = self.right
         contract.multiplier = self.multiplier
-        if self.con_id is not None:
+        if self.con_id not in (None, 0):
             contract.conId = self.con_id
         if not self.trading_class:
             logger.warning(
@@ -62,6 +62,10 @@ class OptionContract:
     @classmethod
     def from_ib(cls, contract: Contract) -> "OptionContract":
         """Construct from an IB ``Contract`` object."""
+        cid = getattr(contract, "conId", None)
+        if cid == 0:
+            cid = None
+
         return cls(
             symbol=contract.symbol,
             expiry=contract.lastTradeDateOrContractMonth,
@@ -76,7 +80,7 @@ class OptionContract:
                 "primaryExchange",
                 getattr(contract, "exchange", "SMART"),
             ),
-            con_id=getattr(contract, "conId", None),
+            con_id=cid,
         )
 
 
