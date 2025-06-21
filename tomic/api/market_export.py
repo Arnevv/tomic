@@ -35,6 +35,7 @@ from tomic.api.market_client import (
 from ibapi.contract import Contract
 from tomic.models import MarketMetrics, OptionContract
 from tomic.config import get as cfg_get
+from .historical_iv import fetch_historical_option_data
 
 
 _HEADERS_CHAIN = [
