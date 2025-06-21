@@ -154,6 +154,16 @@ def run_dataexporter() -> None:
         except subprocess.CalledProcessError:
             print("❌ Export mislukt")
 
+    def export_chain_bulk() -> None:
+        symbol = prompt("Ticker symbool: ")
+        if not symbol:
+            print("Geen symbool opgegeven")
+            return
+        try:
+            run_module("tomic.cli.option_lookup_bulk", symbol)
+        except subprocess.CalledProcessError:
+            print("❌ Export mislukt")
+
 
     def csv_check() -> None:
         path = prompt("Pad naar CSV-bestand: ")
@@ -228,6 +238,7 @@ def run_dataexporter() -> None:
 
     menu = Menu("📁 DATA & MARKTDATA")
     menu.add("Exporteer een markt", export_one)
+    menu.add("OptionChain Export (BulkQualifyFlow)", export_chain_bulk)
     menu.add("Exporteer alle markten", export_all)
     menu.add("Controleer CSV-kwaliteit", csv_check)
     menu.add("Benchmark getonemarket", bench_getonemarket)
