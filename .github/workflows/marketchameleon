@@ -1,0 +1,36 @@
+  update-marketchameleon:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+
+      - name: Create .env file
+        run: |
+          echo "MC_USERNAME=${{ secrets.MC_USERNAME }}" >> .env
+          echo "MC_PASSWORD=${{ secrets.MC_PASSWORD }}" >> .env
+
+      - name: Run MarketChameleon scraper
+        run: |
+          python -m tomic.cli.daily_vol_scraper_mc
+
+      - name: Commit and push results
+        run: |
+          if [ -n "$(git status --porcelain)" ]; then
+            git add marketchameleon_metrics.json
+            git commit -m "Update MarketChameleon data"
+            git push
+          else
+            echo "No changes to commit"
+          fi
