@@ -91,6 +91,8 @@ Extra opties in `config.yaml`:
   worden gebruikt (default `100,101,106`).
 - `INCLUDE_GREEKS_ONLY_IF_MARKET_OPEN`: voeg Greek-gegevens alleen toe als de
   markt open is.
+- `IV_TRACKING_DELTAS`: lijst van deltawaarden voor IV-historie (default `[0.25, 0.5]`).
+- `IV_EXPIRY_LOOKAHEAD_DAYS`: doelen voor expiries in dagen (default `[0, 30, 60]`).
 
 
 Stappenplan Data Ophalen – Technische Documentatie
