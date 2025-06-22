@@ -231,10 +231,6 @@ def run_dataexporter() -> None:
     menu.add("Exporteer een markt", export_one)
     menu.add("OptionChain Export (BulkQualifyFlow)", export_chain_bulk)
     menu.add("Exporteer alle markten", export_all)
-    menu.add(
-        "Exporteer marktdata via marketchameleon",
-        lambda: run_module("tomic.cli.fetch_marketchameleon_metrics"),
-    )
     menu.add("Controleer CSV-kwaliteit", csv_check)
     menu.add("Benchmark getonemarket", bench_getonemarket)
     menu.add("Ophalen historische prijzen", fetch_prices)
