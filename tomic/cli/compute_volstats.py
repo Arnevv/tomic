@@ -7,17 +7,21 @@ from typing import List
 
 from tomic.logutils import logger, setup_logging
 from tomic.config import get as cfg_get
-from tomic.analysis.vol_db import init_db, save_vol_stats, VolRecord
+from pathlib import Path
+
+from tomic.journal.utils import update_json_file, load_json
 from tomic.analysis.metrics import historical_volatility
 from tomic.api.market_client import TermStructureClient, start_app, await_market_data
 
 
-def _get_closes(conn, symbol: str) -> list[float]:
-    cur = conn.execute(
-        "SELECT close FROM PriceHistory WHERE symbol=? ORDER BY date",
-        (symbol,),
-    )
-    return [row[0] for row in cur.fetchall()]
+def _get_closes(symbol: str) -> list[float]:
+    base = Path(cfg_get("PRICE_HISTORY_DIR", "tomic/data/spot_prices"))
+    path = base / f"{symbol}.json"
+    data = load_json(path)
+    if not isinstance(data, list):
+        return []
+    data.sort(key=lambda r: r.get("date", ""))
+    return [float(rec.get("close", 0)) for rec in data]
 
 
 def fetch_iv30d(symbol: str) -> float | None:
@@ -60,32 +64,74 @@ def main(argv: List[str] | None = None) -> None:
         argv = []
     symbols = [s.upper() for s in argv] if argv else [s.upper() for s in cfg_get("DEFAULT_SYMBOLS", [])]
 
-    conn = init_db(cfg_get("VOLATILITY_DB", "data/volatility.db"))
+    summary_dir = Path(cfg_get("IV_DAILY_SUMMARY_DIR", "tomic/data/iv_daily_summary"))
+    hv_dir = Path(cfg_get("HISTORICAL_VOLATILITY_DIR", "tomic/data/historical_volatility"))
     today = datetime.now().strftime("%Y-%m-%d")
-    try:
-        for sym in symbols:
-            closes = _get_closes(conn, sym)
-            if not closes:
-                logger.warning(f"No price history for {sym}")
-                continue
-            hv30 = historical_volatility(closes, window=30)
-            hv60 = historical_volatility(closes, window=60)
-            hv90 = historical_volatility(closes, window=90)
-            iv = fetch_iv30d(sym)
-            record = VolRecord(
-                symbol=sym,
-                date=today,
-                iv=iv,
-                hv30=hv30,
-                hv60=hv60,
-                hv90=hv90,
-                iv_rank=None,
-                iv_percentile=None,
-            )
-            save_vol_stats(conn, record, closes)
-            logger.info(f"Saved vol stats for {sym}")
-    finally:
-        conn.close()
+
+    def rolling_hv(closes: list[float], window: int) -> list[float]:
+        result = []
+        for i in range(window, len(closes) + 1):
+            hv = historical_volatility(closes[i - window : i], window=window)
+            if hv is not None:
+                result.append(hv)
+        return result
+
+    def iv_rank(iv: float, series: list[float]) -> float | None:
+        if not series:
+            return None
+        lo = min(series)
+        hi = max(series)
+        if hi == lo:
+            return None
+        return (iv - lo) / (hi - lo) * 100
+
+    def iv_percentile(iv: float, series: list[float]) -> float | None:
+        if not series:
+            return None
+        count = sum(1 for hv in series if hv < iv)
+        return count / len(series) * 100
+
+    for sym in symbols:
+        closes = _get_closes(sym)
+        if not closes:
+            logger.warning(f"No price history for {sym}")
+            continue
+        hv20 = historical_volatility(closes, window=20)
+        hv30 = historical_volatility(closes, window=30)
+        hv90 = historical_volatility(closes, window=90)
+        hv252 = historical_volatility(closes, window=252)
+        iv = fetch_iv30d(sym)
+        hv_series = rolling_hv(closes, 30)
+        scaled_iv = iv * 100 if iv is not None else None
+        rank = iv_rank(scaled_iv or 0.0, hv_series) if scaled_iv is not None else None
+        pct = iv_percentile(scaled_iv or 0.0, hv_series) if scaled_iv is not None else None
+
+        if hv20 is not None:
+            hv20 /= 100
+        if hv30 is not None:
+            hv30 /= 100
+        if hv90 is not None:
+            hv90 /= 100
+        if hv252 is not None:
+            hv252 /= 100
+
+        hv_record = {
+            "date": today,
+            "hv20": hv20,
+            "hv30": hv30,
+            "hv90": hv90,
+            "hv252": hv252,
+        }
+        update_json_file(hv_dir / f"{sym}.json", hv_record, ["date"])
+
+        summary_record = {
+            "date": today,
+            "atm_iv": iv,
+            "iv_rank": rank,
+            "iv_percentile": pct,
+        }
+        update_json_file(summary_dir / f"{sym}.json", summary_record, ["date"])
+        logger.info(f"Saved vol stats for {sym}")
     logger.success("✅ Volatility stats updated")
 
 

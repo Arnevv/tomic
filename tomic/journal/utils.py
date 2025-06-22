@@ -43,3 +43,20 @@ def save_journal(journal: Iterable[Any], path: PathLike = JOURNAL_FILE) -> None:
     """Write journal data back to ``path``."""
 
     save_json(list(journal), path)
+
+
+def update_json_file(file: Path, new_record: dict, key_fields: list[str]) -> None:
+    """Add or replace ``new_record`` in ``file`` using ``key_fields`` as key."""
+    file.parent.mkdir(parents=True, exist_ok=True)
+    data = load_json(file)
+    if not isinstance(data, list):
+        data = []
+    data = [
+        r
+        for r in data
+        if not all(r.get(k) == new_record.get(k) for k in key_fields)
+    ]
+    data.append(new_record)
+    if "date" in new_record:
+        data.sort(key=lambda r: r.get("date", ""))
+    save_json(data, file)

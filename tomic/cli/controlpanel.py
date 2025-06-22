@@ -53,14 +53,10 @@ from tomic.api.ib_connection import connect_ib
 from tomic import config as cfg
 from tomic.logutils import setup_logging
 from tomic.analysis.greeks import compute_portfolio_greeks
-from tomic.analysis.vol_db import init_db, load_latest_stats
+from tomic.analysis.vol_json import load_latest_summaries
+from tomic.journal.utils import load_json
 
 setup_logging()
-try:
-    cfg.update({"VOLATILITY_DB": "data/volatility.db"})
-except RuntimeError:
-    # Optional PyYAML dependency not available during some unit tests
-    pass
 
 
 POSITIONS_FILE = Path(cfg.get("POSITIONS_FILE", "positions.json"))
@@ -216,18 +212,13 @@ def run_dataexporter() -> None:
         if not symbol:
             print("Geen symbool opgegeven")
             return
-        conn = init_db(cfg.get("VOLATILITY_DB", "data/volatility.db"))
-        try:
-            cur = conn.execute(
-                "SELECT date, close FROM PriceHistory WHERE symbol=? ORDER BY date DESC LIMIT 10",
-                (symbol.upper(),),
-            )
-            rows = cur.fetchall()
-        finally:
-            conn.close()
+        base = Path(cfg.get("PRICE_HISTORY_DIR", "tomic/data/spot_prices"))
+        data = load_json(base / f"{symbol.upper()}.json")
+        rows = [[rec.get("date"), rec.get("close")] for rec in data[-10:]] if isinstance(data, list) else []
         if not rows:
             print("⚠️ Geen data gevonden")
             return
+        rows.sort(key=lambda r: r[0], reverse=True)
         print(tabulate(rows, headers=["Datum", "Close"], tablefmt="github"))
 
     def show_volstats() -> None:
@@ -366,39 +357,29 @@ def run_portfolio_menu() -> None:
         else:
             print(f"⚠️ {overview.name} ontbreekt in {latest}")
             symbols = {p.get("symbol") for p in positions if p.get("symbol")}
-            conn = init_db(cfg.get("VOLATILITY_DB", "data/volatility.db"))
-            try:
-                stats = load_latest_stats(conn, symbols)
-            finally:
-                conn.close()
+            stats = load_latest_summaries(symbols)
             if stats:
                 headers = [
                     "Symbol",
                     "Date",
                     "IV",
-                    "HV30",
-                    "HV60",
-                    "HV90",
                     "Rank",
                     "Pct",
                 ]
                 rows = [
                     [
-                        r.symbol,
-                        r.date,
-                        r.iv,
-                        r.hv30,
-                        r.hv60,
-                        r.hv90,
-                        r.iv_rank,
-                        r.iv_percentile,
+                        sym,
+                        rec.date,
+                        rec.atm_iv,
+                        rec.iv_rank,
+                        rec.iv_percentile,
                     ]
-                    for r in stats.values()
+                    for sym, rec in stats.items()
                 ]
                 print(tabulate(rows, headers=headers, tablefmt="github"))
                 metrics = {sym: rec.__dict__ for sym, rec in stats.items()}
             else:
-                print("⚠️ Geen volatiliteitsdata in database")
+                print("⚠️ Geen volatiliteitsdata beschikbaar")
 
         try:
             positions = json.loads(POSITIONS_FILE.read_text())

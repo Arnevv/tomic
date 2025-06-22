@@ -1,16 +1,11 @@
 import importlib
-import types
 
 
 def test_fetch_prices_main(monkeypatch):
     mod = importlib.import_module("tomic.cli.fetch_prices")
 
-    # Stub database functions
-    conn = types.SimpleNamespace(close=lambda: None)
-    monkeypatch.setattr(mod, "init_db", lambda path: conn)
-
     captured = []
-    monkeypatch.setattr(mod, "save_price_history", lambda c, recs: captured.append(recs))
+    monkeypatch.setattr(mod, "update_json_file", lambda f, rec, keys: captured.append(rec))
 
     # Fake IB connection
     class FakeBar:
@@ -44,11 +39,8 @@ def test_fetch_prices_main(monkeypatch):
 def test_fetch_prices_no_data(monkeypatch):
     mod = importlib.import_module("tomic.cli.fetch_prices")
 
-    conn = types.SimpleNamespace(close=lambda: None)
-    monkeypatch.setattr(mod, "init_db", lambda path: conn)
-
     captured = []
-    monkeypatch.setattr(mod, "save_price_history", lambda c, recs: captured.append(recs))
+    monkeypatch.setattr(mod, "update_json_file", lambda f, rec, keys: captured.append(rec))
 
     class FakeApp:
         def __init__(self):

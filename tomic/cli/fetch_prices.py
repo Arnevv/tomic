@@ -6,13 +6,14 @@ from datetime import datetime
 from types import MethodType
 import threading
 from typing import Iterable, List
+from pathlib import Path
 
 from ibapi.contract import Contract
 
 from tomic.config import get as cfg_get
 from tomic.logutils import logger, setup_logging
 from tomic.api.ib_connection import connect_ib
-from tomic.analysis.vol_db import PriceRecord, init_db, save_price_history
+from tomic.journal.utils import update_json_file
 from .compute_volstats import main as compute_volstats_main
 
 
@@ -23,7 +24,7 @@ def _format_date(raw: str) -> str:
     return raw
 
 
-def _request_bars(app, symbol: str) -> Iterable[PriceRecord]:
+def _request_bars(app, symbol: str) -> Iterable[dict]:
     """Request daily bars for ``symbol`` and return ``PriceRecord`` objects."""
     app.historical_data = []
     app.hist_event = threading.Event()
@@ -65,12 +66,13 @@ def _request_bars(app, symbol: str) -> Iterable[PriceRecord]:
         return []
 
     records = [
-        PriceRecord(
-            symbol=symbol,
-            date=_format_date(bar.date),
-            close=bar.close,
-            volume=int(bar.volume) if getattr(bar, "volume", None) is not None else None,
-        )
+        {
+            "symbol": symbol,
+            "date": _format_date(bar.date),
+            "close": bar.close,
+            "volume": int(bar.volume) if getattr(bar, "volume", None) is not None else None,
+            "atr": None,
+        }
         for bar in app.historical_data
     ]
     return records
@@ -84,7 +86,7 @@ def main(argv: List[str] | None = None) -> None:
         argv = []
     symbols = [s.upper() for s in argv] if argv else [s.upper() for s in cfg_get("DEFAULT_SYMBOLS", [])]
 
-    conn = init_db(cfg_get("VOLATILITY_DB", "data/volatility.db"))
+    base_dir = Path(cfg_get("PRICE_HISTORY_DIR", "tomic/data/spot_prices"))
     app = connect_ib()
     stored = 0
     try:
@@ -92,11 +94,12 @@ def main(argv: List[str] | None = None) -> None:
             records = list(_request_bars(app, sym))
             if not records:
                 continue
-            save_price_history(conn, records)
+            file = base_dir / f"{sym}.json"
+            for rec in records:
+                update_json_file(file, rec, ["date"])
             stored += 1
     finally:
         app.disconnect()
-        conn.close()
     logger.success(f"✅ Historische prijzen opgeslagen voor {stored} symbolen")
 
     # Immediately compute volatility statistics for the fetched symbols
