@@ -70,6 +70,10 @@ class AppConfig(BaseModel):
     USE_HISTORICAL_IV_WHEN_CLOSED: bool = True
     INCLUDE_GREEKS_ONLY_IF_MARKET_OPEN: bool = True
 
+    # Parameters for IV history snapshots -------------------------------
+    IV_TRACKING_DELTAS: List[float] = [0.25, 0.5]
+    IV_EXPIRY_LOOKAHEAD_DAYS: List[int] = [0, 30, 60]
+
     # Network tuning -------------------------------------------------
     MAX_CONCURRENT_REQUESTS: int = 5
     CONTRACT_DETAILS_TIMEOUT: int = 2
