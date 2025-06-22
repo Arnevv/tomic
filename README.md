@@ -87,74 +87,157 @@ Extra opties in `config.yaml`:
   markt open is.
 
 
-📋 Stappenplan data ophalen
+Stappenplan Data Ophalen – Technische Documentatie
 1. Invoer van symbool
-De gebruiker geeft het symbool op (bijv. SPY). Er wordt gecontroleerd of het symbool geldig is (alfanumeriek, geen rare tekens).
+Valideer symbool via:
+symbol.replace(".", "").isalnum()
+Log: ✅ [stap 1]
+Functie: export_option_chain()
 
-2. Initialiseren van client en verbinding met IB
-Er wordt een nieuwe OptionChainClient geïnitialiseerd. Deze verbindt met Interactive Brokers (TWS of IB Gateway) via host/port/client ID uit de config.
-Na verbinding wordt gecontroleerd of de markt momenteel geopend is:
-- Via reqContractDetails() worden de handelsuren opgehaald.
-- Met reqCurrentTime() en is_market_open() wordt bepaald of now binnen deze uren valt.
-- De data type wordt ingesteld (realtime of frozen) op basis van marktstatus.
-📌 Extra logica: tijdzone van de markt wordt uit contractDetails.timeZoneId gehaald en meegegeven aan alle tijdsberekeningen.
+2. Initialiseren van client en verbinden met IB
+Client: OptionChainClient(symbol)
+Verbinding via start_app():
+Host, port en client ID uit config (IB_HOST, IB_PORT, IB_CLIENT_ID)
+Timeout connectie: 5s
+Bepaal marktstatus:
+reqContractDetails() → wacht maximaal 5s
+reqCurrentTime() → wacht maximaal 5s
+Marktstatus via is_market_open() met liquidHours en ZoneInfo(timeZoneId)
+Succesvolle marketdata type wordt ingesteld:
+
+reqMarketDataType(1) indien open, anders reqMarketDataType(2)
+
+Methode: _init_market()
 
 3. Spot price ophalen
-De actuele spotprijs wordt opgevraagd met reqMktData() voor het onderliggende aandeel. Het doel van het ophalen van deze spotprice is het
-kunnen bepalen van de strikerange. Indien geen geldige ticks worden ontvangen binnen de timeout, wordt een fallback gebruikt: fetch_volatility_metrics() (webscrape).
-📌 Snapshot fallback (data_type = 2) wordt automatisch gebruikt als de markt gesloten is.
+reqMktData() op STK-contract
+
+Wacht op eerste tick (TickTypeEnum.LAST, CLOSE, etc.)
+
+Timeout: SPOT_TIMEOUT (default: 10s, uit config)
+
+Bij geen tick: fallback via fetch_volatility_metrics()
+
+Snapshot indien markt gesloten (use_snapshot = True)
+
+Eventuele fallbackprijs wordt gelogd en opgeslagen
 
 4. ContractDetails ophalen voor de underlying
-De unieke conId, tradingClass, en primaryExchange worden opgehaald via reqContractDetails() op het STK-contract.
-Deze informatie wordt later hergebruikt bij het opbouwen van optiecontracten.
+reqContractDetails() op STK-contract
 
-5. Optieparameters ophalen met reqSecDefOptParams()
-Zodra de conId bekend is én een spotprijs beschikbaar is, worden optieparameters opgehaald:
-- Verkrijgbaar via securityDefinitionOptionParameter()
-- Bevat alle mogelijke expiries en strikes.
-Er wordt gefilterd op basis van: Minimale DTE (bijv. 15 dagen), Aantal reguliere en wekelijkse expiries (bijv. 3 + 4) en Strike-afstand tot spot (StDev obv van IV of ±X punten of uit config)
-📌 Deze stap kan falen als de spotprijs niet tijdig beschikbaar is.
+Timeout: 10s (hardcoded in details_event.wait(10))
+
+Output: conId, tradingClass, primaryExchange (gebruikt in latere contracten)
+
+Logging: ✅ [stap 4] ConId: ...
+
+5. Optieparameters ophalen (reqSecDefOptParams())
+Methode: securityDefinitionOptionParameter()
+
+Vereisten: spotprijs moet beschikbaar zijn
+
+Filters op:
+
+FIRST_EXPIRY_MIN_DTE (default: 15, uit config)
+
+AMOUNT_REGULARS, AMOUNT_WEEKLIES
+
+STRIKE_RANGE of STRIKE_STDDEV_MULTIPLIER indien IV beschikbaar
+
+Timeout: wacht tot params_event of option_params_complete maximaal 20s
+
+Fallback bij ontbreken IV: gebruik van ±STRIKE_RANGE
 
 6. Selectie van relevante expiries en strikes
-De gegenereerde expiries en strikes worden gefilterd en gelogd:
-- Alleen strikes binnen het opgegeven bereik rond de spotprijs.
-- Expiries worden ingedeeld in weeklies en maandelijkse (third Friday).
-- Het totaal aantal optiecombinaties wordt berekend.
+Expiries verdeeld in:
 
-7. Bouwen van optiecontracten en opvragen van contractdetails
-Voor elke combinatie van expiry × strike × {Call, Put} wordt een OptionContract opgebouwd en reqContractDetails() aangeroepen om een conId terug te krijgen.
-Een Semaphore beperkt het aantal parallelle verzoeken (bijv. 5 tegelijk). 
+Maandelijks: _is_third_friday()
 
-📌 Als USE_HISTORICAL_IV_WHEN_CLOSED actief is, worden Greeks overgeslagen en wordt voor alle contracts de laatste IV en close opgehaald via fetch_historical_option_data().
+Weeklies: _is_weekly()
 
-8. Callback op contractDetails() voor elke optie
-Op dit moment krijgt TOMIC een volledig gevuld contract terug, inclusief conID. Zodra contractdetails zijn ontvangen voor een optiecontract, wordt direct reqMktData() gestuurd 
-om live data (bid/ask/Greeks) op te halen. De contractinfo wordt gelogd en opgeslagen. 
+Strikes:
 
-TODO: uitwerken hoe dit werkt als USE_HISTORICAL_IV_WHEN_CLOSED actief is.
+Rond spotprijs
 
-📌 Dezelfde data_type wordt gebruikt als succesvol was bij spot price (1=realtime, 2=frozen).
+Afstand obv STRIKE_STDDEV_MULTIPLIER × stddev (indien IV beschikbaar)
 
-9. Ontvangen van market data (Greeks, bid/ask) en filtering
-In deze stap wordt alle inkomende marktdata verzameld en opgeslagen:
-- Prijzen: Bid, Ask, Close (bid/ask als de markt open is en close of last als de markt gesloten is)
-- IV (bij zowel markt open als markt dicht)
-- Greeks: Delta, Gamma, Vega, Theta (alleen als de markt open is, als de markt dicht is, dan is deze info niet beschikbaar)
-- Open Interest & Volume (dit werkt nog niet, moet nog goed worden geimplementeerd)
+Logging:
 
-Contracten met delta buiten bereik (DELTA_MIN en DELTA_MAX) worden gemarkeerd als ongeldig.
-Verzoeken zonder geldige data worden herhaald volgens OPTION_DATA_RETRIES, met een timeout per poging (BID_ASK_TIMEOUT).
+✅ [stap 6] Geselecteerde strikes/expiries
 
-10. Exporteren van CSV-bestanden en verbreken van verbinding
-Na ontvangst van alle data:
-- De verbinding met IB wordt netjes verbroken.
-- CSV-bestanden worden geschreven naar exports/YYYYMMDD/option_chain_<symbol>_<timestamp>.csv en other_data_<symbol>_<timestamp>.csv.
-- Parity deviation wordt berekend voor call/put-paren rond de eerste expiry.
+expected_contracts = len(expiries) × len(strikes) × 2
 
-📌 Bij onvolledige data wordt alsnog geëxporteerd wat beschikbaar is.
+7. Opbouw van optiecontracten + contractdetails
+Elke combinatie expiry × strike × {Call, Put} → OptionContract
 
-11. (Fallback) Berekenen van term structure als webscrape faalt
-Als term_m1_m2 of term_m1_m3 ontbreekt in de webscrape (stap 3), dan wordt deze alsnog berekend op basis van de ontvangen IVs rond de spotprijs per expiry.
+Per contract: reqContractDetails()
+
+Retries: CONTRACT_DETAILS_RETRIES (default: 2)
+
+Timeout: CONTRACT_DETAILS_TIMEOUT (default: 2s)
+
+Maximaal MAX_CONCURRENT_REQUESTS tegelijk (default: 5)
+
+Bij mislukking: gelogd als ❌, fallback = skip
+
+Methode: _request_option_data()
+
+8. Callback op contractDetails voor elke optie
+Zodra contract is ontvangen:
+
+reqMktData() met marketDataType gelijk aan stap 3
+
+Bij gesloten markt: USE_HISTORICAL_IV_WHEN_CLOSED=True → fetch_historical_option_data() voor IV en close
+
+Bid/ask/Greeks gestart indien live
+
+Logging: ✅ [stap 8] reqMktData sent ...
+
+9. Ontvangen van market data (Greeks, bid/ask)
+Ticks verzameld in: tickPrice, tickOptionComputation, tickGeneric
+
+Vereiste velden:
+
+Open: bid, ask, iv, delta, gamma, vega, theta
+
+Gesloten: alleen iv en close uit historische data
+
+Filtering:
+
+Contracts met delta buiten DELTA_MIN/DELTA_MAX worden ongeldig verklaard
+
+Retries bij incomplete data:
+
+Max: OPTION_DATA_RETRIES (default: 3)
+
+Timeout per poging: BID_ASK_TIMEOUT (default: 10s)
+
+Wacht tussen retries: OPTION_RETRY_WAIT
+
+10. Exporteren van CSV’s en disconnect
+Disconnect vóór het schrijven naar disk
+
+CSV-bestanden:
+
+option_chain_<symbol>_<timestamp>.csv
+
+other_data_<symbol>_<timestamp>.csv met o.a. IV Rank, HV30, ATR14, VIX
+
+Berekening parity deviation op eerste expiry
+
+Exporteer ook bij incomplete data
+
+Functies: _write_option_chain(), _write_metrics_csv()
+
+11. (Fallback) Term structure berekenen
+Als term_m1_m2 of term_m1_m3 ontbreekt in Barchart scrape, dan:
+
+Berekening met gemiddelde IV’s rond spot (±TERM_STRIKE_WINDOW, default: 5)
+
+Per expiry → mean IV → bereken M1-M2 en M1-M3
+
+Functie: compute_iv_term_structure()
+
 
 
 
@@ -163,3 +246,5 @@ Als term_m1_m2 of term_m1_m3 ontbreekt in de webscrape (stap 3), dan wordt deze 
 ✅ Tests
 Run alle basistests met:
 pytest tests/
+
+Notes from video:
