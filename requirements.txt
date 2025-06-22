@@ -6,3 +6,6 @@ pytest
 loguru
 tabulate
 aiohttp
+undetected-chromedriver
+selenium
+python-dotenv

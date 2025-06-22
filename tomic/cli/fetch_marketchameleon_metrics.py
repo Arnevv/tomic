@@ -99,7 +99,7 @@ def login(driver, username: str, password: str) -> None:
     logger.info("Inloggen bij MarketChameleon")
     driver.get("https://marketchameleon.com/Account/Login")
     wait = WebDriverWait(driver, 10)
-    email = wait.until(EC.presence_of_element_located((By.NAME, "Email")))
+    email = wait.until(EC.presence_of_element_located((By.NAME, "Email or Username")))
     passwd = driver.find_element(By.NAME, "Password")
     email.clear()
     email.send_keys(username)
