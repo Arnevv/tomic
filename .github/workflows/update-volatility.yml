@@ -34,7 +34,7 @@ jobs:
       - name: Run volatility snapshot script
         run: |
           echo "Running volatility snapshot"
-          python -m tomic.cli.daily_vol_scraper AAPL ASML CRM DIA EWG EWJ EWZ FEZ FXI GLD INDA NVDA QQQ RUT SPY TSLA VIX XLE XLF XLV
+          python -m tomic.cli.daily_vol_scraper AAPL AMD AMZN BAC BA COST CRM DIA EEM GLD GOOGL HYG IWM JPM LULU META MSFT NFLX NVDA ORCL QQQ SLV SPY TLT TSLA USO XLE XLF XLI XLU
           echo "Snapshot script completed"
 
       - name: Commit and push changes
