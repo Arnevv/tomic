@@ -17,6 +17,3 @@ exports/
 
 # Backups
 Backups/
-
-# JSON-data
-tomic/data/volatility_data.json
