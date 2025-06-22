@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-"""Stealth scrape van MarketChameleon met undetected-chromedriver."""
+"""Stealth scrape van MarketChameleon met undetected-chromedriver.."""
 
 import json
 import os
