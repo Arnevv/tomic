@@ -11,6 +11,8 @@ from typing import Dict, List, Optional
 from tomic.logutils import logger, setup_logging
 from tomic.config import get as cfg_get
 
+symbols = ["MSFT"]
+
 # ---------------------------------------------------------------------------
 # Parsing helpers
 # ---------------------------------------------------------------------------
@@ -136,9 +138,7 @@ def main(argv: List[str] | None = None) -> None:
     setup_logging()
     logger.info("🚀 MarketChameleon scrape gestart")
 
-    symbols = [s.upper() for s in cfg_get("SYMBOLS", [])] or [
-        s.upper() for s in cfg_get("DEFAULT_SYMBOLS", [])
-    ]
+    symbols = argv or ["MSFT"]
     out_path = Path("marketchameleon_metrics.json")
 
     try:
