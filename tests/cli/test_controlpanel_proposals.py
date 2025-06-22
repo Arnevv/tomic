@@ -2,20 +2,26 @@ import importlib
 import json
 import builtins
 from pathlib import Path
-from tomic.analysis.vol_db import init_db
+from tomic.journal.utils import save_json
 
 
 def test_generate_proposals_now_db(monkeypatch, tmp_path):
     mod = importlib.import_module("tomic.cli.controlpanel")
 
-    # prepare in-memory DB
-    conn = init_db(":memory:")
-    conn.execute(
-        "INSERT INTO VolStats (symbol, date, iv, hv30, hv60, hv90, iv_rank, iv_percentile) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-        ("AAA", "2024-01-02", 0.6, 0.5, 0.4, 0.3, 11.0, 21.0),
+    sum_dir = tmp_path / "sum"
+    hv_dir = tmp_path / "hv"
+    sum_dir.mkdir(); hv_dir.mkdir()
+    save_json([
+        {"date": "2024-01-02", "atm_iv": 0.6, "iv_rank": 11.0, "iv_percentile": 21.0}
+    ], sum_dir / "AAA.json")
+    save_json([
+        {"date": "2024-01-02", "hv20": 0.5, "hv30": 0.4, "hv90": 0.3}
+    ], hv_dir / "AAA.json")
+    monkeypatch.setattr(
+        mod,
+        "load_latest_summaries",
+        lambda symbols: {"AAA": importlib.import_module("types").SimpleNamespace(date="2024-01-02", atm_iv=0.6, iv_rank=11.0, iv_percentile=21.0)},
     )
-    conn.commit()
-    monkeypatch.setattr(mod, "init_db", lambda path: conn)
 
     pos_file = tmp_path / "p.json"
     pos_file.write_text('[{"symbol": "AAA", "position": 1}]')

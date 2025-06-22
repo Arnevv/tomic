@@ -7,8 +7,9 @@ import json
 
 from tomic.logutils import setup_logging, logger
 from tomic.config import get as cfg_get
+from types import SimpleNamespace
 from tomic.analysis.proposal_engine import generate_proposals
-from tomic.analysis.vol_db import init_db, load_latest_stats, VolRecord
+from tomic.analysis.vol_json import load_latest_summaries
 
 
 def main(argv: List[str] | None = None) -> None:
@@ -31,19 +32,15 @@ def main(argv: List[str] | None = None) -> None:
     metrics = None
     if metrics_file and metrics_file.exists():
         try:
-            data = json.loads(metrics_file.read_text())
-            metrics = {sym: VolRecord(**vals) for sym, vals in data.items()}
+            raw = json.loads(metrics_file.read_text())
+            metrics = {sym: SimpleNamespace(**vals) for sym, vals in raw.items()}
         except Exception as exc:
             logger.warning(f"Kan metrics niet laden: {exc}")
     else:
         try:
             raw_positions = json.loads(positions.read_text())
             symbols = {p.get("symbol") for p in raw_positions if p.get("symbol")}
-            conn = init_db(cfg_get("VOLATILITY_DB", "data/volatility.db"))
-            try:
-                metrics = load_latest_stats(conn, symbols)
-            finally:
-                conn.close()
+            metrics = load_latest_summaries(symbols)
         except Exception as exc:
             logger.warning(f"Volatiliteitsdata niet beschikbaar: {exc}")
             metrics = None
