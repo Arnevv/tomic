@@ -69,7 +69,19 @@ def load_credentials(path: Path = Path(".env")) -> tuple[str, str]:
     return user, pwd
 
 def create_driver():
+    """Create a Chrome driver using ``undetected_chromedriver``.
+
+    Newer versions of ``packaging`` removed the ``Version.version`` attribute
+    which ``undetected_chromedriver`` relies on.  To remain compatible with
+    these versions we provide a small shim that exposes ``version`` as an alias
+    for ``release`` when missing.
+    """
+
     import undetected_chromedriver as uc
+    from packaging.version import Version
+
+    if not hasattr(Version, "version"):
+        Version.version = property(lambda self: self.release)
 
     options = uc.ChromeOptions()
     options.add_argument("--headless=new")
