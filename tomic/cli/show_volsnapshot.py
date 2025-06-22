@@ -5,7 +5,8 @@ from datetime import datetime
 from typing import List
 
 from tomic.config import get as cfg_get
-from tomic.analysis.vol_db import init_db
+from pathlib import Path
+from tomic.journal.utils import load_json
 from tomic.logutils import setup_logging
 
 try:
@@ -42,18 +43,27 @@ def main(argv: List[str] | None = None) -> None:
         argv = []
     date_str = argv[0] if argv else datetime.now().strftime("%Y-%m-%d")
 
-    conn = init_db(cfg_get("VOLATILITY_DB", "data/volatility.db"))
-    try:
-        cur = conn.execute(
-            "SELECT symbol, iv, hv30, hv60, hv90, iv_rank, iv_percentile "
-            "FROM VolStats WHERE date=? ORDER BY symbol",
-            (date_str,),
-        )
-        rows = cur.fetchall()
-    finally:
-        conn.close()
+    summary_dir = Path(cfg_get("IV_DAILY_SUMMARY_DIR", "tomic/data/iv_daily_summary"))
+    hv_dir = Path(cfg_get("HISTORICAL_VOLATILITY_DIR", "tomic/data/historical_volatility"))
 
-    headers = ["symbol", "iv", "hv30", "hv60", "hv90", "iv_rank", "iv_percentile"]
+    rows = []
+    for file in summary_dir.glob("*.json"):
+        symbol = file.stem
+        summaries = [r for r in load_json(file) if r.get("date") == date_str]
+        hvs = {r.get("date"): r for r in load_json(hv_dir / f"{symbol}.json")}
+        for rec in summaries:
+            hv_rec = hvs.get(date_str, {})
+            rows.append([
+                symbol,
+                rec.get("atm_iv"),
+                hv_rec.get("hv20"),
+                hv_rec.get("hv30"),
+                hv_rec.get("hv90"),
+                rec.get("iv_rank"),
+                rec.get("iv_percentile"),
+            ])
+
+    headers = ["symbol", "iv", "hv20", "hv30", "hv90", "iv_rank", "iv_percentile"]
     print(tabulate(rows, headers=headers, tablefmt="github"))
 
 
