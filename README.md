@@ -48,10 +48,16 @@ tomic/
 tests/                 # Pytest-modules
 
 📄 Configuratie
-De locatie van de volatiliteitsdatabase wordt ingesteld via `VOLATILITY_DB` in
-`config.yaml`. Standaard wijst dit naar `data/volatility.db`.
+Volatiliteitsdata wordt bewaard in JSON-bestanden onder `tomic/data`.
+Belangrijke mappen in `config.yaml`:
+
+- `PRICE_HISTORY_DIR`
+- `IV_HISTORY_DIR`
+- `IV_DAILY_SUMMARY_DIR`
+- `HISTORICAL_VOLATILITY_DIR`
+
 Dagelijkse prijsdata wordt met `tomic/cli/fetch_prices.py` tot maximaal 252 dagen
-terug opgehaald en in deze database opgeslagen.
+terug opgehaald en in `PRICE_HISTORY_DIR` opgeslagen.
 
 Alle configuratiefuncties gebruiken een interne lock. Zowel lezen via
 ``config.get()`` als schrijven met ``update()`` of ``reload()`` is hierdoor

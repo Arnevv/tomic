@@ -1,22 +1,18 @@
 import importlib
-from tomic.analysis.vol_db import init_db
+from tomic.journal.utils import save_json
 
 
-def test_show_pricehistory(monkeypatch, capsys):
+def test_show_pricehistory(monkeypatch, capsys, tmp_path):
     mod = importlib.import_module("tomic.cli.show_pricehistory")
 
-    conn = init_db(":memory:")
-    conn.execute(
-        "INSERT INTO PriceHistory (symbol, date, close, volume, atr) VALUES (?, ?, ?, ?, ?)",
-        ("AAA", "2024-01-01", 1.23, 100, None),
-    )
-    conn.execute(
-        "INSERT INTO PriceHistory (symbol, date, close, volume, atr) VALUES (?, ?, ?, ?, ?)",
-        ("AAA", "2024-01-02", 1.25, 120, None),
-    )
-    conn.commit()
-
-    monkeypatch.setattr(mod, "init_db", lambda path: conn)
+    tmp = tmp_path / "spot"
+    tmp.mkdir()
+    file = tmp / "AAA.json"
+    save_json([
+        {"date": "2024-01-01", "close": 1.23, "volume": 100, "atr": None},
+        {"date": "2024-01-02", "close": 1.25, "volume": 120, "atr": None},
+    ], file)
+    monkeypatch.setattr(mod, "cfg_get", lambda name, default=None: str(tmp) if name == "PRICE_HISTORY_DIR" else default)
     monkeypatch.setattr(mod, "setup_logging", lambda: None)
 
     mod.main(["AAA"])

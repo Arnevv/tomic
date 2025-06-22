@@ -4,7 +4,8 @@ from __future__ import annotations
 from typing import List
 
 from tomic.config import get as cfg_get
-from tomic.analysis.vol_db import init_db
+from pathlib import Path
+from tomic.journal.utils import load_json
 from tomic.logutils import setup_logging
 
 try:
@@ -39,22 +40,19 @@ def main(argv: List[str] | None = None) -> None:
         argv = []
     symbols = [s.upper() for s in argv] if argv else [s.upper() for s in cfg_get("DEFAULT_SYMBOLS", [])]
 
-    conn = init_db(cfg_get("VOLATILITY_DB", "data/volatility.db"))
-    try:
-        for sym in symbols:
-            cur = conn.execute(
-                "SELECT date, close, volume, atr FROM PriceHistory WHERE symbol=? ORDER BY date",
-                (sym,),
-            )
-            rows = cur.fetchall()
-            if rows:
-                print(f"\n=== {sym} ===")
-                headers = ["date", "close", "volume", "atr"]
-                print(tabulate(rows, headers=headers, tablefmt="github"))
-            else:
-                print(f"\n⚠️ Geen data gevonden voor {sym}")
-    finally:
-        conn.close()
+    base = Path(cfg_get("PRICE_HISTORY_DIR", "tomic/data/spot_prices"))
+    for sym in symbols:
+        data = load_json(base / f"{sym}.json")
+        rows = [
+            [rec.get("date"), rec.get("close"), rec.get("volume"), rec.get("atr")]
+            for rec in data
+        ] if isinstance(data, list) else []
+        if rows:
+            print(f"\n=== {sym} ===")
+            headers = ["date", "close", "volume", "atr"]
+            print(tabulate(rows, headers=headers, tablefmt="github"))
+        else:
+            print(f"\n⚠️ Geen data gevonden voor {sym}")
 
 
 if __name__ == "__main__":
