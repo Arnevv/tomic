@@ -380,5 +380,68 @@
       "Vega": -0.075,
       "Theta": 0.025
     }
+  },
+  {
+    "TradeID": "7",
+    "DatumIn": "2025-06-23",
+    "DatumUit": null,
+    "Symbool": "USO",
+    "Type": "Iron Condor",
+    "Expiry": "2025-07-18",
+    "Richting": "Sideways",
+    "Status": "Open",
+    "Premium": 2.34,
+    "EntryPrice": 2.34,
+    "ExitPrice": null,
+    "ReturnOnMargin": null,
+    "InitMargin": 120,
+    "StopPct": 0,
+    "IV_Entry": 48.12,
+    "HV_Entry": 36.88,
+    "IV_Rank": 61.2,
+    "IV_Percentile": 95.0,
+    "VIX": 0.0,
+    "ATR_14": 20.0,
+    "Skew": -7.5,
+    "Spot": 76.85,
+    "DaysInTrade": null,
+    "Plan": "IV30 is extreem hoog (98e percentiel), met een backwardated term structure richting juli-expiratie. Skew is vlak, HV is laag: ideaal voor short premium. Breakevens liggen buiten 1\u03c3-range voor komende 10 dagen.\n\nMarktcontext: geen specifiek event, maar verhoogde olievolatiliteit; kans op mean reversion.\n\nGreeks passen binnen portefeuille: extra -vega en +theta.\n\nExit uiterlijk 10 dagen voor expiratie (5 juli), eerder bij 60\u201370% winst of doorbraak short strike. Geen aanpassing; exit bij doorbraak of gunstige IV-crush.\n\nDoel: EV-gedreven premie-inname, geen directional bias.",
+    "Reden": "IV30 op 58%, in 98e percentiel \u2014 implied volatility zwaar opgeblazen.\n\nHV30 maximaal 42% afgelopen half jaar \u2192 grote IV vs HV divergence \u2192 mean reversion waarschijnlijk.\n\nTerm structure toont backwardation: piek IV in juli, lager daarna \u2192 ideaal voor short premium.\n\nSkew is neutraal: geen sterke bias richting puts of calls \u2192 symmetrische condor mogelijk.\n\n77/79 put side en 87/89 call side liggen buiten 1\u03c3-range (\u00b1$7) voor komende 10 handelsdagen.\n\nPast goed binnen portfolio: lichte extra -delta, -vega, +theta (aanvulling op bestaande positie MSFT).\n\nStrategy edge = time decay + IV compressie \u2192 geen directional opinie vereist.",
+    "Exitstrategie": "Exit bij 60\u201370% van maximale winst (target premie terugkoop: ~$0.70\u2013$0.90).\n\nUiterste exitdatum: vrijdag 5 juli (10 DTE), tenzij eerder winstdoel bereikt is.\n\nDirecte exit bij doorbraak van short strike (onder 77 of boven 87), ongeacht premie.\n\nGeen aanpassingen gepland \u2014 bij beweging buiten breakeven-range wordt positie gesloten.\n\nVolledige exit ook bij scherpe IV-crush \u2192 winst versneld binnen \u2192 premie <= $0.50 = signal to close.\n\n",
+    "Evaluatie": null,
+    "Resultaat": null,
+    "Opmerkingen": "",
+    "Legs": [
+      {
+        "strike": 77.0,
+        "type": "PUT",
+        "action": "BUY",
+        "qty": 2
+      },
+      {
+        "strike": 79.0,
+        "type": "PUT",
+        "action": "SELL",
+        "qty": 2
+      },
+      {
+        "strike": 87.0,
+        "type": "CALL",
+        "action": "SELL",
+        "qty": 2
+      },
+      {
+        "strike": 89.0,
+        "type": "CALL",
+        "action": "BUY",
+        "qty": 2
+      }
+    ],
+    "Greeks_Entry": {
+      "Delta": 0.042,
+      "Gamma": -0.002,
+      "Vega": 0.003,
+      "Theta": -0.004
+    }
   }
 ]
