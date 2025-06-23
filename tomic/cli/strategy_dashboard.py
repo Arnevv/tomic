@@ -140,6 +140,16 @@ def sort_legs(legs):
     return sorted(legs, key=key)
 
 
+def trade_id_key(value) -> float:
+    """Return sortable numeric key for ``value`` used as trade id."""
+    if value is None:
+        return float("inf")
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return float("inf")
+
+
 # Mapping of leg characteristics to emoji symbols
 
 SYMBOL_MAP = {
@@ -542,11 +552,7 @@ def main(argv=None):
     print()
 
     strategies = group_strategies(positions, journal)
-    strategies.sort(
-        key=lambda s: (
-            s.get("trade_id") if s.get("trade_id") is not None else float("inf")
-        )
-    )
+    strategies.sort(key=lambda s: trade_id_key(s.get("trade_id")))
     compute_term_structure(strategies)
     type_counts = defaultdict(int)
     total_delta_dollar = 0.0
