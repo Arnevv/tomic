@@ -152,7 +152,8 @@ AMOUNT_REGULARS, AMOUNT_WEEKLIES
 
 STRIKE_RANGE of STRIKE_STDDEV_MULTIPLIER indien IV beschikbaar
 
-Timeout: wacht tot params_event of option_params_complete maximaal 20s
+Timeout: wacht tot params_event of option_params_complete
+(OPTION_PARAMS_TIMEOUT, default 20s)
 
 Fallback bij ontbreken IV: gebruik van ±STRIKE_RANGE
 
