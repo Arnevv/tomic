@@ -44,10 +44,13 @@ def _request_bars(app, symbol: str) -> Iterable[dict]:
     contract.exchange = cfg_get("UNDERLYING_EXCHANGE", "SMART")
     contract.primaryExchange = cfg_get("UNDERLYING_PRIMARY_EXCHANGE", "ARCA")
     contract.currency = "USD"
-    contract.includeExpired = True
+    # Stocks are non-expiring instruments; setting includeExpired can trigger
+    # HMDS validation errors. Use the default ``False`` value.
+    contract.includeExpired = False
 
-    # IB API expects a space between date and time, not a dash
-    query_time = datetime.now().strftime("%Y%m%d %H:%M:%S")
+    # Explicitly include a timezone in the query time to avoid deprecation
+    # warnings from the IB API. Use UTC as suggested by the API docs.
+    query_time = datetime.utcnow().strftime("%Y%m%d-%H:%M:%S") + " UTC"
     logger.debug(contract.__dict__)
     app.reqHistoricalData(
         1,
