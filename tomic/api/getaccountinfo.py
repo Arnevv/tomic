@@ -335,7 +335,8 @@ def fetch_historical_metrics(app: IBApp) -> None:
         contract.primaryExchange = cfg_get("UNDERLYING_PRIMARY_EXCHANGE", "ARCA")
         contract.currency = "USD"
         contract.includeExpired = True
-        queryTime = datetime.now().strftime("%Y%m%d-%H:%M:%S")
+        # IB API expects a space between date and time, not a dash
+        queryTime = datetime.now().strftime("%Y%m%d %H:%M:%S")
         req_id = app.market_req_id
         app.market_req_id += 1
         logger.debug(contract.__dict__)
