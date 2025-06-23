@@ -2,7 +2,7 @@ from __future__ import annotations
 
 """Fetch the last 252 days of daily price history for configured symbols."""
 
-from datetime import datetime
+from datetime import datetime, timezone
 from types import MethodType
 import threading
 from typing import Iterable, List
@@ -48,9 +48,10 @@ def _request_bars(app, symbol: str) -> Iterable[dict]:
     # HMDS validation errors. Use the default ``False`` value.
     contract.includeExpired = False
 
-    # Explicitly include a timezone in the query time to avoid deprecation
-    # warnings from the IB API. Use UTC as suggested by the API docs.
-    query_time = datetime.utcnow().strftime("%Y%m%d-%H:%M:%S") + " UTC"
+    # Use a timezone-aware timestamp in UTC. The IB API interprets a dash
+    # between the date and time as UTC, so no explicit timezone string is
+    # required.
+    query_time = datetime.now(timezone.utc).strftime("%Y%m%d-%H:%M:%S")
     logger.debug(contract.__dict__)
     app.reqHistoricalData(
         1,
