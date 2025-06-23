@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import csv
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Optional
 
@@ -84,7 +84,7 @@ def _dte(expiry: str) -> Optional[int]:
         exp = datetime.strptime(expiry, "%Y%m%d").date()
     except Exception:
         return None
-    return (exp - datetime.utcnow().date()).days
+    return (exp - datetime.now(timezone.utc).date()).days
 
 
 def _mid_price(leg: Leg) -> float:
