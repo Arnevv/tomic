@@ -97,7 +97,8 @@ def fetch_historical_option_data(
 
     app.error = MethodType(hist_error, app)
 
-    query_time = datetime.now().strftime("%Y%m%d-%H:%M:%S")
+    # IB API expects a space between date and time, not a dash
+    query_time = datetime.now().strftime("%Y%m%d %H:%M:%S")
     duration = cfg_get("HIST_DURATION", "1 D")
     bar_size = cfg_get("HIST_BARSIZE", "1 day")
     close_what = cfg_get("HIST_WHAT", what)

@@ -46,7 +46,8 @@ def _request_bars(app, symbol: str) -> Iterable[dict]:
     contract.currency = "USD"
     contract.includeExpired = True
 
-    query_time = datetime.now().strftime("%Y%m%d-%H:%M:%S")
+    # IB API expects a space between date and time, not a dash
+    query_time = datetime.now().strftime("%Y%m%d %H:%M:%S")
     logger.debug(contract.__dict__)
     app.reqHistoricalData(
         1,
