@@ -28,23 +28,15 @@ class IBClient(EClient, EWrapper):
     def error(
         self,
         reqId: int,
-        errorCode: int = None,
-        errorString: str = None,
-        errorTime: int = None,
-        advancedOrderRejectJson: str = None,
-    ) -> None:
-        """Robuuste error handler voor verschillende API versies."""
+        errorCode: int,
+        errorString: str,
+        *extra: object,
+    ) -> None:  # noqa: N802 - signature compatible with EWrapper
+        """Log IB error messages with full context."""
 
-        # Fallback als errorTime / advancedOrderRejectJson niet wordt meegegeven
-        if errorCode is not None and errorString is not None:
-            logger.error(f"IB error {errorCode}: {errorString}")
-        else:
-            logger.error(
-                f"IB error: unexpected args reqId={reqId}, errorCode={errorCode}, errorString={errorString}"
-            )
-
-        if advancedOrderRejectJson:
-            logger.error(f"Advanced order reject: {advancedOrderRejectJson}")
+        logger.error(f"IB error {errorCode}: {errorString}")
+        if extra:
+            logger.error(f"IB extra info: {extra}")
 
 
 @log_result
