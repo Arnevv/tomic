@@ -1138,7 +1138,7 @@ class OptionChainClient(MarketClient):
 
         # Wait until all option parameters have been received before
         # requesting option market data
-        if not self.option_params_complete.wait(timeout=20):
+        if not self.option_params_complete.wait(timeout=cfg_get("OPTION_PARAMS_TIMEOUT", 20)):
             logger.error("❌ FAIL stap 5: Timeout waiting for option parameters")
             return
 
