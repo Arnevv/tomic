@@ -84,6 +84,7 @@ class AppConfig(BaseModel):
     MARKET_DATA_TIMEOUT: int = 120
     OPTION_DATA_RETRIES: int = 0
     OPTION_RETRY_WAIT: int = 1
+    OPTION_PARAMS_TIMEOUT: int = 20
 
     # Historical and market data settings ---------------------------------
     HIST_DURATION: str = "1 D"
