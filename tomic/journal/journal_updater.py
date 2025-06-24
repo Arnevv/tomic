@@ -6,7 +6,6 @@ from datetime import date
 
 from tomic.api.market_client import fetch_market_metrics
 from tomic.config import get as cfg_get
-from tomic.api.margin_calc import calculate_trade_margin
 from tomic.journal.service import add_trade, next_trade_id
 
 
@@ -151,13 +150,7 @@ def interactieve_trade_invoer():
     skew = metrics["skew"]
     iv_percentile = metrics["iv_percentile"]
 
-    print("\n🧮 Benodigde margin wordt berekend...")
-    try:
-        init_margin = calculate_trade_margin(symbool, expiry, legs)
-        print(f"✅ Init margin: {init_margin}")
-    except Exception as exc:
-        print(f"⚠️ Marginberekening mislukt: {exc}")
-        init_margin = None
+    init_margin = None
 
     print("\n📐 Vul de NETTO Greeks in van de hele positie bij entry (optioneel):")
     print(
