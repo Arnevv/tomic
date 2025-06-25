@@ -542,7 +542,7 @@ class OptionChainClient(MarketClient):
                 and any(rec.get(k) is None for k in required)
             ]
 
-    def retry_incomplete_requests(
+    async def retry_incomplete_requests_async(
         self, ids: list[int] | None = None, *, wait: bool = True
     ) -> bool:
         """Re-request market data for incomplete option contracts."""
@@ -552,10 +552,19 @@ class OptionChainClient(MarketClient):
         if not ids:
             return False
         logger.info(f"🔄 Retry for {len(ids)} incomplete contracts")
-        for rid in ids:
+
+        data_type = (
+            self.data_type_success
+            if self.data_type_success is not None
+            else 1 if self.market_open else 2
+        )
+        self.reqMarketDataType(data_type)
+        sem = asyncio.Semaphore(int(cfg_get("MAX_CONCURRENT_REQUESTS", 5)))
+
+        async def send_request(rid: int) -> None:
             details = self.option_info.get(rid)
             if details is None:
-                continue
+                return
             con = details.contract
             logger.info(
                 f"🔄 retry reqId {rid} contract {contract_repr(con)}"
@@ -565,11 +574,6 @@ class OptionChainClient(MarketClient):
                 self.market_data[rid]["event"] = evt
                 self.invalid_contracts.discard(rid)
                 self._completed_requests.discard(rid)
-            if self.data_type_success is not None:
-                data_type = self.data_type_success
-            else:
-                data_type = 1 if self.market_open else 2
-            self.reqMarketDataType(data_type)
             use_snapshot = getattr(self, "_use_snapshot", not self.market_open)
             include_greeks = (
                 not cfg_get("INCLUDE_GREEKS_ONLY_IF_MARKET_OPEN", False)
@@ -582,12 +586,23 @@ class OptionChainClient(MarketClient):
                 if include_greeks:
                     ticks.append("106")
                 generic = ",".join(ticks)
-            self.reqMktData(rid, con, generic, use_snapshot, False, [])
+            async with sem:
+                await asyncio.to_thread(
+                    self.reqMktData, rid, con, generic, use_snapshot, False, []
+                )
             self._schedule_invalid_timer(rid)
+
+        tasks = [asyncio.create_task(send_request(rid)) for rid in ids]
+        await asyncio.gather(*tasks)
         if wait_time > 0:
-            time.sleep(wait_time)
+            await asyncio.sleep(wait_time)
         self.all_data_event.clear()
         return True
+
+    def retry_incomplete_requests(
+        self, ids: list[int] | None = None, *, wait: bool = True
+    ) -> bool:
+        return asyncio.run(self.retry_incomplete_requests_async(ids, wait=wait))
 
     def all_data_received(self) -> bool:
         """Return ``True`` when all requested option data has been received."""
@@ -1248,8 +1263,7 @@ class OptionChainClient(MarketClient):
         self._completed_requests.discard(req_id)
         return iv
 
-    @log_result
-    def _request_option_data(self) -> None:
+    async def _request_option_data_async(self) -> None:
         if not self.expiries or not self.strikes or self.trading_class is None:
             logger.debug(
                 f"Request option data skipped: expiries={self.expiries} "
@@ -1273,59 +1287,70 @@ class OptionChainClient(MarketClient):
                 "▶️ START stap 7 - Per combinatie optiecontract bouwen en reqContractDetails()"
             )
             self._step7_logged = True
+        async_sem = asyncio.Semaphore(int(cfg_get("MAX_CONCURRENT_REQUESTS", 5)))
         contract_map: dict[int, Contract] = {}
-        for expiry in self.expiries:
-            for strike in self.strikes:
-                actual = self._exp_strike_lookup.get(expiry, {}).get(
-                    strike, self._strike_lookup.get(strike, strike)
+
+        async def handle_request(expiry: str, strike: float, right: str) -> None:
+            actual = self._exp_strike_lookup.get(expiry, {}).get(
+                strike, self._strike_lookup.get(strike, strike)
+            )
+            info = OptionContract(
+                self.symbol,
+                expiry,
+                actual,
+                right,
+                exchange=self.options_exchange,
+                trading_class=self.trading_class,
+                primary_exchange=self.options_primary_exchange,
+                multiplier=self.multiplier,
+                con_id=self.con_ids.get((expiry, strike, right)),
+            )
+            c = info.to_ib()
+            req_id = self._next_id()
+            logger.debug(
+                f"reqId for {c.symbol} {c.lastTradeDateOrContractMonth}{c.strike} {c.right} is {req_id}"
+            )
+            with self.data_lock:
+                self.market_data[req_id] = {
+                    "expiry": expiry,
+                    "strike": strike,
+                    "right": right,
+                    "event": threading.Event(),
+                }
+                self._pending_details[req_id] = info
+            contract_map[req_id] = c
+            await async_sem.acquire()
+            self._detail_semaphore.acquire()
+            await asyncio.sleep(0.01)
+            ok = await asyncio.to_thread(self._request_contract_details, c, req_id)
+            if not ok:
+                logger.warning(
+                    f"⚠️ Geen optiecontractdetails voor reqId {req_id}; marktdata overgeslagen"
                 )
-                for right in ("C", "P"):
-                    info = OptionContract(
-                        self.symbol,
-                        expiry,
-                        actual,
-                        right,
-                        exchange=self.options_exchange,
-                        trading_class=self.trading_class,
-                        primary_exchange=self.options_primary_exchange,
-                        multiplier=self.multiplier,
-                        con_id=self.con_ids.get((expiry, strike, right)),
-                    )
-                    logger.debug(
-                        f"Building option contract: {info.symbol} {expiry} {actual} {right}"
-                    )
-                    c = info.to_ib()
-                    req_id = self._next_id()
-                    logger.debug(
-                        f"reqId for {c.symbol} {c.lastTradeDateOrContractMonth} {c.strike} {c.right} is {req_id}"
-                    )
-                    with self.data_lock:
-                        self.market_data[req_id] = {
-                            "expiry": expiry,
-                            "strike": strike,
-                            "right": right,
-                            "event": threading.Event(),
-                        }
-                        self._pending_details[req_id] = info
-                    contract_map[req_id] = c
-                    self._detail_semaphore.acquire()
-                    time.sleep(0.01)
-                    if not self._request_contract_details(c, req_id):
-                        logger.warning(
-                            f"⚠️ Geen optiecontractdetails voor reqId {req_id}; marktdata overgeslagen"
-                        )
-                        self._pending_details.pop(req_id, None)
-                        self._detail_semaphore.release()
-                        with self.data_lock:
-                            self.invalid_contracts.add(req_id)
-                        self._mark_complete(req_id)
+                self._pending_details.pop(req_id, None)
+                self._detail_semaphore.release()
+                with self.data_lock:
+                    self.invalid_contracts.add(req_id)
+                self._mark_complete(req_id)
+            async_sem.release()
+
+        tasks = [
+            asyncio.create_task(handle_request(e, s, r))
+            for e in self.expiries
+            for s in self.strikes
+            for r in ("C", "P")
+        ]
+
+        await asyncio.gather(*tasks)
         if self.use_hist_iv:
             contracts = {
                 rid: self.option_info[rid].contract
                 for rid in contract_map
                 if rid in self.option_info
             }
-            bulk_results = fetch_historical_option_data(contracts, app=self)
+            bulk_results = await asyncio.to_thread(
+                fetch_historical_option_data, contracts, app=self
+            )
             self._merge_historical_data(contracts, bulk_results)
             for rid in contracts:
                 self._mark_complete(rid)
@@ -1334,6 +1359,10 @@ class OptionChainClient(MarketClient):
         logger.debug(
             f"Aantal contractdetails aangevraagd: {len(self._pending_details)}"
         )
+
+    @log_result
+    def _request_option_data(self) -> None:
+        asyncio.run(self._request_option_data_async())
 
 
 class TermStructureClient(OptionChainClient):
