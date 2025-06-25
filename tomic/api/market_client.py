@@ -493,7 +493,9 @@ class OptionChainClient(MarketClient):
         with self.data_lock:
             self._invalid_timers.pop(req_id, None)
             self.invalid_contracts.add(req_id)
-            evt = self.market_data.get(req_id, {}).get("event")
+            rec = self.market_data.get(req_id, {})
+            rec["status"] = "timeout"
+            evt = rec.get("event")
         if isinstance(evt, threading.Event) and not evt.is_set():
             evt.set()
         self._mark_complete(req_id)
@@ -626,6 +628,10 @@ class OptionChainClient(MarketClient):
                 rec = self.market_data[req_id]
                 rec["iv"] = data.get("iv")
                 rec["close"] = data.get("close")
+                rec["status"] = "fallback"
+                evt = rec.get("event")
+                if isinstance(evt, threading.Event) and not evt.is_set():
+                    evt.set()
 
     # IB callbacks ------------------------------------------------
     @log_result
@@ -911,6 +917,11 @@ class OptionChainClient(MarketClient):
             self._pending_details.pop(reqId, None)
             with self.data_lock:
                 self.invalid_contracts.add(reqId)
+                rec = self.market_data.get(reqId, {})
+                rec["status"] = "invalid"
+                evt = rec.get("event")
+            if isinstance(evt, threading.Event) and not evt.is_set():
+                evt.set()
             self._mark_complete(reqId)
         elif errorCode == 504:
             logger.error(f"IB error {errorCode}: {errorString}")
@@ -1316,6 +1327,7 @@ class OptionChainClient(MarketClient):
                     "strike": strike,
                     "right": right,
                     "event": threading.Event(),
+                    "status": "ok",
                 }
                 self._pending_details[req_id] = info
             contract_map[req_id] = c
@@ -1331,6 +1343,11 @@ class OptionChainClient(MarketClient):
                 self._detail_semaphore.release()
                 with self.data_lock:
                     self.invalid_contracts.add(req_id)
+                    rec = self.market_data.get(req_id, {})
+                    rec["status"] = "invalid"
+                    evt = rec.get("event")
+                if isinstance(evt, threading.Event) and not evt.is_set():
+                    evt.set()
                 self._mark_complete(req_id)
             async_sem.release()
 
