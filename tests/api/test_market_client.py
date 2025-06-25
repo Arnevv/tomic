@@ -1,6 +1,7 @@
 import importlib
 import threading
 import types
+import time
 
 
 def test_start_requests_requests_stock(monkeypatch):
@@ -1277,4 +1278,21 @@ def test_await_market_data_historical_no_retry(monkeypatch):
 
     assert ok is True
     assert called == []
+
+
+def test_max_data_timer_sets_event(monkeypatch):
+    mod = importlib.import_module("tomic.api.market_client")
+
+    monkeypatch.setattr(
+        mod,
+        "cfg_get",
+        lambda n, d=None: 0.01 if n == "OPTION_MAX_MARKETDATA_TIME" else d,
+    )
+
+    client = mod.OptionChainClient("ABC")
+    client.expected_contracts = 1
+    client._start_max_data_timer()
+    time.sleep(0.05)
+
+    assert client.all_data_event.is_set()
 
