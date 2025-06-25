@@ -897,6 +897,15 @@ class OptionChainClient(MarketClient):
             with self.data_lock:
                 self.invalid_contracts.add(reqId)
             self._mark_complete(reqId)
+        elif errorCode == 504:
+            logger.error(f"IB error {errorCode}: {errorString}")
+            # Connection lost - mark remaining requests complete so waiting loops
+            # can exit gracefully
+            with self.data_lock:
+                pending = set(self.market_data).difference(self._completed_requests)
+            for rid in pending:
+                self._mark_complete(rid)
+            self.all_data_event.set()
         else:
             super().error(
                 reqId, errorTime, errorCode, errorString, advancedOrderRejectJson
@@ -1411,6 +1420,16 @@ def await_market_data(app: MarketClient, symbol: str, timeout: int = 30) -> bool
             break
         if isinstance(app, OptionChainClient):
             event = getattr(app, "all_data_event", app.market_event)
+            # Progress-based completion check
+            if (
+                app.expected_contracts
+                and len(app._completed_requests) >= app.expected_contracts
+                and app.spot_price is not None
+            ):
+                logger.debug(
+                    f"Market data ontvangen binnen {time.time() - start:.2f}s"
+                )
+                return True
         else:
             event = getattr(app, "market_event", app.data_event)
 
@@ -1435,6 +1454,11 @@ def await_market_data(app: MarketClient, symbol: str, timeout: int = 30) -> bool
                     f"Market data ontvangen binnen {time.time() - start:.2f}s"
                 )
                 return True
+            if not app.connected.is_set() and not app.incomplete_requests():
+                logger.debug(
+                    f"Market data aborted after disconnect at {time.time() - start:.2f}s"
+                )
+                return False
         else:
             if app.spot_price is not None and event.is_set():
                 logger.debug(f"Market data ontvangen binnen {time.time() - start:.2f}s")
