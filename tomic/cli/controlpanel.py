@@ -273,6 +273,10 @@ def run_risk_tools() -> None:
     menu.add("Event watcher", lambda: run_module("tomic.cli.event_watcher"))
     menu.add("Synthetics detector", lambda: run_module("tomic.cli.synthetics_detector"))
     menu.add("Cone visualizer", lambda: run_module("tomic.cli.cone_visualizer"))
+    menu.add(
+        "Theoretical value calculator",
+        lambda: run_module("tomic.cli.bs_calculator"),
+    )
     menu.run()
 
 
