@@ -77,7 +77,7 @@ def test_write_option_chain_skips_invalid(tmp_path):
         rows = list(csv.reader(f))
 
     assert rows[0] == _HEADERS_CHAIN
-    assert len(rows) == 2
+    assert len(rows) == 3
     assert len(rows[0]) == len(_HEADERS_CHAIN)
     assert rows[1][2] == "100"  # strike of valid contract
 
@@ -125,8 +125,8 @@ def test_write_option_chain_negative_bid(tmp_path):
     with open(path, newline="") as f:
         rows = list(csv.reader(f))
 
-    assert rows[1][-1] == ""
-    assert rows[2][-1] == ""
+    assert rows[1][-2] == ""
+    assert rows[2][-2] == ""
 
 
 def test_write_option_chain_no_records(tmp_path):
@@ -276,7 +276,7 @@ def test_write_option_chain_simple(tmp_path):
         rows = list(csv.reader(f))
 
     assert rows[0] == _HEADERS_SIMPLE
-    assert len(rows) == 3 - 1  # skip spot id and invalid/no bid/ask
+    assert len(rows) == 3  # header + valid + invalid
 
 
 def test_write_option_chain_simple_close_only(tmp_path):
