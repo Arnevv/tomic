@@ -456,6 +456,7 @@ class OptionChainClient(MarketClient):
         self._step9_logged = False
         # Timers for delayed invalidation of option market data requests
         self._invalid_timers: dict[int, threading.Timer] = {}
+        self._max_data_timer: threading.Timer | None = None
         self._use_snapshot: bool = False
         self._retry_rounds = int(cfg_get("OPTION_DATA_RETRIES", 0))
         self._request_retries: dict[int, int] = {}
@@ -487,6 +488,7 @@ class OptionChainClient(MarketClient):
                 and len(self._completed_requests) >= self.expected_contracts
             ):
                 self.all_data_event.set()
+                self._stop_max_data_timer()
 
     def _invalidate_request(self, req_id: int) -> None:
         """Mark request ``req_id`` as invalid and cancel streaming data."""
@@ -609,6 +611,30 @@ class OptionChainClient(MarketClient):
     def all_data_received(self) -> bool:
         """Return ``True`` when all requested option data has been received."""
         return self.all_data_event.is_set()
+
+    def _start_max_data_timer(self) -> None:
+        limit = int(cfg_get("OPTION_MAX_MARKETDATA_TIME", 0))
+        if limit <= 0 or self._max_data_timer is not None:
+            return
+
+        def timeout() -> None:
+            missing = self.incomplete_requests()
+            if missing:
+                logger.warning(
+                    f"⚠️ Hard timeout na {limit}s: {len(missing)} contracten ontbreken"
+                )
+            self.all_data_event.set()
+
+        timer = threading.Timer(limit, timeout)
+        timer.daemon = True
+        self._max_data_timer = timer
+        timer.start()
+
+    def _stop_max_data_timer(self) -> None:
+        timer = self._max_data_timer
+        if timer is not None:
+            timer.cancel()
+            self._max_data_timer = None
 
     def _merge_historical_data(
         self,
@@ -898,6 +924,8 @@ class OptionChainClient(MarketClient):
         )
         if self.expected_contracts == 0:
             self.all_data_event.set()
+            self._stop_max_data_timer()
+            self._stop_max_data_timer()
 
     def securityDefinitionOptionParameterEnd(self, reqId: int) -> None:  # noqa: N802
         """Mark option parameter retrieval as complete."""
@@ -932,6 +960,7 @@ class OptionChainClient(MarketClient):
             for rid in pending:
                 self._mark_complete(rid)
             self.all_data_event.set()
+            self._stop_max_data_timer()
         else:
             super().error(
                 reqId, errorTime, errorCode, errorString, advancedOrderRejectJson
@@ -1376,6 +1405,7 @@ class OptionChainClient(MarketClient):
         logger.debug(
             f"Aantal contractdetails aangevraagd: {len(self._pending_details)}"
         )
+        self._start_max_data_timer()
 
     @log_result
     def _request_option_data(self) -> None:

@@ -222,6 +222,7 @@ Max: OPTION_DATA_RETRIES (default: 3)
 Timeout per poging: BID_ASK_TIMEOUT (default: 10s)
 
 Wacht tussen retries: OPTION_RETRY_WAIT
+Strikte timeboxing: OPTION_MAX_MARKETDATA_TIME (default 30s) als laatste fallback
 
 10. Exporteren van CSV’s en disconnect
 Disconnect vóór het schrijven naar disk
