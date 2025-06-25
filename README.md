@@ -15,6 +15,7 @@ Feature	Beschrijving
 🎯 Strategie-selectie	Maximaal 5 kansen volgens TOMIC-score
 ✍️ Journal-integratie	Met exit-signalen, EV, PoS, risico en entrylogica
 📁 Exporteerbaar	CSV/JSON-export voor eigen dashboards of analyse
+📲 Theoretical value calculator  Bereken optiewaarde en edge t.o.v. midprice
 
 🚀 Starten
 Installeer vereisten
