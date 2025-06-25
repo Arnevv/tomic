@@ -44,7 +44,6 @@ tomic/
 ├── core/              # Kernlogica en datamodellen
 ├── journal/           # Entry/exitregels, journaling
 ├── helpers/           # Utilities
-├── proto/             # Job-definities (geen IBKR)
 ├── ibapi/             # Lokale TWS API (met protobuf)
 tests/                 # Pytest-modules
 
