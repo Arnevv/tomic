@@ -53,6 +53,7 @@ _HEADERS_CHAIN = [
     "Volume",
     "OpenInterest",
     "ParityDeviation",
+    "Status",
 ]
 
 _HEADERS_METRICS = [
@@ -83,6 +84,7 @@ _HEADERS_SIMPLE = [
     "Gamma",
     "Vega",
     "Theta",
+    "Status",
 ]
 
 
@@ -96,11 +98,32 @@ def _write_option_chain(
     single = getattr(app, "_spot_req_id", None)
     if single is not None:
         spot_ids.add(single)
-    records = [
-        data
-        for req_id, data in app.market_data.items()
-        if req_id not in app.invalid_contracts and req_id not in spot_ids
-    ]
+    counts = {"ok": 0, "fallback": 0, "timeout": 0, "invalid": 0}
+    records = []
+    for req_id, data in app.market_data.items():
+        if req_id in spot_ids:
+            continue
+        status = data.get("status", "ok")
+        if req_id in app.invalid_contracts and status == "ok":
+            status = "invalid"
+            data["status"] = "invalid"
+        if status in ("timeout", "invalid"):
+            for key in [
+                "bid",
+                "ask",
+                "close",
+                "iv",
+                "delta",
+                "gamma",
+                "vega",
+                "theta",
+                "volume",
+                "open_interest",
+                "parity_deviation",
+            ]:
+                data.setdefault(key, None)
+        counts[status] = counts.get(status, 0) + 1
+        records.append(data)
     if not records:
         logger.warning(f"Geen optie data ontvangen voor {symbol}")
         return None
@@ -118,6 +141,8 @@ def _write_option_chain(
     expiries = getattr(app, "expiries", [])
     target_expiry = expiries[0] if expiries else None
     for rec in records:
+        if rec.get("status") in ("timeout", "invalid"):
+            continue
         key = (rec.get("expiry"), rec.get("strike"))
         pair = grouped.setdefault(key, {})
         if rec.get("right") == "C":
@@ -198,12 +223,13 @@ def _write_option_chain(
                     rec.get("volume"),
                     rec.get("open_interest"),
                     rec.get("parity_deviation"),
+                    rec.get("status", "ok"),
                 ]
             )
     logger.info(f"✅ [stap 10] Optieketen opgeslagen in: {chain_file}")
     total = len(getattr(app, "market_data", {})) - len(spot_ids)
     logger.info(
-        f"Contracts verwerkt: {len(records)} geldig, {total - len(records)} ongeldig"
+        f"Contracts verwerkt: ok={counts['ok']} fallback={counts['fallback']} timeout={counts['timeout']} invalid={counts['invalid']}"
     )
     if parity_values:
         return round(sum(parity_values) / len(parity_values), 4)
@@ -224,16 +250,32 @@ def _write_option_chain_simple(
         single = getattr(app, "_spot_req_id", None)
         if single is not None:
             spot_ids.add(single)
+        counts = {"ok": 0, "fallback": 0, "timeout": 0, "invalid": 0}
         for req_id, rec in app.market_data.items():
             if req_id in spot_ids:
                 continue
-            if req_id in getattr(app, "invalid_contracts", set()):
-                continue
+            status = rec.get("status", "ok")
+            if req_id in getattr(app, "invalid_contracts", set()) and status == "ok":
+                status = "invalid"
+                rec["status"] = "invalid"
+            if status in ("timeout", "invalid"):
+                for key in [
+                    "bid",
+                    "ask",
+                    "close",
+                    "iv",
+                    "delta",
+                    "gamma",
+                    "vega",
+                    "theta",
+                ]:
+                    rec.setdefault(key, None)
+            counts[status] = counts.get(status, 0) + 1
             if (
                 rec.get("bid") is None
                 and rec.get("ask") is None
                 and rec.get("close") is None
-            ):
+            ) and status == "ok":
                 continue
             writer.writerow(
                 [
@@ -249,22 +291,14 @@ def _write_option_chain_simple(
                     rec.get("gamma"),
                     rec.get("vega"),
                     rec.get("theta"),
+                    rec.get("status", "ok"),
                 ]
             )
     logger.info(f"✅ [stap 10] CSV opgeslagen als: {path}")
     total = len(getattr(app, "market_data", {})) - len(spot_ids)
-    valid = sum(
-        1
-        for req_id, rec in app.market_data.items()
-        if req_id not in getattr(app, "invalid_contracts", set())
-        and req_id not in spot_ids
-        and not (
-            rec.get("bid") is None
-            and rec.get("ask") is None
-            and rec.get("close") is None
-        )
+    logger.info(
+        f"Contracts verwerkt: ok={counts['ok']} fallback={counts['fallback']} timeout={counts['timeout']} invalid={counts['invalid']}"
     )
-    logger.info(f"Contracts verwerkt: {valid} geldig, {total - valid} ongeldig")
 
 
 @log_result
