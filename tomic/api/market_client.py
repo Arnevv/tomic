@@ -447,6 +447,7 @@ class OptionChainClient(MarketClient):
         self.contract_received = threading.Event()
         self.market_event = threading.Event()
         self.all_data_event = threading.Event()
+        self.iv_event = threading.Event()
         self.expected_contracts = 0
         self._completed_requests: set[int] = set()
         self._logged_data: set[int] = set()
@@ -893,39 +894,48 @@ class OptionChainClient(MarketClient):
                 break
 
         atm_strike = min(strikes, key=lambda x: abs(x - center)) if strikes else None
-        iv = None
-        stddev = None
-        if atm_expiry and atm_strike is not None:
+
+        def finalize(allowed: list[float]) -> None:
+            self.strikes = allowed
+            self._strike_lookup = {s: s for s in allowed}
+            self._exp_strike_lookup = {}
+            self._expiry_min_tick = {}
             logger.info(
-                f"IV bepaling via expiry {atm_expiry} en ATM strike {atm_strike}"
+                f"✅ [stap 6] Geselecteerde strikes: {', '.join(str(s) for s in self.strikes)}"
             )
-            iv = self._fetch_iv_for_expiry(atm_expiry, atm_strike)
-            if iv is not None:
-                dte = (datetime.strptime(atm_expiry, "%Y%m%d").date() - today_date).days
-                stddev = center * iv * math.sqrt(dte / 365) * stddev_mult
+            self.expected_contracts = len(self.expiries) * len(self.strikes) * 2
+            logger.info(
+                f"✅ [stap 6] Er zijn {len(self.expiries)} expiries en {len(self.strikes)} strikes dus {self.expected_contracts} combinaties"
+            )
+            if self.expected_contracts == 0:
+                self.all_data_event.set()
+                self._stop_max_data_timer()
+                self._stop_max_data_timer()
+            self.iv_event.set()
+
+        def worker() -> None:
+            iv = None
+            stddev = None
+            if atm_expiry and atm_strike is not None:
                 logger.info(
-                    f"IV ontvangen: {iv} -> stddev {stddev:.2f} (multiplier {stddev_mult})"
+                    f"IV bepaling via expiry {atm_expiry} en ATM strike {atm_strike}"
                 )
-        if iv is None or stddev is None:
-            logger.debug("IV niet beschikbaar, fallback naar STRIKE_RANGE")
-            allowed = [s for s in sorted(strikes) if abs(s - center) <= strike_range]
-        else:
-            allowed = [s for s in sorted(strikes) if abs(s - center) <= stddev]
-        self.strikes = allowed
-        self._strike_lookup = {s: s for s in allowed}
-        self._exp_strike_lookup = {}
-        self._expiry_min_tick = {}
-        logger.info(
-            f"✅ [stap 6] Geselecteerde strikes: {', '.join(str(s) for s in self.strikes)}"
-        )
-        self.expected_contracts = len(self.expiries) * len(self.strikes) * 2
-        logger.info(
-            f"✅ [stap 6] Er zijn {len(self.expiries)} expiries en {len(self.strikes)} strikes dus {self.expected_contracts} combinaties"
-        )
-        if self.expected_contracts == 0:
-            self.all_data_event.set()
-            self._stop_max_data_timer()
-            self._stop_max_data_timer()
+                iv = self._fetch_iv_for_expiry(atm_expiry, atm_strike)
+                if iv is not None:
+                    dte = (datetime.strptime(atm_expiry, "%Y%m%d").date() - today_date).days
+                    stddev = center * iv * math.sqrt(dte / 365) * stddev_mult
+                    logger.info(
+                        f"IV ontvangen: {iv} -> stddev {stddev:.2f} (multiplier {stddev_mult})"
+                    )
+            if iv is None or stddev is None:
+                logger.debug("IV niet beschikbaar, fallback naar STRIKE_RANGE")
+                allowed = [s for s in sorted(strikes) if abs(s - center) <= strike_range]
+            else:
+                allowed = [s for s in sorted(strikes) if abs(s - center) <= stddev]
+            finalize(allowed)
+
+        self.iv_event.clear()
+        threading.Thread(target=worker, daemon=True).start()
 
     def securityDefinitionOptionParameterEnd(self, reqId: int) -> None:  # noqa: N802
         """Mark option parameter retrieval as complete."""
@@ -1204,6 +1214,10 @@ class OptionChainClient(MarketClient):
         # requesting option market data
         if not self.option_params_complete.wait(timeout=cfg_get("OPTION_PARAMS_TIMEOUT", 20)):
             logger.error("❌ FAIL stap 5: Timeout waiting for option parameters")
+            return
+
+        if not self.iv_event.wait(10):
+            logger.error("❌ FAIL stap 6: Timeout waiting for IV calculation")
             return
 
         self._request_option_data()
