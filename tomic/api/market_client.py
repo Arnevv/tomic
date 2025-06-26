@@ -1398,12 +1398,17 @@ class OptionChainClient(MarketClient):
                 self._mark_complete(req_id)
             async_sem.release()
 
-        tasks = [
-            asyncio.create_task(handle_request(e, s, r))
-            for e in self.expiries
-            for s in self.strikes
-            for r in ("C", "P")
-        ]
+        tasks = []
+        for e in self.expiries:
+            strike_map = self._exp_strike_lookup.get(e)
+            for s in self.strikes:
+                if strike_map is not None and s not in strike_map:
+                    logger.debug(
+                        f"Skipping strike {s} for expiry {e} (not in exp strike lookup)"
+                    )
+                    continue
+                for r in ("C", "P"):
+                    tasks.append(asyncio.create_task(handle_request(e, s, r)))
 
         await asyncio.gather(*tasks)
         if self.use_hist_iv:
