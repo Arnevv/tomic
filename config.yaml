@@ -14,8 +14,8 @@ DEFAULT_SYMBOLS:
 #- COST
 #- CRM
 #- DIA
-#- EEM
-#- GLD
+- EEM
+- GLD
 #- GOOGL
 #- HYG
 #- IWM
@@ -23,9 +23,9 @@ DEFAULT_SYMBOLS:
 #- LULU
 #- META
 #- MSFT
-- NFLX
-- NVDA
-#- ORCL
+#- NFLX
+#- NVDA
+- ORCL
 #- QQQ
 #- SLV
 #- SPY
@@ -34,7 +34,7 @@ DEFAULT_SYMBOLS:
 #- USO
 #- XLE
 #- XLF
-- XLI
+#- XLI
 #- XLU
 DELTA_MAX: 1.0
 DELTA_MIN: -1.0
