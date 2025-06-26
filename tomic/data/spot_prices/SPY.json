@@ -1,0 +1,1766 @@
+[
+  {
+    "symbol": "SPY",
+    "date": "2024-06-24",
+    "close": 543.08,
+    "volume": 31472621,
+    "atr": null
+  },
+  {
+    "symbol": "SPY",
+    "date": "2024-06-25",
+    "close": 544.69,
+    "volume": 25280077,
+    "atr": null
+  },
+  {
+    "symbol": "SPY",
+    "date": "2024-06-26",
+    "close": 543.98,
+    "volume": 25185309,
+    "atr": null
+  },
+  {
+    "symbol": "SPY",
+    "date": "2024-06-27",
+    "close": 547.08,
+    "volume": 24002038,
+    "atr": null
+  },
+  {
+    "symbol": "SPY",
+    "date": "2024-06-28",
+    "close": 545.12,
+    "volume": 49292540,
+    "atr": null
+  },
+  {
+    "symbol": "SPY",
+    "date": "2024-07-01",
+    "close": 544.9,
+    "volume": 29596320,
+    "atr": null
+  },
+  {
+    "symbol": "SPY",
+    "date": "2024-07-02",
+    "close": 548.26,
+    "volume": 26000782,
+    "atr": null
+  },
+  {
+    "symbol": "SPY",
+    "date": "2024-07-03",
+    "close": 551.14,
+    "volume": 21148098,
+    "atr": null
+  },
+  {
+    "symbol": "SPY",
+    "date": "2024-07-05",
+    "close": 554.12,
+    "volume": 27527446,
+    "atr": null
+  },
+  {
+    "symbol": "SPY",
+    "date": "2024-07-08",
+    "close": 556.4,
+    "volume": 22782694,
+    "atr": null
+  },
+  {
+    "symbol": "SPY",
+    "date": "2024-07-09",
+    "close": 556.01,
+    "volume": 20121505,
+    "atr": null
+  },
+  {
+    "symbol": "SPY",
+    "date": "2024-07-10",
+    "close": 561.05,
+    "volume": 26957618,
+    "atr": null
+  },
+  {
+    "symbol": "SPY",
+    "date": "2024-07-11",
+    "close": 556.43,
+    "volume": 39122049,
+    "atr": null
+  },
+  {
+    "symbol": "SPY",
+    "date": "2024-07-12",
+    "close": 559.77,
+    "volume": 37555589,
+    "atr": null
+  },
+  {
+    "symbol": "SPY",
+    "date": "2024-07-15",
+    "close": 562.22,
+    "volume": 30691513,
+    "atr": null
+  },
+  {
+    "symbol": "SPY",
+    "date": "2024-07-16",
+    "close": 564.4,
+    "volume": 26225809,
+    "atr": null
+  },
+  {
+    "symbol": "SPY",
+    "date": "2024-07-17",
+    "close": 558.08,
+    "volume": 37364537,
+    "atr": null
+  },
+  {
+    "symbol": "SPY",
+    "date": "2024-07-18",
+    "close": 553.6,
+    "volume": 42747502,
+    "atr": null
+  },
+  {
+    "symbol": "SPY",
+    "date": "2024-07-19",
+    "close": 549.05,
+    "volume": 37231617,
+    "atr": null
+  },
+  {
+    "symbol": "SPY",
+    "date": "2024-07-22",
+    "close": 554.28,
+    "volume": 30323121,
+    "atr": null
+  },
+  {
+    "symbol": "SPY",
+    "date": "2024-07-23",
+    "close": 551.34,
+    "volume": 23566033,
+    "atr": null
+  },
+  {
+    "symbol": "SPY",
+    "date": "2024-07-24",
+    "close": 542.46,
+    "volume": 48176160,
+    "atr": null
+  },
+  {
+    "symbol": "SPY",
+    "date": "2024-07-25",
+    "close": 539.33,
+    "volume": 48159378,
+    "atr": null
+  },
+  {
+    "symbol": "SPY",
+    "date": "2024-07-26",
+    "close": 544.27,
+    "volume": 40341140,
+    "atr": null
+  },
+  {
+    "symbol": "SPY",
+    "date": "2024-07-29",
+    "close": 543.45,
+    "volume": 26619777,
+    "atr": null
+  },
+  {
+    "symbol": "SPY",
+    "date": "2024-07-30",
+    "close": 542.72,
+    "volume": 34180122,
+    "atr": null
+  },
+  {
+    "symbol": "SPY",
+    "date": "2024-07-31",
+    "close": 553.46,
+    "volume": 49026736,
+    "atr": null
+  },
+  {
+    "symbol": "SPY",
+    "date": "2024-08-01",
+    "close": 541.11,
+    "volume": 56031920,
+    "atr": null
+  },
+  {
+    "symbol": "SPY",
+    "date": "2024-08-02",
+    "close": 531.25,
+    "volume": 61618514,
+    "atr": null
+  },
+  {
+    "symbol": "SPY",
+    "date": "2024-08-05",
+    "close": 522.92,
+    "volume": 109886856,
+    "atr": null
+  },
+  {
+    "symbol": "SPY",
+    "date": "2024-08-06",
+    "close": 519.94,
+    "volume": 60932420,
+    "atr": null
+  },
+  {
+    "symbol": "SPY",
+    "date": "2024-08-07",
+    "close": 515.95,
+    "volume": 55241617,
+    "atr": null
+  },
+  {
+    "symbol": "SPY",
+    "date": "2024-08-08",
+    "close": 531.59,
+    "volume": 48303175,
+    "atr": null
+  },
+  {
+    "symbol": "SPY",
+    "date": "2024-08-09",
+    "close": 532.99,
+    "volume": 34969334,
+    "atr": null
+  },
+  {
+    "symbol": "SPY",
+    "date": "2024-08-12",
+    "close": 533.28,
+    "volume": 32140165,
+    "atr": null
+  },
+  {
+    "symbol": "SPY",
+    "date": "2024-08-13",
+    "close": 541.94,
+    "volume": 35439266,
+    "atr": null
+  },
+  {
+    "symbol": "SPY",
+    "date": "2024-08-14",
+    "close": 543.73,
+    "volume": 31780095,
+    "atr": null
+  },
+  {
+    "symbol": "SPY",
+    "date": "2024-08-15",
+    "close": 553.55,
+    "volume": 45151934,
+    "atr": null
+  },
+  {
+    "symbol": "SPY",
+    "date": "2024-08-16",
+    "close": 553.9,
+    "volume": 25692578,
+    "atr": null
+  },
+  {
+    "symbol": "SPY",
+    "date": "2024-08-19",
+    "close": 559.31,
+    "volume": 28229758,
+    "atr": null
+  },
+  {
+    "symbol": "SPY",
+    "date": "2024-08-20",
+    "close": 558.54,
+    "volume": 25158501,
+    "atr": null
+  },
+  {
+    "symbol": "SPY",
+    "date": "2024-08-21",
+    "close": 561.17,
+    "volume": 28397066,
+    "atr": null
+  },
+  {
+    "symbol": "SPY",
+    "date": "2024-08-22",
+    "close": 557.17,
+    "volume": 35182035,
+    "atr": null
+  },
+  {
+    "symbol": "SPY",
+    "date": "2024-08-23",
+    "close": 562.29,
+    "volume": 37368150,
+    "atr": null
+  },
+  {
+    "symbol": "SPY",
+    "date": "2024-08-26",
+    "close": 560.29,
+    "volume": 25648189,
+    "atr": null
+  },
+  {
+    "symbol": "SPY",
+    "date": "2024-08-27",
+    "close": 560.76,
+    "volume": 22506720,
+    "atr": null
+  },
+  {
+    "symbol": "SPY",
+    "date": "2024-08-28",
+    "close": 554.46,
+    "volume": 28329452,
+    "atr": null
+  },
+  {
+    "symbol": "SPY",
+    "date": "2024-08-29",
+    "close": 558.86,
+    "volume": 29669487,
+    "atr": null
+  },
+  {
+    "symbol": "SPY",
+    "date": "2024-08-30",
+    "close": 563.45,
+    "volume": 44484416,
+    "atr": null
+  },
+  {
+    "symbol": "SPY",
+    "date": "2024-09-03",
+    "close": 551.0,
+    "volume": 41999054,
+    "atr": null
+  },
+  {
+    "symbol": "SPY",
+    "date": "2024-09-04",
+    "close": 550.28,
+    "volume": 35638294,
+    "atr": null
+  },
+  {
+    "symbol": "SPY",
+    "date": "2024-09-05",
+    "close": 549.05,
+    "volume": 34000139,
+    "atr": null
+  },
+  {
+    "symbol": "SPY",
+    "date": "2024-09-06",
+    "close": 538.8,
+    "volume": 50958971,
+    "atr": null
+  },
+  {
+    "symbol": "SPY",
+    "date": "2024-09-09",
+    "close": 547.13,
+    "volume": 30108778,
+    "atr": null
+  },
+  {
+    "symbol": "SPY",
+    "date": "2024-09-10",
+    "close": 548.3,
+    "volume": 29661298,
+    "atr": null
+  },
+  {
+    "symbol": "SPY",
+    "date": "2024-09-11",
+    "close": 554.31,
+    "volume": 51718859,
+    "atr": null
+  },
+  {
+    "symbol": "SPY",
+    "date": "2024-09-12",
+    "close": 559.24,
+    "volume": 35311611,
+    "atr": null
+  },
+  {
+    "symbol": "SPY",
+    "date": "2024-09-13",
+    "close": 561.65,
+    "volume": 28011360,
+    "atr": null
+  },
+  {
+    "symbol": "SPY",
+    "date": "2024-09-16",
+    "close": 562.44,
+    "volume": 24116900,
+    "atr": null
+  },
+  {
+    "symbol": "SPY",
+    "date": "2024-09-17",
+    "close": 563.46,
+    "volume": 32940037,
+    "atr": null
+  },
+  {
+    "symbol": "SPY",
+    "date": "2024-09-18",
+    "close": 565.0,
+    "volume": 41317598,
+    "atr": null
+  },
+  {
+    "symbol": "SPY",
+    "date": "2024-09-19",
+    "close": 570.25,
+    "volume": 45939800,
+    "atr": null
+  },
+  {
+    "symbol": "SPY",
+    "date": "2024-09-20",
+    "close": 568.15,
+    "volume": 40440661,
+    "atr": null
+  },
+  {
+    "symbol": "SPY",
+    "date": "2024-09-23",
+    "close": 569.3,
+    "volume": 25826580,
+    "atr": null
+  },
+  {
+    "symbol": "SPY",
+    "date": "2024-09-24",
+    "close": 571.22,
+    "volume": 32366640,
+    "atr": null
+  },
+  {
+    "symbol": "SPY",
+    "date": "2024-09-25",
+    "close": 570.94,
+    "volume": 27505490,
+    "atr": null
+  },
+  {
+    "symbol": "SPY",
+    "date": "2024-09-26",
+    "close": 572.4,
+    "volume": 29574204,
+    "atr": null
+  },
+  {
+    "symbol": "SPY",
+    "date": "2024-09-27",
+    "close": 570.67,
+    "volume": 26716527,
+    "atr": null
+  },
+  {
+    "symbol": "SPY",
+    "date": "2024-09-30",
+    "close": 573.24,
+    "volume": 39941211,
+    "atr": null
+  },
+  {
+    "symbol": "SPY",
+    "date": "2024-10-01",
+    "close": 567.76,
+    "volume": 53293643,
+    "atr": null
+  },
+  {
+    "symbol": "SPY",
+    "date": "2024-10-02",
+    "close": 569.75,
+    "volume": 25313157,
+    "atr": null
+  },
+  {
+    "symbol": "SPY",
+    "date": "2024-10-03",
+    "close": 567.8,
+    "volume": 29784869,
+    "atr": null
+  },
+  {
+    "symbol": "SPY",
+    "date": "2024-10-04",
+    "close": 572.31,
+    "volume": 32910062,
+    "atr": null
+  },
+  {
+    "symbol": "SPY",
+    "date": "2024-10-07",
+    "close": 567.7,
+    "volume": 31868905,
+    "atr": null
+  },
+  {
+    "symbol": "SPY",
+    "date": "2024-10-08",
+    "close": 572.68,
+    "volume": 27306367,
+    "atr": null
+  },
+  {
+    "symbol": "SPY",
+    "date": "2024-10-09",
+    "close": 577.0,
+    "volume": 27952973,
+    "atr": null
+  },
+  {
+    "symbol": "SPY",
+    "date": "2024-10-10",
+    "close": 576.77,
+    "volume": 28755774,
+    "atr": null
+  },
+  {
+    "symbol": "SPY",
+    "date": "2024-10-11",
+    "close": 578.61,
+    "volume": 26962406,
+    "atr": null
+  },
+  {
+    "symbol": "SPY",
+    "date": "2024-10-14",
+    "close": 584.71,
+    "volume": 24789299,
+    "atr": null
+  },
+  {
+    "symbol": "SPY",
+    "date": "2024-10-15",
+    "close": 579.86,
+    "volume": 32832678,
+    "atr": null
+  },
+  {
+    "symbol": "SPY",
+    "date": "2024-10-16",
+    "close": 581.54,
+    "volume": 21975287,
+    "atr": null
+  },
+  {
+    "symbol": "SPY",
+    "date": "2024-10-17",
+    "close": 582.9,
+    "volume": 24584292,
+    "atr": null
+  },
+  {
+    "symbol": "SPY",
+    "date": "2024-10-18",
+    "close": 584.72,
+    "volume": 19919487,
+    "atr": null
+  },
+  {
+    "symbol": "SPY",
+    "date": "2024-10-21",
+    "close": 583.61,
+    "volume": 23850217,
+    "atr": null
+  },
+  {
+    "symbol": "SPY",
+    "date": "2024-10-22",
+    "close": 583.07,
+    "volume": 23821131,
+    "atr": null
+  },
+  {
+    "symbol": "SPY",
+    "date": "2024-10-23",
+    "close": 578.56,
+    "volume": 35606864,
+    "atr": null
+  },
+  {
+    "symbol": "SPY",
+    "date": "2024-10-24",
+    "close": 579.36,
+    "volume": 25704397,
+    "atr": null
+  },
+  {
+    "symbol": "SPY",
+    "date": "2024-10-25",
+    "close": 577.95,
+    "volume": 32106236,
+    "atr": null
+  },
+  {
+    "symbol": "SPY",
+    "date": "2024-10-28",
+    "close": 580.73,
+    "volume": 22066924,
+    "atr": null
+  },
+  {
+    "symbol": "SPY",
+    "date": "2024-10-29",
+    "close": 583.05,
+    "volume": 24658969,
+    "atr": null
+  },
+  {
+    "symbol": "SPY",
+    "date": "2024-10-30",
+    "close": 577.9,
+    "volume": 27821268,
+    "atr": null
+  },
+  {
+    "symbol": "SPY",
+    "date": "2024-10-31",
+    "close": 569.4,
+    "volume": 41057567,
+    "atr": null
+  },
+  {
+    "symbol": "SPY",
+    "date": "2024-11-01",
+    "close": 571.3,
+    "volume": 30823534,
+    "atr": null
+  },
+  {
+    "symbol": "SPY",
+    "date": "2024-11-04",
+    "close": 569.58,
+    "volume": 23833531,
+    "atr": null
+  },
+  {
+    "symbol": "SPY",
+    "date": "2024-11-05",
+    "close": 579.09,
+    "volume": 26114084,
+    "atr": null
+  },
+  {
+    "symbol": "SPY",
+    "date": "2024-11-06",
+    "close": 590.46,
+    "volume": 49225523,
+    "atr": null
+  },
+  {
+    "symbol": "SPY",
+    "date": "2024-11-07",
+    "close": 595.73,
+    "volume": 31221061,
+    "atr": null
+  },
+  {
+    "symbol": "SPY",
+    "date": "2024-11-08",
+    "close": 598.0,
+    "volume": 30479311,
+    "atr": null
+  },
+  {
+    "symbol": "SPY",
+    "date": "2024-11-11",
+    "close": 598.14,
+    "volume": 24020580,
+    "atr": null
+  },
+  {
+    "symbol": "SPY",
+    "date": "2024-11-12",
+    "close": 596.12,
+    "volume": 26500929,
+    "atr": null
+  },
+  {
+    "symbol": "SPY",
+    "date": "2024-11-13",
+    "close": 597.42,
+    "volume": 30242699,
+    "atr": null
+  },
+  {
+    "symbol": "SPY",
+    "date": "2024-11-14",
+    "close": 591.93,
+    "volume": 27179169,
+    "atr": null
+  },
+  {
+    "symbol": "SPY",
+    "date": "2024-11-15",
+    "close": 586.2,
+    "volume": 37952939,
+    "atr": null
+  },
+  {
+    "symbol": "SPY",
+    "date": "2024-11-18",
+    "close": 588.04,
+    "volume": 23549709,
+    "atr": null
+  },
+  {
+    "symbol": "SPY",
+    "date": "2024-11-19",
+    "close": 591.39,
+    "volume": 28167464,
+    "atr": null
+  },
+  {
+    "symbol": "SPY",
+    "date": "2024-11-20",
+    "close": 588.51,
+    "volume": 30727066,
+    "atr": null
+  },
+  {
+    "symbol": "SPY",
+    "date": "2024-11-21",
+    "close": 592.97,
+    "volume": 32390350,
+    "atr": null
+  },
+  {
+    "symbol": "SPY",
+    "date": "2024-11-22",
+    "close": 596.45,
+    "volume": 24543181,
+    "atr": null
+  },
+  {
+    "symbol": "SPY",
+    "date": "2024-11-25",
+    "close": 595.27,
+    "volume": 30949261,
+    "atr": null
+  },
+  {
+    "symbol": "SPY",
+    "date": "2024-11-26",
+    "close": 601.1,
+    "volume": 29738339,
+    "atr": null
+  },
+  {
+    "symbol": "SPY",
+    "date": "2024-11-27",
+    "close": 599.4,
+    "volume": 22650419,
+    "atr": null
+  },
+  {
+    "symbol": "SPY",
+    "date": "2024-11-29",
+    "close": 603.12,
+    "volume": 19975372,
+    "atr": null
+  },
+  {
+    "symbol": "SPY",
+    "date": "2024-12-02",
+    "close": 603.62,
+    "volume": 22055266,
+    "atr": null
+  },
+  {
+    "symbol": "SPY",
+    "date": "2024-12-03",
+    "close": 604.19,
+    "volume": 18459102,
+    "atr": null
+  },
+  {
+    "symbol": "SPY",
+    "date": "2024-12-04",
+    "close": 606.88,
+    "volume": 25725466,
+    "atr": null
+  },
+  {
+    "symbol": "SPY",
+    "date": "2024-12-05",
+    "close": 606.22,
+    "volume": 20411224,
+    "atr": null
+  },
+  {
+    "symbol": "SPY",
+    "date": "2024-12-06",
+    "close": 607.37,
+    "volume": 20237110,
+    "atr": null
+  },
+  {
+    "symbol": "SPY",
+    "date": "2024-12-09",
+    "close": 604.42,
+    "volume": 23926951,
+    "atr": null
+  },
+  {
+    "symbol": "SPY",
+    "date": "2024-12-10",
+    "close": 603.16,
+    "volume": 22639208,
+    "atr": null
+  },
+  {
+    "symbol": "SPY",
+    "date": "2024-12-11",
+    "close": 606.76,
+    "volume": 20030415,
+    "atr": null
+  },
+  {
+    "symbol": "SPY",
+    "date": "2024-12-12",
+    "close": 605.38,
+    "volume": 21174406,
+    "atr": null
+  },
+  {
+    "symbol": "SPY",
+    "date": "2024-12-13",
+    "close": 603.85,
+    "volume": 22765989,
+    "atr": null
+  },
+  {
+    "symbol": "SPY",
+    "date": "2024-12-16",
+    "close": 605.98,
+    "volume": 26474041,
+    "atr": null
+  },
+  {
+    "symbol": "SPY",
+    "date": "2024-12-17",
+    "close": 604.09,
+    "volume": 33007757,
+    "atr": null
+  },
+  {
+    "symbol": "SPY",
+    "date": "2024-12-18",
+    "close": 587.82,
+    "volume": 68984456,
+    "atr": null
+  },
+  {
+    "symbol": "SPY",
+    "date": "2024-12-19",
+    "close": 584.31,
+    "volume": 51121057,
+    "atr": null
+  },
+  {
+    "symbol": "SPY",
+    "date": "2024-12-20",
+    "close": 592.12,
+    "volume": 73641962,
+    "atr": null
+  },
+  {
+    "symbol": "SPY",
+    "date": "2024-12-23",
+    "close": 594.65,
+    "volume": 36184632,
+    "atr": null
+  },
+  {
+    "symbol": "SPY",
+    "date": "2024-12-24",
+    "close": 601.1,
+    "volume": 19702890,
+    "atr": null
+  },
+  {
+    "symbol": "SPY",
+    "date": "2024-12-26",
+    "close": 600.41,
+    "volume": 25468868,
+    "atr": null
+  },
+  {
+    "symbol": "SPY",
+    "date": "2024-12-27",
+    "close": 595.03,
+    "volume": 40432764,
+    "atr": null
+  },
+  {
+    "symbol": "SPY",
+    "date": "2024-12-30",
+    "close": 587.3,
+    "volume": 31874435,
+    "atr": null
+  },
+  {
+    "symbol": "SPY",
+    "date": "2024-12-31",
+    "close": 586.51,
+    "volume": 39764485,
+    "atr": null
+  },
+  {
+    "symbol": "SPY",
+    "date": "2025-01-02",
+    "close": 585.86,
+    "volume": 36675400,
+    "atr": null
+  },
+  {
+    "symbol": "SPY",
+    "date": "2025-01-03",
+    "close": 592.04,
+    "volume": 28636596,
+    "atr": null
+  },
+  {
+    "symbol": "SPY",
+    "date": "2025-01-06",
+    "close": 595.55,
+    "volume": 30671808,
+    "atr": null
+  },
+  {
+    "symbol": "SPY",
+    "date": "2025-01-07",
+    "close": 589.48,
+    "volume": 37521808,
+    "atr": null
+  },
+  {
+    "symbol": "SPY",
+    "date": "2025-01-08",
+    "close": 588.17,
+    "volume": 29334697,
+    "atr": null
+  },
+  {
+    "symbol": "SPY",
+    "date": "2025-01-10",
+    "close": 579.78,
+    "volume": 48772841,
+    "atr": null
+  },
+  {
+    "symbol": "SPY",
+    "date": "2025-01-13",
+    "close": 583.2,
+    "volume": 33638575,
+    "atr": null
+  },
+  {
+    "symbol": "SPY",
+    "date": "2025-01-14",
+    "close": 582.65,
+    "volume": 34326135,
+    "atr": null
+  },
+  {
+    "symbol": "SPY",
+    "date": "2025-01-15",
+    "close": 593.66,
+    "volume": 38854224,
+    "atr": null
+  },
+  {
+    "symbol": "SPY",
+    "date": "2025-01-16",
+    "close": 591.51,
+    "volume": 24576806,
+    "atr": null
+  },
+  {
+    "symbol": "SPY",
+    "date": "2025-01-17",
+    "close": 597.69,
+    "volume": 31202372,
+    "atr": null
+  },
+  {
+    "symbol": "SPY",
+    "date": "2025-01-21",
+    "close": 604.36,
+    "volume": 27530272,
+    "atr": null
+  },
+  {
+    "symbol": "SPY",
+    "date": "2025-01-22",
+    "close": 605.87,
+    "volume": 26547566,
+    "atr": null
+  },
+  {
+    "symbol": "SPY",
+    "date": "2025-01-23",
+    "close": 609.02,
+    "volume": 26136731,
+    "atr": null
+  },
+  {
+    "symbol": "SPY",
+    "date": "2025-01-24",
+    "close": 607.49,
+    "volume": 21352551,
+    "atr": null
+  },
+  {
+    "symbol": "SPY",
+    "date": "2025-01-27",
+    "close": 599.17,
+    "volume": 44601390,
+    "atr": null
+  },
+  {
+    "symbol": "SPY",
+    "date": "2025-01-28",
+    "close": 604.1,
+    "volume": 28769845,
+    "atr": null
+  },
+  {
+    "symbol": "SPY",
+    "date": "2025-01-29",
+    "close": 603.06,
+    "volume": 25703458,
+    "atr": null
+  },
+  {
+    "symbol": "SPY",
+    "date": "2025-01-30",
+    "close": 605.89,
+    "volume": 28419219,
+    "atr": null
+  },
+  {
+    "symbol": "SPY",
+    "date": "2025-01-31",
+    "close": 598.98,
+    "volume": 44236390,
+    "atr": null
+  },
+  {
+    "symbol": "SPY",
+    "date": "2025-02-03",
+    "close": 600.44,
+    "volume": 49042769,
+    "atr": null
+  },
+  {
+    "symbol": "SPY",
+    "date": "2025-02-04",
+    "close": 600.4,
+    "volume": 25154714,
+    "atr": null
+  },
+  {
+    "symbol": "SPY",
+    "date": "2025-02-05",
+    "close": 604.74,
+    "volume": 21394580,
+    "atr": null
+  },
+  {
+    "symbol": "SPY",
+    "date": "2025-02-06",
+    "close": 605.99,
+    "volume": 24931007,
+    "atr": null
+  },
+  {
+    "symbol": "SPY",
+    "date": "2025-02-07",
+    "close": 600.23,
+    "volume": 33330339,
+    "atr": null
+  },
+  {
+    "symbol": "SPY",
+    "date": "2025-02-10",
+    "close": 603.98,
+    "volume": 18389788,
+    "atr": null
+  },
+  {
+    "symbol": "SPY",
+    "date": "2025-02-11",
+    "close": 605.31,
+    "volume": 19660321,
+    "atr": null
+  },
+  {
+    "symbol": "SPY",
+    "date": "2025-02-12",
+    "close": 604.59,
+    "volume": 28594851,
+    "atr": null
+  },
+  {
+    "symbol": "SPY",
+    "date": "2025-02-13",
+    "close": 609.65,
+    "volume": 30546655,
+    "atr": null
+  },
+  {
+    "symbol": "SPY",
+    "date": "2025-02-14",
+    "close": 609.78,
+    "volume": 18302050,
+    "atr": null
+  },
+  {
+    "symbol": "SPY",
+    "date": "2025-02-18",
+    "close": 611.95,
+    "volume": 19087352,
+    "atr": null
+  },
+  {
+    "symbol": "SPY",
+    "date": "2025-02-19",
+    "close": 612.3,
+    "volume": 19107466,
+    "atr": null
+  },
+  {
+    "symbol": "SPY",
+    "date": "2025-02-20",
+    "close": 610.39,
+    "volume": 23789478,
+    "atr": null
+  },
+  {
+    "symbol": "SPY",
+    "date": "2025-02-21",
+    "close": 600.24,
+    "volume": 41417393,
+    "atr": null
+  },
+  {
+    "symbol": "SPY",
+    "date": "2025-02-24",
+    "close": 598.03,
+    "volume": 35156231,
+    "atr": null
+  },
+  {
+    "symbol": "SPY",
+    "date": "2025-02-25",
+    "close": 596.0,
+    "volume": 38255617,
+    "atr": null
+  },
+  {
+    "symbol": "SPY",
+    "date": "2025-02-26",
+    "close": 593.66,
+    "volume": 30893313,
+    "atr": null
+  },
+  {
+    "symbol": "SPY",
+    "date": "2025-02-27",
+    "close": 584.89,
+    "volume": 47997048,
+    "atr": null
+  },
+  {
+    "symbol": "SPY",
+    "date": "2025-02-28",
+    "close": 594.3,
+    "volume": 59065128,
+    "atr": null
+  },
+  {
+    "symbol": "SPY",
+    "date": "2025-03-03",
+    "close": 585.4,
+    "volume": 53781330,
+    "atr": null
+  },
+  {
+    "symbol": "SPY",
+    "date": "2025-03-04",
+    "close": 580.43,
+    "volume": 69842083,
+    "atr": null
+  },
+  {
+    "symbol": "SPY",
+    "date": "2025-03-05",
+    "close": 581.9,
+    "volume": 51360186,
+    "atr": null
+  },
+  {
+    "symbol": "SPY",
+    "date": "2025-03-06",
+    "close": 574.37,
+    "volume": 55761986,
+    "atr": null
+  },
+  {
+    "symbol": "SPY",
+    "date": "2025-03-07",
+    "close": 574.71,
+    "volume": 59042292,
+    "atr": null
+  },
+  {
+    "symbol": "SPY",
+    "date": "2025-03-10",
+    "close": 558.58,
+    "volume": 64676847,
+    "atr": null
+  },
+  {
+    "symbol": "SPY",
+    "date": "2025-03-11",
+    "close": 557.8,
+    "volume": 61928001,
+    "atr": null
+  },
+  {
+    "symbol": "SPY",
+    "date": "2025-03-12",
+    "close": 560.67,
+    "volume": 50245047,
+    "atr": null
+  },
+  {
+    "symbol": "SPY",
+    "date": "2025-03-13",
+    "close": 553.89,
+    "volume": 51077203,
+    "atr": null
+  },
+  {
+    "symbol": "SPY",
+    "date": "2025-03-14",
+    "close": 562.08,
+    "volume": 41831945,
+    "atr": null
+  },
+  {
+    "symbol": "SPY",
+    "date": "2025-03-17",
+    "close": 566.98,
+    "volume": 35329197,
+    "atr": null
+  },
+  {
+    "symbol": "SPY",
+    "date": "2025-03-18",
+    "close": 561.2,
+    "volume": 43483635,
+    "atr": null
+  },
+  {
+    "symbol": "SPY",
+    "date": "2025-03-19",
+    "close": 568.7,
+    "volume": 46567267,
+    "atr": null
+  },
+  {
+    "symbol": "SPY",
+    "date": "2025-03-20",
+    "close": 565.68,
+    "volume": 39741542,
+    "atr": null
+  },
+  {
+    "symbol": "SPY",
+    "date": "2025-03-21",
+    "close": 565.0,
+    "volume": 43526089,
+    "atr": null
+  },
+  {
+    "symbol": "SPY",
+    "date": "2025-03-24",
+    "close": 573.83,
+    "volume": 40387477,
+    "atr": null
+  },
+  {
+    "symbol": "SPY",
+    "date": "2025-03-25",
+    "close": 576.0,
+    "volume": 27199313,
+    "atr": null
+  },
+  {
+    "symbol": "SPY",
+    "date": "2025-03-26",
+    "close": 567.62,
+    "volume": 35713061,
+    "atr": null
+  },
+  {
+    "symbol": "SPY",
+    "date": "2025-03-27",
+    "close": 566.57,
+    "volume": 32790561,
+    "atr": null
+  },
+  {
+    "symbol": "SPY",
+    "date": "2025-03-28",
+    "close": 554.15,
+    "volume": 50876618,
+    "atr": null
+  },
+  {
+    "symbol": "SPY",
+    "date": "2025-03-31",
+    "close": 557.0,
+    "volume": 61866690,
+    "atr": null
+  },
+  {
+    "symbol": "SPY",
+    "date": "2025-04-01",
+    "close": 561.78,
+    "volume": 38866141,
+    "atr": null
+  },
+  {
+    "symbol": "SPY",
+    "date": "2025-04-02",
+    "close": 544.83,
+    "volume": 56821189,
+    "atr": null
+  },
+  {
+    "symbol": "SPY",
+    "date": "2025-04-03",
+    "close": 536.38,
+    "volume": 86731455,
+    "atr": null
+  },
+  {
+    "symbol": "SPY",
+    "date": "2025-04-04",
+    "close": 505.5,
+    "volume": 154936590,
+    "atr": null
+  },
+  {
+    "symbol": "SPY",
+    "date": "2025-04-07",
+    "close": 509.53,
+    "volume": 198043178,
+    "atr": null
+  },
+  {
+    "symbol": "SPY",
+    "date": "2025-04-08",
+    "close": 490.57,
+    "volume": 130397971,
+    "atr": null
+  },
+  {
+    "symbol": "SPY",
+    "date": "2025-04-09",
+    "close": 545.9,
+    "volume": 174831984,
+    "atr": null
+  },
+  {
+    "symbol": "SPY",
+    "date": "2025-04-10",
+    "close": 522.1,
+    "volume": 119827452,
+    "atr": null
+  },
+  {
+    "symbol": "SPY",
+    "date": "2025-04-11",
+    "close": 534.29,
+    "volume": 66934176,
+    "atr": null
+  },
+  {
+    "symbol": "SPY",
+    "date": "2025-04-14",
+    "close": 536.9,
+    "volume": 52367381,
+    "atr": null
+  },
+  {
+    "symbol": "SPY",
+    "date": "2025-04-15",
+    "close": 533.58,
+    "volume": 38675303,
+    "atr": null
+  },
+  {
+    "symbol": "SPY",
+    "date": "2025-04-16",
+    "close": 525.95,
+    "volume": 54409162,
+    "atr": null
+  },
+  {
+    "symbol": "SPY",
+    "date": "2025-04-17",
+    "close": 527.1,
+    "volume": 44847721,
+    "atr": null
+  },
+  {
+    "symbol": "SPY",
+    "date": "2025-04-21",
+    "close": 516.05,
+    "volume": 50989187,
+    "atr": null
+  },
+  {
+    "symbol": "SPY",
+    "date": "2025-04-22",
+    "close": 536.65,
+    "volume": 57684952,
+    "atr": null
+  },
+  {
+    "symbol": "SPY",
+    "date": "2025-04-23",
+    "close": 536.7,
+    "volume": 65942890,
+    "atr": null
+  },
+  {
+    "symbol": "SPY",
+    "date": "2025-04-24",
+    "close": 548.37,
+    "volume": 46874851,
+    "atr": null
+  },
+  {
+    "symbol": "SPY",
+    "date": "2025-04-25",
+    "close": 551.23,
+    "volume": 41487037,
+    "atr": null
+  },
+  {
+    "symbol": "SPY",
+    "date": "2025-04-28",
+    "close": 551.1,
+    "volume": 35643070,
+    "atr": null
+  },
+  {
+    "symbol": "SPY",
+    "date": "2025-04-29",
+    "close": 552.99,
+    "volume": 33916452,
+    "atr": null
+  },
+  {
+    "symbol": "SPY",
+    "date": "2025-04-30",
+    "close": 559.28,
+    "volume": 63224267,
+    "atr": null
+  },
+  {
+    "symbol": "SPY",
+    "date": "2025-05-01",
+    "close": 557.18,
+    "volume": 42976540,
+    "atr": null
+  },
+  {
+    "symbol": "SPY",
+    "date": "2025-05-02",
+    "close": 566.83,
+    "volume": 41619738,
+    "atr": null
+  },
+  {
+    "symbol": "SPY",
+    "date": "2025-05-05",
+    "close": 562.81,
+    "volume": 29454534,
+    "atr": null
+  },
+  {
+    "symbol": "SPY",
+    "date": "2025-05-06",
+    "close": 563.4,
+    "volume": 37876831,
+    "atr": null
+  },
+  {
+    "symbol": "SPY",
+    "date": "2025-05-07",
+    "close": 561.01,
+    "volume": 38930772,
+    "atr": null
+  },
+  {
+    "symbol": "SPY",
+    "date": "2025-05-08",
+    "close": 564.32,
+    "volume": 48391514,
+    "atr": null
+  },
+  {
+    "symbol": "SPY",
+    "date": "2025-05-09",
+    "close": 565.0,
+    "volume": 27802087,
+    "atr": null
+  },
+  {
+    "symbol": "SPY",
+    "date": "2025-05-12",
+    "close": 582.13,
+    "volume": 56902960,
+    "atr": null
+  },
+  {
+    "symbol": "SPY",
+    "date": "2025-05-13",
+    "close": 587.26,
+    "volume": 43967859,
+    "atr": null
+  },
+  {
+    "symbol": "SPY",
+    "date": "2025-05-14",
+    "close": 586.13,
+    "volume": 47429142,
+    "atr": null
+  },
+  {
+    "symbol": "SPY",
+    "date": "2025-05-15",
+    "close": 590.18,
+    "volume": 50416226,
+    "atr": null
+  },
+  {
+    "symbol": "SPY",
+    "date": "2025-05-16",
+    "close": 588.25,
+    "volume": 44433055,
+    "atr": null
+  },
+  {
+    "symbol": "SPY",
+    "date": "2025-05-19",
+    "close": 595.54,
+    "volume": 46466003,
+    "atr": null
+  },
+  {
+    "symbol": "SPY",
+    "date": "2025-05-20",
+    "close": 592.35,
+    "volume": 44884168,
+    "atr": null
+  },
+  {
+    "symbol": "SPY",
+    "date": "2025-05-21",
+    "close": 583.11,
+    "volume": 68314063,
+    "atr": null
+  },
+  {
+    "symbol": "SPY",
+    "date": "2025-05-22",
+    "close": 583.11,
+    "volume": 51803255,
+    "atr": null
+  },
+  {
+    "symbol": "SPY",
+    "date": "2025-05-23",
+    "close": 579.0,
+    "volume": 52773218,
+    "atr": null
+  },
+  {
+    "symbol": "SPY",
+    "date": "2025-05-27",
+    "close": 591.3,
+    "volume": 53230960,
+    "atr": null
+  },
+  {
+    "symbol": "SPY",
+    "date": "2025-05-28",
+    "close": 596.61,
+    "volume": 49507669,
+    "atr": null
+  },
+  {
+    "symbol": "SPY",
+    "date": "2025-05-29",
+    "close": 588.1,
+    "volume": 50326643,
+    "atr": null
+  },
+  {
+    "symbol": "SPY",
+    "date": "2025-05-30",
+    "close": 588.4,
+    "volume": 62322973,
+    "atr": null
+  },
+  {
+    "symbol": "SPY",
+    "date": "2025-06-02",
+    "close": 591.48,
+    "volume": 45294671,
+    "atr": null
+  },
+  {
+    "symbol": "SPY",
+    "date": "2025-06-03",
+    "close": 596.3,
+    "volume": 46876229,
+    "atr": null
+  },
+  {
+    "symbol": "SPY",
+    "date": "2025-06-04",
+    "close": 595.48,
+    "volume": 42048486,
+    "atr": null
+  },
+  {
+    "symbol": "SPY",
+    "date": "2025-06-05",
+    "close": 592.83,
+    "volume": 67098535,
+    "atr": null
+  },
+  {
+    "symbol": "SPY",
+    "date": "2025-06-06",
+    "close": 599.73,
+    "volume": 49299639,
+    "atr": null
+  },
+  {
+    "symbol": "SPY",
+    "date": "2025-06-09",
+    "close": 599.88,
+    "volume": 38878575,
+    "atr": null
+  },
+  {
+    "symbol": "SPY",
+    "date": "2025-06-10",
+    "close": 602.7,
+    "volume": 48959245,
+    "atr": null
+  },
+  {
+    "symbol": "SPY",
+    "date": "2025-06-11",
+    "close": 600.49,
+    "volume": 54695402,
+    "atr": null
+  },
+  {
+    "symbol": "SPY",
+    "date": "2025-06-12",
+    "close": 600.19,
+    "volume": 47347753,
+    "atr": null
+  },
+  {
+    "symbol": "SPY",
+    "date": "2025-06-13",
+    "close": 597.49,
+    "volume": 66783349,
+    "atr": null
+  },
+  {
+    "symbol": "SPY",
+    "date": "2025-06-16",
+    "close": 598.94,
+    "volume": 54592246,
+    "atr": null
+  },
+  {
+    "symbol": "SPY",
+    "date": "2025-06-17",
+    "close": 596.11,
+    "volume": 61516528,
+    "atr": null
+  },
+  {
+    "symbol": "SPY",
+    "date": "2025-06-18",
+    "close": 597.29,
+    "volume": 49629617,
+    "atr": null
+  },
+  {
+    "symbol": "SPY",
+    "date": "2025-06-20",
+    "close": 595.31,
+    "volume": 55639194,
+    "atr": null
+  },
+  {
+    "symbol": "SPY",
+    "date": "2025-06-23",
+    "close": 603.34,
+    "volume": 68223543,
+    "atr": null
+  },
+  {
+    "symbol": "SPY",
+    "date": "2025-06-24",
+    "close": 607.02,
+    "volume": 47703972,
+    "atr": null
+  },
+  {
+    "symbol": "SPY",
+    "date": "2025-06-25",
+    "close": 606.47,
+    "volume": 23988924,
+    "atr": null
+  }
+]
