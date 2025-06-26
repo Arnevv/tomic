@@ -471,9 +471,14 @@ class EClient(object):
         self.sendMsg(OUT.REQ_CURRENT_TIME, msg)
 
     def serverVersion(self):
-        """Returns the version of the TWS instance to which the API application is connected."""
+        """Return the API server version or ``0`` when unknown.
 
-        return self.serverVersion_
+        ``serverVersion`` is ``None`` until a connection is established.
+        Returning ``0`` ensures version comparisons work even when no
+        connection has been made yet.
+        """
+
+        return self.serverVersion_ if self.serverVersion_ is not None else 0
 
     def setServerLogLevel(self, logLevel: int):
         """The default detail level is ERROR. For more details, see API
