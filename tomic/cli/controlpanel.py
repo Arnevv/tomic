@@ -275,7 +275,14 @@ def run_dataexporter() -> None:
         except subprocess.CalledProcessError:
             print("❌ Ophalen van historische prijzen mislukt")
 
+    def compute_volstats_polygon_cmd() -> None:
+        try:
+            run_module("tomic.cli.compute_volstats_polygon")
+        except subprocess.CalledProcessError:
+            print("❌ Berekenen van volatiliteitsstatistieken mislukt")
+
     menu.add("Ophalen historische prijzen - polygon", fetch_prices_polygon_cmd)
+    menu.add("Bereken volatiliteitsstatistieken - polygon", compute_volstats_polygon_cmd)
     menu.add("Toon historische data", show_history)
     menu.add("Toon volatiliteitsdata", show_volstats)
     menu.add("Polygon option chain", polygon_chain)
