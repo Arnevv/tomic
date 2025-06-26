@@ -1339,3 +1339,28 @@ def test_max_data_timer_sets_event(monkeypatch):
 
     assert client.all_data_event.is_set()
 
+
+def test_retry_incomplete_requests_cancels_before_request(monkeypatch):
+    mod = importlib.import_module("tomic.api.market_client")
+
+    client = mod.OptionChainClient("ABC")
+    client.market_open = True
+    client.trading_class = "ABC"
+    req_id = 1
+
+    contract = mod.OptionContract("ABC", "20250101", 100.0, "C", trading_class="ABC")
+    client.option_info[req_id] = types.SimpleNamespace(contract=contract.to_ib())
+    with client.data_lock:
+        client.market_data[req_id] = {"bid": None, "ask": None}
+
+    calls = []
+    monkeypatch.setattr(client, "reqMarketDataType", lambda *a, **k: None, raising=False)
+    client.cancelMktData = lambda r: calls.append(("cancel", r))  # type: ignore[attr-defined]
+    client.reqMktData = lambda *a, **k: calls.append(("req", a[0]))  # type: ignore[attr-defined]
+
+    client.retry_incomplete_requests([req_id], wait=False)
+
+    assert ("cancel", req_id) in calls
+    assert ("req", req_id) in calls
+    assert calls.index(("cancel", req_id)) < calls.index(("req", req_id))
+
