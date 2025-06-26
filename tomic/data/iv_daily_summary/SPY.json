@@ -8,7 +8,10 @@
   {
     "date": "2025-06-26",
     "atm_iv": null,
-    "iv_rank": null,
-    "iv_percentile": null
+    "iv_rank (HV)": null,
+    "iv_percentile (HV)": null,
+    "term_m1_m2": null,
+    "term_m1_m3": null,
+    "skew": null
   }
 ]
