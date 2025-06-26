@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from typing import Any, Dict, List
 import requests
+from .logutils import logger
 
 from .market_provider import MarketDataProvider
 from . import config as cfg
@@ -32,7 +33,12 @@ class PolygonClient(MarketDataProvider):
             raise RuntimeError("Client not connected")
         params = dict(params or {})
         params["apiKey"] = self.api_key
+        masked = {**params, "apiKey": "***"}
+        logger.debug(f"GET {path} params={masked}")
         resp = self._session.get(f"{self.BASE_URL}/{path}", params=params, timeout=10)
+        status = getattr(resp, "status_code", "n/a")
+        text = getattr(resp, "text", "")
+        logger.debug(f"Response {status}: {text[:200]}")
         resp.raise_for_status()
         return resp.json()
 
