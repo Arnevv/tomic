@@ -914,7 +914,6 @@ class OptionChainClient(MarketClient):
             if self.expected_contracts == 0:
                 self.all_data_event.set()
                 self._stop_max_data_timer()
-                self._stop_max_data_timer()
             self.iv_event.set()
 
         def worker() -> None:
