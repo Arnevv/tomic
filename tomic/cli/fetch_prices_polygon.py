@@ -11,7 +11,7 @@ from tomic.config import get as cfg_get
 from tomic.logutils import logger, setup_logging
 from tomic.journal.utils import update_json_file
 from tomic.polygon_client import PolygonClient
-from .compute_volstats import main as compute_volstats_main
+from .compute_volstats_polygon import main as compute_volstats_polygon_main
 
 
 def _request_bars(client: PolygonClient, symbol: str) -> Iterable[dict]:
@@ -70,7 +70,7 @@ def main(argv: List[str] | None = None) -> None:
         client.disconnect()
     logger.success(f"✅ Historische prijzen opgeslagen voor {stored} symbolen")
 
-    compute_volstats_main(symbols)
+    compute_volstats_polygon_main(symbols)
 
 
 if __name__ == "__main__":
