@@ -1,0 +1,1752 @@
+[
+  {
+    "symbol": "COST",
+    "date": "2024-06-26",
+    "close": 856.84,
+    "volume": 1505286.0,
+    "atr": null
+  },
+  {
+    "symbol": "COST",
+    "date": "2024-06-27",
+    "close": 850.62,
+    "volume": 1254904.0,
+    "atr": null
+  },
+  {
+    "symbol": "COST",
+    "date": "2024-06-28",
+    "close": 849.99,
+    "volume": 2131691.0,
+    "atr": null
+  },
+  {
+    "symbol": "COST",
+    "date": "2024-07-01",
+    "close": 845.67,
+    "volume": 1989003.0,
+    "atr": null
+  },
+  {
+    "symbol": "COST",
+    "date": "2024-07-02",
+    "close": 859.36,
+    "volume": 1377857.0,
+    "atr": null
+  },
+  {
+    "symbol": "COST",
+    "date": "2024-07-03",
+    "close": 862.66,
+    "volume": 814423,
+    "atr": null
+  },
+  {
+    "symbol": "COST",
+    "date": "2024-07-05",
+    "close": 885.67,
+    "volume": 2620714.0,
+    "atr": null
+  },
+  {
+    "symbol": "COST",
+    "date": "2024-07-08",
+    "close": 880.84,
+    "volume": 1611317.0,
+    "atr": null
+  },
+  {
+    "symbol": "COST",
+    "date": "2024-07-09",
+    "close": 886.85,
+    "volume": 1358498.0,
+    "atr": null
+  },
+  {
+    "symbol": "COST",
+    "date": "2024-07-10",
+    "close": 884.31,
+    "volume": 1753523.0,
+    "atr": null
+  },
+  {
+    "symbol": "COST",
+    "date": "2024-07-11",
+    "close": 846.59,
+    "volume": 6021054.0,
+    "atr": null
+  },
+  {
+    "symbol": "COST",
+    "date": "2024-07-12",
+    "close": 842.9,
+    "volume": 3288384.0,
+    "atr": null
+  },
+  {
+    "symbol": "COST",
+    "date": "2024-07-15",
+    "close": 848.73,
+    "volume": 2064036.0,
+    "atr": null
+  },
+  {
+    "symbol": "COST",
+    "date": "2024-07-16",
+    "close": 850.77,
+    "volume": 1687592.0,
+    "atr": null
+  },
+  {
+    "symbol": "COST",
+    "date": "2024-07-17",
+    "close": 846.28,
+    "volume": 1783079.0,
+    "atr": null
+  },
+  {
+    "symbol": "COST",
+    "date": "2024-07-18",
+    "close": 839.37,
+    "volume": 2326317.0,
+    "atr": null
+  },
+  {
+    "symbol": "COST",
+    "date": "2024-07-19",
+    "close": 838.13,
+    "volume": 1984385.0,
+    "atr": null
+  },
+  {
+    "symbol": "COST",
+    "date": "2024-07-22",
+    "close": 847.42,
+    "volume": 1920228.0,
+    "atr": null
+  },
+  {
+    "symbol": "COST",
+    "date": "2024-07-23",
+    "close": 852.11,
+    "volume": 1744123.0,
+    "atr": null
+  },
+  {
+    "symbol": "COST",
+    "date": "2024-07-24",
+    "close": 830.82,
+    "volume": 2511321.0,
+    "atr": null
+  },
+  {
+    "symbol": "COST",
+    "date": "2024-07-25",
+    "close": 815.95,
+    "volume": 2183740.0,
+    "atr": null
+  },
+  {
+    "symbol": "COST",
+    "date": "2024-07-26",
+    "close": 817.6,
+    "volume": 1441455.0,
+    "atr": null
+  },
+  {
+    "symbol": "COST",
+    "date": "2024-07-29",
+    "close": 815.56,
+    "volume": 1320420.0,
+    "atr": null
+  },
+  {
+    "symbol": "COST",
+    "date": "2024-07-30",
+    "close": 810.03,
+    "volume": 2017248.0,
+    "atr": null
+  },
+  {
+    "symbol": "COST",
+    "date": "2024-07-31",
+    "close": 822,
+    "volume": 2135049.0,
+    "atr": null
+  },
+  {
+    "symbol": "COST",
+    "date": "2024-08-01",
+    "close": 816.89,
+    "volume": 1861405.0,
+    "atr": null
+  },
+  {
+    "symbol": "COST",
+    "date": "2024-08-02",
+    "close": 822.08,
+    "volume": 2598467.0,
+    "atr": null
+  },
+  {
+    "symbol": "COST",
+    "date": "2024-08-05",
+    "close": 801.83,
+    "volume": 2820885.0,
+    "atr": null
+  },
+  {
+    "symbol": "COST",
+    "date": "2024-08-06",
+    "close": 816.88,
+    "volume": 2476255.0,
+    "atr": null
+  },
+  {
+    "symbol": "COST",
+    "date": "2024-08-07",
+    "close": 810.3,
+    "volume": 1702040.0,
+    "atr": null
+  },
+  {
+    "symbol": "COST",
+    "date": "2024-08-08",
+    "close": 839.43,
+    "volume": 2345030.0,
+    "atr": null
+  },
+  {
+    "symbol": "COST",
+    "date": "2024-08-09",
+    "close": 854.93,
+    "volume": 1710588.0,
+    "atr": null
+  },
+  {
+    "symbol": "COST",
+    "date": "2024-08-12",
+    "close": 863.57,
+    "volume": 1748173.0,
+    "atr": null
+  },
+  {
+    "symbol": "COST",
+    "date": "2024-08-13",
+    "close": 864.82,
+    "volume": 1484055.0,
+    "atr": null
+  },
+  {
+    "symbol": "COST",
+    "date": "2024-08-14",
+    "close": 862.71,
+    "volume": 1341493.0,
+    "atr": null
+  },
+  {
+    "symbol": "COST",
+    "date": "2024-08-15",
+    "close": 877.35,
+    "volume": 1923809.0,
+    "atr": null
+  },
+  {
+    "symbol": "COST",
+    "date": "2024-08-16",
+    "close": 870.59,
+    "volume": 1516332.0,
+    "atr": null
+  },
+  {
+    "symbol": "COST",
+    "date": "2024-08-19",
+    "close": 872.35,
+    "volume": 1318382.0,
+    "atr": null
+  },
+  {
+    "symbol": "COST",
+    "date": "2024-08-20",
+    "close": 876.2,
+    "volume": 1104595.0,
+    "atr": null
+  },
+  {
+    "symbol": "COST",
+    "date": "2024-08-21",
+    "close": 881.42,
+    "volume": 1465505.0,
+    "atr": null
+  },
+  {
+    "symbol": "COST",
+    "date": "2024-08-22",
+    "close": 877.56,
+    "volume": 1440919.0,
+    "atr": null
+  },
+  {
+    "symbol": "COST",
+    "date": "2024-08-23",
+    "close": 879.21,
+    "volume": 1305753.0,
+    "atr": null
+  },
+  {
+    "symbol": "COST",
+    "date": "2024-08-26",
+    "close": 892.51,
+    "volume": 1737024.0,
+    "atr": null
+  },
+  {
+    "symbol": "COST",
+    "date": "2024-08-27",
+    "close": 908.9,
+    "volume": 2098899.0,
+    "atr": null
+  },
+  {
+    "symbol": "COST",
+    "date": "2024-08-28",
+    "close": 888.05,
+    "volume": 1668378.0,
+    "atr": null
+  },
+  {
+    "symbol": "COST",
+    "date": "2024-08-29",
+    "close": 886.63,
+    "volume": 1709893.0,
+    "atr": null
+  },
+  {
+    "symbol": "COST",
+    "date": "2024-08-30",
+    "close": 892.38,
+    "volume": 1933485.0,
+    "atr": null
+  },
+  {
+    "symbol": "COST",
+    "date": "2024-09-03",
+    "close": 878.57,
+    "volume": 1784179.0,
+    "atr": null
+  },
+  {
+    "symbol": "COST",
+    "date": "2024-09-04",
+    "close": 890.02,
+    "volume": 1425160.0,
+    "atr": null
+  },
+  {
+    "symbol": "COST",
+    "date": "2024-09-05",
+    "close": 885.98,
+    "volume": 1998837.0,
+    "atr": null
+  },
+  {
+    "symbol": "COST",
+    "date": "2024-09-06",
+    "close": 876.68,
+    "volume": 2068904.0,
+    "atr": null
+  },
+  {
+    "symbol": "COST",
+    "date": "2024-09-09",
+    "close": 896.49,
+    "volume": 1953977.0,
+    "atr": null
+  },
+  {
+    "symbol": "COST",
+    "date": "2024-09-10",
+    "close": 894.29,
+    "volume": 1360818.0,
+    "atr": null
+  },
+  {
+    "symbol": "COST",
+    "date": "2024-09-11",
+    "close": 900.4,
+    "volume": 1796084.0,
+    "atr": null
+  },
+  {
+    "symbol": "COST",
+    "date": "2024-09-12",
+    "close": 915.03,
+    "volume": 1868674.0,
+    "atr": null
+  },
+  {
+    "symbol": "COST",
+    "date": "2024-09-13",
+    "close": 916,
+    "volume": 1327509.0,
+    "atr": null
+  },
+  {
+    "symbol": "COST",
+    "date": "2024-09-16",
+    "close": 907.87,
+    "volume": 1661046.0,
+    "atr": null
+  },
+  {
+    "symbol": "COST",
+    "date": "2024-09-17",
+    "close": 897.27,
+    "volume": 1386963.0,
+    "atr": null
+  },
+  {
+    "symbol": "COST",
+    "date": "2024-09-18",
+    "close": 892.52,
+    "volume": 1338163.0,
+    "atr": null
+  },
+  {
+    "symbol": "COST",
+    "date": "2024-09-19",
+    "close": 900.74,
+    "volume": 1747482.0,
+    "atr": null
+  },
+  {
+    "symbol": "COST",
+    "date": "2024-09-20",
+    "close": 906.98,
+    "volume": 4658159.0,
+    "atr": null
+  },
+  {
+    "symbol": "COST",
+    "date": "2024-09-23",
+    "close": 917.08,
+    "volume": 1697643.0,
+    "atr": null
+  },
+  {
+    "symbol": "COST",
+    "date": "2024-09-24",
+    "close": 901.54,
+    "volume": 2432552.0,
+    "atr": null
+  },
+  {
+    "symbol": "COST",
+    "date": "2024-09-25",
+    "close": 908.42,
+    "volume": 1728137.0,
+    "atr": null
+  },
+  {
+    "symbol": "COST",
+    "date": "2024-09-26",
+    "close": 901.44,
+    "volume": 2738553.0,
+    "atr": null
+  },
+  {
+    "symbol": "COST",
+    "date": "2024-09-27",
+    "close": 885.62,
+    "volume": 3459054.0,
+    "atr": null
+  },
+  {
+    "symbol": "COST",
+    "date": "2024-09-30",
+    "close": 886.52,
+    "volume": 2146353.0,
+    "atr": null
+  },
+  {
+    "symbol": "COST",
+    "date": "2024-10-01",
+    "close": 877.38,
+    "volume": 1828283.0,
+    "atr": null
+  },
+  {
+    "symbol": "COST",
+    "date": "2024-10-02",
+    "close": 878.53,
+    "volume": 1317146.0,
+    "atr": null
+  },
+  {
+    "symbol": "COST",
+    "date": "2024-10-03",
+    "close": 875.67,
+    "volume": 1451942.0,
+    "atr": null
+  },
+  {
+    "symbol": "COST",
+    "date": "2024-10-04",
+    "close": 883.11,
+    "volume": 1517311.0,
+    "atr": null
+  },
+  {
+    "symbol": "COST",
+    "date": "2024-10-07",
+    "close": 873.59,
+    "volume": 1963158.0,
+    "atr": null
+  },
+  {
+    "symbol": "COST",
+    "date": "2024-10-08",
+    "close": 890.42,
+    "volume": 1697910.0,
+    "atr": null
+  },
+  {
+    "symbol": "COST",
+    "date": "2024-10-09",
+    "close": 909.1,
+    "volume": 1956453.0,
+    "atr": null
+  },
+  {
+    "symbol": "COST",
+    "date": "2024-10-10",
+    "close": 893.63,
+    "volume": 1765785.0,
+    "atr": null
+  },
+  {
+    "symbol": "COST",
+    "date": "2024-10-11",
+    "close": 889.03,
+    "volume": 1527294.0,
+    "atr": null
+  },
+  {
+    "symbol": "COST",
+    "date": "2024-10-14",
+    "close": 889.76,
+    "volume": 1431497.0,
+    "atr": null
+  },
+  {
+    "symbol": "COST",
+    "date": "2024-10-15",
+    "close": 894.61,
+    "volume": 1613905.0,
+    "atr": null
+  },
+  {
+    "symbol": "COST",
+    "date": "2024-10-16",
+    "close": 887.38,
+    "volume": 1475495.0,
+    "atr": null
+  },
+  {
+    "symbol": "COST",
+    "date": "2024-10-17",
+    "close": 885.29,
+    "volume": 1321463.0,
+    "atr": null
+  },
+  {
+    "symbol": "COST",
+    "date": "2024-10-18",
+    "close": 889.56,
+    "volume": 1654015.0,
+    "atr": null
+  },
+  {
+    "symbol": "COST",
+    "date": "2024-10-21",
+    "close": 886.77,
+    "volume": 1184880.0,
+    "atr": null
+  },
+  {
+    "symbol": "COST",
+    "date": "2024-10-22",
+    "close": 893.49,
+    "volume": 1180653.0,
+    "atr": null
+  },
+  {
+    "symbol": "COST",
+    "date": "2024-10-23",
+    "close": 899.17,
+    "volume": 2193473.0,
+    "atr": null
+  },
+  {
+    "symbol": "COST",
+    "date": "2024-10-24",
+    "close": 893.42,
+    "volume": 1649565.0,
+    "atr": null
+  },
+  {
+    "symbol": "COST",
+    "date": "2024-10-25",
+    "close": 891.22,
+    "volume": 1425842.0,
+    "atr": null
+  },
+  {
+    "symbol": "COST",
+    "date": "2024-10-28",
+    "close": 890.96,
+    "volume": 912507,
+    "atr": null
+  },
+  {
+    "symbol": "COST",
+    "date": "2024-10-29",
+    "close": 886.99,
+    "volume": 1361681.0,
+    "atr": null
+  },
+  {
+    "symbol": "COST",
+    "date": "2024-10-30",
+    "close": 879.09,
+    "volume": 1412209.0,
+    "atr": null
+  },
+  {
+    "symbol": "COST",
+    "date": "2024-10-31",
+    "close": 874.18,
+    "volume": 1771876.0,
+    "atr": null
+  },
+  {
+    "symbol": "COST",
+    "date": "2024-11-01",
+    "close": 877.31,
+    "volume": 1625161.0,
+    "atr": null
+  },
+  {
+    "symbol": "COST",
+    "date": "2024-11-04",
+    "close": 886.07,
+    "volume": 1577144.0,
+    "atr": null
+  },
+  {
+    "symbol": "COST",
+    "date": "2024-11-05",
+    "close": 890.17,
+    "volume": 1622264.0,
+    "atr": null
+  },
+  {
+    "symbol": "COST",
+    "date": "2024-11-06",
+    "close": 899.25,
+    "volume": 2437420.0,
+    "atr": null
+  },
+  {
+    "symbol": "COST",
+    "date": "2024-11-07",
+    "close": 913.93,
+    "volume": 2145454.0,
+    "atr": null
+  },
+  {
+    "symbol": "COST",
+    "date": "2024-11-08",
+    "close": 943.8,
+    "volume": 3277090.0,
+    "atr": null
+  },
+  {
+    "symbol": "COST",
+    "date": "2024-11-11",
+    "close": 932.88,
+    "volume": 2181815.0,
+    "atr": null
+  },
+  {
+    "symbol": "COST",
+    "date": "2024-11-12",
+    "close": 932.38,
+    "volume": 1688757.0,
+    "atr": null
+  },
+  {
+    "symbol": "COST",
+    "date": "2024-11-13",
+    "close": 933.73,
+    "volume": 1757645.0,
+    "atr": null
+  },
+  {
+    "symbol": "COST",
+    "date": "2024-11-14",
+    "close": 923.89,
+    "volume": 1859919.0,
+    "atr": null
+  },
+  {
+    "symbol": "COST",
+    "date": "2024-11-15",
+    "close": 907.07,
+    "volume": 2269945.0,
+    "atr": null
+  },
+  {
+    "symbol": "COST",
+    "date": "2024-11-18",
+    "close": 919.51,
+    "volume": 1797786.0,
+    "atr": null
+  },
+  {
+    "symbol": "COST",
+    "date": "2024-11-19",
+    "close": 930.15,
+    "volume": 1690536.0,
+    "atr": null
+  },
+  {
+    "symbol": "COST",
+    "date": "2024-11-20",
+    "close": 928.08,
+    "volume": 1452130.0,
+    "atr": null
+  },
+  {
+    "symbol": "COST",
+    "date": "2024-11-21",
+    "close": 955.65,
+    "volume": 2320548.0,
+    "atr": null
+  },
+  {
+    "symbol": "COST",
+    "date": "2024-11-22",
+    "close": 964.01,
+    "volume": 2078740.0,
+    "atr": null
+  },
+  {
+    "symbol": "COST",
+    "date": "2024-11-25",
+    "close": 960.89,
+    "volume": 3240929.0,
+    "atr": null
+  },
+  {
+    "symbol": "COST",
+    "date": "2024-11-26",
+    "close": 971.5,
+    "volume": 1438037.0,
+    "atr": null
+  },
+  {
+    "symbol": "COST",
+    "date": "2024-11-27",
+    "close": 961.55,
+    "volume": 1499464.0,
+    "atr": null
+  },
+  {
+    "symbol": "COST",
+    "date": "2024-11-29",
+    "close": 971.88,
+    "volume": 1095860.0,
+    "atr": null
+  },
+  {
+    "symbol": "COST",
+    "date": "2024-12-02",
+    "close": 975,
+    "volume": 1955774.0,
+    "atr": null
+  },
+  {
+    "symbol": "COST",
+    "date": "2024-12-03",
+    "close": 982.15,
+    "volume": 1653910.0,
+    "atr": null
+  },
+  {
+    "symbol": "COST",
+    "date": "2024-12-04",
+    "close": 990.92,
+    "volume": 1784687.0,
+    "atr": null
+  },
+  {
+    "symbol": "COST",
+    "date": "2024-12-05",
+    "close": 982.26,
+    "volume": 2089430.0,
+    "atr": null
+  },
+  {
+    "symbol": "COST",
+    "date": "2024-12-06",
+    "close": 992.61,
+    "volume": 1737317.0,
+    "atr": null
+  },
+  {
+    "symbol": "COST",
+    "date": "2024-12-09",
+    "close": 987.86,
+    "volume": 1855470.0,
+    "atr": null
+  },
+  {
+    "symbol": "COST",
+    "date": "2024-12-10",
+    "close": 993.4,
+    "volume": 1556751.0,
+    "atr": null
+  },
+  {
+    "symbol": "COST",
+    "date": "2024-12-11",
+    "close": 994.69,
+    "volume": 1903635.0,
+    "atr": null
+  },
+  {
+    "symbol": "COST",
+    "date": "2024-12-12",
+    "close": 988.39,
+    "volume": 2344334.0,
+    "atr": null
+  },
+  {
+    "symbol": "COST",
+    "date": "2024-12-13",
+    "close": 989.35,
+    "volume": 2949921.0,
+    "atr": null
+  },
+  {
+    "symbol": "COST",
+    "date": "2024-12-16",
+    "close": 992.87,
+    "volume": 2581292.0,
+    "atr": null
+  },
+  {
+    "symbol": "COST",
+    "date": "2024-12-17",
+    "close": 982.08,
+    "volume": 2050219.0,
+    "atr": null
+  },
+  {
+    "symbol": "COST",
+    "date": "2024-12-18",
+    "close": 964.74,
+    "volume": 2725300.0,
+    "atr": null
+  },
+  {
+    "symbol": "COST",
+    "date": "2024-12-19",
+    "close": 954.8,
+    "volume": 2610843.0,
+    "atr": null
+  },
+  {
+    "symbol": "COST",
+    "date": "2024-12-20",
+    "close": 954.07,
+    "volume": 5373797.0,
+    "atr": null
+  },
+  {
+    "symbol": "COST",
+    "date": "2024-12-23",
+    "close": 949.91,
+    "volume": 1856831.0,
+    "atr": null
+  },
+  {
+    "symbol": "COST",
+    "date": "2024-12-24",
+    "close": 958.82,
+    "volume": 939029,
+    "atr": null
+  },
+  {
+    "symbol": "COST",
+    "date": "2024-12-26",
+    "close": 956.14,
+    "volume": 969936,
+    "atr": null
+  },
+  {
+    "symbol": "COST",
+    "date": "2024-12-27",
+    "close": 939.7,
+    "volume": 1943440.0,
+    "atr": null
+  },
+  {
+    "symbol": "COST",
+    "date": "2024-12-30",
+    "close": 922.21,
+    "volume": 1881241.0,
+    "atr": null
+  },
+  {
+    "symbol": "COST",
+    "date": "2024-12-31",
+    "close": 916.27,
+    "volume": 1742939.0,
+    "atr": null
+  },
+  {
+    "symbol": "COST",
+    "date": "2025-01-02",
+    "close": 909.81,
+    "volume": 1767658.0,
+    "atr": null
+  },
+  {
+    "symbol": "COST",
+    "date": "2025-01-03",
+    "close": 916.58,
+    "volume": 1614211.0,
+    "atr": null
+  },
+  {
+    "symbol": "COST",
+    "date": "2025-01-06",
+    "close": 922.71,
+    "volume": 1970405.0,
+    "atr": null
+  },
+  {
+    "symbol": "COST",
+    "date": "2025-01-07",
+    "close": 921.37,
+    "volume": 1887982.0,
+    "atr": null
+  },
+  {
+    "symbol": "COST",
+    "date": "2025-01-08",
+    "close": 927.37,
+    "volume": 1774763.0,
+    "atr": null
+  },
+  {
+    "symbol": "COST",
+    "date": "2025-01-10",
+    "close": 936.94,
+    "volume": 2765797.0,
+    "atr": null
+  },
+  {
+    "symbol": "COST",
+    "date": "2025-01-13",
+    "close": 924.7,
+    "volume": 1693763.0,
+    "atr": null
+  },
+  {
+    "symbol": "COST",
+    "date": "2025-01-14",
+    "close": 917.23,
+    "volume": 1683757.0,
+    "atr": null
+  },
+  {
+    "symbol": "COST",
+    "date": "2025-01-15",
+    "close": 923.5,
+    "volume": 1839386.0,
+    "atr": null
+  },
+  {
+    "symbol": "COST",
+    "date": "2025-01-16",
+    "close": 919.75,
+    "volume": 1352957.0,
+    "atr": null
+  },
+  {
+    "symbol": "COST",
+    "date": "2025-01-17",
+    "close": 943.19,
+    "volume": 2375012.0,
+    "atr": null
+  },
+  {
+    "symbol": "COST",
+    "date": "2025-01-21",
+    "close": 947.73,
+    "volume": 2042443.0,
+    "atr": null
+  },
+  {
+    "symbol": "COST",
+    "date": "2025-01-22",
+    "close": 944.7,
+    "volume": 2154991.0,
+    "atr": null
+  },
+  {
+    "symbol": "COST",
+    "date": "2025-01-23",
+    "close": 942.16,
+    "volume": 1352440.0,
+    "atr": null
+  },
+  {
+    "symbol": "COST",
+    "date": "2025-01-24",
+    "close": 939.68,
+    "volume": 1562422.0,
+    "atr": null
+  },
+  {
+    "symbol": "COST",
+    "date": "2025-01-27",
+    "close": 965.25,
+    "volume": 3044682.0,
+    "atr": null
+  },
+  {
+    "symbol": "COST",
+    "date": "2025-01-28",
+    "close": 958.67,
+    "volume": 2166375.0,
+    "atr": null
+  },
+  {
+    "symbol": "COST",
+    "date": "2025-01-29",
+    "close": 964.02,
+    "volume": 1713749.0,
+    "atr": null
+  },
+  {
+    "symbol": "COST",
+    "date": "2025-01-30",
+    "close": 979.01,
+    "volume": 1788180.0,
+    "atr": null
+  },
+  {
+    "symbol": "COST",
+    "date": "2025-01-31",
+    "close": 979.88,
+    "volume": 1875713.0,
+    "atr": null
+  },
+  {
+    "symbol": "COST",
+    "date": "2025-02-03",
+    "close": 1005.83,
+    "volume": 2751018.0,
+    "atr": null
+  },
+  {
+    "symbol": "COST",
+    "date": "2025-02-04",
+    "close": 1021.86,
+    "volume": 2001641.0,
+    "atr": null
+  },
+  {
+    "symbol": "COST",
+    "date": "2025-02-05",
+    "close": 1042.88,
+    "volume": 2050058.0,
+    "atr": null
+  },
+  {
+    "symbol": "COST",
+    "date": "2025-02-06",
+    "close": 1050.99,
+    "volume": 2218045.0,
+    "atr": null
+  },
+  {
+    "symbol": "COST",
+    "date": "2025-02-07",
+    "close": 1043.81,
+    "volume": 1632854.0,
+    "atr": null
+  },
+  {
+    "symbol": "COST",
+    "date": "2025-02-10",
+    "close": 1061.92,
+    "volume": 2036894.0,
+    "atr": null
+  },
+  {
+    "symbol": "COST",
+    "date": "2025-02-11",
+    "close": 1058.34,
+    "volume": 1748505.0,
+    "atr": null
+  },
+  {
+    "symbol": "COST",
+    "date": "2025-02-12",
+    "close": 1065.12,
+    "volume": 1662315.0,
+    "atr": null
+  },
+  {
+    "symbol": "COST",
+    "date": "2025-02-13",
+    "close": 1076.86,
+    "volume": 1623281.0,
+    "atr": null
+  },
+  {
+    "symbol": "COST",
+    "date": "2025-02-14",
+    "close": 1071.85,
+    "volume": 1410728.0,
+    "atr": null
+  },
+  {
+    "symbol": "COST",
+    "date": "2025-02-18",
+    "close": 1056.03,
+    "volume": 2090589.0,
+    "atr": null
+  },
+  {
+    "symbol": "COST",
+    "date": "2025-02-19",
+    "close": 1062.54,
+    "volume": 1349634.0,
+    "atr": null
+  },
+  {
+    "symbol": "COST",
+    "date": "2025-02-20",
+    "close": 1034.83,
+    "volume": 2000545.0,
+    "atr": null
+  },
+  {
+    "symbol": "COST",
+    "date": "2025-02-21",
+    "close": 1035.03,
+    "volume": 1816308.0,
+    "atr": null
+  },
+  {
+    "symbol": "COST",
+    "date": "2025-02-24",
+    "close": 1035.6,
+    "volume": 1759749.0,
+    "atr": null
+  },
+  {
+    "symbol": "COST",
+    "date": "2025-02-25",
+    "close": 1055.66,
+    "volume": 2083802.0,
+    "atr": null
+  },
+  {
+    "symbol": "COST",
+    "date": "2025-02-26",
+    "close": 1031.97,
+    "volume": 1555684.0,
+    "atr": null
+  },
+  {
+    "symbol": "COST",
+    "date": "2025-02-27",
+    "close": 1021.71,
+    "volume": 1629074.0,
+    "atr": null
+  },
+  {
+    "symbol": "COST",
+    "date": "2025-02-28",
+    "close": 1048.61,
+    "volume": 3307117.0,
+    "atr": null
+  },
+  {
+    "symbol": "COST",
+    "date": "2025-03-03",
+    "close": 1046.85,
+    "volume": 2422451.0,
+    "atr": null
+  },
+  {
+    "symbol": "COST",
+    "date": "2025-03-04",
+    "close": 1036.87,
+    "volume": 2536792.0,
+    "atr": null
+  },
+  {
+    "symbol": "COST",
+    "date": "2025-03-05",
+    "close": 1047.75,
+    "volume": 1898604.0,
+    "atr": null
+  },
+  {
+    "symbol": "COST",
+    "date": "2025-03-06",
+    "close": 1026.62,
+    "volume": 2594563.0,
+    "atr": null
+  },
+  {
+    "symbol": "COST",
+    "date": "2025-03-07",
+    "close": 964.31,
+    "volume": 5510718.0,
+    "atr": null
+  },
+  {
+    "symbol": "COST",
+    "date": "2025-03-10",
+    "close": 934.41,
+    "volume": 4459854.0,
+    "atr": null
+  },
+  {
+    "symbol": "COST",
+    "date": "2025-03-11",
+    "close": 930.49,
+    "volume": 3204869.0,
+    "atr": null
+  },
+  {
+    "symbol": "COST",
+    "date": "2025-03-12",
+    "close": 927.08,
+    "volume": 2331610.0,
+    "atr": null
+  },
+  {
+    "symbol": "COST",
+    "date": "2025-03-13",
+    "close": 890.62,
+    "volume": 3447210.0,
+    "atr": null
+  },
+  {
+    "symbol": "COST",
+    "date": "2025-03-14",
+    "close": 903.92,
+    "volume": 3186406.0,
+    "atr": null
+  },
+  {
+    "symbol": "COST",
+    "date": "2025-03-17",
+    "close": 916.61,
+    "volume": 2256059.0,
+    "atr": null
+  },
+  {
+    "symbol": "COST",
+    "date": "2025-03-18",
+    "close": 898.05,
+    "volume": 2182004.0,
+    "atr": null
+  },
+  {
+    "symbol": "COST",
+    "date": "2025-03-19",
+    "close": 904.05,
+    "volume": 1908521.0,
+    "atr": null
+  },
+  {
+    "symbol": "COST",
+    "date": "2025-03-20",
+    "close": 895.4,
+    "volume": 1891797.0,
+    "atr": null
+  },
+  {
+    "symbol": "COST",
+    "date": "2025-03-21",
+    "close": 909.26,
+    "volume": 3447576.0,
+    "atr": null
+  },
+  {
+    "symbol": "COST",
+    "date": "2025-03-24",
+    "close": 926.04,
+    "volume": 2208062.0,
+    "atr": null
+  },
+  {
+    "symbol": "COST",
+    "date": "2025-03-25",
+    "close": 930.26,
+    "volume": 1622981.0,
+    "atr": null
+  },
+  {
+    "symbol": "COST",
+    "date": "2025-03-26",
+    "close": 929.75,
+    "volume": 1646854.0,
+    "atr": null
+  },
+  {
+    "symbol": "COST",
+    "date": "2025-03-27",
+    "close": 938.75,
+    "volume": 1546989.0,
+    "atr": null
+  },
+  {
+    "symbol": "COST",
+    "date": "2025-03-28",
+    "close": 929.66,
+    "volume": 2100487.0,
+    "atr": null
+  },
+  {
+    "symbol": "COST",
+    "date": "2025-03-31",
+    "close": 945.78,
+    "volume": 3101963.0,
+    "atr": null
+  },
+  {
+    "symbol": "COST",
+    "date": "2025-04-01",
+    "close": 954.4,
+    "volume": 2041507.0,
+    "atr": null
+  },
+  {
+    "symbol": "COST",
+    "date": "2025-04-02",
+    "close": 965.08,
+    "volume": 1719896.0,
+    "atr": null
+  },
+  {
+    "symbol": "COST",
+    "date": "2025-04-03",
+    "close": 967.08,
+    "volume": 3096918.0,
+    "atr": null
+  },
+  {
+    "symbol": "COST",
+    "date": "2025-04-04",
+    "close": 916.48,
+    "volume": 5166988.0,
+    "atr": null
+  },
+  {
+    "symbol": "COST",
+    "date": "2025-04-07",
+    "close": 908.13,
+    "volume": 4626591.0,
+    "atr": null
+  },
+  {
+    "symbol": "COST",
+    "date": "2025-04-08",
+    "close": 908.75,
+    "volume": 3545403.0,
+    "atr": null
+  },
+  {
+    "symbol": "COST",
+    "date": "2025-04-09",
+    "close": 965.19,
+    "volume": 5084527.0,
+    "atr": null
+  },
+  {
+    "symbol": "COST",
+    "date": "2025-04-10",
+    "close": 964.31,
+    "volume": 4209053.0,
+    "atr": null
+  },
+  {
+    "symbol": "COST",
+    "date": "2025-04-11",
+    "close": 963.41,
+    "volume": 2721811.0,
+    "atr": null
+  },
+  {
+    "symbol": "COST",
+    "date": "2025-04-14",
+    "close": 979.32,
+    "volume": 2219943.0,
+    "atr": null
+  },
+  {
+    "symbol": "COST",
+    "date": "2025-04-15",
+    "close": 976.92,
+    "volume": 1788151.0,
+    "atr": null
+  },
+  {
+    "symbol": "COST",
+    "date": "2025-04-16",
+    "close": 967.75,
+    "volume": 2531715.0,
+    "atr": null
+  },
+  {
+    "symbol": "COST",
+    "date": "2025-04-17",
+    "close": 994.5,
+    "volume": 2711124.0,
+    "atr": null
+  },
+  {
+    "symbol": "COST",
+    "date": "2025-04-21",
+    "close": 957.77,
+    "volume": 2841310.0,
+    "atr": null
+  },
+  {
+    "symbol": "COST",
+    "date": "2025-04-22",
+    "close": 979.23,
+    "volume": 2230645.0,
+    "atr": null
+  },
+  {
+    "symbol": "COST",
+    "date": "2025-04-23",
+    "close": 975.84,
+    "volume": 2109653.0,
+    "atr": null
+  },
+  {
+    "symbol": "COST",
+    "date": "2025-04-24",
+    "close": 975.48,
+    "volume": 2468463.0,
+    "atr": null
+  },
+  {
+    "symbol": "COST",
+    "date": "2025-04-25",
+    "close": 977.16,
+    "volume": 1780887.0,
+    "atr": null
+  },
+  {
+    "symbol": "COST",
+    "date": "2025-04-28",
+    "close": 978.54,
+    "volume": 1616155.0,
+    "atr": null
+  },
+  {
+    "symbol": "COST",
+    "date": "2025-04-29",
+    "close": 991.7,
+    "volume": 1523146.0,
+    "atr": null
+  },
+  {
+    "symbol": "COST",
+    "date": "2025-04-30",
+    "close": 994.5,
+    "volume": 2212362.0,
+    "atr": null
+  },
+  {
+    "symbol": "COST",
+    "date": "2025-05-01",
+    "close": 999.04,
+    "volume": 1829874.0,
+    "atr": null
+  },
+  {
+    "symbol": "COST",
+    "date": "2025-05-02",
+    "close": 1008.3,
+    "volume": 1547710.0,
+    "atr": null
+  },
+  {
+    "symbol": "COST",
+    "date": "2025-05-05",
+    "close": 1014.89,
+    "volume": 1952580.0,
+    "atr": null
+  },
+  {
+    "symbol": "COST",
+    "date": "2025-05-06",
+    "close": 1010.5,
+    "volume": 1381248.0,
+    "atr": null
+  },
+  {
+    "symbol": "COST",
+    "date": "2025-05-07",
+    "close": 1007.15,
+    "volume": 1316596.0,
+    "atr": null
+  },
+  {
+    "symbol": "COST",
+    "date": "2025-05-08",
+    "close": 1007.71,
+    "volume": 1882643.0,
+    "atr": null
+  },
+  {
+    "symbol": "COST",
+    "date": "2025-05-09",
+    "close": 1008.09,
+    "volume": 1176656.0,
+    "atr": null
+  },
+  {
+    "symbol": "COST",
+    "date": "2025-05-12",
+    "close": 1016.15,
+    "volume": 2069049.0,
+    "atr": null
+  },
+  {
+    "symbol": "COST",
+    "date": "2025-05-13",
+    "close": 999.03,
+    "volume": 2917044.0,
+    "atr": null
+  },
+  {
+    "symbol": "COST",
+    "date": "2025-05-14",
+    "close": 991.54,
+    "volume": 2214978.0,
+    "atr": null
+  },
+  {
+    "symbol": "COST",
+    "date": "2025-05-15",
+    "close": 1010.47,
+    "volume": 2470690.0,
+    "atr": null
+  },
+  {
+    "symbol": "COST",
+    "date": "2025-05-16",
+    "close": 1025.83,
+    "volume": 2033744.0,
+    "atr": null
+  },
+  {
+    "symbol": "COST",
+    "date": "2025-05-19",
+    "close": 1034.34,
+    "volume": 1879788.0,
+    "atr": null
+  },
+  {
+    "symbol": "COST",
+    "date": "2025-05-20",
+    "close": 1036.82,
+    "volume": 2271232.0,
+    "atr": null
+  },
+  {
+    "symbol": "COST",
+    "date": "2025-05-21",
+    "close": 1025.3,
+    "volume": 1438885.0,
+    "atr": null
+  },
+  {
+    "symbol": "COST",
+    "date": "2025-05-22",
+    "close": 1018.13,
+    "volume": 1660909.0,
+    "atr": null
+  },
+  {
+    "symbol": "COST",
+    "date": "2025-05-23",
+    "close": 1008.5,
+    "volume": 1413916.0,
+    "atr": null
+  },
+  {
+    "symbol": "COST",
+    "date": "2025-05-27",
+    "close": 1017.79,
+    "volume": 1868169.0,
+    "atr": null
+  },
+  {
+    "symbol": "COST",
+    "date": "2025-05-28",
+    "close": 1013.14,
+    "volume": 1674743.0,
+    "atr": null
+  },
+  {
+    "symbol": "COST",
+    "date": "2025-05-29",
+    "close": 1008.74,
+    "volume": 2023815.0,
+    "atr": null
+  },
+  {
+    "symbol": "COST",
+    "date": "2025-05-30",
+    "close": 1040.18,
+    "volume": 5403837.0,
+    "atr": null
+  },
+  {
+    "symbol": "COST",
+    "date": "2025-06-02",
+    "close": 1056.85,
+    "volume": 2148004.0,
+    "atr": null
+  },
+  {
+    "symbol": "COST",
+    "date": "2025-06-03",
+    "close": 1055.59,
+    "volume": 1992850.0,
+    "atr": null
+  },
+  {
+    "symbol": "COST",
+    "date": "2025-06-04",
+    "close": 1051.69,
+    "volume": 1422086.0,
+    "atr": null
+  },
+  {
+    "symbol": "COST",
+    "date": "2025-06-05",
+    "close": 1010.81,
+    "volume": 3297524.0,
+    "atr": null
+  },
+  {
+    "symbol": "COST",
+    "date": "2025-06-06",
+    "close": 1014.94,
+    "volume": 1855428.0,
+    "atr": null
+  },
+  {
+    "symbol": "COST",
+    "date": "2025-06-09",
+    "close": 1006.18,
+    "volume": 1696711.0,
+    "atr": null
+  },
+  {
+    "symbol": "COST",
+    "date": "2025-06-10",
+    "close": 1007.27,
+    "volume": 2255019.0,
+    "atr": null
+  },
+  {
+    "symbol": "COST",
+    "date": "2025-06-11",
+    "close": 996.78,
+    "volume": 2459835.0,
+    "atr": null
+  },
+  {
+    "symbol": "COST",
+    "date": "2025-06-12",
+    "close": 1002.71,
+    "volume": 1720138.0,
+    "atr": null
+  },
+  {
+    "symbol": "COST",
+    "date": "2025-06-13",
+    "close": 990.21,
+    "volume": 1785964.0,
+    "atr": null
+  },
+  {
+    "symbol": "COST",
+    "date": "2025-06-16",
+    "close": 984.36,
+    "volume": 2109338.0,
+    "atr": null
+  },
+  {
+    "symbol": "COST",
+    "date": "2025-06-17",
+    "close": 977.72,
+    "volume": 1668225.0,
+    "atr": null
+  },
+  {
+    "symbol": "COST",
+    "date": "2025-06-18",
+    "close": 974.9,
+    "volume": 1509613.0,
+    "atr": null
+  },
+  {
+    "symbol": "COST",
+    "date": "2025-06-20",
+    "close": 980.29,
+    "volume": 3255699.0,
+    "atr": null
+  },
+  {
+    "symbol": "COST",
+    "date": "2025-06-23",
+    "close": 1004.48,
+    "volume": 2082928.0,
+    "atr": null
+  },
+  {
+    "symbol": "COST",
+    "date": "2025-06-24",
+    "close": 1001.92,
+    "volume": 2385103.0,
+    "atr": null
+  },
+  {
+    "symbol": "COST",
+    "date": "2025-06-25",
+    "close": 986.54,
+    "volume": 1827694.0,
+    "atr": null
+  }
+]

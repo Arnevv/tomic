@@ -1,8 +1,8 @@
 [
   {
     "date": "2025-06-26",
-    "atm_iv": null,
-    "iv_rank": null,
-    "iv_percentile": null
+    "atm_iv": 0.19252711505158002,
+    "iv_rank": 21.268372190075112,
+    "iv_percentile": 45.70135746606335
   }
 ]
