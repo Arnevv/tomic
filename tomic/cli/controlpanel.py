@@ -227,6 +227,40 @@ def run_dataexporter() -> None:
         except subprocess.CalledProcessError:
             print("❌ Tonen van volatiliteitsdata mislukt")
 
+    def polygon_chain() -> None:
+        symbol = prompt("Ticker symbool: ")
+        if not symbol:
+            print("Geen symbool opgegeven")
+            return
+        from tomic.polygon_client import PolygonClient
+
+        client = PolygonClient()
+        client.connect()
+        try:
+            data = client.fetch_option_chain(symbol)
+            print(f"Ontvangen {len(data)} contracten")
+        except Exception:
+            print("❌ Ophalen van optionchain mislukt")
+        finally:
+            client.disconnect()
+
+    def polygon_metrics() -> None:
+        symbol = prompt("Ticker symbool: ")
+        if not symbol:
+            print("Geen symbool opgegeven")
+            return
+        from tomic.polygon_client import PolygonClient
+
+        client = PolygonClient()
+        client.connect()
+        try:
+            metrics = client.fetch_market_metrics(symbol)
+            print(json.dumps(metrics, indent=2))
+        except Exception:
+            print("❌ Ophalen van metrics mislukt")
+        finally:
+            client.disconnect()
+
     menu = Menu("📁 DATA & MARKTDATA")
     menu.add("Exporteer een markt", export_one)
     menu.add("OptionChain Export (BulkQualifyFlow)", export_chain_bulk)
@@ -236,6 +270,8 @@ def run_dataexporter() -> None:
     menu.add("Ophalen historische prijzen", fetch_prices)
     menu.add("Toon historische data", show_history)
     menu.add("Toon volatiliteitsdata", show_volstats)
+    menu.add("Polygon option chain", polygon_chain)
+    menu.add("Polygon metrics", polygon_metrics)
 
     menu.run()
 
