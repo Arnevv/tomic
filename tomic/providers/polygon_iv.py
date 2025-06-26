@@ -13,29 +13,30 @@ from tomic.logutils import logger
 from tomic.journal.utils import load_json
 
 
-def _load_close(symbol: str, date_str: str) -> float | None:
+def _load_latest_close(symbol: str) -> tuple[float | None, str | None]:
+    """Return the most recent close and its date for ``symbol``."""
     base = Path(cfg_get("PRICE_HISTORY_DIR", "tomic/data/spot_prices"))
     path = base / f"{symbol}.json"
     logger.debug(f"Loading close price for {symbol} from {path}")
     data = load_json(path)
-    if isinstance(data, list):
-        for rec in data:
-            if rec.get("date") == date_str:
-                try:
-                    price = float(rec.get("close"))
-                    logger.debug(f"Found close price for {symbol}: {price}")
-                    return price
-                except Exception:
-                    return None
-    return None
+    if isinstance(data, list) and data:
+        data.sort(key=lambda r: r.get("date", ""))
+        rec = data[-1]
+        try:
+            price = float(rec.get("close"))
+            date_str = str(rec.get("date"))
+            logger.debug(f"Using last close for {symbol} on {date_str}: {price}")
+            return price, date_str
+        except Exception:
+            return None, None
+    return None, None
 
 
 def fetch_polygon_iv30d(symbol: str) -> float | None:
     """Return approximate 30-day IV for ``symbol`` using the Polygon snapshot."""
-    today = datetime.now().strftime("%Y-%m-%d")
-    spot = _load_close(symbol, today)
-    if spot is None:
-        logger.warning(f"No close price for {symbol} on {today}")
+    spot, spot_date = _load_latest_close(symbol)
+    if spot is None or spot_date is None:
+        logger.warning(f"No price history for {symbol}")
         return None
 
     api_key = cfg_get("POLYGON_API_KEY", "")
@@ -64,7 +65,7 @@ def fetch_polygon_iv30d(symbol: str) -> float | None:
         logger.warning(f"No option data for {symbol}")
         return None
 
-    today_dt = datetime.strptime(today, "%Y-%m-%d").date()
+    today_dt = datetime.strptime(spot_date, "%Y-%m-%d").date()
     ivs: List[float] = []
     for opt in options:
         exp_raw = opt.get("expiration_date") or opt.get("expDate")
@@ -90,6 +91,7 @@ def fetch_polygon_iv30d(symbol: str) -> float | None:
         except Exception:
             continue
 
+    logger.debug(f"{symbol}: {len(ivs)} contracts after filtering")
     if not ivs:
         logger.warning(f"No valid IV records for {symbol}")
         return None
