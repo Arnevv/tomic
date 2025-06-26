@@ -579,6 +579,10 @@ class OptionChainClient(MarketClient):
                 self.market_data[rid]["event"] = evt
                 self.invalid_contracts.discard(rid)
                 self._completed_requests.discard(rid)
+                try:
+                    self.cancelMktData(rid)
+                except Exception:
+                    pass
             use_snapshot = getattr(self, "_use_snapshot", not self.market_open)
             include_greeks = (
                 not cfg_get("INCLUDE_GREEKS_ONLY_IF_MARKET_OPEN", False)
