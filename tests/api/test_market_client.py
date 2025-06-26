@@ -530,6 +530,49 @@ def test_security_def_option_parameter_records_multiplier():
     assert client.expected_contracts == len(client.expiries) * len(client.strikes) * 2
 
 
+def test_iv_worker_triggers_contract_request(monkeypatch):
+    mod = importlib.import_module("tomic.api.market_client")
+    client = mod.OptionChainClient("ABC")
+    client.spot_price = 100.0
+    client.market_open = True
+
+    monkeypatch.setattr(client, "_fetch_iv_for_expiry", lambda e, s: 0.2)
+
+    calls = []
+
+    monkeypatch.setattr(
+        client,
+        "_request_contract_details",
+        lambda c, rid: calls.append(rid) or True,
+        raising=False,
+    )
+    monkeypatch.setattr(client._detail_semaphore, "acquire", lambda blocking=True: True)
+    monkeypatch.setattr(client._detail_semaphore, "release", lambda: None)
+    monkeypatch.setattr(client, "reqMktData", lambda *a, **k: None, raising=False)
+    monkeypatch.setattr(client, "reqMarketDataType", lambda *a, **k: None, raising=False)
+
+    def orchestrate():
+        if client.option_params_complete.wait(1) and client.iv_event.wait(1):
+            client._request_option_data()
+
+    t = threading.Thread(target=orchestrate)
+    t.start()
+
+    client.securityDefinitionOptionParameter(
+        1,
+        "SMART",
+        1,
+        "TC",
+        "100",
+        ["20250101"],
+        [99.0, 100.0],
+    )
+    client.securityDefinitionOptionParameterEnd(1)
+    t.join()
+
+    assert calls
+
+
 def test_req_secdefopt_waits_for_spot(monkeypatch):
     mod = importlib.import_module("tomic.api.market_client")
     client = mod.OptionChainClient("ABC")
