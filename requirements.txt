@@ -7,3 +7,4 @@ loguru
 tabulate
 aiohttp
 python-dotenv
+requests>=2.28
