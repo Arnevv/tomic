@@ -1548,6 +1548,18 @@ def await_market_data(app: MarketClient, symbol: str, timeout: int = 30) -> bool
                     retries -= 1
                     start = time.time()
                     continue
+                if not hist and not retries and app.incomplete_requests():
+                    missing = app.incomplete_requests()
+                    with app.data_lock:
+                        details = [
+                            f"{app.market_data.get(r, {}).get('strike')}/"
+                            f"{app.market_data.get(r, {}).get('expiry')}"
+                            for r in missing
+                        ]
+                    logger.warning(
+                        "⚠️ Incomplete contracts after retries: "
+                        + ", ".join(details)
+                    )
                 logger.debug(
                     f"Market data ontvangen binnen {time.time() - start:.2f}s"
                 )
