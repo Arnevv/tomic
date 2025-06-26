@@ -1,0 +1,1766 @@
+[
+  {
+    "symbol": "CRM",
+    "date": "2024-06-25",
+    "close": 241.55,
+    "volume": 4292729,
+    "atr": null
+  },
+  {
+    "symbol": "CRM",
+    "date": "2024-06-26",
+    "close": 243.15,
+    "volume": 4524735.0,
+    "atr": null
+  },
+  {
+    "symbol": "CRM",
+    "date": "2024-06-27",
+    "close": 252.85,
+    "volume": 12869018.0,
+    "atr": null
+  },
+  {
+    "symbol": "CRM",
+    "date": "2024-06-28",
+    "close": 257.1,
+    "volume": 12619303.0,
+    "atr": null
+  },
+  {
+    "symbol": "CRM",
+    "date": "2024-07-01",
+    "close": 256.21,
+    "volume": 5871685.0,
+    "atr": null
+  },
+  {
+    "symbol": "CRM",
+    "date": "2024-07-02",
+    "close": 256.19,
+    "volume": 5130593.0,
+    "atr": null
+  },
+  {
+    "symbol": "CRM",
+    "date": "2024-07-03",
+    "close": 260.95,
+    "volume": 4755729.0,
+    "atr": null
+  },
+  {
+    "symbol": "CRM",
+    "date": "2024-07-05",
+    "close": 263.19,
+    "volume": 6562111.0,
+    "atr": null
+  },
+  {
+    "symbol": "CRM",
+    "date": "2024-07-08",
+    "close": 257.37,
+    "volume": 6539287.0,
+    "atr": null
+  },
+  {
+    "symbol": "CRM",
+    "date": "2024-07-09",
+    "close": 252.43,
+    "volume": 7017109.0,
+    "atr": null
+  },
+  {
+    "symbol": "CRM",
+    "date": "2024-07-10",
+    "close": 252.59,
+    "volume": 8947679.0,
+    "atr": null
+  },
+  {
+    "symbol": "CRM",
+    "date": "2024-07-11",
+    "close": 251.12,
+    "volume": 5343727.0,
+    "atr": null
+  },
+  {
+    "symbol": "CRM",
+    "date": "2024-07-12",
+    "close": 253.97,
+    "volume": 4705492.0,
+    "atr": null
+  },
+  {
+    "symbol": "CRM",
+    "date": "2024-07-15",
+    "close": 252.86,
+    "volume": 4404270.0,
+    "atr": null
+  },
+  {
+    "symbol": "CRM",
+    "date": "2024-07-16",
+    "close": 256.03,
+    "volume": 4780386.0,
+    "atr": null
+  },
+  {
+    "symbol": "CRM",
+    "date": "2024-07-17",
+    "close": 251.22,
+    "volume": 5625254.0,
+    "atr": null
+  },
+  {
+    "symbol": "CRM",
+    "date": "2024-07-18",
+    "close": 247.35,
+    "volume": 6351643.0,
+    "atr": null
+  },
+  {
+    "symbol": "CRM",
+    "date": "2024-07-19",
+    "close": 247.63,
+    "volume": 4468875.0,
+    "atr": null
+  },
+  {
+    "symbol": "CRM",
+    "date": "2024-07-22",
+    "close": 254.08,
+    "volume": 5647588.0,
+    "atr": null
+  },
+  {
+    "symbol": "CRM",
+    "date": "2024-07-23",
+    "close": 256.06,
+    "volume": 3896168.0,
+    "atr": null
+  },
+  {
+    "symbol": "CRM",
+    "date": "2024-07-24",
+    "close": 249.78,
+    "volume": 5204088.0,
+    "atr": null
+  },
+  {
+    "symbol": "CRM",
+    "date": "2024-07-25",
+    "close": 256.52,
+    "volume": 7155846.0,
+    "atr": null
+  },
+  {
+    "symbol": "CRM",
+    "date": "2024-07-26",
+    "close": 262.71,
+    "volume": 6127323.0,
+    "atr": null
+  },
+  {
+    "symbol": "CRM",
+    "date": "2024-07-29",
+    "close": 258.59,
+    "volume": 5101425.0,
+    "atr": null
+  },
+  {
+    "symbol": "CRM",
+    "date": "2024-07-30",
+    "close": 257.93,
+    "volume": 3944295.0,
+    "atr": null
+  },
+  {
+    "symbol": "CRM",
+    "date": "2024-07-31",
+    "close": 258.8,
+    "volume": 4647690.0,
+    "atr": null
+  },
+  {
+    "symbol": "CRM",
+    "date": "2024-08-01",
+    "close": 253.06,
+    "volume": 5527395.0,
+    "atr": null
+  },
+  {
+    "symbol": "CRM",
+    "date": "2024-08-02",
+    "close": 243.97,
+    "volume": 6504544.0,
+    "atr": null
+  },
+  {
+    "symbol": "CRM",
+    "date": "2024-08-05",
+    "close": 239.01,
+    "volume": 6899342.0,
+    "atr": null
+  },
+  {
+    "symbol": "CRM",
+    "date": "2024-08-06",
+    "close": 238.42,
+    "volume": 5673889.0,
+    "atr": null
+  },
+  {
+    "symbol": "CRM",
+    "date": "2024-08-07",
+    "close": 240.04,
+    "volume": 4035549.0,
+    "atr": null
+  },
+  {
+    "symbol": "CRM",
+    "date": "2024-08-08",
+    "close": 249.12,
+    "volume": 4474252.0,
+    "atr": null
+  },
+  {
+    "symbol": "CRM",
+    "date": "2024-08-09",
+    "close": 252.53,
+    "volume": 2968685.0,
+    "atr": null
+  },
+  {
+    "symbol": "CRM",
+    "date": "2024-08-12",
+    "close": 251.31,
+    "volume": 3679904.0,
+    "atr": null
+  },
+  {
+    "symbol": "CRM",
+    "date": "2024-08-13",
+    "close": 254.6,
+    "volume": 4031818.0,
+    "atr": null
+  },
+  {
+    "symbol": "CRM",
+    "date": "2024-08-14",
+    "close": 255.32,
+    "volume": 4145248.0,
+    "atr": null
+  },
+  {
+    "symbol": "CRM",
+    "date": "2024-08-15",
+    "close": 262.79,
+    "volume": 5167930.0,
+    "atr": null
+  },
+  {
+    "symbol": "CRM",
+    "date": "2024-08-16",
+    "close": 262.91,
+    "volume": 3494863.0,
+    "atr": null
+  },
+  {
+    "symbol": "CRM",
+    "date": "2024-08-19",
+    "close": 265.38,
+    "volume": 4489998.0,
+    "atr": null
+  },
+  {
+    "symbol": "CRM",
+    "date": "2024-08-20",
+    "close": 261.84,
+    "volume": 5731309.0,
+    "atr": null
+  },
+  {
+    "symbol": "CRM",
+    "date": "2024-08-21",
+    "close": 261.09,
+    "volume": 4648204.0,
+    "atr": null
+  },
+  {
+    "symbol": "CRM",
+    "date": "2024-08-22",
+    "close": 258.59,
+    "volume": 5103442.0,
+    "atr": null
+  },
+  {
+    "symbol": "CRM",
+    "date": "2024-08-23",
+    "close": 264,
+    "volume": 4711326.0,
+    "atr": null
+  },
+  {
+    "symbol": "CRM",
+    "date": "2024-08-26",
+    "close": 265.28,
+    "volume": 3801371.0,
+    "atr": null
+  },
+  {
+    "symbol": "CRM",
+    "date": "2024-08-27",
+    "close": 264.2,
+    "volume": 5276384.0,
+    "atr": null
+  },
+  {
+    "symbol": "CRM",
+    "date": "2024-08-28",
+    "close": 258.9,
+    "volume": 10981901.0,
+    "atr": null
+  },
+  {
+    "symbol": "CRM",
+    "date": "2024-08-29",
+    "close": 257.01,
+    "volume": 14297891.0,
+    "atr": null
+  },
+  {
+    "symbol": "CRM",
+    "date": "2024-08-30",
+    "close": 252.9,
+    "volume": 10506504.0,
+    "atr": null
+  },
+  {
+    "symbol": "CRM",
+    "date": "2024-09-03",
+    "close": 248.06,
+    "volume": 6190352.0,
+    "atr": null
+  },
+  {
+    "symbol": "CRM",
+    "date": "2024-09-04",
+    "close": 247.68,
+    "volume": 4702439.0,
+    "atr": null
+  },
+  {
+    "symbol": "CRM",
+    "date": "2024-09-05",
+    "close": 246.12,
+    "volume": 4083624.0,
+    "atr": null
+  },
+  {
+    "symbol": "CRM",
+    "date": "2024-09-06",
+    "close": 243.97,
+    "volume": 6259431.0,
+    "atr": null
+  },
+  {
+    "symbol": "CRM",
+    "date": "2024-09-09",
+    "close": 245.76,
+    "volume": 4588809.0,
+    "atr": null
+  },
+  {
+    "symbol": "CRM",
+    "date": "2024-09-10",
+    "close": 246.16,
+    "volume": 3544808.0,
+    "atr": null
+  },
+  {
+    "symbol": "CRM",
+    "date": "2024-09-11",
+    "close": 249.57,
+    "volume": 4819201.0,
+    "atr": null
+  },
+  {
+    "symbol": "CRM",
+    "date": "2024-09-12",
+    "close": 253.37,
+    "volume": 5221397.0,
+    "atr": null
+  },
+  {
+    "symbol": "CRM",
+    "date": "2024-09-13",
+    "close": 254.57,
+    "volume": 4998901.0,
+    "atr": null
+  },
+  {
+    "symbol": "CRM",
+    "date": "2024-09-16",
+    "close": 256.91,
+    "volume": 5367024.0,
+    "atr": null
+  },
+  {
+    "symbol": "CRM",
+    "date": "2024-09-17",
+    "close": 255.19,
+    "volume": 5416188.0,
+    "atr": null
+  },
+  {
+    "symbol": "CRM",
+    "date": "2024-09-18",
+    "close": 252.43,
+    "volume": 4436734.0,
+    "atr": null
+  },
+  {
+    "symbol": "CRM",
+    "date": "2024-09-19",
+    "close": 265.99,
+    "volume": 11022830.0,
+    "atr": null
+  },
+  {
+    "symbol": "CRM",
+    "date": "2024-09-20",
+    "close": 266.8,
+    "volume": 11463169.0,
+    "atr": null
+  },
+  {
+    "symbol": "CRM",
+    "date": "2024-09-23",
+    "close": 264.21,
+    "volume": 6033986.0,
+    "atr": null
+  },
+  {
+    "symbol": "CRM",
+    "date": "2024-09-24",
+    "close": 270.44,
+    "volume": 7154459.0,
+    "atr": null
+  },
+  {
+    "symbol": "CRM",
+    "date": "2024-09-25",
+    "close": 274.09,
+    "volume": 7920044.0,
+    "atr": null
+  },
+  {
+    "symbol": "CRM",
+    "date": "2024-09-26",
+    "close": 275.76,
+    "volume": 5253376.0,
+    "atr": null
+  },
+  {
+    "symbol": "CRM",
+    "date": "2024-09-27",
+    "close": 276.64,
+    "volume": 5220075.0,
+    "atr": null
+  },
+  {
+    "symbol": "CRM",
+    "date": "2024-09-30",
+    "close": 273.71,
+    "volume": 5062226.0,
+    "atr": null
+  },
+  {
+    "symbol": "CRM",
+    "date": "2024-10-01",
+    "close": 270.87,
+    "volume": 4369918.0,
+    "atr": null
+  },
+  {
+    "symbol": "CRM",
+    "date": "2024-10-02",
+    "close": 279.48,
+    "volume": 8512272.0,
+    "atr": null
+  },
+  {
+    "symbol": "CRM",
+    "date": "2024-10-03",
+    "close": 280.91,
+    "volume": 3868447.0,
+    "atr": null
+  },
+  {
+    "symbol": "CRM",
+    "date": "2024-10-04",
+    "close": 287.75,
+    "volume": 6131284.0,
+    "atr": null
+  },
+  {
+    "symbol": "CRM",
+    "date": "2024-10-07",
+    "close": 284.57,
+    "volume": 4794652.0,
+    "atr": null
+  },
+  {
+    "symbol": "CRM",
+    "date": "2024-10-08",
+    "close": 291.57,
+    "volume": 5199209.0,
+    "atr": null
+  },
+  {
+    "symbol": "CRM",
+    "date": "2024-10-09",
+    "close": 287.92,
+    "volume": 4850952.0,
+    "atr": null
+  },
+  {
+    "symbol": "CRM",
+    "date": "2024-10-10",
+    "close": 290.17,
+    "volume": 3965512.0,
+    "atr": null
+  },
+  {
+    "symbol": "CRM",
+    "date": "2024-10-11",
+    "close": 288.1,
+    "volume": 3597035.0,
+    "atr": null
+  },
+  {
+    "symbol": "CRM",
+    "date": "2024-10-14",
+    "close": 291.64,
+    "volume": 3642540.0,
+    "atr": null
+  },
+  {
+    "symbol": "CRM",
+    "date": "2024-10-15",
+    "close": 288.35,
+    "volume": 3850782.0,
+    "atr": null
+  },
+  {
+    "symbol": "CRM",
+    "date": "2024-10-16",
+    "close": 290.86,
+    "volume": 3496969.0,
+    "atr": null
+  },
+  {
+    "symbol": "CRM",
+    "date": "2024-10-17",
+    "close": 291.11,
+    "volume": 2830025.0,
+    "atr": null
+  },
+  {
+    "symbol": "CRM",
+    "date": "2024-10-18",
+    "close": 292.94,
+    "volume": 3087902.0,
+    "atr": null
+  },
+  {
+    "symbol": "CRM",
+    "date": "2024-10-21",
+    "close": 291.29,
+    "volume": 2712571.0,
+    "atr": null
+  },
+  {
+    "symbol": "CRM",
+    "date": "2024-10-22",
+    "close": 288.33,
+    "volume": 3097025.0,
+    "atr": null
+  },
+  {
+    "symbol": "CRM",
+    "date": "2024-10-23",
+    "close": 284.43,
+    "volume": 3227071.0,
+    "atr": null
+  },
+  {
+    "symbol": "CRM",
+    "date": "2024-10-24",
+    "close": 286.76,
+    "volume": 3210656.0,
+    "atr": null
+  },
+  {
+    "symbol": "CRM",
+    "date": "2024-10-25",
+    "close": 290.46,
+    "volume": 3351560.0,
+    "atr": null
+  },
+  {
+    "symbol": "CRM",
+    "date": "2024-10-28",
+    "close": 293.77,
+    "volume": 3848816.0,
+    "atr": null
+  },
+  {
+    "symbol": "CRM",
+    "date": "2024-10-29",
+    "close": 298.89,
+    "volume": 4280743.0,
+    "atr": null
+  },
+  {
+    "symbol": "CRM",
+    "date": "2024-10-30",
+    "close": 296.4,
+    "volume": 2826545.0,
+    "atr": null
+  },
+  {
+    "symbol": "CRM",
+    "date": "2024-10-31",
+    "close": 291.37,
+    "volume": 4301498.0,
+    "atr": null
+  },
+  {
+    "symbol": "CRM",
+    "date": "2024-11-01",
+    "close": 294.72,
+    "volume": 3527502.0,
+    "atr": null
+  },
+  {
+    "symbol": "CRM",
+    "date": "2024-11-04",
+    "close": 298.01,
+    "volume": 5108329.0,
+    "atr": null
+  },
+  {
+    "symbol": "CRM",
+    "date": "2024-11-05",
+    "close": 297.49,
+    "volume": 4456064.0,
+    "atr": null
+  },
+  {
+    "symbol": "CRM",
+    "date": "2024-11-06",
+    "close": 306.9,
+    "volume": 5874885.0,
+    "atr": null
+  },
+  {
+    "symbol": "CRM",
+    "date": "2024-11-07",
+    "close": 310.78,
+    "volume": 5722636.0,
+    "atr": null
+  },
+  {
+    "symbol": "CRM",
+    "date": "2024-11-08",
+    "close": 321.95,
+    "volume": 8484970.0,
+    "atr": null
+  },
+  {
+    "symbol": "CRM",
+    "date": "2024-11-11",
+    "close": 341.73,
+    "volume": 13954199.0,
+    "atr": null
+  },
+  {
+    "symbol": "CRM",
+    "date": "2024-11-12",
+    "close": 341.15,
+    "volume": 7659675.0,
+    "atr": null
+  },
+  {
+    "symbol": "CRM",
+    "date": "2024-11-13",
+    "close": 341.72,
+    "volume": 6902936.0,
+    "atr": null
+  },
+  {
+    "symbol": "CRM",
+    "date": "2024-11-14",
+    "close": 331.65,
+    "volume": 7630619.0,
+    "atr": null
+  },
+  {
+    "symbol": "CRM",
+    "date": "2024-11-15",
+    "close": 325.26,
+    "volume": 7093003.0,
+    "atr": null
+  },
+  {
+    "symbol": "CRM",
+    "date": "2024-11-18",
+    "close": 322.25,
+    "volume": 4251074.0,
+    "atr": null
+  },
+  {
+    "symbol": "CRM",
+    "date": "2024-11-19",
+    "close": 323.43,
+    "volume": 5469892.0,
+    "atr": null
+  },
+  {
+    "symbol": "CRM",
+    "date": "2024-11-20",
+    "close": 325.7,
+    "volume": 3760525.0,
+    "atr": null
+  },
+  {
+    "symbol": "CRM",
+    "date": "2024-11-21",
+    "close": 335.78,
+    "volume": 8364165.0,
+    "atr": null
+  },
+  {
+    "symbol": "CRM",
+    "date": "2024-11-22",
+    "close": 342.02,
+    "volume": 5649365.0,
+    "atr": null
+  },
+  {
+    "symbol": "CRM",
+    "date": "2024-11-25",
+    "close": 339.11,
+    "volume": 7116142.0,
+    "atr": null
+  },
+  {
+    "symbol": "CRM",
+    "date": "2024-11-26",
+    "close": 343.18,
+    "volume": 4492772.0,
+    "atr": null
+  },
+  {
+    "symbol": "CRM",
+    "date": "2024-11-27",
+    "close": 330.01,
+    "volume": 7471475.0,
+    "atr": null
+  },
+  {
+    "symbol": "CRM",
+    "date": "2024-11-29",
+    "close": 329.99,
+    "volume": 3517586.0,
+    "atr": null
+  },
+  {
+    "symbol": "CRM",
+    "date": "2024-12-02",
+    "close": 331.01,
+    "volume": 6063387.0,
+    "atr": null
+  },
+  {
+    "symbol": "CRM",
+    "date": "2024-12-03",
+    "close": 331.43,
+    "volume": 12619610.0,
+    "atr": null
+  },
+  {
+    "symbol": "CRM",
+    "date": "2024-12-04",
+    "close": 367.87,
+    "volume": 24733140.0,
+    "atr": null
+  },
+  {
+    "symbol": "CRM",
+    "date": "2024-12-05",
+    "close": 361.38,
+    "volume": 10942124.0,
+    "atr": null
+  },
+  {
+    "symbol": "CRM",
+    "date": "2024-12-06",
+    "close": 361.99,
+    "volume": 5738864.0,
+    "atr": null
+  },
+  {
+    "symbol": "CRM",
+    "date": "2024-12-09",
+    "close": 351.57,
+    "volume": 6475001.0,
+    "atr": null
+  },
+  {
+    "symbol": "CRM",
+    "date": "2024-12-10",
+    "close": 348.82,
+    "volume": 5916962.0,
+    "atr": null
+  },
+  {
+    "symbol": "CRM",
+    "date": "2024-12-11",
+    "close": 354.85,
+    "volume": 7546604.0,
+    "atr": null
+  },
+  {
+    "symbol": "CRM",
+    "date": "2024-12-12",
+    "close": 358.03,
+    "volume": 5422002.0,
+    "atr": null
+  },
+  {
+    "symbol": "CRM",
+    "date": "2024-12-13",
+    "close": 354.31,
+    "volume": 5512520.0,
+    "atr": null
+  },
+  {
+    "symbol": "CRM",
+    "date": "2024-12-16",
+    "close": 357.23,
+    "volume": 5482323.0,
+    "atr": null
+  },
+  {
+    "symbol": "CRM",
+    "date": "2024-12-17",
+    "close": 350.97,
+    "volume": 6910983.0,
+    "atr": null
+  },
+  {
+    "symbol": "CRM",
+    "date": "2024-12-18",
+    "close": 337.23,
+    "volume": 8400030.0,
+    "atr": null
+  },
+  {
+    "symbol": "CRM",
+    "date": "2024-12-19",
+    "close": 336.23,
+    "volume": 7423351.0,
+    "atr": null
+  },
+  {
+    "symbol": "CRM",
+    "date": "2024-12-20",
+    "close": 343.65,
+    "volume": 14932307.0,
+    "atr": null
+  },
+  {
+    "symbol": "CRM",
+    "date": "2024-12-23",
+    "close": 342.9,
+    "volume": 5305267.0,
+    "atr": null
+  },
+  {
+    "symbol": "CRM",
+    "date": "2024-12-24",
+    "close": 344.43,
+    "volume": 1810961.0,
+    "atr": null
+  },
+  {
+    "symbol": "CRM",
+    "date": "2024-12-26",
+    "close": 341.72,
+    "volume": 3484545.0,
+    "atr": null
+  },
+  {
+    "symbol": "CRM",
+    "date": "2024-12-27",
+    "close": 338.45,
+    "volume": 3218302.0,
+    "atr": null
+  },
+  {
+    "symbol": "CRM",
+    "date": "2024-12-30",
+    "close": 335.74,
+    "volume": 3411528.0,
+    "atr": null
+  },
+  {
+    "symbol": "CRM",
+    "date": "2024-12-31",
+    "close": 334.33,
+    "volume": 3026017.0,
+    "atr": null
+  },
+  {
+    "symbol": "CRM",
+    "date": "2025-01-02",
+    "close": 330.66,
+    "volume": 4807138.0,
+    "atr": null
+  },
+  {
+    "symbol": "CRM",
+    "date": "2025-01-03",
+    "close": 332.9,
+    "volume": 4102503.0,
+    "atr": null
+  },
+  {
+    "symbol": "CRM",
+    "date": "2025-01-06",
+    "close": 330.53,
+    "volume": 5785333.0,
+    "atr": null
+  },
+  {
+    "symbol": "CRM",
+    "date": "2025-01-07",
+    "close": 324.93,
+    "volume": 4643133.0,
+    "atr": null
+  },
+  {
+    "symbol": "CRM",
+    "date": "2025-01-08",
+    "close": 326.9,
+    "volume": 3788206.0,
+    "atr": null
+  },
+  {
+    "symbol": "CRM",
+    "date": "2025-01-10",
+    "close": 317.85,
+    "volume": 6539973.0,
+    "atr": null
+  },
+  {
+    "symbol": "CRM",
+    "date": "2025-01-13",
+    "close": 319.07,
+    "volume": 4583023.0,
+    "atr": null
+  },
+  {
+    "symbol": "CRM",
+    "date": "2025-01-14",
+    "close": 323.54,
+    "volume": 5932821.0,
+    "atr": null
+  },
+  {
+    "symbol": "CRM",
+    "date": "2025-01-15",
+    "close": 321.16,
+    "volume": 6042674.0,
+    "atr": null
+  },
+  {
+    "symbol": "CRM",
+    "date": "2025-01-16",
+    "close": 320,
+    "volume": 5051487.0,
+    "atr": null
+  },
+  {
+    "symbol": "CRM",
+    "date": "2025-01-17",
+    "close": 324.56,
+    "volume": 6303558.0,
+    "atr": null
+  },
+  {
+    "symbol": "CRM",
+    "date": "2025-01-21",
+    "close": 326.84,
+    "volume": 6397166.0,
+    "atr": null
+  },
+  {
+    "symbol": "CRM",
+    "date": "2025-01-22",
+    "close": 332.62,
+    "volume": 7259285.0,
+    "atr": null
+  },
+  {
+    "symbol": "CRM",
+    "date": "2025-01-23",
+    "close": 334.66,
+    "volume": 4355877.0,
+    "atr": null
+  },
+  {
+    "symbol": "CRM",
+    "date": "2025-01-24",
+    "close": 333.88,
+    "volume": 3299074.0,
+    "atr": null
+  },
+  {
+    "symbol": "CRM",
+    "date": "2025-01-27",
+    "close": 347.1,
+    "volume": 15661109.0,
+    "atr": null
+  },
+  {
+    "symbol": "CRM",
+    "date": "2025-01-28",
+    "close": 359.95,
+    "volume": 12099293.0,
+    "atr": null
+  },
+  {
+    "symbol": "CRM",
+    "date": "2025-01-29",
+    "close": 354,
+    "volume": 6266724.0,
+    "atr": null
+  },
+  {
+    "symbol": "CRM",
+    "date": "2025-01-30",
+    "close": 343.57,
+    "volume": 7591129.0,
+    "atr": null
+  },
+  {
+    "symbol": "CRM",
+    "date": "2025-01-31",
+    "close": 341.7,
+    "volume": 5781541.0,
+    "atr": null
+  },
+  {
+    "symbol": "CRM",
+    "date": "2025-02-03",
+    "close": 339.24,
+    "volume": 4549415.0,
+    "atr": null
+  },
+  {
+    "symbol": "CRM",
+    "date": "2025-02-04",
+    "close": 344.14,
+    "volume": 4963702.0,
+    "atr": null
+  },
+  {
+    "symbol": "CRM",
+    "date": "2025-02-05",
+    "close": 347.93,
+    "volume": 4521009.0,
+    "atr": null
+  },
+  {
+    "symbol": "CRM",
+    "date": "2025-02-06",
+    "close": 330.81,
+    "volume": 13240635.0,
+    "atr": null
+  },
+  {
+    "symbol": "CRM",
+    "date": "2025-02-07",
+    "close": 325.83,
+    "volume": 7626090.0,
+    "atr": null
+  },
+  {
+    "symbol": "CRM",
+    "date": "2025-02-10",
+    "close": 327.2,
+    "volume": 5981915.0,
+    "atr": null
+  },
+  {
+    "symbol": "CRM",
+    "date": "2025-02-11",
+    "close": 324.4,
+    "volume": 5455939.0,
+    "atr": null
+  },
+  {
+    "symbol": "CRM",
+    "date": "2025-02-12",
+    "close": 326.12,
+    "volume": 5627873.0,
+    "atr": null
+  },
+  {
+    "symbol": "CRM",
+    "date": "2025-02-13",
+    "close": 329.85,
+    "volume": 4312066.0,
+    "atr": null
+  },
+  {
+    "symbol": "CRM",
+    "date": "2025-02-14",
+    "close": 326.54,
+    "volume": 5879716.0,
+    "atr": null
+  },
+  {
+    "symbol": "CRM",
+    "date": "2025-02-18",
+    "close": 328.96,
+    "volume": 5262109.0,
+    "atr": null
+  },
+  {
+    "symbol": "CRM",
+    "date": "2025-02-19",
+    "close": 324.53,
+    "volume": 5012019.0,
+    "atr": null
+  },
+  {
+    "symbol": "CRM",
+    "date": "2025-02-20",
+    "close": 318.43,
+    "volume": 6393050.0,
+    "atr": null
+  },
+  {
+    "symbol": "CRM",
+    "date": "2025-02-21",
+    "close": 309.8,
+    "volume": 7353214.0,
+    "atr": null
+  },
+  {
+    "symbol": "CRM",
+    "date": "2025-02-24",
+    "close": 308.32,
+    "volume": 6652863.0,
+    "atr": null
+  },
+  {
+    "symbol": "CRM",
+    "date": "2025-02-25",
+    "close": 305.88,
+    "volume": 7360070.0,
+    "atr": null
+  },
+  {
+    "symbol": "CRM",
+    "date": "2025-02-26",
+    "close": 307.33,
+    "volume": 12638452.0,
+    "atr": null
+  },
+  {
+    "symbol": "CRM",
+    "date": "2025-02-27",
+    "close": 294.9,
+    "volume": 16691436.0,
+    "atr": null
+  },
+  {
+    "symbol": "CRM",
+    "date": "2025-02-28",
+    "close": 297.85,
+    "volume": 10863109.0,
+    "atr": null
+  },
+  {
+    "symbol": "CRM",
+    "date": "2025-03-03",
+    "close": 293.06,
+    "volume": 6298208.0,
+    "atr": null
+  },
+  {
+    "symbol": "CRM",
+    "date": "2025-03-04",
+    "close": 287.34,
+    "volume": 9090760.0,
+    "atr": null
+  },
+  {
+    "symbol": "CRM",
+    "date": "2025-03-05",
+    "close": 291.97,
+    "volume": 6611341.0,
+    "atr": null
+  },
+  {
+    "symbol": "CRM",
+    "date": "2025-03-06",
+    "close": 286.05,
+    "volume": 10396805.0,
+    "atr": null
+  },
+  {
+    "symbol": "CRM",
+    "date": "2025-03-07",
+    "close": 282.89,
+    "volume": 8248082.0,
+    "atr": null
+  },
+  {
+    "symbol": "CRM",
+    "date": "2025-03-10",
+    "close": 272.9,
+    "volume": 10040220.0,
+    "atr": null
+  },
+  {
+    "symbol": "CRM",
+    "date": "2025-03-11",
+    "close": 277.05,
+    "volume": 8313375.0,
+    "atr": null
+  },
+  {
+    "symbol": "CRM",
+    "date": "2025-03-12",
+    "close": 284.58,
+    "volume": 7463894.0,
+    "atr": null
+  },
+  {
+    "symbol": "CRM",
+    "date": "2025-03-13",
+    "close": 271.74,
+    "volume": 9366022.0,
+    "atr": null
+  },
+  {
+    "symbol": "CRM",
+    "date": "2025-03-14",
+    "close": 279.4,
+    "volume": 6976916.0,
+    "atr": null
+  },
+  {
+    "symbol": "CRM",
+    "date": "2025-03-17",
+    "close": 280.75,
+    "volume": 4484727.0,
+    "atr": null
+  },
+  {
+    "symbol": "CRM",
+    "date": "2025-03-18",
+    "close": 278.73,
+    "volume": 5882123.0,
+    "atr": null
+  },
+  {
+    "symbol": "CRM",
+    "date": "2025-03-19",
+    "close": 279.39,
+    "volume": 5245412.0,
+    "atr": null
+  },
+  {
+    "symbol": "CRM",
+    "date": "2025-03-20",
+    "close": 279.03,
+    "volume": 5504720.0,
+    "atr": null
+  },
+  {
+    "symbol": "CRM",
+    "date": "2025-03-21",
+    "close": 280.62,
+    "volume": 9804132.0,
+    "atr": null
+  },
+  {
+    "symbol": "CRM",
+    "date": "2025-03-24",
+    "close": 285.96,
+    "volume": 6763802.0,
+    "atr": null
+  },
+  {
+    "symbol": "CRM",
+    "date": "2025-03-25",
+    "close": 288.61,
+    "volume": 4301704.0,
+    "atr": null
+  },
+  {
+    "symbol": "CRM",
+    "date": "2025-03-26",
+    "close": 280.99,
+    "volume": 5073391.0,
+    "atr": null
+  },
+  {
+    "symbol": "CRM",
+    "date": "2025-03-27",
+    "close": 277.81,
+    "volume": 3757245.0,
+    "atr": null
+  },
+  {
+    "symbol": "CRM",
+    "date": "2025-03-28",
+    "close": 269.97,
+    "volume": 4973419.0,
+    "atr": null
+  },
+  {
+    "symbol": "CRM",
+    "date": "2025-03-31",
+    "close": 268.36,
+    "volume": 7585804.0,
+    "atr": null
+  },
+  {
+    "symbol": "CRM",
+    "date": "2025-04-01",
+    "close": 270.2,
+    "volume": 4598153.0,
+    "atr": null
+  },
+  {
+    "symbol": "CRM",
+    "date": "2025-04-02",
+    "close": 271.54,
+    "volume": 5396853.0,
+    "atr": null
+  },
+  {
+    "symbol": "CRM",
+    "date": "2025-04-03",
+    "close": 255.23,
+    "volume": 8872602.0,
+    "atr": null
+  },
+  {
+    "symbol": "CRM",
+    "date": "2025-04-04",
+    "close": 240.76,
+    "volume": 9704996.0,
+    "atr": null
+  },
+  {
+    "symbol": "CRM",
+    "date": "2025-04-07",
+    "close": 244.21,
+    "volume": 11965180.0,
+    "atr": null
+  },
+  {
+    "symbol": "CRM",
+    "date": "2025-04-08",
+    "close": 243.99,
+    "volume": 9277810.0,
+    "atr": null
+  },
+  {
+    "symbol": "CRM",
+    "date": "2025-04-09",
+    "close": 265.17,
+    "volume": 12491148.0,
+    "atr": null
+  },
+  {
+    "symbol": "CRM",
+    "date": "2025-04-10",
+    "close": 255.12,
+    "volume": 9692344.0,
+    "atr": null
+  },
+  {
+    "symbol": "CRM",
+    "date": "2025-04-11",
+    "close": 255,
+    "volume": 6089003.0,
+    "atr": null
+  },
+  {
+    "symbol": "CRM",
+    "date": "2025-04-14",
+    "close": 254.55,
+    "volume": 6038546.0,
+    "atr": null
+  },
+  {
+    "symbol": "CRM",
+    "date": "2025-04-15",
+    "close": 254.93,
+    "volume": 5227671.0,
+    "atr": null
+  },
+  {
+    "symbol": "CRM",
+    "date": "2025-04-16",
+    "close": 249.84,
+    "volume": 7190940.0,
+    "atr": null
+  },
+  {
+    "symbol": "CRM",
+    "date": "2025-04-17",
+    "close": 247.26,
+    "volume": 5566857.0,
+    "atr": null
+  },
+  {
+    "symbol": "CRM",
+    "date": "2025-04-21",
+    "close": 236.26,
+    "volume": 9240009.0,
+    "atr": null
+  },
+  {
+    "symbol": "CRM",
+    "date": "2025-04-22",
+    "close": 243.39,
+    "volume": 7142488.0,
+    "atr": null
+  },
+  {
+    "symbol": "CRM",
+    "date": "2025-04-23",
+    "close": 250.48,
+    "volume": 5818895.0,
+    "atr": null
+  },
+  {
+    "symbol": "CRM",
+    "date": "2025-04-24",
+    "close": 264.7,
+    "volume": 7857563.0,
+    "atr": null
+  },
+  {
+    "symbol": "CRM",
+    "date": "2025-04-25",
+    "close": 267.85,
+    "volume": 5651651.0,
+    "atr": null
+  },
+  {
+    "symbol": "CRM",
+    "date": "2025-04-28",
+    "close": 265.64,
+    "volume": 4977724.0,
+    "atr": null
+  },
+  {
+    "symbol": "CRM",
+    "date": "2025-04-29",
+    "close": 267.76,
+    "volume": 3140601.0,
+    "atr": null
+  },
+  {
+    "symbol": "CRM",
+    "date": "2025-04-30",
+    "close": 268.71,
+    "volume": 4624088.0,
+    "atr": null
+  },
+  {
+    "symbol": "CRM",
+    "date": "2025-05-01",
+    "close": 269.33,
+    "volume": 5208927.0,
+    "atr": null
+  },
+  {
+    "symbol": "CRM",
+    "date": "2025-05-02",
+    "close": 275.08,
+    "volume": 4323760.0,
+    "atr": null
+  },
+  {
+    "symbol": "CRM",
+    "date": "2025-05-05",
+    "close": 272.63,
+    "volume": 4219639.0,
+    "atr": null
+  },
+  {
+    "symbol": "CRM",
+    "date": "2025-05-06",
+    "close": 273.36,
+    "volume": 4681552.0,
+    "atr": null
+  },
+  {
+    "symbol": "CRM",
+    "date": "2025-05-07",
+    "close": 278.23,
+    "volume": 4268307.0,
+    "atr": null
+  },
+  {
+    "symbol": "CRM",
+    "date": "2025-05-08",
+    "close": 279.74,
+    "volume": 4789858.0,
+    "atr": null
+  },
+  {
+    "symbol": "CRM",
+    "date": "2025-05-09",
+    "close": 275.42,
+    "volume": 4324188.0,
+    "atr": null
+  },
+  {
+    "symbol": "CRM",
+    "date": "2025-05-12",
+    "close": 288.82,
+    "volume": 5937370.0,
+    "atr": null
+  },
+  {
+    "symbol": "CRM",
+    "date": "2025-05-13",
+    "close": 289.17,
+    "volume": 6711550.0,
+    "atr": null
+  },
+  {
+    "symbol": "CRM",
+    "date": "2025-05-14",
+    "close": 290.74,
+    "volume": 7926186.0,
+    "atr": null
+  },
+  {
+    "symbol": "CRM",
+    "date": "2025-05-15",
+    "close": 290.76,
+    "volume": 4635862.0,
+    "atr": null
+  },
+  {
+    "symbol": "CRM",
+    "date": "2025-05-16",
+    "close": 291.15,
+    "volume": 3845977.0,
+    "atr": null
+  },
+  {
+    "symbol": "CRM",
+    "date": "2025-05-19",
+    "close": 287.63,
+    "volume": 5781196.0,
+    "atr": null
+  },
+  {
+    "symbol": "CRM",
+    "date": "2025-05-20",
+    "close": 288.06,
+    "volume": 4032283.0,
+    "atr": null
+  },
+  {
+    "symbol": "CRM",
+    "date": "2025-05-21",
+    "close": 282.28,
+    "volume": 5689839.0,
+    "atr": null
+  },
+  {
+    "symbol": "CRM",
+    "date": "2025-05-22",
+    "close": 283.42,
+    "volume": 6642690.0,
+    "atr": null
+  },
+  {
+    "symbol": "CRM",
+    "date": "2025-05-23",
+    "close": 273.13,
+    "volume": 8887815.0,
+    "atr": null
+  },
+  {
+    "symbol": "CRM",
+    "date": "2025-05-27",
+    "close": 277.19,
+    "volume": 10958025.0,
+    "atr": null
+  },
+  {
+    "symbol": "CRM",
+    "date": "2025-05-28",
+    "close": 276.03,
+    "volume": 12758644.0,
+    "atr": null
+  },
+  {
+    "symbol": "CRM",
+    "date": "2025-05-29",
+    "close": 266.92,
+    "volume": 28074954.0,
+    "atr": null
+  },
+  {
+    "symbol": "CRM",
+    "date": "2025-05-30",
+    "close": 265.37,
+    "volume": 12388512.0,
+    "atr": null
+  },
+  {
+    "symbol": "CRM",
+    "date": "2025-06-02",
+    "close": 261.62,
+    "volume": 9213476.0,
+    "atr": null
+  },
+  {
+    "symbol": "CRM",
+    "date": "2025-06-03",
+    "close": 264.47,
+    "volume": 7838480.0,
+    "atr": null
+  },
+  {
+    "symbol": "CRM",
+    "date": "2025-06-04",
+    "close": 263.17,
+    "volume": 7372529.0,
+    "atr": null
+  },
+  {
+    "symbol": "CRM",
+    "date": "2025-06-05",
+    "close": 267.14,
+    "volume": 8647080.0,
+    "atr": null
+  },
+  {
+    "symbol": "CRM",
+    "date": "2025-06-06",
+    "close": 274.51,
+    "volume": 7507040.0,
+    "atr": null
+  },
+  {
+    "symbol": "CRM",
+    "date": "2025-06-09",
+    "close": 272.25,
+    "volume": 5728297.0,
+    "atr": null
+  },
+  {
+    "symbol": "CRM",
+    "date": "2025-06-10",
+    "close": 268.22,
+    "volume": 6309748.0,
+    "atr": null
+  },
+  {
+    "symbol": "CRM",
+    "date": "2025-06-11",
+    "close": 265.91,
+    "volume": 6568118.0,
+    "atr": null
+  },
+  {
+    "symbol": "CRM",
+    "date": "2025-06-12",
+    "close": 266.91,
+    "volume": 8054033.0,
+    "atr": null
+  },
+  {
+    "symbol": "CRM",
+    "date": "2025-06-13",
+    "close": 258.4,
+    "volume": 7659317.0,
+    "atr": null
+  },
+  {
+    "symbol": "CRM",
+    "date": "2025-06-16",
+    "close": 263.88,
+    "volume": 7177005.0,
+    "atr": null
+  },
+  {
+    "symbol": "CRM",
+    "date": "2025-06-17",
+    "close": 262.76,
+    "volume": 9110069.0,
+    "atr": null
+  },
+  {
+    "symbol": "CRM",
+    "date": "2025-06-18",
+    "close": 259.5,
+    "volume": 7628009.0,
+    "atr": null
+  },
+  {
+    "symbol": "CRM",
+    "date": "2025-06-20",
+    "close": 260.63,
+    "volume": 12859175.0,
+    "atr": null
+  },
+  {
+    "symbol": "CRM",
+    "date": "2025-06-23",
+    "close": 263.41,
+    "volume": 9283842.0,
+    "atr": null
+  },
+  {
+    "symbol": "CRM",
+    "date": "2025-06-24",
+    "close": 271.17,
+    "volume": 9713901.0,
+    "atr": null
+  },
+  {
+    "symbol": "CRM",
+    "date": "2025-06-25",
+    "close": 267.76,
+    "volume": 6074324.0,
+    "atr": null
+  },
+  {
+    "symbol": "CRM",
+    "date": "2025-06-26",
+    "close": 269.62,
+    "volume": 2052046,
+    "atr": null
+  }
+]

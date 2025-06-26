@@ -1,0 +1,1752 @@
+[
+  {
+    "symbol": "MSFT",
+    "date": "2024-06-26",
+    "close": 452.16,
+    "volume": 16463605.0,
+    "atr": null
+  },
+  {
+    "symbol": "MSFT",
+    "date": "2024-06-27",
+    "close": 452.85,
+    "volume": 14669048.0,
+    "atr": null
+  },
+  {
+    "symbol": "MSFT",
+    "date": "2024-06-28",
+    "close": 446.95,
+    "volume": 28342271.0,
+    "atr": null
+  },
+  {
+    "symbol": "MSFT",
+    "date": "2024-07-01",
+    "close": 456.73,
+    "volume": 17662818.0,
+    "atr": null
+  },
+  {
+    "symbol": "MSFT",
+    "date": "2024-07-02",
+    "close": 459.28,
+    "volume": 13900279.0,
+    "atr": null
+  },
+  {
+    "symbol": "MSFT",
+    "date": "2024-07-03",
+    "close": 460.77,
+    "volume": 9932830.0,
+    "atr": null
+  },
+  {
+    "symbol": "MSFT",
+    "date": "2024-07-05",
+    "close": 467.56,
+    "volume": 16000290.0,
+    "atr": null
+  },
+  {
+    "symbol": "MSFT",
+    "date": "2024-07-08",
+    "close": 466.24,
+    "volume": 12962321.0,
+    "atr": null
+  },
+  {
+    "symbol": "MSFT",
+    "date": "2024-07-09",
+    "close": 459.54,
+    "volume": 17228507.0,
+    "atr": null
+  },
+  {
+    "symbol": "MSFT",
+    "date": "2024-07-10",
+    "close": 466.25,
+    "volume": 18183100.0,
+    "atr": null
+  },
+  {
+    "symbol": "MSFT",
+    "date": "2024-07-11",
+    "close": 454.7,
+    "volume": 23099375.0,
+    "atr": null
+  },
+  {
+    "symbol": "MSFT",
+    "date": "2024-07-12",
+    "close": 453.55,
+    "volume": 16270874.0,
+    "atr": null
+  },
+  {
+    "symbol": "MSFT",
+    "date": "2024-07-15",
+    "close": 453.96,
+    "volume": 14429447.0,
+    "atr": null
+  },
+  {
+    "symbol": "MSFT",
+    "date": "2024-07-16",
+    "close": 449.52,
+    "volume": 17175679.0,
+    "atr": null
+  },
+  {
+    "symbol": "MSFT",
+    "date": "2024-07-17",
+    "close": 443.52,
+    "volume": 21754021.0,
+    "atr": null
+  },
+  {
+    "symbol": "MSFT",
+    "date": "2024-07-18",
+    "close": 440.37,
+    "volume": 20532222.0,
+    "atr": null
+  },
+  {
+    "symbol": "MSFT",
+    "date": "2024-07-19",
+    "close": 437.11,
+    "volume": 20805117.0,
+    "atr": null
+  },
+  {
+    "symbol": "MSFT",
+    "date": "2024-07-22",
+    "close": 442.94,
+    "volume": 15808755.0,
+    "atr": null
+  },
+  {
+    "symbol": "MSFT",
+    "date": "2024-07-23",
+    "close": 444.85,
+    "volume": 13068650.0,
+    "atr": null
+  },
+  {
+    "symbol": "MSFT",
+    "date": "2024-07-24",
+    "close": 428.9,
+    "volume": 26805800.0,
+    "atr": null
+  },
+  {
+    "symbol": "MSFT",
+    "date": "2024-07-25",
+    "close": 418.4,
+    "volume": 29943795.0,
+    "atr": null
+  },
+  {
+    "symbol": "MSFT",
+    "date": "2024-07-26",
+    "close": 425.27,
+    "volume": 23583839.0,
+    "atr": null
+  },
+  {
+    "symbol": "MSFT",
+    "date": "2024-07-29",
+    "close": 426.73,
+    "volume": 15125836.0,
+    "atr": null
+  },
+  {
+    "symbol": "MSFT",
+    "date": "2024-07-30",
+    "close": 422.92,
+    "volume": 32570678.0,
+    "atr": null
+  },
+  {
+    "symbol": "MSFT",
+    "date": "2024-07-31",
+    "close": 418.35,
+    "volume": 42891366.0,
+    "atr": null
+  },
+  {
+    "symbol": "MSFT",
+    "date": "2024-08-01",
+    "close": 417.11,
+    "volume": 30278800.0,
+    "atr": null
+  },
+  {
+    "symbol": "MSFT",
+    "date": "2024-08-02",
+    "close": 408.49,
+    "volume": 29393500.0,
+    "atr": null
+  },
+  {
+    "symbol": "MSFT",
+    "date": "2024-08-05",
+    "close": 395.15,
+    "volume": 40700988.0,
+    "atr": null
+  },
+  {
+    "symbol": "MSFT",
+    "date": "2024-08-06",
+    "close": 399.61,
+    "volume": 24438725.0,
+    "atr": null
+  },
+  {
+    "symbol": "MSFT",
+    "date": "2024-08-07",
+    "close": 398.43,
+    "volume": 20611706.0,
+    "atr": null
+  },
+  {
+    "symbol": "MSFT",
+    "date": "2024-08-08",
+    "close": 402.69,
+    "volume": 20203030.0,
+    "atr": null
+  },
+  {
+    "symbol": "MSFT",
+    "date": "2024-08-09",
+    "close": 406.02,
+    "volume": 19276666.0,
+    "atr": null
+  },
+  {
+    "symbol": "MSFT",
+    "date": "2024-08-12",
+    "close": 406.81,
+    "volume": 16762883.0,
+    "atr": null
+  },
+  {
+    "symbol": "MSFT",
+    "date": "2024-08-13",
+    "close": 414.01,
+    "volume": 19414271.0,
+    "atr": null
+  },
+  {
+    "symbol": "MSFT",
+    "date": "2024-08-14",
+    "close": 416.86,
+    "volume": 18216980.0,
+    "atr": null
+  },
+  {
+    "symbol": "MSFT",
+    "date": "2024-08-15",
+    "close": 421.03,
+    "volume": 20731684.0,
+    "atr": null
+  },
+  {
+    "symbol": "MSFT",
+    "date": "2024-08-16",
+    "close": 418.47,
+    "volume": 22775593.0,
+    "atr": null
+  },
+  {
+    "symbol": "MSFT",
+    "date": "2024-08-19",
+    "close": 421.53,
+    "volume": 15233957.0,
+    "atr": null
+  },
+  {
+    "symbol": "MSFT",
+    "date": "2024-08-20",
+    "close": 424.8,
+    "volume": 16387581.0,
+    "atr": null
+  },
+  {
+    "symbol": "MSFT",
+    "date": "2024-08-21",
+    "close": 424.14,
+    "volume": 16067298.0,
+    "atr": null
+  },
+  {
+    "symbol": "MSFT",
+    "date": "2024-08-22",
+    "close": 415.55,
+    "volume": 19318751.0,
+    "atr": null
+  },
+  {
+    "symbol": "MSFT",
+    "date": "2024-08-23",
+    "close": 416.79,
+    "volume": 18463784.0,
+    "atr": null
+  },
+  {
+    "symbol": "MSFT",
+    "date": "2024-08-26",
+    "close": 413.49,
+    "volume": 13145630.0,
+    "atr": null
+  },
+  {
+    "symbol": "MSFT",
+    "date": "2024-08-27",
+    "close": 413.84,
+    "volume": 13492911.0,
+    "atr": null
+  },
+  {
+    "symbol": "MSFT",
+    "date": "2024-08-28",
+    "close": 410.6,
+    "volume": 14882660.0,
+    "atr": null
+  },
+  {
+    "symbol": "MSFT",
+    "date": "2024-08-29",
+    "close": 413.12,
+    "volume": 17041441.0,
+    "atr": null
+  },
+  {
+    "symbol": "MSFT",
+    "date": "2024-08-30",
+    "close": 417.14,
+    "volume": 24306124.0,
+    "atr": null
+  },
+  {
+    "symbol": "MSFT",
+    "date": "2024-09-03",
+    "close": 409.44,
+    "volume": 20313603.0,
+    "atr": null
+  },
+  {
+    "symbol": "MSFT",
+    "date": "2024-09-04",
+    "close": 408.9,
+    "volume": 15123006.0,
+    "atr": null
+  },
+  {
+    "symbol": "MSFT",
+    "date": "2024-09-05",
+    "close": 408.39,
+    "volume": 14165816.0,
+    "atr": null
+  },
+  {
+    "symbol": "MSFT",
+    "date": "2024-09-06",
+    "close": 401.7,
+    "volume": 19609526.0,
+    "atr": null
+  },
+  {
+    "symbol": "MSFT",
+    "date": "2024-09-09",
+    "close": 405.72,
+    "volume": 15295134.0,
+    "atr": null
+  },
+  {
+    "symbol": "MSFT",
+    "date": "2024-09-10",
+    "close": 414.2,
+    "volume": 19594287.0,
+    "atr": null
+  },
+  {
+    "symbol": "MSFT",
+    "date": "2024-09-11",
+    "close": 423.04,
+    "volume": 19266923.0,
+    "atr": null
+  },
+  {
+    "symbol": "MSFT",
+    "date": "2024-09-12",
+    "close": 427,
+    "volume": 17418759.0,
+    "atr": null
+  },
+  {
+    "symbol": "MSFT",
+    "date": "2024-09-13",
+    "close": 430.59,
+    "volume": 15874555.0,
+    "atr": null
+  },
+  {
+    "symbol": "MSFT",
+    "date": "2024-09-16",
+    "close": 431.34,
+    "volume": 13834697.0,
+    "atr": null
+  },
+  {
+    "symbol": "MSFT",
+    "date": "2024-09-17",
+    "close": 435.15,
+    "volume": 18874231.0,
+    "atr": null
+  },
+  {
+    "symbol": "MSFT",
+    "date": "2024-09-18",
+    "close": 430.81,
+    "volume": 18893102.0,
+    "atr": null
+  },
+  {
+    "symbol": "MSFT",
+    "date": "2024-09-19",
+    "close": 438.69,
+    "volume": 21706559.0,
+    "atr": null
+  },
+  {
+    "symbol": "MSFT",
+    "date": "2024-09-20",
+    "close": 435.27,
+    "volume": 55167106.0,
+    "atr": null
+  },
+  {
+    "symbol": "MSFT",
+    "date": "2024-09-23",
+    "close": 433.51,
+    "volume": 15128891.0,
+    "atr": null
+  },
+  {
+    "symbol": "MSFT",
+    "date": "2024-09-24",
+    "close": 429.17,
+    "volume": 17015754.0,
+    "atr": null
+  },
+  {
+    "symbol": "MSFT",
+    "date": "2024-09-25",
+    "close": 432.11,
+    "volume": 13396364.0,
+    "atr": null
+  },
+  {
+    "symbol": "MSFT",
+    "date": "2024-09-26",
+    "close": 431.31,
+    "volume": 14492044.0,
+    "atr": null
+  },
+  {
+    "symbol": "MSFT",
+    "date": "2024-09-27",
+    "close": 428.02,
+    "volume": 14887131.0,
+    "atr": null
+  },
+  {
+    "symbol": "MSFT",
+    "date": "2024-09-30",
+    "close": 430.3,
+    "volume": 16854606.0,
+    "atr": null
+  },
+  {
+    "symbol": "MSFT",
+    "date": "2024-10-01",
+    "close": 420.69,
+    "volume": 19075945.0,
+    "atr": null
+  },
+  {
+    "symbol": "MSFT",
+    "date": "2024-10-02",
+    "close": 417.13,
+    "volume": 16580607.0,
+    "atr": null
+  },
+  {
+    "symbol": "MSFT",
+    "date": "2024-10-03",
+    "close": 416.54,
+    "volume": 13686421.0,
+    "atr": null
+  },
+  {
+    "symbol": "MSFT",
+    "date": "2024-10-04",
+    "close": 416.06,
+    "volume": 19190913.0,
+    "atr": null
+  },
+  {
+    "symbol": "MSFT",
+    "date": "2024-10-07",
+    "close": 409.54,
+    "volume": 20919761.0,
+    "atr": null
+  },
+  {
+    "symbol": "MSFT",
+    "date": "2024-10-08",
+    "close": 414.71,
+    "volume": 19229261.0,
+    "atr": null
+  },
+  {
+    "symbol": "MSFT",
+    "date": "2024-10-09",
+    "close": 417.46,
+    "volume": 14974257.0,
+    "atr": null
+  },
+  {
+    "symbol": "MSFT",
+    "date": "2024-10-10",
+    "close": 415.84,
+    "volume": 13843016.0,
+    "atr": null
+  },
+  {
+    "symbol": "MSFT",
+    "date": "2024-10-11",
+    "close": 416.32,
+    "volume": 14144944.0,
+    "atr": null
+  },
+  {
+    "symbol": "MSFT",
+    "date": "2024-10-14",
+    "close": 419.14,
+    "volume": 16650986.0,
+    "atr": null
+  },
+  {
+    "symbol": "MSFT",
+    "date": "2024-10-15",
+    "close": 418.74,
+    "volume": 18900201.0,
+    "atr": null
+  },
+  {
+    "symbol": "MSFT",
+    "date": "2024-10-16",
+    "close": 416.12,
+    "volume": 15508832.0,
+    "atr": null
+  },
+  {
+    "symbol": "MSFT",
+    "date": "2024-10-17",
+    "close": 416.72,
+    "volume": 13812404.0,
+    "atr": null
+  },
+  {
+    "symbol": "MSFT",
+    "date": "2024-10-18",
+    "close": 418.16,
+    "volume": 17142917.0,
+    "atr": null
+  },
+  {
+    "symbol": "MSFT",
+    "date": "2024-10-21",
+    "close": 418.78,
+    "volume": 14206115.0,
+    "atr": null
+  },
+  {
+    "symbol": "MSFT",
+    "date": "2024-10-22",
+    "close": 427.51,
+    "volume": 25482197.0,
+    "atr": null
+  },
+  {
+    "symbol": "MSFT",
+    "date": "2024-10-23",
+    "close": 424.6,
+    "volume": 19654379.0,
+    "atr": null
+  },
+  {
+    "symbol": "MSFT",
+    "date": "2024-10-24",
+    "close": 424.73,
+    "volume": 13581631.0,
+    "atr": null
+  },
+  {
+    "symbol": "MSFT",
+    "date": "2024-10-25",
+    "close": 428.15,
+    "volume": 16864064.0,
+    "atr": null
+  },
+  {
+    "symbol": "MSFT",
+    "date": "2024-10-28",
+    "close": 426.59,
+    "volume": 14764444.0,
+    "atr": null
+  },
+  {
+    "symbol": "MSFT",
+    "date": "2024-10-29",
+    "close": 431.95,
+    "volume": 17644080.0,
+    "atr": null
+  },
+  {
+    "symbol": "MSFT",
+    "date": "2024-10-30",
+    "close": 432.53,
+    "volume": 29739549.0,
+    "atr": null
+  },
+  {
+    "symbol": "MSFT",
+    "date": "2024-10-31",
+    "close": 406.35,
+    "volume": 53966959.0,
+    "atr": null
+  },
+  {
+    "symbol": "MSFT",
+    "date": "2024-11-01",
+    "close": 410.37,
+    "volume": 23238042.0,
+    "atr": null
+  },
+  {
+    "symbol": "MSFT",
+    "date": "2024-11-04",
+    "close": 408.46,
+    "volume": 19668386.0,
+    "atr": null
+  },
+  {
+    "symbol": "MSFT",
+    "date": "2024-11-05",
+    "close": 411.46,
+    "volume": 17626011.0,
+    "atr": null
+  },
+  {
+    "symbol": "MSFT",
+    "date": "2024-11-06",
+    "close": 420.18,
+    "volume": 26681660.0,
+    "atr": null
+  },
+  {
+    "symbol": "MSFT",
+    "date": "2024-11-07",
+    "close": 425.43,
+    "volume": 19901782.0,
+    "atr": null
+  },
+  {
+    "symbol": "MSFT",
+    "date": "2024-11-08",
+    "close": 422.54,
+    "volume": 16891414.0,
+    "atr": null
+  },
+  {
+    "symbol": "MSFT",
+    "date": "2024-11-11",
+    "close": 418.01,
+    "volume": 24403321.0,
+    "atr": null
+  },
+  {
+    "symbol": "MSFT",
+    "date": "2024-11-12",
+    "close": 423.03,
+    "volume": 19401204.0,
+    "atr": null
+  },
+  {
+    "symbol": "MSFT",
+    "date": "2024-11-13",
+    "close": 425.2,
+    "volume": 21502185.0,
+    "atr": null
+  },
+  {
+    "symbol": "MSFT",
+    "date": "2024-11-14",
+    "close": 426.89,
+    "volume": 30246881.0,
+    "atr": null
+  },
+  {
+    "symbol": "MSFT",
+    "date": "2024-11-15",
+    "close": 415,
+    "volume": 28227644.0,
+    "atr": null
+  },
+  {
+    "symbol": "MSFT",
+    "date": "2024-11-18",
+    "close": 415.76,
+    "volume": 24742013.0,
+    "atr": null
+  },
+  {
+    "symbol": "MSFT",
+    "date": "2024-11-19",
+    "close": 417.79,
+    "volume": 18133529.0,
+    "atr": null
+  },
+  {
+    "symbol": "MSFT",
+    "date": "2024-11-20",
+    "close": 415.49,
+    "volume": 19041655.0,
+    "atr": null
+  },
+  {
+    "symbol": "MSFT",
+    "date": "2024-11-21",
+    "close": 412.87,
+    "volume": 20780162.0,
+    "atr": null
+  },
+  {
+    "symbol": "MSFT",
+    "date": "2024-11-22",
+    "close": 417,
+    "volume": 24814626.0,
+    "atr": null
+  },
+  {
+    "symbol": "MSFT",
+    "date": "2024-11-25",
+    "close": 418.79,
+    "volume": 27691090.0,
+    "atr": null
+  },
+  {
+    "symbol": "MSFT",
+    "date": "2024-11-26",
+    "close": 427.99,
+    "volume": 23458889.0,
+    "atr": null
+  },
+  {
+    "symbol": "MSFT",
+    "date": "2024-11-27",
+    "close": 422.99,
+    "volume": 18332444.0,
+    "atr": null
+  },
+  {
+    "symbol": "MSFT",
+    "date": "2024-11-29",
+    "close": 423.46,
+    "volume": 16271921.0,
+    "atr": null
+  },
+  {
+    "symbol": "MSFT",
+    "date": "2024-12-02",
+    "close": 430.98,
+    "volume": 20207223.0,
+    "atr": null
+  },
+  {
+    "symbol": "MSFT",
+    "date": "2024-12-03",
+    "close": 431.2,
+    "volume": 18301987.0,
+    "atr": null
+  },
+  {
+    "symbol": "MSFT",
+    "date": "2024-12-04",
+    "close": 437.42,
+    "volume": 25991579.0,
+    "atr": null
+  },
+  {
+    "symbol": "MSFT",
+    "date": "2024-12-05",
+    "close": 442.62,
+    "volume": 21697775.0,
+    "atr": null
+  },
+  {
+    "symbol": "MSFT",
+    "date": "2024-12-06",
+    "close": 443.57,
+    "volume": 18804202.0,
+    "atr": null
+  },
+  {
+    "symbol": "MSFT",
+    "date": "2024-12-09",
+    "close": 446.02,
+    "volume": 19144388.0,
+    "atr": null
+  },
+  {
+    "symbol": "MSFT",
+    "date": "2024-12-10",
+    "close": 443.33,
+    "volume": 18469459.0,
+    "atr": null
+  },
+  {
+    "symbol": "MSFT",
+    "date": "2024-12-11",
+    "close": 448.99,
+    "volume": 19200208.0,
+    "atr": null
+  },
+  {
+    "symbol": "MSFT",
+    "date": "2024-12-12",
+    "close": 449.56,
+    "volume": 20798079.0,
+    "atr": null
+  },
+  {
+    "symbol": "MSFT",
+    "date": "2024-12-13",
+    "close": 447.27,
+    "volume": 20177833.0,
+    "atr": null
+  },
+  {
+    "symbol": "MSFT",
+    "date": "2024-12-16",
+    "close": 451.59,
+    "volume": 23598834.0,
+    "atr": null
+  },
+  {
+    "symbol": "MSFT",
+    "date": "2024-12-17",
+    "close": 454.46,
+    "volume": 22729194.0,
+    "atr": null
+  },
+  {
+    "symbol": "MSFT",
+    "date": "2024-12-18",
+    "close": 437.39,
+    "volume": 24444545.0,
+    "atr": null
+  },
+  {
+    "symbol": "MSFT",
+    "date": "2024-12-19",
+    "close": 437.03,
+    "volume": 22910131.0,
+    "atr": null
+  },
+  {
+    "symbol": "MSFT",
+    "date": "2024-12-20",
+    "close": 436.6,
+    "volume": 64144494.0,
+    "atr": null
+  },
+  {
+    "symbol": "MSFT",
+    "date": "2024-12-23",
+    "close": 435.25,
+    "volume": 19152519.0,
+    "atr": null
+  },
+  {
+    "symbol": "MSFT",
+    "date": "2024-12-24",
+    "close": 439.33,
+    "volume": 7164543.0,
+    "atr": null
+  },
+  {
+    "symbol": "MSFT",
+    "date": "2024-12-26",
+    "close": 438.11,
+    "volume": 8199927.0,
+    "atr": null
+  },
+  {
+    "symbol": "MSFT",
+    "date": "2024-12-27",
+    "close": 430.53,
+    "volume": 18111063.0,
+    "atr": null
+  },
+  {
+    "symbol": "MSFT",
+    "date": "2024-12-30",
+    "close": 424.83,
+    "volume": 13158703.0,
+    "atr": null
+  },
+  {
+    "symbol": "MSFT",
+    "date": "2024-12-31",
+    "close": 421.5,
+    "volume": 13246509.0,
+    "atr": null
+  },
+  {
+    "symbol": "MSFT",
+    "date": "2025-01-02",
+    "close": 418.58,
+    "volume": 16896469.0,
+    "atr": null
+  },
+  {
+    "symbol": "MSFT",
+    "date": "2025-01-03",
+    "close": 423.35,
+    "volume": 16662943.0,
+    "atr": null
+  },
+  {
+    "symbol": "MSFT",
+    "date": "2025-01-06",
+    "close": 427.85,
+    "volume": 20573648.0,
+    "atr": null
+  },
+  {
+    "symbol": "MSFT",
+    "date": "2025-01-07",
+    "close": 422.37,
+    "volume": 18139065.0,
+    "atr": null
+  },
+  {
+    "symbol": "MSFT",
+    "date": "2025-01-08",
+    "close": 424.56,
+    "volume": 15046575.0,
+    "atr": null
+  },
+  {
+    "symbol": "MSFT",
+    "date": "2025-01-10",
+    "close": 418.95,
+    "volume": 20162632.0,
+    "atr": null
+  },
+  {
+    "symbol": "MSFT",
+    "date": "2025-01-13",
+    "close": 417.19,
+    "volume": 17604780.0,
+    "atr": null
+  },
+  {
+    "symbol": "MSFT",
+    "date": "2025-01-14",
+    "close": 415.67,
+    "volume": 16927056.0,
+    "atr": null
+  },
+  {
+    "symbol": "MSFT",
+    "date": "2025-01-15",
+    "close": 426.31,
+    "volume": 19637838.0,
+    "atr": null
+  },
+  {
+    "symbol": "MSFT",
+    "date": "2025-01-16",
+    "close": 424.58,
+    "volume": 15296423.0,
+    "atr": null
+  },
+  {
+    "symbol": "MSFT",
+    "date": "2025-01-17",
+    "close": 429.03,
+    "volume": 26197507.0,
+    "atr": null
+  },
+  {
+    "symbol": "MSFT",
+    "date": "2025-01-21",
+    "close": 428.5,
+    "volume": 26085703.0,
+    "atr": null
+  },
+  {
+    "symbol": "MSFT",
+    "date": "2025-01-22",
+    "close": 446.2,
+    "volume": 27803811.0,
+    "atr": null
+  },
+  {
+    "symbol": "MSFT",
+    "date": "2025-01-23",
+    "close": 446.71,
+    "volume": 18376270.0,
+    "atr": null
+  },
+  {
+    "symbol": "MSFT",
+    "date": "2025-01-24",
+    "close": 444.06,
+    "volume": 15549453.0,
+    "atr": null
+  },
+  {
+    "symbol": "MSFT",
+    "date": "2025-01-27",
+    "close": 434.56,
+    "volume": 35636555.0,
+    "atr": null
+  },
+  {
+    "symbol": "MSFT",
+    "date": "2025-01-28",
+    "close": 447.2,
+    "volume": 23487653.0,
+    "atr": null
+  },
+  {
+    "symbol": "MSFT",
+    "date": "2025-01-29",
+    "close": 442.33,
+    "volume": 23581370.0,
+    "atr": null
+  },
+  {
+    "symbol": "MSFT",
+    "date": "2025-01-30",
+    "close": 414.99,
+    "volume": 54585060.0,
+    "atr": null
+  },
+  {
+    "symbol": "MSFT",
+    "date": "2025-01-31",
+    "close": 415.06,
+    "volume": 34223388.0,
+    "atr": null
+  },
+  {
+    "symbol": "MSFT",
+    "date": "2025-02-03",
+    "close": 410.92,
+    "volume": 25658899.0,
+    "atr": null
+  },
+  {
+    "symbol": "MSFT",
+    "date": "2025-02-04",
+    "close": 412.37,
+    "volume": 20299996.0,
+    "atr": null
+  },
+  {
+    "symbol": "MSFT",
+    "date": "2025-02-05",
+    "close": 413.29,
+    "volume": 16336188.0,
+    "atr": null
+  },
+  {
+    "symbol": "MSFT",
+    "date": "2025-02-06",
+    "close": 415.82,
+    "volume": 16309355.0,
+    "atr": null
+  },
+  {
+    "symbol": "MSFT",
+    "date": "2025-02-07",
+    "close": 409.75,
+    "volume": 22886844.0,
+    "atr": null
+  },
+  {
+    "symbol": "MSFT",
+    "date": "2025-02-10",
+    "close": 412.22,
+    "volume": 20817919.0,
+    "atr": null
+  },
+  {
+    "symbol": "MSFT",
+    "date": "2025-02-11",
+    "close": 411.44,
+    "volume": 18140592.0,
+    "atr": null
+  },
+  {
+    "symbol": "MSFT",
+    "date": "2025-02-12",
+    "close": 409.04,
+    "volume": 19116234.0,
+    "atr": null
+  },
+  {
+    "symbol": "MSFT",
+    "date": "2025-02-13",
+    "close": 410.54,
+    "volume": 23891731.0,
+    "atr": null
+  },
+  {
+    "symbol": "MSFT",
+    "date": "2025-02-14",
+    "close": 408.43,
+    "volume": 22758464.0,
+    "atr": null
+  },
+  {
+    "symbol": "MSFT",
+    "date": "2025-02-18",
+    "close": 409.64,
+    "volume": 21423051.0,
+    "atr": null
+  },
+  {
+    "symbol": "MSFT",
+    "date": "2025-02-19",
+    "close": 414.77,
+    "volume": 24114197.0,
+    "atr": null
+  },
+  {
+    "symbol": "MSFT",
+    "date": "2025-02-20",
+    "close": 416.13,
+    "volume": 23153728.0,
+    "atr": null
+  },
+  {
+    "symbol": "MSFT",
+    "date": "2025-02-21",
+    "close": 408.21,
+    "volume": 27489199.0,
+    "atr": null
+  },
+  {
+    "symbol": "MSFT",
+    "date": "2025-02-24",
+    "close": 404,
+    "volume": 26443656.0,
+    "atr": null
+  },
+  {
+    "symbol": "MSFT",
+    "date": "2025-02-25",
+    "close": 397.9,
+    "volume": 29037402.0,
+    "atr": null
+  },
+  {
+    "symbol": "MSFT",
+    "date": "2025-02-26",
+    "close": 399.73,
+    "volume": 19618954.0,
+    "atr": null
+  },
+  {
+    "symbol": "MSFT",
+    "date": "2025-02-27",
+    "close": 392.53,
+    "volume": 21127406.0,
+    "atr": null
+  },
+  {
+    "symbol": "MSFT",
+    "date": "2025-02-28",
+    "close": 396.99,
+    "volume": 32743258.0,
+    "atr": null
+  },
+  {
+    "symbol": "MSFT",
+    "date": "2025-03-03",
+    "close": 388.49,
+    "volume": 23007726.0,
+    "atr": null
+  },
+  {
+    "symbol": "MSFT",
+    "date": "2025-03-04",
+    "close": 388.61,
+    "volume": 29342923.0,
+    "atr": null
+  },
+  {
+    "symbol": "MSFT",
+    "date": "2025-03-05",
+    "close": 401.02,
+    "volume": 23423292.0,
+    "atr": null
+  },
+  {
+    "symbol": "MSFT",
+    "date": "2025-03-06",
+    "close": 396.89,
+    "volume": 23304625.0,
+    "atr": null
+  },
+  {
+    "symbol": "MSFT",
+    "date": "2025-03-07",
+    "close": 393.31,
+    "volume": 22030287.0,
+    "atr": null
+  },
+  {
+    "symbol": "MSFT",
+    "date": "2025-03-10",
+    "close": 380.16,
+    "volume": 32840134.0,
+    "atr": null
+  },
+  {
+    "symbol": "MSFT",
+    "date": "2025-03-11",
+    "close": 380.45,
+    "volume": 30380177.0,
+    "atr": null
+  },
+  {
+    "symbol": "MSFT",
+    "date": "2025-03-12",
+    "close": 383.27,
+    "volume": 24253567.0,
+    "atr": null
+  },
+  {
+    "symbol": "MSFT",
+    "date": "2025-03-13",
+    "close": 378.77,
+    "volume": 20473017.0,
+    "atr": null
+  },
+  {
+    "symbol": "MSFT",
+    "date": "2025-03-14",
+    "close": 388.56,
+    "volume": 19943496.0,
+    "atr": null
+  },
+  {
+    "symbol": "MSFT",
+    "date": "2025-03-17",
+    "close": 388.7,
+    "volume": 22474272.0,
+    "atr": null
+  },
+  {
+    "symbol": "MSFT",
+    "date": "2025-03-18",
+    "close": 383.52,
+    "volume": 19486100.0,
+    "atr": null
+  },
+  {
+    "symbol": "MSFT",
+    "date": "2025-03-19",
+    "close": 387.82,
+    "volume": 19185532.0,
+    "atr": null
+  },
+  {
+    "symbol": "MSFT",
+    "date": "2025-03-20",
+    "close": 386.84,
+    "volume": 18470542.0,
+    "atr": null
+  },
+  {
+    "symbol": "MSFT",
+    "date": "2025-03-21",
+    "close": 391.26,
+    "volume": 39671128.0,
+    "atr": null
+  },
+  {
+    "symbol": "MSFT",
+    "date": "2025-03-24",
+    "close": 393.08,
+    "volume": 21004548.0,
+    "atr": null
+  },
+  {
+    "symbol": "MSFT",
+    "date": "2025-03-25",
+    "close": 395.16,
+    "volume": 15774968.0,
+    "atr": null
+  },
+  {
+    "symbol": "MSFT",
+    "date": "2025-03-26",
+    "close": 389.97,
+    "volume": 16130106.0,
+    "atr": null
+  },
+  {
+    "symbol": "MSFT",
+    "date": "2025-03-27",
+    "close": 390.58,
+    "volume": 13766761.0,
+    "atr": null
+  },
+  {
+    "symbol": "MSFT",
+    "date": "2025-03-28",
+    "close": 378.8,
+    "volume": 21632016.0,
+    "atr": null
+  },
+  {
+    "symbol": "MSFT",
+    "date": "2025-03-31",
+    "close": 375.39,
+    "volume": 35184676.0,
+    "atr": null
+  },
+  {
+    "symbol": "MSFT",
+    "date": "2025-04-01",
+    "close": 382.19,
+    "volume": 19683803.0,
+    "atr": null
+  },
+  {
+    "symbol": "MSFT",
+    "date": "2025-04-02",
+    "close": 382.14,
+    "volume": 16092555.0,
+    "atr": null
+  },
+  {
+    "symbol": "MSFT",
+    "date": "2025-04-03",
+    "close": 373.11,
+    "volume": 30196247.0,
+    "atr": null
+  },
+  {
+    "symbol": "MSFT",
+    "date": "2025-04-04",
+    "close": 359.84,
+    "volume": 49209854.0,
+    "atr": null
+  },
+  {
+    "symbol": "MSFT",
+    "date": "2025-04-07",
+    "close": 357.86,
+    "volume": 50424998.0,
+    "atr": null
+  },
+  {
+    "symbol": "MSFT",
+    "date": "2025-04-08",
+    "close": 354.56,
+    "volume": 35868918.0,
+    "atr": null
+  },
+  {
+    "symbol": "MSFT",
+    "date": "2025-04-09",
+    "close": 390.49,
+    "volume": 50199696.0,
+    "atr": null
+  },
+  {
+    "symbol": "MSFT",
+    "date": "2025-04-10",
+    "close": 381.35,
+    "volume": 38014918.0,
+    "atr": null
+  },
+  {
+    "symbol": "MSFT",
+    "date": "2025-04-11",
+    "close": 388.45,
+    "volume": 23239220.0,
+    "atr": null
+  },
+  {
+    "symbol": "MSFT",
+    "date": "2025-04-14",
+    "close": 387.81,
+    "volume": 19230622.0,
+    "atr": null
+  },
+  {
+    "symbol": "MSFT",
+    "date": "2025-04-15",
+    "close": 385.73,
+    "volume": 17189890.0,
+    "atr": null
+  },
+  {
+    "symbol": "MSFT",
+    "date": "2025-04-16",
+    "close": 371.61,
+    "volume": 21950776.0,
+    "atr": null
+  },
+  {
+    "symbol": "MSFT",
+    "date": "2025-04-17",
+    "close": 367.78,
+    "volume": 21120192.0,
+    "atr": null
+  },
+  {
+    "symbol": "MSFT",
+    "date": "2025-04-21",
+    "close": 359.12,
+    "volume": 20804729.0,
+    "atr": null
+  },
+  {
+    "symbol": "MSFT",
+    "date": "2025-04-22",
+    "close": 366.82,
+    "volume": 19484993.0,
+    "atr": null
+  },
+  {
+    "symbol": "MSFT",
+    "date": "2025-04-23",
+    "close": 374.39,
+    "volume": 20545514.0,
+    "atr": null
+  },
+  {
+    "symbol": "MSFT",
+    "date": "2025-04-24",
+    "close": 387.3,
+    "volume": 22231329.0,
+    "atr": null
+  },
+  {
+    "symbol": "MSFT",
+    "date": "2025-04-25",
+    "close": 391.85,
+    "volume": 18966235.0,
+    "atr": null
+  },
+  {
+    "symbol": "MSFT",
+    "date": "2025-04-28",
+    "close": 391.16,
+    "volume": 16579430.0,
+    "atr": null
+  },
+  {
+    "symbol": "MSFT",
+    "date": "2025-04-29",
+    "close": 394.04,
+    "volume": 14973976.0,
+    "atr": null
+  },
+  {
+    "symbol": "MSFT",
+    "date": "2025-04-30",
+    "close": 395.26,
+    "volume": 36442575.0,
+    "atr": null
+  },
+  {
+    "symbol": "MSFT",
+    "date": "2025-05-01",
+    "close": 425.4,
+    "volume": 58878100.0,
+    "atr": null
+  },
+  {
+    "symbol": "MSFT",
+    "date": "2025-05-02",
+    "close": 435.28,
+    "volume": 30757434.0,
+    "atr": null
+  },
+  {
+    "symbol": "MSFT",
+    "date": "2025-05-05",
+    "close": 436.17,
+    "volume": 20136053.0,
+    "atr": null
+  },
+  {
+    "symbol": "MSFT",
+    "date": "2025-05-06",
+    "close": 433.31,
+    "volume": 15104204.0,
+    "atr": null
+  },
+  {
+    "symbol": "MSFT",
+    "date": "2025-05-07",
+    "close": 433.35,
+    "volume": 23307241.0,
+    "atr": null
+  },
+  {
+    "symbol": "MSFT",
+    "date": "2025-05-08",
+    "close": 438.17,
+    "volume": 23491330.0,
+    "atr": null
+  },
+  {
+    "symbol": "MSFT",
+    "date": "2025-05-09",
+    "close": 438.73,
+    "volume": 15324233.0,
+    "atr": null
+  },
+  {
+    "symbol": "MSFT",
+    "date": "2025-05-12",
+    "close": 449.26,
+    "volume": 22821935.0,
+    "atr": null
+  },
+  {
+    "symbol": "MSFT",
+    "date": "2025-05-13",
+    "close": 449.14,
+    "volume": 23618819.0,
+    "atr": null
+  },
+  {
+    "symbol": "MSFT",
+    "date": "2025-05-14",
+    "close": 452.94,
+    "volume": 19902796.0,
+    "atr": null
+  },
+  {
+    "symbol": "MSFT",
+    "date": "2025-05-15",
+    "close": 453.13,
+    "volume": 21992323.0,
+    "atr": null
+  },
+  {
+    "symbol": "MSFT",
+    "date": "2025-05-16",
+    "close": 454.27,
+    "volume": 23849781.0,
+    "atr": null
+  },
+  {
+    "symbol": "MSFT",
+    "date": "2025-05-19",
+    "close": 458.87,
+    "volume": 21336509.0,
+    "atr": null
+  },
+  {
+    "symbol": "MSFT",
+    "date": "2025-05-20",
+    "close": 458.17,
+    "volume": 15441808.0,
+    "atr": null
+  },
+  {
+    "symbol": "MSFT",
+    "date": "2025-05-21",
+    "close": 452.57,
+    "volume": 19216906.0,
+    "atr": null
+  },
+  {
+    "symbol": "MSFT",
+    "date": "2025-05-22",
+    "close": 454.86,
+    "volume": 18025612.0,
+    "atr": null
+  },
+  {
+    "symbol": "MSFT",
+    "date": "2025-05-23",
+    "close": 450.18,
+    "volume": 16883509.0,
+    "atr": null
+  },
+  {
+    "symbol": "MSFT",
+    "date": "2025-05-27",
+    "close": 460.69,
+    "volume": 20974293.0,
+    "atr": null
+  },
+  {
+    "symbol": "MSFT",
+    "date": "2025-05-28",
+    "close": 457.36,
+    "volume": 17086261.0,
+    "atr": null
+  },
+  {
+    "symbol": "MSFT",
+    "date": "2025-05-29",
+    "close": 458.68,
+    "volume": 13982211.0,
+    "atr": null
+  },
+  {
+    "symbol": "MSFT",
+    "date": "2025-05-30",
+    "close": 460.36,
+    "volume": 34770475.0,
+    "atr": null
+  },
+  {
+    "symbol": "MSFT",
+    "date": "2025-06-02",
+    "close": 461.97,
+    "volume": 16626495.0,
+    "atr": null
+  },
+  {
+    "symbol": "MSFT",
+    "date": "2025-06-03",
+    "close": 462.97,
+    "volume": 15743760.0,
+    "atr": null
+  },
+  {
+    "symbol": "MSFT",
+    "date": "2025-06-04",
+    "close": 463.87,
+    "volume": 14162688.0,
+    "atr": null
+  },
+  {
+    "symbol": "MSFT",
+    "date": "2025-06-05",
+    "close": 467.68,
+    "volume": 20154460.0,
+    "atr": null
+  },
+  {
+    "symbol": "MSFT",
+    "date": "2025-06-06",
+    "close": 470.38,
+    "volume": 15285624.0,
+    "atr": null
+  },
+  {
+    "symbol": "MSFT",
+    "date": "2025-06-09",
+    "close": 472.75,
+    "volume": 16469932.0,
+    "atr": null
+  },
+  {
+    "symbol": "MSFT",
+    "date": "2025-06-10",
+    "close": 470.92,
+    "volume": 15375944.0,
+    "atr": null
+  },
+  {
+    "symbol": "MSFT",
+    "date": "2025-06-11",
+    "close": 472.62,
+    "volume": 16399176.0,
+    "atr": null
+  },
+  {
+    "symbol": "MSFT",
+    "date": "2025-06-12",
+    "close": 478.87,
+    "volume": 18950582.0,
+    "atr": null
+  },
+  {
+    "symbol": "MSFT",
+    "date": "2025-06-13",
+    "close": 474.96,
+    "volume": 16814456.0,
+    "atr": null
+  },
+  {
+    "symbol": "MSFT",
+    "date": "2025-06-16",
+    "close": 479.14,
+    "volume": 15626104.0,
+    "atr": null
+  },
+  {
+    "symbol": "MSFT",
+    "date": "2025-06-17",
+    "close": 478.04,
+    "volume": 15414128.0,
+    "atr": null
+  },
+  {
+    "symbol": "MSFT",
+    "date": "2025-06-18",
+    "close": 480.24,
+    "volume": 17526452.0,
+    "atr": null
+  },
+  {
+    "symbol": "MSFT",
+    "date": "2025-06-20",
+    "close": 477.4,
+    "volume": 37576206.0,
+    "atr": null
+  },
+  {
+    "symbol": "MSFT",
+    "date": "2025-06-23",
+    "close": 486,
+    "volume": 24863952.0,
+    "atr": null
+  },
+  {
+    "symbol": "MSFT",
+    "date": "2025-06-24",
+    "close": 490.11,
+    "volume": 22305642.0,
+    "atr": null
+  },
+  {
+    "symbol": "MSFT",
+    "date": "2025-06-25",
+    "close": 492.27,
+    "volume": 17495099.0,
+    "atr": null
+  }
+]

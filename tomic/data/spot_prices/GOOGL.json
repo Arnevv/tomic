@@ -1,0 +1,1752 @@
+[
+  {
+    "symbol": "GOOGL",
+    "date": "2024-06-26",
+    "close": 183.88,
+    "volume": 19838972.0,
+    "atr": null
+  },
+  {
+    "symbol": "GOOGL",
+    "date": "2024-06-27",
+    "close": 185.41,
+    "volume": 18844284.0,
+    "atr": null
+  },
+  {
+    "symbol": "GOOGL",
+    "date": "2024-06-28",
+    "close": 182.15,
+    "volume": 29156644.0,
+    "atr": null
+  },
+  {
+    "symbol": "GOOGL",
+    "date": "2024-07-01",
+    "close": 182.99,
+    "volume": 16006128.0,
+    "atr": null
+  },
+  {
+    "symbol": "GOOGL",
+    "date": "2024-07-02",
+    "close": 185.24,
+    "volume": 17372485.0,
+    "atr": null
+  },
+  {
+    "symbol": "GOOGL",
+    "date": "2024-07-03",
+    "close": 185.82,
+    "volume": 10237926.0,
+    "atr": null
+  },
+  {
+    "symbol": "GOOGL",
+    "date": "2024-07-05",
+    "close": 190.6,
+    "volume": 20908950.0,
+    "atr": null
+  },
+  {
+    "symbol": "GOOGL",
+    "date": "2024-07-08",
+    "close": 189.03,
+    "volume": 20808386.0,
+    "atr": null
+  },
+  {
+    "symbol": "GOOGL",
+    "date": "2024-07-09",
+    "close": 188.98,
+    "volume": 15091312.0,
+    "atr": null
+  },
+  {
+    "symbol": "GOOGL",
+    "date": "2024-07-10",
+    "close": 191.18,
+    "volume": 15952454.0,
+    "atr": null
+  },
+  {
+    "symbol": "GOOGL",
+    "date": "2024-07-11",
+    "close": 185.57,
+    "volume": 25625784.0,
+    "atr": null
+  },
+  {
+    "symbol": "GOOGL",
+    "date": "2024-07-12",
+    "close": 185.07,
+    "volume": 22898406.0,
+    "atr": null
+  },
+  {
+    "symbol": "GOOGL",
+    "date": "2024-07-15",
+    "close": 186.53,
+    "volume": 16428043.0,
+    "atr": null
+  },
+  {
+    "symbol": "GOOGL",
+    "date": "2024-07-16",
+    "close": 183.92,
+    "volume": 18290722.0,
+    "atr": null
+  },
+  {
+    "symbol": "GOOGL",
+    "date": "2024-07-17",
+    "close": 181.02,
+    "volume": 20734071.0,
+    "atr": null
+  },
+  {
+    "symbol": "GOOGL",
+    "date": "2024-07-18",
+    "close": 177.69,
+    "volume": 25294727.0,
+    "atr": null
+  },
+  {
+    "symbol": "GOOGL",
+    "date": "2024-07-19",
+    "close": 177.66,
+    "volume": 18402585.0,
+    "atr": null
+  },
+  {
+    "symbol": "GOOGL",
+    "date": "2024-07-22",
+    "close": 181.67,
+    "volume": 24092845.0,
+    "atr": null
+  },
+  {
+    "symbol": "GOOGL",
+    "date": "2024-07-23",
+    "close": 181.79,
+    "volume": 36352714.0,
+    "atr": null
+  },
+  {
+    "symbol": "GOOGL",
+    "date": "2024-07-24",
+    "close": 172.63,
+    "volume": 49585203.0,
+    "atr": null
+  },
+  {
+    "symbol": "GOOGL",
+    "date": "2024-07-25",
+    "close": 167.28,
+    "volume": 44832573.0,
+    "atr": null
+  },
+  {
+    "symbol": "GOOGL",
+    "date": "2024-07-26",
+    "close": 167,
+    "volume": 41336886.0,
+    "atr": null
+  },
+  {
+    "symbol": "GOOGL",
+    "date": "2024-07-29",
+    "close": 169.53,
+    "volume": 20293822.0,
+    "atr": null
+  },
+  {
+    "symbol": "GOOGL",
+    "date": "2024-07-30",
+    "close": 170.29,
+    "volume": 18959686.0,
+    "atr": null
+  },
+  {
+    "symbol": "GOOGL",
+    "date": "2024-07-31",
+    "close": 171.54,
+    "volume": 25729090.0,
+    "atr": null
+  },
+  {
+    "symbol": "GOOGL",
+    "date": "2024-08-01",
+    "close": 170.76,
+    "volume": 24381392.0,
+    "atr": null
+  },
+  {
+    "symbol": "GOOGL",
+    "date": "2024-08-02",
+    "close": 166.66,
+    "volume": 29130102.0,
+    "atr": null
+  },
+  {
+    "symbol": "GOOGL",
+    "date": "2024-08-05",
+    "close": 159.25,
+    "volume": 53630673.0,
+    "atr": null
+  },
+  {
+    "symbol": "GOOGL",
+    "date": "2024-08-06",
+    "close": 158.29,
+    "volume": 49004561.0,
+    "atr": null
+  },
+  {
+    "symbol": "GOOGL",
+    "date": "2024-08-07",
+    "close": 158.94,
+    "volume": 25138573.0,
+    "atr": null
+  },
+  {
+    "symbol": "GOOGL",
+    "date": "2024-08-08",
+    "close": 162.03,
+    "volume": 25578839.0,
+    "atr": null
+  },
+  {
+    "symbol": "GOOGL",
+    "date": "2024-08-09",
+    "close": 163.67,
+    "volume": 28602285.0,
+    "atr": null
+  },
+  {
+    "symbol": "GOOGL",
+    "date": "2024-08-12",
+    "close": 162.29,
+    "volume": 15895286.0,
+    "atr": null
+  },
+  {
+    "symbol": "GOOGL",
+    "date": "2024-08-13",
+    "close": 164.16,
+    "volume": 18551690.0,
+    "atr": null
+  },
+  {
+    "symbol": "GOOGL",
+    "date": "2024-08-14",
+    "close": 160.37,
+    "volume": 40591126.0,
+    "atr": null
+  },
+  {
+    "symbol": "GOOGL",
+    "date": "2024-08-15",
+    "close": 161.3,
+    "volume": 31524252.0,
+    "atr": null
+  },
+  {
+    "symbol": "GOOGL",
+    "date": "2024-08-16",
+    "close": 162.96,
+    "volume": 24105447.0,
+    "atr": null
+  },
+  {
+    "symbol": "GOOGL",
+    "date": "2024-08-19",
+    "close": 166.67,
+    "volume": 22416185.0,
+    "atr": null
+  },
+  {
+    "symbol": "GOOGL",
+    "date": "2024-08-20",
+    "close": 167.18,
+    "volume": 18341533.0,
+    "atr": null
+  },
+  {
+    "symbol": "GOOGL",
+    "date": "2024-08-21",
+    "close": 165.85,
+    "volume": 22901997.0,
+    "atr": null
+  },
+  {
+    "symbol": "GOOGL",
+    "date": "2024-08-22",
+    "close": 163.8,
+    "volume": 22418275.0,
+    "atr": null
+  },
+  {
+    "symbol": "GOOGL",
+    "date": "2024-08-23",
+    "close": 165.62,
+    "volume": 13955741.0,
+    "atr": null
+  },
+  {
+    "symbol": "GOOGL",
+    "date": "2024-08-26",
+    "close": 166.16,
+    "volume": 14190417.0,
+    "atr": null
+  },
+  {
+    "symbol": "GOOGL",
+    "date": "2024-08-27",
+    "close": 164.68,
+    "volume": 11821941.0,
+    "atr": null
+  },
+  {
+    "symbol": "GOOGL",
+    "date": "2024-08-28",
+    "close": 162.85,
+    "volume": 16392444.0,
+    "atr": null
+  },
+  {
+    "symbol": "GOOGL",
+    "date": "2024-08-29",
+    "close": 161.78,
+    "volume": 19699767.0,
+    "atr": null
+  },
+  {
+    "symbol": "GOOGL",
+    "date": "2024-08-30",
+    "close": 163.38,
+    "volume": 22123811.0,
+    "atr": null
+  },
+  {
+    "symbol": "GOOGL",
+    "date": "2024-09-03",
+    "close": 157.36,
+    "volume": 38929762.0,
+    "atr": null
+  },
+  {
+    "symbol": "GOOGL",
+    "date": "2024-09-04",
+    "close": 156.45,
+    "volume": 19353759.0,
+    "atr": null
+  },
+  {
+    "symbol": "GOOGL",
+    "date": "2024-09-05",
+    "close": 157.24,
+    "volume": 18661547.0,
+    "atr": null
+  },
+  {
+    "symbol": "GOOGL",
+    "date": "2024-09-06",
+    "close": 150.92,
+    "volume": 37908530.0,
+    "atr": null
+  },
+  {
+    "symbol": "GOOGL",
+    "date": "2024-09-09",
+    "close": 148.71,
+    "volume": 38505951.0,
+    "atr": null
+  },
+  {
+    "symbol": "GOOGL",
+    "date": "2024-09-10",
+    "close": 148.66,
+    "volume": 31087765.0,
+    "atr": null
+  },
+  {
+    "symbol": "GOOGL",
+    "date": "2024-09-11",
+    "close": 151.16,
+    "volume": 29607693.0,
+    "atr": null
+  },
+  {
+    "symbol": "GOOGL",
+    "date": "2024-09-12",
+    "close": 154.69,
+    "volume": 29682298.0,
+    "atr": null
+  },
+  {
+    "symbol": "GOOGL",
+    "date": "2024-09-13",
+    "close": 157.46,
+    "volume": 29591152.0,
+    "atr": null
+  },
+  {
+    "symbol": "GOOGL",
+    "date": "2024-09-16",
+    "close": 158.06,
+    "volume": 18332775.0,
+    "atr": null
+  },
+  {
+    "symbol": "GOOGL",
+    "date": "2024-09-17",
+    "close": 159.32,
+    "volume": 20715612.0,
+    "atr": null
+  },
+  {
+    "symbol": "GOOGL",
+    "date": "2024-09-18",
+    "close": 159.81,
+    "volume": 23677315.0,
+    "atr": null
+  },
+  {
+    "symbol": "GOOGL",
+    "date": "2024-09-19",
+    "close": 162.14,
+    "volume": 26587733.0,
+    "atr": null
+  },
+  {
+    "symbol": "GOOGL",
+    "date": "2024-09-20",
+    "close": 163.59,
+    "volume": 40896438.0,
+    "atr": null
+  },
+  {
+    "symbol": "GOOGL",
+    "date": "2024-09-23",
+    "close": 161.85,
+    "volume": 24150852.0,
+    "atr": null
+  },
+  {
+    "symbol": "GOOGL",
+    "date": "2024-09-24",
+    "close": 162.29,
+    "volume": 23332147.0,
+    "atr": null
+  },
+  {
+    "symbol": "GOOGL",
+    "date": "2024-09-25",
+    "close": 161.49,
+    "volume": 18869199.0,
+    "atr": null
+  },
+  {
+    "symbol": "GOOGL",
+    "date": "2024-09-26",
+    "close": 162.73,
+    "volume": 20319336.0,
+    "atr": null
+  },
+  {
+    "symbol": "GOOGL",
+    "date": "2024-09-27",
+    "close": 163.95,
+    "volume": 21101307.0,
+    "atr": null
+  },
+  {
+    "symbol": "GOOGL",
+    "date": "2024-09-30",
+    "close": 165.85,
+    "volume": 20481303.0,
+    "atr": null
+  },
+  {
+    "symbol": "GOOGL",
+    "date": "2024-10-01",
+    "close": 166.99,
+    "volume": 28313923.0,
+    "atr": null
+  },
+  {
+    "symbol": "GOOGL",
+    "date": "2024-10-02",
+    "close": 165.86,
+    "volume": 17760179.0,
+    "atr": null
+  },
+  {
+    "symbol": "GOOGL",
+    "date": "2024-10-03",
+    "close": 165.86,
+    "volume": 15073101.0,
+    "atr": null
+  },
+  {
+    "symbol": "GOOGL",
+    "date": "2024-10-04",
+    "close": 167.06,
+    "volume": 19093724.0,
+    "atr": null
+  },
+  {
+    "symbol": "GOOGL",
+    "date": "2024-10-07",
+    "close": 162.98,
+    "volume": 22463140.0,
+    "atr": null
+  },
+  {
+    "symbol": "GOOGL",
+    "date": "2024-10-08",
+    "close": 164.38,
+    "volume": 23061733.0,
+    "atr": null
+  },
+  {
+    "symbol": "GOOGL",
+    "date": "2024-10-09",
+    "close": 161.86,
+    "volume": 31181744.0,
+    "atr": null
+  },
+  {
+    "symbol": "GOOGL",
+    "date": "2024-10-10",
+    "close": 162.08,
+    "volume": 14144068.0,
+    "atr": null
+  },
+  {
+    "symbol": "GOOGL",
+    "date": "2024-10-11",
+    "close": 163.24,
+    "volume": 15315611.0,
+    "atr": null
+  },
+  {
+    "symbol": "GOOGL",
+    "date": "2024-10-14",
+    "close": 164.96,
+    "volume": 19016141.0,
+    "atr": null
+  },
+  {
+    "symbol": "GOOGL",
+    "date": "2024-10-15",
+    "close": 165.46,
+    "volume": 20247195.0,
+    "atr": null
+  },
+  {
+    "symbol": "GOOGL",
+    "date": "2024-10-16",
+    "close": 165.16,
+    "volume": 16406030.0,
+    "atr": null
+  },
+  {
+    "symbol": "GOOGL",
+    "date": "2024-10-17",
+    "close": 162.93,
+    "volume": 21446795.0,
+    "atr": null
+  },
+  {
+    "symbol": "GOOGL",
+    "date": "2024-10-18",
+    "close": 163.42,
+    "volume": 19757661.0,
+    "atr": null
+  },
+  {
+    "symbol": "GOOGL",
+    "date": "2024-10-21",
+    "close": 164.07,
+    "volume": 20322455.0,
+    "atr": null
+  },
+  {
+    "symbol": "GOOGL",
+    "date": "2024-10-22",
+    "close": 165.14,
+    "volume": 16568121.0,
+    "atr": null
+  },
+  {
+    "symbol": "GOOGL",
+    "date": "2024-10-23",
+    "close": 162.78,
+    "volume": 18280518.0,
+    "atr": null
+  },
+  {
+    "symbol": "GOOGL",
+    "date": "2024-10-24",
+    "close": 162.72,
+    "volume": 22412527.0,
+    "atr": null
+  },
+  {
+    "symbol": "GOOGL",
+    "date": "2024-10-25",
+    "close": 165.27,
+    "volume": 19828884.0,
+    "atr": null
+  },
+  {
+    "symbol": "GOOGL",
+    "date": "2024-10-28",
+    "close": 166.72,
+    "volume": 32138641.0,
+    "atr": null
+  },
+  {
+    "symbol": "GOOGL",
+    "date": "2024-10-29",
+    "close": 169.68,
+    "volume": 42169025.0,
+    "atr": null
+  },
+  {
+    "symbol": "GOOGL",
+    "date": "2024-10-30",
+    "close": 174.46,
+    "volume": 68865287.0,
+    "atr": null
+  },
+  {
+    "symbol": "GOOGL",
+    "date": "2024-10-31",
+    "close": 171.11,
+    "volume": 44768981.0,
+    "atr": null
+  },
+  {
+    "symbol": "GOOGL",
+    "date": "2024-11-01",
+    "close": 171.29,
+    "volume": 31796477.0,
+    "atr": null
+  },
+  {
+    "symbol": "GOOGL",
+    "date": "2024-11-04",
+    "close": 169.24,
+    "volume": 21492339.0,
+    "atr": null
+  },
+  {
+    "symbol": "GOOGL",
+    "date": "2024-11-05",
+    "close": 169.74,
+    "volume": 18242050.0,
+    "atr": null
+  },
+  {
+    "symbol": "GOOGL",
+    "date": "2024-11-06",
+    "close": 176.51,
+    "volume": 33695538.0,
+    "atr": null
+  },
+  {
+    "symbol": "GOOGL",
+    "date": "2024-11-07",
+    "close": 180.75,
+    "volume": 25352939.0,
+    "atr": null
+  },
+  {
+    "symbol": "GOOGL",
+    "date": "2024-11-08",
+    "close": 178.35,
+    "volume": 22006182.0,
+    "atr": null
+  },
+  {
+    "symbol": "GOOGL",
+    "date": "2024-11-11",
+    "close": 180.35,
+    "volume": 17450354.0,
+    "atr": null
+  },
+  {
+    "symbol": "GOOGL",
+    "date": "2024-11-12",
+    "close": 181.62,
+    "volume": 25131005.0,
+    "atr": null
+  },
+  {
+    "symbol": "GOOGL",
+    "date": "2024-11-13",
+    "close": 178.88,
+    "volume": 23184003.0,
+    "atr": null
+  },
+  {
+    "symbol": "GOOGL",
+    "date": "2024-11-14",
+    "close": 175.58,
+    "volume": 30994257.0,
+    "atr": null
+  },
+  {
+    "symbol": "GOOGL",
+    "date": "2024-11-15",
+    "close": 172.49,
+    "volume": 32504649.0,
+    "atr": null
+  },
+  {
+    "symbol": "GOOGL",
+    "date": "2024-11-18",
+    "close": 175.3,
+    "volume": 20206613.0,
+    "atr": null
+  },
+  {
+    "symbol": "GOOGL",
+    "date": "2024-11-19",
+    "close": 178.12,
+    "volume": 23118925.0,
+    "atr": null
+  },
+  {
+    "symbol": "GOOGL",
+    "date": "2024-11-20",
+    "close": 175.98,
+    "volume": 18997111.0,
+    "atr": null
+  },
+  {
+    "symbol": "GOOGL",
+    "date": "2024-11-21",
+    "close": 167.63,
+    "volume": 59734379.0,
+    "atr": null
+  },
+  {
+    "symbol": "GOOGL",
+    "date": "2024-11-22",
+    "close": 164.76,
+    "volume": 38604587.0,
+    "atr": null
+  },
+  {
+    "symbol": "GOOGL",
+    "date": "2024-11-25",
+    "close": 167.65,
+    "volume": 33135263.0,
+    "atr": null
+  },
+  {
+    "symbol": "GOOGL",
+    "date": "2024-11-26",
+    "close": 169.12,
+    "volume": 20486720.0,
+    "atr": null
+  },
+  {
+    "symbol": "GOOGL",
+    "date": "2024-11-27",
+    "close": 169.23,
+    "volume": 19266511.0,
+    "atr": null
+  },
+  {
+    "symbol": "GOOGL",
+    "date": "2024-11-29",
+    "close": 168.95,
+    "volume": 14257244.0,
+    "atr": null
+  },
+  {
+    "symbol": "GOOGL",
+    "date": "2024-12-02",
+    "close": 171.49,
+    "volume": 23789084.0,
+    "atr": null
+  },
+  {
+    "symbol": "GOOGL",
+    "date": "2024-12-03",
+    "close": 171.34,
+    "volume": 22248705.0,
+    "atr": null
+  },
+  {
+    "symbol": "GOOGL",
+    "date": "2024-12-04",
+    "close": 174.37,
+    "volume": 31615137.0,
+    "atr": null
+  },
+  {
+    "symbol": "GOOGL",
+    "date": "2024-12-05",
+    "close": 172.64,
+    "volume": 21356243.0,
+    "atr": null
+  },
+  {
+    "symbol": "GOOGL",
+    "date": "2024-12-06",
+    "close": 174.71,
+    "volume": 21421863.0,
+    "atr": null
+  },
+  {
+    "symbol": "GOOGL",
+    "date": "2024-12-09",
+    "close": 175.37,
+    "volume": 25381231.0,
+    "atr": null
+  },
+  {
+    "symbol": "GOOGL",
+    "date": "2024-12-10",
+    "close": 185.17,
+    "volume": 54763022.0,
+    "atr": null
+  },
+  {
+    "symbol": "GOOGL",
+    "date": "2024-12-11",
+    "close": 195.4,
+    "volume": 67894071.0,
+    "atr": null
+  },
+  {
+    "symbol": "GOOGL",
+    "date": "2024-12-12",
+    "close": 191.96,
+    "volume": 34812386.0,
+    "atr": null
+  },
+  {
+    "symbol": "GOOGL",
+    "date": "2024-12-13",
+    "close": 189.82,
+    "volume": 25132695.0,
+    "atr": null
+  },
+  {
+    "symbol": "GOOGL",
+    "date": "2024-12-16",
+    "close": 196.66,
+    "volume": 44934901.0,
+    "atr": null
+  },
+  {
+    "symbol": "GOOGL",
+    "date": "2024-12-17",
+    "close": 195.42,
+    "volume": 43504025.0,
+    "atr": null
+  },
+  {
+    "symbol": "GOOGL",
+    "date": "2024-12-18",
+    "close": 188.4,
+    "volume": 34166074.0,
+    "atr": null
+  },
+  {
+    "symbol": "GOOGL",
+    "date": "2024-12-19",
+    "close": 188.51,
+    "volume": 32265241.0,
+    "atr": null
+  },
+  {
+    "symbol": "GOOGL",
+    "date": "2024-12-20",
+    "close": 191.41,
+    "volume": 63312934.0,
+    "atr": null
+  },
+  {
+    "symbol": "GOOGL",
+    "date": "2024-12-23",
+    "close": 194.63,
+    "volume": 25612014.0,
+    "atr": null
+  },
+  {
+    "symbol": "GOOGL",
+    "date": "2024-12-24",
+    "close": 196.11,
+    "volume": 10403259.0,
+    "atr": null
+  },
+  {
+    "symbol": "GOOGL",
+    "date": "2024-12-26",
+    "close": 195.6,
+    "volume": 12057210.0,
+    "atr": null
+  },
+  {
+    "symbol": "GOOGL",
+    "date": "2024-12-27",
+    "close": 192.76,
+    "volume": 18891362.0,
+    "atr": null
+  },
+  {
+    "symbol": "GOOGL",
+    "date": "2024-12-30",
+    "close": 191.24,
+    "volume": 14264659.0,
+    "atr": null
+  },
+  {
+    "symbol": "GOOGL",
+    "date": "2024-12-31",
+    "close": 189.3,
+    "volume": 17466919.0,
+    "atr": null
+  },
+  {
+    "symbol": "GOOGL",
+    "date": "2025-01-02",
+    "close": 189.43,
+    "volume": 20370828.0,
+    "atr": null
+  },
+  {
+    "symbol": "GOOGL",
+    "date": "2025-01-03",
+    "close": 191.79,
+    "volume": 18596159.0,
+    "atr": null
+  },
+  {
+    "symbol": "GOOGL",
+    "date": "2025-01-06",
+    "close": 196.87,
+    "volume": 29563638.0,
+    "atr": null
+  },
+  {
+    "symbol": "GOOGL",
+    "date": "2025-01-07",
+    "close": 195.49,
+    "volume": 26487244.0,
+    "atr": null
+  },
+  {
+    "symbol": "GOOGL",
+    "date": "2025-01-08",
+    "close": 193.95,
+    "volume": 24864766.0,
+    "atr": null
+  },
+  {
+    "symbol": "GOOGL",
+    "date": "2025-01-10",
+    "close": 192.04,
+    "volume": 26665206.0,
+    "atr": null
+  },
+  {
+    "symbol": "GOOGL",
+    "date": "2025-01-13",
+    "close": 191.01,
+    "volume": 21823682.0,
+    "atr": null
+  },
+  {
+    "symbol": "GOOGL",
+    "date": "2025-01-14",
+    "close": 189.66,
+    "volume": 17174854.0,
+    "atr": null
+  },
+  {
+    "symbol": "GOOGL",
+    "date": "2025-01-15",
+    "close": 195.55,
+    "volume": 21775969.0,
+    "atr": null
+  },
+  {
+    "symbol": "GOOGL",
+    "date": "2025-01-16",
+    "close": 192.91,
+    "volume": 17515432.0,
+    "atr": null
+  },
+  {
+    "symbol": "GOOGL",
+    "date": "2025-01-17",
+    "close": 196,
+    "volume": 27735089.0,
+    "atr": null
+  },
+  {
+    "symbol": "GOOGL",
+    "date": "2025-01-21",
+    "close": 198.05,
+    "volume": 29956792.0,
+    "atr": null
+  },
+  {
+    "symbol": "GOOGL",
+    "date": "2025-01-22",
+    "close": 198.37,
+    "volume": 26200605.0,
+    "atr": null
+  },
+  {
+    "symbol": "GOOGL",
+    "date": "2025-01-23",
+    "close": 197.98,
+    "volume": 26951357.0,
+    "atr": null
+  },
+  {
+    "symbol": "GOOGL",
+    "date": "2025-01-24",
+    "close": 200.21,
+    "volume": 23877521.0,
+    "atr": null
+  },
+  {
+    "symbol": "GOOGL",
+    "date": "2025-01-27",
+    "close": 191.81,
+    "volume": 41728833.0,
+    "atr": null
+  },
+  {
+    "symbol": "GOOGL",
+    "date": "2025-01-28",
+    "close": 195.3,
+    "volume": 24157929.0,
+    "atr": null
+  },
+  {
+    "symbol": "GOOGL",
+    "date": "2025-01-29",
+    "close": 195.41,
+    "volume": 18217764.0,
+    "atr": null
+  },
+  {
+    "symbol": "GOOGL",
+    "date": "2025-01-30",
+    "close": 200.87,
+    "volume": 24354684.0,
+    "atr": null
+  },
+  {
+    "symbol": "GOOGL",
+    "date": "2025-01-31",
+    "close": 204.02,
+    "volume": 32041952.0,
+    "atr": null
+  },
+  {
+    "symbol": "GOOGL",
+    "date": "2025-02-03",
+    "close": 201.23,
+    "volume": 27838348.0,
+    "atr": null
+  },
+  {
+    "symbol": "GOOGL",
+    "date": "2025-02-04",
+    "close": 206.38,
+    "volume": 43856425.0,
+    "atr": null
+  },
+  {
+    "symbol": "GOOGL",
+    "date": "2025-02-05",
+    "close": 191.33,
+    "volume": 70430270.0,
+    "atr": null
+  },
+  {
+    "symbol": "GOOGL",
+    "date": "2025-02-06",
+    "close": 191.6,
+    "volume": 29206242.0,
+    "atr": null
+  },
+  {
+    "symbol": "GOOGL",
+    "date": "2025-02-07",
+    "close": 185.34,
+    "volume": 49314955.0,
+    "atr": null
+  },
+  {
+    "symbol": "GOOGL",
+    "date": "2025-02-10",
+    "close": 186.47,
+    "volume": 23105649.0,
+    "atr": null
+  },
+  {
+    "symbol": "GOOGL",
+    "date": "2025-02-11",
+    "close": 185.32,
+    "volume": 21221645.0,
+    "atr": null
+  },
+  {
+    "symbol": "GOOGL",
+    "date": "2025-02-12",
+    "close": 183.61,
+    "volume": 22072559.0,
+    "atr": null
+  },
+  {
+    "symbol": "GOOGL",
+    "date": "2025-02-13",
+    "close": 186.14,
+    "volume": 21402523.0,
+    "atr": null
+  },
+  {
+    "symbol": "GOOGL",
+    "date": "2025-02-14",
+    "close": 185.23,
+    "volume": 20448437.0,
+    "atr": null
+  },
+  {
+    "symbol": "GOOGL",
+    "date": "2025-02-18",
+    "close": 183.77,
+    "volume": 29916675.0,
+    "atr": null
+  },
+  {
+    "symbol": "GOOGL",
+    "date": "2025-02-19",
+    "close": 185.27,
+    "volume": 19549396.0,
+    "atr": null
+  },
+  {
+    "symbol": "GOOGL",
+    "date": "2025-02-20",
+    "close": 184.56,
+    "volume": 20441462.0,
+    "atr": null
+  },
+  {
+    "symbol": "GOOGL",
+    "date": "2025-02-21",
+    "close": 179.66,
+    "volume": 34699239.0,
+    "atr": null
+  },
+  {
+    "symbol": "GOOGL",
+    "date": "2025-02-24",
+    "close": 179.25,
+    "volume": 29810206.0,
+    "atr": null
+  },
+  {
+    "symbol": "GOOGL",
+    "date": "2025-02-25",
+    "close": 175.42,
+    "volume": 41913411.0,
+    "atr": null
+  },
+  {
+    "symbol": "GOOGL",
+    "date": "2025-02-26",
+    "close": 172.73,
+    "volume": 35431268.0,
+    "atr": null
+  },
+  {
+    "symbol": "GOOGL",
+    "date": "2025-02-27",
+    "close": 168.5,
+    "volume": 39991015.0,
+    "atr": null
+  },
+  {
+    "symbol": "GOOGL",
+    "date": "2025-02-28",
+    "close": 170.28,
+    "volume": 48130565.0,
+    "atr": null
+  },
+  {
+    "symbol": "GOOGL",
+    "date": "2025-03-03",
+    "close": 167.01,
+    "volume": 40770451.0,
+    "atr": null
+  },
+  {
+    "symbol": "GOOGL",
+    "date": "2025-03-04",
+    "close": 170.92,
+    "volume": 45387922.0,
+    "atr": null
+  },
+  {
+    "symbol": "GOOGL",
+    "date": "2025-03-05",
+    "close": 173.02,
+    "volume": 30954922.0,
+    "atr": null
+  },
+  {
+    "symbol": "GOOGL",
+    "date": "2025-03-06",
+    "close": 172.35,
+    "volume": 28301953.0,
+    "atr": null
+  },
+  {
+    "symbol": "GOOGL",
+    "date": "2025-03-07",
+    "close": 173.86,
+    "volume": 27385813.0,
+    "atr": null
+  },
+  {
+    "symbol": "GOOGL",
+    "date": "2025-03-10",
+    "close": 165.87,
+    "volume": 43604027.0,
+    "atr": null
+  },
+  {
+    "symbol": "GOOGL",
+    "date": "2025-03-11",
+    "close": 164.04,
+    "volume": 39403414.0,
+    "atr": null
+  },
+  {
+    "symbol": "GOOGL",
+    "date": "2025-03-12",
+    "close": 167.11,
+    "volume": 28255496.0,
+    "atr": null
+  },
+  {
+    "symbol": "GOOGL",
+    "date": "2025-03-13",
+    "close": 162.76,
+    "volume": 31756214.0,
+    "atr": null
+  },
+  {
+    "symbol": "GOOGL",
+    "date": "2025-03-14",
+    "close": 165.49,
+    "volume": 31995893.0,
+    "atr": null
+  },
+  {
+    "symbol": "GOOGL",
+    "date": "2025-03-17",
+    "close": 164.29,
+    "volume": 31184335.0,
+    "atr": null
+  },
+  {
+    "symbol": "GOOGL",
+    "date": "2025-03-18",
+    "close": 160.67,
+    "volume": 42074751.0,
+    "atr": null
+  },
+  {
+    "symbol": "GOOGL",
+    "date": "2025-03-19",
+    "close": 163.89,
+    "volume": 34275582.0,
+    "atr": null
+  },
+  {
+    "symbol": "GOOGL",
+    "date": "2025-03-20",
+    "close": 162.8,
+    "volume": 28124064.0,
+    "atr": null
+  },
+  {
+    "symbol": "GOOGL",
+    "date": "2025-03-21",
+    "close": 163.99,
+    "volume": 36625764.0,
+    "atr": null
+  },
+  {
+    "symbol": "GOOGL",
+    "date": "2025-03-24",
+    "close": 167.68,
+    "volume": 30879129.0,
+    "atr": null
+  },
+  {
+    "symbol": "GOOGL",
+    "date": "2025-03-25",
+    "close": 170.56,
+    "volume": 24174373.0,
+    "atr": null
+  },
+  {
+    "symbol": "GOOGL",
+    "date": "2025-03-26",
+    "close": 165.06,
+    "volume": 28939326.0,
+    "atr": null
+  },
+  {
+    "symbol": "GOOGL",
+    "date": "2025-03-27",
+    "close": 162.24,
+    "volume": 24508273.0,
+    "atr": null
+  },
+  {
+    "symbol": "GOOGL",
+    "date": "2025-03-28",
+    "close": 154.33,
+    "volume": 48669335.0,
+    "atr": null
+  },
+  {
+    "symbol": "GOOGL",
+    "date": "2025-03-31",
+    "close": 154.64,
+    "volume": 54479064.0,
+    "atr": null
+  },
+  {
+    "symbol": "GOOGL",
+    "date": "2025-04-01",
+    "close": 157.07,
+    "volume": 30663899.0,
+    "atr": null
+  },
+  {
+    "symbol": "GOOGL",
+    "date": "2025-04-02",
+    "close": 157.04,
+    "volume": 25041730.0,
+    "atr": null
+  },
+  {
+    "symbol": "GOOGL",
+    "date": "2025-04-03",
+    "close": 150.72,
+    "volume": 46801371.0,
+    "atr": null
+  },
+  {
+    "symbol": "GOOGL",
+    "date": "2025-04-04",
+    "close": 145.6,
+    "volume": 62259539.0,
+    "atr": null
+  },
+  {
+    "symbol": "GOOGL",
+    "date": "2025-04-07",
+    "close": 146.75,
+    "volume": 76790131.0,
+    "atr": null
+  },
+  {
+    "symbol": "GOOGL",
+    "date": "2025-04-08",
+    "close": 144.7,
+    "volume": 52200207.0,
+    "atr": null
+  },
+  {
+    "symbol": "GOOGL",
+    "date": "2025-04-09",
+    "close": 158.71,
+    "volume": 70396482.0,
+    "atr": null
+  },
+  {
+    "symbol": "GOOGL",
+    "date": "2025-04-10",
+    "close": 152.82,
+    "volume": 47976972.0,
+    "atr": null
+  },
+  {
+    "symbol": "GOOGL",
+    "date": "2025-04-11",
+    "close": 157.14,
+    "volume": 33636239.0,
+    "atr": null
+  },
+  {
+    "symbol": "GOOGL",
+    "date": "2025-04-14",
+    "close": 159.07,
+    "volume": 30332957.0,
+    "atr": null
+  },
+  {
+    "symbol": "GOOGL",
+    "date": "2025-04-15",
+    "close": 156.31,
+    "volume": 27551534.0,
+    "atr": null
+  },
+  {
+    "symbol": "GOOGL",
+    "date": "2025-04-16",
+    "close": 153.33,
+    "volume": 28183971.0,
+    "atr": null
+  },
+  {
+    "symbol": "GOOGL",
+    "date": "2025-04-17",
+    "close": 151.16,
+    "volume": 32546576.0,
+    "atr": null
+  },
+  {
+    "symbol": "GOOGL",
+    "date": "2025-04-21",
+    "close": 147.67,
+    "volume": 26049115.0,
+    "atr": null
+  },
+  {
+    "symbol": "GOOGL",
+    "date": "2025-04-22",
+    "close": 151.47,
+    "volume": 26971774.0,
+    "atr": null
+  },
+  {
+    "symbol": "GOOGL",
+    "date": "2025-04-23",
+    "close": 155.35,
+    "volume": 31128823.0,
+    "atr": null
+  },
+  {
+    "symbol": "GOOGL",
+    "date": "2025-04-24",
+    "close": 159.28,
+    "volume": 45883451.0,
+    "atr": null
+  },
+  {
+    "symbol": "GOOGL",
+    "date": "2025-04-25",
+    "close": 161.96,
+    "volume": 56028995.0,
+    "atr": null
+  },
+  {
+    "symbol": "GOOGL",
+    "date": "2025-04-28",
+    "close": 160.61,
+    "volume": 29745782.0,
+    "atr": null
+  },
+  {
+    "symbol": "GOOGL",
+    "date": "2025-04-29",
+    "close": 160.16,
+    "volume": 26808958.0,
+    "atr": null
+  },
+  {
+    "symbol": "GOOGL",
+    "date": "2025-04-30",
+    "close": 158.8,
+    "volume": 34981059.0,
+    "atr": null
+  },
+  {
+    "symbol": "GOOGL",
+    "date": "2025-05-01",
+    "close": 161.3,
+    "volume": 30203248.0,
+    "atr": null
+  },
+  {
+    "symbol": "GOOGL",
+    "date": "2025-05-02",
+    "close": 164.03,
+    "volume": 25715005.0,
+    "atr": null
+  },
+  {
+    "symbol": "GOOGL",
+    "date": "2025-05-05",
+    "close": 164.21,
+    "volume": 21341814.0,
+    "atr": null
+  },
+  {
+    "symbol": "GOOGL",
+    "date": "2025-05-06",
+    "close": 163.23,
+    "volume": 21277210.0,
+    "atr": null
+  },
+  {
+    "symbol": "GOOGL",
+    "date": "2025-05-07",
+    "close": 151.38,
+    "volume": 127747554.0,
+    "atr": null
+  },
+  {
+    "symbol": "GOOGL",
+    "date": "2025-05-08",
+    "close": 154.28,
+    "volume": 57498692.0,
+    "atr": null
+  },
+  {
+    "symbol": "GOOGL",
+    "date": "2025-05-09",
+    "close": 152.75,
+    "volume": 32435281.0,
+    "atr": null
+  },
+  {
+    "symbol": "GOOGL",
+    "date": "2025-05-12",
+    "close": 158.46,
+    "volume": 44138818.0,
+    "atr": null
+  },
+  {
+    "symbol": "GOOGL",
+    "date": "2025-05-13",
+    "close": 159.53,
+    "volume": 42382126.0,
+    "atr": null
+  },
+  {
+    "symbol": "GOOGL",
+    "date": "2025-05-14",
+    "close": 165.37,
+    "volume": 48755869.0,
+    "atr": null
+  },
+  {
+    "symbol": "GOOGL",
+    "date": "2025-05-15",
+    "close": 163.96,
+    "volume": 33146669.0,
+    "atr": null
+  },
+  {
+    "symbol": "GOOGL",
+    "date": "2025-05-16",
+    "close": 166.19,
+    "volume": 42846925.0,
+    "atr": null
+  },
+  {
+    "symbol": "GOOGL",
+    "date": "2025-05-19",
+    "close": 166.54,
+    "volume": 30426097.0,
+    "atr": null
+  },
+  {
+    "symbol": "GOOGL",
+    "date": "2025-05-20",
+    "close": 163.98,
+    "volume": 46607656.0,
+    "atr": null
+  },
+  {
+    "symbol": "GOOGL",
+    "date": "2025-05-21",
+    "close": 168.56,
+    "volume": 73415956.0,
+    "atr": null
+  },
+  {
+    "symbol": "GOOGL",
+    "date": "2025-05-22",
+    "close": 170.87,
+    "volume": 74864418.0,
+    "atr": null
+  },
+  {
+    "symbol": "GOOGL",
+    "date": "2025-05-23",
+    "close": 168.47,
+    "volume": 35211439.0,
+    "atr": null
+  },
+  {
+    "symbol": "GOOGL",
+    "date": "2025-05-27",
+    "close": 172.9,
+    "volume": 37995670.0,
+    "atr": null
+  },
+  {
+    "symbol": "GOOGL",
+    "date": "2025-05-28",
+    "close": 172.36,
+    "volume": 34783997.0,
+    "atr": null
+  },
+  {
+    "symbol": "GOOGL",
+    "date": "2025-05-29",
+    "close": 171.86,
+    "volume": 29373803.0,
+    "atr": null
+  },
+  {
+    "symbol": "GOOGL",
+    "date": "2025-05-30",
+    "close": 171.74,
+    "volume": 52639911.0,
+    "atr": null
+  },
+  {
+    "symbol": "GOOGL",
+    "date": "2025-06-02",
+    "close": 169.03,
+    "volume": 38612272.0,
+    "atr": null
+  },
+  {
+    "symbol": "GOOGL",
+    "date": "2025-06-03",
+    "close": 166.18,
+    "volume": 45084903.0,
+    "atr": null
+  },
+  {
+    "symbol": "GOOGL",
+    "date": "2025-06-04",
+    "close": 168.05,
+    "volume": 26900838.0,
+    "atr": null
+  },
+  {
+    "symbol": "GOOGL",
+    "date": "2025-06-05",
+    "close": 168.21,
+    "volume": 36444564.0,
+    "atr": null
+  },
+  {
+    "symbol": "GOOGL",
+    "date": "2025-06-06",
+    "close": 173.68,
+    "volume": 35731832.0,
+    "atr": null
+  },
+  {
+    "symbol": "GOOGL",
+    "date": "2025-06-09",
+    "close": 176.09,
+    "volume": 28935906.0,
+    "atr": null
+  },
+  {
+    "symbol": "GOOGL",
+    "date": "2025-06-10",
+    "close": 178.6,
+    "volume": 61766121.0,
+    "atr": null
+  },
+  {
+    "symbol": "GOOGL",
+    "date": "2025-06-11",
+    "close": 177.35,
+    "volume": 31646757.0,
+    "atr": null
+  },
+  {
+    "symbol": "GOOGL",
+    "date": "2025-06-12",
+    "close": 175.7,
+    "volume": 20941873.0,
+    "atr": null
+  },
+  {
+    "symbol": "GOOGL",
+    "date": "2025-06-13",
+    "close": 174.67,
+    "volume": 27663107.0,
+    "atr": null
+  },
+  {
+    "symbol": "GOOGL",
+    "date": "2025-06-16",
+    "close": 176.77,
+    "volume": 27389208.0,
+    "atr": null
+  },
+  {
+    "symbol": "GOOGL",
+    "date": "2025-06-17",
+    "close": 175.95,
+    "volume": 24973043.0,
+    "atr": null
+  },
+  {
+    "symbol": "GOOGL",
+    "date": "2025-06-18",
+    "close": 173.32,
+    "volume": 28707524.0,
+    "atr": null
+  },
+  {
+    "symbol": "GOOGL",
+    "date": "2025-06-20",
+    "close": 166.64,
+    "volume": 75659917.0,
+    "atr": null
+  },
+  {
+    "symbol": "GOOGL",
+    "date": "2025-06-23",
+    "close": 165.19,
+    "volume": 57670985.0,
+    "atr": null
+  },
+  {
+    "symbol": "GOOGL",
+    "date": "2025-06-24",
+    "close": 166.77,
+    "volume": 40524312.0,
+    "atr": null
+  },
+  {
+    "symbol": "GOOGL",
+    "date": "2025-06-25",
+    "close": 170.68,
+    "volume": 35478989.0,
+    "atr": null
+  }
+]
