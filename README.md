@@ -181,9 +181,9 @@ Elke combinatie expiry × strike × {Call, Put} → OptionContract
 
 Per contract: reqContractDetails()
 
-Retries: CONTRACT_DETAILS_RETRIES (default: 2)
+Retries: CONTRACT_DETAILS_RETRIES (default: 4)
 
-Timeout: CONTRACT_DETAILS_TIMEOUT (default: 2s)
+Timeout: CONTRACT_DETAILS_TIMEOUT (default: 10s)
 
 Maximaal MAX_CONCURRENT_REQUESTS tegelijk (default: 5)
 
@@ -217,12 +217,12 @@ Contracts met delta buiten DELTA_MIN/DELTA_MAX worden ongeldig verklaard
 
 Retries bij incomplete data:
 
-Max: OPTION_DATA_RETRIES (default: 3)
+Max: OPTION_DATA_RETRIES (default: 5)
 
-Timeout per poging: BID_ASK_TIMEOUT (default: 10s)
+Timeout per poging: BID_ASK_TIMEOUT (default: 20s)
 
 Wacht tussen retries: OPTION_RETRY_WAIT
-Strikte timeboxing: OPTION_MAX_MARKETDATA_TIME (default 30s) als laatste fallback
+Strikte timeboxing: OPTION_MAX_MARKETDATA_TIME (default 60s) als laatste fallback
 
 10. Exporteren van CSV’s en disconnect
 Disconnect vóór het schrijven naar disk
