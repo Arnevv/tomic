@@ -16,12 +16,15 @@ from tomic.journal.utils import load_json
 def _load_close(symbol: str, date_str: str) -> float | None:
     base = Path(cfg_get("PRICE_HISTORY_DIR", "tomic/data/spot_prices"))
     path = base / f"{symbol}.json"
+    logger.debug(f"Loading close price for {symbol} from {path}")
     data = load_json(path)
     if isinstance(data, list):
         for rec in data:
             if rec.get("date") == date_str:
                 try:
-                    return float(rec.get("close"))
+                    price = float(rec.get("close"))
+                    logger.debug(f"Found close price for {symbol}: {price}")
+                    return price
                 except Exception:
                     return None
     return None
@@ -38,7 +41,11 @@ def fetch_polygon_iv30d(symbol: str) -> float | None:
     api_key = cfg_get("POLYGON_API_KEY", "")
     url = f"https://api.polygon.io/v3/snapshot/options/{symbol.upper()}"
     try:
+        logger.debug(f"Requesting {url} with apiKey={api_key}")
         resp = requests.get(url, params={"apiKey": api_key}, timeout=10)
+        status = getattr(resp, "status_code", "n/a")
+        text = getattr(resp, "text", "")
+        logger.debug(f"Response {status}: {text[:200]}")
         resp.raise_for_status()
         payload = resp.json()
     except Exception as exc:  # pragma: no cover - network failure
