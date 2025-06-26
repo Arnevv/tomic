@@ -416,25 +416,29 @@
         "strike": 77.0,
         "type": "PUT",
         "action": "BUY",
-        "qty": 2
+        "qty": 2,
+        "conId": 742351124
       },
       {
         "strike": 79.0,
         "type": "PUT",
         "action": "SELL",
-        "qty": 2
+        "qty": 2,
+        "conId": 742351299
       },
       {
         "strike": 87.0,
         "type": "CALL",
         "action": "SELL",
-        "qty": 2
+        "qty": 2,
+        "conId": 753575988
       },
       {
         "strike": 89.0,
         "type": "CALL",
         "action": "BUY",
-        "qty": 2
+        "qty": 2,
+        "conId": 753575998
       }
     ],
     "Greeks_Entry": {
