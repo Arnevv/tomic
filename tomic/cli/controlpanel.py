@@ -269,13 +269,13 @@ def run_dataexporter() -> None:
     menu.add("Benchmark getonemarket", bench_getonemarket)
     menu.add("Ophalen historische prijzen", fetch_prices)
 
-    def fetch_iv_polygon_cmd() -> None:
+    def fetch_prices_polygon_cmd() -> None:
         try:
-            run_module("tomic.cli.fetch_iv_polygon")
+            run_module("tomic.cli.fetch_prices_polygon")
         except subprocess.CalledProcessError:
-            print("❌ Ophalen van volatiliteit mislukt")
+            print("❌ Ophalen van historische prijzen mislukt")
 
-    menu.add("Ophalen historische prijzen - polygon", fetch_iv_polygon_cmd)
+    menu.add("Ophalen historische prijzen - polygon", fetch_prices_polygon_cmd)
     menu.add("Toon historische data", show_history)
     menu.add("Toon volatiliteitsdata", show_volstats)
     menu.add("Polygon option chain", polygon_chain)

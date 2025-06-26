@@ -31,7 +31,7 @@ jobs:
 
       - name: Run price history fetch
         run: |
-          python -m tomic.cli.fetch_prices
+          python -m tomic.cli.fetch_prices_polygon
 
       - name: Commit and push changes
         run: |
