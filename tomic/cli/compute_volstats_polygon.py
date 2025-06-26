@@ -5,13 +5,14 @@ from __future__ import annotations
 from datetime import datetime
 from pathlib import Path
 from time import sleep
-from typing import List
+from typing import List, Any
 
 from tomic.analysis.metrics import historical_volatility
 from tomic.config import get as cfg_get
 from tomic.journal.utils import load_json, update_json_file
 from tomic.logutils import logger, setup_logging
 from tomic.providers.polygon_iv import fetch_polygon_iv30d
+import requests
 
 
 def _get_closes(symbol: str) -> list[float]:
@@ -23,6 +24,146 @@ def _get_closes(symbol: str) -> list[float]:
         return []
     data.sort(key=lambda r: r.get("date", ""))
     return [float(rec.get("close", 0)) for rec in data]
+
+
+def _latest_close(symbol: str) -> tuple[float | None, str | None]:
+    """Return the last known close price and date."""
+    base = Path(cfg_get("PRICE_HISTORY_DIR", "tomic/data/spot_prices"))
+    path = base / f"{symbol}.json"
+    data = load_json(path)
+    if not isinstance(data, list) or not data:
+        return None, None
+    data.sort(key=lambda r: r.get("date", ""))
+    rec = data[-1]
+    try:
+        return float(rec.get("close")), str(rec.get("date"))
+    except Exception:
+        return None, None
+
+
+def _polygon_term_and_skew(symbol: str) -> tuple[float | None, float | None, float | None]:
+    """Compute term structure and skew metrics using Polygon snapshot data."""
+    spot, spot_date = _latest_close(symbol)
+    if spot is None or spot_date is None:
+        return None, None, None
+
+    api_key = cfg_get("POLYGON_API_KEY", "")
+    url = f"https://api.polygon.io/v3/snapshot/options/{symbol.upper()}"
+    try:
+        resp = requests.get(url, params={"apiKey": api_key}, timeout=10)
+        status = getattr(resp, "status_code", "n/a")
+        text = getattr(resp, "text", "")
+        logger.debug(f"Snapshot {symbol} {status}: {text[:200]}")
+        resp.raise_for_status()
+        payload = resp.json()
+    except Exception as exc:  # pragma: no cover - network failure
+        logger.warning(f"Polygon request failed for {symbol}: {exc}")
+        return None, None, None
+
+    results = payload.get("results", {})
+    if isinstance(results, dict):
+        options: List[dict[str, Any]] = results.get("options") or []
+    elif isinstance(results, list):  # pragma: no cover - alt structure
+        options = results
+    else:
+        options = []
+    if not options:
+        return None, None, None
+
+    spot_dt = datetime.strptime(spot_date, "%Y-%m-%d").date()
+
+    grouped: dict[str, list[float]] = {}
+    call_iv: float | None = None
+    put_iv: float | None = None
+    call_err = float("inf")
+    put_err = float("inf")
+    call_strike_err = float("inf")
+    put_strike_err = float("inf")
+
+    target_call = spot * 1.15
+    target_put = spot * 0.85
+
+    for opt in options:
+        exp_raw = opt.get("expiration_date") or opt.get("expDate")
+        strike = (
+            opt.get("strike_price")
+            or opt.get("strike")
+            or opt.get("exercise_price")
+        )
+        iv = opt.get("implied_volatility") or opt.get("iv")
+        if exp_raw is None or strike is None or iv is None:
+            continue
+        right = (
+            opt.get("option_type")
+            or opt.get("type")
+            or opt.get("contract_type")
+            or opt.get("details", {}).get("contract_type")
+            or opt.get("right")
+        )
+        delta = opt.get("delta") or opt.get("greeks", {}).get("delta")
+        try:
+            if "-" in str(exp_raw):
+                exp_dt = datetime.strptime(str(exp_raw), "%Y-%m-%d").date()
+            else:
+                exp_dt = datetime.strptime(str(exp_raw), "%Y%m%d").date()
+            strike_f = float(strike)
+            iv_f = float(iv)
+        except Exception:
+            continue
+
+        if abs(strike_f - spot) <= 1:
+            grouped.setdefault(str(exp_dt), []).append(iv_f)
+
+        if right:
+            r = str(right).lower()
+        else:
+            r = ""
+
+        if delta is not None:
+            try:
+                d = float(delta)
+                if r.startswith("c"):
+                    err = abs(d - 0.25)
+                    if err < call_err:
+                        call_err = err
+                        call_iv = iv_f
+                elif r.startswith("p"):
+                    err = abs(d + 0.25)
+                    if err < put_err:
+                        put_err = err
+                        put_iv = iv_f
+            except Exception:
+                pass
+        else:
+            if r.startswith("c"):
+                diff = abs(strike_f - target_call)
+                if diff < call_strike_err:
+                    call_strike_err = diff
+                    call_iv = iv_f
+            elif r.startswith("p"):
+                diff = abs(strike_f - target_put)
+                if diff < put_strike_err:
+                    put_strike_err = diff
+                    put_iv = iv_f
+
+    avgs: list[float] = []
+    for exp in sorted(grouped.keys()):
+        ivs = grouped[exp]
+        if ivs:
+            avgs.append(sum(ivs) / len(ivs))
+
+    term_m1_m2 = round((avgs[0] - avgs[1]) * 100, 2) if len(avgs) >= 2 else None
+    term_m1_m3 = round((avgs[0] - avgs[2]) * 100, 2) if len(avgs) >= 3 else None
+
+    skew = None
+    if call_iv is not None and put_iv is not None:
+        skew = round((put_iv - call_iv) * 100, 2)
+    else:
+        logger.debug(
+            f"Skew unavailable for {symbol}: call_iv={call_iv} put_iv={put_iv}"
+        )
+
+    return term_m1_m2, term_m1_m3, skew
 
 
 def main(argv: List[str] | None = None) -> None:
@@ -72,6 +213,7 @@ def main(argv: List[str] | None = None) -> None:
         iv = fetch_polygon_iv30d(sym)
         if iv is None:
             logger.warning(f"No implied volatility for {sym}")
+        term_m1_m2, term_m1_m3, skew = _polygon_term_and_skew(sym)
         hv_series = rolling_hv(closes, 30)
         scaled_iv = iv * 100 if iv is not None else None
         rank = iv_rank(scaled_iv or 0.0, hv_series) if scaled_iv is not None else None
@@ -100,6 +242,9 @@ def main(argv: List[str] | None = None) -> None:
             "atm_iv": iv,
             "iv_rank (HV)": rank,
             "iv_percentile (HV)": pct,
+            "term_m1_m2": term_m1_m2,
+            "term_m1_m3": term_m1_m3,
+            "skew": skew,
         }
         update_json_file(summary_dir / f"{sym}.json", summary_record, ["date"])
         logger.info(f"Saved vol stats for {sym}")

@@ -11,6 +11,7 @@ def test_compute_volstats_polygon_main(monkeypatch):
 
     # Stub computations
     monkeypatch.setattr(mod, "fetch_polygon_iv30d", lambda sym: 0.25)
+    monkeypatch.setattr(mod, "_polygon_term_and_skew", lambda sym: (-1.0, -2.0, 3.0))
     monkeypatch.setattr(
         mod,
         "historical_volatility",
@@ -30,6 +31,9 @@ def test_compute_volstats_polygon_main(monkeypatch):
     assert len(captured) == 2
     assert any("iv_rank (HV)" in r for r in captured)
     assert any(r.get("atm_iv") == 0.25 for r in captured)
+    assert any(r.get("term_m1_m2") == -1.0 for r in captured)
+    assert any(r.get("term_m1_m3") == -2.0 for r in captured)
+    assert any(r.get("skew") == 3.0 for r in captured)
 
 
 def test_compute_volstats_polygon_no_history(monkeypatch):
