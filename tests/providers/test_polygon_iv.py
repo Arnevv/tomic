@@ -9,7 +9,12 @@ def test_fetch_polygon_iv30d(monkeypatch, tmp_path):
 
     price_dir = tmp_path / "prices"
     price_dir.mkdir()
-    (price_dir / "ABC.json").write_text(json.dumps([{"date": "2024-01-01", "close": 100.0}]))
+    (price_dir / "ABC.json").write_text(
+        json.dumps([
+            {"date": "2023-12-31", "close": 99.0},
+            {"date": "2024-01-01", "close": 100.0},
+        ])
+    )
 
     monkeypatch.setattr(
         mod,
@@ -45,7 +50,8 @@ def test_fetch_polygon_iv30d(monkeypatch, tmp_path):
     class FakeDT(datetime):
         @classmethod
         def now(cls):
-            return datetime(2024, 1, 1)
+            # Current date without close entry to ensure last known close is used
+            return datetime(2024, 1, 3)
 
     monkeypatch.setattr(mod, "datetime", FakeDT)
 
