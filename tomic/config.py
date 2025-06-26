@@ -53,6 +53,8 @@ class AppConfig(BaseModel):
     IB_HOST: str = "127.0.0.1"
     IB_PORT: int = 7497
     IB_CLIENT_ID: int = 100
+    DATA_PROVIDER: str = "ib"
+    POLYGON_API_KEY: str = ""
     LOG_LEVEL: str = "INFO"
     INTEREST_RATE: float = 0.05
     # Default venues for retrieving market data
