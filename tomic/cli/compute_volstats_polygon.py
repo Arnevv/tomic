@@ -211,10 +211,13 @@ def main(argv: List[str] | None = None) -> None:
         hv30 = historical_volatility(closes, window=30)
         hv90 = historical_volatility(closes, window=90)
         hv252 = historical_volatility(closes, window=252)
-        iv = fetch_polygon_iv30d(sym)
+        metrics = fetch_polygon_iv30d(sym)
+        iv = metrics.get("atm_iv") if metrics else None
+        term_m1_m2 = metrics.get("term_m1_m2") if metrics else None
+        term_m1_m3 = metrics.get("term_m1_m3") if metrics else None
+        skew = metrics.get("skew") if metrics else None
         if iv is None:
             logger.warning(f"No implied volatility for {sym}")
-        term_m1_m2, term_m1_m3, skew = _polygon_term_and_skew(sym)
         hv_series = rolling_hv(closes, 30)
         scaled_iv = iv * 100 if iv is not None else None
         rank = iv_rank(scaled_iv or 0.0, hv_series) if scaled_iv is not None else None
