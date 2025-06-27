@@ -23,7 +23,8 @@ def main(argv: List[str] | None = None) -> None:
     today = datetime.now().strftime("%Y-%m-%d")
 
     for sym in symbols:
-        iv = fetch_polygon_iv30d(sym)
+        metrics = fetch_polygon_iv30d(sym)
+        iv = metrics.get("atm_iv") if metrics else None
         record = {
             "date": today,
             "atm_iv": iv,
