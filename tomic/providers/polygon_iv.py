@@ -41,6 +41,8 @@ def fetch_polygon_iv30d(symbol: str) -> float | None:
 
     api_key = cfg_get("POLYGON_API_KEY", "")
     url = f"https://api.polygon.io/v3/snapshot/options/{symbol.upper()}"
+    masked_key = f"***{api_key[-3:]}" if api_key else "***"
+    logger.info(f"Snapshot query: {url}?apiKey={masked_key}")
     try:
         logger.debug(f"Requesting {url} with apiKey={api_key}")
         resp = requests.get(url, params={"apiKey": api_key}, timeout=10)
