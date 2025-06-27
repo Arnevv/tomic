@@ -10,8 +10,16 @@ def test_compute_volstats_polygon_main(monkeypatch):
     monkeypatch.setattr(mod, "_get_closes", lambda sym: [1.0] * 100)
 
     # Stub computations
-    monkeypatch.setattr(mod, "fetch_polygon_iv30d", lambda sym: 0.25)
-    monkeypatch.setattr(mod, "_polygon_term_and_skew", lambda sym: (-1.0, -2.0, 3.0))
+    monkeypatch.setattr(
+        mod,
+        "fetch_polygon_iv30d",
+        lambda sym: {
+            "atm_iv": 0.25,
+            "term_m1_m2": -1.0,
+            "term_m1_m3": -2.0,
+            "skew": 3.0,
+        },
+    )
     monkeypatch.setattr(
         mod,
         "historical_volatility",
