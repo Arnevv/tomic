@@ -40,7 +40,11 @@ class PolygonClient(MarketDataProvider):
         text = getattr(resp, "text", "")
         logger.debug(f"Response {status}: {text[:200]}")
         resp.raise_for_status()
-        return resp.json()
+        try:
+            return resp.json()
+        except Exception as exc:  # pragma: no cover - invalid JSON
+            logger.warning(f"Invalid JSON from Polygon for {path}: {exc}")
+            return {}
 
     # MarketDataProvider API -----------------------------------------
     def fetch_option_chain(self, symbol: str) -> List[Dict[str, Any]]:
