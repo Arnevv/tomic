@@ -1748,5 +1748,12 @@
     "close": 80.15,
     "volume": 24156123.0,
     "atr": null
+  },
+  {
+    "symbol": "HYG",
+    "date": "2025-06-26",
+    "close": 80.38,
+    "volume": 28889078.0,
+    "atr": null
   }
 ]
