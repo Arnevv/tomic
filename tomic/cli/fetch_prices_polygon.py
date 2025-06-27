@@ -7,6 +7,8 @@ from pathlib import Path
 from time import sleep
 from typing import Iterable, List
 
+from tomic.analysis.metrics import average_true_range
+
 from tomic.config import get as cfg_get
 from tomic.logutils import logger, setup_logging
 from tomic.journal.utils import update_json_file
@@ -30,6 +32,9 @@ def _request_bars(client: PolygonClient, symbol: str) -> Iterable[dict]:
                 {
                     "symbol": symbol,
                     "date": dt,
+                    "open": bar.get("o"),
+                    "high": bar.get("h"),
+                    "low": bar.get("l"),
                     "close": bar.get("c"),
                     "volume": bar.get("v"),
                     "atr": None,
@@ -37,6 +42,18 @@ def _request_bars(client: PolygonClient, symbol: str) -> Iterable[dict]:
             )
         except Exception as exc:  # pragma: no cover - malformed data
             logger.debug(f"Skipping malformed bar for {symbol}: {exc}")
+
+    highs: list[float] = []
+    lows: list[float] = []
+    closes: list[float] = []
+    for rec in records:
+        highs.append(rec.get("high"))
+        lows.append(rec.get("low"))
+        closes.append(rec.get("close"))
+        rec["atr"] = average_true_range(highs, lows, closes, period=14)
+        rec.pop("open", None)
+        rec.pop("high", None)
+        rec.pop("low", None)
     return records
 
 
