@@ -5,9 +5,19 @@ def test_fetch_prices_polygon_main(monkeypatch):
     mod = importlib.import_module("tomic.cli.fetch_prices_polygon")
 
     monkeypatch.setattr(mod, "setup_logging", lambda: None)
-    monkeypatch.setattr(mod, "_request_bars", lambda client, sym: [
-        {"symbol": sym, "date": "2024-01-01", "close": 1.23, "volume": 100, "atr": None}
-    ])
+    monkeypatch.setattr(
+        mod,
+        "_request_bars",
+        lambda client, sym: [
+            {
+                "symbol": sym,
+                "date": "2024-01-01",
+                "close": 1.23,
+                "volume": 100,
+                "atr": 0.5,
+            }
+        ],
+    )
 
     class FakeClient:
         def connect(self):
@@ -28,6 +38,7 @@ def test_fetch_prices_polygon_main(monkeypatch):
 
     mod.main(["ABC"])
     assert captured
+    assert captured[0].get("atr") == 0.5
     assert called and called[0] == ["ABC"]
 
 
