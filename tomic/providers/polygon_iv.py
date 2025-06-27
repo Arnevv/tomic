@@ -66,6 +66,7 @@ def fetch_polygon_iv30d(symbol: str) -> float | None:
         return None
 
     today_dt = datetime.strptime(spot_date, "%Y-%m-%d").date()
+    tolerance = max(spot * 0.03, 2.0)
     ivs: List[float] = []
     for opt in options:
         exp_raw = opt.get("expiration_date") or opt.get("expDate")
@@ -85,7 +86,7 @@ def fetch_polygon_iv30d(symbol: str) -> float | None:
             dte = (exp_dt - today_dt).days
             if dte < 25 or dte > 35:
                 continue
-            if abs(float(strike) - spot) > 1:
+            if abs(float(strike) - spot) > tolerance:
                 continue
             ivs.append(float(iv))
         except Exception:
