@@ -111,7 +111,8 @@ def _polygon_term_and_skew(symbol: str) -> tuple[float | None, float | None, flo
         except Exception:
             continue
 
-        if abs(strike_f - spot) <= 1:
+        tolerance = max(spot * 0.03, 2.0)
+        if abs(strike_f - spot) <= tolerance:
             grouped.setdefault(str(exp_dt), []).append(iv_f)
 
         if right:
