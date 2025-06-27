@@ -13,7 +13,11 @@ def test_fetch_iv_polygon_main(monkeypatch, tmp_path):
             ["ABC"] if name == "DEFAULT_SYMBOLS" else str(tmp_path) if name == "IV_DAILY_SUMMARY_DIR" else default
         ),
     )
-    monkeypatch.setattr(mod, "fetch_polygon_iv30d", lambda sym: 0.21)
+    monkeypatch.setattr(
+        mod,
+        "fetch_polygon_iv30d",
+        lambda sym: {"atm_iv": 0.21, "skew": 0.0, "term_m1_m2": None, "term_m1_m3": None},
+    )
 
     captured = []
     monkeypatch.setattr(mod, "update_json_file", lambda f, rec, keys: captured.append((f, rec)))
