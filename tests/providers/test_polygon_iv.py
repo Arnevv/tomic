@@ -31,8 +31,8 @@ def test_fetch_polygon_iv30d(monkeypatch, tmp_path):
     sample = {
         "results": {
             "options": [
-                {"expiration_date": "2024-01-28", "strike_price": 100.5, "implied_volatility": 0.2},
-                {"expiration_date": "2024-01-30", "strike_price": 99.8, "implied_volatility": 0.22},
+                {"expiration_date": "2024-01-28", "strike_price": 102.5, "implied_volatility": 0.2},
+                {"expiration_date": "2024-01-30", "strike_price": 97.5, "implied_volatility": 0.22},
                 {"expiration_date": "2024-02-20", "strike_price": 100.0, "implied_volatility": 0.5},
             ]
         }
