@@ -103,12 +103,13 @@ def test_fetch_polygon_iv30d(monkeypatch, tmp_path):
 
     monkeypatch.setattr(mod.requests, "get", fake_get, raising=False)
     monkeypatch.setattr(mod.time, "sleep", lambda s: None)
+    monkeypatch.setattr(mod, "_get_closes", lambda sym: [])
 
     class FakeDT(datetime):
         @classmethod
-        def now(cls):
+        def now(cls, tz=None):
             # Current date without close entry to ensure last known close is used
-            return datetime(2024, 1, 3)
+            return datetime(2024, 1, 3, tzinfo=tz)
 
     monkeypatch.setattr(mod, "datetime", FakeDT)
 
@@ -117,6 +118,8 @@ def test_fetch_polygon_iv30d(monkeypatch, tmp_path):
     assert metrics["term_m1_m2"] == 1.0
     assert metrics["term_m1_m3"] == 2.0
     assert metrics["skew"] == 3.0
+    assert metrics["iv_rank (HV)"] is None
+    assert metrics["iv_percentile (HV)"] is None
     assert (iv_dir / "ABC.log").exists()
 
 
@@ -205,11 +208,12 @@ def test_fetch_polygon_iv30d_fallback(monkeypatch, tmp_path):
 
     monkeypatch.setattr(mod.requests, "get", fake_get, raising=False)
     monkeypatch.setattr(mod.time, "sleep", lambda s: None)
+    monkeypatch.setattr(mod, "_get_closes", lambda sym: [])
 
     class FakeDT(datetime):
         @classmethod
-        def now(cls):
-            return datetime(2024, 1, 3)
+        def now(cls, tz=None):
+            return datetime(2024, 1, 3, tzinfo=tz)
 
     monkeypatch.setattr(mod, "datetime", FakeDT)
 
@@ -218,6 +222,8 @@ def test_fetch_polygon_iv30d_fallback(monkeypatch, tmp_path):
     assert metrics["term_m1_m2"] == 1.0
     assert metrics["term_m1_m3"] == 2.0
     assert metrics["skew"] is None
+    assert metrics["iv_rank (HV)"] is None
+    assert metrics["iv_percentile (HV)"] is None
     assert (iv_dir / "ABC.log").exists()
 
 
