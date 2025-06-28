@@ -112,3 +112,92 @@ def test_fetch_polygon_iv30d(monkeypatch, tmp_path):
     assert metrics["term_m1_m2"] == 1.0
     assert metrics["term_m1_m3"] == 2.0
     assert metrics["skew"] == 3.0
+
+
+def test_extract_skew_greeks_none():
+    mod = importlib.import_module("tomic.providers.polygon_iv")
+    options = [
+        {
+            "strike_price": 100.0,
+            "implied_volatility": 0.2,
+            "delta": 0.5,
+            "option_type": "call",
+            "greeks": None,
+        },
+        {
+            "strike_price": 105.0,
+            "implied_volatility": 0.21,
+            "delta": 0.25,
+            "option_type": "call",
+            "greeks": None,
+        },
+        {
+            "strike_price": 90.0,
+            "implied_volatility": 0.24,
+            "delta": -0.24,
+            "option_type": "put",
+            "greeks": None,
+        },
+    ]
+    atm, call, put = mod.IVExtractor.extract_skew(options, 100.0)
+    assert atm == 0.2
+    assert call == 0.21
+    assert put == 0.24
+
+
+def test_extract_skew_delta_fallback():
+    mod = importlib.import_module("tomic.providers.polygon_iv")
+    options = [
+        {
+            "strike_price": 100.0,
+            "implied_volatility": 0.2,
+            "delta": None,
+            "option_type": "call",
+            "greeks": {"delta": 0.5},
+        },
+        {
+            "strike_price": 105.0,
+            "implied_volatility": 0.21,
+            "delta": None,
+            "option_type": "call",
+            "greeks": {"delta": 0.25},
+        },
+        {
+            "strike_price": 90.0,
+            "implied_volatility": 0.24,
+            "delta": None,
+            "option_type": "put",
+            "greeks": {"delta": -0.24},
+        },
+    ]
+    atm, call, put = mod.IVExtractor.extract_skew(options, 100.0)
+    assert atm == 0.2
+    assert call == 0.21
+    assert put == 0.24
+
+
+def test_extract_skew_greeks_only():
+    mod = importlib.import_module("tomic.providers.polygon_iv")
+    options = [
+        {
+            "strike_price": 100.0,
+            "option_type": "call",
+            "greeks": {"delta": 0.5, "iv": 0.2},
+        },
+        {
+            "strike_price": 105.0,
+            "option_type": "call",
+            "greeks": {"delta": 0.22, "iv": 0.21},
+        },
+        {
+            "strike_price": 90.0,
+            "option_type": "put",
+            "greeks": {"delta": -0.23, "iv": 0.24},
+        },
+    ]
+    atm, call, put = mod.IVExtractor.extract_skew(options, 100.0)
+    assert atm == 0.2
+    assert call == 0.21
+    assert put == 0.24
+    atm_call = mod.IVExtractor.extract_atm_call(options, 100.0)
+    assert atm_call == 0.2
