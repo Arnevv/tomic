@@ -71,20 +71,22 @@ def _rolling_hv(closes: list[float], window: int) -> list[float]:
 
 
 def _iv_rank(value: float, series: list[float]) -> float | None:
-    if not series:
+    nums = [s for s in series if isinstance(s, (int, float))]
+    if not nums:
         return None
-    lo = min(series)
-    hi = max(series)
+    lo = min(nums)
+    hi = max(nums)
     if hi == lo:
         return None
     return (value - lo) / (hi - lo) * 100
 
 
 def _iv_percentile(value: float, series: list[float]) -> float | None:
-    if not series:
+    nums = [s for s in series if isinstance(s, (int, float))]
+    if not nums:
         return None
-    count = sum(1 for hv in series if hv < value)
-    return count / len(series) * 100
+    count = sum(1 for hv in nums if hv < value)
+    return count / len(nums) * 100
 
 
 # ---------------------------------------------------------------------------
@@ -201,23 +203,32 @@ def _export_option_chain(symbol: str, options: List[Dict[str, Any]]) -> None:
         "theta",
         "vega",
     ]
-    with path.open("w", newline="") as csvfile:
-        writer = csv.writer(csvfile)
-        writer.writerow(headers)
-        for opt in options:
-            greeks = opt.get("greeks") or {}
-            day = opt.get("day") or {}
-            details = opt.get("details") or {}
-            writer.writerow(
-                [
+    try:
+        with path.open("w", newline="", encoding="utf-8") as csvfile:
+            writer = csv.writer(csvfile)
+            writer.writerow(headers)
+            for opt in options:
+                greeks = opt.get("greeks") or {}
+                day = opt.get("day") or {}
+                details = opt.get("details") or {}
+                strike_raw = (
                     opt.get("strike_price")
                     or opt.get("strike")
-                    or opt.get("exercise_price"),
-                    opt.get("expiration_date")
-                    or opt.get("expDate")
-                    or opt.get("expiry"),
-                    opt.get("option_type")
-                    or opt.get("type")
+                    or opt.get("exercise_price")
+                )
+                try:
+                    strike_f = float(strike_raw)
+                    strike_out = int(strike_f) if strike_f.is_integer() else round(strike_f, 2)
+                except Exception:
+                    strike_out = strike_raw
+                writer.writerow(
+                    [
+                        strike_out,
+                        opt.get("expiration_date")
+                        or opt.get("expDate")
+                        or opt.get("expiry"),
+                        opt.get("option_type")
+                        or opt.get("type")
                     or opt.get("contract_type")
                     or details.get("contract_type")
                     or opt.get("right"),
@@ -239,12 +250,17 @@ def _export_option_chain(symbol: str, options: List[Dict[str, Any]]) -> None:
                     opt.get("theta")
                     if opt.get("theta") is not None
                     else greeks.get("theta"),
-                    opt.get("vega")
-                    if opt.get("vega") is not None
-                    else greeks.get("vega"),
-                ]
-            )
-    logger.info(f"Exported option chain to {path}")
+                        opt.get("vega")
+                        if opt.get("vega") is not None
+                        else greeks.get("vega"),
+                    ]
+                )
+        if not path.exists():
+            logger.error(f"Failed to export option chain to {path.resolve()}")
+        else:
+            logger.info(f"Exported option chain to {path.resolve()}")
+    except Exception as exc:  # pragma: no cover - filesystem errors
+        logger.error(f"Failed to export option chain to {path.resolve()}: {exc}")
 
 
 
@@ -361,20 +377,20 @@ class IVExtractor:
                 missing_delta += 1
                 continue
             else:
-                if str(right).lower().startswith("c") and 0.15 <= delta_f <= 0.35:
+                if str(right).lower().startswith("c") and 0.05 <= delta_f <= 0.45:
                     in_range += 1
                 if str(right).lower().startswith("c"):
                     seen_call_delta = True
                 elif (
                     str(right).lower().startswith("p")
-                    and 0.15 <= abs(delta_f) <= 0.35
+                    and 0.05 <= abs(delta_f) <= 0.45
                     and delta_f < 0
                 ):
                     in_range += 1
                 if str(right).lower().startswith("p"):
                     seen_put_delta = True
 
-            if str(right).lower().startswith("c") and 0.15 <= delta_f <= 0.35:
+            if str(right).lower().startswith("c") and 0.05 <= delta_f <= 0.45:
                 diff_c = abs(delta_f - 0.25)
                 if best_call_diff is None or diff_c < best_call_diff:
                     logger.debug(
@@ -384,7 +400,7 @@ class IVExtractor:
                     call_iv = iv_f
             elif (
                 str(right).lower().startswith("p")
-                and 0.15 <= abs(delta_f) <= 0.35
+                and 0.05 <= abs(delta_f) <= 0.45
                 and delta_f < 0
             ):
                 diff_p = abs(delta_f + 0.25)
@@ -400,6 +416,9 @@ class IVExtractor:
         if put_iv is None and fallback_put_iv is not None and seen_put_delta:
             logger.warning("No valid delta for put; using best-effort estimate")
             put_iv = fallback_put_iv
+
+        if call_iv is None or put_iv is None:
+            logger.warning("Missing call or put delta for skew calculation")
 
         logger.warning(
             f"{len(options)} opties verwerkt, {missing_iv} zonder IV, {missing_delta} zonder delta, {in_range} binnen delta-range"
@@ -469,7 +488,7 @@ class IVExtractor:
 # ---------------------------------------------------------------------------
 
 
-def fetch_polygon_iv30d(symbol: str) -> Dict[str, float | None]:
+def fetch_polygon_iv30d(symbol: str) -> Dict[str, float | None] | None:
     """Return volatility metrics for ``symbol`` using filtered snapshots."""
     spot, spot_date = _load_latest_close(symbol)
     if spot is None or spot_date is None:
@@ -498,6 +517,9 @@ def fetch_polygon_iv30d(symbol: str) -> Dict[str, float | None]:
 
     fetcher = SnapshotFetcher(api_key)
     opts1 = fetcher.fetch_expiry(symbol, target.strftime("%Y-%m-%d"))
+    if not opts1:
+        logger.warning(f"No contracts found for symbol {symbol}")
+        return None
 
     # Save raw option data for debugging
     debug_dir = Path(cfg_get("IV_DEBUG_DIR", "iv_debug"))
