@@ -559,8 +559,13 @@ def fetch_polygon_iv30d(symbol: str) -> Dict[str, float | None] | None:
     atm_fallback, atm_strike = IVExtractor.extract_atm_call(opts1, spot, symbol)
     if atm_iv_skew is None and atm_fallback is not None:
         logger.info(f"Selected ATM fallback IV from strike {atm_strike}")
-    atm_iv = atm_iv_skew or atm_fallback
-    atm_iv = atm_iv or call_iv
+
+    atm_iv = atm_iv_skew if isinstance(atm_iv_skew, (int, float)) else None
+    if atm_iv is None and isinstance(atm_fallback, (int, float)):
+        logger.info(f"Selected ATM fallback IV from strike {atm_strike}")
+        atm_iv = atm_fallback
+    if atm_iv is None and isinstance(call_iv, (int, float)):
+        atm_iv = call_iv
     if atm_iv is None:
         logger.error(
             f"ATM IV could not be determined for {symbol} on {target.strftime('%Y-%m-%d')}"
