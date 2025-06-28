@@ -351,9 +351,8 @@ class IVExtractor:
         return atm_iv, call_iv, put_iv
 
     @staticmethod
-    def extract_atm_call(options: List[Dict[str, Any]], spot: float) -> float | None:
-        atm_iv: float | None = None
-        atm_err = float("inf")
+    def extract_atm_call(options: List[Dict[str, Any]], spot: float, symbol: str) -> float | None:
+        iv_candidates: list[tuple[float, float]] = []
         for opt in options:
             right = (
                 opt.get("option_type")
@@ -375,18 +374,23 @@ class IVExtractor:
                 iv = opt.get("iv")
             if iv is None:
                 iv = greeks.get("iv")
+            logger.debug(f"iv={iv} (type: {type(iv)})")
             if strike is None or iv is None:
                 continue
             try:
-                strike_f = float(strike)
+                distance = abs(float(strike) - float(spot))
                 iv_f = float(iv)
-            except Exception:
+            except Exception as e:
+                logger.warning(f"Skipping option due to conversion error: {e}")
                 continue
-            diff = abs(strike_f - spot)
-            if diff < atm_err:
-                atm_err = diff
-                atm_iv = iv_f
-        return atm_iv
+            iv_candidates.append((distance, iv_f))
+        if not iv_candidates:
+            logger.warning(f"No valid IV candidates found for ATM call of {symbol}")
+            return None
+        iv_candidates.sort(key=lambda c: c[0])
+        best = iv_candidates[0]
+        logger.info(f"Selected ATM call: distance={best[0]:.2f} iv={best[1]}")
+        return best[1]
 
 
 # ---------------------------------------------------------------------------
@@ -443,16 +447,16 @@ def fetch_polygon_iv30d(symbol: str) -> Dict[str, float | None]:
             df.write(f"{strike},{delta},{iv}\n")
     atm_iv_skew, call_iv, put_iv = IVExtractor.extract_skew(opts1, spot)
     _export_option_chain(symbol, opts1)
-    atm_iv_fallback = IVExtractor.extract_atm_call(opts1, spot)
+    atm_iv_fallback = IVExtractor.extract_atm_call(opts1, spot, symbol)
     atm_iv = atm_iv_skew if atm_iv_skew is not None else atm_iv_fallback
 
     iv_month2 = iv_month3 = None
     if month2:
         opts2 = fetcher.fetch_expiry(symbol, month2.strftime("%Y-%m-%d"))
-        iv_month2 = IVExtractor.extract_atm_call(opts2, spot)
+        iv_month2 = IVExtractor.extract_atm_call(opts2, spot, symbol)
     if month3:
         opts3 = fetcher.fetch_expiry(symbol, month3.strftime("%Y-%m-%d"))
-        iv_month3 = IVExtractor.extract_atm_call(opts3, spot)
+        iv_month3 = IVExtractor.extract_atm_call(opts3, spot, symbol)
 
     term_m1_m2 = None
     term_m1_m3 = None
