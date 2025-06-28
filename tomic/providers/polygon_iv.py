@@ -5,6 +5,7 @@ from __future__ import annotations
 from datetime import datetime, date
 from pathlib import Path
 from typing import Any, Dict, List
+import json
 import time
 
 import requests
@@ -136,12 +137,16 @@ class IVExtractor:
         options: List[Dict[str, Any]], spot: float
     ) -> tuple[float | None, float | None, float | None]:
         options.sort(key=lambda o: float(o.get("strike_price") or o.get("strike") or 0))
+        logger.info(f"extract_skew: {len(options)} options")
         if options:
             logger.debug(f"Voorbeeldoptie: {options[0]}")
         atm_iv: float | None = None
         atm_err = float("inf")
         call_iv: float | None = None
         put_iv: float | None = None
+        best_call_diff: float | None = None
+        best_put_diff: float | None = None
+        skipped = 0
         for opt in options:
             right = (
                 opt.get("option_type")
@@ -166,13 +171,18 @@ class IVExtractor:
             logger.debug(
                 f"strike={strike}, delta={delta}, iv={iv}, type={right}"
             )
-            if None in (right, strike, iv) or delta is None:
+            if right is None or strike is None or iv is None:
+                skipped += 1
+                logger.debug(
+                    f"Filtered out: strike={strike}, iv={iv}, delta={delta}, right={right}"
+                )
                 continue
             try:
                 strike_f = float(strike)
                 iv_f = float(iv)
-                delta_f = float(delta)
             except Exception:
+                skipped += 1
+                logger.debug(f"Invalid numeric data: {json.dumps(opt)}")
                 continue
             diff = abs(strike_f - spot)
             if diff < atm_err and str(right).lower().startswith("c"):
@@ -181,26 +191,36 @@ class IVExtractor:
                 )
                 atm_err = diff
                 atm_iv = iv_f
-            if (
-                str(right).lower().startswith("c")
-                and call_iv is None
-                and delta_f <= 0.25
-            ):
-                logger.debug(
-                    f"call-option: strike={strike_f}, delta={delta_f}, iv={iv_f}"
-                )
-                call_iv = iv_f
-            if (
-                str(right).lower().startswith("p")
-                and put_iv is None
-                and -delta_f <= 0.25
-            ):
-                logger.debug(
-                    f"put-option: strike={strike_f}, delta={delta_f}, iv={iv_f}"
-                )
-                put_iv = iv_f
-            if call_iv is not None and put_iv is not None:
-                break
+
+            delta_f: float | None = None
+            if delta is not None:
+                try:
+                    delta_f = float(delta)
+                except Exception:
+                    logger.debug(f"Invalid delta: {json.dumps(opt)}")
+                    delta_f = None
+            if delta_f is None:
+                continue
+
+            if str(right).lower().startswith("c") and 0.15 <= delta_f <= 0.35:
+                diff_c = abs(delta_f - 0.25)
+                if best_call_diff is None or diff_c < best_call_diff:
+                    logger.debug(
+                        f"call-option candidate: strike={strike_f}, delta={delta_f}, iv={iv_f}"
+                    )
+                    best_call_diff = diff_c
+                    call_iv = iv_f
+            elif str(right).lower().startswith("p") and 0.15 <= abs(delta_f) <= 0.35 and delta_f < 0:
+                diff_p = abs(delta_f + 0.25)
+                if best_put_diff is None or diff_p < best_put_diff:
+                    logger.debug(
+                        f"put-option candidate: strike={strike_f}, delta={delta_f}, iv={iv_f}"
+                    )
+                    best_put_diff = diff_p
+                    put_iv = iv_f
+        logger.info(
+            f"Processed {len(options)} options, skipped {skipped}, atm_iv={atm_iv}, call_iv={call_iv}, put_iv={put_iv}"
+        )
         return atm_iv, call_iv, put_iv
 
     @staticmethod
@@ -274,7 +294,9 @@ def fetch_polygon_iv30d(symbol: str) -> Dict[str, float | None]:
 
     fetcher = SnapshotFetcher(api_key)
     opts1 = fetcher.fetch_expiry(symbol, target.strftime("%Y-%m-%d"))
-    atm_iv, call_iv, put_iv = IVExtractor.extract_skew(opts1, spot)
+    atm_iv_skew, call_iv, put_iv = IVExtractor.extract_skew(opts1, spot)
+    atm_iv_fallback = IVExtractor.extract_atm_call(opts1, spot)
+    atm_iv = atm_iv_skew if atm_iv_skew is not None else atm_iv_fallback
 
     iv_month2 = iv_month3 = None
     if month2:
