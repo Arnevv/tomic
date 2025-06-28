@@ -136,6 +136,8 @@ class IVExtractor:
         options: List[Dict[str, Any]], spot: float
     ) -> tuple[float | None, float | None, float | None]:
         options.sort(key=lambda o: float(o.get("strike_price") or o.get("strike") or 0))
+        if options:
+            logger.debug(f"Voorbeeldoptie: {options[0]}")
         atm_iv: float | None = None
         atm_err = float("inf")
         call_iv: float | None = None
@@ -153,8 +155,13 @@ class IVExtractor:
                 or opt.get("strike")
                 or opt.get("exercise_price")
             )
-            iv = opt.get("implied_volatility") or opt.get("iv")
-            delta = opt.get("delta") or opt.get("greeks", {}).get("delta")
+            greeks = opt.get("greeks", {})
+            iv = (
+                opt.get("implied_volatility")
+                or opt.get("iv")
+                or greeks.get("iv")
+            )
+            delta = opt.get("delta") or greeks.get("delta")
             if None in (right, strike, iv) or delta is None:
                 continue
             try:
@@ -165,6 +172,9 @@ class IVExtractor:
                 continue
             diff = abs(strike_f - spot)
             if diff < atm_err and str(right).lower().startswith("c"):
+                logger.debug(
+                    f"ATM-candidate: strike={strike_f}, iv={iv_f}, spot={spot}"
+                )
                 atm_err = diff
                 atm_iv = iv_f
             if (
@@ -172,12 +182,18 @@ class IVExtractor:
                 and call_iv is None
                 and delta_f <= 0.25
             ):
+                logger.debug(
+                    f"call-option: strike={strike_f}, delta={delta_f}, iv={iv_f}"
+                )
                 call_iv = iv_f
             if (
                 str(right).lower().startswith("p")
                 and put_iv is None
                 and -delta_f <= 0.25
             ):
+                logger.debug(
+                    f"put-option: strike={strike_f}, delta={delta_f}, iv={iv_f}"
+                )
                 put_iv = iv_f
             if call_iv is not None and put_iv is not None:
                 break
@@ -202,7 +218,8 @@ class IVExtractor:
                 or opt.get("strike")
                 or opt.get("exercise_price")
             )
-            iv = opt.get("implied_volatility") or opt.get("iv")
+            greeks = opt.get("greeks", {})
+            iv = opt.get("implied_volatility") or opt.get("iv") or greeks.get("iv")
             if strike is None or iv is None:
                 continue
             try:
