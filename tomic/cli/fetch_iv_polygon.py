@@ -24,7 +24,10 @@ def main(argv: List[str] | None = None) -> None:
 
     for sym in symbols:
         metrics = fetch_polygon_iv30d(sym)
-        iv = metrics.get("atm_iv") if metrics else None
+        if metrics is None:
+            logger.warning(f"No contracts found for symbol {sym}")
+            continue
+        iv = metrics.get("atm_iv")
         record = {
             "date": today,
             "atm_iv": iv,
