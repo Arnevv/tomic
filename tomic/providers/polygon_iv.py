@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Any, Dict, List
 import json
 import time
+import csv
 
 import requests
 
@@ -122,6 +123,77 @@ class SnapshotFetcher:
                 time.sleep(0.2)
         logger.info(f"{symbol} {expiry}: {len(options)} contracts")
         return options
+
+
+def _export_option_chain(symbol: str, options: List[Dict[str, Any]]) -> None:
+    """Write option chain to CSV using today's date and timestamp."""
+    base = Path("data")
+    base.mkdir(exist_ok=True)
+    date_dir = base / datetime.now().strftime("%Y-%m-%d")
+    date_dir.mkdir(parents=True, exist_ok=True)
+    filename = (
+        f"{symbol}_{datetime.now().strftime('%Y-%m-%d-%H-%M')}-optionchainpolygon.csv"
+    )
+    path = date_dir / filename
+    headers = [
+        "strike",
+        "expiry",
+        "right",
+        "IV",
+        "open",
+        "high",
+        "low",
+        "close",
+        "volume",
+        "vwap",
+        "delta",
+        "gamma",
+        "theta",
+        "vega",
+    ]
+    with path.open("w", newline="") as csvfile:
+        writer = csv.writer(csvfile)
+        writer.writerow(headers)
+        for opt in options:
+            greeks = opt.get("greeks") or {}
+            day = opt.get("day") or {}
+            writer.writerow(
+                [
+                    opt.get("strike_price")
+                    or opt.get("strike")
+                    or opt.get("exercise_price"),
+                    opt.get("expiration_date")
+                    or opt.get("expDate")
+                    or opt.get("expiry"),
+                    opt.get("option_type")
+                    or opt.get("type")
+                    or opt.get("contract_type")
+                    or opt.get("details", {}).get("contract_type")
+                    or opt.get("right"),
+                    opt.get("implied_volatility")
+                    or opt.get("iv")
+                    or greeks.get("iv"),
+                    opt.get("open") or day.get("open") or day.get("o"),
+                    opt.get("high") or day.get("high") or day.get("h"),
+                    opt.get("low") or day.get("low") or day.get("l"),
+                    opt.get("close") or day.get("close") or day.get("c"),
+                    opt.get("volume") or day.get("volume") or day.get("v"),
+                    opt.get("vwap") or day.get("vwap") or day.get("vw"),
+                    opt.get("delta")
+                    if opt.get("delta") is not None
+                    else greeks.get("delta"),
+                    opt.get("gamma")
+                    if opt.get("gamma") is not None
+                    else greeks.get("gamma"),
+                    opt.get("theta")
+                    if opt.get("theta") is not None
+                    else greeks.get("theta"),
+                    opt.get("vega")
+                    if opt.get("vega") is not None
+                    else greeks.get("vega"),
+                ]
+            )
+
 
 
 # ---------------------------------------------------------------------------
@@ -370,6 +442,7 @@ def fetch_polygon_iv30d(symbol: str) -> Dict[str, float | None]:
             )
             df.write(f"{strike},{delta},{iv}\n")
     atm_iv_skew, call_iv, put_iv = IVExtractor.extract_skew(opts1, spot)
+    _export_option_chain(symbol, opts1)
     atm_iv_fallback = IVExtractor.extract_atm_call(opts1, spot)
     atm_iv = atm_iv_skew if atm_iv_skew is not None else atm_iv_fallback
 
