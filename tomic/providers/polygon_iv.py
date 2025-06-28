@@ -274,7 +274,11 @@ class IVExtractor:
 
     @staticmethod
     def extract_skew(
-        options: List[Dict[str, Any]], spot: float
+        options: List[Dict[str, Any]],
+        spot: float,
+        *,
+        symbol: str | None = None,
+        expiry: str | None = None,
     ) -> tuple[float | None, float | None, float | None]:
         options.sort(key=lambda o: float(o.get("strike_price") or o.get("strike") or 0))
         logger.info(f"extract_skew: {len(options)} options")
@@ -418,7 +422,12 @@ class IVExtractor:
             put_iv = fallback_put_iv
 
         if call_iv is None or put_iv is None:
-            logger.warning("Missing call or put delta for skew calculation")
+            if symbol and expiry:
+                logger.warning(
+                    f"Could not extract skew for {symbol} {expiry}: no suitable delta-25 options found"
+                )
+            else:
+                logger.warning("Missing call or put delta for skew calculation")
 
         logger.warning(
             f"{len(options)} opties verwerkt, {missing_iv} zonder IV, {missing_delta} zonder delta, {in_range} binnen delta-range"
@@ -540,12 +549,22 @@ def fetch_polygon_iv30d(symbol: str) -> Dict[str, float | None] | None:
                 else greeks.get("delta")
             )
             df.write(f"{strike},{delta},{iv}\n")
-    atm_iv_skew, call_iv, put_iv = IVExtractor.extract_skew(opts1, spot)
-    _export_option_chain(symbol, opts1)
-    atm_iv_fallback, atm_strike = IVExtractor.extract_atm_call(opts1, spot, symbol)
-    if atm_iv_skew is None and atm_iv_fallback is not None:
+    atm_iv_skew, call_iv, put_iv = IVExtractor.extract_skew(
+        opts1, spot, symbol=symbol, expiry=target.strftime("%Y-%m-%d")
+    )
+    if opts1:
+        _export_option_chain(symbol, opts1)
+    else:
+        logger.warning(f"No contracts to export for {symbol}")
+    atm_fallback, atm_strike = IVExtractor.extract_atm_call(opts1, spot, symbol)
+    if atm_iv_skew is None and atm_fallback is not None:
         logger.info(f"Selected ATM fallback IV from strike {atm_strike}")
-    atm_iv = atm_iv_skew or atm_iv_fallback or call_iv
+    atm_iv = atm_iv_skew or atm_fallback
+    atm_iv = atm_iv or call_iv
+    if atm_iv is None:
+        logger.error(
+            f"ATM IV could not be determined for {symbol} on {target.strftime('%Y-%m-%d')}"
+        )
 
     iv_month2 = iv_month3 = None
     if month2:
@@ -588,6 +607,18 @@ def fetch_polygon_iv30d(symbol: str) -> Dict[str, float | None] | None:
         iv_percentile = _iv_percentile(scaled_iv, hv_series)
     else:
         logger.debug("Cannot compute IV rank without ATM IV")
+
+    today_str = datetime.now(ZoneInfo("America/New_York")).strftime("%Y-%m-%d")
+    daily_iv_data = {
+        "date": today_str,
+        "atm_iv": atm_iv,
+        "iv_rank (HV)": iv_rank,
+        "iv_percentile (HV)": iv_percentile,
+        "term_m1_m2": term_m1_m2,
+        "term_m1_m3": term_m1_m3,
+        "skew": skew,
+    }
+    logger.debug(f"✅ Summary data for {symbol}: {json.dumps(daily_iv_data, indent=2)}")
 
     return {
         "atm_iv": atm_iv,
