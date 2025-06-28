@@ -3,11 +3,14 @@ from __future__ import annotations
 """Helpers for retrieving IV data from the Polygon API."""
 
 from datetime import datetime, date
+from zoneinfo import ZoneInfo
 from pathlib import Path
 from typing import Any, Dict, List
 import json
 import time
 import csv
+
+from tomic.analysis.metrics import historical_volatility
 
 import requests
 
@@ -38,6 +41,50 @@ def _load_latest_close(symbol: str) -> tuple[float | None, str | None]:
         except Exception:
             return None, None
     return None, None
+
+
+def _get_closes(symbol: str) -> list[float]:
+    """Return list of closing prices sorted by date for ``symbol``."""
+    base = Path(cfg_get("PRICE_HISTORY_DIR", "tomic/data/spot_prices"))
+    path = base / f"{symbol}.json"
+    data = load_json(path)
+    if not isinstance(data, list):
+        return []
+    data.sort(key=lambda r: r.get("date", ""))
+    closes: list[float] = []
+    for rec in data:
+        try:
+            closes.append(float(rec.get("close", 0)))
+        except Exception:
+            continue
+    return closes
+
+
+def _rolling_hv(closes: list[float], window: int) -> list[float]:
+    """Return list of HV values for a rolling ``window``."""
+    series: list[float] = []
+    for i in range(window, len(closes) + 1):
+        hv = historical_volatility(closes[i - window : i], window=window)
+        if hv is not None:
+            series.append(hv)
+    return series
+
+
+def _iv_rank(value: float, series: list[float]) -> float | None:
+    if not series:
+        return None
+    lo = min(series)
+    hi = max(series)
+    if hi == lo:
+        return None
+    return (value - lo) / (hi - lo) * 100
+
+
+def _iv_percentile(value: float, series: list[float]) -> float | None:
+    if not series:
+        return None
+    count = sum(1 for hv in series if hv < value)
+    return count / len(series) * 100
 
 
 # ---------------------------------------------------------------------------
@@ -135,6 +182,9 @@ def _export_option_chain(symbol: str, options: List[Dict[str, Any]]) -> None:
         f"{symbol}_{datetime.now().strftime('%Y-%m-%d-%H-%M')}-optionchainpolygon.csv"
     )
     path = date_dir / filename
+    if not options or not any(isinstance(o, dict) for o in options):
+        logger.warning(f"No valid option contracts to export for {symbol}")
+        return
     headers = [
         "strike",
         "expiry",
@@ -194,6 +244,7 @@ def _export_option_chain(symbol: str, options: List[Dict[str, Any]]) -> None:
                     else greeks.get("vega"),
                 ]
             )
+    logger.info(f"Exported option chain to {path}")
 
 
 
@@ -426,7 +477,9 @@ def fetch_polygon_iv30d(symbol: str) -> Dict[str, float | None]:
         return {"atm_iv": None, "skew": None, "term_m1_m2": None, "term_m1_m3": None}
 
     api_key = cfg_get("POLYGON_API_KEY", "")
-    today_dt = datetime.strptime(spot_date, "%Y-%m-%d").date()
+    spot = round(float(spot), 2)
+
+    today_dt = datetime.now(ZoneInfo("America/New_York")).date()
     expiries = ExpiryPlanner.get_next_third_fridays(today_dt, count=4)
 
     target: date | None = None
@@ -470,7 +523,7 @@ def fetch_polygon_iv30d(symbol: str) -> Dict[str, float | None]:
     atm_iv_fallback, atm_strike = IVExtractor.extract_atm_call(opts1, spot, symbol)
     if atm_iv_skew is None and atm_iv_fallback is not None:
         logger.info(f"Selected ATM fallback IV from strike {atm_strike}")
-    atm_iv = atm_iv_skew if atm_iv_skew is not None else atm_iv_fallback
+    atm_iv = atm_iv_skew or atm_iv_fallback or call_iv
 
     iv_month2 = iv_month3 = None
     if month2:
@@ -484,18 +537,43 @@ def fetch_polygon_iv30d(symbol: str) -> Dict[str, float | None]:
     term_m1_m3 = None
     if atm_iv is not None and iv_month2 is not None:
         term_m1_m2 = round((atm_iv - iv_month2) * 100, 2)
+    else:
+        if atm_iv is None or iv_month2 is None:
+            logger.debug(
+                f"term_m1_m2 unavailable: atm_iv={atm_iv} iv_month2={iv_month2}"
+            )
     if atm_iv is not None and iv_month3 is not None:
         term_m1_m3 = round((atm_iv - iv_month3) * 100, 2)
+    else:
+        if atm_iv is None or iv_month3 is None:
+            logger.debug(
+                f"term_m1_m3 unavailable: atm_iv={atm_iv} iv_month3={iv_month3}"
+            )
 
     skew = None
     if call_iv is not None and put_iv is not None:
         skew = round((put_iv - call_iv) * 100, 2)
+    else:
+        logger.debug(f"skew unavailable: call_iv={call_iv} put_iv={put_iv}")
+
+    iv_rank = None
+    iv_percentile = None
+    closes = _get_closes(symbol)
+    hv_series = _rolling_hv(closes, 30)
+    if atm_iv is not None:
+        scaled_iv = atm_iv * 100
+        iv_rank = _iv_rank(scaled_iv, hv_series)
+        iv_percentile = _iv_percentile(scaled_iv, hv_series)
+    else:
+        logger.debug("Cannot compute IV rank without ATM IV")
 
     return {
         "atm_iv": atm_iv,
         "skew": skew,
         "term_m1_m2": term_m1_m2,
         "term_m1_m3": term_m1_m3,
+        "iv_rank (HV)": iv_rank,
+        "iv_percentile (HV)": iv_percentile,
     }
 
 
