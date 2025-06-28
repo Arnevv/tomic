@@ -306,7 +306,7 @@ def test_extract_skew_greeks_only():
     assert atm == 0.2
     assert call == 0.21
     assert put == 0.24
-    atm_call = mod.IVExtractor.extract_atm_call(options, 100.0, "ABC")
+    atm_call, strike = mod.IVExtractor.extract_atm_call(options, 100.0, "ABC")
     assert atm_call == 0.2
 
 
