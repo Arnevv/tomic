@@ -10,10 +10,12 @@ def test_fetch_polygon_iv30d(monkeypatch, tmp_path):
     price_dir = tmp_path / "prices"
     price_dir.mkdir()
     (price_dir / "ABC.json").write_text(
-        json.dumps([
-            {"date": "2023-12-31", "close": 99.0},
-            {"date": "2024-01-01", "close": 100.0},
-        ])
+        json.dumps(
+            [
+                {"date": "2023-12-31", "close": 99.0},
+                {"date": "2024-01-01", "close": 100.0},
+            ]
+        )
     )
 
     monkeypatch.setattr(
@@ -22,48 +24,80 @@ def test_fetch_polygon_iv30d(monkeypatch, tmp_path):
         lambda name, default=None: (
             "key"
             if name == "POLYGON_API_KEY"
-            else str(price_dir)
-            if name == "PRICE_HISTORY_DIR"
-            else default
+            else str(price_dir) if name == "PRICE_HISTORY_DIR" else default
         ),
     )
 
-    sample = {
+    exp1 = {
         "results": {
             "options": [
                 {
-                    "expiration_date": "2024-01-28",
-                    "strike_price": 102.5,
-                    "implied_volatility": 0.2,
-                    "delta": 0.3,
-                    "option_type": "call",
-                },
-                {
-                    "expiration_date": "2024-01-30",
-                    "strike_price": 97.5,
-                    "implied_volatility": 0.22,
-                    "delta": -0.3,
-                    "option_type": "put",
-                },
-                {
-                    "expiration_date": "2024-02-20",
+                    "expiration_date": "2024-01-19",
                     "strike_price": 100.0,
-                    "implied_volatility": 0.5,
-                    "delta": 0.1,
+                    "implied_volatility": 0.2,
+                    "delta": 0.5,
                     "option_type": "call",
+                },
+                {
+                    "expiration_date": "2024-01-19",
+                    "strike_price": 105.0,
+                    "implied_volatility": 0.21,
+                    "delta": 0.25,
+                    "option_type": "call",
+                },
+                {
+                    "expiration_date": "2024-01-19",
+                    "strike_price": 90.0,
+                    "implied_volatility": 0.24,
+                    "delta": -0.24,
+                    "option_type": "put",
                 },
             ]
         }
     }
+    exp2 = {
+        "results": {
+            "options": [
+                {
+                    "expiration_date": "2024-02-16",
+                    "strike_price": 100.0,
+                    "implied_volatility": 0.19,
+                    "delta": 0.5,
+                    "option_type": "call",
+                }
+            ]
+        }
+    }
+    exp3 = {
+        "results": {
+            "options": [
+                {
+                    "expiration_date": "2024-03-15",
+                    "strike_price": 100.0,
+                    "implied_volatility": 0.18,
+                    "delta": 0.5,
+                    "option_type": "call",
+                }
+            ]
+        }
+    }
 
-    class FakeResp:
-        def raise_for_status(self):
-            pass
+    def fake_get(url, params=None, timeout=10):
+        exp = params.get("expiration_date") if params else None
+        resp = SimpleNamespace(status_code=200)
+        resp.raise_for_status = lambda: None
+        if exp == "2024-01-19":
+            resp.json = lambda: exp1
+        elif exp == "2024-02-16":
+            resp.json = lambda: exp2
+        elif exp == "2024-03-15":
+            resp.json = lambda: exp3
+        else:
+            resp.json = lambda: {"results": {"options": []}}
+        return resp
 
-        def json(self):
-            return sample
-
-    monkeypatch.setattr(mod.requests, "get", lambda *a, **k: FakeResp(), raising=False)
+    monkeypatch.setattr(mod.requests, "get", fake_get, raising=False)
+    monkeypatch.setattr(mod.time, "sleep", lambda s: None)
 
     class FakeDT(datetime):
         @classmethod
@@ -74,5 +108,7 @@ def test_fetch_polygon_iv30d(monkeypatch, tmp_path):
     monkeypatch.setattr(mod, "datetime", FakeDT)
 
     metrics = mod.fetch_polygon_iv30d("ABC")
-    assert metrics["atm_iv"] == (0.2 + 0.22) / 2
-    assert metrics["skew"] is not None
+    assert metrics["atm_iv"] == 0.2
+    assert metrics["term_m1_m2"] == 1.0
+    assert metrics["term_m1_m3"] == 2.0
+    assert metrics["skew"] == 3.0
