@@ -216,6 +216,8 @@ def main(argv: List[str] | None = None) -> None:
         term_m1_m2 = metrics.get("term_m1_m2") if metrics else None
         term_m1_m3 = metrics.get("term_m1_m3") if metrics else None
         skew = metrics.get("skew") if metrics else None
+        rank = metrics.get("iv_rank (HV)") if metrics else None
+        pct = metrics.get("iv_percentile (HV)") if metrics else None
         if iv is None:
             logger.warning(f"No implied volatility for {sym}")
         hv_series = rolling_hv(closes, 30)
@@ -240,6 +242,9 @@ def main(argv: List[str] | None = None) -> None:
             "hv252": hv252,
         }
         update_json_file(hv_dir / f"{sym}.json", hv_record, ["date"])
+
+        rank = metrics.get("iv_rank (HV)") if metrics else None
+        pct = metrics.get("iv_percentile (HV)") if metrics else None
 
         summary_record = {
             "date": today,
