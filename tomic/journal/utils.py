@@ -8,6 +8,7 @@ from typing import Any, Iterable, List, Union
 
 from tomic.config import get as cfg_get
 from tomic.helpers.json_utils import dump_json
+from tomic.logutils import logger
 
 JOURNAL_FILE = Path(cfg_get("JOURNAL_FILE", "journal.json"))
 
@@ -21,15 +22,21 @@ def load_json(path: PathLike) -> Any:
     p = Path(path)
     if not p.exists():
         return []
-    with p.open("r", encoding="utf-8") as f:
-        return json.load(f)
+    try:
+        with p.open("r", encoding="utf-8") as f:
+            return json.load(f)
+    except Exception:
+        logger.error(f"Corrupted JSON at {p}")
+        return []
 
 
 def save_json(data: Any, path: PathLike) -> None:
     """Write ``data`` to ``path`` as JSON."""
 
     p = Path(path)
-    dump_json(data, p)
+    tmp = p.with_name(f"temp_{p.name}")
+    dump_json(data, tmp)
+    tmp.replace(p)
 
 
 def load_journal(path: PathLike = JOURNAL_FILE) -> List[Any]:
