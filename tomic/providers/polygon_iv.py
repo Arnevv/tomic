@@ -147,6 +147,13 @@ class IVExtractor:
         best_call_diff: float | None = None
         best_put_diff: float | None = None
         skipped = 0
+        missing_iv = 0
+        missing_delta = 0
+        in_range = 0
+        fallback_call_iv: float | None = None
+        fallback_call_diff: float | None = None
+        fallback_put_iv: float | None = None
+        fallback_put_diff: float | None = None
         for opt in options:
             right = (
                 opt.get("option_type")
@@ -166,12 +173,29 @@ class IVExtractor:
                 iv = opt.get("iv")
             if iv is None:
                 iv = greeks.get("iv")
-            delta = opt.get("delta") if opt.get("delta") is not None else greeks.get("delta")
-            logger.debug(f"Option raw greeks: {opt.get('greeks')}")
-            logger.debug(
-                f"strike={strike}, delta={delta}, iv={iv}, type={right}"
+            delta = (
+                opt.get("delta")
+                if opt.get("delta") is not None
+                else greeks.get("delta")
             )
-            if right is None or strike is None or iv is None:
+            logger.debug(f"Option raw greeks: {opt.get('greeks')}")
+            logger.debug(f"strike={strike}, delta={delta}, iv={iv}, type={right}")
+            if right is None or strike is None:
+                skipped += 1
+                logger.debug(
+                    f"Filtered out: strike={strike}, iv={iv}, delta={delta}, right={right}"
+                )
+                continue
+
+            iv_f: float | None = None
+            try:
+                if iv is not None:
+                    iv_f = float(iv)
+                else:
+                    missing_iv += 1
+            except Exception:
+                missing_iv += 1
+            if iv_f is None:
                 skipped += 1
                 logger.debug(
                     f"Filtered out: strike={strike}, iv={iv}, delta={delta}, right={right}"
@@ -179,18 +203,25 @@ class IVExtractor:
                 continue
             try:
                 strike_f = float(strike)
-                iv_f = float(iv)
             except Exception:
                 skipped += 1
                 logger.debug(f"Invalid numeric data: {json.dumps(opt)}")
                 continue
             diff = abs(strike_f - spot)
-            if diff < atm_err and str(right).lower().startswith("c"):
-                logger.debug(
-                    f"ATM-candidate: strike={strike_f}, iv={iv_f}, spot={spot}"
-                )
-                atm_err = diff
-                atm_iv = iv_f
+            if str(right).lower().startswith("c"):
+                if diff < atm_err:
+                    logger.debug(
+                        f"ATM-candidate: strike={strike_f}, iv={iv_f}, spot={spot}"
+                    )
+                    atm_err = diff
+                    atm_iv = iv_f
+                if fallback_call_diff is None or diff < fallback_call_diff:
+                    fallback_call_diff = diff
+                    fallback_call_iv = iv_f
+            elif str(right).lower().startswith("p"):
+                if fallback_put_diff is None or diff < fallback_put_diff:
+                    fallback_put_diff = diff
+                    fallback_put_iv = iv_f
 
             delta_f: float | None = None
             if delta is not None:
@@ -200,7 +231,17 @@ class IVExtractor:
                     logger.debug(f"Invalid delta: {json.dumps(opt)}")
                     delta_f = None
             if delta_f is None:
+                missing_delta += 1
                 continue
+            else:
+                if str(right).lower().startswith("c") and 0.15 <= delta_f <= 0.35:
+                    in_range += 1
+                elif (
+                    str(right).lower().startswith("p")
+                    and 0.15 <= abs(delta_f) <= 0.35
+                    and delta_f < 0
+                ):
+                    in_range += 1
 
             if str(right).lower().startswith("c") and 0.15 <= delta_f <= 0.35:
                 diff_c = abs(delta_f - 0.25)
@@ -210,7 +251,11 @@ class IVExtractor:
                     )
                     best_call_diff = diff_c
                     call_iv = iv_f
-            elif str(right).lower().startswith("p") and 0.15 <= abs(delta_f) <= 0.35 and delta_f < 0:
+            elif (
+                str(right).lower().startswith("p")
+                and 0.15 <= abs(delta_f) <= 0.35
+                and delta_f < 0
+            ):
                 diff_p = abs(delta_f + 0.25)
                 if best_put_diff is None or diff_p < best_put_diff:
                     logger.debug(
@@ -218,6 +263,16 @@ class IVExtractor:
                     )
                     best_put_diff = diff_p
                     put_iv = iv_f
+        if call_iv is None and fallback_call_iv is not None:
+            logger.warning("No valid delta for call; using best-effort estimate")
+            call_iv = fallback_call_iv
+        if put_iv is None and fallback_put_iv is not None:
+            logger.warning("No valid delta for put; using best-effort estimate")
+            put_iv = fallback_put_iv
+
+        logger.warning(
+            f"{len(options)} opties verwerkt, {missing_iv} zonder IV, {missing_delta} zonder delta, {in_range} binnen delta-range"
+        )
         logger.info(
             f"Processed {len(options)} options, skipped {skipped}, atm_iv={atm_iv}, call_iv={call_iv}, put_iv={put_iv}"
         )
@@ -294,6 +349,26 @@ def fetch_polygon_iv30d(symbol: str) -> Dict[str, float | None]:
 
     fetcher = SnapshotFetcher(api_key)
     opts1 = fetcher.fetch_expiry(symbol, target.strftime("%Y-%m-%d"))
+
+    # Save raw option data for debugging
+    debug_dir = Path(cfg_get("IV_DEBUG_DIR", "iv_debug"))
+    debug_dir.mkdir(parents=True, exist_ok=True)
+    debug_file = debug_dir / f"{symbol}.log"
+    with debug_file.open("w", encoding="utf-8") as df:
+        for opt in opts1:
+            strike = (
+                opt.get("strike_price")
+                or opt.get("strike")
+                or opt.get("exercise_price")
+            )
+            greeks = opt.get("greeks") or {}
+            iv = opt.get("implied_volatility") or opt.get("iv") or greeks.get("iv")
+            delta = (
+                opt.get("delta")
+                if opt.get("delta") is not None
+                else greeks.get("delta")
+            )
+            df.write(f"{strike},{delta},{iv}\n")
     atm_iv_skew, call_iv, put_iv = IVExtractor.extract_skew(opts1, spot)
     atm_iv_fallback = IVExtractor.extract_atm_call(opts1, spot)
     atm_iv = atm_iv_skew if atm_iv_skew is not None else atm_iv_fallback

@@ -18,13 +18,18 @@ def test_fetch_polygon_iv30d(monkeypatch, tmp_path):
         )
     )
 
+    iv_dir = tmp_path / "iv_debug"
     monkeypatch.setattr(
         mod,
         "cfg_get",
         lambda name, default=None: (
             "key"
             if name == "POLYGON_API_KEY"
-            else str(price_dir) if name == "PRICE_HISTORY_DIR" else default
+            else (
+                str(price_dir)
+                if name == "PRICE_HISTORY_DIR"
+                else str(iv_dir) if name == "IV_DEBUG_DIR" else default
+            )
         ),
     )
 
@@ -112,6 +117,7 @@ def test_fetch_polygon_iv30d(monkeypatch, tmp_path):
     assert metrics["term_m1_m2"] == 1.0
     assert metrics["term_m1_m3"] == 2.0
     assert metrics["skew"] == 3.0
+    assert (iv_dir / "ABC.log").exists()
 
 
 def test_fetch_polygon_iv30d_fallback(monkeypatch, tmp_path):
@@ -120,19 +126,26 @@ def test_fetch_polygon_iv30d_fallback(monkeypatch, tmp_path):
     price_dir = tmp_path / "prices"
     price_dir.mkdir()
     (price_dir / "ABC.json").write_text(
-        json.dumps([
-            {"date": "2023-12-31", "close": 99.0},
-            {"date": "2024-01-01", "close": 100.0},
-        ])
+        json.dumps(
+            [
+                {"date": "2023-12-31", "close": 99.0},
+                {"date": "2024-01-01", "close": 100.0},
+            ]
+        )
     )
 
+    iv_dir = tmp_path / "iv_debug"
     monkeypatch.setattr(
         mod,
         "cfg_get",
         lambda name, default=None: (
             "key"
             if name == "POLYGON_API_KEY"
-            else str(price_dir) if name == "PRICE_HISTORY_DIR" else default
+            else (
+                str(price_dir)
+                if name == "PRICE_HISTORY_DIR"
+                else str(iv_dir) if name == "IV_DEBUG_DIR" else default
+            )
         ),
     )
 
@@ -205,6 +218,7 @@ def test_fetch_polygon_iv30d_fallback(monkeypatch, tmp_path):
     assert metrics["term_m1_m2"] == 1.0
     assert metrics["term_m1_m3"] == 2.0
     assert metrics["skew"] is None
+    assert (iv_dir / "ABC.log").exists()
 
 
 def test_extract_skew_greeks_none():
@@ -299,8 +313,18 @@ def test_extract_skew_greeks_only():
 def test_extract_skew_missing_delta_atm_only():
     mod = importlib.import_module("tomic.providers.polygon_iv")
     options = [
-        {"strike_price": 100.0, "implied_volatility": 0.2, "option_type": "call", "delta": None},
-        {"strike_price": 105.0, "implied_volatility": 0.21, "option_type": "call", "delta": None},
+        {
+            "strike_price": 100.0,
+            "implied_volatility": 0.2,
+            "option_type": "call",
+            "delta": None,
+        },
+        {
+            "strike_price": 105.0,
+            "implied_volatility": 0.21,
+            "option_type": "call",
+            "delta": None,
+        },
     ]
     atm, call, put = mod.IVExtractor.extract_skew(options, 100.0)
     assert atm == 0.2
@@ -311,8 +335,18 @@ def test_extract_skew_missing_delta_atm_only():
 def test_extract_skew_delta_near_threshold():
     mod = importlib.import_module("tomic.providers.polygon_iv")
     options = [
-        {"strike_price": 100.0, "implied_volatility": 0.2, "delta": 0.26, "option_type": "call"},
-        {"strike_price": 90.0, "implied_volatility": 0.23, "delta": -0.27, "option_type": "put"},
+        {
+            "strike_price": 100.0,
+            "implied_volatility": 0.2,
+            "delta": 0.26,
+            "option_type": "call",
+        },
+        {
+            "strike_price": 90.0,
+            "implied_volatility": 0.23,
+            "delta": -0.27,
+            "option_type": "put",
+        },
     ]
     atm, call, put = mod.IVExtractor.extract_skew(options, 100.0)
     assert atm == 0.2
