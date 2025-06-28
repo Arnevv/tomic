@@ -155,13 +155,17 @@ class IVExtractor:
                 or opt.get("strike")
                 or opt.get("exercise_price")
             )
-            greeks = opt.get("greeks", {})
-            iv = (
-                opt.get("implied_volatility")
-                or opt.get("iv")
-                or greeks.get("iv")
+            greeks = opt.get("greeks") or {}
+            iv = opt.get("implied_volatility")
+            if iv is None:
+                iv = opt.get("iv")
+            if iv is None:
+                iv = greeks.get("iv")
+            delta = opt.get("delta") if opt.get("delta") is not None else greeks.get("delta")
+            logger.debug(f"Option raw greeks: {opt.get('greeks')}")
+            logger.debug(
+                f"strike={strike}, delta={delta}, iv={iv}, type={right}"
             )
-            delta = opt.get("delta") or greeks.get("delta")
             if None in (right, strike, iv) or delta is None:
                 continue
             try:
@@ -218,8 +222,12 @@ class IVExtractor:
                 or opt.get("strike")
                 or opt.get("exercise_price")
             )
-            greeks = opt.get("greeks", {})
-            iv = opt.get("implied_volatility") or opt.get("iv") or greeks.get("iv")
+            greeks = opt.get("greeks") or {}
+            iv = opt.get("implied_volatility")
+            if iv is None:
+                iv = opt.get("iv")
+            if iv is None:
+                iv = greeks.get("iv")
             if strike is None or iv is None:
                 continue
             try:
