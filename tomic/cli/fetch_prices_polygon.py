@@ -11,17 +11,36 @@ from tomic.analysis.metrics import average_true_range
 
 from tomic.config import get as cfg_get
 from tomic.logutils import logger, setup_logging
-from tomic.journal.utils import update_json_file
+from tomic.journal.utils import load_json, save_json
 from tomic.polygon_client import PolygonClient
+from tomic.providers.polygon_iv import _load_latest_close
 from .compute_volstats_polygon import main as compute_volstats_polygon_main
 
 
 def _request_bars(client: PolygonClient, symbol: str) -> Iterable[dict]:
-    """Return daily bar records for ``symbol`` using Polygon."""
+    """Return daily bar records for ``symbol`` using Polygon.
+
+    This function fetches only the missing dates based on the last close
+    available in ``PRICE_HISTORY_DIR``. If no local data exists it falls back
+    to requesting the last 252 trading days.
+    """
+
     today = datetime.now().date()
-    start = today - timedelta(days=365)
-    path = f"v2/aggs/ticker/{symbol}/range/1/day/{start}/{today}"
-    data = client._request(path, {"limit": 252, "adjusted": "true"})
+    _, last_date = _load_latest_close(symbol)
+    params = {"adjusted": "true"}
+    path = f"v2/aggs/ticker/{symbol}/range/1/day"
+    if last_date:
+        try:
+            start_dt = datetime.strptime(last_date, "%Y-%m-%d").date() + timedelta(days=1)
+        except Exception:
+            start_dt = today - timedelta(days=365)
+        if start_dt > today:
+            return []
+        params.update({"from": str(start_dt), "to": str(today)})
+    else:
+        params.update({"limit": 252})
+
+    data = client._request(path, params)
     bars = data.get("results") or []
     records = []
     for bar in bars:
@@ -57,6 +76,22 @@ def _request_bars(client: PolygonClient, symbol: str) -> Iterable[dict]:
     return records
 
 
+def _merge_price_data(file: Path, records: list[dict]) -> int:
+    """Merge ``records`` into ``file`` keeping existing entries intact."""
+
+    data = load_json(file)
+    if not isinstance(data, list):
+        data = []
+    existing_dates = {rec.get("date") for rec in data if isinstance(rec, dict)}
+    new = [r for r in records if r.get("date") not in existing_dates]
+    if not new:
+        return 0
+    data.extend(new)
+    data.sort(key=lambda r: r.get("date", ""))
+    save_json(data, file)
+    return len(new)
+
+
 def main(argv: List[str] | None = None) -> None:
     """Fetch price history for default or provided symbols via Polygon."""
     setup_logging()
@@ -82,9 +117,10 @@ def main(argv: List[str] | None = None) -> None:
                 logger.warning(f"No price data for {sym}")
             else:
                 file = base_dir / f"{sym}.json"
-                for rec in records:
-                    update_json_file(file, rec, ["date"])
-                stored += 1
+                added = _merge_price_data(file, records)
+                logger.info(f"{sym}: {added} nieuwe datapunten")
+                if added:
+                    stored += 1
             processed.append(sym)
             sleep(sleep_between)
     finally:
