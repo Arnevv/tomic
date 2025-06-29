@@ -99,7 +99,11 @@ def main(argv: List[str] | None = None) -> None:
     if argv is None:
         argv = []
     symbols = [s.upper() for s in argv] if argv else [s.upper() for s in cfg_get("DEFAULT_SYMBOLS", [])]
-    max_syms = int(cfg_get("MAX_SYMBOLS_PER_RUN", 20))
+    raw_max = cfg_get("MAX_SYMBOLS_PER_RUN")
+    try:
+        max_syms = int(raw_max) if raw_max is not None else None
+    except (TypeError, ValueError):
+        max_syms = None
     sleep_between = float(cfg_get("POLYGON_SLEEP_BETWEEN", 1.2))
 
     base_dir = Path(cfg_get("PRICE_HISTORY_DIR", "tomic/data/spot_prices"))
@@ -109,7 +113,7 @@ def main(argv: List[str] | None = None) -> None:
     processed: list[str] = []
     try:
         for idx, sym in enumerate(symbols):
-            if idx >= max_syms:
+            if max_syms is not None and idx >= max_syms:
                 break
             logger.info(f"Fetching bars for {sym}")
             records = list(_request_bars(client, sym))

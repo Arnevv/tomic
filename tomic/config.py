@@ -98,7 +98,9 @@ class AppConfig(BaseModel):
 
     # Polygon API tuning
     POLYGON_SLEEP_BETWEEN: float = 1.2
-    MAX_SYMBOLS_PER_RUN: int = 20
+    POLYGON_DELAY_SNAPSHOT_MS: int = 200
+    MAX_SYMBOLS_PER_RUN: int | None = None
+    POLYGON_API_KEYS: List[str] = []
 
 
 _BASE_DIR = Path(__file__).resolve().parent.parent

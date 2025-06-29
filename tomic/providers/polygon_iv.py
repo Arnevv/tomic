@@ -182,6 +182,9 @@ class SnapshotFetcher:
             if next_url:
                 time.sleep(0.2)
         logger.info(f"{symbol} {expiry}: {len(options)} contracts")
+        delay_ms = int(cfg_get("POLYGON_DELAY_SNAPSHOT_MS", 200))
+        if delay_ms > 0:
+            time.sleep(delay_ms / 1000)
         return options
 
 

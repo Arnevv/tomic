@@ -22,12 +22,16 @@ def main(argv: List[str] | None = None) -> None:
         argv = []
     symbols = [s.upper() for s in argv] if argv else [s.upper() for s in cfg_get("DEFAULT_SYMBOLS", [])]
     summary_dir = Path(cfg_get("IV_DAILY_SUMMARY_DIR", "tomic/data/iv_daily_summary"))
-    max_syms = int(cfg_get("MAX_SYMBOLS_PER_RUN", 20))
+    raw_max = cfg_get("MAX_SYMBOLS_PER_RUN")
+    try:
+        max_syms = int(raw_max) if raw_max is not None else None
+    except (TypeError, ValueError):
+        max_syms = None
     sleep_between = float(cfg_get("POLYGON_SLEEP_BETWEEN", 1.2))
 
     processed = 0
     for sym in symbols:
-        if processed >= max_syms:
+        if max_syms is not None and processed >= max_syms:
             break
         metrics = fetch_polygon_iv30d(sym)
         date_str = latest_close_date(sym) or datetime.now().strftime("%Y-%m-%d")
