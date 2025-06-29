@@ -8,12 +8,11 @@ from pathlib import Path
 from typing import Any, Dict, List
 import json
 import time
-import random
 import csv
 
 from tomic.analysis.metrics import historical_volatility
 
-import requests
+from tomic.polygon_client import PolygonClient
 
 from tomic.config import get as cfg_get
 from tomic.logutils import logger
@@ -129,58 +128,47 @@ class ExpiryPlanner:
 class SnapshotFetcher:
     """Retrieve option snapshot data from Polygon."""
 
-    def __init__(self, api_key: str) -> None:
-        self.api_key = api_key
+    def __init__(self, api_key: str | None) -> None:
+        self.client = PolygonClient(api_key=api_key)
 
     def fetch_expiry(self, symbol: str, expiry: str) -> List[Dict[str, Any]]:
-        url = f"https://api.polygon.io/v3/snapshot/options/{symbol.upper()}"
-        params = {"expiration_date": expiry, "apiKey": self.api_key}
+        path = f"v3/snapshot/options/{symbol.upper()}"
+        params = {"expiration_date": expiry}
         options: List[Dict[str, Any]] = []
-        next_url: str | None = url
+        next_path: str | None = path
         first = True
-        while next_url:
-            params_to_use = params if first else {"apiKey": self.api_key}
-            if first:
-                logger.info(f"Requesting snapshot for {symbol} {expiry}")
-            resp = requests.get(next_url, params=params_to_use, timeout=10)
-            attempt = 0
-            while getattr(resp, "status_code", 0) == 429 and attempt < 5:
-                attempt += 1
-                wait = min(60, 2 ** attempt + random.uniform(0, 1))
-                logger.warning(
-                    f"Polygon snapshot rate limit (attempt {attempt}), sleeping {wait:.1f}s"
-                )
-                time.sleep(wait)
-                resp = requests.get(
-                    next_url,
-                    params=params_to_use,
-                    timeout=10,
-                )
-            if first:
-                first = False
-            status = getattr(resp, "status_code", "n/a")
-            text = getattr(resp, "text", "")
-            logger.debug(f"Response {status}: {text[:200]}")
-            try:
-                resp.raise_for_status()
-                payload = resp.json()
-            except Exception as exc:  # pragma: no cover - network failure
-                logger.warning(f"Polygon request failed for {symbol}: {exc}")
-                break
-            results = payload.get("results", {})
-            if isinstance(results, dict):
-                opts = results.get("options") or []
-            elif isinstance(results, list):  # pragma: no cover - alt structure
-                opts = results
-            else:
-                opts = []
-            if isinstance(opts, list):
-                options.extend(opts)
-            next_url = payload.get("next_url")
-            if next_url and not next_url.startswith("http"):
-                next_url = f"https://api.polygon.io{next_url}"
-            if next_url:
-                time.sleep(0.2)
+        self.client.connect()
+        try:
+            while next_path:
+                params_to_use = params if first else {}
+                if first:
+                    logger.info(f"Requesting snapshot for {symbol} {expiry}")
+                payload = self.client._request(next_path, params_to_use)
+                results = payload.get("results", {})
+                if isinstance(results, dict):
+                    opts = results.get("options") or []
+                elif isinstance(results, list):  # pragma: no cover - alt structure
+                    opts = results
+                else:
+                    opts = []
+                if isinstance(opts, list):
+                    options.extend(opts)
+                next_url = payload.get("next_url")
+                if next_url:
+                    if not next_url.startswith("http"):
+                        next_path = next_url.lstrip("/")
+                    else:
+                        base = self.client.BASE_URL.rstrip("/")
+                        next_path = next_url[len(base) + 1 :] if next_url.startswith(base) else next_url
+                    time.sleep(0.2)
+                else:
+                    next_path = None
+                if first:
+                    first = False
+        except Exception as exc:  # pragma: no cover - network failure
+            logger.warning(f"Polygon request failed for {symbol}: {exc}")
+        finally:
+            self.client.disconnect()
         logger.info(f"{symbol} {expiry}: {len(options)} contracts")
         delay_ms = int(cfg_get("POLYGON_DELAY_SNAPSHOT_MS", 200))
         if delay_ms > 0:

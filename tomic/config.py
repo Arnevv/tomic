@@ -191,6 +191,10 @@ def load_config() -> AppConfig:
             data = _load_env(path)
 
     cfg = {**_asdict(AppConfig()), **data}
+    if "POLYGON_API_KEYS" in cfg and isinstance(cfg["POLYGON_API_KEYS"], str):
+        cfg["POLYGON_API_KEYS"] = [
+            k.strip() for k in cfg["POLYGON_API_KEYS"].split(",") if k.strip()
+        ]
     return AppConfig(**cfg)
 
 
