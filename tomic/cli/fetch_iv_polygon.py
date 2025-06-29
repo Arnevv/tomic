@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from datetime import datetime
 from pathlib import Path
+from time import sleep
 from typing import List
 
 from tomic.config import get as cfg_get
@@ -21,8 +22,13 @@ def main(argv: List[str] | None = None) -> None:
         argv = []
     symbols = [s.upper() for s in argv] if argv else [s.upper() for s in cfg_get("DEFAULT_SYMBOLS", [])]
     summary_dir = Path(cfg_get("IV_DAILY_SUMMARY_DIR", "tomic/data/iv_daily_summary"))
+    max_syms = int(cfg_get("MAX_SYMBOLS_PER_RUN", 20))
+    sleep_between = float(cfg_get("POLYGON_SLEEP_BETWEEN", 1.2))
 
+    processed = 0
     for sym in symbols:
+        if processed >= max_syms:
+            break
         metrics = fetch_polygon_iv30d(sym)
         date_str = latest_close_date(sym) or datetime.now().strftime("%Y-%m-%d")
         if metrics is None:
@@ -40,6 +46,8 @@ def main(argv: List[str] | None = None) -> None:
             logger.info(f"Saved IV for {sym}")
         except Exception as exc:  # pragma: no cover - filesystem errors
             logger.warning(f"Failed to save IV for {sym}: {exc}")
+        processed += 1
+        sleep(sleep_between)
     logger.success("✅ Polygon IV fetch complete")
 
 

@@ -3,6 +3,7 @@ from __future__ import annotations
 """Polygon REST API client implementing :class:`MarketDataProvider`."""
 
 from typing import Any, Dict, List
+import random
 import requests
 import time
 from .logutils import logger
@@ -46,14 +47,10 @@ class PolygonClient(MarketDataProvider):
             logger.debug(f"Response {status}: {text[:200]}")
             if status != 429:
                 break
-            retry = resp.headers.get("Retry-After")
-            try:
-                wait = int(retry) if retry else 1
-            except ValueError:
-                wait = 1
             attempts += 1
+            wait = min(60, 2 ** attempts + random.uniform(0, 1))
             logger.warning(
-                f"Polygon rate limit hit (attempt {attempts}), sleeping {wait}s"
+                f"Polygon rate limit hit (attempt {attempts}), sleeping {wait:.1f}s"
             )
             time.sleep(wait)
             if attempts >= 5:

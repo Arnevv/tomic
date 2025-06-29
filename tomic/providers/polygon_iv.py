@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Any, Dict, List
 import json
 import time
+import random
 import csv
 
 from tomic.analysis.metrics import historical_volatility
@@ -138,14 +139,25 @@ class SnapshotFetcher:
         next_url: str | None = url
         first = True
         while next_url:
+            params_to_use = params if first else {"apiKey": self.api_key}
             if first:
                 logger.info(f"Requesting snapshot for {symbol} {expiry}")
-                resp = requests.get(next_url, params=params, timeout=10)
-                first = False
-            else:
-                resp = requests.get(
-                    next_url, params={"apiKey": self.api_key}, timeout=10
+            resp = requests.get(next_url, params=params_to_use, timeout=10)
+            attempt = 0
+            while getattr(resp, "status_code", 0) == 429 and attempt < 5:
+                attempt += 1
+                wait = min(60, 2 ** attempt + random.uniform(0, 1))
+                logger.warning(
+                    f"Polygon snapshot rate limit (attempt {attempt}), sleeping {wait:.1f}s"
                 )
+                time.sleep(wait)
+                resp = requests.get(
+                    next_url,
+                    params=params_to_use,
+                    timeout=10,
+                )
+            if first:
+                first = False
             status = getattr(resp, "status_code", "n/a")
             text = getattr(resp, "text", "")
             logger.debug(f"Response {status}: {text[:200]}")
