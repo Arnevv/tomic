@@ -260,9 +260,6 @@ def main(argv: List[str] | None = None) -> None:
         }
         update_json_file(summary_dir / f"{sym}.json", summary_record, ["date"])
         logger.info(f"Saved vol stats for {sym}")
-        if idx < len(symbols) - 1:
-            logger.info("Throttling for 13 seconds to respect rate limits")
-            sleep(13)
     logger.success("✅ Volatility stats updated")
 
 
