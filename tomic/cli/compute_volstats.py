@@ -12,6 +12,7 @@ from pathlib import Path
 from tomic.journal.utils import update_json_file, load_json
 from tomic.analysis.metrics import historical_volatility
 from tomic.api.market_client import TermStructureClient, start_app, await_market_data
+from tomic.utils import latest_close_date
 
 
 def _get_closes(symbol: str) -> list[float]:
@@ -66,7 +67,6 @@ def main(argv: List[str] | None = None) -> None:
 
     summary_dir = Path(cfg_get("IV_DAILY_SUMMARY_DIR", "tomic/data/iv_daily_summary"))
     hv_dir = Path(cfg_get("HISTORICAL_VOLATILITY_DIR", "tomic/data/historical_volatility"))
-    today = datetime.now().strftime("%Y-%m-%d")
 
     def rolling_hv(closes: list[float], window: int) -> list[float]:
         result = []
@@ -101,6 +101,7 @@ def main(argv: List[str] | None = None) -> None:
         hv90 = historical_volatility(closes, window=90)
         hv252 = historical_volatility(closes, window=252)
         iv = fetch_iv30d(sym)
+        date_str = latest_close_date(sym) or datetime.now().strftime("%Y-%m-%d")
         hv_series = rolling_hv(closes, 30)
         scaled_iv = iv * 100 if iv is not None else None
         rank = iv_rank(scaled_iv or 0.0, hv_series) if scaled_iv is not None else None
@@ -116,7 +117,7 @@ def main(argv: List[str] | None = None) -> None:
             hv252 /= 100
 
         hv_record = {
-            "date": today,
+            "date": date_str,
             "hv20": hv20,
             "hv30": hv30,
             "hv90": hv90,
@@ -125,7 +126,7 @@ def main(argv: List[str] | None = None) -> None:
         update_json_file(hv_dir / f"{sym}.json", hv_record, ["date"])
 
         summary_record = {
-            "date": today,
+            "date": date_str,
             "atm_iv": iv,
             "iv_rank": rank,
             "iv_percentile": pct,
