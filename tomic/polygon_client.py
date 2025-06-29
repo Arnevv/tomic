@@ -51,12 +51,11 @@ class PolygonClient(MarketDataProvider):
         params = dict(params or {})
         params["apiKey"] = self._next_api_key()
         masked = {**params, "apiKey": "***"}
-        logger.debug(f"GET {path} params={masked}")
+        url = f"{self.BASE_URL.rstrip('/')}/{path.lstrip('/')}"
+        logger.debug(f"GET {url} params={masked}")
         attempts = 0
         while True:
-            resp = self._session.get(
-                f"{self.BASE_URL}/{path}", params=params, timeout=10
-            )
+            resp = self._session.get(url, params=params, timeout=10)
             status = getattr(resp, "status_code", "n/a")
             text = getattr(resp, "text", "")
             logger.debug(f"Response {status}: {text[:200]}")
