@@ -10,6 +10,7 @@ from tomic.config import get as cfg_get
 from tomic.logutils import logger, setup_logging
 from tomic.journal.utils import update_json_file
 from tomic.providers.polygon_iv import fetch_polygon_iv30d
+from tomic.utils import latest_close_date
 
 
 def main(argv: List[str] | None = None) -> None:
@@ -20,16 +21,16 @@ def main(argv: List[str] | None = None) -> None:
         argv = []
     symbols = [s.upper() for s in argv] if argv else [s.upper() for s in cfg_get("DEFAULT_SYMBOLS", [])]
     summary_dir = Path(cfg_get("IV_DAILY_SUMMARY_DIR", "tomic/data/iv_daily_summary"))
-    today = datetime.now().strftime("%Y-%m-%d")
 
     for sym in symbols:
         metrics = fetch_polygon_iv30d(sym)
+        date_str = latest_close_date(sym) or datetime.now().strftime("%Y-%m-%d")
         if metrics is None:
             logger.warning(f"No contracts found for symbol {sym}")
             continue
         iv = metrics.get("atm_iv")
         record = {
-            "date": today,
+            "date": date_str,
             "atm_iv": iv,
             "iv_rank": None,
             "iv_percentile": None,

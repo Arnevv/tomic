@@ -177,7 +177,6 @@ def main(argv: List[str] | None = None) -> None:
 
     summary_dir = Path(cfg_get("IV_DAILY_SUMMARY_DIR", "tomic/data/iv_daily_summary"))
     hv_dir = Path(cfg_get("HISTORICAL_VOLATILITY_DIR", "tomic/data/historical_volatility"))
-    today = datetime.now().strftime("%Y-%m-%d")
 
     def rolling_hv(closes: list[float], window: int) -> list[float]:
         result = []
@@ -211,7 +210,11 @@ def main(argv: List[str] | None = None) -> None:
         hv30 = historical_volatility(closes, window=30)
         hv90 = historical_volatility(closes, window=90)
         hv252 = historical_volatility(closes, window=252)
+        _, date_str = _latest_close(sym)
         metrics = fetch_polygon_iv30d(sym)
+        if date_str is None:
+            logger.warning(f"No price history for {sym}")
+            continue
         iv = metrics.get("atm_iv") if metrics else None
         term_m1_m2 = metrics.get("term_m1_m2") if metrics else None
         term_m1_m3 = metrics.get("term_m1_m3") if metrics else None
@@ -235,7 +238,7 @@ def main(argv: List[str] | None = None) -> None:
             hv252 /= 100
 
         hv_record = {
-            "date": today,
+            "date": date_str,
             "hv20": hv20,
             "hv30": hv30,
             "hv90": hv90,
@@ -247,7 +250,7 @@ def main(argv: List[str] | None = None) -> None:
         pct = metrics.get("iv_percentile (HV)") if metrics else None
 
         summary_record = {
-            "date": today,
+            "date": date_str,
             "atm_iv": iv,
             "iv_rank (HV)": rank,
             "iv_percentile (HV)": pct,
