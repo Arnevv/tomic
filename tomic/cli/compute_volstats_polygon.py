@@ -174,6 +174,8 @@ def main(argv: List[str] | None = None) -> None:
     if argv is None:
         argv = []
     symbols = [s.upper() for s in argv] if argv else [s.upper() for s in cfg_get("DEFAULT_SYMBOLS", [])]
+    max_syms = int(cfg_get("MAX_SYMBOLS_PER_RUN", 20))
+    sleep_between = float(cfg_get("POLYGON_SLEEP_BETWEEN", 1.2))
 
     summary_dir = Path(cfg_get("IV_DAILY_SUMMARY_DIR", "tomic/data/iv_daily_summary"))
     hv_dir = Path(cfg_get("HISTORICAL_VOLATILITY_DIR", "tomic/data/historical_volatility"))
@@ -202,6 +204,8 @@ def main(argv: List[str] | None = None) -> None:
         return count / len(series) * 100
 
     for idx, sym in enumerate(symbols):
+        if idx >= max_syms:
+            break
         closes = _get_closes(sym)
         if not closes:
             logger.warning(f"No price history for {sym}")
@@ -260,6 +264,7 @@ def main(argv: List[str] | None = None) -> None:
         }
         update_json_file(summary_dir / f"{sym}.json", summary_record, ["date"])
         logger.info(f"Saved vol stats for {sym}")
+        sleep(sleep_between)
     logger.success("✅ Volatility stats updated")
 
 
