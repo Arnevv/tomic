@@ -60,12 +60,6 @@ def test_performance_analyzer_main(tmp_path, monkeypatch):
     assert data["stats"]["Test"]["trades"] == 1
 
 
-def test_cone_visualizer_main(monkeypatch):
-    mod = importlib.import_module("tomic.cli.cone_visualizer")
-    called = []
-    monkeypatch.setattr(mod, "display_cone", lambda symbol: called.append(symbol))
-    mod.main(["XYZ"])
-    assert called == ["XYZ"]
 
 
 def test_close_trade_main(monkeypatch):
@@ -128,16 +122,6 @@ def test_entry_checker_main(tmp_path, monkeypatch):
     assert any("warn" in line for line in lines)
 
 
-def test_daily_vol_scraper_main(monkeypatch):
-    mod = importlib.import_module("tomic.cli.daily_vol_scraper")
-    captured = []
-    monkeypatch.setattr(mod, "setup_logging", lambda: None)
-    monkeypatch.setattr(
-        mod, "snapshot_symbols", lambda syms, fetcher: captured.extend(syms)
-    )
-    monkeypatch.setattr(mod, "fetch_volatility_metrics", lambda sym: {"iv30": 0.3})
-    mod.main(["AA", "BB"])
-    assert captured == ["AA", "BB"]
 
 
 def test_csv_quality_check_main(tmp_path, monkeypatch):
