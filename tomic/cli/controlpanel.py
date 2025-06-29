@@ -221,11 +221,6 @@ def run_dataexporter() -> None:
         rows.sort(key=lambda r: r[0], reverse=True)
         print(tabulate(rows, headers=["Datum", "Close"], tablefmt="github"))
 
-    def show_volstats() -> None:
-        try:
-            run_module("tomic.cli.show_volstats")
-        except subprocess.CalledProcessError:
-            print("❌ Tonen van volatiliteitsdata mislukt")
 
     def polygon_chain() -> None:
         symbol = prompt("Ticker symbool: ")
@@ -284,7 +279,6 @@ def run_dataexporter() -> None:
     menu.add("Ophalen historische prijzen - polygon", fetch_prices_polygon_cmd)
     menu.add("Bereken volatiliteitsstatistieken - polygon", compute_volstats_polygon_cmd)
     menu.add("Toon historische data", show_history)
-    menu.add("Toon volatiliteitsdata", show_volstats)
     menu.add("Polygon option chain", polygon_chain)
     menu.add("Polygon metrics", polygon_metrics)
 
@@ -323,7 +317,6 @@ def run_risk_tools() -> None:
     menu.add("Scenario-analyse", lambda: run_module("tomic.cli.portfolio_scenario"))
     menu.add("Event watcher", lambda: run_module("tomic.cli.event_watcher"))
     menu.add("Synthetics detector", lambda: run_module("tomic.cli.synthetics_detector"))
-    menu.add("Cone visualizer", lambda: run_module("tomic.cli.cone_visualizer"))
     menu.add(
         "Theoretical value calculator",
         lambda: run_module("tomic.cli.bs_calculator"),
@@ -599,7 +592,6 @@ def run_settings_menu() -> None:
         sub.add("JOURNAL_FILE", lambda: change_path("JOURNAL_FILE"))
         sub.add("POSITIONS_FILE", lambda: change_path("POSITIONS_FILE"))
         sub.add("PORTFOLIO_META_FILE", lambda: change_path("PORTFOLIO_META_FILE"))
-        sub.add("VOLATILITY_DATA_FILE", lambda: change_path("VOLATILITY_DATA_FILE"))
         sub.add("VOLATILITY_DB", lambda: change_path("VOLATILITY_DB"))
         sub.add("EXPORT_DIR", lambda: change_path("EXPORT_DIR"))
         sub.run()
