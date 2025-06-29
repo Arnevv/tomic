@@ -6,8 +6,6 @@ from datetime import datetime
 import json
 from pathlib import Path
 import os
-import csv
-import tempfile
 
 try:
     from tabulate import tabulate
@@ -53,8 +51,8 @@ from tomic.api.ib_connection import connect_ib
 from tomic import config as cfg
 from tomic.logutils import setup_logging
 from tomic.analysis.greeks import compute_portfolio_greeks
-from tomic.analysis.vol_json import load_latest_summaries
 from tomic.journal.utils import load_json
+from tomic.utils import today
 
 setup_logging()
 
@@ -408,108 +406,37 @@ def run_portfolio_menu() -> None:
         except subprocess.CalledProcessError:
             print("❌ Greeks-overzicht kon niet worden getoond")
 
-    def generate_proposals_now() -> None:
-        if not POSITIONS_FILE.exists():
-            print("⚠️ Geen opgeslagen portfolio gevonden. Kies optie 1 om te verversen.")
-            return
-        base_dir = Path(cfg.get("EXPORT_DIR", "exports"))
-        latest = _latest_export_dir(base_dir)
-        if latest is None:
-            print("⚠️ Geen exportmap gevonden")
-            return
-        try:
-            positions = json.loads(POSITIONS_FILE.read_text())
-        except Exception:
-            print("⚠️ Kan portfolio niet laden voor strategie-overzicht.")
-            return
-        overview = latest / "Overzicht_Marktkenmerken.csv"
-        metrics: dict[str, dict] = {}
-        if overview.exists():
-            print(f"ℹ️ Marktkenmerken uit {overview}")
-            try:
-                with open(overview, newline="", encoding="utf-8") as fh:
-                    reader = list(csv.reader(fh))
-                if reader:
-                    headers, *rows = reader
-                    print(tabulate(rows, headers=headers, tablefmt="github"))
-            except Exception as exc:
-                print(f"⚠️ Kan overzicht niet lezen: {exc}")
-        else:
-            print(f"⚠️ {overview.name} ontbreekt in {latest}")
-            symbols = {p.get("symbol") for p in positions if p.get("symbol")}
-            stats = load_latest_summaries(symbols)
-            if stats:
-                headers = [
-                    "Symbol",
-                    "Date",
-                    "IV",
-                    "Rank",
-                    "Pct",
-                ]
-                rows = [
-                    [
-                        sym,
-                        rec.date,
-                        rec.atm_iv,
-                        rec.iv_rank,
-                        rec.iv_percentile,
-                    ]
-                    for sym, rec in stats.items()
-                ]
-                print(tabulate(rows, headers=headers, tablefmt="github"))
-                metrics = {sym: rec.__dict__ for sym, rec in stats.items()}
-            else:
-                print("⚠️ Geen volatiliteitsdata beschikbaar")
+    def show_market_info() -> None:
+        date_str = today().strftime("%Y-%m-%d")
+        summary_dir = Path(cfg.get("IV_DAILY_SUMMARY_DIR", "tomic/data/iv_daily_summary"))
+        hv_dir = Path(cfg.get("HISTORICAL_VOLATILITY_DIR", "tomic/data/historical_volatility"))
 
-        try:
-            positions = json.loads(POSITIONS_FILE.read_text())
-        except Exception:
-            print("⚠️ Kan portfolio niet laden voor strategie-overzicht.")
-            return
-        totals = compute_portfolio_greeks(positions)
-        delta = totals.get("Delta", 0)
-        vega = totals.get("Vega", 0)
-        strategies: list[str] = []
-        if abs(delta) > 25:
-            strategies.append("Vertical – richting kiezen (bij duidelijke bias)")
-        if vega > 50:
-            strategies.append("Iron Condor – vega omlaag (hoge IV, IV Rank > 30)")
-        if vega < -50:
-            strategies.append(
-                "Calendar Spread – vega omhoog (lage IV, contango term structure)"
-            )
-        if strategies:
-            print("\nTOMIC zoekt strategieën:")
-            for s in strategies:
-                print(f"- {s}")
+        rows = []
+        for file in summary_dir.glob("*.json"):
+            symbol = file.stem
+            summaries = [r for r in load_json(file) if r.get("date") == date_str]
+            hvs = {r.get("date"): r for r in load_json(hv_dir / f"{symbol}.json")}
+            for rec in summaries:
+                hv_rec = hvs.get(date_str, {})
+                rows.append([
+                    symbol,
+                    rec.get("atm_iv"),
+                    hv_rec.get("hv20"),
+                    hv_rec.get("hv30"),
+                    hv_rec.get("hv90"),
+                    rec.get("iv_rank"),
+                    rec.get("iv_percentile"),
+                ])
 
-        try:
-            if metrics:
-                with tempfile.NamedTemporaryFile(delete=False, suffix=".json") as fh:
-                    fh.write(json.dumps(metrics).encode())
-                    metrics_path = fh.name
-                run_module(
-                    "tomic.cli.generate_proposals",
-                    str(POSITIONS_FILE),
-                    str(latest),
-                    metrics_path,
-                )
-                os.unlink(metrics_path)
-            else:
-                run_module(
-                    "tomic.cli.generate_proposals",
-                    str(POSITIONS_FILE),
-                    str(latest),
-                )
-        except subprocess.CalledProcessError:
-            print("❌ Strategievoorstellen genereren mislukt")
+        headers = ["symbol", "iv", "hv20", "hv30", "hv90", "iv_rank", "iv_percentile"]
+        print(tabulate(rows, headers=headers, tablefmt="github"))
 
     menu = Menu("📊 ANALYSE & STRATEGIE")
     menu.add("Trading Plan", lambda: run_module("tomic.cli.trading_plan"))
     menu.add("Portfolio ophalen en tonen", fetch_and_show)
     menu.add("Laatst opgehaalde portfolio tonen", show_saved)
     menu.add("Toon portfolio greeks", show_greeks)
-    menu.add("Strategie voorstellen", generate_proposals_now)
+    menu.add("Toon marktinformatie", show_market_info)
     menu.run()
 
 
