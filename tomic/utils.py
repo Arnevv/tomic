@@ -1,5 +1,9 @@
 import os
 from datetime import datetime, date
+from pathlib import Path
+
+from tomic.config import get as cfg_get
+from tomic.journal.utils import load_json
 
 
 def filter_future_expiries(expirations: list[str]) -> list[str]:
@@ -80,3 +84,15 @@ def select_near_atm(
     center = round(spot_price or 0)
     sel_strikes = [s for s in strikes if abs(round(s) - center) <= width]
     return expiries[:count], sel_strikes
+
+
+def latest_close_date(symbol: str) -> str | None:
+    """Return the most recent close date for ``symbol`` from price history."""
+
+    base = Path(cfg_get("PRICE_HISTORY_DIR", "tomic/data/spot_prices"))
+    path = base / f"{symbol}.json"
+    data = load_json(path)
+    if isinstance(data, list) and data:
+        data.sort(key=lambda r: r.get("date", ""))
+        return str(data[-1].get("date"))
+    return None
