@@ -14,7 +14,7 @@ def test_fetch_prices_polygon_main(monkeypatch):
                 "date": "2024-01-01",
                 "close": 1.23,
                 "volume": 100,
-                "atr": 0.5,
+                "atr": None,
             }
         ],
     )
@@ -29,7 +29,7 @@ def test_fetch_prices_polygon_main(monkeypatch):
     monkeypatch.setattr(mod, "PolygonClient", lambda: FakeClient())
 
     captured = []
-    monkeypatch.setattr(mod, "update_json_file", lambda f, rec, keys: captured.append(rec))
+    monkeypatch.setattr(mod, "_merge_price_data", lambda f, recs: (captured.extend(recs), len(recs))[1])
 
     called = []
     monkeypatch.setattr(mod, "compute_volstats_polygon_main", lambda syms: called.append(syms))
@@ -38,7 +38,7 @@ def test_fetch_prices_polygon_main(monkeypatch):
 
     mod.main(["ABC"])
     assert captured
-    assert captured[0].get("atr") == 0.5
+    assert captured[0]["close"] == 1.23
     assert called and called[0] == ["ABC"]
 
 
@@ -58,7 +58,7 @@ def test_fetch_prices_polygon_no_data(monkeypatch):
     monkeypatch.setattr(mod, "PolygonClient", lambda: FakeClient())
 
     captured = []
-    monkeypatch.setattr(mod, "update_json_file", lambda f, rec, keys: captured.append(rec))
+    monkeypatch.setattr(mod, "_merge_price_data", lambda f, recs: (captured.extend(recs), 0)[1])
 
     monkeypatch.setattr(mod, "compute_volstats_polygon_main", lambda syms: None)
 
