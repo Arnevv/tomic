@@ -41,7 +41,8 @@ def _request_bars(client: PolygonClient, symbol: str) -> Iterable[dict]:
     today = datetime.now().date()
     _, last_date = _load_latest_close(symbol)
     params = {"adjusted": "true"}
-    path = f"v2/aggs/ticker/{symbol}/range/1/day"
+    base_path = f"v2/aggs/ticker/{symbol}/range/1/day"
+    path = base_path
 
     end_dt = today
     while not _is_weekday(end_dt):
@@ -58,7 +59,9 @@ def _request_bars(client: PolygonClient, symbol: str) -> Iterable[dict]:
                 f"⏭️ {symbol}: laatste data is van {last_date}, geen nieuwe werkdag beschikbaar."
             )
             return []
-        params.update({"from": next_expected.strftime("%Y-%m-%d"), "to": end_dt.strftime("%Y-%m-%d")})
+        from_date = next_expected.strftime("%Y-%m-%d")
+        to_date = end_dt.strftime("%Y-%m-%d")
+        path = f"{base_path}/{from_date}/{to_date}"
     else:
         params.update({"limit": 252, "to": end_dt.strftime("%Y-%m-%d")})
 
