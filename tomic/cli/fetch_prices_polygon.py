@@ -64,13 +64,18 @@ def main(argv: List[str] | None = None) -> None:
     if argv is None:
         argv = []
     symbols = [s.upper() for s in argv] if argv else [s.upper() for s in cfg_get("DEFAULT_SYMBOLS", [])]
+    max_syms = int(cfg_get("MAX_SYMBOLS_PER_RUN", 20))
+    sleep_between = float(cfg_get("POLYGON_SLEEP_BETWEEN", 1.2))
 
     base_dir = Path(cfg_get("PRICE_HISTORY_DIR", "tomic/data/spot_prices"))
     client = PolygonClient()
     client.connect()
     stored = 0
+    processed: list[str] = []
     try:
         for idx, sym in enumerate(symbols):
+            if idx >= max_syms:
+                break
             logger.info(f"Fetching bars for {sym}")
             records = list(_request_bars(client, sym))
             if not records:
@@ -80,11 +85,13 @@ def main(argv: List[str] | None = None) -> None:
                 for rec in records:
                     update_json_file(file, rec, ["date"])
                 stored += 1
+            processed.append(sym)
+            sleep(sleep_between)
     finally:
         client.disconnect()
     logger.success(f"✅ Historische prijzen opgeslagen voor {stored} symbolen")
 
-    compute_volstats_polygon_main(symbols)
+    compute_volstats_polygon_main(processed)
 
 
 if __name__ == "__main__":

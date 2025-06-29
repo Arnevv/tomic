@@ -96,6 +96,10 @@ class AppConfig(BaseModel):
     HIST_WHAT: str = "TRADES"
     MKT_GENERIC_TICKS: str = "100,101,106"
 
+    # Polygon API tuning
+    POLYGON_SLEEP_BETWEEN: float = 1.2
+    MAX_SYMBOLS_PER_RUN: int = 20
+
 
 _BASE_DIR = Path(__file__).resolve().parent.parent
 

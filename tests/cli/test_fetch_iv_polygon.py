@@ -28,6 +28,7 @@ def test_fetch_iv_polygon_main(monkeypatch, tmp_path):
             return datetime(2024, 1, 1)
 
     monkeypatch.setattr(mod, "datetime", FakeDT)
+    monkeypatch.setattr(mod, "sleep", lambda s: None)
 
     mod.main([])
 
