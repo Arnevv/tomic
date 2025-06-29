@@ -27,6 +27,8 @@ jobs:
 
       - name: Run price history fetch via Polygon
         run: python -m tomic.cli.fetch_prices_polygon
+        env:
+          POLYGON_API_KEY: ${{ secrets.POLYGON_API_KEY }}
 
       - name: Configure Git
         run: |
