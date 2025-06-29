@@ -12,7 +12,7 @@ from tomic.config import get as cfg_get
 from tomic.journal.utils import load_json, update_json_file
 from tomic.logutils import logger, setup_logging
 from tomic.providers.polygon_iv import fetch_polygon_iv30d
-import requests
+from tomic.polygon_client import PolygonClient
 
 
 def _get_closes(symbol: str) -> list[float]:
@@ -47,18 +47,16 @@ def _polygon_term_and_skew(symbol: str) -> tuple[float | None, float | None, flo
     if spot is None or spot_date is None:
         return None, None, None
 
-    api_key = cfg_get("POLYGON_API_KEY", "")
-    url = f"https://api.polygon.io/v3/snapshot/options/{symbol.upper()}"
+    client = PolygonClient()
+    client.connect()
+    path = f"v3/snapshot/options/{symbol.upper()}"
     try:
-        resp = requests.get(url, params={"apiKey": api_key}, timeout=10)
-        status = getattr(resp, "status_code", "n/a")
-        text = getattr(resp, "text", "")
-        logger.debug(f"Snapshot {symbol} {status}: {text[:200]}")
-        resp.raise_for_status()
-        payload = resp.json()
+        payload = client._request(path, params={})
     except Exception as exc:  # pragma: no cover - network failure
         logger.warning(f"Polygon request failed for {symbol}: {exc}")
+        client.disconnect()
         return None, None, None
+    client.disconnect()
 
     results = payload.get("results", {})
     if isinstance(results, dict):
