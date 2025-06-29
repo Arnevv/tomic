@@ -32,1728 +32,1735 @@
     "date": "2024-07-02",
     "close": 40.93,
     "volume": 35626092.0,
-    "atr": null
+    "atr": 1.0
   },
   {
     "symbol": "BAC",
     "date": "2024-07-03",
     "close": 40.9,
     "volume": 17100666.0,
-    "atr": null
+    "atr": 0.7250000000000014
   },
   {
     "symbol": "BAC",
     "date": "2024-07-05",
     "close": 40.41,
     "volume": 23488968.0,
-    "atr": null
+    "atr": 0.7050000000000006
   },
   {
     "symbol": "BAC",
     "date": "2024-07-08",
     "close": 40.62,
     "volume": 26728504.0,
-    "atr": null
+    "atr": 0.6862500000000011
   },
   {
     "symbol": "BAC",
     "date": "2024-07-09",
     "close": 41.42,
     "volume": 34721692.0,
-    "atr": null
+    "atr": 0.7950000000000003
   },
   {
     "symbol": "BAC",
     "date": "2024-07-10",
     "close": 41.74,
     "volume": 25291392.0,
-    "atr": null
+    "atr": 0.7774999999999999
   },
   {
     "symbol": "BAC",
     "date": "2024-07-11",
     "close": 41.81,
     "volume": 33824582.0,
-    "atr": null
+    "atr": 0.7392857142857139
   },
   {
     "symbol": "BAC",
     "date": "2024-07-12",
     "close": 41.59,
     "volume": 31856592.0,
-    "atr": null
+    "atr": 0.7499999999999991
   },
   {
     "symbol": "BAC",
     "date": "2024-07-15",
     "close": 41.89,
     "volume": 36648097.0,
-    "atr": null
+    "atr": 0.7377777777777763
   },
   {
     "symbol": "BAC",
     "date": "2024-07-16",
     "close": 44.13,
     "volume": 75953347.0,
-    "atr": null
+    "atr": 0.9149999999999985
   },
   {
     "symbol": "BAC",
     "date": "2024-07-17",
     "close": 43.98,
     "volume": 65713648.0,
-    "atr": null
+    "atr": 0.9036363636363621
   },
   {
     "symbol": "BAC",
     "date": "2024-07-18",
     "close": 43.01,
     "volume": 48549222.0,
-    "atr": null
+    "atr": 0.9374999999999988
   },
   {
     "symbol": "BAC",
     "date": "2024-07-19",
     "close": 42.9,
     "volume": 43902967.0,
-    "atr": null
+    "atr": 0.9323076923076916
   },
   {
     "symbol": "BAC",
     "date": "2024-07-22",
     "close": 42.3,
     "volume": 42838322.0,
-    "atr": null
+    "atr": 0.933214285714285
   },
   {
     "symbol": "BAC",
     "date": "2024-07-23",
     "close": 42.41,
     "volume": 36705129.0,
-    "atr": null
+    "atr": 0.9067857142857138
   },
   {
     "symbol": "BAC",
     "date": "2024-07-24",
     "close": 42.19,
     "volume": 36567178.0,
-    "atr": null
+    "atr": 0.923214285714285
   },
   {
     "symbol": "BAC",
     "date": "2024-07-25",
     "close": 41.68,
     "volume": 41593856.0,
-    "atr": null
+    "atr": 0.9210714285714283
   },
   {
     "symbol": "BAC",
     "date": "2024-07-26",
     "close": 41.67,
     "volume": 52049329.0,
-    "atr": null
+    "atr": 0.9153571428571426
   },
   {
     "symbol": "BAC",
     "date": "2024-07-29",
     "close": 41.09,
     "volume": 37133078.0,
-    "atr": null
+    "atr": 0.8915714285714286
   },
   {
     "symbol": "BAC",
     "date": "2024-07-30",
     "close": 41.28,
     "volume": 44163172.0,
-    "atr": null
+    "atr": 0.9194285714285714
   },
   {
     "symbol": "BAC",
     "date": "2024-07-31",
     "close": 40.31,
     "volume": 50851579.0,
-    "atr": null
+    "atr": 0.9658571428571433
   },
   {
     "symbol": "BAC",
     "date": "2024-08-01",
     "close": 39.5,
     "volume": 59988845.0,
-    "atr": null
+    "atr": 1.0119285714285726
   },
   {
     "symbol": "BAC",
     "date": "2024-08-02",
     "close": 37.58,
     "volume": 76727990.0,
-    "atr": null
+    "atr": 1.131928571428573
   },
   {
     "symbol": "BAC",
     "date": "2024-08-05",
     "close": 36.65,
     "volume": 76075189.0,
-    "atr": null
+    "atr": 1.126928571428573
   },
   {
     "symbol": "BAC",
     "date": "2024-08-06",
     "close": 36.92,
     "volume": 40614118.0,
-    "atr": null
+    "atr": 1.125500000000002
   },
   {
     "symbol": "BAC",
     "date": "2024-08-07",
     "close": 37.3,
     "volume": 44952353.0,
-    "atr": null
+    "atr": 1.1508571428571446
   },
   {
     "symbol": "BAC",
     "date": "2024-08-08",
     "close": 38.21,
     "volume": 36530830.0,
-    "atr": null
+    "atr": 1.1683571428571444
   },
   {
     "symbol": "BAC",
     "date": "2024-08-09",
     "close": 38.28,
     "volume": 26367732.0,
-    "atr": null
+    "atr": 1.139785714285716
   },
   {
     "symbol": "BAC",
     "date": "2024-08-12",
     "close": 38.17,
     "volume": 32795638.0,
-    "atr": null
+    "atr": 1.1462071428571445
   },
   {
     "symbol": "BAC",
     "date": "2024-08-13",
     "close": 38.46,
     "volume": 21553473.0,
-    "atr": null
+    "atr": 1.1233500000000016
   },
   {
     "symbol": "BAC",
     "date": "2024-08-14",
     "close": 38.81,
     "volume": 25658857.0,
-    "atr": null
+    "atr": 1.1126357142857155
   },
   {
     "symbol": "BAC",
     "date": "2024-08-15",
     "close": 39.03,
     "volume": 37379822.0,
-    "atr": null
+    "atr": 1.1354928571428577
   },
   {
     "symbol": "BAC",
     "date": "2024-08-16",
     "close": 39.34,
     "volume": 26886616.0,
-    "atr": null
+    "atr": 1.102135714285715
   },
   {
     "symbol": "BAC",
     "date": "2024-08-19",
     "close": 39.67,
     "volume": 27268922.0,
-    "atr": null
+    "atr": 1.0539214285714291
   },
   {
     "symbol": "BAC",
     "date": "2024-08-20",
     "close": 38.69,
     "volume": 44440757.0,
-    "atr": null
+    "atr": 1.0660642857142857
   },
   {
     "symbol": "BAC",
     "date": "2024-08-21",
     "close": 38.75,
     "volume": 33704573.0,
-    "atr": null
+    "atr": 1.0046357142857139
   },
   {
     "symbol": "BAC",
     "date": "2024-08-22",
     "close": 39.24,
     "volume": 35421638.0,
-    "atr": null
+    "atr": 0.8907071428571426
   },
   {
     "symbol": "BAC",
     "date": "2024-08-23",
     "close": 39.77,
     "volume": 45616647.0,
-    "atr": null
+    "atr": 0.7828499999999998
   },
   {
     "symbol": "BAC",
     "date": "2024-08-26",
     "close": 39.92,
     "volume": 44659531.0,
-    "atr": null
+    "atr": 0.7664214285714286
   },
   {
     "symbol": "BAC",
     "date": "2024-08-27",
     "close": 39.67,
     "volume": 32323906.0,
-    "atr": null
+    "atr": 0.6842785714285716
   },
   {
     "symbol": "BAC",
     "date": "2024-08-28",
     "close": 39.95,
     "volume": 40700528.0,
-    "atr": null
+    "atr": 0.6717785714285718
   },
   {
     "symbol": "BAC",
     "date": "2024-08-29",
     "close": 40.17,
     "volume": 34810840.0,
-    "atr": null
+    "atr": 0.6907071428571433
   },
   {
     "symbol": "BAC",
     "date": "2024-08-30",
     "close": 40.75,
     "volume": 49098180.0,
-    "atr": null
+    "atr": 0.6914285714285714
   },
   {
     "symbol": "BAC",
     "date": "2024-09-03",
     "close": 40.7,
     "volume": 48489317.0,
-    "atr": null
+    "atr": 0.7135714285714287
   },
   {
     "symbol": "BAC",
     "date": "2024-09-04",
     "close": 40.5,
     "volume": 39629637.0,
-    "atr": null
+    "atr": 0.7267857142857146
   },
   {
     "symbol": "BAC",
     "date": "2024-09-05",
     "close": 40.14,
     "volume": 34214544.0,
-    "atr": null
+    "atr": 0.731071428571429
   },
   {
     "symbol": "BAC",
     "date": "2024-09-06",
     "close": 38.76,
     "volume": 47007588.0,
-    "atr": null
+    "atr": 0.8132142857142861
   },
   {
     "symbol": "BAC",
     "date": "2024-09-09",
     "close": 39.47,
     "volume": 37610209.0,
-    "atr": null
+    "atr": 0.8517857142857151
   },
   {
     "symbol": "BAC",
     "date": "2024-09-10",
     "close": 39.28,
     "volume": 53983875.0,
-    "atr": null
+    "atr": 0.865000000000001
   },
   {
     "symbol": "BAC",
     "date": "2024-09-11",
     "close": 39,
     "volume": 41190035.0,
-    "atr": null
+    "atr": 0.9121428571428584
   },
   {
     "symbol": "BAC",
     "date": "2024-09-12",
     "close": 38.78,
     "volume": 39948814.0,
-    "atr": null
+    "atr": 0.9171428571428584
   },
   {
     "symbol": "BAC",
     "date": "2024-09-13",
     "close": 38.65,
     "volume": 31887313.0,
-    "atr": null
+    "atr": 0.8971428571428588
   },
   {
     "symbol": "BAC",
     "date": "2024-09-16",
     "close": 39.1,
     "volume": 26336364.0,
-    "atr": null
+    "atr": 0.89857142857143
   },
   {
     "symbol": "BAC",
     "date": "2024-09-17",
     "close": 39.55,
     "volume": 27769380.0,
-    "atr": null
+    "atr": 0.9117857142857153
   },
   {
     "symbol": "BAC",
     "date": "2024-09-18",
     "close": 39.62,
     "volume": 42527830.0,
-    "atr": null
+    "atr": 0.8950000000000006
   },
   {
     "symbol": "BAC",
     "date": "2024-09-19",
     "close": 40.87,
     "volume": 57977753.0,
-    "atr": null
+    "atr": 0.9389285714285721
   },
   {
     "symbol": "BAC",
     "date": "2024-09-20",
     "close": 40.27,
     "volume": 70725043.0,
-    "atr": null
+    "atr": 0.9317857142857149
   },
   {
     "symbol": "BAC",
     "date": "2024-09-23",
     "close": 39.87,
     "volume": 31714848.0,
-    "atr": null
+    "atr": 0.9332142857142861
   },
   {
     "symbol": "BAC",
     "date": "2024-09-24",
     "close": 39.45,
     "volume": 32534876.0,
-    "atr": null
+    "atr": 0.9375
   },
   {
     "symbol": "BAC",
     "date": "2024-09-25",
     "close": 39.25,
     "volume": 28866008.0,
-    "atr": null
+    "atr": 0.9075000000000004
   },
   {
     "symbol": "BAC",
     "date": "2024-09-26",
     "close": 39.52,
     "volume": 39601424.0,
-    "atr": null
+    "atr": 0.8378571428571436
   },
   {
     "symbol": "BAC",
     "date": "2024-09-27",
     "close": 39.4,
     "volume": 27839084.0,
-    "atr": null
+    "atr": 0.8095000000000009
   },
   {
     "symbol": "BAC",
     "date": "2024-09-30",
     "close": 39.68,
     "volume": 35058346.0,
-    "atr": null
+    "atr": 0.7562857142857149
   },
   {
     "symbol": "BAC",
     "date": "2024-10-01",
     "close": 39.22,
     "volume": 26291185.0,
-    "atr": null
+    "atr": 0.718428571428572
   },
   {
     "symbol": "BAC",
     "date": "2024-10-02",
     "close": 39.23,
     "volume": 23302745.0,
-    "atr": null
+    "atr": 0.6970000000000002
   },
   {
     "symbol": "BAC",
     "date": "2024-10-03",
     "close": 39.25,
     "volume": 26030228.0,
-    "atr": null
+    "atr": 0.6894999999999999
   },
   {
     "symbol": "BAC",
     "date": "2024-10-04",
     "close": 40.11,
     "volume": 34255929.0,
-    "atr": null
+    "atr": 0.7209285714285711
   },
   {
     "symbol": "BAC",
     "date": "2024-10-07",
     "close": 39.96,
     "volume": 27177530.0,
-    "atr": null
+    "atr": 0.7227142857142859
   },
   {
     "symbol": "BAC",
     "date": "2024-10-08",
     "close": 39.93,
     "volume": 26023649.0,
-    "atr": null
+    "atr": 0.6966428571428577
   },
   {
     "symbol": "BAC",
     "date": "2024-10-09",
     "close": 40.19,
     "volume": 27420997.0,
-    "atr": null
+    "atr": 0.642357142857143
   },
   {
     "symbol": "BAC",
     "date": "2024-10-10",
     "close": 39.97,
     "volume": 26182261.0,
-    "atr": null
+    "atr": 0.627357142857143
   },
   {
     "symbol": "BAC",
     "date": "2024-10-11",
     "close": 41.95,
     "volume": 50660740.0,
-    "atr": null
+    "atr": 0.7352142857142862
   },
   {
     "symbol": "BAC",
     "date": "2024-10-14",
     "close": 41.91,
     "volume": 28098947.0,
-    "atr": null
+    "atr": 0.7159214285714296
   },
   {
     "symbol": "BAC",
     "date": "2024-10-15",
     "close": 42.14,
     "volume": 61489989.0,
-    "atr": null
+    "atr": 0.7831714285714294
   },
   {
     "symbol": "BAC",
     "date": "2024-10-16",
     "close": 42.8,
     "volume": 42437818.0,
-    "atr": null
+    "atr": 0.808528571428572
   },
   {
     "symbol": "BAC",
     "date": "2024-10-17",
     "close": 42.6,
     "volume": 31708564.0,
-    "atr": null
+    "atr": 0.8076000000000002
   },
   {
     "symbol": "BAC",
     "date": "2024-10-18",
     "close": 42.32,
     "volume": 30593526.0,
-    "atr": null
+    "atr": 0.7908142857142865
   },
   {
     "symbol": "BAC",
     "date": "2024-10-21",
     "close": 41.76,
     "volume": 26577739.0,
-    "atr": null
+    "atr": 0.785814285714286
   },
   {
     "symbol": "BAC",
     "date": "2024-10-22",
     "close": 42.3,
     "volume": 37054909.0,
-    "atr": null
+    "atr": 0.8101000000000005
   },
   {
     "symbol": "BAC",
     "date": "2024-10-23",
     "close": 42.34,
     "volume": 28319350.0,
-    "atr": null
+    "atr": 0.8033214285714289
   },
   {
     "symbol": "BAC",
     "date": "2024-10-24",
     "close": 42.65,
     "volume": 28392010.0,
-    "atr": null
+    "atr": 0.7811785714285716
   },
   {
     "symbol": "BAC",
     "date": "2024-10-25",
     "close": 41.89,
     "volume": 27466909.0,
-    "atr": null
+    "atr": 0.8147500000000001
   },
   {
     "symbol": "BAC",
     "date": "2024-10-28",
     "close": 42.62,
     "volume": 24527603.0,
-    "atr": null
+    "atr": 0.851535714285714
   },
   {
     "symbol": "BAC",
     "date": "2024-10-29",
     "close": 42.53,
     "volume": 22313522.0,
-    "atr": null
+    "atr": 0.8283214285714285
   },
   {
     "symbol": "BAC",
     "date": "2024-10-30",
     "close": 42.31,
     "volume": 38100539.0,
-    "atr": null
+    "atr": 0.8883214285714287
   },
   {
     "symbol": "BAC",
     "date": "2024-10-31",
     "close": 41.82,
     "volume": 28138240.0,
-    "atr": null
+    "atr": 0.78475
   },
   {
     "symbol": "BAC",
     "date": "2024-11-01",
     "close": 41.76,
     "volume": 31220003.0,
-    "atr": null
+    "atr": 0.8004714285714282
   },
   {
     "symbol": "BAC",
     "date": "2024-11-04",
     "close": 41.33,
     "volume": 31110086.0,
-    "atr": null
+    "atr": 0.7617928571428568
   },
   {
     "symbol": "BAC",
     "date": "2024-11-05",
     "close": 41.88,
     "volume": 30851406.0,
-    "atr": null
+    "atr": 0.7417928571428567
   },
   {
     "symbol": "BAC",
     "date": "2024-11-06",
     "close": 45.41,
     "volume": 110086715.0,
-    "atr": null
+    "atr": 0.9657214285714281
   },
   {
     "symbol": "BAC",
     "date": "2024-11-07",
     "close": 44.77,
     "volume": 48339732.0,
-    "atr": null
+    "atr": 0.9921499999999988
   },
   {
     "symbol": "BAC",
     "date": "2024-11-08",
     "close": 45.13,
     "volume": 38331814.0,
-    "atr": null
+    "atr": 0.9964357142857132
   },
   {
     "symbol": "BAC",
     "date": "2024-11-11",
     "close": 46.08,
     "volume": 43293527.0,
-    "atr": null
+    "atr": 1.0358999999999985
   },
   {
     "symbol": "BAC",
     "date": "2024-11-12",
     "close": 45.86,
     "volume": 38155885.0,
-    "atr": null
+    "atr": 1.0473214285714272
   },
   {
     "symbol": "BAC",
     "date": "2024-11-13",
     "close": 45.87,
     "volume": 36903859.0,
-    "atr": null
+    "atr": 1.0444642857142843
   },
   {
     "symbol": "BAC",
     "date": "2024-11-14",
     "close": 45.9,
     "volume": 35733066.0,
-    "atr": null
+    "atr": 0.9898214285714272
   },
   {
     "symbol": "BAC",
     "date": "2024-11-15",
     "close": 46.75,
     "volume": 40488863.0,
-    "atr": null
+    "atr": 1.0158928571428565
   },
   {
     "symbol": "BAC",
     "date": "2024-11-18",
     "close": 46.72,
     "volume": 31862271.0,
-    "atr": null
+    "atr": 1.0298214285714278
   },
   {
     "symbol": "BAC",
     "date": "2024-11-19",
     "close": 46.41,
     "volume": 28534097.0,
-    "atr": null
+    "atr": 0.9948214285714277
   },
   {
     "symbol": "BAC",
     "date": "2024-11-20",
     "close": 46.06,
     "volume": 28021049.0,
-    "atr": null
+    "atr": 0.9926785714285705
   },
   {
     "symbol": "BAC",
     "date": "2024-11-21",
     "close": 46.46,
     "volume": 45336463.0,
-    "atr": null
+    "atr": 1.0148214285714272
   },
   {
     "symbol": "BAC",
     "date": "2024-11-22",
     "close": 47,
     "volume": 37996162.0,
-    "atr": null
+    "atr": 1.016964285714284
   },
   {
     "symbol": "BAC",
     "date": "2024-11-25",
     "close": 47.5,
     "volume": 42616057.0,
-    "atr": null
+    "atr": 1.0212499999999984
   },
   {
     "symbol": "BAC",
     "date": "2024-11-26",
     "close": 47.75,
     "volume": 30301526.0,
-    "atr": null
+    "atr": 0.8041071428571419
   },
   {
     "symbol": "BAC",
     "date": "2024-11-27",
     "close": 47.77,
     "volume": 23278393.0,
-    "atr": null
+    "atr": 0.7630357142857136
   },
   {
     "symbol": "BAC",
     "date": "2024-11-29",
     "close": 47.51,
     "volume": 23262009.0,
-    "atr": null
+    "atr": 0.752321428571428
   },
   {
     "symbol": "BAC",
     "date": "2024-12-02",
     "close": 47.04,
     "volume": 35891499.0,
-    "atr": null
+    "atr": 0.7224999999999996
   },
   {
     "symbol": "BAC",
     "date": "2024-12-03",
     "close": 46.82,
     "volume": 38123774.0,
-    "atr": null
+    "atr": 0.7380571428571427
   },
   {
     "symbol": "BAC",
     "date": "2024-12-04",
     "close": 46.37,
     "volume": 24941282.0,
-    "atr": null
+    "atr": 0.7409142857142855
   },
   {
     "symbol": "BAC",
     "date": "2024-12-05",
     "close": 47,
     "volume": 31480296.0,
-    "atr": null
+    "atr": 0.7723428571428573
   },
   {
     "symbol": "BAC",
     "date": "2024-12-06",
     "close": 46.75,
     "volume": 28931688.0,
-    "atr": null
+    "atr": 0.7323428571428572
   },
   {
     "symbol": "BAC",
     "date": "2024-12-09",
     "close": 45.91,
     "volume": 34660938.0,
-    "atr": null
+    "atr": 0.7551999999999995
   },
   {
     "symbol": "BAC",
     "date": "2024-12-10",
     "close": 45.75,
     "volume": 35665762.0,
-    "atr": null
+    "atr": 0.7505571428571426
   },
   {
     "symbol": "BAC",
     "date": "2024-12-11",
     "close": 46.08,
     "volume": 36662464.0,
-    "atr": null
+    "atr": 0.7484142857142854
   },
   {
     "symbol": "BAC",
     "date": "2024-12-12",
     "close": 46.08,
     "volume": 24017311.0,
-    "atr": null
+    "atr": 0.7169857142857141
   },
   {
     "symbol": "BAC",
     "date": "2024-12-13",
     "close": 45.67,
     "volume": 32902264.0,
-    "atr": null
+    "atr": 0.7012714285714284
   },
   {
     "symbol": "BAC",
     "date": "2024-12-16",
     "close": 45.47,
     "volume": 27330402.0,
-    "atr": null
+    "atr": 0.6855571428571429
   },
   {
     "symbol": "BAC",
     "date": "2024-12-17",
     "close": 45.05,
     "volume": 33054645.0,
-    "atr": null
+    "atr": 0.7012714285714284
   },
   {
     "symbol": "BAC",
     "date": "2024-12-18",
     "close": 43.5,
     "volume": 41771890.0,
-    "atr": null
+    "atr": 0.8262714285714284
   },
   {
     "symbol": "BAC",
     "date": "2024-12-19",
     "close": 43.38,
     "volume": 38583594.0,
-    "atr": null
+    "atr": 0.8683928571428571
   },
   {
     "symbol": "BAC",
     "date": "2024-12-20",
     "close": 44.17,
     "volume": 74222240.0,
-    "atr": null
+    "atr": 0.8914357142857143
   },
   {
     "symbol": "BAC",
     "date": "2024-12-23",
     "close": 43.89,
     "volume": 35374791.0,
-    "atr": null
+    "atr": 0.931592857142857
   },
   {
     "symbol": "BAC",
     "date": "2024-12-24",
     "close": 44.38,
     "volume": 12054354.0,
-    "atr": null
+    "atr": 0.9198071428571427
   },
   {
     "symbol": "BAC",
     "date": "2024-12-26",
     "close": 44.55,
     "volume": 16079707.0,
-    "atr": null
+    "atr": 0.8915928571428567
   },
   {
     "symbol": "BAC",
     "date": "2024-12-27",
     "close": 44.34,
     "volume": 17972488.0,
-    "atr": null
+    "atr": 0.8958785714285707
   },
   {
     "symbol": "BAC",
     "date": "2024-12-30",
     "close": 43.91,
     "volume": 16109771.0,
-    "atr": null
+    "atr": 0.8912357142857142
   },
   {
     "symbol": "BAC",
     "date": "2024-12-31",
     "close": 43.95,
     "volume": 16110352.0,
-    "atr": null
+    "atr": 0.8783785714285715
   },
   {
     "symbol": "BAC",
     "date": "2025-01-02",
     "close": 44.29,
     "volume": 25610575.0,
-    "atr": null
+    "atr": 0.8852928571428572
   },
   {
     "symbol": "BAC",
     "date": "2025-01-03",
     "close": 44.81,
     "volume": 23455711.0,
-    "atr": null
+    "atr": 0.8960071428571433
   },
   {
     "symbol": "BAC",
     "date": "2025-01-06",
     "close": 45.4,
     "volume": 30518458.0,
-    "atr": null
+    "atr": 0.9402928571428575
   },
   {
     "symbol": "BAC",
     "date": "2025-01-07",
     "close": 46.08,
     "volume": 41111204.0,
-    "atr": null
+    "atr": 0.9924357142857144
   },
   {
     "symbol": "BAC",
     "date": "2025-01-08",
     "close": 46.21,
     "volume": 40246008.0,
-    "atr": null
+    "atr": 0.9724357142857143
   },
   {
     "symbol": "BAC",
     "date": "2025-01-10",
     "close": 45.11,
     "volume": 40741349.0,
-    "atr": null
+    "atr": 0.9292214285714289
   },
   {
     "symbol": "BAC",
     "date": "2025-01-13",
     "close": 45.06,
     "volume": 34353617.0,
-    "atr": null
+    "atr": 0.8921000000000008
   },
   {
     "symbol": "BAC",
     "date": "2025-01-14",
     "close": 45.78,
     "volume": 36379011.0,
-    "atr": null
+    "atr": 0.8612000000000007
   },
   {
     "symbol": "BAC",
     "date": "2025-01-15",
     "close": 47.1,
     "volume": 57143804.0,
-    "atr": null
+    "atr": 0.8819142857142863
   },
   {
     "symbol": "BAC",
     "date": "2025-01-16",
     "close": 46.64,
     "volume": 56339293.0,
-    "atr": null
+    "atr": 0.965128571428572
   },
   {
     "symbol": "BAC",
     "date": "2025-01-17",
     "close": 46.53,
     "volume": 44455694.0,
-    "atr": null
+    "atr": 0.988342857142858
   },
   {
     "symbol": "BAC",
     "date": "2025-01-21",
     "close": 46.66,
     "volume": 52089087.0,
-    "atr": null
+    "atr": 0.9812000000000006
   },
   {
     "symbol": "BAC",
     "date": "2025-01-22",
     "close": 45.79,
     "volume": 40296223.0,
-    "atr": null
+    "atr": 0.994057142857143
   },
   {
     "symbol": "BAC",
     "date": "2025-01-23",
     "close": 46.39,
     "volume": 35324065.0,
-    "atr": null
+    "atr": 1.0351285714285718
   },
   {
     "symbol": "BAC",
     "date": "2025-01-24",
     "close": 46.52,
     "volume": 24655102.0,
-    "atr": null
+    "atr": 1.0296428571428575
   },
   {
     "symbol": "BAC",
     "date": "2025-01-27",
     "close": 47.09,
     "volume": 44260048.0,
-    "atr": null
+    "atr": 1.0339285714285715
   },
   {
     "symbol": "BAC",
     "date": "2025-01-28",
     "close": 46.84,
     "volume": 27156644.0,
-    "atr": null
+    "atr": 0.9900571428571432
   },
   {
     "symbol": "BAC",
     "date": "2025-01-29",
     "close": 46.75,
     "volume": 23681527.0,
-    "atr": null
+    "atr": 0.9543428571428575
   },
   {
     "symbol": "BAC",
     "date": "2025-01-30",
     "close": 46.72,
     "volume": 31199866.0,
-    "atr": null
+    "atr": 0.9682714285714289
   },
   {
     "symbol": "BAC",
     "date": "2025-01-31",
     "close": 46.3,
     "volume": 30392921.0,
-    "atr": null
+    "atr": 0.9107714285714289
   },
   {
     "symbol": "BAC",
     "date": "2025-02-03",
     "close": 46.21,
     "volume": 36497705.0,
-    "atr": null
+    "atr": 0.9621999999999998
   },
   {
     "symbol": "BAC",
     "date": "2025-02-04",
     "close": 46.71,
     "volume": 32893992.0,
-    "atr": null
+    "atr": 0.9664857142857143
   },
   {
     "symbol": "BAC",
     "date": "2025-02-05",
     "close": 47.11,
     "volume": 27696614.0,
-    "atr": null
+    "atr": 0.8811428571428576
   },
   {
     "symbol": "BAC",
     "date": "2025-02-06",
     "close": 47.74,
     "volume": 39793386.0,
-    "atr": null
+    "atr": 0.822571428571429
   },
   {
     "symbol": "BAC",
     "date": "2025-02-07",
     "close": 47.4,
     "volume": 26504696.0,
-    "atr": null
+    "atr": 0.8075714285714284
   },
   {
     "symbol": "BAC",
     "date": "2025-02-10",
     "close": 46.67,
     "volume": 26725206.0,
-    "atr": null
+    "atr": 0.8457857142857144
   },
   {
     "symbol": "BAC",
     "date": "2025-02-11",
     "close": 46.79,
     "volume": 20314881.0,
-    "atr": null
+    "atr": 0.8232857142857145
   },
   {
     "symbol": "BAC",
     "date": "2025-02-12",
     "close": 46.21,
     "volume": 28877070.0,
-    "atr": null
+    "atr": 0.8057857142857142
   },
   {
     "symbol": "BAC",
     "date": "2025-02-13",
     "close": 46.33,
     "volume": 26815396.0,
-    "atr": null
+    "atr": 0.7979285714285714
   },
   {
     "symbol": "BAC",
     "date": "2025-02-14",
     "close": 46.96,
     "volume": 25960495.0,
-    "atr": null
+    "atr": 0.7979285714285719
   },
   {
     "symbol": "BAC",
     "date": "2025-02-18",
     "close": 46.53,
     "volume": 37824104.0,
-    "atr": null
+    "atr": 0.8032285714285722
   },
   {
     "symbol": "BAC",
     "date": "2025-02-19",
     "close": 46.01,
     "volume": 38961823.0,
-    "atr": null
+    "atr": 0.8289357142857153
   },
   {
     "symbol": "BAC",
     "date": "2025-02-20",
     "close": 45.3,
     "volume": 40001086.0,
-    "atr": null
+    "atr": 0.8564357142857152
   },
   {
     "symbol": "BAC",
     "date": "2025-02-21",
     "close": 44.81,
     "volume": 43485874.0,
-    "atr": null
+    "atr": 0.8782214285714295
   },
   {
     "symbol": "BAC",
     "date": "2025-02-24",
     "close": 44.46,
     "volume": 35512204.0,
-    "atr": null
+    "atr": 0.8485785714285724
   },
   {
     "symbol": "BAC",
     "date": "2025-02-25",
     "close": 43.94,
     "volume": 38115257.0,
-    "atr": null
+    "atr": 0.888935714285715
   },
   {
     "symbol": "BAC",
     "date": "2025-02-26",
     "close": 43.94,
     "volume": 32251699.0,
-    "atr": null
+    "atr": 0.9032285714285716
   },
   {
     "symbol": "BAC",
     "date": "2025-02-27",
     "close": 44.12,
     "volume": 28477725.0,
-    "atr": null
+    "atr": 0.9011285714285714
   },
   {
     "symbol": "BAC",
     "date": "2025-02-28",
     "close": 46.1,
     "volume": 62621148.0,
-    "atr": null
+    "atr": 1.0075571428571435
   },
   {
     "symbol": "BAC",
     "date": "2025-03-03",
     "close": 45.56,
     "volume": 46946021.0,
-    "atr": null
+    "atr": 1.0493428571428578
   },
   {
     "symbol": "BAC",
     "date": "2025-03-04",
     "close": 42.67,
     "volume": 78278115.0,
-    "atr": null
+    "atr": 1.2547000000000008
   },
   {
     "symbol": "BAC",
     "date": "2025-03-05",
     "close": 42.29,
     "volume": 52588903.0,
-    "atr": null
+    "atr": 1.266842857142858
   },
   {
     "symbol": "BAC",
     "date": "2025-03-06",
     "close": 41.46,
     "volume": 58081405.0,
-    "atr": null
+    "atr": 1.3193000000000008
   },
   {
     "symbol": "BAC",
     "date": "2025-03-07",
     "close": 41.4,
     "volume": 50651434.0,
-    "atr": null
+    "atr": 1.3450142857142862
   },
   {
     "symbol": "BAC",
     "date": "2025-03-10",
     "close": 39.83,
     "volume": 77374436.0,
-    "atr": null
+    "atr": 1.4464428571428571
   },
   {
     "symbol": "BAC",
     "date": "2025-03-11",
     "close": 39.61,
     "volume": 50608382.0,
-    "atr": null
+    "atr": 1.4664499999999994
   },
   {
     "symbol": "BAC",
     "date": "2025-03-12",
     "close": 39.91,
     "volume": 42290673.0,
-    "atr": null
+    "atr": 1.4771642857142848
   },
   {
     "symbol": "BAC",
     "date": "2025-03-13",
     "close": 39.67,
     "volume": 37766080.0,
-    "atr": null
+    "atr": 1.468949999999999
   },
   {
     "symbol": "BAC",
     "date": "2025-03-14",
     "close": 40.89,
     "volume": 35979933.0,
-    "atr": null
+    "atr": 1.496807142857142
   },
   {
     "symbol": "BAC",
     "date": "2025-03-17",
     "close": 41.44,
     "volume": 37238297.0,
-    "atr": null
+    "atr": 1.4750214285714276
   },
   {
     "symbol": "BAC",
     "date": "2025-03-18",
     "close": 41.65,
     "volume": 37644466.0,
-    "atr": null
+    "atr": 1.4646428571428562
   },
   {
     "symbol": "BAC",
     "date": "2025-03-19",
     "close": 42.21,
     "volume": 42471117.0,
-    "atr": null
+    "atr": 1.5044785714285713
   },
   {
     "symbol": "BAC",
     "date": "2025-03-20",
     "close": 42.48,
     "volume": 41018128.0,
-    "atr": null
+    "atr": 1.4323357142857138
   },
   {
     "symbol": "BAC",
     "date": "2025-03-21",
     "close": 42.47,
     "volume": 65010969.0,
-    "atr": null
+    "atr": 1.3630499999999992
   },
   {
     "symbol": "BAC",
     "date": "2025-03-24",
     "close": 43.07,
     "volume": 30588643.0,
-    "atr": null
+    "atr": 1.1594785714285705
   },
   {
     "symbol": "BAC",
     "date": "2025-03-25",
     "close": 43.28,
     "volume": 25445348.0,
-    "atr": null
+    "atr": 1.121264285714285
   },
   {
     "symbol": "BAC",
     "date": "2025-03-26",
     "close": 42.82,
     "volume": 30064465.0,
-    "atr": null
+    "atr": 1.096664285714285
   },
   {
     "symbol": "BAC",
     "date": "2025-03-27",
     "close": 42.56,
     "volume": 25619235.0,
-    "atr": null
+    "atr": 1.057735714285714
   },
   {
     "symbol": "BAC",
     "date": "2025-03-28",
     "close": 41.25,
     "volume": 34252982.0,
-    "atr": null
+    "atr": 1.0159499999999997
   },
   {
     "symbol": "BAC",
     "date": "2025-03-31",
     "close": 41.73,
     "volume": 36389953.0,
-    "atr": null
+    "atr": 1.0088071428571435
   },
   {
     "symbol": "BAC",
     "date": "2025-04-01",
     "close": 41.49,
     "volume": 25578539.0,
-    "atr": null
+    "atr": 0.9705928571428574
   },
   {
     "symbol": "BAC",
     "date": "2025-04-02",
     "close": 41.85,
     "volume": 28216129.0,
-    "atr": null
+    "atr": 0.9916642857142861
   },
   {
     "symbol": "BAC",
     "date": "2025-04-03",
     "close": 37.22,
     "volume": 115497878.0,
-    "atr": null
+    "atr": 1.2409500000000004
   },
   {
     "symbol": "BAC",
     "date": "2025-04-04",
     "close": 34.39,
     "volume": 107761162.0,
-    "atr": null
+    "atr": 1.4102357142857147
   },
   {
     "symbol": "BAC",
     "date": "2025-04-07",
     "close": 35.58,
     "volume": 137329068.0,
-    "atr": null
+    "atr": 1.592378571428572
   },
   {
     "symbol": "BAC",
     "date": "2025-04-08",
     "close": 35.03,
     "volume": 79116309.0,
-    "atr": null
+    "atr": 1.706428571428572
   },
   {
     "symbol": "BAC",
     "date": "2025-04-09",
     "close": 37.15,
     "volume": 161173535.0,
-    "atr": null
+    "atr": 1.9721428571428576
   },
   {
     "symbol": "BAC",
     "date": "2025-04-10",
     "close": 35.85,
     "volume": 90441847.0,
-    "atr": null
+    "atr": 2.0971428571428574
   },
   {
     "symbol": "BAC",
     "date": "2025-04-11",
     "close": 35.95,
     "volume": 63671938.0,
-    "atr": null
+    "atr": 2.1496428571428576
   },
   {
     "symbol": "BAC",
     "date": "2025-04-14",
     "close": 36.67,
     "volume": 46830587.0,
-    "atr": null
+    "atr": 2.188928571428572
   },
   {
     "symbol": "BAC",
     "date": "2025-04-15",
     "close": 37.99,
     "volume": 84677796.0,
-    "atr": null
+    "atr": 2.266785714285714
   },
   {
     "symbol": "BAC",
     "date": "2025-04-16",
     "close": 37.33,
     "volume": 52872668.0,
-    "atr": null
+    "atr": 2.3103571428571428
   },
   {
     "symbol": "BAC",
     "date": "2025-04-17",
     "close": 37.41,
     "volume": 46921245.0,
-    "atr": null
+    "atr": 2.238564285714286
   },
   {
     "symbol": "BAC",
     "date": "2025-04-21",
     "close": 36.92,
     "volume": 34928346.0,
-    "atr": null
+    "atr": 2.211778571428571
   },
   {
     "symbol": "BAC",
     "date": "2025-04-22",
     "close": 38.32,
     "volume": 42288918.0,
-    "atr": null
+    "atr": 2.2692785714285715
   },
   {
     "symbol": "BAC",
     "date": "2025-04-23",
     "close": 38.75,
     "volume": 54428408.0,
-    "atr": null
+    "atr": 2.316064285714286
   },
   {
     "symbol": "BAC",
     "date": "2025-04-24",
     "close": 39.58,
     "volume": 42457109.0,
-    "atr": null
+    "atr": 2.0496357142857144
   },
   {
     "symbol": "BAC",
     "date": "2025-04-25",
     "close": 39.69,
     "volume": 32694154.0,
-    "atr": null
+    "atr": 1.8299928571428576
   },
   {
     "symbol": "BAC",
     "date": "2025-04-28",
     "close": 39.78,
     "volume": 37428007.0,
-    "atr": null
+    "atr": 1.6535642857142858
   },
   {
     "symbol": "BAC",
     "date": "2025-04-29",
     "close": 39.99,
     "volume": 33792544.0,
-    "atr": null
+    "atr": 1.4867785714285715
   },
   {
     "symbol": "BAC",
     "date": "2025-04-30",
     "close": 39.88,
     "volume": 40994596.0,
-    "atr": null
+    "atr": 1.2292785714285717
   },
   {
     "symbol": "BAC",
     "date": "2025-05-01",
     "close": 40.17,
     "volume": 33569144.0,
-    "atr": null
+    "atr": 1.1107071428571433
   },
   {
     "symbol": "BAC",
     "date": "2025-05-02",
     "close": 41.07,
     "volume": 41613021.0,
-    "atr": null
+    "atr": 1.0853500000000003
   },
   {
     "symbol": "BAC",
     "date": "2025-05-05",
     "close": 41.12,
     "volume": 32829236.0,
-    "atr": null
+    "atr": 1.0732071428571435
   },
   {
     "symbol": "BAC",
     "date": "2025-05-06",
     "close": 40.84,
     "volume": 29541838.0,
-    "atr": null
+    "atr": 0.9757071428571439
   },
   {
     "symbol": "BAC",
     "date": "2025-05-07",
     "close": 40.93,
     "volume": 30928612.0,
-    "atr": null
+    "atr": 0.9267785714285723
   },
   {
     "symbol": "BAC",
     "date": "2025-05-08",
     "close": 41.6,
     "volume": 41861747.0,
-    "atr": null
+    "atr": 0.9689142857142866
   },
   {
     "symbol": "BAC",
     "date": "2025-05-09",
     "close": 41.79,
     "volume": 27222761.0,
-    "atr": null
+    "atr": 0.9307000000000006
   },
   {
     "symbol": "BAC",
     "date": "2025-05-12",
     "close": 43.36,
     "volume": 44875064.0,
-    "atr": null
+    "atr": 0.9732000000000005
   },
   {
     "symbol": "BAC",
     "date": "2025-05-13",
     "close": 44.28,
     "volume": 43232541.0,
-    "atr": null
+    "atr": 0.924271428571429
   },
   {
     "symbol": "BAC",
     "date": "2025-05-14",
     "close": 44.74,
     "volume": 42419547.0,
-    "atr": null
+    "atr": 0.9017714285714286
   },
   {
     "symbol": "BAC",
     "date": "2025-05-15",
     "close": 44.38,
     "volume": 47379372.0,
-    "atr": null
+    "atr": 0.9371285714285713
   },
   {
     "symbol": "BAC",
     "date": "2025-05-16",
     "close": 44.69,
     "volume": 49488135.0,
-    "atr": null
+    "atr": 0.9739142857142856
   },
   {
     "symbol": "BAC",
     "date": "2025-05-19",
     "close": 44.77,
     "volume": 37915717.0,
-    "atr": null
+    "atr": 1.0003428571428568
   },
   {
     "symbol": "BAC",
     "date": "2025-05-20",
     "close": 44.69,
     "volume": 33424251.0,
-    "atr": null
+    "atr": 0.9514142857142852
   },
   {
     "symbol": "BAC",
     "date": "2025-05-21",
     "close": 43.25,
     "volume": 55594058.0,
-    "atr": null
+    "atr": 1.0003428571428563
   },
   {
     "symbol": "BAC",
     "date": "2025-05-22",
     "close": 43.31,
     "volume": 29026187.0,
-    "atr": null
+    "atr": 0.9681999999999995
   },
   {
     "symbol": "BAC",
     "date": "2025-05-23",
     "close": 43.2,
     "volume": 34875060.0,
-    "atr": null
+    "atr": 0.9831999999999991
   },
   {
     "symbol": "BAC",
     "date": "2025-05-27",
     "close": 44.22,
     "volume": 36322007.0,
-    "atr": null
+    "atr": 1.0049857142857128
   },
   {
     "symbol": "BAC",
     "date": "2025-05-28",
     "close": 44.06,
     "volume": 35673753.0,
-    "atr": null
+    "atr": 1.0034499999999984
   },
   {
     "symbol": "BAC",
     "date": "2025-05-29",
     "close": 44.24,
     "volume": 28553008.0,
-    "atr": null
+    "atr": 0.9563214285714271
   },
   {
     "symbol": "BAC",
     "date": "2025-05-30",
     "close": 44.13,
     "volume": 66537474.0,
-    "atr": null
+    "atr": 0.9706071428571416
   },
   {
     "symbol": "BAC",
     "date": "2025-06-02",
     "close": 44.08,
     "volume": 28582598.0,
-    "atr": null
+    "atr": 0.8723928571428559
   },
   {
     "symbol": "BAC",
     "date": "2025-06-03",
     "close": 44.65,
     "volume": 31320154.0,
-    "atr": null
+    "atr": 0.8484642857142843
   },
   {
     "symbol": "BAC",
     "date": "2025-06-04",
     "close": 44.36,
     "volume": 30591708.0,
-    "atr": null
+    "atr": 0.8456071428571416
   },
   {
     "symbol": "BAC",
     "date": "2025-06-05",
     "close": 44.38,
     "volume": 32036157.0,
-    "atr": null
+    "atr": 0.8166785714285706
   },
   {
     "symbol": "BAC",
     "date": "2025-06-06",
     "close": 44.97,
     "volume": 37013001.0,
-    "atr": null
+    "atr": 0.7916785714285705
   },
   {
     "symbol": "BAC",
     "date": "2025-06-09",
     "close": 44.87,
     "volume": 32414025.0,
-    "atr": null
+    "atr": 0.7623928571428559
   },
   {
     "symbol": "BAC",
     "date": "2025-06-10",
     "close": 45.09,
     "volume": 32229081.0,
-    "atr": null
+    "atr": 0.7584642857142845
   },
   {
     "symbol": "BAC",
     "date": "2025-06-11",
     "close": 44.73,
     "volume": 47873455.0,
-    "atr": null
+    "atr": 0.7095357142857134
   },
   {
     "symbol": "BAC",
     "date": "2025-06-12",
     "close": 44.62,
     "volume": 30165422.0,
-    "atr": null
+    "atr": 0.7166785714285702
   },
   {
     "symbol": "BAC",
     "date": "2025-06-13",
     "close": 44.09,
     "volume": 43281740.0,
-    "atr": null
+    "atr": 0.7077571428571413
   },
   {
     "symbol": "BAC",
     "date": "2025-06-16",
     "close": 44.41,
     "volume": 34103646.0,
-    "atr": null
+    "atr": 0.6920428571428557
   },
   {
     "symbol": "BAC",
     "date": "2025-06-17",
     "close": 44.23,
     "volume": 27489633.0,
-    "atr": null
+    "atr": 0.701435714285713
   },
   {
     "symbol": "BAC",
     "date": "2025-06-18",
     "close": 45.06,
     "volume": 37684730.0,
-    "atr": null
+    "atr": 0.7321499999999987
   },
   {
     "symbol": "BAC",
     "date": "2025-06-20",
     "close": 45.5,
     "volume": 64591572.0,
-    "atr": null
+    "atr": 0.7328642857142843
   },
   {
     "symbol": "BAC",
     "date": "2025-06-23",
     "close": 46.3,
     "volume": 42683615.0,
-    "atr": null
+    "atr": 0.7667928571428558
   },
   {
     "symbol": "BAC",
     "date": "2025-06-24",
     "close": 46.66,
     "volume": 45437593.0,
-    "atr": null
+    "atr": 0.7739357142857131
   },
   {
     "symbol": "BAC",
     "date": "2025-06-25",
     "close": 46.85,
     "volume": 33532391.0,
-    "atr": null
+    "atr": 0.7575071428571414
   },
   {
     "symbol": "BAC",
     "date": "2025-06-26",
     "close": 47.46,
     "volume": 40127021.0,
-    "atr": null
+    "atr": 0.7692928571428551
+  },
+  {
+    "symbol": "BAC",
+    "date": "2025-06-27",
+    "close": 47.12,
+    "volume": 56705021.0,
+    "atr": 0.7675071428571414
   }
 ]

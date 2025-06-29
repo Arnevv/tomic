@@ -32,1728 +32,1735 @@
     "date": "2024-07-02",
     "close": 200,
     "volume": 45586383.0,
-    "atr": null
+    "atr": 4.5
   },
   {
     "symbol": "AMZN",
     "date": "2024-07-03",
     "close": 197.59,
     "volume": 30585326.0,
-    "atr": null
+    "atr": 3.884450000000001
   },
   {
     "symbol": "AMZN",
     "date": "2024-07-05",
     "close": 200,
     "volume": 38858685.0,
-    "atr": null
+    "atr": 3.5763000000000034
   },
   {
     "symbol": "AMZN",
     "date": "2024-07-08",
     "close": 199.29,
     "volume": 34756586.0,
-    "atr": null
+    "atr": 3.4922249999999977
   },
   {
     "symbol": "AMZN",
     "date": "2024-07-09",
     "close": 199.34,
     "volume": 32756736.0,
-    "atr": null
+    "atr": 3.098779999999999
   },
   {
     "symbol": "AMZN",
     "date": "2024-07-10",
     "close": 199.79,
     "volume": 32871678.0,
-    "atr": null
+    "atr": 2.985650000000002
   },
   {
     "symbol": "AMZN",
     "date": "2024-07-11",
     "close": 195.05,
     "volume": 44559041.0,
-    "atr": null
+    "atr": 3.6176857142857153
   },
   {
     "symbol": "AMZN",
     "date": "2024-07-12",
     "close": 194.49,
     "volume": 30583325.0,
-    "atr": null
+    "atr": 3.495462500000002
   },
   {
     "symbol": "AMZN",
     "date": "2024-07-15",
     "close": 192.72,
     "volume": 40649227.0,
-    "atr": null
+    "atr": 3.7026333333333334
   },
   {
     "symbol": "AMZN",
     "date": "2024-07-16",
     "close": 193.02,
     "volume": 33994714.0,
-    "atr": null
+    "atr": 3.7703699999999998
   },
   {
     "symbol": "AMZN",
     "date": "2024-07-17",
     "close": 187.93,
     "volume": 48020139.0,
-    "atr": null
+    "atr": 4.0667
   },
   {
     "symbol": "AMZN",
     "date": "2024-07-18",
     "close": 183.75,
     "volume": 51037226.0,
-    "atr": null
+    "atr": 4.413808333333333
   },
   {
     "symbol": "AMZN",
     "date": "2024-07-19",
     "close": 183.13,
     "volume": 42639329.0,
-    "atr": null
+    "atr": 4.445053846153845
   },
   {
     "symbol": "AMZN",
     "date": "2024-07-22",
     "close": 182.55,
     "volume": 39891223.0,
-    "atr": null
+    "atr": 4.311835714285714
   },
   {
     "symbol": "AMZN",
     "date": "2024-07-23",
     "close": 186.41,
     "volume": 47534070.0,
-    "atr": null
+    "atr": 4.47897857142857
   },
   {
     "symbol": "AMZN",
     "date": "2024-07-24",
     "close": 180.83,
     "volume": 41513960.0,
-    "atr": null
+    "atr": 4.674057142857142
   },
   {
     "symbol": "AMZN",
     "date": "2024-07-25",
     "close": 179.85,
     "volume": 44456863.0,
-    "atr": null
+    "atr": 4.969471428571426
   },
   {
     "symbol": "AMZN",
     "date": "2024-07-26",
     "close": 182.5,
     "volume": 29505964.0,
-    "atr": null
+    "atr": 4.976614285714285
   },
   {
     "symbol": "AMZN",
     "date": "2024-07-29",
     "close": 183.2,
     "volume": 33270123.0,
-    "atr": null
+    "atr": 5.0369714285714275
   },
   {
     "symbol": "AMZN",
     "date": "2024-07-30",
     "close": 181.71,
     "volume": 39496174.0,
-    "atr": null
+    "atr": 5.326971428571428
   },
   {
     "symbol": "AMZN",
     "date": "2024-07-31",
     "close": 186.98,
     "volume": 41667326.0,
-    "atr": null
+    "atr": 5.242692857142856
   },
   {
     "symbol": "AMZN",
     "date": "2024-08-01",
     "close": 184.07,
     "volume": 70380635.0,
-    "atr": null
+    "atr": 5.677699999999997
   },
   {
     "symbol": "AMZN",
     "date": "2024-08-02",
     "close": 167.9,
     "volume": 141380965.0,
-    "atr": null
+    "atr": 6.974842857142854
   },
   {
     "symbol": "AMZN",
     "date": "2024-08-05",
     "close": 161.02,
     "volume": 83141517.0,
-    "atr": null
+    "atr": 7.82555714285714
   },
   {
     "symbol": "AMZN",
     "date": "2024-08-06",
     "close": 161.93,
     "volume": 59937280.0,
-    "atr": null
+    "atr": 7.790528571428569
   },
   {
     "symbol": "AMZN",
     "date": "2024-08-07",
     "close": 162.77,
     "volume": 48349840.0,
-    "atr": null
+    "atr": 7.6418142857142835
   },
   {
     "symbol": "AMZN",
     "date": "2024-08-08",
     "close": 165.8,
     "volume": 44605206.0,
-    "atr": null
+    "atr": 7.593235714285711
   },
   {
     "symbol": "AMZN",
     "date": "2024-08-09",
     "close": 166.94,
     "volume": 36301049.0,
-    "atr": null
+    "atr": 7.6053785714285675
   },
   {
     "symbol": "AMZN",
     "date": "2024-08-12",
     "close": 166.8,
     "volume": 30007688.0,
-    "atr": null
+    "atr": 7.291085714285714
   },
   {
     "symbol": "AMZN",
     "date": "2024-08-13",
     "close": 170.23,
     "volume": 39237915.0,
-    "atr": null
+    "atr": 7.165371428571427
   },
   {
     "symbol": "AMZN",
     "date": "2024-08-14",
     "close": 170.1,
     "volume": 28796204.0,
-    "atr": null
+    "atr": 6.902814285714284
   },
   {
     "symbol": "AMZN",
     "date": "2024-08-15",
     "close": 177.59,
     "volume": 51681513.0,
-    "atr": null
+    "atr": 7.2220999999999975
   },
   {
     "symbol": "AMZN",
     "date": "2024-08-16",
     "close": 177.06,
     "volume": 31457175.0,
-    "atr": null
+    "atr": 7.201378571428569
   },
   {
     "symbol": "AMZN",
     "date": "2024-08-19",
     "close": 178.22,
     "volume": 31129807.0,
-    "atr": null
+    "atr": 6.891378571428569
   },
   {
     "symbol": "AMZN",
     "date": "2024-08-20",
     "close": 178.88,
     "volume": 26255204.0,
-    "atr": null
+    "atr": 6.559178571428569
   },
   {
     "symbol": "AMZN",
     "date": "2024-08-21",
     "close": 180.11,
     "volume": 35575120.0,
-    "atr": null
+    "atr": 6.185964285714284
   },
   {
     "symbol": "AMZN",
     "date": "2024-08-22",
     "close": 176.13,
     "volume": 32047482.0,
-    "atr": null
+    "atr": 4.919535714285713
   },
   {
     "symbol": "AMZN",
     "date": "2024-08-23",
     "close": 177.04,
     "volume": 29081191.0,
-    "atr": null
+    "atr": 4.022385714285712
   },
   {
     "symbol": "AMZN",
     "date": "2024-08-26",
     "close": 175.5,
     "volume": 22364436.0,
-    "atr": null
+    "atr": 3.781571428571425
   },
   {
     "symbol": "AMZN",
     "date": "2024-08-27",
     "close": 173.12,
     "volume": 29761979.0,
-    "atr": null
+    "atr": 3.5744285714285673
   },
   {
     "symbol": "AMZN",
     "date": "2024-08-28",
     "close": 170.8,
     "volume": 29045025.0,
-    "atr": null
+    "atr": 3.619435714285712
   },
   {
     "symbol": "AMZN",
     "date": "2024-08-29",
     "close": 172.12,
     "volume": 26397315.0,
-    "atr": null
+    "atr": 3.6722928571428537
   },
   {
     "symbol": "AMZN",
     "date": "2024-08-30",
     "close": 178.5,
     "volume": 43411355.0,
-    "atr": null
+    "atr": 3.982299999999995
   },
   {
     "symbol": "AMZN",
     "date": "2024-09-03",
     "close": 176.25,
     "volume": 37816711.0,
-    "atr": null
+    "atr": 3.9108714285714257
   },
   {
     "symbol": "AMZN",
     "date": "2024-09-04",
     "close": 173.33,
     "volume": 30299225.0,
-    "atr": null
+    "atr": 3.931585714285713
   },
   {
     "symbol": "AMZN",
     "date": "2024-09-05",
     "close": 177.89,
     "volume": 40147276.0,
-    "atr": null
+    "atr": 3.841228571428569
   },
   {
     "symbol": "AMZN",
     "date": "2024-09-06",
     "close": 171.39,
     "volume": 41466537.0,
-    "atr": null
+    "atr": 4.208378571428568
   },
   {
     "symbol": "AMZN",
     "date": "2024-09-09",
     "close": 175.4,
     "volume": 29037362.0,
-    "atr": null
+    "atr": 4.374092857142854
   },
   {
     "symbol": "AMZN",
     "date": "2024-09-10",
     "close": 179.55,
     "volume": 36223796.0,
-    "atr": null
+    "atr": 4.625578571428568
   },
   {
     "symbol": "AMZN",
     "date": "2024-09-11",
     "close": 184.52,
     "volume": 42564698.0,
-    "atr": null
+    "atr": 5.036649999999999
   },
   {
     "symbol": "AMZN",
     "date": "2024-09-12",
     "close": 187,
     "volume": 33622483.0,
-    "atr": null
+    "atr": 4.899507142857142
   },
   {
     "symbol": "AMZN",
     "date": "2024-09-13",
     "close": 186.49,
     "volume": 26495351.0,
-    "atr": null
+    "atr": 4.818085714285715
   },
   {
     "symbol": "AMZN",
     "date": "2024-09-16",
     "close": 184.89,
     "volume": 26065485.0,
-    "atr": null
+    "atr": 4.8153571428571444
   },
   {
     "symbol": "AMZN",
     "date": "2024-09-17",
     "close": 186.88,
     "volume": 26091682.0,
-    "atr": null
+    "atr": 4.908928571428573
   },
   {
     "symbol": "AMZN",
     "date": "2024-09-18",
     "close": 186.43,
     "volume": 34448130.0,
-    "atr": null
+    "atr": 4.835357142857144
   },
   {
     "symbol": "AMZN",
     "date": "2024-09-19",
     "close": 189.87,
     "volume": 39543168.0,
-    "atr": null
+    "atr": 4.911785714285718
   },
   {
     "symbol": "AMZN",
     "date": "2024-09-20",
     "close": 191.6,
     "volume": 100351353.0,
-    "atr": null
+    "atr": 4.743928571428575
   },
   {
     "symbol": "AMZN",
     "date": "2024-09-23",
     "close": 193.88,
     "volume": 36993111.0,
-    "atr": null
+    "atr": 4.7896428571428595
   },
   {
     "symbol": "AMZN",
     "date": "2024-09-24",
     "close": 193.96,
     "volume": 43478926.0,
-    "atr": null
+    "atr": 4.898928571428574
   },
   {
     "symbol": "AMZN",
     "date": "2024-09-25",
     "close": 192.53,
     "volume": 26381344.0,
-    "atr": null
+    "atr": 4.560000000000004
   },
   {
     "symbol": "AMZN",
     "date": "2024-09-26",
     "close": 191.16,
     "volume": 36334854.0,
-    "atr": null
+    "atr": 4.400714285714291
   },
   {
     "symbol": "AMZN",
     "date": "2024-09-27",
     "close": 187.97,
     "volume": 35973516.0,
-    "atr": null
+    "atr": 4.355000000000004
   },
   {
     "symbol": "AMZN",
     "date": "2024-09-30",
     "close": 186.33,
     "volume": 41680400.0,
-    "atr": null
+    "atr": 4.265000000000005
   },
   {
     "symbol": "AMZN",
     "date": "2024-10-01",
     "close": 185.13,
     "volume": 35993006.0,
-    "atr": null
+    "atr": 3.8091500000000047
   },
   {
     "symbol": "AMZN",
     "date": "2024-10-02",
     "close": 184.76,
     "volume": 23704056.0,
-    "atr": null
+    "atr": 3.715578571428576
   },
   {
     "symbol": "AMZN",
     "date": "2024-10-03",
     "close": 181.96,
     "volume": 30204302.0,
-    "atr": null
+    "atr": 3.8080785714285748
   },
   {
     "symbol": "AMZN",
     "date": "2024-10-04",
     "close": 186.51,
     "volume": 41039211.0,
-    "atr": null
+    "atr": 3.9873642857142886
   },
   {
     "symbol": "AMZN",
     "date": "2024-10-07",
     "close": 180.8,
     "volume": 42364201.0,
-    "atr": null
+    "atr": 4.108792857142859
   },
   {
     "symbol": "AMZN",
     "date": "2024-10-08",
     "close": 182.72,
     "volume": 26372086.0,
-    "atr": null
+    "atr": 4.00522142857143
   },
   {
     "symbol": "AMZN",
     "date": "2024-10-09",
     "close": 185.17,
     "volume": 26343117.0,
-    "atr": null
+    "atr": 3.9505785714285713
   },
   {
     "symbol": "AMZN",
     "date": "2024-10-10",
     "close": 186.65,
     "volume": 27780363.0,
-    "atr": null
+    "atr": 3.845864285714285
   },
   {
     "symbol": "AMZN",
     "date": "2024-10-11",
     "close": 188.82,
     "volume": 25751557.0,
-    "atr": null
+    "atr": 3.8278928571428565
   },
   {
     "symbol": "AMZN",
     "date": "2024-10-14",
     "close": 187.54,
     "volume": 22608807.0,
-    "atr": null
+    "atr": 3.630035714285713
   },
   {
     "symbol": "AMZN",
     "date": "2024-10-15",
     "close": 187.69,
     "volume": 32144200.0,
-    "atr": null
+    "atr": 3.775035714285711
   },
   {
     "symbol": "AMZN",
     "date": "2024-10-16",
     "close": 186.89,
     "volume": 23456812.0,
-    "atr": null
+    "atr": 3.573607142857138
   },
   {
     "symbol": "AMZN",
     "date": "2024-10-17",
     "close": 187.53,
     "volume": 25005314.0,
-    "atr": null
+    "atr": 3.5107499999999954
   },
   {
     "symbol": "AMZN",
     "date": "2024-10-18",
     "close": 188.99,
     "volume": 37381410.0,
-    "atr": null
+    "atr": 3.5550357142857103
   },
   {
     "symbol": "AMZN",
     "date": "2024-10-21",
     "close": 189.07,
     "volume": 24631393.0,
-    "atr": null
+    "atr": 3.568028571428566
   },
   {
     "symbol": "AMZN",
     "date": "2024-10-22",
     "close": 189.7,
     "volume": 29631593.0,
-    "atr": null
+    "atr": 3.7098214285714244
   },
   {
     "symbol": "AMZN",
     "date": "2024-10-23",
     "close": 184.71,
     "volume": 31937089.0,
-    "atr": null
+    "atr": 3.861607142857139
   },
   {
     "symbol": "AMZN",
     "date": "2024-10-24",
     "close": 186.38,
     "volume": 21612195.0,
-    "atr": null
+    "atr": 3.690892857142854
   },
   {
     "symbol": "AMZN",
     "date": "2024-10-25",
     "close": 187.83,
     "volume": 29323810.0,
-    "atr": null
+    "atr": 3.5344642857142827
   },
   {
     "symbol": "AMZN",
     "date": "2024-10-28",
     "close": 188.39,
     "volume": 27930836.0,
-    "atr": null
+    "atr": 3.5408928571428544
   },
   {
     "symbol": "AMZN",
     "date": "2024-10-29",
     "close": 190.83,
     "volume": 35690158.0,
-    "atr": null
+    "atr": 3.5301714285714274
   },
   {
     "symbol": "AMZN",
     "date": "2024-10-30",
     "close": 192.73,
     "volume": 37706550.0,
-    "atr": null
+    "atr": 3.6598857142857133
   },
   {
     "symbol": "AMZN",
     "date": "2024-10-31",
     "close": 186.4,
     "volume": 75146387.0,
-    "atr": null
+    "atr": 3.9364285714285705
   },
   {
     "symbol": "AMZN",
     "date": "2024-11-01",
     "close": 197.93,
     "volume": 99611847.0,
-    "atr": null
+    "atr": 4.767142857142856
   },
   {
     "symbol": "AMZN",
     "date": "2024-11-04",
     "close": 195.78,
     "volume": 38484562.0,
-    "atr": null
+    "atr": 4.752135714285714
   },
   {
     "symbol": "AMZN",
     "date": "2024-11-05",
     "close": 199.5,
     "volume": 30564784.0,
-    "atr": null
+    "atr": 4.885707142857143
   },
   {
     "symbol": "AMZN",
     "date": "2024-11-06",
     "close": 207.09,
     "volume": 72292166.0,
-    "atr": null
+    "atr": 5.276421428571431
   },
   {
     "symbol": "AMZN",
     "date": "2024-11-07",
     "close": 210.05,
     "volume": 52878383.0,
-    "atr": null
+    "atr": 5.32642142857143
   },
   {
     "symbol": "AMZN",
     "date": "2024-11-08",
     "close": 208.18,
     "volume": 35919966.0,
-    "atr": null
+    "atr": 5.294278571428573
   },
   {
     "symbol": "AMZN",
     "date": "2024-11-11",
     "close": 206.84,
     "volume": 35456012.0,
-    "atr": null
+    "atr": 5.259628571428572
   },
   {
     "symbol": "AMZN",
     "date": "2024-11-12",
     "close": 208.91,
     "volume": 38942918.0,
-    "atr": null
+    "atr": 5.082485714285716
   },
   {
     "symbol": "AMZN",
     "date": "2024-11-13",
     "close": 214.1,
     "volume": 46197443.0,
-    "atr": null
+    "atr": 5.291771428571431
   },
   {
     "symbol": "AMZN",
     "date": "2024-11-14",
     "close": 211.48,
     "volume": 42617809.0,
-    "atr": null
+    "atr": 5.3596285714285745
   },
   {
     "symbol": "AMZN",
     "date": "2024-11-15",
     "close": 202.61,
     "volume": 86591144.0,
-    "atr": null
+    "atr": 6.037485714285716
   },
   {
     "symbol": "AMZN",
     "date": "2024-11-18",
     "close": 201.7,
     "volume": 36512465.0,
-    "atr": null
+    "atr": 6.042850000000001
   },
   {
     "symbol": "AMZN",
     "date": "2024-11-19",
     "close": 204.61,
     "volume": 31181867.0,
-    "atr": null
+    "atr": 6.167135714285716
   },
   {
     "symbol": "AMZN",
     "date": "2024-11-20",
     "close": 202.88,
     "volume": 32768989.0,
-    "atr": null
+    "atr": 5.999992857142861
   },
   {
     "symbol": "AMZN",
     "date": "2024-11-21",
     "close": 198.38,
     "volume": 58800042.0,
-    "atr": null
+    "atr": 5.545707142857148
   },
   {
     "symbol": "AMZN",
     "date": "2024-11-22",
     "close": 197.12,
     "volume": 31530844.0,
-    "atr": null
+    "atr": 5.466421428571432
   },
   {
     "symbol": "AMZN",
     "date": "2024-11-25",
     "close": 201.45,
     "volume": 40685672.0,
-    "atr": null
+    "atr": 5.522842857142862
   },
   {
     "symbol": "AMZN",
     "date": "2024-11-26",
     "close": 207.86,
     "volume": 41673737.0,
-    "atr": null
+    "atr": 5.389985714285719
   },
   {
     "symbol": "AMZN",
     "date": "2024-11-27",
     "close": 205.74,
     "volume": 28061638.0,
-    "atr": null
+    "atr": 5.222128571428576
   },
   {
     "symbol": "AMZN",
     "date": "2024-11-29",
     "close": 207.89,
     "volume": 24892447.0,
-    "atr": null
+    "atr": 5.2935571428571455
   },
   {
     "symbol": "AMZN",
     "date": "2024-12-02",
     "close": 210.71,
     "volume": 39523185.0,
-    "atr": null
+    "atr": 5.367842857142861
   },
   {
     "symbol": "AMZN",
     "date": "2024-12-03",
     "close": 213.44,
     "volume": 32208228.0,
-    "atr": null
+    "atr": 5.427842857142862
   },
   {
     "symbol": "AMZN",
     "date": "2024-12-04",
     "close": 218.16,
     "volume": 48718516.0,
-    "atr": null
+    "atr": 5.454985714285718
   },
   {
     "symbol": "AMZN",
     "date": "2024-12-05",
     "close": 220.55,
     "volume": 41140220.0,
-    "atr": null
+    "atr": 5.4428428571428595
   },
   {
     "symbol": "AMZN",
     "date": "2024-12-06",
     "close": 227.03,
     "volume": 44168069.0,
-    "atr": null
+    "atr": 5.0664142857142895
   },
   {
     "symbol": "AMZN",
     "date": "2024-12-09",
     "close": 226.09,
     "volume": 46819363.0,
-    "atr": null
+    "atr": 5.115700000000006
   },
   {
     "symbol": "AMZN",
     "date": "2024-12-10",
     "close": 225.04,
     "volume": 31199864.0,
-    "atr": null
+    "atr": 4.997114285714291
   },
   {
     "symbol": "AMZN",
     "date": "2024-12-11",
     "close": 230.26,
     "volume": 35385785.0,
-    "atr": null
+    "atr": 5.068542857142861
   },
   {
     "symbol": "AMZN",
     "date": "2024-12-12",
     "close": 228.97,
     "volume": 28204084.0,
-    "atr": null
+    "atr": 4.762828571428575
   },
   {
     "symbol": "AMZN",
     "date": "2024-12-13",
     "close": 227.46,
     "volume": 28768080.0,
-    "atr": null
+    "atr": 4.89349285714286
   },
   {
     "symbol": "AMZN",
     "date": "2024-12-16",
     "close": 232.93,
     "volume": 37552096.0,
-    "atr": null
+    "atr": 4.9442142857142874
   },
   {
     "symbol": "AMZN",
     "date": "2024-12-17",
     "close": 231.15,
     "volume": 35944831.0,
-    "atr": null
+    "atr": 4.839214285714287
   },
   {
     "symbol": "AMZN",
     "date": "2024-12-18",
     "close": 220.52,
     "volume": 43281443.0,
-    "atr": null
+    "atr": 5.444921428571429
   },
   {
     "symbol": "AMZN",
     "date": "2024-12-19",
     "close": 223.29,
     "volume": 39918739.0,
-    "atr": null
+    "atr": 5.5849214285714295
   },
   {
     "symbol": "AMZN",
     "date": "2024-12-20",
     "close": 224.92,
     "volume": 88279184.0,
-    "atr": null
+    "atr": 5.754921428571429
   },
   {
     "symbol": "AMZN",
     "date": "2024-12-23",
     "close": 225.06,
     "volume": 28030007.0,
-    "atr": null
+    "atr": 5.655635714285714
   },
   {
     "symbol": "AMZN",
     "date": "2024-12-24",
     "close": 229.05,
     "volume": 15001097.0,
-    "atr": null
+    "atr": 5.4784928571428555
   },
   {
     "symbol": "AMZN",
     "date": "2024-12-26",
     "close": 227.05,
     "volume": 16174500.0,
-    "atr": null
+    "atr": 5.302021428571428
   },
   {
     "symbol": "AMZN",
     "date": "2024-12-27",
     "close": 223.75,
     "volume": 27367147.0,
-    "atr": null
+    "atr": 5.269878571428571
   },
   {
     "symbol": "AMZN",
     "date": "2024-12-30",
     "close": 221.3,
     "volume": 28299510.0,
-    "atr": null
+    "atr": 5.334878571428569
   },
   {
     "symbol": "AMZN",
     "date": "2024-12-31",
     "close": 219.39,
     "volume": 24788655.0,
-    "atr": null
+    "atr": 5.294171428571425
   },
   {
     "symbol": "AMZN",
     "date": "2025-01-02",
     "close": 220.22,
     "volume": 33956579.0,
-    "atr": null
+    "atr": 5.351314285714283
   },
   {
     "symbol": "AMZN",
     "date": "2025-01-03",
     "close": 224.19,
     "volume": 27503606.0,
-    "atr": null
+    "atr": 5.471314285714284
   },
   {
     "symbol": "AMZN",
     "date": "2025-01-06",
     "close": 227.61,
     "volume": 31849831.0,
-    "atr": null
+    "atr": 5.493157142857143
   },
   {
     "symbol": "AMZN",
     "date": "2025-01-07",
     "close": 222.11,
     "volume": 28084164.0,
-    "atr": null
+    "atr": 5.5918
   },
   {
     "symbol": "AMZN",
     "date": "2025-01-08",
     "close": 222.13,
     "volume": 25033292.0,
-    "atr": null
+    "atr": 5.4660857142857155
   },
   {
     "symbol": "AMZN",
     "date": "2025-01-10",
     "close": 218.94,
     "volume": 36811525.0,
-    "atr": null
+    "atr": 5.061807142857144
   },
   {
     "symbol": "AMZN",
     "date": "2025-01-13",
     "close": 218.46,
     "volume": 27262655.0,
-    "atr": null
+    "atr": 4.873235714285717
   },
   {
     "symbol": "AMZN",
     "date": "2025-01-14",
     "close": 217.76,
     "volume": 24711650.0,
-    "atr": null
+    "atr": 4.740378571428573
   },
   {
     "symbol": "AMZN",
     "date": "2025-01-15",
     "close": 223.35,
     "volume": 31291257.0,
-    "atr": null
+    "atr": 4.942521428571431
   },
   {
     "symbol": "AMZN",
     "date": "2025-01-16",
     "close": 220.66,
     "volume": 24457276.0,
-    "atr": null
+    "atr": 4.9610928571428605
   },
   {
     "symbol": "AMZN",
     "date": "2025-01-17",
     "close": 225.94,
     "volume": 42355173.0,
-    "atr": null
+    "atr": 5.20899285714286
   },
   {
     "symbol": "AMZN",
     "date": "2025-01-21",
     "close": 230.71,
     "volume": 39951456.0,
-    "atr": null
+    "atr": 5.186850000000002
   },
   {
     "symbol": "AMZN",
     "date": "2025-01-22",
     "close": 235.01,
     "volume": 41448217.0,
-    "atr": null
+    "atr": 5.144707142857145
   },
   {
     "symbol": "AMZN",
     "date": "2025-01-23",
     "close": 235.42,
     "volume": 26404364.0,
-    "atr": null
+    "atr": 5.12471428571429
   },
   {
     "symbol": "AMZN",
     "date": "2025-01-24",
     "close": 234.85,
     "volume": 25840738.0,
-    "atr": null
+    "atr": 4.875428571428576
   },
   {
     "symbol": "AMZN",
     "date": "2025-01-27",
     "close": 235.42,
     "volume": 49428332.0,
-    "atr": null
+    "atr": 5.204714285714289
   },
   {
     "symbol": "AMZN",
     "date": "2025-01-28",
     "close": 238.15,
     "volume": 41587188.0,
-    "atr": null
+    "atr": 5.429357142857147
   },
   {
     "symbol": "AMZN",
     "date": "2025-01-29",
     "close": 237.07,
     "volume": 26088785.0,
-    "atr": null
+    "atr": 5.237857142857146
   },
   {
     "symbol": "AMZN",
     "date": "2025-01-30",
     "close": 234.64,
     "volume": 32020728.0,
-    "atr": null
+    "atr": 5.410000000000001
   },
   {
     "symbol": "AMZN",
     "date": "2025-01-31",
     "close": 237.68,
     "volume": 36162377.0,
-    "atr": null
+    "atr": 5.411428571428573
   },
   {
     "symbol": "AMZN",
     "date": "2025-02-03",
     "close": 237.42,
     "volume": 37285720.0,
-    "atr": null
+    "atr": 5.655714285714287
   },
   {
     "symbol": "AMZN",
     "date": "2025-02-04",
     "close": 242.06,
     "volume": 29713812.0,
-    "atr": null
+    "atr": 5.61857142857143
   },
   {
     "symbol": "AMZN",
     "date": "2025-02-05",
     "close": 236.17,
     "volume": 38825242.0,
-    "atr": null
+    "atr": 5.693571428571431
   },
   {
     "symbol": "AMZN",
     "date": "2025-02-06",
     "close": 238.83,
     "volume": 60843345.0,
-    "atr": null
+    "atr": 5.644278571428574
   },
   {
     "symbol": "AMZN",
     "date": "2025-02-07",
     "close": 229.15,
     "volume": 77389256.0,
-    "atr": null
+    "atr": 5.995707142857147
   },
   {
     "symbol": "AMZN",
     "date": "2025-02-10",
     "close": 233.14,
     "volume": 35419926.0,
-    "atr": null
+    "atr": 5.919278571428573
   },
   {
     "symbol": "AMZN",
     "date": "2025-02-11",
     "close": 232.76,
     "volume": 23713726.0,
-    "atr": null
+    "atr": 5.817850000000003
   },
   {
     "symbol": "AMZN",
     "date": "2025-02-12",
     "close": 228.93,
     "volume": 32285249.0,
-    "atr": null
+    "atr": 5.859992857142858
   },
   {
     "symbol": "AMZN",
     "date": "2025-02-13",
     "close": 230.37,
     "volume": 31346512.0,
-    "atr": null
+    "atr": 5.819278571428571
   },
   {
     "symbol": "AMZN",
     "date": "2025-02-14",
     "close": 228.68,
     "volume": 26543084.0,
-    "atr": null
+    "atr": 5.347135714285715
   },
   {
     "symbol": "AMZN",
     "date": "2025-02-18",
     "close": 226.65,
     "volume": 42975133.0,
-    "atr": null
+    "atr": 5.189278571428572
   },
   {
     "symbol": "AMZN",
     "date": "2025-02-19",
     "close": 226.63,
     "volume": 28566709.0,
-    "atr": null
+    "atr": 5.109278571428574
   },
   {
     "symbol": "AMZN",
     "date": "2025-02-20",
     "close": 222.88,
     "volume": 30001665.0,
-    "atr": null
+    "atr": 5.044278571428573
   },
   {
     "symbol": "AMZN",
     "date": "2025-02-21",
     "close": 216.58,
     "volume": 55315350.0,
-    "atr": null
+    "atr": 5.252850000000001
   },
   {
     "symbol": "AMZN",
     "date": "2025-02-24",
     "close": 212.71,
     "volume": 42387585.0,
-    "atr": null
+    "atr": 5.17749285714286
   },
   {
     "symbol": "AMZN",
     "date": "2025-02-25",
     "close": 212.8,
     "volume": 58955877.0,
-    "atr": null
+    "atr": 5.46892142857143
   },
   {
     "symbol": "AMZN",
     "date": "2025-02-26",
     "close": 214.35,
     "volume": 39120603.0,
-    "atr": null
+    "atr": 5.361778571428571
   },
   {
     "symbol": "AMZN",
     "date": "2025-02-27",
     "close": 208.74,
     "volume": 40548571.0,
-    "atr": null
+    "atr": 5.9296428571428565
   },
   {
     "symbol": "AMZN",
     "date": "2025-02-28",
     "close": 212.28,
     "volume": 51771737.0,
-    "atr": null
+    "atr": 5.562499999999998
   },
   {
     "symbol": "AMZN",
     "date": "2025-03-03",
     "close": 205.02,
     "volume": 42948447.0,
-    "atr": null
+    "atr": 6.0403571428571405
   },
   {
     "symbol": "AMZN",
     "date": "2025-03-04",
     "close": 203.8,
     "volume": 60842554.0,
-    "atr": null
+    "atr": 6.473071428571428
   },
   {
     "symbol": "AMZN",
     "date": "2025-03-05",
     "close": 208.36,
     "volume": 38562205.0,
-    "atr": null
+    "atr": 6.624499999999999
   },
   {
     "symbol": "AMZN",
     "date": "2025-03-06",
     "close": 200.7,
     "volume": 49855705.0,
-    "atr": null
+    "atr": 7.135821428571431
   },
   {
     "symbol": "AMZN",
     "date": "2025-03-07",
     "close": 199.25,
     "volume": 59302811.0,
-    "atr": null
+    "atr": 7.606914285714287
   },
   {
     "symbol": "AMZN",
     "date": "2025-03-10",
     "close": 194.54,
     "volume": 62350926.0,
-    "atr": null
+    "atr": 7.808342857142857
   },
   {
     "symbol": "AMZN",
     "date": "2025-03-11",
     "close": 196.59,
     "volume": 54002880.0,
-    "atr": null
+    "atr": 8.069771428571428
   },
   {
     "symbol": "AMZN",
     "date": "2025-03-12",
     "close": 198.89,
     "volume": 43674484.0,
-    "atr": null
+    "atr": 8.170485714285716
   },
   {
     "symbol": "AMZN",
     "date": "2025-03-13",
     "close": 193.89,
     "volume": 41168361.0,
-    "atr": null
+    "atr": 8.063342857142858
   },
   {
     "symbol": "AMZN",
     "date": "2025-03-14",
     "close": 197.95,
     "volume": 38044533.0,
-    "atr": null
+    "atr": 8.025128571428572
   },
   {
     "symbol": "AMZN",
     "date": "2025-03-17",
     "close": 195.74,
     "volume": 47341752.0,
-    "atr": null
+    "atr": 7.7033642857142866
   },
   {
     "symbol": "AMZN",
     "date": "2025-03-18",
     "close": 192.82,
     "volume": 40412937.0,
-    "atr": null
+    "atr": 7.77479285714286
   },
   {
     "symbol": "AMZN",
     "date": "2025-03-19",
     "close": 195.54,
     "volume": 39411728.0,
-    "atr": null
+    "atr": 7.23229285714286
   },
   {
     "symbol": "AMZN",
     "date": "2025-03-20",
     "close": 194.95,
     "volume": 38921113.0,
-    "atr": null
+    "atr": 7.331578571428573
   },
   {
     "symbol": "AMZN",
     "date": "2025-03-21",
     "close": 196.21,
     "volume": 59897917.0,
-    "atr": null
+    "atr": 6.8322928571428605
   },
   {
     "symbol": "AMZN",
     "date": "2025-03-24",
     "close": 203.26,
     "volume": 41583365.0,
-    "atr": null
+    "atr": 6.693864285714286
   },
   {
     "symbol": "AMZN",
     "date": "2025-03-25",
     "close": 205.71,
     "volume": 31171161.0,
-    "atr": null
+    "atr": 6.427435714285715
   },
   {
     "symbol": "AMZN",
     "date": "2025-03-26",
     "close": 201.13,
     "volume": 32990973.0,
-    "atr": null
+    "atr": 6.143614285714285
   },
   {
     "symbol": "AMZN",
     "date": "2025-03-27",
     "close": 201.36,
     "volume": 27317661.0,
-    "atr": null
+    "atr": 5.770228571428569
   },
   {
     "symbol": "AMZN",
     "date": "2025-03-28",
     "close": 192.72,
     "volume": 52542526.0,
-    "atr": null
+    "atr": 5.847299999999998
   },
   {
     "symbol": "AMZN",
     "date": "2025-03-31",
     "close": 190.26,
     "volume": 63543658.0,
-    "atr": null
+    "atr": 5.957299999999997
   },
   {
     "symbol": "AMZN",
     "date": "2025-04-01",
     "close": 192.17,
     "volume": 41246065.0,
-    "atr": null
+    "atr": 5.993014285714283
   },
   {
     "symbol": "AMZN",
     "date": "2025-04-02",
     "close": 196.01,
     "volume": 53679198.0,
-    "atr": null
+    "atr": 6.250871428571427
   },
   {
     "symbol": "AMZN",
     "date": "2025-04-03",
     "close": 178.41,
     "volume": 95553617.0,
-    "atr": null
+    "atr": 7.274442857142854
   },
   {
     "symbol": "AMZN",
     "date": "2025-04-04",
     "close": 171,
     "volume": 123136859.0,
-    "atr": null
+    "atr": 7.826921428571426
   },
   {
     "symbol": "AMZN",
     "date": "2025-04-07",
     "close": 175.26,
     "volume": 109297115.0,
-    "atr": null
+    "atr": 8.946199999999996
   },
   {
     "symbol": "AMZN",
     "date": "2025-04-08",
     "close": 170.66,
     "volume": 87710360.0,
-    "atr": null
+    "atr": 9.897985714285712
   },
   {
     "symbol": "AMZN",
     "date": "2025-04-09",
     "close": 191.1,
     "volume": 116804328.0,
-    "atr": null
+    "atr": 11.019414285714285
   },
   {
     "symbol": "AMZN",
     "date": "2025-04-10",
     "close": 181.22,
     "volume": 68302045.0,
-    "atr": null
+    "atr": 11.789285714285713
   },
   {
     "symbol": "AMZN",
     "date": "2025-04-11",
     "close": 184.87,
     "volume": 50594339.0,
-    "atr": null
+    "atr": 11.820000000000002
   },
   {
     "symbol": "AMZN",
     "date": "2025-04-14",
     "close": 182.12,
     "volume": 48002540.0,
-    "atr": null
+    "atr": 12.192857142857145
   },
   {
     "symbol": "AMZN",
     "date": "2025-04-15",
     "close": 179.59,
     "volume": 43617902.0,
-    "atr": null
+    "atr": 12.073707142857145
   },
   {
     "symbol": "AMZN",
     "date": "2025-04-16",
     "close": 174.33,
     "volume": 51866916.0,
-    "atr": null
+    "atr": 12.336000000000004
   },
   {
     "symbol": "AMZN",
     "date": "2025-04-17",
     "close": 172.61,
     "volume": 44726453.0,
-    "atr": null
+    "atr": 11.959642857142862
   },
   {
     "symbol": "AMZN",
     "date": "2025-04-21",
     "close": 167.32,
     "volume": 48126111.0,
-    "atr": null
+    "atr": 11.888571428571435
   },
   {
     "symbol": "AMZN",
     "date": "2025-04-22",
     "close": 173.18,
     "volume": 56607202.0,
-    "atr": null
+    "atr": 12.083571428571434
   },
   {
     "symbol": "AMZN",
     "date": "2025-04-23",
     "close": 180.6,
     "volume": 63470094.0,
-    "atr": null
+    "atr": 12.335000000000004
   },
   {
     "symbol": "AMZN",
     "date": "2025-04-24",
     "close": 186.54,
     "volume": 43051696.0,
-    "atr": null
+    "atr": 11.440000000000003
   },
   {
     "symbol": "AMZN",
     "date": "2025-04-25",
     "close": 188.99,
     "volume": 36413330.0,
-    "atr": null
+    "atr": 10.871428571428575
   },
   {
     "symbol": "AMZN",
     "date": "2025-04-28",
     "close": 187.7,
     "volume": 33224732.0,
-    "atr": null
+    "atr": 9.678935714285718
   },
   {
     "symbol": "AMZN",
     "date": "2025-04-29",
     "close": 187.39,
     "volume": 41667255.0,
-    "atr": null
+    "atr": 8.750778571428574
   },
   {
     "symbol": "AMZN",
     "date": "2025-04-30",
     "close": 184.42,
     "volume": 55176543.0,
-    "atr": null
+    "atr": 7.737921428571432
   },
   {
     "symbol": "AMZN",
     "date": "2025-05-01",
     "close": 190.2,
     "volume": 74228963.0,
-    "atr": null
+    "atr": 7.176415142857146
   },
   {
     "symbol": "AMZN",
     "date": "2025-05-02",
     "close": 189.98,
     "volume": 77677487.0,
-    "atr": null
+    "atr": 7.077843714285716
   },
   {
     "symbol": "AMZN",
     "date": "2025-05-05",
     "close": 186.35,
     "volume": 35217469.0,
-    "atr": null
+    "atr": 6.809272285714286
   },
   {
     "symbol": "AMZN",
     "date": "2025-05-06",
     "close": 185.01,
     "volume": 29314055.0,
-    "atr": null
+    "atr": 6.785208000000002
   },
   {
     "symbol": "AMZN",
     "date": "2025-05-07",
     "close": 188.71,
     "volume": 44002926.0,
-    "atr": null
+    "atr": 6.628065142857145
   },
   {
     "symbol": "AMZN",
     "date": "2025-05-08",
     "close": 192.08,
     "volume": 41043620.0,
-    "atr": null
+    "atr": 6.72877942857143
   },
   {
     "symbol": "AMZN",
     "date": "2025-05-09",
     "close": 193.06,
     "volume": 29663143.0,
-    "atr": null
+    "atr": 6.457708000000001
   },
   {
     "symbol": "AMZN",
     "date": "2025-05-12",
     "close": 208.64,
     "volume": 75205042.0,
-    "atr": null
+    "atr": 7.110565142857142
   },
   {
     "symbol": "AMZN",
     "date": "2025-05-13",
     "close": 211.37,
     "volume": 56193682.0,
-    "atr": null
+    "atr": 6.539136571428573
   },
   {
     "symbol": "AMZN",
     "date": "2025-05-14",
     "close": 210.25,
     "volume": 38492128.0,
-    "atr": null
+    "atr": 6.290565142857146
   },
   {
     "symbol": "AMZN",
     "date": "2025-05-15",
     "close": 205.17,
     "volume": 64347317.0,
-    "atr": null
+    "atr": 6.513922285714289
   },
   {
     "symbol": "AMZN",
     "date": "2025-05-16",
     "close": 205.59,
     "volume": 43318478.0,
-    "atr": null
+    "atr": 6.309708000000002
   },
   {
     "symbol": "AMZN",
     "date": "2025-05-19",
     "close": 206.16,
     "volume": 34314810.0,
-    "atr": null
+    "atr": 6.382865142857146
   },
   {
     "symbol": "AMZN",
     "date": "2025-05-20",
     "close": 204.07,
     "volume": 29470373.0,
-    "atr": null
+    "atr": 6.0235794285714315
   },
   {
     "symbol": "AMZN",
     "date": "2025-05-21",
     "close": 201.12,
     "volume": 42460924.0,
-    "atr": null
+    "atr": 5.782357142857145
   },
   {
     "symbol": "AMZN",
     "date": "2025-05-22",
     "close": 203.1,
     "volume": 38938882.0,
-    "atr": null
+    "atr": 5.719500000000003
   },
   {
     "symbol": "AMZN",
     "date": "2025-05-23",
     "close": 200.99,
     "volume": 33393545.0,
-    "atr": null
+    "atr": 5.7766428571428605
   },
   {
     "symbol": "AMZN",
     "date": "2025-05-27",
     "close": 206.02,
     "volume": 34892044.0,
-    "atr": null
+    "atr": 5.892357142857144
   },
   {
     "symbol": "AMZN",
     "date": "2025-05-28",
     "close": 204.72,
     "volume": 28549753.0,
-    "atr": null
+    "atr": 5.697357142857143
   },
   {
     "symbol": "AMZN",
     "date": "2025-05-29",
     "close": 205.7,
     "volume": 34700005.0,
-    "atr": null
+    "atr": 5.623071428571429
   },
   {
     "symbol": "AMZN",
     "date": "2025-05-30",
     "close": 205.01,
     "volume": 51679406.0,
-    "atr": null
+    "atr": 5.677714285714288
   },
   {
     "symbol": "AMZN",
     "date": "2025-06-02",
     "close": 206.65,
     "volume": 29113319.0,
-    "atr": null
+    "atr": 4.657714285714287
   },
   {
     "symbol": "AMZN",
     "date": "2025-06-03",
     "close": 205.71,
     "volume": 33139121.0,
-    "atr": null
+    "atr": 4.494635714285715
   },
   {
     "symbol": "AMZN",
     "date": "2025-06-04",
     "close": 207.23,
     "volume": 29915592.0,
-    "atr": null
+    "atr": 4.4889214285714285
   },
   {
     "symbol": "AMZN",
     "date": "2025-06-05",
     "close": 207.91,
     "volume": 51979243.0,
-    "atr": null
+    "atr": 4.346278571428572
   },
   {
     "symbol": "AMZN",
     "date": "2025-06-06",
     "close": 213.57,
     "volume": 39832500.0,
-    "atr": null
+    "atr": 4.595128571428573
   },
   {
     "symbol": "AMZN",
     "date": "2025-06-09",
     "close": 216.98,
     "volume": 38102502.0,
-    "atr": null
+    "atr": 4.567271428571429
   },
   {
     "symbol": "AMZN",
     "date": "2025-06-10",
     "close": 217.61,
     "volume": 31303317.0,
-    "atr": null
+    "atr": 4.569414285714286
   },
   {
     "symbol": "AMZN",
     "date": "2025-06-11",
     "close": 213.2,
     "volume": 39325981.0,
-    "atr": null
+    "atr": 4.676557142857145
   },
   {
     "symbol": "AMZN",
     "date": "2025-06-12",
     "close": 213.24,
     "volume": 27639991.0,
-    "atr": null
+    "atr": 4.437271428571431
   },
   {
     "symbol": "AMZN",
     "date": "2025-06-13",
     "close": 212.1,
     "volume": 29337763.0,
-    "atr": null
+    "atr": 4.378700000000003
   },
   {
     "symbol": "AMZN",
     "date": "2025-06-16",
     "close": 216.1,
     "volume": 33284158.0,
-    "atr": null
+    "atr": 4.361557142857147
   },
   {
     "symbol": "AMZN",
     "date": "2025-06-17",
     "close": 214.82,
     "volume": 32086262.0,
-    "atr": null
+    "atr": 4.332985714285718
   },
   {
     "symbol": "AMZN",
     "date": "2025-06-18",
     "close": 212.52,
     "volume": 44360509.0,
-    "atr": null
+    "atr": 4.407271428571432
   },
   {
     "symbol": "AMZN",
     "date": "2025-06-20",
     "close": 209.69,
     "volume": 75350733.0,
-    "atr": null
+    "atr": 4.573278571428572
   },
   {
     "symbol": "AMZN",
     "date": "2025-06-23",
     "close": 208.47,
     "volume": 37311725.0,
-    "atr": null
+    "atr": 4.484699999999999
   },
   {
     "symbol": "AMZN",
     "date": "2025-06-24",
     "close": 212.77,
     "volume": 38378757.0,
-    "atr": null
+    "atr": 4.624207142857143
   },
   {
     "symbol": "AMZN",
     "date": "2025-06-25",
     "close": 211.99,
     "volume": 31755698.0,
-    "atr": null
+    "atr": 4.761349999999999
   },
   {
     "symbol": "AMZN",
     "date": "2025-06-26",
     "close": 217.12,
     "volume": 50480814.0,
-    "atr": null
+    "atr": 4.794564285714283
+  },
+  {
+    "symbol": "AMZN",
+    "date": "2025-06-27",
+    "close": 223.3,
+    "volume": 119217138.0,
+    "atr": 4.8374285714285685
   }
 ]
