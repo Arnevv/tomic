@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from typing import Any, Dict, List
 import requests
+import time
 from .logutils import logger
 
 from .market_provider import MarketDataProvider
@@ -35,10 +36,29 @@ class PolygonClient(MarketDataProvider):
         params["apiKey"] = self.api_key
         masked = {**params, "apiKey": "***"}
         logger.debug(f"GET {path} params={masked}")
-        resp = self._session.get(f"{self.BASE_URL}/{path}", params=params, timeout=10)
-        status = getattr(resp, "status_code", "n/a")
-        text = getattr(resp, "text", "")
-        logger.debug(f"Response {status}: {text[:200]}")
+        attempts = 0
+        while True:
+            resp = self._session.get(
+                f"{self.BASE_URL}/{path}", params=params, timeout=10
+            )
+            status = getattr(resp, "status_code", "n/a")
+            text = getattr(resp, "text", "")
+            logger.debug(f"Response {status}: {text[:200]}")
+            if status != 429:
+                break
+            retry = resp.headers.get("Retry-After")
+            try:
+                wait = int(retry) if retry else 1
+            except ValueError:
+                wait = 1
+            attempts += 1
+            logger.warning(
+                f"Polygon rate limit hit (attempt {attempts}), sleeping {wait}s"
+            )
+            time.sleep(wait)
+            if attempts >= 5:
+                break
+
         resp.raise_for_status()
         try:
             return resp.json()
