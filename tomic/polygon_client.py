@@ -18,8 +18,23 @@ class PolygonClient(MarketDataProvider):
     BASE_URL = "https://api.polygon.io"
 
     def __init__(self, api_key: str | None = None) -> None:
-        self.api_key = api_key or cfg.get("POLYGON_API_KEY", "")
+        keys = (
+            api_key
+            or cfg.get("POLYGON_API_KEYS")
+            or cfg.get("POLYGON_API_KEY", "")
+        )
+        if isinstance(keys, str):
+            keys = [k.strip() for k in keys.split(",") if k.strip()]
+        self._api_keys: List[str] = list(keys) if keys else []
+        self._api_idx = 0
         self._session: requests.Session | None = None
+
+    def _next_api_key(self) -> str:
+        if not self._api_keys:
+            return ""
+        key = self._api_keys[self._api_idx % len(self._api_keys)]
+        self._api_idx += 1
+        return key
 
     def connect(self) -> None:
         self._session = requests.Session()
@@ -34,7 +49,7 @@ class PolygonClient(MarketDataProvider):
         if self._session is None:
             raise RuntimeError("Client not connected")
         params = dict(params or {})
-        params["apiKey"] = self.api_key
+        params["apiKey"] = self._next_api_key()
         masked = {**params, "apiKey": "***"}
         logger.debug(f"GET {path} params={masked}")
         attempts = 0
