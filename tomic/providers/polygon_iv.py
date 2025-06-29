@@ -630,7 +630,7 @@ def fetch_polygon_iv30d(symbol: str) -> Dict[str, float | None] | None:
     else:
         logger.debug("Cannot compute IV rank without ATM IV")
 
-    today_str = datetime.now(ZoneInfo("America/New_York")).strftime("%Y-%m-%d")
+    today_str = spot_date  # gebruik de datum van de laatste close
     daily_iv_data = {
         "date": today_str,
         "atm_iv": atm_iv,
