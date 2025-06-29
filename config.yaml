@@ -52,6 +52,7 @@ INCLUDE_GREEKS_ONLY_IF_MARKET_OPEN: true
 INTEREST_RATE: 0.05
 IV_DAILY_SUMMARY_DIR: tomic/data/iv_daily_summary
 IV_DEBUG_DIR: iv_debug
+FLATFILE_DIR: tomic/data/flatfiles
 IV_EXPIRY_LOOKAHEAD_DAYS:
 - 0
 - 30
