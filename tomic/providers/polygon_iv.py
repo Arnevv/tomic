@@ -309,11 +309,14 @@ class IVExtractor:
                 or details.get("contract_type")
                 or opt.get("right")
             )
+
             strike = (
-                opt.get("strike_price")
-                or opt.get("strike")
-                or opt.get("exercise_price")
+                    opt.get("strike_price")
+                    or opt.get("strike")
+                    or opt.get("exercise_price")
+                    or (details.get("strike_price") if isinstance(details, dict) else None)
             )
+
             greeks = opt.get("greeks") or {}
             iv = opt.get("implied_volatility")
             if iv is None:
@@ -454,10 +457,12 @@ class IVExtractor:
             if not right or not str(right).lower().startswith("c"):
                 continue
             strike = (
-                opt.get("strike_price")
-                or opt.get("strike")
-                or opt.get("exercise_price")
+                    opt.get("strike_price")
+                    or opt.get("strike")
+                    or opt.get("exercise_price")
+                    or (details.get("strike_price") if isinstance(details, dict) else None)
             )
+
             greeks = opt.get("greeks") or {}
             iv = opt.get("implied_volatility")
             if iv is None:
@@ -536,11 +541,15 @@ def fetch_polygon_iv30d(symbol: str) -> Dict[str, float | None] | None:
     debug_file = debug_dir / f"{symbol}.log"
     with debug_file.open("w", encoding="utf-8") as df:
         for opt in opts1:
+
+            details = opt.get("details") or {}
             strike = (
-                opt.get("strike_price")
-                or opt.get("strike")
-                or opt.get("exercise_price")
+                    opt.get("strike_price")
+                    or opt.get("strike")
+                    or opt.get("exercise_price")
+                    or details.get("strike_price")
             )
+
             greeks = opt.get("greeks") or {}
             iv = opt.get("implied_volatility") or opt.get("iv") or greeks.get("iv")
             delta = (
@@ -560,7 +569,15 @@ def fetch_polygon_iv30d(symbol: str) -> Dict[str, float | None] | None:
     if atm_iv_skew is None and atm_fallback is not None:
         logger.info(f"Selected ATM fallback IV from strike {atm_strike}")
 
-    atm_iv = atm_iv_skew if isinstance(atm_iv_skew, (int, float)) else None
+    #atm_iv = atm_iv_skew if isinstance(atm_iv_skew, (int, float)) else None
+    logger.debug(f"atm_iv_skew={atm_iv_skew} (type: {type(atm_iv_skew)})")
+
+    try:
+        atm_iv = float(atm_iv_skew)
+    except (TypeError, ValueError):
+        atm_iv = None
+    logger.debug(f"atm_iv_skew={atm_iv_skew} (type: {type(atm_iv_skew)})")
+
     if atm_iv is None and isinstance(atm_fallback, (int, float)):
         logger.info(f"Selected ATM fallback IV from strike {atm_strike}")
         atm_iv = atm_fallback
@@ -624,6 +641,29 @@ def fetch_polygon_iv30d(symbol: str) -> Dict[str, float | None] | None:
         "skew": skew,
     }
     logger.debug(f"✅ Summary data for {symbol}: {json.dumps(daily_iv_data, indent=2)}")
+
+    summary_dir = Path(cfg_get("IV_SUMMARY_DIR", "tomic/data/iv_daily_summary"))
+    summary_dir.mkdir(parents=True, exist_ok=True)
+    summary_file = summary_dir / f"{symbol}.json"
+
+    try:
+        if summary_file.exists():
+            existing = load_json(summary_file)
+            if not isinstance(existing, list):
+                existing = []
+        else:
+            existing = []
+        # Alleen toevoegen als deze datum nog niet bestaat
+        dates = [row.get("date") for row in existing]
+        if today_str not in dates:
+            existing.append(daily_iv_data)
+            with summary_file.open("w", encoding="utf-8") as f:
+                json.dump(existing, f, indent=2)
+            logger.info(f"✅ Updated {summary_file}")
+        else:
+            logger.info(f"⏭️ {symbol} on {today_str} already in summary file.")
+    except Exception as exc:
+        logger.error(f"❌ Failed to update {summary_file}: {exc}")
 
     return {
         "atm_iv": atm_iv,
