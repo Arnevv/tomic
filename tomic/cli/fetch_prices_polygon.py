@@ -2,7 +2,7 @@ from __future__ import annotations
 
 """Fetch daily price history using the Polygon API."""
 
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, date
 from pathlib import Path
 from time import sleep
 from typing import Iterable, List
@@ -17,6 +17,19 @@ from tomic.providers.polygon_iv import _load_latest_close
 from .compute_volstats_polygon import main as compute_volstats_polygon_main
 
 
+def _is_weekday(d: date) -> bool:
+    """Return ``True`` when ``d`` falls on a weekday."""
+    return d.weekday() < 5
+
+
+def _next_trading_day(d: date) -> date:
+    """Return the next weekday after ``d``."""
+    d += timedelta(days=1)
+    while not _is_weekday(d):
+        d += timedelta(days=1)
+    return d
+
+
 def _request_bars(client: PolygonClient, symbol: str) -> Iterable[dict]:
     """Return daily bar records for ``symbol`` using Polygon.
 
@@ -29,16 +42,25 @@ def _request_bars(client: PolygonClient, symbol: str) -> Iterable[dict]:
     _, last_date = _load_latest_close(symbol)
     params = {"adjusted": "true"}
     path = f"v2/aggs/ticker/{symbol}/range/1/day"
+
+    end_dt = today
+    while not _is_weekday(end_dt):
+        end_dt -= timedelta(days=1)
+
     if last_date:
         try:
-            start_dt = datetime.strptime(last_date, "%Y-%m-%d").date() + timedelta(days=1)
+            last_dt = datetime.strptime(last_date, "%Y-%m-%d").date()
         except Exception:
-            start_dt = today - timedelta(days=365)
-        if start_dt > today:
+            last_dt = end_dt - timedelta(days=365)
+        next_expected = _next_trading_day(last_dt)
+        if next_expected > end_dt:
+            logger.info(
+                f"⏭️ {symbol}: laatste data is van {last_date}, geen nieuwe werkdag beschikbaar."
+            )
             return []
-        params.update({"from": str(start_dt), "to": str(today)})
+        params.update({"from": next_expected.strftime("%Y-%m-%d"), "to": end_dt.strftime("%Y-%m-%d")})
     else:
-        params.update({"limit": 252})
+        params.update({"limit": 252, "to": end_dt.strftime("%Y-%m-%d")})
 
     data = client._request(path, params)
     bars = data.get("results") or []
