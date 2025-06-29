@@ -140,7 +140,6 @@ class SnapshotFetcher:
         while next_url:
             if first:
                 logger.info(f"Requesting snapshot for {symbol} {expiry}")
-                time.sleep(13)
                 resp = requests.get(next_url, params=params, timeout=10)
                 first = False
             else:

@@ -80,9 +80,6 @@ def main(argv: List[str] | None = None) -> None:
                 for rec in records:
                     update_json_file(file, rec, ["date"])
                 stored += 1
-            if idx < len(symbols) - 1:
-                logger.info("Throttling for 13 seconds to respect rate limits")
-                sleep(13)
     finally:
         client.disconnect()
     logger.success(f"✅ Historische prijzen opgeslagen voor {stored} symbolen")
