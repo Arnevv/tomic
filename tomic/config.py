@@ -49,6 +49,7 @@ class AppConfig(BaseModel):
     IV_HISTORY_DIR: str = "tomic/data/iv_history"
     IV_DAILY_SUMMARY_DIR: str = "tomic/data/iv_daily_summary"
     IV_DEBUG_DIR: str = "iv_debug"
+    FLATFILE_DIR: str = "tomic/data/flatfiles"
     HISTORICAL_VOLATILITY_DIR: str = "tomic/data/historical_volatility"
     EXPORT_DIR: str = "exports"
     IB_HOST: str = "127.0.0.1"
