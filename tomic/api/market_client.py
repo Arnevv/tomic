@@ -27,7 +27,7 @@ except Exception:  # pragma: no cover - tests provide stub
 
 
 from tomic.api.base_client import BaseIBApp
-from tomic.cli.daily_vol_scraper import fetch_volatility_metrics
+from tomic.analysis.volatility_fetcher import fetch_volatility_metrics
 from tomic.config import get as cfg_get
 from tomic.logutils import log_result, logger
 from tomic.models import OptionContract

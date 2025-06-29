@@ -160,7 +160,7 @@ def test_fetch_volatility_metrics_parses_new_fields(monkeypatch):
         IV Percentile:</span></span><span><strong>60%</strong></span>
     """
 
-    mod = importlib.reload(importlib.import_module("tomic.cli.daily_vol_scraper"))
+    mod = importlib.reload(importlib.import_module("tomic.analysis.volatility_fetcher"))
 
     async def fake_download(sym):
         return html
