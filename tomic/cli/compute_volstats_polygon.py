@@ -221,18 +221,6 @@ def main(argv: List[str] | None = None) -> None:
         if date_str is None:
             logger.warning(f"No price history for {sym}")
             continue
-        iv = metrics.get("atm_iv") if metrics else None
-        term_m1_m2 = metrics.get("term_m1_m2") if metrics else None
-        term_m1_m3 = metrics.get("term_m1_m3") if metrics else None
-        skew = metrics.get("skew") if metrics else None
-        rank = metrics.get("iv_rank (HV)") if metrics else None
-        pct = metrics.get("iv_percentile (HV)") if metrics else None
-        if iv is None:
-            logger.warning(f"No implied volatility for {sym}")
-        hv_series = rolling_hv(closes, 30)
-        scaled_iv = iv * 100 if iv is not None else None
-        rank = iv_rank(scaled_iv or 0.0, hv_series) if scaled_iv is not None else None
-        pct = iv_percentile(scaled_iv or 0.0, hv_series) if scaled_iv is not None else None
 
         if hv20 is not None:
             hv20 /= 100
@@ -252,8 +240,23 @@ def main(argv: List[str] | None = None) -> None:
         }
         update_json_file(hv_dir / f"{sym}.json", hv_record, ["date"])
 
-        rank = metrics.get("iv_rank (HV)") if metrics else None
-        pct = metrics.get("iv_percentile (HV)") if metrics else None
+        if metrics is None:
+            logger.info(f"⏭️ {sym} already processed for {date_str}")
+            sleep(sleep_between)
+            continue
+
+        iv = metrics.get("atm_iv")
+        term_m1_m2 = metrics.get("term_m1_m2")
+        term_m1_m3 = metrics.get("term_m1_m3")
+        skew = metrics.get("skew")
+        rank = metrics.get("iv_rank (HV)")
+        pct = metrics.get("iv_percentile (HV)")
+        if iv is None:
+            logger.warning(f"No implied volatility for {sym}")
+        hv_series = rolling_hv(closes, 30)
+        scaled_iv = iv * 100 if iv is not None else None
+        rank = iv_rank(scaled_iv or 0.0, hv_series) if scaled_iv is not None else None
+        pct = iv_percentile(scaled_iv or 0.0, hv_series) if scaled_iv is not None else None
 
         summary_record = {
             "date": date_str,
