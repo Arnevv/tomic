@@ -75,6 +75,9 @@ OPTION_RETRY_WAIT: 2
 POLYGON_API_KEYS:
   - RsrPUtvYFnrxOlyLesJZoTMVpnexUimm
   - C1mMXJKp26BchVt4nK6nkx75PL3ZZ8nh
+  - 76XfeYzekKewGBLVge22DmSH6zDI57za
+  - qWzywQGs3Lw4fIEEfRSadAvKSLQUM3Gk
+  - uwiW1MK9zLZ9PDS6I6tCYNmNMOE27QI_
 PORTFOLIO_META_FILE: tomic/data/portfolio_meta.json
 POSITIONS_FILE: tomic/data/positions.json
 PRICE_HISTORY_DIR: tomic/data/spot_prices
