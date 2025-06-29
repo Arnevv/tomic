@@ -87,21 +87,30 @@ def test_fetch_polygon_iv30d(monkeypatch, tmp_path):
         }
     }
 
-    def fake_get(url, params=None, timeout=10):
+    def fake_request(path, params=None):
         exp = params.get("expiration_date") if params else None
-        resp = SimpleNamespace(status_code=200)
-        resp.raise_for_status = lambda: None
         if exp == "2024-01-19":
-            resp.json = lambda: exp1
+            return exp1
         elif exp == "2024-02-16":
-            resp.json = lambda: exp2
+            return exp2
         elif exp == "2024-03-15":
-            resp.json = lambda: exp3
-        else:
-            resp.json = lambda: {"results": {"options": []}}
-        return resp
+            return exp3
+        return {"results": {"options": []}}
 
-    monkeypatch.setattr(mod.requests, "get", fake_get, raising=False)
+    class FakeClient:
+        def __init__(self, api_key=None):
+            pass
+
+        def connect(self):
+            pass
+
+        def disconnect(self):
+            pass
+
+        def _request(self, path, params=None):
+            return fake_request(path, params or {})
+
+    monkeypatch.setattr(mod, "PolygonClient", lambda api_key=None: FakeClient())
     monkeypatch.setattr(mod.time, "sleep", lambda s: None)
     monkeypatch.setattr(mod, "_get_closes", lambda sym: [])
 
@@ -192,21 +201,30 @@ def test_fetch_polygon_iv30d_fallback(monkeypatch, tmp_path):
         }
     }
 
-    def fake_get(url, params=None, timeout=10):
+    def fake_request(path, params=None):
         exp = params.get("expiration_date") if params else None
-        resp = SimpleNamespace(status_code=200)
-        resp.raise_for_status = lambda: None
         if exp == "2024-01-19":
-            resp.json = lambda: exp1
+            return exp1
         elif exp == "2024-02-16":
-            resp.json = lambda: exp2
+            return exp2
         elif exp == "2024-03-15":
-            resp.json = lambda: exp3
-        else:
-            resp.json = lambda: {"results": {"options": []}}
-        return resp
+            return exp3
+        return {"results": {"options": []}}
 
-    monkeypatch.setattr(mod.requests, "get", fake_get, raising=False)
+    class FakeClient:
+        def __init__(self, api_key=None):
+            pass
+
+        def connect(self):
+            pass
+
+        def disconnect(self):
+            pass
+
+        def _request(self, path, params=None):
+            return fake_request(path, params or {})
+
+    monkeypatch.setattr(mod, "PolygonClient", lambda api_key=None: FakeClient())
     monkeypatch.setattr(mod.time, "sleep", lambda s: None)
     monkeypatch.setattr(mod, "_get_closes", lambda sym: [])
 
