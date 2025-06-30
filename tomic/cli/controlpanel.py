@@ -408,27 +408,57 @@ def run_portfolio_menu() -> None:
 
     def show_market_info() -> None:
         date_str = today().strftime("%Y-%m-%d")
-        summary_dir = Path(cfg.get("IV_DAILY_SUMMARY_DIR", "tomic/data/iv_daily_summary"))
-        hv_dir = Path(cfg.get("HISTORICAL_VOLATILITY_DIR", "tomic/data/historical_volatility"))
+        summary_dir = Path(
+            cfg.get("IV_DAILY_SUMMARY_DIR", "tomic/data/iv_daily_summary")
+        )
+        hv_dir = Path(
+            cfg.get("HISTORICAL_VOLATILITY_DIR", "tomic/data/historical_volatility")
+        )
 
+        symbols = [s.upper() for s in cfg.get("DEFAULT_SYMBOLS", [])]
         rows = []
-        for file in summary_dir.glob("*.json"):
-            symbol = file.stem
-            summaries = [r for r in load_json(file) if r.get("date") == date_str]
-            hvs = {r.get("date"): r for r in load_json(hv_dir / f"{symbol}.json")}
-            for rec in summaries:
-                hv_rec = hvs.get(date_str, {})
-                rows.append([
-                    symbol,
-                    rec.get("atm_iv"),
-                    hv_rec.get("hv20"),
-                    hv_rec.get("hv30"),
-                    hv_rec.get("hv90"),
-                    rec.get("iv_rank"),
-                    rec.get("iv_percentile"),
-                ])
+        for symbol in symbols:
+            summary_file = summary_dir / f"{symbol}.json"
+            hv_file = hv_dir / f"{symbol}.json"
+            if not summary_file.exists() or not hv_file.exists():
+                continue
 
-        headers = ["symbol", "iv", "hv20", "hv30", "hv90", "iv_rank", "iv_percentile"]
+            summaries = [
+                r for r in load_json(summary_file) if r.get("date") == date_str
+            ]
+            if not summaries:
+                continue
+            hvs = {r.get("date"): r for r in load_json(hv_file)}
+            hv_rec = hvs.get(date_str)
+            if hv_rec is None:
+                continue
+
+            for rec in summaries:
+                rows.append(
+                    [
+                        symbol,
+                        rec.get("atm_iv"),
+                        hv_rec.get("hv20"),
+                        hv_rec.get("hv30"),
+                        hv_rec.get("hv90"),
+                        rec.get("iv_rank"),
+                        rec.get("iv_percentile"),
+                        rec.get("skew"),
+                        rec.get("term_structure"),
+                    ]
+                )
+
+        headers = [
+            "symbol",
+            "iv",
+            "hv20",
+            "hv30",
+            "hv90",
+            "iv_rank",
+            "iv_percentile",
+            "skew",
+            "term_structure",
+        ]
         print(tabulate(rows, headers=headers, tablefmt="github"))
 
     menu = Menu("📊 ANALYSE & STRATEGIE")

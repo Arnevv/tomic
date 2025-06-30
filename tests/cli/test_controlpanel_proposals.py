@@ -20,7 +20,17 @@ def test_show_market_info(monkeypatch, tmp_path):
     pos_file.write_text("[]")
     monkeypatch.setattr(mod, "POSITIONS_FILE", pos_file)
 
-    monkeypatch.setattr(mod.cfg, "get", lambda key, default=None: str(sum_dir) if key == "IV_DAILY_SUMMARY_DIR" else (str(hv_dir) if key == "HISTORICAL_VOLATILITY_DIR" else default))
+    monkeypatch.setattr(
+        mod.cfg,
+        "get",
+        lambda key, default=None: ["AAA"]
+        if key == "DEFAULT_SYMBOLS"
+        else (
+            str(sum_dir)
+            if key == "IV_DAILY_SUMMARY_DIR"
+            else (str(hv_dir) if key == "HISTORICAL_VOLATILITY_DIR" else default)
+        ),
+    )
 
     monkeypatch.setenv("TOMIC_TODAY", "2024-01-02")
 
