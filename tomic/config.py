@@ -154,6 +154,9 @@ def _load_yaml(path: Path) -> Dict[str, Any]:
                 if val.lower() in {"true", "false"}:
                     data[key] = val.lower() == "true"
                     continue
+                if val.lower() in {"null", "none"}:
+                    data[key] = None
+                    continue
                 try:
                     if "." in val:
                         data[key] = float(val)
