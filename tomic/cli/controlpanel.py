@@ -412,7 +412,7 @@ def run_portfolio_menu() -> None:
         spot_dir = Path(cfg.get("PRICE_HISTORY_DIR", "tomic/data/spot_prices"))
 
         symbols = [s.upper() for s in cfg.get("DEFAULT_SYMBOLS", [])]
-        rows = []
+        rows: list[list] = []
 
         for symbol in symbols:
             try:
@@ -441,12 +441,39 @@ def run_portfolio_menu() -> None:
                 hv.get("hv90"),
                 hv.get("hv252"),
                 summary.get("iv_rank (HV)"),
-                summary.get("iv_percentile"),
+                summary.get("iv_percentile (HV)"),
                 summary.get("term_m1_m2"),
                 summary.get("term_m1_m3"),
                 summary.get("skew"),
                 spot.get("date"),
             ])
+
+        rows.sort(key=lambda r: r[8] if r[8] is not None else -1, reverse=True)
+
+        def fmt4(val: float | None) -> str:
+            return f"{val:.4f}" if val is not None else ""
+
+        def fmt0(val: float | None) -> str:
+            return f"{val:.0f}" if val is not None else ""
+
+        formatted_rows = [
+            [
+                r[0],
+                r[1],
+                fmt4(r[2]),
+                fmt4(r[3]),
+                fmt4(r[4]),
+                fmt4(r[5]),
+                fmt4(r[6]),
+                fmt0(r[7]),
+                fmt0(r[8]),
+                r[9],
+                r[10],
+                r[11],
+                r[12],
+            ]
+            for r in rows
+        ]
 
         headers = [
             "symbol",
@@ -457,13 +484,13 @@ def run_portfolio_menu() -> None:
             "hv90",
             "hv252",
             "iv_rank (HV)",
-            "iv_percentile",
+            "iv_percentile (HV)",
             "term_m1_m2",
             "term_m1_m3",
             "skew",
             "date",
         ]
-        print(tabulate(rows, headers=headers, tablefmt="github"))
+        print(tabulate(formatted_rows, headers=headers, tablefmt="github"))
 
     menu = Menu("📊 ANALYSE & STRATEGIE")
     menu.add("Trading Plan", lambda: run_module("tomic.cli.trading_plan"))
