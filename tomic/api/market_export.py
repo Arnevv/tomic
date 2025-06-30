@@ -564,6 +564,8 @@ class BulkOptionChainClient(OptionChainClient):
             self.reqMktData(rid, con, generic, use_snapshot, False, [])
             self._schedule_invalid_timer(rid)
 
+        self._start_max_data_timer()
+
 
 @log_result
 def export_option_chain_bulk(
