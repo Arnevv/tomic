@@ -21,18 +21,18 @@ def test_show_market_info(monkeypatch, tmp_path):
         [
             {
                 "date": "2025-06-27",
-                "atm_iv": 0.6,
-                "iv_rank (HV)": 11.0,
-                "iv_percentile (HV)": 21.0,
-                "term_m1_m2": 0.2,
-                "term_m1_m3": 0.3,
-                "skew": 0.1,
+                "atm_iv": 0.4,
+                "iv_rank (HV)": 55.0,
+                "iv_percentile (HV)": 70.0,
+                "term_m1_m2": 1.2,
+                "term_m1_m3": 1.2,
+                "skew": 4.0,
             }
         ],
         sum_dir / "AAA.json",
     )
     save_json([
-        {"date": "2025-06-27", "hv20": 0.5, "hv30": 0.4, "hv90": 0.3, "hv252": 0.25}
+        {"date": "2025-06-27", "hv20": 0.2, "hv30": 0.3, "hv90": 0.3, "hv252": 0.25}
     ], hv_dir / "AAA.json")
 
     pos_file = tmp_path / "p.json"
@@ -63,3 +63,4 @@ def test_show_market_info(monkeypatch, tmp_path):
     mod.run_portfolio_menu()
 
     assert any("2025-06-28" in line for line in prints)
+    assert any("Short Put Spread" in line for line in prints)
