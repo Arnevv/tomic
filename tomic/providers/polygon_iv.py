@@ -205,6 +205,12 @@ def _export_option_chain(symbol: str, options: List[Dict[str, Any]]) -> None:
         "theta",
         "vega",
     ]
+    def _round(val: Any) -> Any:
+        try:
+            return round(float(val), 4)
+        except Exception:
+            return val
+
     try:
         with path.open("w", newline="", encoding="utf-8") as csvfile:
             writer = csv.writer(csvfile)
@@ -217,44 +223,50 @@ def _export_option_chain(symbol: str, options: List[Dict[str, Any]]) -> None:
                     opt.get("strike_price")
                     or opt.get("strike")
                     or opt.get("exercise_price")
+                    or details.get("strike_price")
                 )
                 try:
                     strike_f = float(strike_raw)
                     strike_out = int(strike_f) if strike_f.is_integer() else round(strike_f, 2)
                 except Exception:
                     strike_out = strike_raw
+                expiry = (
+                    opt.get("expiration_date")
+                    or opt.get("expDate")
+                    or opt.get("expiry")
+                    or details.get("expiration_date")
+                    or details.get("expiry")
+                    or details.get("expDate")
+                )
+                iv = (
+                    opt.get("implied_volatility")
+                    or opt.get("iv")
+                    or greeks.get("iv")
+                )
+                delta = opt.get("delta") if opt.get("delta") is not None else greeks.get("delta")
+                gamma = opt.get("gamma") if opt.get("gamma") is not None else greeks.get("gamma")
+                theta = opt.get("theta") if opt.get("theta") is not None else greeks.get("theta")
+                vega = opt.get("vega") if opt.get("vega") is not None else greeks.get("vega")
                 writer.writerow(
                     [
                         strike_out,
-                        opt.get("expiration_date")
-                        or opt.get("expDate")
-                        or opt.get("expiry"),
+                        expiry,
                         opt.get("option_type")
                         or opt.get("type")
-                    or opt.get("contract_type")
-                    or details.get("contract_type")
-                    or opt.get("right"),
-                    opt.get("implied_volatility")
-                    or opt.get("iv")
-                    or greeks.get("iv"),
-                    opt.get("open") or day.get("open") or day.get("o"),
-                    opt.get("high") or day.get("high") or day.get("h"),
-                    opt.get("low") or day.get("low") or day.get("l"),
-                    opt.get("close") or day.get("close") or day.get("c"),
-                    opt.get("volume") or day.get("volume") or day.get("v"),
-                    opt.get("vwap") or day.get("vwap") or day.get("vw"),
-                    opt.get("delta")
-                    if opt.get("delta") is not None
-                    else greeks.get("delta"),
-                    opt.get("gamma")
-                    if opt.get("gamma") is not None
-                    else greeks.get("gamma"),
-                    opt.get("theta")
-                    if opt.get("theta") is not None
-                    else greeks.get("theta"),
-                        opt.get("vega")
-                        if opt.get("vega") is not None
-                        else greeks.get("vega"),
+                        or opt.get("contract_type")
+                        or details.get("contract_type")
+                        or opt.get("right"),
+                        _round(iv),
+                        opt.get("open") or day.get("open") or day.get("o"),
+                        opt.get("high") or day.get("high") or day.get("h"),
+                        opt.get("low") or day.get("low") or day.get("l"),
+                        opt.get("close") or day.get("close") or day.get("c"),
+                        opt.get("volume") or day.get("volume") or day.get("v"),
+                        opt.get("vwap") or day.get("vwap") or day.get("vw"),
+                        _round(delta),
+                        _round(gamma),
+                        _round(theta),
+                        _round(vega),
                     ]
                 )
         if not path.exists():
