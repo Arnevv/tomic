@@ -53,6 +53,7 @@ from tomic.logutils import setup_logging
 from tomic.analysis.greeks import compute_portfolio_greeks
 from tomic.journal.utils import load_json
 from tomic.utils import today
+from .volatility_recommender import recommend_strategy
 
 setup_logging()
 
@@ -490,7 +491,28 @@ def run_portfolio_menu() -> None:
             "skew",
             "date",
         ]
+
         print(tabulate(formatted_rows, headers=headers, tablefmt="github"))
+
+        # Strategy recommendation per symbol
+        for r in rows:
+            metrics = {
+                "IV": r[2],
+                "HV20": r[3],
+                "HV30": r[4],
+                "HV90": r[5],
+                "HV252": r[6],
+                "iv_rank": r[7],
+                "iv_percentile": r[8],
+                "term_m1_m3": r[10],
+                "skew": r[11],
+            }
+            rec = recommend_strategy(metrics)
+            if rec:
+                crit = ", ".join(rec.get("criteria", []))
+                print(
+                    f"{r[0]}: {rec['strategy']} | {rec['greeks']} | {rec['indication']} | {crit}"
+                )
 
     menu = Menu("📊 ANALYSE & STRATEGIE")
     menu.add("Trading Plan", lambda: run_module("tomic.cli.trading_plan"))
