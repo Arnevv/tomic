@@ -7,4 +7,5 @@ loguru
 tabulate
 aiohttp
 python-dotenv
+holidays
 requests>=2.28
