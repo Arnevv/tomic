@@ -427,6 +427,7 @@ class OptionChainClient(MarketClient):
         self.strikes: list[float] = []
         self._strike_lookup: dict[float, float] = {}
         self._exp_strike_lookup: dict[str, dict[float, float]] = {}
+        self._exp_strikes: dict[str, list[float]] = {}
         self._expiry_min_tick: dict[str, float] = {}
         self.weeklies: list[str] = []
         self.monthlies: list[str] = []
@@ -886,26 +887,26 @@ class OptionChainClient(MarketClient):
         self.trading_class = tradingClass
 
         center = self.spot_price or 0.0
-        atm_expiry = None
         today_date = today()
-        for exp in monthlies:
-            try:
-                dte = (datetime.strptime(exp, "%Y%m%d").date() - today_date).days
-            except Exception:
-                continue
-            if dte > 15:
-                atm_expiry = exp
-                break
+        atm_expiry = next(
+            (
+                exp
+                for exp in monthlies
+                if (datetime.strptime(exp, "%Y%m%d").date() - today_date).days > 15
+            ),
+            None,
+        )
 
         atm_strike = None
-        if strikes:
-            atm_strike = min(strikes, key=lambda x: abs(x - center))
+        if atm_expiry:
+            expiry_strikes = self._exp_strike_lookup.get(atm_expiry, {}).keys()
+            if expiry_strikes:
+                atm_strike = min(expiry_strikes, key=lambda x: abs(x - center))
 
         def finalize(allowed: list[float]) -> None:
             self.strikes = allowed
             self._strike_lookup = {s: s for s in allowed}
-            self._exp_strike_lookup = {}
-            self._expiry_min_tick = {}
+            self._exp_strikes = {exp: list(self.strikes) for exp in self.expiries}
             logger.info(
                 f"✅ [stap 6] Geselecteerde strikes: {', '.join(str(s) for s in self.strikes)}"
             )
@@ -921,21 +922,19 @@ class OptionChainClient(MarketClient):
         def worker() -> None:
             iv = None
             stddev = None
-            if atm_expiry:
-                for cand in sorted(strikes, key=lambda x: abs(x - center)):
+            if atm_expiry and atm_strike is not None:
+                logger.info(
+                    f"IV bepaling via expiry {atm_expiry} en ATM strike {atm_strike}"
+                )
+                iv = self._fetch_iv_for_expiry(atm_expiry, atm_strike)
+                if iv is not None:
+                    dte = (
+                        datetime.strptime(atm_expiry, "%Y%m%d").date() - today_date
+                    ).days
+                    stddev = center * iv * math.sqrt(dte / 365) * stddev_mult
                     logger.info(
-                        f"IV bepaling via expiry {atm_expiry} en ATM strike {cand}"
+                        f"IV ontvangen: {iv} -> stddev {stddev:.2f} (multiplier {stddev_mult})"
                     )
-                    iv = self._fetch_iv_for_expiry(atm_expiry, cand)
-                    if iv is not None:
-                        dte = (
-                            datetime.strptime(atm_expiry, "%Y%m%d").date() - today_date
-                        ).days
-                        stddev = center * iv * math.sqrt(dte / 365) * stddev_mult
-                        logger.info(
-                            f"IV ontvangen: {iv} -> stddev {stddev:.2f} (multiplier {stddev_mult})"
-                        )
-                        break
             if iv is None or stddev is None:
                 logger.debug("IV niet beschikbaar, fallback naar STRIKE_RANGE")
                 allowed = [s for s in sorted(strikes) if abs(s - center) <= strike_range]
@@ -1369,6 +1368,8 @@ class OptionChainClient(MarketClient):
                 con_id=self.con_ids.get((expiry, strike, right)),
             )
             c = info.to_ib()
+            if not hasattr(c, "conId"):
+                c.conId = 0
             req_id = self._next_id()
             logger.debug(
                 f"reqId for {c.symbol} {c.lastTradeDateOrContractMonth}{c.strike} {c.right} is {req_id}"
@@ -1405,13 +1406,8 @@ class OptionChainClient(MarketClient):
 
         tasks = []
         for e in self.expiries:
-            strike_map = self._exp_strike_lookup.get(e)
-            for s in self.strikes:
-                if strike_map is not None and s not in strike_map:
-                    logger.debug(
-                        f"Skipping strike {s} for expiry {e} (not in exp strike lookup)"
-                    )
-                    continue
+            strike_list = self._exp_strikes.get(e, self.strikes)
+            for s in strike_list:
                 for r in ("C", "P"):
                     tasks.append(asyncio.create_task(handle_request(e, s, r)))
 
