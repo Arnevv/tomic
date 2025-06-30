@@ -17,9 +17,20 @@ def test_show_market_info(monkeypatch, tmp_path):
         [{"date": "2025-06-28", "close": 534.5}, {"date": "2025-06-27", "close": 530.1}],
         spot_dir / "AAA.json",
     )
-    save_json([
-        {"date": "2025-06-27", "atm_iv": 0.6, "iv_rank (HV)": 11.0, "iv_percentile": 21.0, "term_m1_m2": 0.2, "term_m1_m3": 0.3, "skew": 0.1}
-    ], sum_dir / "AAA.json")
+    save_json(
+        [
+            {
+                "date": "2025-06-27",
+                "atm_iv": 0.6,
+                "iv_rank (HV)": 11.0,
+                "iv_percentile (HV)": 21.0,
+                "term_m1_m2": 0.2,
+                "term_m1_m3": 0.3,
+                "skew": 0.1,
+            }
+        ],
+        sum_dir / "AAA.json",
+    )
     save_json([
         {"date": "2025-06-27", "hv20": 0.5, "hv30": 0.4, "hv90": 0.3, "hv252": 0.25}
     ], hv_dir / "AAA.json")
