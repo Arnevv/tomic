@@ -6,6 +6,9 @@ from datetime import datetime, timedelta, date
 from pathlib import Path
 from time import sleep
 from typing import Iterable, List
+from zoneinfo import ZoneInfo
+
+import holidays
 
 from tomic.analysis.metrics import average_true_range
 
@@ -30,6 +33,22 @@ def _next_trading_day(d: date) -> date:
     return d
 
 
+def latest_trading_day() -> date:
+    """Return the most recent US trading day.
+
+    The function checks from yesterday backwards until it finds a weekday that
+    is not a US holiday. The current date is determined using the
+    ``America/New_York`` timezone to align with the US market schedule.
+    """
+
+    tz = ZoneInfo("America/New_York")
+    d = datetime.now(tz).date() - timedelta(days=1)
+    us_holidays = holidays.US()
+    while d.weekday() >= 5 or d in us_holidays:
+        d -= timedelta(days=1)
+    return d
+
+
 def _request_bars(client: PolygonClient, symbol: str) -> Iterable[dict]:
     """Return daily bar records for ``symbol`` using Polygon.
 
@@ -38,15 +57,11 @@ def _request_bars(client: PolygonClient, symbol: str) -> Iterable[dict]:
     to requesting the last 252 trading days.
     """
 
-    today = datetime.now().date()
+    end_dt = latest_trading_day()
     _, last_date = _load_latest_close(symbol)
     params = {"adjusted": "true"}
     base_path = f"v2/aggs/ticker/{symbol}/range/1/day"
     path = base_path
-
-    end_dt = today
-    while not _is_weekday(end_dt):
-        end_dt -= timedelta(days=1)
 
     if last_date:
         try:
