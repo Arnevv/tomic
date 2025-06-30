@@ -49,6 +49,7 @@ class StepByStepClient(EWrapper, EClient):
         self.option_info: Dict[int, ContractDetails] = {}
         self.market_data: Dict[int, Dict[str, object]] = {}
         self.contract_received: threading.Event = threading.Event()
+        self.invalid_contracts: set[int] = set()
 
     def _next_id(self) -> int:
         with self._lock:
@@ -115,6 +116,10 @@ class StepByStepClient(EWrapper, EClient):
         rec["gamma"] = gamma
         rec["vega"] = vega
         rec["theta"] = theta
+        d_min = float(cfg_get("DELTA_MIN", -1))
+        d_max = float(cfg_get("DELTA_MAX", 1))
+        if delta is not None and (delta < d_min or delta > d_max):
+            self.invalid_contracts.add(reqId)
 
     def contractDetails(self, reqId: int, details: ContractDetails) -> None:
         con = details.contract
@@ -280,6 +285,8 @@ def export_csv(app: StepByStepClient, output_dir: str) -> None:
             if req_id == app.spot_req_id:
                 continue  # skip spotprijs request
             if rec.get("bid") is None and rec.get("ask") is None:
+                continue
+            if req_id in app.invalid_contracts:
                 continue
             writer.writerow([
                 app.symbol, rec.get("expiry"), rec.get("strike"), rec.get("right"),
