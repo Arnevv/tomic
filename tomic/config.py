@@ -151,8 +151,12 @@ def _load_yaml(path: Path) -> Dict[str, Any]:
                     current_key = key
                     continue
                 current_key = key
-                if val.lower() in {"true", "false"}:
-                    data[key] = val.lower() == "true"
+                low = val.lower()
+                if low in {"true", "false"}:
+                    data[key] = low == "true"
+                    continue
+                if low in {"null", "none"}:
+                    data[key] = None
                     continue
                 if val.lower() in {"null", "none"}:
                     data[key] = None
