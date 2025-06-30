@@ -1511,7 +1511,7 @@ def await_market_data(
     function can safely be called from multiple threads.
     """
     if timeout is None:
-        timeout = int(cfg_get("MARKET_DATA_TIMEOUT", 30))
+        timeout = int(cfg_get("MARKET_DATA_TIMEOUT", 480))
 
     start = time.time()
     retries = int(cfg_get("OPTION_DATA_RETRIES", 0)) if isinstance(app, OptionChainClient) else 0
