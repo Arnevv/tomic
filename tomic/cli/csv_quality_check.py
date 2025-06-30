@@ -30,6 +30,7 @@ def analyze_csv(path: str) -> Dict[str, Any]:
         total = 0
         complete = 0
         valid = 0
+        total_score = 0
         expiries: Set[str] = set()
         bad_delta = 0
         bad_price_fields = 0
@@ -48,6 +49,73 @@ def analyze_csv(path: str) -> Dict[str, Any]:
         fieldnames = reader.fieldnames or []
         for row in reader:
             total += 1
+            row_score = 0
+
+            def get_value(field: str) -> str:
+                for k in row.keys():
+                    if k.lower() == field:
+                        return row[k].strip()
+                return ""
+
+            # partial scoring per field
+            bid_val = get_value("bid")
+            if not is_empty(bid_val):
+                try:
+                    if float(bid_val) >= 0:
+                        row_score += 1
+                except (ValueError, TypeError):
+                    pass
+
+            ask_val = get_value("ask")
+            if not is_empty(ask_val):
+                try:
+                    if float(ask_val) >= 0:
+                        row_score += 1
+                except (ValueError, TypeError):
+                    pass
+
+            iv_val = get_value("iv")
+            if not is_empty(iv_val):
+                try:
+                    float(iv_val)
+                    row_score += 2
+                except (ValueError, TypeError):
+                    pass
+
+            delta_field = get_value("delta")
+            if not is_empty(delta_field):
+                try:
+                    d_val = float(delta_field)
+                    if -1.0 <= d_val <= 1.0:
+                        row_score += 2
+                except (ValueError, TypeError):
+                    pass
+
+            gamma_val = get_value("gamma")
+            if not is_empty(gamma_val):
+                try:
+                    float(gamma_val)
+                    row_score += 1
+                except (ValueError, TypeError):
+                    pass
+
+            vega_val = get_value("vega")
+            if not is_empty(vega_val):
+                try:
+                    float(vega_val)
+                    row_score += 1
+                except (ValueError, TypeError):
+                    pass
+
+            theta_val = get_value("theta")
+            if not is_empty(theta_val):
+                try:
+                    float(theta_val)
+                    row_score += 1
+                except (ValueError, TypeError):
+                    pass
+
+            total_score += row_score
             row_key = tuple(row.get(h, "").strip() for h in fieldnames)
             is_duplicate = row_key in seen
             if is_duplicate:
@@ -116,10 +184,13 @@ def analyze_csv(path: str) -> Dict[str, Any]:
                 row_invalid = True
             if not row_invalid:
                 valid += 1
+        max_score = total * 9
+        partial_quality = (total_score / max_score * 100) if total else 0
         return {
             "total": total,
             "complete": complete,
             "valid": valid,
+            "partial_quality": partial_quality,
             "expiries": sorted(expiries),
             "bad_delta": bad_delta,
             "bad_price_fields": bad_price_fields,
@@ -154,6 +225,7 @@ def main(argv: List[str] | None = None) -> None:
         return
     stats = analyze_csv(path)
     quality = (stats["valid"] / stats["total"] * 100) if stats["total"] else 0
+    partial_quality = stats.get("partial_quality", 0)
     expiries_str = " / ".join(stats["expiries"]) if stats["expiries"] else "-"
     logger.warning(f"Markt: {symbol}")
     logger.warning(f"Expiries: {expiries_str}")
@@ -172,6 +244,7 @@ def main(argv: List[str] | None = None) -> None:
     logger.warning(f"Lege Vega: {stats['empty_counts']['vega']}")
     logger.warning(f"Lege Theta: {stats['empty_counts']['theta']}")
     logger.warning(f"Kwaliteit: {quality:.1f}%")
+    logger.warning(f"Gedeeltelijke kwaliteitsscore: {partial_quality:.1f}%")
     logger.success("✅ Controle afgerond")
 
 
