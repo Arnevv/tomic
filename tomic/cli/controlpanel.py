@@ -53,7 +53,7 @@ from tomic.logutils import setup_logging
 from tomic.analysis.greeks import compute_portfolio_greeks
 from tomic.journal.utils import load_json
 from tomic.utils import today
-from .volatility_recommender import recommend_strategy
+from tomic.cli.volatility_recommender import recommend_strategy
 
 setup_logging()
 
