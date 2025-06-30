@@ -897,7 +897,9 @@ class OptionChainClient(MarketClient):
                 atm_expiry = exp
                 break
 
-        atm_strike = min(strikes, key=lambda x: abs(x - center)) if strikes else None
+        atm_strike = None
+        if strikes:
+            atm_strike = min(strikes, key=lambda x: abs(x - center))
 
         def finalize(allowed: list[float]) -> None:
             self.strikes = allowed
@@ -919,17 +921,21 @@ class OptionChainClient(MarketClient):
         def worker() -> None:
             iv = None
             stddev = None
-            if atm_expiry and atm_strike is not None:
-                logger.info(
-                    f"IV bepaling via expiry {atm_expiry} en ATM strike {atm_strike}"
-                )
-                iv = self._fetch_iv_for_expiry(atm_expiry, atm_strike)
-                if iv is not None:
-                    dte = (datetime.strptime(atm_expiry, "%Y%m%d").date() - today_date).days
-                    stddev = center * iv * math.sqrt(dte / 365) * stddev_mult
+            if atm_expiry:
+                for cand in sorted(strikes, key=lambda x: abs(x - center)):
                     logger.info(
-                        f"IV ontvangen: {iv} -> stddev {stddev:.2f} (multiplier {stddev_mult})"
+                        f"IV bepaling via expiry {atm_expiry} en ATM strike {cand}"
                     )
+                    iv = self._fetch_iv_for_expiry(atm_expiry, cand)
+                    if iv is not None:
+                        dte = (
+                            datetime.strptime(atm_expiry, "%Y%m%d").date() - today_date
+                        ).days
+                        stddev = center * iv * math.sqrt(dte / 365) * stddev_mult
+                        logger.info(
+                            f"IV ontvangen: {iv} -> stddev {stddev:.2f} (multiplier {stddev_mult})"
+                        )
+                        break
             if iv is None or stddev is None:
                 logger.debug("IV niet beschikbaar, fallback naar STRIKE_RANGE")
                 allowed = [s for s in sorted(strikes) if abs(s - center) <= strike_range]
