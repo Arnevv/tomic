@@ -9,13 +9,21 @@ def test_show_market_info(monkeypatch, tmp_path):
 
     sum_dir = tmp_path / "sum"
     hv_dir = tmp_path / "hv"
-    sum_dir.mkdir(); hv_dir.mkdir()
+    spot_dir = tmp_path / "spot"
+    for p in (sum_dir, hv_dir, spot_dir):
+        p.mkdir()
+
+    save_json(
+        [{"date": "2025-06-28", "close": 534.5}, {"date": "2025-06-27", "close": 530.1}],
+        spot_dir / "AAA.json",
+    )
     save_json([
-        {"date": "2024-01-02", "atm_iv": 0.6, "iv_rank": 11.0, "iv_percentile": 21.0}
+        {"date": "2025-06-27", "atm_iv": 0.6, "iv_rank (HV)": 11.0, "iv_percentile": 21.0, "term_m1_m2": 0.2, "term_m1_m3": 0.3, "skew": 0.1}
     ], sum_dir / "AAA.json")
     save_json([
-        {"date": "2024-01-02", "hv20": 0.5, "hv30": 0.4, "hv90": 0.3}
+        {"date": "2025-06-27", "hv20": 0.5, "hv30": 0.4, "hv90": 0.3, "hv252": 0.25}
     ], hv_dir / "AAA.json")
+
     pos_file = tmp_path / "p.json"
     pos_file.write_text("[]")
     monkeypatch.setattr(mod, "POSITIONS_FILE", pos_file)
@@ -28,11 +36,13 @@ def test_show_market_info(monkeypatch, tmp_path):
         else (
             str(sum_dir)
             if key == "IV_DAILY_SUMMARY_DIR"
-            else (str(hv_dir) if key == "HISTORICAL_VOLATILITY_DIR" else default)
+            else (
+                str(hv_dir)
+                if key == "HISTORICAL_VOLATILITY_DIR"
+                else (str(spot_dir) if key == "PRICE_HISTORY_DIR" else default)
+            )
         ),
     )
-
-    monkeypatch.setenv("TOMIC_TODAY", "2024-01-02")
 
     prints = []
     monkeypatch.setattr(builtins, "print", lambda *a, **k: prints.append(" ".join(str(x) for x in a)))
@@ -41,4 +51,4 @@ def test_show_market_info(monkeypatch, tmp_path):
     monkeypatch.setattr(builtins, "input", lambda *a: next(inputs))
     mod.run_portfolio_menu()
 
-    assert any("AAA" in line for line in prints)
+    assert any("2025-06-28" in line for line in prints)
