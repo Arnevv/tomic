@@ -584,7 +584,7 @@ def export_option_chain_bulk(
     logger.info("▶️ START stap 2 - Initialiseren client + verbinden met IB")
     app = BulkOptionChainClient(symbol)
     start_app(app, client_id=client_id)
-    if not await_market_data(app, symbol, timeout=60):
+    if not await_market_data(app, symbol, timeout=480):
         logger.warning("⚠️ Marktdata onvolledig, ga verder met beschikbare data")
         app.disconnect()
         time.sleep(1)
