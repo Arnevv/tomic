@@ -7,8 +7,16 @@ from pathlib import Path
 from time import sleep
 from typing import Iterable, List
 from zoneinfo import ZoneInfo
+from types import SimpleNamespace
 
-import holidays
+try:  # pragma: no cover - optional dependency
+    import holidays  # type: ignore
+except Exception:  # pragma: no cover - fallback when package is missing
+    class _NoHolidays:
+        def __contains__(self, _date: date) -> bool:
+            return False
+
+    holidays = SimpleNamespace(US=lambda: _NoHolidays())  # type: ignore
 
 from tomic.analysis.metrics import average_true_range
 
