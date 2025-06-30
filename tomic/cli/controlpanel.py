@@ -407,57 +407,61 @@ def run_portfolio_menu() -> None:
             print("❌ Greeks-overzicht kon niet worden getoond")
 
     def show_market_info() -> None:
-        date_str = today().strftime("%Y-%m-%d")
-        summary_dir = Path(
-            cfg.get("IV_DAILY_SUMMARY_DIR", "tomic/data/iv_daily_summary")
-        )
-        hv_dir = Path(
-            cfg.get("HISTORICAL_VOLATILITY_DIR", "tomic/data/historical_volatility")
-        )
+        summary_dir = Path(cfg.get("IV_DAILY_SUMMARY_DIR", "tomic/data/iv_daily_summary"))
+        hv_dir = Path(cfg.get("HISTORICAL_VOLATILITY_DIR", "tomic/data/historical_volatility"))
+        spot_dir = Path(cfg.get("PRICE_HISTORY_DIR", "tomic/data/spot_prices"))
 
         symbols = [s.upper() for s in cfg.get("DEFAULT_SYMBOLS", [])]
         rows = []
+
         for symbol in symbols:
-            summary_file = summary_dir / f"{symbol}.json"
-            hv_file = hv_dir / f"{symbol}.json"
-            if not summary_file.exists() or not hv_file.exists():
+            try:
+                summary_data = load_json(summary_dir / f"{symbol}.json")
+                hv_data = load_json(hv_dir / f"{symbol}.json")
+                spot_data = load_json(spot_dir / f"{symbol}.json")
+            except Exception:
                 continue
 
-            summaries = [
-                r for r in load_json(summary_file) if r.get("date") == date_str
-            ]
-            if not summaries:
-                continue
-            hvs = {r.get("date"): r for r in load_json(hv_file)}
-            hv_rec = hvs.get(date_str)
-            if hv_rec is None:
+            if not isinstance(summary_data, list) or not isinstance(hv_data, list) or not isinstance(spot_data, list):
                 continue
 
-            for rec in summaries:
-                rows.append(
-                    [
-                        symbol,
-                        rec.get("atm_iv"),
-                        hv_rec.get("hv20"),
-                        hv_rec.get("hv30"),
-                        hv_rec.get("hv90"),
-                        rec.get("iv_rank"),
-                        rec.get("iv_percentile"),
-                        rec.get("skew"),
-                        rec.get("term_structure"),
-                    ]
-                )
+            try:
+                summary = sorted(summary_data, key=lambda x: x.get("date", ""), reverse=True)[0]
+                hv = sorted(hv_data, key=lambda x: x.get("date", ""), reverse=True)[0]
+                spot = sorted(spot_data, key=lambda x: x.get("date", ""), reverse=True)[0]
+            except IndexError:
+                continue
+
+            rows.append([
+                symbol,
+                spot.get("close"),
+                summary.get("atm_iv"),
+                hv.get("hv20"),
+                hv.get("hv30"),
+                hv.get("hv90"),
+                hv.get("hv252"),
+                summary.get("iv_rank (HV)"),
+                summary.get("iv_percentile"),
+                summary.get("term_m1_m2"),
+                summary.get("term_m1_m3"),
+                summary.get("skew"),
+                spot.get("date"),
+            ])
 
         headers = [
             "symbol",
-            "iv",
+            "spotprice",
+            "IV",
             "hv20",
             "hv30",
             "hv90",
-            "iv_rank",
+            "hv252",
+            "iv_rank (HV)",
             "iv_percentile",
+            "term_m1_m2",
+            "term_m1_m3",
             "skew",
-            "term_structure",
+            "date",
         ]
         print(tabulate(rows, headers=headers, tablefmt="github"))
 
