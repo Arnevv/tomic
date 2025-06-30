@@ -376,3 +376,42 @@ def test_extract_skew_delta_near_threshold():
     assert atm == 0.2
     assert call == 0.2
     assert put == 0.23
+
+
+def test_export_option_chain_rounding(monkeypatch, tmp_path):
+    import csv
+
+    mod = importlib.import_module("tomic.providers.polygon_iv")
+
+    from pathlib import Path as RealPath
+
+    monkeypatch.setattr(mod, "Path", lambda p="": RealPath(tmp_path) / p if p else RealPath(tmp_path))
+
+    options = [
+        {
+            "strike_price": 101.1234,
+            "expiration_date": "2024-01-19",
+            "option_type": "call",
+            "implied_volatility": 0.9271568240260529,
+            "delta": 0.9880879838832902,
+            "gamma": 0.0026639649196562956,
+            "theta": -0.010407970021571658,
+            "vega": 0.004738239548408383,
+            "day": {"open": 11.3, "high": 11.3, "low": 11.3, "close": 11.3, "volume": 1, "vwap": 11.3},
+            "details": {},
+        }
+    ]
+
+    mod._export_option_chain("XYZ", options)
+
+    csv_file = next(tmp_path.glob("**/*optionchainpolygon.csv"))
+    with csv_file.open(newline="") as f:
+        rows = list(csv.reader(f))
+
+    assert rows[1][0] == "101.12"
+    assert rows[1][1] == "2024-01-19"
+    assert rows[1][3] == "0.9272"
+    assert rows[1][10] == "0.9881"
+    assert rows[1][11] == "0.0027"
+    assert rows[1][12] == "-0.0104"
+    assert rows[1][13] == "0.0047"
