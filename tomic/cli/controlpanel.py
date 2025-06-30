@@ -6,6 +6,7 @@ from datetime import datetime
 import json
 from pathlib import Path
 import os
+from collections import defaultdict
 
 try:
     from tabulate import tabulate
@@ -494,7 +495,20 @@ def run_portfolio_menu() -> None:
 
         print(tabulate(formatted_rows, headers=headers, tablefmt="github"))
 
-        # Strategy recommendation per symbol
+        # Strategy recommendation per symbol (grouped by Greek exposure)
+        def categorize(exposure: str) -> str:
+            if "vega long" in exposure:
+                return "Vega Long"
+            elif "vega short" in exposure:
+                return "Vega Short"
+            elif "delta directional" in exposure:
+                return "Delta Directioneel"
+            elif "delta neutral" in exposure:
+                return "Delta Neutraal"
+            else:
+                return "Overig"
+
+        recs: list[dict[str, object]] = []
         for r in rows:
             metrics = {
                 "IV": r[2],
@@ -508,11 +522,66 @@ def run_portfolio_menu() -> None:
                 "skew": r[11],
             }
             rec = recommend_strategy(metrics)
-            if rec:
-                crit = ", ".join(rec.get("criteria", []))
-                print(
-                    f"{r[0]}: {rec['strategy']} | {rec['greeks']} | {rec['indication']} | {crit}"
-                )
+            if not rec:
+                continue
+            crit = ", ".join(rec.get("criteria", []))
+            recs.append(
+                {
+                    "symbol": r[0],
+                    "strategy": rec["strategy"],
+                    "greeks": rec["greeks"],
+                    "indication": rec["indication"],
+                    "criteria": crit,
+                    "iv_rank": r[7],
+                    "iv_percentile": r[8],
+                    "category": categorize(rec["greeks"].lower()),
+                }
+            )
+
+        if recs:
+            groups: dict[str, list[dict[str, object]]] = defaultdict(list)
+            for rec in recs:
+                groups[rec["category"]].append(rec)
+
+            def sort_key(item: dict[str, object]) -> float:
+                ivr = item.get("iv_rank")
+                ivp = item.get("iv_percentile")
+                score = -1.0
+                if isinstance(ivr, (int, float)):
+                    score = float(ivr)
+                elif isinstance(ivp, (int, float)):
+                    score = float(ivp)
+                return score
+
+            order = ["Vega Short", "Delta Directioneel", "Vega Long", "Delta Neutraal", "Overig"]
+            icon_map = {
+                "Vega Short": "🎯",
+                "Delta Directioneel": "📈",
+                "Vega Long": "📉",
+                "Delta Neutraal": "⚖️",
+                "Overig": "🔍",
+            }
+
+            for cat in order:
+                items = groups.get(cat)
+                if not items:
+                    continue
+                items.sort(key=sort_key, reverse=True)
+                icon = icon_map.get(cat, "🔍")
+                print(f"{icon} Focus: {cat}")
+                for i, item in enumerate(items, 1):
+                    ivr = item.get("iv_rank")
+                    ivp = item.get("iv_percentile")
+                    if isinstance(ivr, (int, float)):
+                        iv_str = f"iv_rank: {ivr:.0f}"
+                    elif isinstance(ivp, (int, float)):
+                        iv_str = f"iv_pct: {ivp:.0f}"
+                    else:
+                        iv_str = "iv n.v.t."
+                    print(
+                        f"{i}. {item['symbol']}: {item['strategy']} — {item['greeks']} ({iv_str})"
+                    )
+                print()
 
     menu = Menu("📊 ANALYSE & STRATEGIE")
     menu.add("Trading Plan", lambda: run_module("tomic.cli.trading_plan"))
