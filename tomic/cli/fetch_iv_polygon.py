@@ -9,7 +9,7 @@ from typing import List
 
 from tomic.config import get as cfg_get
 from tomic.logutils import logger, setup_logging
-from tomic.journal.utils import update_json_file
+from tomic.journal.utils import load_json, update_json_file
 from tomic.providers.polygon_iv import fetch_polygon_iv30d
 from tomic.utils import latest_close_date
 
@@ -45,8 +45,20 @@ def main(argv: List[str] | None = None) -> None:
             "iv_rank": None,
             "iv_percentile": None,
         }
+
+        file = summary_dir / f"{sym}.json"
+        existing = load_json(file)
+        if any(
+            isinstance(r, dict) and r.get("date") == date_str
+            for r in existing
+        ):
+            logger.info(f"⏭️ {sym} al aanwezig voor {date_str}")
+            processed += 1
+            sleep(sleep_between)
+            continue
+
         try:
-            update_json_file(summary_dir / f"{sym}.json", record, ["date"])
+            update_json_file(file, record, ["date"])
             logger.info(f"Saved IV for {sym}")
         except Exception as exc:  # pragma: no cover - filesystem errors
             logger.warning(f"Failed to save IV for {sym}: {exc}")
