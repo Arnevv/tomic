@@ -1502,12 +1502,17 @@ def start_app(app: MarketClient, *, client_id: int | None = None) -> None:
 
 
 @log_result
-def await_market_data(app: MarketClient, symbol: str, timeout: int = 30) -> bool:
+def await_market_data(
+    app: MarketClient, symbol: str, timeout: int | None = None
+) -> bool:
     """Wait until market data has been populated or timeout occurs.
 
     Access to ``app.market_data`` is protected by ``app.data_lock`` so the
     function can safely be called from multiple threads.
     """
+    if timeout is None:
+        timeout = int(cfg_get("MARKET_DATA_TIMEOUT", 30))
+
     start = time.time()
     retries = int(cfg_get("OPTION_DATA_RETRIES", 0)) if isinstance(app, OptionChainClient) else 0
     interval = 1
@@ -1544,7 +1549,7 @@ def await_market_data(app: MarketClient, symbol: str, timeout: int = 30) -> bool
                 and app.spot_price is not None
             ):
                 if not hist and retries > 0 and app.incomplete_requests():
-                    app.retry_incomplete_requests(wait=False)
+                    app.retry_incomplete_requests(wait=True)
                     retries -= 1
                     start = time.time()
                     continue
