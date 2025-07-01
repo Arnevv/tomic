@@ -287,27 +287,9 @@ def run_dataexporter() -> None:
         sub.run()
 
     menu = Menu("📁 DATA & MARKTDATA")
-    menu.add("Exporteer een markt", export_one)
-    menu.add("OptionChain Export (BulkQualifyFlow)", export_chain_bulk)
+    menu.add("OptionChain ophalen via TWS API", export_chain_bulk)
+    menu.add("OptionChain ophalen via Polygon API", polygon_chain)
     menu.add("Controleer CSV-kwaliteit", csv_check)
-
-    def fetch_prices_polygon_cmd() -> None:
-        try:
-            run_module("tomic.cli.fetch_prices_polygon")
-        except subprocess.CalledProcessError:
-            print("❌ Ophalen van historische prijzen mislukt")
-
-    def compute_volstats_polygon_cmd() -> None:
-        try:
-            run_module("tomic.cli.compute_volstats_polygon")
-        except subprocess.CalledProcessError:
-            print("❌ Berekenen van volatiliteitsstatistieken mislukt")
-
-    menu.add("Ophalen historische prijzen - polygon", fetch_prices_polygon_cmd)
-    menu.add("Bereken volatiliteitsstatistieken - polygon", compute_volstats_polygon_cmd)
-    menu.add("Toon historische data", show_history)
-    menu.add("Polygon option chain", polygon_chain)
-    
 
     menu.run()
 
