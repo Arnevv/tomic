@@ -227,17 +227,12 @@ def run_dataexporter() -> None:
         if not symbol:
             print("Geen symbool opgegeven")
             return
-        from tomic.polygon_client import PolygonClient
+        from tomic.providers.polygon_iv import fetch_polygon_option_chain
 
-        client = PolygonClient()
-        client.connect()
         try:
-            data = client.fetch_option_chain(symbol)
-            print(f"Ontvangen {len(data)} contracten")
+            fetch_polygon_option_chain(symbol)
         except Exception:
             print("❌ Ophalen van optionchain mislukt")
-        finally:
-            client.disconnect()
 
     def polygon_metrics() -> None:
         symbol = prompt("Ticker symbool: ")
@@ -294,10 +289,7 @@ def run_dataexporter() -> None:
     menu = Menu("📁 DATA & MARKTDATA")
     menu.add("Exporteer een markt", export_one)
     menu.add("OptionChain Export (BulkQualifyFlow)", export_chain_bulk)
-    menu.add("Exporteer alle markten", export_all)
     menu.add("Controleer CSV-kwaliteit", csv_check)
-    menu.add("Benchmark getonemarket", bench_getonemarket)
-    menu.add("Ophalen historische prijzen", fetch_prices)
 
     def fetch_prices_polygon_cmd() -> None:
         try:
@@ -315,8 +307,7 @@ def run_dataexporter() -> None:
     menu.add("Bereken volatiliteitsstatistieken - polygon", compute_volstats_polygon_cmd)
     menu.add("Toon historische data", show_history)
     menu.add("Polygon option chain", polygon_chain)
-    menu.add("Polygon metrics", polygon_metrics)
-    menu.add("Verwerk Flatfile", process_flatfiles_menu)
+    
 
     menu.run()
 
