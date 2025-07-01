@@ -31,3 +31,24 @@ def test_bench_getonemarket_creates_csv(tmp_path, monkeypatch):
         rows = list(csv.reader(fh))
     assert rows[0] == ["Symbols", "Runtime", "Quality", "ChainFile"]
     assert rows[1][0] == "XYZ"
+
+
+def test_write_result_csv(tmp_path, monkeypatch):
+    mod = importlib.import_module("tomic.analysis.bench_getonemarket")
+
+    class FakeDT(datetime):
+        @classmethod
+        def now(cls):
+            return datetime(2024, 1, 1, 0, 0, 0)
+
+    monkeypatch.setattr(mod, "datetime", FakeDT)
+
+    chain = tmp_path / "option_chain_ABC.csv"
+    chain.write_text("data")
+
+    out = mod.write_result_csv(["ABC"], 2.5, 90.0, chain)
+    expected = tmp_path / "benchmark_20240101_000000_000000.csv"
+    assert out == expected
+    with open(out, newline="") as fh:
+        rows = list(csv.reader(fh))
+    assert rows[1] == ["ABC", "2.50", "90.0", chain.name]
