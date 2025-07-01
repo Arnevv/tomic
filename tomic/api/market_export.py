@@ -88,7 +88,11 @@ _HEADERS_SIMPLE = [
 
 @log_result
 def _write_option_chain(
-    app: MarketClient, symbol: str, export_dir: str, timestamp: str
+    app: MarketClient,
+    symbol: str,
+    export_dir: str,
+    timestamp: str,
+    heatmap_columns: list[str] | None = None,
 ) -> float | None:
     logger.info("▶️ START stap 10 - Exporteren van data naar CSV")
     chain_file = os.path.join(export_dir, f"option_chain_{symbol}_{timestamp}.csv")
@@ -223,10 +227,40 @@ def _write_option_chain(
                 ]
             )
     logger.info(f"✅ [stap 10] Optieketen opgeslagen in: {chain_file}")
+    if heatmap_columns:
+        _write_heatmap(records, symbol, export_dir, timestamp, heatmap_columns)
     total = len(getattr(app, "market_data", {})) - len(spot_ids)
     logger.info(
         f"Contracts verwerkt: ok={counts['ok']} fallback={counts['fallback']} timeout={counts['timeout']} invalid={counts['invalid']}"
     )
+
+
+def _write_heatmap(
+    records: list[dict],
+    symbol: str,
+    export_dir: str,
+    timestamp: str,
+    columns: list[str],
+) -> None:
+    csv_path = os.path.join(export_dir, f"heatmap_{symbol}_{timestamp}.csv")
+    json_path = os.path.join(export_dir, f"heatmap_{symbol}_{timestamp}.json")
+    with open(csv_path, "w", newline="") as f_csv:
+        writer = csv.writer(f_csv)
+        writer.writerow(columns)
+        for rec in records:
+            row = []
+            lower = {k.lower(): v for k, v in rec.items()}
+            for col in columns:
+                row.append(lower.get(col.lower()))
+            writer.writerow(row)
+    with open(json_path, "w", encoding="utf-8") as f_json:
+        out_rows = []
+        for rec in records:
+            lower = {k.lower(): v for k, v in rec.items()}
+            out_rows.append({col: lower.get(col.lower()) for col in columns})
+        json.dump(out_rows, f_json, indent=2)
+    logger.info(f"✅ [stap 10] Heatmap opgeslagen als: {csv_path}")
+
     if parity_values:
         return round(sum(parity_values) / len(parity_values), 4)
     return None
@@ -370,7 +404,12 @@ def export_market_metrics(
 
 @log_result
 def export_option_chain(
-    symbol: str, output_dir: str | None = None, *, simple: bool = False, client_id: int | None = None
+    symbol: str,
+    output_dir: str | None = None,
+    *,
+    simple: bool = False,
+    client_id: int | None = None,
+    heatmap_columns: list[str] | None = None,
 ) -> float | None:
     """Export only the option chain for ``symbol`` to a CSV file."""
     logger.info("▶️ START stap 1 - Invoer van symbool")
@@ -397,7 +436,9 @@ def export_option_chain(
             _write_option_chain_simple(app, symbol, export_dir, timestamp)
             logger.success(f"✅ Optieketen verwerkt voor {symbol}")
             return None
-        avg_parity = _write_option_chain(app, symbol, export_dir, timestamp)
+        avg_parity = _write_option_chain(
+            app, symbol, export_dir, timestamp, heatmap_columns
+        )
         logger.success(f"✅ Optieketen verwerkt voor {symbol}")
         return avg_parity
 
@@ -415,7 +456,7 @@ def export_option_chain(
         _write_option_chain_simple(app, symbol, export_dir, timestamp)
         avg_parity = None
     else:
-        avg_parity = _write_option_chain(app, symbol, export_dir, timestamp)
+        avg_parity = _write_option_chain(app, symbol, export_dir, timestamp, heatmap_columns)
     logger.success(f"✅ Optieketen verwerkt voor {symbol}")
     return avg_parity
 
@@ -570,6 +611,7 @@ def export_option_chain_bulk(
     *,
     simple: bool = False,
     client_id: int | None = None,
+    heatmap_columns: list[str] | None = None,
 ) -> float | None:
     """Export option chain using the BulkQualifyFlow."""
 
@@ -598,7 +640,7 @@ def export_option_chain_bulk(
             _write_option_chain_simple(app, symbol, export_dir, ts)
             logger.success(f"✅ Optieketen verwerkt voor {symbol}")
             return None
-        avg_parity = _write_option_chain(app, symbol, export_dir, ts)
+        avg_parity = _write_option_chain(app, symbol, export_dir, ts, heatmap_columns)
         logger.success(f"✅ Optieketen verwerkt voor {symbol}")
         return avg_parity
 
@@ -616,7 +658,7 @@ def export_option_chain_bulk(
         _write_option_chain_simple(app, symbol, export_dir, ts)
         avg_parity = None
     else:
-        avg_parity = _write_option_chain(app, symbol, export_dir, ts)
+        avg_parity = _write_option_chain(app, symbol, export_dir, ts, heatmap_columns)
     logger.success(f"✅ Optieketen verwerkt voor {symbol}")
     logger.info(
         f"🆕 BULK valid contracts: {len(app.market_data) - len(app.invalid_contracts)} / {len(app.market_data)}"
@@ -634,6 +676,8 @@ def export_market_data(
     *,
     client_id: int | None = None,
     app: OptionChainClient | None = None,
+    export_heatmap: bool = False,
+    heatmap_columns: list[str] | None = None,
 ) -> pd.DataFrame | None:
     """Export option chain and market metrics for ``symbol`` to CSV files."""
     logger.info("▶️ START stap 1 - Invoer van symbool")
@@ -677,7 +721,13 @@ def export_market_data(
             export_dir = output_dir
         os.makedirs(export_dir, exist_ok=True)
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
-        avg_parity = _write_option_chain(app, symbol, export_dir, timestamp)
+        avg_parity = _write_option_chain(
+            app,
+            symbol,
+            export_dir,
+            timestamp,
+            heatmap_columns if export_heatmap else None,
+        )
         df_metrics = _write_metrics_csv(
             metrics, symbol, export_dir, timestamp, avg_parity
         )
@@ -693,7 +743,13 @@ def export_market_data(
         export_dir = output_dir
     os.makedirs(export_dir, exist_ok=True)
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
-    avg_parity = _write_option_chain(app, symbol, export_dir, timestamp)
+    avg_parity = _write_option_chain(
+        app,
+        symbol,
+        export_dir,
+        timestamp,
+        heatmap_columns if export_heatmap else None,
+    )
     df_metrics = _write_metrics_csv(
         metrics, symbol, export_dir, timestamp, avg_parity
     )
@@ -757,7 +813,12 @@ async def fetch_market_metrics_async(
 
 
 async def export_option_chain_async(
-    symbol: str, output_dir: str | None = None, *, simple: bool = False, client_id: int | None = None
+    symbol: str,
+    output_dir: str | None = None,
+    *,
+    simple: bool = False,
+    client_id: int | None = None,
+    heatmap_columns: list[str] | None = None,
 ) -> float | None:
     """Async version of :func:`export_option_chain`."""
 
@@ -789,7 +850,12 @@ async def export_option_chain_async(
             logger.success(f"✅ Optieketen verwerkt voor {symbol}")
             return None
         avg_parity = await asyncio.to_thread(
-            _write_option_chain, app, symbol, export_dir, timestamp
+            _write_option_chain,
+            app,
+            symbol,
+            export_dir,
+            timestamp,
+            heatmap_columns,
         )
         logger.success(f"✅ Optieketen verwerkt voor {symbol}")
         return avg_parity
@@ -809,7 +875,12 @@ async def export_option_chain_async(
         avg_parity = None
     else:
         avg_parity = await asyncio.to_thread(
-            _write_option_chain, app, symbol, export_dir, timestamp
+            _write_option_chain,
+            app,
+            symbol,
+            export_dir,
+            timestamp,
+            heatmap_columns,
         )
     logger.success(f"✅ Optieketen verwerkt voor {symbol}")
     return avg_parity
@@ -821,6 +892,8 @@ async def export_market_data_async(
     *,
     client_id: int | None = None,
     app: OptionChainClient | None = None,
+    export_heatmap: bool = False,
+    heatmap_columns: list[str] | None = None,
 ) -> pd.DataFrame | None:
     """Async version of :func:`export_market_data`."""
 
@@ -866,7 +939,12 @@ async def export_market_data_async(
         os.makedirs(export_dir, exist_ok=True)
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
         avg_parity = await asyncio.to_thread(
-            _write_option_chain, app, symbol, export_dir, timestamp
+            _write_option_chain,
+            app,
+            symbol,
+            export_dir,
+            timestamp,
+            heatmap_columns if export_heatmap else None,
         )
         df_metrics = await asyncio.to_thread(
             _write_metrics_csv, metrics, symbol, export_dir, timestamp, avg_parity
@@ -884,7 +962,12 @@ async def export_market_data_async(
     os.makedirs(export_dir, exist_ok=True)
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
     avg_parity = await asyncio.to_thread(
-        _write_option_chain, app, symbol, export_dir, timestamp
+        _write_option_chain,
+        app,
+        symbol,
+        export_dir,
+        timestamp,
+        heatmap_columns if export_heatmap else None,
     )
     df_metrics = await asyncio.to_thread(
         _write_metrics_csv, metrics, symbol, export_dir, timestamp, avg_parity
