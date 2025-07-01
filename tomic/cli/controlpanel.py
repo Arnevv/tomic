@@ -6,6 +6,7 @@ from datetime import datetime
 import json
 from pathlib import Path
 import os
+import csv
 from collections import defaultdict
 
 try:
@@ -55,6 +56,16 @@ from tomic.analysis.greeks import compute_portfolio_greeks
 from tomic.journal.utils import load_json
 from tomic.utils import today
 from tomic.cli.volatility_recommender import recommend_strategy
+from tomic.api.market_export import load_exported_chain
+from tomic.strike_selector import StrikeSelector, filter_by_expiry, FilterConfig
+from tomic.loader import load_strike_config
+from tomic.utils import get_option_mid_price
+from tomic.metrics import (
+    calculate_pos,
+    calculate_rom,
+    calculate_edge,
+    calculate_ev,
+)
 
 setup_logging()
 
@@ -63,6 +74,9 @@ POSITIONS_FILE = Path(cfg.get("POSITIONS_FILE", "positions.json"))
 ACCOUNT_INFO_FILE = Path(cfg.get("ACCOUNT_INFO_FILE", "account_info.json"))
 META_FILE = Path(cfg.get("PORTFOLIO_META_FILE", "portfolio_meta.json"))
 STRATEGY_DASHBOARD_MODULE = "tomic.cli.strategy_dashboard"
+
+# Runtime session data shared between menu steps
+SESSION_STATE: dict[str, object] = {"evaluated_trades": []}
 
 
 def _latest_export_dir(base: Path) -> Path | None:
@@ -583,12 +597,191 @@ def run_portfolio_menu() -> None:
                     )
                 print()
 
+            flat_choices: list[dict[str, object]] = []
+            for cat in order:
+                items = groups.get(cat)
+                if not items:
+                    continue
+                items.sort(key=sort_key, reverse=True)
+                flat_choices.extend(items)
+
+            if flat_choices:
+                print("Kies een strategie:\n")
+                for idx, choice in enumerate(flat_choices, 1):
+                    print(f"{idx}. {choice['symbol']} – {choice['strategy']} ({choice['greeks']})")
+                while True:
+                    sel = prompt("Selectie (0 om terug): ")
+                    if sel in {"", "0"}:
+                        break
+                    try:
+                        idx = int(sel) - 1
+                        chosen = flat_choices[idx]
+                    except (ValueError, IndexError):
+                        print("❌ Ongeldige keuze")
+                        continue
+                    SESSION_STATE.update(
+                        {
+                            "symbol": chosen.get("symbol"),
+                            "strategy": chosen.get("strategy"),
+                            "greeks": chosen.get("greeks"),
+                            "iv_rank": chosen.get("iv_rank"),
+                        }
+                    )
+                    break
+
+    def _process_chain(path: Path) -> None:
+        if not path.exists():
+            print("⚠️ Chain-bestand ontbreekt")
+            return
+        try:
+            data = load_exported_chain(str(path))
+        except Exception as exc:
+            print(f"⚠️ Fout bij laden van chain: {exc}")
+            return
+
+        strat = str(SESSION_STATE.get("strategy", "")).lower().replace(" ", "_")
+        rules_path = Path(cfg.get("STRIKE_RULES_FILE", "tomic/strike_selection_rules.yaml"))
+        try:
+            config_data = cfg._load_yaml(rules_path)
+        except Exception:
+            config_data = {}
+        rules = load_strike_config(strat, config_data) if config_data else {}
+        dte_range = rules.get("dte_range") or [0, 365]
+        try:
+            dte_tuple = (int(dte_range[0]), int(dte_range[1]))
+        except Exception:
+            dte_tuple = (0, 365)
+
+        filtered = filter_by_expiry(data, dte_tuple, multi=bool(rules.get("multi")))
+
+        fc = FilterConfig()
+        if isinstance(rules.get("delta_range"), list) and len(rules.get("delta_range")) == 2:
+            try:
+                fc.delta_min = float(rules["delta_range"][0])
+                fc.delta_max = float(rules["delta_range"][1])
+            except Exception:
+                pass
+        if rules.get("min_edge") is not None:
+            try:
+                fc.min_edge = float(rules["min_edge"])
+            except Exception:
+                pass
+        if rules.get("min_rom") is not None:
+            try:
+                fc.min_rom = float(rules["min_rom"])
+            except Exception:
+                pass
+
+        selector = StrikeSelector(fc)
+        selected = selector.select(filtered)
+
+        evaluated: list[dict[str, object]] = []
+        for opt in selected:
+            mid = get_option_mid_price(opt)
+            try:
+                model = float(opt.get("modelprice")) if opt.get("modelprice") is not None else None
+            except Exception:
+                model = None
+            try:
+                margin = float(opt.get("marginreq")) if opt.get("marginreq") is not None else None
+            except Exception:
+                margin = None
+            try:
+                delta = float(opt.get("delta"))
+            except Exception:
+                delta = None
+
+            pos = calculate_pos(delta) if delta is not None else None
+            rom = None
+            ev = None
+            edge = None
+            if mid is not None and margin is not None:
+                rom = calculate_rom(mid * 100, margin)
+            if model is not None and mid is not None:
+                edge = calculate_edge(model, mid)
+            if None not in (pos, mid, margin):
+                ev = calculate_ev(pos, mid * 100, -margin)
+
+            res = {
+                "symbol": SESSION_STATE.get("symbol"),
+                "expiry": opt.get("expiry"),
+                "strike": opt.get("strike"),
+                "type": opt.get("type"),
+                "mid": mid,
+                "model": model,
+                "margin": margin,
+                "pos": pos,
+                "rom": rom,
+                "edge": edge,
+                "ev": ev,
+            }
+            evaluated.append(res)
+
+        SESSION_STATE.setdefault("evaluated_trades", []).extend(evaluated)
+        if evaluated:
+            for row in evaluated[:5]:
+                print(
+                    f"{row['expiry']} {row['strike']} {row['type']} edge={row['edge']} rom={row['rom']} ev={row['ev']}"
+                )
+            if prompt_yes_no("Opslaan naar CSV?", False):
+                _save_trades(evaluated)
+
+    def _save_trades(trades: list[dict[str, object]]) -> None:
+        symbol = str(SESSION_STATE.get("symbol", "SYMB"))
+        strat = str(SESSION_STATE.get("strategy", "strategy")).replace(" ", "_")
+        expiry = str(trades[0].get("expiry", "")) if trades else ""
+        base = Path(cfg.get("EXPORT_DIR", "exports")) / "tradecandidates" / datetime.now().strftime("%Y%m%d")
+        base.mkdir(parents=True, exist_ok=True)
+        ts = datetime.now().strftime("%H%M%S")
+        path = base / f"trade_candidates_{symbol}_{strat}_{expiry}_{ts}.csv"
+        with path.open("w", newline="") as f:
+            writer = csv.DictWriter(f, fieldnames=trades[0].keys())
+            writer.writeheader()
+            writer.writerows(trades)
+        print(f"✅ Trades opgeslagen in: {path.resolve()}")
+
+    def choose_chain_source() -> None:
+        symbol = SESSION_STATE.get("symbol")
+        if not symbol:
+            print("⚠️ Geen strategie geselecteerd")
+            return
+
+        def use_ib() -> None:
+            path = find_latest_chain(str(symbol))
+            if not path:
+                print("⚠️ Geen chain gevonden")
+                return
+            _process_chain(path)
+
+        def use_polygon() -> None:
+            base = Path(cfg.get("EXPORT_DIR", "exports"))
+            pattern = f"{symbol}_*-optionchainpolygon.csv"
+            files = list(base.rglob(pattern))
+            if not files:
+                print("⚠️ Geen polygon chain gevonden")
+                return
+            path = max(files, key=lambda p: p.stat().st_mtime)
+            _process_chain(path)
+
+        def manual() -> None:
+            p = prompt("Pad naar CSV: ")
+            if not p:
+                return
+            _process_chain(Path(p))
+
+        menu = Menu("Chainbron kiezen")
+        menu.add("Laatste TWS-export", use_ib)
+        menu.add("Laatste Polygon-export", use_polygon)
+        menu.add("CSV handmatig kiezen", manual)
+        menu.run()
+
     menu = Menu("📊 ANALYSE & STRATEGIE")
     menu.add("Trading Plan", lambda: run_module("tomic.cli.trading_plan"))
     menu.add("Portfolio ophalen en tonen", fetch_and_show)
     menu.add("Laatst opgehaalde portfolio tonen", show_saved)
     menu.add("Toon portfolio greeks", show_greeks)
     menu.add("Toon marktinformatie", show_market_info)
+    menu.add("Chainbron kiezen", choose_chain_source)
     menu.run()
 
 
