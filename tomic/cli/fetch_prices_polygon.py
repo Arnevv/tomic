@@ -89,7 +89,8 @@ def _request_bars(client: PolygonClient, symbol: str) -> Iterable[dict]:
     else:
         to_date = end_dt.strftime("%Y-%m-%d")
         from_date = (end_dt - timedelta(days=365)).strftime("%Y-%m-%d")
-        params.update({"limit": 252, "from": from_date, "to": to_date})
+        path = f"{base_path}/{from_date}/{to_date}"
+        params.update({"limit": 252})
 
     data = client._request(path, params)
     bars = data.get("results") or []
