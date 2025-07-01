@@ -267,11 +267,39 @@ def run_dataexporter() -> None:
         finally:
             client.disconnect()
 
+    def run_github_action() -> None:
+        """Run the 'Update price history' GitHub Action locally."""
+        try:
+            run_module("tomic.cli.fetch_prices_polygon")
+        except subprocess.CalledProcessError:
+            print("❌ Ophalen van prijzen mislukt")
+            return
+
+        try:
+            subprocess.run(["git", "status", "--short"], check=True)
+            result = subprocess.run(
+                ["git", "status", "--porcelain"], capture_output=True, text=True, check=True
+            )
+            if result.stdout.strip():
+                files = []
+                files.extend(Path("tomic/data/spot_prices").glob("*.json"))
+                files.extend(Path("tomic/data/iv_daily_summary").glob("*.json"))
+                files.extend(Path("tomic/data/historical_volatility").glob("*.json"))
+                if files:
+                    subprocess.run(["git", "add", *[str(f) for f in files]], check=True)
+                    subprocess.run(["git", "commit", "-m", "Update price history"], check=True)
+                    subprocess.run(["git", "push"], check=True)
+            else:
+                print("No changes to commit")
+        except subprocess.CalledProcessError:
+            print("❌ Git-commando mislukt")
+
 
     menu = Menu("📁 DATA & MARKTDATA")
     menu.add("OptionChain ophalen via TWS API", export_chain_bulk)
     menu.add("OptionChain ophalen via Polygon API", polygon_chain)
     menu.add("Controleer CSV-kwaliteit", csv_check)
+    menu.add("Run GitHub Action lokaal", run_github_action)
 
     menu.run()
 
