@@ -207,42 +207,34 @@ def load_polygon_expiries(symbol: str, api_key: str | None = None) -> list[str]:
                 exp = f"{exp[:4]}-{exp[4:6]}-{exp[6:]}"
             expiries.add(exp)
 
-    exp_list = sorted(expiries)
-
-    min_dte = int(cfg_get("FIRST_EXPIRY_MIN_DTE", 15))
-    if min_dte > 0:
-        today_date = today()
-        filtered = []
-        for exp in exp_list:
-            try:
-                dt = datetime.strptime(exp, "%Y-%m-%d").date()
-            except Exception:
-                continue
-            if (dt - today_date).days >= min_dte:
-                filtered.append(exp)
-        if filtered:
-            exp_list = filtered
+    today_date = today()
+    dates: list[date] = []
+    for exp in sorted(expiries):
+        try:
+            dt = datetime.strptime(exp, "%Y-%m-%d").date()
+        except Exception:
+            continue
+        dte = (dt - today_date).days
+        if 15 <= dte <= 45:
+            dates.append(dt)
 
     reg_count = int(cfg_get("AMOUNT_REGULARS", 3))
     week_count = int(cfg_get("AMOUNT_WEEKLIES", 4))
+
     monthlies: list[str] = []
     weeklies: list[str] = []
-    for exp in exp_list:
-        try:
-            dt = datetime.strptime(exp, "%Y-%m-%d")
-        except Exception:
-            continue
-        if _is_third_friday(dt) and len(monthlies) < reg_count:
-            monthlies.append(exp)
-        elif _is_weekly(dt) and len(weeklies) < week_count:
-            weeklies.append(exp)
+    for dt in sorted(dates):
+        exp_str = dt.strftime("%Y-%m-%d")
+        dtime = datetime.combine(dt, datetime.min.time())
+        if _is_third_friday(dtime) and len(monthlies) < reg_count:
+            monthlies.append(exp_str)
+        elif _is_weekly(dtime) and len(weeklies) < week_count:
+            weeklies.append(exp_str)
         if len(monthlies) >= reg_count and len(weeklies) >= week_count:
             break
 
-    if monthlies or weeklies:
-        unique = {e for e in monthlies + weeklies}
-        return [e for e in sorted(unique)]
-    return exp_list[: reg_count + week_count]
+    final_expiries = sorted(set(monthlies[:reg_count] + weeklies[:week_count]))
+    return final_expiries
 
 
 def _export_option_chain(symbol: str, options: List[Dict[str, Any]]) -> None:
