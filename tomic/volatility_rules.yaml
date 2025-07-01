@@ -8,6 +8,11 @@
     - "skew > 3"
     - "term_m1_m3 > 1"
     - "IV > HV20"
+  export_heatmap: true
+  heatmap_columns:
+    - strike
+    - delta
+    - iv
 - feature: "Hoge IV Rank + Negatieve Skew"
   strategy: "Short Call Spread"
   greeks: "delta neutral, vega short, theta long"

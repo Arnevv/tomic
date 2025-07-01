@@ -12,6 +12,8 @@ def test_recommend_strategy_match():
     }
     rec = recommend_strategy(metrics)
     assert rec and rec["strategy"] == "Short Put Spread"
+    assert rec.get("export_heatmap") is True
+    assert rec.get("heatmap_columns") == ["strike", "delta", "iv"]
 
 
 def test_recommend_strategy_none():

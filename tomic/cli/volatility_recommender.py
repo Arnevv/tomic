@@ -28,19 +28,41 @@ def _load_rules(path: Path | None = None) -> List[Dict[str, Any]]:
                 line = line[2:]
             if current is None:
                 continue
-            if line.startswith("  - ") and list_key:
-                current.setdefault(list_key, []).append(line[4:].strip().strip('"'))
+            if line.lstrip().startswith("- ") and list_key:
+                current.setdefault(list_key, []).append(
+                    line.lstrip()[2:].strip().strip('"')
+                )
                 continue
             if ":" in line:
                 key, val = line.split(":", 1)
                 key = key.strip()
-                val = val.strip().strip('"')
+                val = val.strip()
                 if not val:
                     list_key = key
                     current[list_key] = []
                 else:
                     list_key = None
-                    current[key] = val
+                    val = val.strip('"')
+                    low = val.lower()
+                    if low in {"true", "false"}:
+                        current[key] = low == "true"
+                    elif low in {"null", "none"}:
+                        current[key] = None
+                    elif val.startswith("[") and val.endswith("]"):
+                        items = [
+                            v.strip().strip('"')
+                            for v in val[1:-1].split(",")
+                            if v.strip()
+                        ]
+                        current[key] = items
+                    else:
+                        try:
+                            if "." in val:
+                                current[key] = float(val)
+                            else:
+                                current[key] = int(val)
+                        except ValueError:
+                            current[key] = val
         if current:
             data.append(current)
         return data
