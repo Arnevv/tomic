@@ -31,6 +31,19 @@ python tests/test_ib_connection.py
 Run control panel (interactief)
 python tomic/cli/controlpanel.py
 
+📁 DATA & MARKTDATA
+1. OptionChain ophalen via TWS API
+2. OptionChain ophalen via Polygon API
+3. Controleer CSV-kwaliteit
+4. Terug
+
+Wat doet elk item?
+Optie Beschrijving
+1. OptionChain ophalen via TWS API    Interactief bulk-exportscript voor één symbool via TWS API (option_lookup_bulk). Wordt je standaardweg voor deep dive chains.
+2. OptionChain ophalen via Polygon API    Roept fetch_polygon_option_chain(symbol) aan en slaat option chain info op (nu nog in ontwikkeling).
+3. Controleer CSV-kwaliteit    Valideert een lokaal CSV-bestand met chaindata: kolommen, lege velden, duplicaten enz.
+4. Terug    Keert terug naar het hoofdmenu.
+
 ⏳ Verbindingstips
 Wacht na het verbinden tot de callback `nextValidId()` is aangeroepen voordat
 je verzoeken naar TWS stuurt. Pas dan is de client klaar om orders of
