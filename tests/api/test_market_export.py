@@ -17,6 +17,12 @@ class Contract:  # noqa: D401 - simple stub
 
 contract_stub.Contract = Contract  # type: ignore[attr-defined]
 sys.modules.setdefault("ibapi.contract", contract_stub)
+client_mod = types.ModuleType("ibapi.client")
+client_mod.EClient = type("EClient", (), {})
+wrapper_mod = types.ModuleType("ibapi.wrapper")
+wrapper_mod.EWrapper = type("EWrapper", (), {})
+sys.modules.setdefault("ibapi.client", client_mod)
+sys.modules.setdefault("ibapi.wrapper", wrapper_mod)
 client_stub = types.ModuleType("tomic.api.market_client")
 client_stub.MarketClient = object
 client_stub.OptionChainClient = object
@@ -32,6 +38,13 @@ from tomic.api.market_export import (
     _HEADERS_CHAIN,
     _HEADERS_SIMPLE,
 )
+
+
+def test_headers_include_new_columns():
+    assert "ModelPrice" in _HEADERS_CHAIN
+    assert "MarginReq" in _HEADERS_CHAIN
+    assert "ModelPrice" in _HEADERS_SIMPLE
+    assert "MarginReq" in _HEADERS_SIMPLE
 
 
 def test_write_option_chain_skips_invalid(tmp_path):
