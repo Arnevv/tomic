@@ -185,6 +185,7 @@ def load_polygon_expiries(symbol: str, api_key: str | None = None) -> list[str]:
 
     reg_count = int(cfg_get("AMOUNT_REGULARS", 3))
     week_count = int(cfg_get("AMOUNT_WEEKLIES", 4))
+    weekly_min_dte = int(cfg_get("WEEKLY_EXPIRIES_MIN_DTE", 15))
 
     # Determine the next third Friday within the desired window and the
     # following ``reg_count`` “regular” expiries.
@@ -205,13 +206,13 @@ def load_polygon_expiries(symbol: str, api_key: str | None = None) -> list[str]:
     for dt in third_fridays[first_idx : first_idx + reg_count]:
         monthlies.append(dt.strftime("%Y-%m-%d"))
 
-    # Determine upcoming weekly expiries between 15 and 45 DTE
+    # Determine upcoming weekly expiries
     weeklies: list[str] = []
     check = today_date + timedelta(days=1)
     while len(weeklies) < week_count and (check - today_date).days <= 120:
         if check.weekday() == 4 and not _is_third_friday(check):
             dte = (check - today_date).days
-            if 15 <= dte <= 45:
+            if weekly_min_dte <= dte:
                 weeklies.append(check.strftime("%Y-%m-%d"))
         check += timedelta(days=1)
 
