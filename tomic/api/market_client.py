@@ -1228,7 +1228,12 @@ class OptionChainClient(MarketClient):
             logger.error("❌ FAIL stap 6: Timeout waiting for IV calculation")
             return
 
-        self._request_option_data()
+        all_records: Dict[int, Dict[str, Any]] = {}
+        for exp in list(self.expiries):
+            records = self.process_expiry(exp)
+            all_records.update(records)
+        with self.data_lock:
+            self.market_data = all_records
 
     def _request_contract_details(self, contract: Contract, req_id: int) -> bool:
         """Request contract details with timeout/retries.
@@ -1434,6 +1439,32 @@ class OptionChainClient(MarketClient):
     @log_result
     def _request_option_data(self) -> None:
         asyncio.run(self._request_option_data_async())
+
+    def process_expiry(self, expiry: str) -> dict[int, dict[str, Any]]:
+        """Request option data for a single ``expiry`` and return the results."""
+
+        original_expiries = list(self.expiries)
+        original_strikes = list(self.strikes)
+        original_expected = self.expected_contracts
+        start_ids = set(self.market_data)
+
+        self.expiries = [expiry]
+        self.strikes = self._exp_strikes.get(expiry, self.strikes)
+        self.expected_contracts = len(self.expiries) * len(self.strikes) * 2
+
+        self._request_option_data()
+        self.all_data_event.wait(cfg_get("MARKET_DATA_TIMEOUT", 480))
+
+        with self.data_lock:
+            new_records = {
+                rid: rec for rid, rec in self.market_data.items() if rid not in start_ids
+            }
+
+        self.expiries = original_expiries
+        self.strikes = original_strikes
+        self.expected_contracts = original_expected
+
+        return new_records
 
 
 class TermStructureClient(OptionChainClient):

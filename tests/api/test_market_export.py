@@ -391,3 +391,43 @@ def test_export_option_chain_simple_flag(monkeypatch, tmp_path):
     mod.export_option_chain("XYZ", str(tmp_path), simple=True)
 
     assert called == [("XYZ", str(tmp_path))]
+
+
+def test_export_market_data_processes_each_expiry(monkeypatch, tmp_path):
+    import importlib
+
+    mod = importlib.reload(importlib.import_module("tomic.api.market_export"))
+
+    class DummyApp:
+        def __init__(self):
+            self.expiries = ["20240101", "20240201"]
+            self.market_data: dict[int, dict] = {}
+            self.invalid_contracts = set()
+            self.spot_price = 100.0
+            self.disconnected = False
+
+        def process_expiry(self, expiry: str):
+            rid = len(self.market_data) + 1
+            rec = {rid: {"expiry": expiry}}
+            self.market_data.update(rec)
+            return rec
+
+        def disconnect(self):
+            self.disconnected = True
+
+    dummy_app = DummyApp()
+
+    monkeypatch.setattr(mod, "OptionChainClient", lambda sym: dummy_app)
+    monkeypatch.setattr(mod, "start_app", lambda app, **k: None)
+    monkeypatch.setattr(mod, "await_market_data", lambda app, symbol, timeout=60: True)
+    monkeypatch.setattr(mod, "fetch_market_metrics", lambda *a, **k: {"spot_price": 1})
+
+    calls = {}
+    monkeypatch.setattr(mod, "_write_option_chain", lambda app, sym, out, ts: calls.setdefault("chain", len(app.market_data)))
+    monkeypatch.setattr(mod, "_write_metrics_csv", lambda *a, **k: calls.setdefault("metrics", len(dummy_app.market_data)))
+
+    mod.export_market_data("XYZ", str(tmp_path))
+
+    assert dummy_app.disconnected
+    assert calls == {"chain": 2, "metrics": 2}
+    assert list(dummy_app.market_data.values()) == [{"expiry": "20240101"}, {"expiry": "20240201"}]
