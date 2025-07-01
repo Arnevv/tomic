@@ -176,6 +176,73 @@ class SnapshotFetcher:
         return options
 
 
+def load_polygon_expiries(symbol: str, api_key: str | None = None) -> list[str]:
+    """Return upcoming expiries for ``symbol`` using Polygon."""
+
+    client = PolygonClient(api_key=api_key)
+    client.connect()
+    try:
+        contracts = client.fetch_option_chain(symbol)
+    except Exception as exc:  # pragma: no cover - network failure
+        logger.warning(f"Polygon expiries failed for {symbol}: {exc}")
+        return []
+    finally:
+        client.disconnect()
+
+    expiries: set[str] = set()
+    for con in contracts or []:
+        details = con.get("details") or {}
+        exp = (
+            con.get("expiration_date")
+            or con.get("expDate")
+            or con.get("expiry")
+            or details.get("expiration_date")
+            or details.get("expiry")
+            or details.get("expDate")
+        )
+        if isinstance(exp, str):
+            if len(exp) == 8 and exp.isdigit():
+                exp = f"{exp[:4]}-{exp[4:6]}-{exp[6:]}"
+            expiries.add(exp)
+
+    exp_list = sorted(expiries)
+
+    min_dte = int(cfg_get("FIRST_EXPIRY_MIN_DTE", 15))
+    if min_dte > 0:
+        today_date = today()
+        filtered = []
+        for exp in exp_list:
+            try:
+                dt = datetime.strptime(exp, "%Y-%m-%d").date()
+            except Exception:
+                continue
+            if (dt - today_date).days >= min_dte:
+                filtered.append(exp)
+        if filtered:
+            exp_list = filtered
+
+    reg_count = int(cfg_get("AMOUNT_REGULARS", 3))
+    week_count = int(cfg_get("AMOUNT_WEEKLIES", 4))
+    monthlies: list[str] = []
+    weeklies: list[str] = []
+    for exp in exp_list:
+        try:
+            dt = datetime.strptime(exp, "%Y-%m-%d")
+        except Exception:
+            continue
+        if _is_third_friday(dt) and len(monthlies) < reg_count:
+            monthlies.append(exp)
+        elif _is_weekly(dt) and len(weeklies) < week_count:
+            weeklies.append(exp)
+        if len(monthlies) >= reg_count and len(weeklies) >= week_count:
+            break
+
+    if monthlies or weeklies:
+        unique = {e for e in monthlies + weeklies}
+        return [e for e in sorted(unique)]
+    return exp_list[: reg_count + week_count]
+
+
 def _export_option_chain(symbol: str, options: List[Dict[str, Any]]) -> None:
     """Write option chain to CSV using today's date and timestamp."""
     base = Path(cfg_get("EXPORT_DIR", "exports"))
@@ -709,4 +776,37 @@ def fetch_polygon_iv30d(symbol: str) -> Dict[str, float | None] | None:
     }
 
 
-__all__ = ["fetch_polygon_iv30d"]
+def fetch_polygon_option_chain(symbol: str) -> None:
+    """Export a Polygon option chain filtered by delta range."""
+
+    api_key = cfg_get("POLYGON_API_KEY", "")
+    expiries = load_polygon_expiries(symbol, api_key)
+    if not expiries:
+        logger.warning(f"No expiries found for {symbol}")
+        return
+
+    d_min = float(cfg_get("DELTA_MIN", -1))
+    d_max = float(cfg_get("DELTA_MAX", 1))
+
+    fetcher = SnapshotFetcher(api_key)
+    filtered: list[dict] = []
+    for exp in expiries:
+        for opt in fetcher.fetch_expiry(symbol, exp):
+            greeks = opt.get("greeks") or {}
+            delta = opt.get("delta") if opt.get("delta") is not None else greeks.get("delta")
+            try:
+                delta_f = float(delta) if delta is not None else None
+            except Exception:
+                delta_f = None
+            if delta_f is not None and (delta_f < d_min or delta_f > d_max):
+                continue
+            filtered.append(opt)
+
+    _export_option_chain(symbol, filtered)
+
+
+__all__ = [
+    "fetch_polygon_iv30d",
+    "fetch_polygon_option_chain",
+    "load_polygon_expiries",
+]
