@@ -5,6 +5,7 @@ from __future__ import annotations
 from datetime import datetime, timedelta, date
 from pathlib import Path
 from time import sleep
+import time
 from typing import Iterable, List
 from zoneinfo import ZoneInfo
 from types import SimpleNamespace
@@ -153,18 +154,33 @@ def main(argv: List[str] | None = None) -> None:
     except (TypeError, ValueError):
         max_syms = None
     sleep_between = float(cfg_get("POLYGON_SLEEP_BETWEEN", 1.2))
+    max_per_minute = int(cfg_get("POLYGON_REQUESTS_PER_MINUTE", 5))
 
     base_dir = Path(cfg_get("PRICE_HISTORY_DIR", "tomic/data/spot_prices"))
     client = PolygonClient()
     client.connect()
     stored = 0
     processed: list[str] = []
+    request_times: list[float] = []
     try:
         for idx, sym in enumerate(symbols):
             if max_syms is not None and idx >= max_syms:
                 break
+            now = time.time()
+            request_times = [t for t in request_times if now - t < 60]
+            if len(request_times) >= max_per_minute:
+                wait = 60 - (now - request_times[0])
+                if wait > 0:
+                    logger.info(
+                        f"⌛ Rate limit: sleeping {wait:.1f}s to stay under {max_per_minute}/min"
+                    )
+                    sleep(wait)
+                now = time.time()
+                request_times = [t for t in request_times if now - t < 60]
+
             logger.info(f"Fetching bars for {sym}")
             records = list(_request_bars(client, sym))
+            request_times.append(time.time())
             if not records:
                 logger.warning(f"No price data for {sym}")
             else:
@@ -173,6 +189,7 @@ def main(argv: List[str] | None = None) -> None:
                 logger.info(f"{sym}: {added} nieuwe datapunten")
                 if added:
                     stored += 1
+                    sleep(10)
             processed.append(sym)
             sleep(sleep_between)
     finally:
