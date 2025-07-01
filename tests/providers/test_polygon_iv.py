@@ -420,28 +420,18 @@ def test_export_option_chain_rounding(monkeypatch, tmp_path):
 def test_load_polygon_expiries(monkeypatch):
     mod = importlib.import_module("tomic.providers.polygon_iv")
 
-    fake_contracts = [
-        {"expiration_date": "2024-01-19"},
-        {"expiration_date": "2024-01-26"},
-        {"expiration_date": "2024-02-16"},
-        {"expiration_date": "2024-02-23"},
-        {"expiration_date": "2024-03-15"},
+    fridays = [
+        date(2024, 1, 19),
+        date(2024, 2, 16),
+        date(2024, 3, 15),
+        date(2024, 4, 19),
     ]
 
-    class FakeClient:
-        def __init__(self, api_key=None):
-            pass
-
-        def connect(self):
-            pass
-
-        def disconnect(self):
-            pass
-
-        def fetch_option_chain(self, symbol):
-            return fake_contracts
-
-    monkeypatch.setattr(mod, "PolygonClient", lambda api_key=None: FakeClient())
+    monkeypatch.setattr(
+        mod.ExpiryPlanner,
+        "get_next_third_fridays",
+        lambda start, count=4: fridays[:count],
+    )
     monkeypatch.setattr(mod, "today", lambda: date(2024, 1, 1))
     monkeypatch.setattr(
         mod,
@@ -452,8 +442,23 @@ def test_load_polygon_expiries(monkeypatch):
         }.get(n, d),
     )
 
+    calls = []
+
+    class FakeFetcher:
+        def __init__(self, key=None):
+            pass
+
+        def fetch_expiry(self, symbol, expiry):
+            calls.append(expiry)
+            if expiry in {"2024-01-19", "2024-01-26"}:
+                return [{}]
+            return []
+
+    monkeypatch.setattr(mod, "SnapshotFetcher", lambda key=None: FakeFetcher())
+
     expiries = mod.load_polygon_expiries("ABC")
     assert expiries == ["2024-01-19", "2024-01-26"]
+    assert calls == ["2024-01-19", "2024-02-16", "2024-01-26"]
 
 
 def test_fetch_polygon_option_chain_filters(monkeypatch):
