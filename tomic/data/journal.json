@@ -416,28 +416,28 @@
         "strike": 77.0,
         "type": "PUT",
         "action": "BUY",
-        "qty": 2,
+        "qty": 1,
         "conId": 742351124
       },
       {
         "strike": 79.0,
         "type": "PUT",
         "action": "SELL",
-        "qty": 2,
+        "qty": 1,
         "conId": 742351299
       },
       {
         "strike": 87.0,
         "type": "CALL",
         "action": "SELL",
-        "qty": 2,
+        "qty": 1,
         "conId": 753575988
       },
       {
         "strike": 89.0,
         "type": "CALL",
         "action": "BUY",
-        "qty": 2,
+        "qty": 1,
         "conId": 753575998
       }
     ],
@@ -447,5 +447,67 @@
       "Vega": 0.003,
       "Theta": -0.004
     }
+  },
+  {
+    "TradeID": "8",
+    "DatumIn": "2025-07-01",
+    "DatumUit": "",
+    "Symbool": "PEP",
+    "Type": "Iron Condor",
+    "Expiry": "2025-07-18",
+    "Richting": "Sideways",
+    "Status": "Open",
+    "Premium": 1.62,
+    "EntryPrice": 1.62,
+    "ExitPrice": null,
+    "ReturnOnMargin": null,
+    "InitMargin": 338,
+    "StopPct": 0,
+    "IV_Entry": 28.4,
+    "HV_Entry": 23.2,
+    "IV_Rank": 44.0,
+    "IV_Percentile": 88.0,
+    "VIX": 13.9,
+    "ATR_14": 4.8,
+    "Skew": 0.1,
+    "Spot": 135.0,
+    "DaysInTrade": null,
+    "Plan": "Implied volatility is verhoogd (IV Rank 44, Percentile 88) met vlakke skew en lage historische volatiliteit. Breakevens liggen net buiten de 1σ-range van spot (135) richting expiratie op 18 juli.\n\nDe short strikes zijn goed gedekt door liquiditeit en premies (130p/140c), en de totale premie van $1.62 is fair voor deze 5-punts spread.\n\nGreeks zijn neutraal tot licht positief qua theta en delta, en vega is mild negatief — ideaal in een consolidatie- of mean-reverting scenario.\n\nDoel: premie-inname op basis van tijdsverloop en beperkte koersbeweging.",
+    "Reden": "Spot staat op $135 met verhoogde implied volatility. De gekozen strikes (130/140) liggen buiten de verwachte 1σ-band, maar de premie is aantrekkelijk ($1.62) met een edge van >2% en PoS rond 66%.\n\nDe structuur is delta-neutraal en heeft een gunstige verhouding tussen risico en beloning (R/R > 2.0). Er is geen earnings of macro-event tot expiratie, dus de marktomstandigheden zijn stabiel.\n\nSkew is vlak, dus geen asymmetrisch risico tussen puts en calls. Dit maakt de condor evenwichtig en makkelijk te managen.",
+    "Exitstrategie": "❌ Sluiten bij verlies:\n- Als PEP onder 130 of boven 140 handelt met momentum\n- Of als de waarde van de condor stijgt naar > $3.00 (≈ 85% van max loss)\n\n✅ Winstnemen:\n- Bij terugkoop rond $0.65 of lager (~60% winst op initiële premie)\n- Of als premie versneld daalt door IV-crush of tijdsverloop\n\n🟡 Tijd-exit:\n- Evalueren vanaf 10 juli (5–7 dagen voor expiratie)\n- Sluiten als edge verdwenen is of breakevens worden benaderd",
+    "Evaluatie": "✅ Wat verwachtte je?\nEen stabiele koersbeweging tussen 130–140, met dalende IV richting expiry en premie-afbouw.\n\n⚠️ Wat gebeurde er?\n(TBD na afloop trade — vul hier marktgedrag en koersverloop in)\n\n💡 Conclusie:\nDe trade had een goede edge op basis van tijdsverloop en IV-structuur. Entry was volgens plan en Greeks werkten in je voordeel. Evaluatie volgt na exit om te bepalen of je winst genomen hebt, hebt gemanaged of gesloten op basis van risico.",
+    "Resultaat": null,
+    "Opmerkingen": "",
+  "Legs": [
+    {
+    "strike": 125,
+    "type": "PUT",
+    "action": "BUY",
+    "qty": 1
+  },
+  {
+    "strike": 130,
+    "type": "PUT",
+    "action": "SELL",
+    "qty": 1
+  },
+  {
+    "strike": 140,
+    "type": "CALL",
+    "action": "SELL",
+    "qty": 1
+  },
+  {
+    "strike": 145,
+    "type": "CALL",
+    "action": "BUY",
+    "qty": 1
+  }],
+    "Greeks_Entry": {
+    "Delta": 0.00,
+    "Gamma": 0.01,
+    "Vega": -0.08,
+    "Theta": 0.05
+  }
   }
 ]
