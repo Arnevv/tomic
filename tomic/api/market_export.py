@@ -52,8 +52,6 @@ _HEADERS_CHAIN = [
     "Theta",
     "Volume",
     "OpenInterest",
-    "ParityDeviation",
-    "Status",
 ]
 
 _HEADERS_METRICS = [
@@ -222,8 +220,6 @@ def _write_option_chain(
                     ),
                     rec.get("volume"),
                     rec.get("open_interest"),
-                    rec.get("parity_deviation"),
-                    rec.get("status", "ok"),
                 ]
             )
     logger.info(f"✅ [stap 10] Optieketen opgeslagen in: {chain_file}")
