@@ -472,42 +472,47 @@
     "Skew": 0.1,
     "Spot": 135.0,
     "DaysInTrade": null,
-    "Plan": "Implied volatility is verhoogd (IV Rank 44, Percentile 88) met vlakke skew en lage historische volatiliteit. Breakevens liggen net buiten de 1σ-range van spot (135) richting expiratie op 18 juli.\n\nDe short strikes zijn goed gedekt door liquiditeit en premies (130p/140c), en de totale premie van $1.62 is fair voor deze 5-punts spread.\n\nGreeks zijn neutraal tot licht positief qua theta en delta, en vega is mild negatief — ideaal in een consolidatie- of mean-reverting scenario.\n\nDoel: premie-inname op basis van tijdsverloop en beperkte koersbeweging.",
-    "Reden": "Spot staat op $135 met verhoogde implied volatility. De gekozen strikes (130/140) liggen buiten de verwachte 1σ-band, maar de premie is aantrekkelijk ($1.62) met een edge van >2% en PoS rond 66%.\n\nDe structuur is delta-neutraal en heeft een gunstige verhouding tussen risico en beloning (R/R > 2.0). Er is geen earnings of macro-event tot expiratie, dus de marktomstandigheden zijn stabiel.\n\nSkew is vlak, dus geen asymmetrisch risico tussen puts en calls. Dit maakt de condor evenwichtig en makkelijk te managen.",
-    "Exitstrategie": "❌ Sluiten bij verlies:\n- Als PEP onder 130 of boven 140 handelt met momentum\n- Of als de waarde van de condor stijgt naar > $3.00 (≈ 85% van max loss)\n\n✅ Winstnemen:\n- Bij terugkoop rond $0.65 of lager (~60% winst op initiële premie)\n- Of als premie versneld daalt door IV-crush of tijdsverloop\n\n🟡 Tijd-exit:\n- Evalueren vanaf 10 juli (5–7 dagen voor expiratie)\n- Sluiten als edge verdwenen is of breakevens worden benaderd",
-    "Evaluatie": "✅ Wat verwachtte je?\nEen stabiele koersbeweging tussen 130–140, met dalende IV richting expiry en premie-afbouw.\n\n⚠️ Wat gebeurde er?\n(TBD na afloop trade — vul hier marktgedrag en koersverloop in)\n\n💡 Conclusie:\nDe trade had een goede edge op basis van tijdsverloop en IV-structuur. Entry was volgens plan en Greeks werkten in je voordeel. Evaluatie volgt na exit om te bepalen of je winst genomen hebt, hebt gemanaged of gesloten op basis van risico.",
+    "Plan": "Implied volatility is verhoogd (IV Rank 44, Percentile 88) met vlakke skew en lage historische volatiliteit. Breakevens liggen net buiten de 1\u03c3-range van spot (135) richting expiratie op 18 juli.\n\nDe short strikes zijn goed gedekt door liquiditeit en premies (130p/140c), en de totale premie van $1.62 is fair voor deze 5-punts spread.\n\nGreeks zijn neutraal tot licht positief qua theta en delta, en vega is mild negatief \u2014 ideaal in een consolidatie- of mean-reverting scenario.\n\nDoel: premie-inname op basis van tijdsverloop en beperkte koersbeweging.",
+    "Reden": "Spot staat op $135 met verhoogde implied volatility. De gekozen strikes (130/140) liggen buiten de verwachte 1\u03c3-band, maar de premie is aantrekkelijk ($1.62) met een edge van >2% en PoS rond 66%.\n\nDe structuur is delta-neutraal en heeft een gunstige verhouding tussen risico en beloning (R/R > 2.0). Er is geen earnings of macro-event tot expiratie, dus de marktomstandigheden zijn stabiel.\n\nSkew is vlak, dus geen asymmetrisch risico tussen puts en calls. Dit maakt de condor evenwichtig en makkelijk te managen.",
+    "Exitstrategie": "\u274c Sluiten bij verlies:\n- Als PEP onder 130 of boven 140 handelt met momentum\n- Of als de waarde van de condor stijgt naar > $3.00 (\u2248 85% van max loss)\n\n\u2705 Winstnemen:\n- Bij terugkoop rond $0.65 of lager (~60% winst op initi\u00eble premie)\n- Of als premie versneld daalt door IV-crush of tijdsverloop\n\n\ud83d\udfe1 Tijd-exit:\n- Evalueren vanaf 10 juli (5\u20137 dagen voor expiratie)\n- Sluiten als edge verdwenen is of breakevens worden benaderd",
+    "Evaluatie": "\u2705 Wat verwachtte je?\nEen stabiele koersbeweging tussen 130\u2013140, met dalende IV richting expiry en premie-afbouw.\n\n\u26a0\ufe0f Wat gebeurde er?\n(TBD na afloop trade \u2014 vul hier marktgedrag en koersverloop in)\n\n\ud83d\udca1 Conclusie:\nDe trade had een goede edge op basis van tijdsverloop en IV-structuur. Entry was volgens plan en Greeks werkten in je voordeel. Evaluatie volgt na exit om te bepalen of je winst genomen hebt, hebt gemanaged of gesloten op basis van risico.",
     "Resultaat": null,
     "Opmerkingen": "",
-  "Legs": [
-    {
-    "strike": 125,
-    "type": "PUT",
-    "action": "BUY",
-    "qty": 1
-  },
-  {
-    "strike": 130,
-    "type": "PUT",
-    "action": "SELL",
-    "qty": 1
-  },
-  {
-    "strike": 140,
-    "type": "CALL",
-    "action": "SELL",
-    "qty": 1
-  },
-  {
-    "strike": 145,
-    "type": "CALL",
-    "action": "BUY",
-    "qty": 1
-  }],
+    "Legs": [
+      {
+        "strike": 125,
+        "type": "PUT",
+        "action": "BUY",
+        "qty": 1,
+        "conId": 742196825
+      },
+      {
+        "strike": 130,
+        "type": "PUT",
+        "action": "SELL",
+        "qty": 1,
+        "conId": 742196899
+      },
+      {
+        "strike": 140,
+        "type": "CALL",
+        "action": "SELL",
+        "qty": 1,
+        "conId": 742195602
+      },
+      {
+        "strike": 145,
+        "type": "CALL",
+        "action": "BUY",
+        "qty": 1,
+        "conId": 742195656
+      }
+    ],
     "Greeks_Entry": {
-    "Delta": 0.00,
-    "Gamma": 0.01,
-    "Vega": -0.08,
-    "Theta": 0.05
-  }
+      "Delta": 0.0,
+      "Gamma": 0.01,
+      "Vega": -0.08,
+      "Theta": 0.05
+    }
   }
 ]
