@@ -478,3 +478,41 @@ def test_export_market_data_heatmap(monkeypatch, tmp_path):
     assert rows[1] == ["100", "0.5"]
     data = json.loads(json_files[0].read_text())
     assert data[0]["strike"] == 100
+
+
+def test_write_option_chain_runs_selector(tmp_path, monkeypatch):
+    import tomic.api.market_export as mod
+
+    market_data = {
+        1: {
+            "expiry": "20240101",
+            "right": "C",
+            "strike": 100,
+            "bid": 1.0,
+            "ask": 1.2,
+            "iv": 0.2,
+            "delta": 0.5,
+            "gamma": 0.1,
+            "vega": 0.2,
+            "theta": -0.1,
+            "volume": 10,
+        },
+    }
+    app = SimpleNamespace(market_data=market_data, invalid_contracts=set(), spot_price=100.0)
+
+    class DummySelector:
+        def __init__(self):
+            self.called = False
+
+        def select(self, data):
+            self.called = True
+            return data
+
+    dummy = DummySelector()
+    monkeypatch.setattr(mod, "StrikeSelector", lambda: dummy)
+
+    mod._write_option_chain(app, "ABC", str(tmp_path), "111")
+
+    assert dummy.called
+    filtered = list(tmp_path.glob("filtered_chain_ABC_111.csv"))
+    assert filtered
