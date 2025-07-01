@@ -4,8 +4,6 @@ from __future__ import annotations
 
 from datetime import date
 
-from tomic.api.market_client import fetch_market_metrics
-from tomic.config import get as cfg_get
 from tomic.journal.service import add_trade, next_trade_id
 
 
@@ -120,26 +118,17 @@ def interactieve_trade_invoer():
         lijnen.append(regel)
     exitstrategie = "\n".join(lijnen)
 
-    print("\n📊 Marktdata wordt automatisch opgehaald...")
-    try:
-        metrics = fetch_market_metrics(
-            symbool,
-            timeout=cfg_get("MARKET_DATA_TIMEOUT", 120),
-        )
-    except Exception as exc:
-        print(f"⚠️ Marktdata ophalen mislukt: {exc}")
-        metrics = None
-    if metrics is None:
-        metrics = {
-            "spot_price": None,
-            "hv30": None,
-            "atr14": None,
-            "vix": None,
-            "skew": None,
-            "iv_rank": None,
-            "implied_volatility": None,
-            "iv_percentile": None,
-        }
+    # Skip automatic market data retrieval to avoid TWS calls
+    metrics = {
+        "spot_price": None,
+        "hv30": None,
+        "atr14": None,
+        "vix": None,
+        "skew": None,
+        "iv_rank": None,
+        "implied_volatility": None,
+        "iv_percentile": None,
+    }
 
     spot = metrics["spot_price"]
     iv_entry = metrics["implied_volatility"]
