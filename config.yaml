@@ -1,39 +1,132 @@
 ACCOUNT_INFO_FILE: tomic/data/account_info.json
 AMOUNT_REGULARS: 3
 AMOUNT_WEEKLIES: 4
-WEEKLY_EXPIRIES_MIN_DTE: 15
+WEEKLY_EXPIRIES_MIN_DTE: 10
 BID_ASK_TIMEOUT: 20
 CONTRACT_DETAILS_RETRIES: 4
 CONTRACT_DETAILS_TIMEOUT: 10
 DATA_PROVIDER: ib
 DEFAULT_SYMBOLS:
-- AAPL
-- AMD
-- AMZN
-- BA
-- BAC
-- COST
-- CRM
-- DIA
-- EEM
-- GLD
-- GOOGL
-- IWM
-- JPM
-- LULU
-- META
-- MSFT
-- NFLX
-- NVDA
-- ORCL
-- QQQ
-- SLV
-- SPY
-- TLT
-- TSLA
-- USO
-- XLE
-- XLF
+  # 🧃 Consumer Staples
+  - KO
+  - PEP
+  - WMT
+  - COST
+  - PG
+  - CL
+  - MO
+  - PM
+  - KMB
+  - KR
+
+  # 🛒 Consumer Discretionary
+  - AMZN
+  - TSLA
+  - HD
+  - MCD
+  - NKE
+  - SBUX
+  - LOW
+  - ROST
+  - TGT
+  - LULU
+
+  # 🏦 Financials
+  - JPM
+  - BAC
+  - WFC
+  - GS
+  - MS
+  - C
+  - AXP
+  - SCHW
+  - V
+  - MA
+
+  # 💻 Technology
+  - AAPL
+  - MSFT
+  - NVDA
+  - AMD
+  - INTC
+  - META
+  - GOOGL
+  - ORCL
+  - CRM
+  - MU
+
+  # ⚙️ Industrials
+  - BA
+  - CAT
+  - DE
+  - GE
+  - UPS
+  - UNP
+  - LMT
+  - NOC
+  - HON
+  - MMM
+
+  # 🛢️ Energy
+  - XOM
+  - CVX
+  - COP
+  - SLB
+  - HAL
+  - EOG
+  - PXD
+  - DVN
+  - OXY
+  - VLO
+
+  # 🏥 Health Care
+  - JNJ
+  - PFE
+  - MRK
+  - ABBV
+  - UNH
+  - CVS
+  - BMY
+  - AMGN
+  - BIIB
+  - GILD
+
+  # ⚡ Utilities
+  - NEE
+  - DUK
+  - SO
+  - AEP
+  - EXC
+  - SRE
+  - XEL
+  - PEG
+  - D
+  - ED
+
+  # 🧱 Real Estate (REITs)
+  - PLD
+  - AMT
+  - CCI
+  - EQIX
+  - O
+  - SPG
+  - WELL
+  - VTR
+  - AVB
+  - EQR
+
+  # 🌐 Index-ETF / Macro
+  - SPY
+  - QQQ
+  - DIA
+  - IWM
+  - EEM
+  - TLT
+
+  # 🪙 Grondstoffen / Speculatief
+  - GLD
+  - SLV
+  - USO
 DELTA_MAX: 0.8
 DELTA_MIN: -0.8
 DOWNLOAD_RETRIES: 3
