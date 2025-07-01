@@ -36,7 +36,7 @@ def test_dataexporter_menu_invokes_new_scripts(monkeypatch):
         "tomic.providers.polygon_iv.fetch_polygon_option_chain",
         lambda symbol: polygon_called.append(symbol),
     )
-    inputs = iter(["1", "AAA", "2", "BBB", "4"])
+    inputs = iter(["1", "AAA", "2", "BBB", "5"])
     monkeypatch.setattr("builtins.input", lambda *a: next(inputs))
     mod.run_dataexporter()
     assert "tomic.cli.option_lookup_bulk" in called
