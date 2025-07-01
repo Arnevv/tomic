@@ -15,14 +15,16 @@ from __future__ import annotations
 import csv
 import os
 import time
+import json
 from datetime import datetime
 import math
+
+from typing import Any
 
 import pandas as pd
 
 from tomic.logutils import logger, log_result
 import asyncio
-from typing import Any
 import threading
 from tomic.api.market_client import (
     MarketClient,
@@ -35,6 +37,7 @@ from tomic.api.market_client import (
 from ibapi.contract import Contract
 from tomic.models import MarketMetrics, OptionContract
 from tomic.config import get as cfg_get
+from tomic.strike_selector import StrikeSelector
 from .historical_iv import fetch_historical_option_data
 
 
@@ -84,6 +87,17 @@ _HEADERS_SIMPLE = [
     "Theta",
     "Status",
 ]
+
+
+def load_exported_chain(filepath: str) -> list[dict[str, Any]]:
+    """Return the exported option chain CSV as a list of dicts."""
+
+    with open(filepath, newline="") as f:
+        reader = csv.DictReader(f)
+        rows = []
+        for row in reader:
+            rows.append({k.lower(): v for k, v in row.items()})
+        return rows
 
 
 @log_result
@@ -227,6 +241,22 @@ def _write_option_chain(
                 ]
             )
     logger.info(f"✅ [stap 10] Optieketen opgeslagen in: {chain_file}")
+    chain_data = load_exported_chain(chain_file)
+    selector = StrikeSelector()
+    selected = selector.select(chain_data)
+
+    filtered_path = os.path.join(
+        export_dir, f"filtered_chain_{symbol}_{timestamp}.csv"
+    )
+    if selected:
+        with open(filtered_path, "w", newline="") as f_sel:
+            writer = csv.DictWriter(f_sel, fieldnames=selected[0].keys())
+            writer.writeheader()
+            writer.writerows(selected)
+    for row in selected[:5]:
+        logger.info(
+            f"[SELECTED] {row.get('expiry')} {row.get('strike')} Δ={row.get('delta')} ROM={row.get('rom')} EV={row.get('ev')}"
+        )
     if heatmap_columns:
         _write_heatmap(records, symbol, export_dir, timestamp, heatmap_columns)
     total = len(getattr(app, "market_data", {})) - len(spot_ids)
