@@ -1364,3 +1364,35 @@ def test_retry_incomplete_requests_cancels_before_request(monkeypatch):
     assert ("req", req_id) in calls
     assert calls.index(("cancel", req_id)) < calls.index(("req", req_id))
 
+
+def test_process_expiry_returns_new_records(monkeypatch):
+    mod = importlib.import_module("tomic.api.market_client")
+
+    client = mod.OptionChainClient("ABC")
+    client.trading_class = "ABC"
+    client.expiries = ["20240101", "20240201"]
+    client.strikes = [100.0, 110.0]
+    client._strike_lookup = {100.0: 100.0, 110.0: 110.0}
+    client._exp_strikes = {"20240101": [100.0], "20240201": [110.0]}
+
+    calls = []
+
+    def fake_request():
+        calls.append((list(client.expiries), list(client.strikes)))
+        rid = client._next_id()
+        with client.data_lock:
+            client.market_data[rid] = {
+                "expiry": client.expiries[0],
+                "strike": client.strikes[0],
+            }
+        client.all_data_event.set()
+
+    monkeypatch.setattr(client, "_request_option_data", fake_request)
+
+    records = client.process_expiry("20240201")
+
+    assert calls == [(["20240201"], [110.0])]
+    assert client.expiries == ["20240101", "20240201"]
+    assert client.strikes == [100.0, 110.0]
+    assert all(rec["expiry"] == "20240201" for rec in records.values())
+
