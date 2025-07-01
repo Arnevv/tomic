@@ -11,6 +11,7 @@ from typing import Any, Dict, Iterable, List, Optional
 from tomic.analysis.greeks import compute_greeks_by_symbol
 from tomic.analysis.strategy import heuristic_risk_metrics
 from tomic.journal.utils import load_json
+from tomic.utils import get_option_mid_price
 
 
 @dataclass
@@ -88,7 +89,7 @@ def _dte(expiry: str) -> Optional[int]:
 
 
 def _mid_price(leg: Leg) -> float:
-    return (leg.bid + leg.ask) / 2 if leg.bid or leg.ask else 0.0
+    return get_option_mid_price({"bid": leg.bid, "ask": leg.ask, "close": None}) or 0.0
 
 
 def _cost_basis(legs: Iterable[Leg]) -> float:

@@ -96,3 +96,20 @@ def latest_close_date(symbol: str) -> str | None:
         data.sort(key=lambda r: r.get("date", ""))
         return str(data[-1].get("date"))
     return None
+
+
+def get_option_mid_price(option: dict) -> float | None:
+    """Return midpoint price for ``option`` or close price as fallback."""
+
+    try:
+        bid = float(option.get("bid"))
+        ask = float(option.get("ask"))
+        if bid > 0 and ask > 0:
+            return (bid + ask) / 2
+    except Exception:
+        pass
+    close = option.get("close")
+    try:
+        return float(close) if close is not None else None
+    except Exception:
+        return None
