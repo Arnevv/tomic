@@ -2,7 +2,7 @@ from __future__ import annotations
 
 """Helpers for retrieving IV data from the Polygon API."""
 
-from datetime import datetime, date
+from datetime import datetime, date, timedelta
 from zoneinfo import ZoneInfo
 from pathlib import Path
 from typing import Any, Dict, List
@@ -181,60 +181,58 @@ class SnapshotFetcher:
 def load_polygon_expiries(symbol: str, api_key: str | None = None) -> list[str]:
     """Return upcoming expiries for ``symbol`` using Polygon."""
 
-    client = PolygonClient(api_key=api_key)
-    client.connect()
-    try:
-        contracts = client.fetch_option_chain(symbol)
-    except Exception as exc:  # pragma: no cover - network failure
-        logger.warning(f"Polygon expiries failed for {symbol}: {exc}")
-        return []
-    finally:
-        client.disconnect()
-
-    expiries: set[str] = set()
-    for con in contracts or []:
-        details = con.get("details") or {}
-        exp = (
-            con.get("expiration_date")
-            or con.get("expDate")
-            or con.get("expiry")
-            or details.get("expiration_date")
-            or details.get("expiry")
-            or details.get("expDate")
-        )
-        if isinstance(exp, str):
-            if len(exp) == 8 and exp.isdigit():
-                exp = f"{exp[:4]}-{exp[4:6]}-{exp[6:]}"
-            expiries.add(exp)
-
     today_date = today()
-    dates: list[date] = []
-    for exp in sorted(expiries):
-        try:
-            dt = datetime.strptime(exp, "%Y-%m-%d").date()
-        except Exception:
-            continue
-        dte = (dt - today_date).days
-        if 15 <= dte <= 45:
-            dates.append(dt)
 
     reg_count = int(cfg_get("AMOUNT_REGULARS", 3))
     week_count = int(cfg_get("AMOUNT_WEEKLIES", 4))
 
-    monthlies: list[str] = []
-    weeklies: list[str] = []
-    for dt in sorted(dates):
-        exp_str = dt.strftime("%Y-%m-%d")
-        dtime = datetime.combine(dt, datetime.min.time())
-        if _is_third_friday(dtime) and len(monthlies) < reg_count:
-            monthlies.append(exp_str)
-        elif _is_weekly(dtime) and len(weeklies) < week_count:
-            weeklies.append(exp_str)
-        if len(monthlies) >= reg_count and len(weeklies) >= week_count:
+    # Determine the next third Friday within the desired window and the
+    # following ``reg_count`` “regular” expiries.
+    third_fridays = ExpiryPlanner.get_next_third_fridays(
+        start=today_date, count=reg_count + 2
+    )
+    first_idx = None
+    for idx, dt in enumerate(third_fridays):
+        dte = (dt - today_date).days
+        if 15 <= dte <= 45:
+            first_idx = idx
             break
+    if first_idx is None:
+        logger.warning(f"No third Friday between 15 and 45 DTE for {symbol}")
+        first_idx = 0
 
-    final_expiries = sorted(set(monthlies[:reg_count] + weeklies[:week_count]))
-    return final_expiries
+    monthlies: list[str] = []
+    for dt in third_fridays[first_idx : first_idx + reg_count]:
+        monthlies.append(dt.strftime("%Y-%m-%d"))
+
+    # Determine upcoming weekly expiries between 15 and 45 DTE
+    weeklies: list[str] = []
+    check = today_date + timedelta(days=1)
+    while len(weeklies) < week_count and (check - today_date).days <= 120:
+        if check.weekday() == 4 and not _is_third_friday(check):
+            dte = (check - today_date).days
+            if 15 <= dte <= 45:
+                weeklies.append(check.strftime("%Y-%m-%d"))
+        check += timedelta(days=1)
+
+    candidate_expiries = monthlies + weeklies
+
+    fetcher = SnapshotFetcher(api_key)
+    valid_expiries: list[str] = []
+    for expiry in candidate_expiries:
+        contracts: list[Dict[str, Any]] = []
+        try:
+            contracts = fetcher.fetch_expiry(symbol, expiry)
+        except Exception as exc:  # pragma: no cover - network failure
+            logger.warning(f"Polygon snapshot failed for {symbol} {expiry}: {exc}")
+        if any(isinstance(c, dict) for c in contracts):
+            valid_expiries.append(expiry)
+        else:
+            logger.warning(
+                f"Expiry {expiry} bevat geen contracten en wordt overgeslagen"
+            )
+
+    return valid_expiries
 
 
 def _export_option_chain(symbol: str, options: List[Dict[str, Any]]) -> None:
