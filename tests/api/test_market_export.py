@@ -431,3 +431,50 @@ def test_export_market_data_processes_each_expiry(monkeypatch, tmp_path):
     assert dummy_app.disconnected
     assert calls == {"chain": 2, "metrics": 2}
     assert list(dummy_app.market_data.values()) == [{"expiry": "20240101"}, {"expiry": "20240201"}]
+
+
+def test_export_market_data_heatmap(monkeypatch, tmp_path):
+    import importlib
+    import csv
+    import json
+
+    mod = importlib.reload(importlib.import_module("tomic.api.market_export"))
+
+    class DummyApp:
+        def __init__(self):
+            self.market_data = {
+                1: {
+                    "expiry": "20240101",
+                    "strike": 100,
+                    "right": "C",
+                    "delta": 0.5,
+                    "iv": 0.2,
+                }
+            }
+            self.invalid_contracts = set()
+            self.spot_price = 100.0
+
+        def disconnect(self):
+            pass
+
+    monkeypatch.setattr(mod, "OptionChainClient", lambda sym: DummyApp())
+    monkeypatch.setattr(mod, "start_app", lambda app, **k: None)
+    monkeypatch.setattr(mod, "await_market_data", lambda app, symbol, timeout=30: True)
+    monkeypatch.setattr(mod, "fetch_market_metrics", lambda *a, **k: {"spot_price": 1})
+
+    mod.export_market_data(
+        "XYZ",
+        str(tmp_path),
+        export_heatmap=True,
+        heatmap_columns=["strike", "delta"],
+    )
+
+    csv_files = list(tmp_path.glob("heatmap_XYZ_*.csv"))
+    json_files = list(tmp_path.glob("heatmap_XYZ_*.json"))
+    assert csv_files and json_files
+    with open(csv_files[0], newline="") as f:
+        rows = list(csv.reader(f))
+    assert rows[0] == ["strike", "delta"]
+    assert rows[1] == ["100", "0.5"]
+    data = json.loads(json_files[0].read_text())
+    assert data[0]["strike"] == 100
