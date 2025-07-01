@@ -2,7 +2,7 @@ name: Update price history
 
 on:
   schedule:
-    - cron: '15 20 * * 1-5'  # Elke werkdag om om 20:15 UTC en 22.15 NL tijd
+    - cron: '30 00 * * 1-5'  # Elke werkdag om om 00:30 UTC en 02.30 NL tijd
   workflow_dispatch:
 
 jobs:
