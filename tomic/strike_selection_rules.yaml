@@ -1,0 +1,16 @@
+default:
+  enabled: true
+  flags:
+    - A
+    - B
+  nested:
+    threshold:
+      min: 5
+strategies:
+  s1:
+    enabled: false
+    flags:
+      - C
+    nested:
+      threshold:
+        min: 10
