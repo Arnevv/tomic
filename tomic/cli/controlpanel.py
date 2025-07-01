@@ -267,40 +267,6 @@ def run_dataexporter() -> None:
         finally:
             client.disconnect()
 
-    def process_flatfiles_default() -> None:
-        symbols = [s.upper() for s in cfg.get("DEFAULT_SYMBOLS", [])]
-        if not symbols:
-            print("⚠️ Geen default symbolen gevonden")
-            return
-        print("🚀 Verwerk flatfiles voor:", " ".join(symbols))
-        try:
-            run_module("tomic.cli.import_flatfiles", "--keep", *symbols)
-        except subprocess.CalledProcessError:
-            print("❌ Flatfile verwerking mislukt")
-
-    def process_flatfiles_specific() -> None:
-        raw = prompt("Symbolen (gescheiden door komma's): ")
-        symbols = [s.strip().upper() for s in raw.split(',') if s.strip()]
-        if not symbols:
-            print("Geen symbolen opgegeven")
-            return
-        print("🚀 Verwerk flatfiles voor:", " ".join(symbols))
-        try:
-            run_module("tomic.cli.import_flatfiles", "--keep", *symbols)
-        except subprocess.CalledProcessError:
-            print("❌ Flatfile verwerking mislukt")
-
-    def process_flatfiles_menu() -> None:
-        sub = Menu("Verwerk Flatfile")
-        sub.add(
-            "Verwerk alle default markten uit config",
-            process_flatfiles_default,
-        )
-        sub.add(
-            "Verwerk specifieke symbolen (gescheiden door komma’s)",
-            process_flatfiles_specific,
-        )
-        sub.run()
 
     menu = Menu("📁 DATA & MARKTDATA")
     menu.add("OptionChain ophalen via TWS API", export_chain_bulk)
