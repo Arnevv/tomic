@@ -408,10 +408,10 @@ def test_export_option_chain_rounding(monkeypatch, tmp_path):
     with csv_file.open(newline="") as f:
         rows = list(csv.reader(f))
 
-    assert rows[1][0] == "101.12"
-    assert rows[1][1] == "2024-01-19"
-    assert rows[1][3] == "0.9272"
-    assert rows[1][10] == "0.9881"
-    assert rows[1][11] == "0.0027"
-    assert rows[1][12] == "-0.0104"
-    assert rows[1][13] == "0.0047"
+    assert rows[1][2] == "101.12"
+    assert rows[1][0] == "2024-01-19"
+    assert rows[1][6] == "0.9272"
+    assert rows[1][7] == "0.9881"
+    assert rows[1][8] == "0.0027"
+    assert rows[1][10] == "-0.0104"
+    assert rows[1][9] == "0.0047"
