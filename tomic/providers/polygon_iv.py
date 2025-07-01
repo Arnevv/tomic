@@ -6,6 +6,8 @@ from datetime import datetime, date
 from zoneinfo import ZoneInfo
 from pathlib import Path
 from typing import Any, Dict, List
+from tomic.utils import today
+from tomic.utils import _is_third_friday, _is_weekly
 import json
 import time
 import csv
