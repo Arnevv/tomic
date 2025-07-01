@@ -75,6 +75,23 @@ def _latest_export_dir(base: Path) -> Path | None:
     return max(subdirs, key=lambda d: d.stat().st_mtime)
 
 
+def find_latest_chain(symbol: str) -> Path | None:
+    """Return the most recent option chain CSV for ``symbol``.
+
+    Searches all dated subdirectories of ``EXPORT_DIR`` for files matching
+    ``option_chain_{symbol}_*.csv`` and returns the newest match.
+    """
+    base = Path(cfg.get("EXPORT_DIR", "exports"))
+    if not base.exists():
+        return None
+
+    pattern = f"option_chain_{symbol.upper()}_*.csv"
+    chains = list(base.rglob(pattern))
+    if not chains:
+        return None
+    return max(chains, key=lambda p: p.stat().st_mtime)
+
+
 def run_module(module_name: str, *args: str) -> None:
     """Run a Python module using ``python -m``."""
     subprocess.run([sys.executable, "-m", module_name, *args], check=True)
