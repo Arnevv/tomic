@@ -223,16 +223,32 @@ def run_dataexporter() -> None:
 
 
     def polygon_chain() -> None:
-        symbol = prompt("Ticker symbool: ")
+        symbol = prompt("Ticker symbool: ").strip().upper()
         if not symbol:
-            print("Geen symbool opgegeven")
+            print("❌ Geen symbool opgegeven")
             return
+
         from tomic.providers.polygon_iv import fetch_polygon_option_chain
 
         try:
             fetch_polygon_option_chain(symbol)
+        except Exception as exc:
+            print(f"❌ Ophalen van optionchain mislukt: {exc}")
+            return
+
+        base = Path(cfg.get("EXPORT_DIR", "exports"))
+        date_dir = base / datetime.now().strftime("%Y%m%d")
+        pattern = f"{symbol}_*-optionchainpolygon.csv"
+        try:
+            files = list(date_dir.glob(pattern)) if date_dir.exists() else []
+            latest = max(files, key=lambda f: f.stat().st_mtime) if files else None
         except Exception:
-            print("❌ Ophalen van optionchain mislukt")
+            latest = None
+
+        if latest:
+            print(f"✅ Option chain opgeslagen in: {latest.resolve()}")
+        else:
+            print(f"⚠️ Geen exportbestand gevonden in {date_dir.resolve()}")
 
     def polygon_metrics() -> None:
         symbol = prompt("Ticker symbool: ")
