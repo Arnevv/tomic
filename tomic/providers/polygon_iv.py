@@ -178,9 +178,9 @@ class SnapshotFetcher:
 
 def _export_option_chain(symbol: str, options: List[Dict[str, Any]]) -> None:
     """Write option chain to CSV using today's date and timestamp."""
-    base = Path("data")
+    base = Path(cfg_get("EXPORT_DIR", "exports"))
     base.mkdir(exist_ok=True)
-    date_dir = base / datetime.now().strftime("%Y-%m-%d")
+    date_dir = base / datetime.now().strftime("%Y%m%d")
     date_dir.mkdir(parents=True, exist_ok=True)
     filename = (
         f"{symbol}_{datetime.now().strftime('%Y-%m-%d-%H-%M')}-optionchainpolygon.csv"
@@ -190,20 +190,19 @@ def _export_option_chain(symbol: str, options: List[Dict[str, Any]]) -> None:
         logger.warning(f"No valid option contracts to export for {symbol}")
         return
     headers = [
-        "strike",
-        "expiry",
-        "right",
+        "Expiry",
+        "Type",
+        "Strike",
+        "Bid",
+        "Ask",
+        "Close",
         "IV",
-        "open",
-        "high",
-        "low",
-        "close",
-        "volume",
-        "vwap",
-        "delta",
-        "gamma",
-        "theta",
-        "vega",
+        "Delta",
+        "Gamma",
+        "Vega",
+        "Theta",
+        "Volume",
+        "OpenInterest",
     ]
     def _round(val: Any) -> Any:
         try:
@@ -247,26 +246,38 @@ def _export_option_chain(symbol: str, options: List[Dict[str, Any]]) -> None:
                 gamma = opt.get("gamma") if opt.get("gamma") is not None else greeks.get("gamma")
                 theta = opt.get("theta") if opt.get("theta") is not None else greeks.get("theta")
                 vega = opt.get("vega") if opt.get("vega") is not None else greeks.get("vega")
+                bid = (
+                    opt.get("bid")
+                    or opt.get("bid_price")
+                    or (opt.get("last_quote") or {}).get("bid")
+                    or details.get("bid")
+                )
+                ask = (
+                    opt.get("ask")
+                    or opt.get("ask_price")
+                    or (opt.get("last_quote") or {}).get("ask")
+                    or details.get("ask")
+                )
+                open_interest = opt.get("open_interest") or details.get("open_interest")
                 writer.writerow(
                     [
-                        strike_out,
                         expiry,
                         opt.get("option_type")
                         or opt.get("type")
                         or opt.get("contract_type")
                         or details.get("contract_type")
                         or opt.get("right"),
-                        _round(iv),
-                        opt.get("open") or day.get("open") or day.get("o"),
-                        opt.get("high") or day.get("high") or day.get("h"),
-                        opt.get("low") or day.get("low") or day.get("l"),
+                        strike_out,
+                        _round(bid),
+                        _round(ask),
                         opt.get("close") or day.get("close") or day.get("c"),
-                        opt.get("volume") or day.get("volume") or day.get("v"),
-                        opt.get("vwap") or day.get("vwap") or day.get("vw"),
+                        _round(iv),
                         _round(delta),
                         _round(gamma),
-                        _round(theta),
                         _round(vega),
+                        _round(theta),
+                        opt.get("volume") or day.get("volume") or day.get("v"),
+                        open_interest,
                     ]
                 )
         if not path.exists():

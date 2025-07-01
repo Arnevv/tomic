@@ -125,8 +125,8 @@ def test_write_option_chain_negative_bid(tmp_path):
     with open(path, newline="") as f:
         rows = list(csv.reader(f))
 
-    assert rows[1][-2] == ""
-    assert rows[2][-2] == ""
+    assert rows[1][-1] == ""
+    assert rows[2][-1] == ""
 
 
 def test_write_option_chain_no_records(tmp_path):
