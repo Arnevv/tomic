@@ -3,6 +3,10 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any, Callable, Dict, List, Optional, Tuple
 
+from datetime import datetime
+
+from .utils import today
+
 from .config import get as cfg_get
 from .logutils import logger
 
@@ -58,6 +62,58 @@ def load_filter_config() -> FilterConfig:
     )
 
 
+def _dte(expiry: str) -> Optional[int]:
+    """Return days to expiry for ``expiry`` in ``YYYYMMDD`` format."""
+    try:
+        exp_date = datetime.strptime(str(expiry), "%Y%m%d").date()
+    except Exception:
+        return None
+    return (exp_date - today()).days
+
+
+def filter_by_expiry(
+    options: List[Dict[str, Any]],
+    dte_range: Tuple[int, int],
+    *,
+    multi: bool = False,
+) -> List[Dict[str, Any]]:
+    """Return ``options`` filtered to expiries within ``dte_range``.
+
+    When ``multi`` is ``True``, include the nearest expiry in range and a second
+    expiry at least 20 days later when available.
+    """
+
+    min_dte, max_dte = dte_range
+    exp_map: Dict[str, List[Dict[str, Any]]] = {}
+    for opt in options:
+        exp = opt.get("expiry")
+        if exp:
+            exp_map.setdefault(str(exp), []).append(opt)
+
+    valid: List[tuple[str, int]] = []
+    for exp in exp_map:
+        dte = _dte(exp)
+        if dte is not None and min_dte <= dte <= max_dte:
+            valid.append((exp, dte))
+
+    if not valid:
+        return []
+
+    valid.sort(key=lambda t: t[1])
+    selected: List[Dict[str, Any]] = []
+
+    first_exp, first_dte = valid[0]
+    selected.extend(exp_map[first_exp])
+
+    if multi:
+        for exp, dte in valid[1:]:
+            if dte - first_dte >= 20:
+                selected.extend(exp_map[exp])
+                break
+
+    return selected
+
+
 class StrikeSelector:
     """Filter option strikes based on configurable criteria."""
 
@@ -77,11 +133,21 @@ class StrikeSelector:
     # ------------------------------------------------------------------
     # Public API
     # ------------------------------------------------------------------
-    def select(self, options: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-        """Return ``options`` filtered by configured criteria."""
+    def select(
+        self,
+        options: List[Dict[str, Any]],
+        *,
+        dte_range: Tuple[int, int] | None = None,
+        multi: bool = False,
+    ) -> List[Dict[str, Any]]:
+        """Return ``options`` filtered by expiry and configured criteria."""
+
+        working = options
+        if dte_range is not None:
+            working = filter_by_expiry(working, dte_range, multi=multi)
 
         selected: List[Dict[str, Any]] = []
-        for opt in options:
+        for opt in working:
             if self._passes(opt):
                 logger.debug(
                     f"✅ Accept {opt.get('expiry')} {opt.get('strike')} {opt.get('type')}"
@@ -91,7 +157,7 @@ class StrikeSelector:
                 logger.debug(
                     f"❌ Reject {opt.get('expiry')} {opt.get('strike')} {opt.get('type')}"
                 )
-        logger.info(f"StrikeSelector result: {len(selected)}/{len(options)} kept")
+        logger.info(f"StrikeSelector result: {len(selected)}/{len(working)} kept")
         return selected
 
     # ------------------------------------------------------------------
@@ -200,4 +266,9 @@ class StrikeSelector:
         return True, ""
 
 
-__all__ = ["StrikeSelector", "FilterConfig", "load_filter_config"]
+__all__ = [
+    "StrikeSelector",
+    "FilterConfig",
+    "load_filter_config",
+    "filter_by_expiry",
+]
