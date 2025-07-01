@@ -1762,5 +1762,12 @@
     "close": 87.39,
     "volume": 74993500.0,
     "atr": null
+  },
+  {
+    "symbol": "TLT",
+    "date": "2025-06-30",
+    "close": 88.25,
+    "volume": 53695166.0,
+    "atr": null
   }
 ]
