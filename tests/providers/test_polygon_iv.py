@@ -1,6 +1,6 @@
 import importlib
 import json
-from datetime import datetime
+from datetime import datetime, date
 from types import SimpleNamespace
 
 
@@ -415,3 +415,91 @@ def test_export_option_chain_rounding(monkeypatch, tmp_path):
     assert rows[1][8] == "0.0027"
     assert rows[1][10] == "-0.0104"
     assert rows[1][9] == "0.0047"
+
+
+def test_load_polygon_expiries(monkeypatch):
+    mod = importlib.import_module("tomic.providers.polygon_iv")
+
+    fake_contracts = [
+        {"expiration_date": "2024-01-19"},
+        {"expiration_date": "2024-01-26"},
+        {"expiration_date": "2024-02-16"},
+        {"expiration_date": "2024-02-23"},
+        {"expiration_date": "2024-03-15"},
+    ]
+
+    class FakeClient:
+        def __init__(self, api_key=None):
+            pass
+
+        def connect(self):
+            pass
+
+        def disconnect(self):
+            pass
+
+        def fetch_option_chain(self, symbol):
+            return fake_contracts
+
+    monkeypatch.setattr(mod, "PolygonClient", lambda api_key=None: FakeClient())
+    monkeypatch.setattr(mod, "today", lambda: date(2024, 1, 1))
+    monkeypatch.setattr(
+        mod,
+        "cfg_get",
+        lambda n, d=None: {
+            "AMOUNT_REGULARS": 2,
+            "AMOUNT_WEEKLIES": 1,
+            "FIRST_EXPIRY_MIN_DTE": 0,
+        }.get(n, d),
+    )
+
+    expiries = mod.load_polygon_expiries("ABC")
+    assert expiries == ["2024-01-19", "2024-01-26", "2024-02-16"]
+
+
+def test_fetch_polygon_option_chain_filters(monkeypatch):
+    mod = importlib.import_module("tomic.providers.polygon_iv")
+
+    monkeypatch.setattr(mod, "load_polygon_expiries", lambda s, k=None: ["2024-01-19", "2024-02-16"])
+
+    calls = []
+
+    class FakeFetcher:
+        def __init__(self, key=None):
+            pass
+
+        def fetch_expiry(self, symbol, expiry):
+            calls.append(expiry)
+            if expiry == "2024-01-19":
+                return [
+                    {"expiration_date": expiry, "delta": 0.5},
+                    {"expiration_date": expiry, "delta": 0.9},
+                    {"expiration_date": expiry, "greeks": {"delta": 0.7}},
+                ]
+            return [
+                {"expiration_date": expiry, "delta": -0.9},
+                {"expiration_date": expiry, "delta": None, "greeks": {"delta": 0.2}},
+                {"expiration_date": expiry, "delta": None},
+            ]
+
+    monkeypatch.setattr(mod, "SnapshotFetcher", lambda key=None: FakeFetcher())
+    captured = []
+    monkeypatch.setattr(mod, "_export_option_chain", lambda s, opts: captured.append(opts))
+
+    monkeypatch.setattr(
+        mod,
+        "cfg_get",
+        lambda n, d=None: {
+            "DELTA_MIN": -0.8,
+            "DELTA_MAX": 0.8,
+            "POLYGON_API_KEY": "key",
+        }.get(n, d),
+    )
+
+    mod.fetch_polygon_option_chain("XYZ")
+
+    assert calls == ["2024-01-19", "2024-02-16"]
+    assert captured
+    exported = captured[0]
+    assert len(exported) == 4
+
