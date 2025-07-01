@@ -40,6 +40,11 @@ from tomic.config import get as cfg_get
 from tomic.strike_selector import StrikeSelector
 from .historical_iv import fetch_historical_option_data
 
+try:
+    from tomic.cli.bs_calculator import black_scholes
+except Exception:  # pragma: no cover - fallback if helper missing
+    black_scholes = None
+
 
 _HEADERS_CHAIN = [
     "Expiry",
@@ -55,6 +60,8 @@ _HEADERS_CHAIN = [
     "Theta",
     "Volume",
     "OpenInterest",
+    "ModelPrice",
+    "MarginReq",
 ]
 
 _HEADERS_METRICS = [
@@ -86,7 +93,64 @@ _HEADERS_SIMPLE = [
     "Vega",
     "Theta",
     "Status",
+    "ModelPrice",
+    "MarginReq",
 ]
+
+
+def _calc_model_price(
+    option_type: str | None,
+    spot: float | None,
+    strike: float | None,
+    expiry: str | None,
+    iv: float | None,
+    r: float,
+) -> float | None:
+    """Return Black-Scholes model price when possible."""
+    if (
+        black_scholes is None
+        or None in (option_type, spot, strike, expiry, iv)
+    ):
+        return None
+    try:
+        exp_date = datetime.strptime(str(expiry), "%Y%m%d").date()
+        dte = max((exp_date - datetime.now().date()).days, 0)
+        return round(
+            black_scholes(option_type, float(spot), float(strike), dte, float(iv), r),
+            4,
+        )
+    except Exception:
+        return None
+
+
+def _calc_margin_req(
+    symbol: str,
+    expiry: str | None,
+    strike: float | None,
+    option_type: str | None,
+    spot: float | None,
+) -> float | None:
+    """Return margin requirement using IB API or fallback formula."""
+    if None in (expiry, strike, option_type):
+        return None
+    margin = None
+    try:  # pragma: no cover - may fail if IB API missing
+        from tomic.api.margin_calc import calculate_trade_margin
+
+        legs = [
+            {"strike": strike, "type": option_type, "action": "BUY", "qty": 1}
+        ]
+        margin = calculate_trade_margin(symbol, str(expiry), legs)
+    except Exception:
+        pass
+
+    if margin is None and strike is not None:
+        try:
+            base = spot if spot is not None else strike
+            margin = round(base * 100 * 0.2, 2)
+        except Exception:
+            margin = None
+    return margin
 
 
 def load_exported_chain(filepath: str) -> list[dict[str, Any]]:
@@ -136,6 +200,8 @@ def _write_option_chain(
                 "volume",
                 "open_interest",
                 "parity_deviation",
+                "model_price",
+                "margin_requirement",
             ]:
                 data.setdefault(key, None)
         counts[status] = counts.get(status, 0) + 1
@@ -207,6 +273,21 @@ def _write_option_chain(
         writer = csv.writer(file)
         writer.writerow(_HEADERS_CHAIN)
         for rec in records:
+            rec["model_price"] = _calc_model_price(
+                rec.get("right"),
+                getattr(app, "spot_price", None),
+                rec.get("strike"),
+                rec.get("expiry"),
+                rec.get("iv"),
+                r,
+            )
+            rec["margin_requirement"] = _calc_margin_req(
+                symbol,
+                rec.get("expiry"),
+                rec.get("strike"),
+                rec.get("right"),
+                getattr(app, "spot_price", None),
+            )
             writer.writerow(
                 [
                     rec.get("expiry"),
@@ -238,6 +319,8 @@ def _write_option_chain(
                     ),
                     rec.get("volume"),
                     rec.get("open_interest"),
+                    rec.get("model_price"),
+                    rec.get("margin_requirement"),
                 ]
             )
     logger.info(f"✅ [stap 10] Optieketen opgeslagen in: {chain_file}")
@@ -328,6 +411,8 @@ def _write_option_chain_simple(
                     "gamma",
                     "vega",
                     "theta",
+                    "model_price",
+                    "margin_requirement",
                 ]:
                     rec.setdefault(key, None)
             counts[status] = counts.get(status, 0) + 1
@@ -352,6 +437,21 @@ def _write_option_chain_simple(
                     rec.get("vega"),
                     rec.get("theta"),
                     rec.get("status", "ok"),
+                    _calc_model_price(
+                        rec.get("right"),
+                        getattr(app, "spot_price", None),
+                        rec.get("strike"),
+                        rec.get("expiry"),
+                        rec.get("iv"),
+                        cfg_get("INTEREST_RATE", 0.05),
+                    ),
+                    _calc_margin_req(
+                        symbol,
+                        rec.get("expiry"),
+                        rec.get("strike"),
+                        rec.get("right"),
+                        getattr(app, "spot_price", None),
+                    ),
                 ]
             )
     logger.info(f"✅ [stap 10] CSV opgeslagen als: {path}")
