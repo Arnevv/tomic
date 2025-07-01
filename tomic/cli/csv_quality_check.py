@@ -50,6 +50,7 @@ def analyze_csv(path: str) -> Dict[str, Any]:
         for row in reader:
             total += 1
             row_score = 0
+            row_invalid = False
 
             def get_value(field: str) -> str:
                 for k in row.keys():
@@ -57,63 +58,86 @@ def analyze_csv(path: str) -> Dict[str, Any]:
                         return row[k].strip()
                 return ""
 
-            # partial scoring per field
+            # collect all values once
             bid_val = get_value("bid")
-            if not is_empty(bid_val):
-                try:
-                    if float(bid_val) >= 0:
-                        row_score += 1
-                except (ValueError, TypeError):
-                    pass
-
             ask_val = get_value("ask")
-            if not is_empty(ask_val):
-                try:
-                    if float(ask_val) >= 0:
-                        row_score += 1
-                except (ValueError, TypeError):
-                    pass
-
+            close_val = get_value("close")
             iv_val = get_value("iv")
+            delta_field = get_value("delta")
+            gamma_val = get_value("gamma")
+            vega_val = get_value("vega")
+            theta_val = get_value("theta")
+
+            # partial scoring per field
+            price_source_valid = False
+            try:
+                bid_valid = bid_val != "" and float(bid_val) >= 0
+            except (ValueError, TypeError):
+                bid_valid = False
+            try:
+                ask_valid = ask_val != "" and float(ask_val) >= 0
+            except (ValueError, TypeError):
+                ask_valid = False
+            try:
+                close_valid = close_val != "" and float(close_val) >= 0
+            except (ValueError, TypeError):
+                close_valid = False
+
+            if (bid_valid and ask_valid) or close_valid:
+                row_score += 2
+                price_source_valid = True
+            else:
+                row_invalid = True
+
             if not is_empty(iv_val):
                 try:
                     float(iv_val)
                     row_score += 2
                 except (ValueError, TypeError):
-                    pass
+                    row_invalid = True
+            else:
+                row_invalid = True
 
-            delta_field = get_value("delta")
             if not is_empty(delta_field):
                 try:
                     d_val = float(delta_field)
                     if -1.0 <= d_val <= 1.0:
                         row_score += 2
+                    else:
+                        bad_delta += 1
+                        row_invalid = True
                 except (ValueError, TypeError):
-                    pass
+                    bad_delta += 1
+                    row_invalid = True
+            else:
+                row_invalid = True
 
-            gamma_val = get_value("gamma")
             if not is_empty(gamma_val):
                 try:
                     float(gamma_val)
                     row_score += 1
                 except (ValueError, TypeError):
-                    pass
+                    row_invalid = True
+            else:
+                row_invalid = True
 
-            vega_val = get_value("vega")
             if not is_empty(vega_val):
                 try:
                     float(vega_val)
                     row_score += 1
                 except (ValueError, TypeError):
-                    pass
+                    row_invalid = True
+            else:
+                row_invalid = True
 
-            theta_val = get_value("theta")
             if not is_empty(theta_val):
                 try:
                     float(theta_val)
                     row_score += 1
                 except (ValueError, TypeError):
-                    pass
+                    row_invalid = True
+            else:
+                row_invalid = True
 
             total_score += row_score
             row_key = tuple(row.get(h, "").strip() for h in fieldnames)
@@ -122,7 +146,7 @@ def analyze_csv(path: str) -> Dict[str, Any]:
                 duplicates += 1
             else:
                 seen.add(row_key)
-            row_invalid = is_duplicate
+            row_invalid = is_duplicate or row_invalid
             # collect expiries
             for k in row.keys():
                 if k.lower() == "expiry":
@@ -136,24 +160,6 @@ def analyze_csv(path: str) -> Dict[str, Any]:
                 if key_l in empty_counts and is_empty(row[field]):
                     empty_counts[key_l] += 1
                     row_invalid = True
-
-            # delta validation, only check non-empty values
-            delta_val = None
-            for k in row.keys():
-                if k.lower() == "delta":
-                    val = row[k].strip()
-                    if not is_empty(val):
-                        try:
-                            delta_val = float(val)
-                            if not (-1.0 <= delta_val <= 1.0):
-                                bad_delta += 1
-                                row_invalid = True
-                        except (ValueError, TypeError):
-                            bad_delta += 1
-                            row_invalid = True
-                    else:
-                        row_invalid = True
-                    break
 
             # price field checks only on non-empty fields
             invalid = False
@@ -175,14 +181,21 @@ def analyze_csv(path: str) -> Dict[str, Any]:
             if invalid:
                 bad_price_fields += 1
                 row_invalid = True
-            # determine completeness
-            values = [v.strip() for v in row.values()]
-            filled = [v != "" for v in values]
-            if all(filled):
+            # determine completeness (presence of key fields)
+            required_vals = [
+                bid_val,
+                ask_val,
+                iv_val,
+                delta_field,
+                gamma_val,
+                vega_val,
+                theta_val,
+                close_val,
+            ]
+            if all(v != "" for v in required_vals):
                 complete += 1
-            else:
-                row_invalid = True
-            if not row_invalid:
+
+            if not row_invalid and price_source_valid:
                 valid += 1
         max_score = total * 9
         partial_quality = (total_score / max_score * 100) if total else 0
