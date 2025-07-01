@@ -233,6 +233,10 @@ option_chain_<symbol>_<timestamp>.csv
 
 other_data_<symbol>_<timestamp>.csv met o.a. IV Rank, HV30, ATR14, VIX
 
+Snapshot-export via Polygon:
+fetch_polygon_option_chain() kiest expiries met AMOUNT_REGULARS en
+AMOUNT_WEEKLIES en negeert opties waarvan delta buiten DELTA_MIN/DELTA_MAX valt.
+
 Berekening parity deviation op eerste expiry
 
 Exporteer ook bij incomplete data
