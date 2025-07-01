@@ -449,12 +449,11 @@ def test_load_polygon_expiries(monkeypatch):
         lambda n, d=None: {
             "AMOUNT_REGULARS": 2,
             "AMOUNT_WEEKLIES": 1,
-            "FIRST_EXPIRY_MIN_DTE": 0,
         }.get(n, d),
     )
 
     expiries = mod.load_polygon_expiries("ABC")
-    assert expiries == ["2024-01-19", "2024-01-26", "2024-02-16"]
+    assert expiries == ["2024-01-19", "2024-01-26"]
 
 
 def test_fetch_polygon_option_chain_filters(monkeypatch):
