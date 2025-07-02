@@ -40,11 +40,11 @@ from tomic.api.market_export import (
 )
 
 
-def test_headers_include_new_columns():
-    assert "ModelPrice" in _HEADERS_CHAIN
-    assert "MarginReq" in _HEADERS_CHAIN
-    assert "ModelPrice" in _HEADERS_SIMPLE
-    assert "MarginReq" in _HEADERS_SIMPLE
+def test_headers_exclude_removed_columns():
+    assert "ModelPrice" not in _HEADERS_CHAIN
+    assert "MarginReq" not in _HEADERS_CHAIN
+    assert "ModelPrice" not in _HEADERS_SIMPLE
+    assert "MarginReq" not in _HEADERS_SIMPLE
 
 
 def test_write_option_chain_skips_invalid(tmp_path):
