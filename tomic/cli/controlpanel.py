@@ -192,7 +192,6 @@ def run_dataexporter() -> None:
         except subprocess.CalledProcessError:
             print("❌ Export mislukt")
 
-
     def csv_check() -> None:
         path = prompt("Pad naar CSV-bestand: ")
         if not path:
@@ -230,7 +229,6 @@ def run_dataexporter() -> None:
         except subprocess.CalledProcessError:
             print("❌ Benchmark mislukt")
 
-
     def fetch_prices() -> None:
         raw = prompt("Symbolen (spatiegescheiden, leeg=default): ")
         symbols = [s.strip().upper() for s in raw.split() if s.strip()]
@@ -246,13 +244,16 @@ def run_dataexporter() -> None:
             return
         base = Path(cfg.get("PRICE_HISTORY_DIR", "tomic/data/spot_prices"))
         data = load_json(base / f"{symbol.upper()}.json")
-        rows = [[rec.get("date"), rec.get("close")] for rec in data[-10:]] if isinstance(data, list) else []
+        rows = (
+            [[rec.get("date"), rec.get("close")] for rec in data[-10:]]
+            if isinstance(data, list)
+            else []
+        )
         if not rows:
             print("⚠️ Geen data gevonden")
             return
         rows.sort(key=lambda r: r[0], reverse=True)
         print(tabulate(rows, headers=["Datum", "Close"], tablefmt="github"))
-
 
     def polygon_chain() -> None:
         symbol = prompt("Ticker symbool: ").strip().upper()
@@ -310,7 +311,10 @@ def run_dataexporter() -> None:
         try:
             subprocess.run(["git", "status", "--short"], check=True)
             result = subprocess.run(
-                ["git", "status", "--porcelain"], capture_output=True, text=True, check=True
+                ["git", "status", "--porcelain"],
+                capture_output=True,
+                text=True,
+                check=True,
             )
             if result.stdout.strip():
                 files = []
@@ -319,13 +323,14 @@ def run_dataexporter() -> None:
                 files.extend(Path("tomic/data/historical_volatility").glob("*.json"))
                 if files:
                     subprocess.run(["git", "add", *[str(f) for f in files]], check=True)
-                    subprocess.run(["git", "commit", "-m", "Update price history"], check=True)
+                    subprocess.run(
+                        ["git", "commit", "-m", "Update price history"], check=True
+                    )
                     subprocess.run(["git", "push"], check=True)
             else:
                 print("No changes to commit")
         except subprocess.CalledProcessError:
             print("❌ Git-commando mislukt")
-
 
     menu = Menu("📁 DATA & MARKTDATA")
     menu.add("OptionChain ophalen via TWS API", export_chain_bulk)
@@ -334,6 +339,7 @@ def run_dataexporter() -> None:
     menu.add("Run GitHub Action lokaal", run_github_action)
 
     menu.run()
+
 
 def run_trade_management() -> None:
     """Menu for journal management tasks."""
@@ -356,8 +362,6 @@ def run_trade_management() -> None:
 
     menu.add("Trade afsluiten", lambda: run_module("tomic.cli.close_trade"))
     menu.run()
-
-
 
 
 def run_risk_tools() -> None:
@@ -424,8 +428,12 @@ def run_portfolio_menu() -> None:
             print("❌ Greeks-overzicht kon niet worden getoond")
 
     def show_market_info() -> None:
-        summary_dir = Path(cfg.get("IV_DAILY_SUMMARY_DIR", "tomic/data/iv_daily_summary"))
-        hv_dir = Path(cfg.get("HISTORICAL_VOLATILITY_DIR", "tomic/data/historical_volatility"))
+        summary_dir = Path(
+            cfg.get("IV_DAILY_SUMMARY_DIR", "tomic/data/iv_daily_summary")
+        )
+        hv_dir = Path(
+            cfg.get("HISTORICAL_VOLATILITY_DIR", "tomic/data/historical_volatility")
+        )
         spot_dir = Path(cfg.get("PRICE_HISTORY_DIR", "tomic/data/spot_prices"))
 
         symbols = [s.upper() for s in cfg.get("DEFAULT_SYMBOLS", [])]
@@ -439,31 +447,41 @@ def run_portfolio_menu() -> None:
             except Exception:
                 continue
 
-            if not isinstance(summary_data, list) or not isinstance(hv_data, list) or not isinstance(spot_data, list):
+            if (
+                not isinstance(summary_data, list)
+                or not isinstance(hv_data, list)
+                or not isinstance(spot_data, list)
+            ):
                 continue
 
             try:
-                summary = sorted(summary_data, key=lambda x: x.get("date", ""), reverse=True)[0]
+                summary = sorted(
+                    summary_data, key=lambda x: x.get("date", ""), reverse=True
+                )[0]
                 hv = sorted(hv_data, key=lambda x: x.get("date", ""), reverse=True)[0]
-                spot = sorted(spot_data, key=lambda x: x.get("date", ""), reverse=True)[0]
+                spot = sorted(spot_data, key=lambda x: x.get("date", ""), reverse=True)[
+                    0
+                ]
             except IndexError:
                 continue
 
-            rows.append([
-                symbol,
-                spot.get("close"),
-                summary.get("atm_iv"),
-                hv.get("hv20"),
-                hv.get("hv30"),
-                hv.get("hv90"),
-                hv.get("hv252"),
-                summary.get("iv_rank (HV)"),
-                summary.get("iv_percentile (HV)"),
-                summary.get("term_m1_m2"),
-                summary.get("term_m1_m3"),
-                summary.get("skew"),
-                spot.get("date"),
-            ])
+            rows.append(
+                [
+                    symbol,
+                    spot.get("close"),
+                    summary.get("atm_iv"),
+                    hv.get("hv20"),
+                    hv.get("hv30"),
+                    hv.get("hv90"),
+                    hv.get("hv252"),
+                    summary.get("iv_rank (HV)"),
+                    summary.get("iv_percentile (HV)"),
+                    summary.get("term_m1_m2"),
+                    summary.get("term_m1_m3"),
+                    summary.get("skew"),
+                    spot.get("date"),
+                ]
+            )
 
         rows.sort(key=lambda r: r[8] if r[8] is not None else -1, reverse=True)
 
@@ -568,7 +586,13 @@ def run_portfolio_menu() -> None:
                     score = float(ivp)
                 return score
 
-            order = ["Vega Short", "Delta Directioneel", "Vega Long", "Delta Neutraal", "Overig"]
+            order = [
+                "Vega Short",
+                "Delta Directioneel",
+                "Vega Long",
+                "Delta Neutraal",
+                "Overig",
+            ]
             icon_map = {
                 "Vega Short": "🎯",
                 "Delta Directioneel": "📈",
@@ -609,7 +633,9 @@ def run_portfolio_menu() -> None:
             if flat_choices:
                 print("Kies een strategie:\n")
                 for idx, choice in enumerate(flat_choices, 1):
-                    print(f"{idx}. {choice['symbol']} – {choice['strategy']} ({choice['greeks']})")
+                    print(
+                        f"{idx}. {choice['symbol']} – {choice['strategy']} ({choice['greeks']})"
+                    )
                 while True:
                     sel = prompt("Selectie (0 om terug): ")
                     if sel in {"", "0"}:
@@ -653,7 +679,9 @@ def run_portfolio_menu() -> None:
             logger.info(f"- {exp}: {cnt} options in CSV")
 
         strat = str(SESSION_STATE.get("strategy", "")).lower().replace(" ", "_")
-        rules_path = Path(cfg.get("STRIKE_RULES_FILE", "tomic/strike_selection_rules.yaml"))
+        rules_path = Path(
+            cfg.get("STRIKE_RULES_FILE", "tomic/strike_selection_rules.yaml")
+        )
         try:
             config_data = cfg._load_yaml(rules_path)
         except Exception:
@@ -680,7 +708,10 @@ def run_portfolio_menu() -> None:
                 logger.info(f"- {exp}: skipped (outside DTE range)")
 
         fc = FilterConfig()
-        if isinstance(rules.get("delta_range"), list) and len(rules.get("delta_range")) == 2:
+        if (
+            isinstance(rules.get("delta_range"), list)
+            and len(rules.get("delta_range")) == 2
+        ):
             try:
                 fc.delta_min = float(rules["delta_range"][0])
                 fc.delta_max = float(rules["delta_range"][1])
@@ -704,14 +735,35 @@ def run_portfolio_menu() -> None:
         evaluated: list[dict[str, object]] = []
         for opt in selected:
             mid = get_option_mid_price(opt)
+            if mid is None:
+                close_val = opt.get("close")
+                try:
+                    close_f = float(close_val)
+                except Exception:
+                    close_f = 0.0
+                if close_f > 0:
+                    mid = close_f
+                    logger.debug(
+                        f"Using close as mid for {opt.get('strike')} {opt.get('type')}"
+                    )
             try:
-                model = float(opt.get("modelprice")) if opt.get("modelprice") is not None else None
+                model = (
+                    float(opt.get("modelprice"))
+                    if opt.get("modelprice") is not None
+                    else None
+                )
             except Exception:
                 model = None
             try:
-                margin = float(opt.get("marginreq")) if opt.get("marginreq") is not None else None
+                margin = (
+                    float(opt.get("marginreq"))
+                    if opt.get("marginreq") is not None
+                    else None
+                )
             except Exception:
                 margin = None
+            if margin is None:
+                margin = 350.0
             try:
                 delta = float(opt.get("delta"))
             except Exception:
@@ -753,7 +805,11 @@ def run_portfolio_menu() -> None:
                         row.get("expiry"),
                         row.get("strike"),
                         row.get("type"),
-                        f"{row.get('delta'):+.2f}" if row.get("delta") is not None else "",
+                        (
+                            f"{row.get('delta'):+.2f}"
+                            if row.get("delta") is not None
+                            else ""
+                        ),
                         f"{row.get('rom'):.1f}%" if row.get("rom") is not None else "",
                         f"{row.get('edge'):.2f}" if row.get("edge") is not None else "",
                         f"{row.get('pos'):.1f}%" if row.get("pos") is not None else "",
@@ -763,7 +819,16 @@ def run_portfolio_menu() -> None:
             print(
                 tabulate(
                     rows,
-                    headers=["Expiry", "Strike", "Type", "Delta", "ROM", "Edge", "PoS", "EV"],
+                    headers=[
+                        "Expiry",
+                        "Strike",
+                        "Type",
+                        "Delta",
+                        "ROM",
+                        "Edge",
+                        "PoS",
+                        "EV",
+                    ],
                     tablefmt="github",
                 )
             )
@@ -778,7 +843,11 @@ def run_portfolio_menu() -> None:
         symbol = str(SESSION_STATE.get("symbol", "SYMB"))
         strat = str(SESSION_STATE.get("strategy", "strategy")).replace(" ", "_")
         expiry = str(trades[0].get("expiry", "")) if trades else ""
-        base = Path(cfg.get("EXPORT_DIR", "exports")) / "tradecandidates" / datetime.now().strftime("%Y%m%d")
+        base = (
+            Path(cfg.get("EXPORT_DIR", "exports"))
+            / "tradecandidates"
+            / datetime.now().strftime("%Y%m%d")
+        )
         base.mkdir(parents=True, exist_ok=True)
         ts = datetime.now().strftime("%H%M%S")
         path = base / f"trade_candidates_{symbol}_{strat}_{expiry}_{ts}.csv"
@@ -905,7 +974,7 @@ def run_settings_menu() -> None:
         cfg.update({key: val})
 
     def run_connection_menu() -> None:
-        sub = Menu("\U0001F50C Verbinding & API – TWS instellingen en tests")
+        sub = Menu("\U0001f50c Verbinding & API – TWS instellingen en tests")
         sub.add("Pas IB host/poort aan", change_host)
         sub.add("Wijzig client ID", lambda: change_int("IB_CLIENT_ID"))
         sub.add("Test TWS-verbinding", check_ib_connection)
@@ -913,7 +982,7 @@ def run_settings_menu() -> None:
         sub.run()
 
     def run_general_menu() -> None:
-        sub = Menu("\U0001F4C8 Portfolio & Analyse")
+        sub = Menu("\U0001f4c8 Portfolio & Analyse")
         sub.add("Pas default symbols aan", change_symbols)
         sub.add("Pas interest rate aan", change_rate)
         sub.add(
@@ -927,7 +996,7 @@ def run_settings_menu() -> None:
         sub.run()
 
     def run_logging_menu() -> None:
-        sub = Menu("\U0001FAB5 Logging & Gedrag")
+        sub = Menu("\U0001fab5 Logging & Gedrag")
 
         def set_info() -> None:
             cfg.update({"LOG_LEVEL": "INFO"})
@@ -944,7 +1013,7 @@ def run_settings_menu() -> None:
         sub.run()
 
     def run_paths_menu() -> None:
-        sub = Menu("\U0001F4C1 Bestandslocaties")
+        sub = Menu("\U0001f4c1 Bestandslocaties")
         sub.add("ACCOUNT_INFO_FILE", lambda: change_path("ACCOUNT_INFO_FILE"))
         sub.add("JOURNAL_FILE", lambda: change_path("JOURNAL_FILE"))
         sub.add("POSITIONS_FILE", lambda: change_path("POSITIONS_FILE"))
@@ -954,7 +1023,7 @@ def run_settings_menu() -> None:
         sub.run()
 
     def run_network_menu() -> None:
-        sub = Menu("\U0001F310 Netwerk & Snelheid")
+        sub = Menu("\U0001f310 Netwerk & Snelheid")
         sub.add(
             "CONTRACT_DETAILS_TIMEOUT",
             lambda: change_int("CONTRACT_DETAILS_TIMEOUT"),
@@ -978,9 +1047,7 @@ def run_settings_menu() -> None:
     def run_option_menu() -> None:
         def show_open_settings() -> None:
             print("Huidige reqMktData instellingen:")
-            print(
-                f"MKT_GENERIC_TICKS: {cfg.get('MKT_GENERIC_TICKS', '100,101,106')}"
-            )
+            print(f"MKT_GENERIC_TICKS: {cfg.get('MKT_GENERIC_TICKS', '100,101,106')}")
             print(
                 f"UNDERLYING_PRIMARY_EXCHANGE: {cfg.get('UNDERLYING_PRIMARY_EXCHANGE', '')}"
             )
@@ -990,7 +1057,9 @@ def run_settings_menu() -> None:
 
         def show_closed_settings() -> None:
             print("Huidige reqHistoricalData instellingen:")
-            print(f"USE_HISTORICAL_IV_WHEN_CLOSED: {cfg.get('USE_HISTORICAL_IV_WHEN_CLOSED', True)}")
+            print(
+                f"USE_HISTORICAL_IV_WHEN_CLOSED: {cfg.get('USE_HISTORICAL_IV_WHEN_CLOSED', True)}"
+            )
             print(f"HIST_DURATION: {cfg.get('HIST_DURATION', '1 D')}")
             print(f"HIST_BARSIZE: {cfg.get('HIST_BARSIZE', '1 day')}")
             print(f"HIST_WHAT: {cfg.get('HIST_WHAT', 'TRADES')}")
@@ -1035,7 +1104,7 @@ def run_settings_menu() -> None:
             )
             menu.run()
 
-        sub = Menu("\U0001F4DD Optie-strategie parameters")
+        sub = Menu("\U0001f4dd Optie-strategie parameters")
         sub.add("STRIKE_RANGE", lambda: change_int("STRIKE_RANGE"))
         sub.add("FIRST_EXPIRY_MIN_DTE", lambda: change_int("FIRST_EXPIRY_MIN_DTE"))
         sub.add("DELTA_MIN", lambda: change_float("DELTA_MIN"))
