@@ -4,8 +4,14 @@ from typing import Callable, List, Optional
 
 
 def prompt(text: str, default: Optional[str] = None) -> str:
-    """Prompt the user for input and return the stripped value."""
+    """Prompt the user for input and return the stripped value.
+
+    Surrounding single or double quotes entered by the user are stripped to
+    avoid issues when paths are copied with quotes.
+    """
     val = input(text).strip()
+    if len(val) >= 2 and val[0] == val[-1] and val[0] in ('"', "'"):
+        val = val[1:-1]
     return val if val else (default or "")
 
 
