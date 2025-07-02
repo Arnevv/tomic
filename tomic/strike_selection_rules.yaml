@@ -86,7 +86,7 @@ strategies:
 
   backspread_put:
     method: delta
-    delta_range: [ 0.15, 0.30 ]  # short leg ATM, long legs OTM
+    delta_range: [ 0.15, 0.30 ]  # short leg ATM, long legsOTM
     allow_extra_wings: true
     min_edge: 0.05
     iv_rank_max: 40
