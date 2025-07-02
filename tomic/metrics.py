@@ -119,9 +119,9 @@ def calculate_margin(
         width = max(width_put, width_call)
         return max(width * 100 - premium * 100, 0.0)
 
-    if strat in {"calendar", "calendar"}:
+    if strat in {"calendar", "calendar spread"}:
         if len(legs) != 2:
-            raise ValueError("calendar requires two legs")
+            raise ValueError("Calendar spread requires two legs")
         return entry_price * 100
 
     if strat in {"ratio_spread", "ratio put backspread"}:
