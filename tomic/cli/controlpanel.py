@@ -51,7 +51,7 @@ from tomic.cli.common import Menu, prompt, prompt_yes_no
 from tomic.api.ib_connection import connect_ib
 
 from tomic import config as cfg
-from tomic.logutils import setup_logging
+from tomic.logutils import setup_logging, logger
 from tomic.analysis.greeks import compute_portfolio_greeks
 from tomic.journal.utils import load_json
 from tomic.utils import today
@@ -643,6 +643,14 @@ def run_portfolio_menu() -> None:
         except Exception as exc:
             print(f"⚠️ Fout bij laden van chain: {exc}")
             return
+        logger.info(f"Loaded {len(data)} rows from {path}")
+        exp_counts: dict[str, int] = {}
+        for row in data:
+            exp = row.get("expiry")
+            if exp:
+                exp_counts[exp] = exp_counts.get(exp, 0) + 1
+        for exp, cnt in exp_counts.items():
+            logger.info(f"- {exp}: {cnt} options in CSV")
 
         strat = str(SESSION_STATE.get("strategy", "")).lower().replace(" ", "_")
         rules_path = Path(cfg.get("STRIKE_RULES_FILE", "tomic/strike_selection_rules.yaml"))
@@ -658,6 +666,18 @@ def run_portfolio_menu() -> None:
             dte_tuple = (0, 365)
 
         filtered = filter_by_expiry(data, dte_tuple, multi=bool(rules.get("multi")))
+
+        after_counts: dict[str, int] = {}
+        for row in filtered:
+            exp = row.get("expiry")
+            if exp:
+                after_counts[exp] = after_counts.get(exp, 0) + 1
+        kept_expiries = set(after_counts)
+        for exp, cnt in after_counts.items():
+            logger.info(f"- {exp}: {cnt} options after DTE filter")
+        for exp in exp_counts:
+            if exp not in kept_expiries:
+                logger.info(f"- {exp}: skipped (outside DTE range)")
 
         fc = FilterConfig()
         if isinstance(rules.get("delta_range"), list) and len(rules.get("delta_range")) == 2:
@@ -678,7 +698,8 @@ def run_portfolio_menu() -> None:
                 pass
 
         selector = StrikeSelector(fc)
-        selected = selector.select(filtered)
+        debug_csv = Path(cfg.get("EXPORT_DIR", "exports")) / "PEP_debugfilter.csv"
+        selected = selector.select(filtered, debug_csv=debug_csv)
 
         evaluated: list[dict[str, object]] = []
         for opt in selected:
