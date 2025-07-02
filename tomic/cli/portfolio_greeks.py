@@ -129,7 +129,7 @@ def generate_alerts(greeks: Dict[str, Dict[str, float]]) -> List[str]:
     gamma_count = sum(1 for v in greeks.values() if abs(v.get("Gamma", 0.0)) > 10)
     if abs(delta) > 25:
         alerts.append(
-            "⚠️ Alert: Je portfolio is sterk directioneel.\n💡 Strategie: overweeg Delta-neutrale spreads zoals iron_condor of calender."
+            "⚠️ Alert: Je portfolio is sterk directioneel.\n💡 Strategie: overweeg Delta-neutrale spreads zoals iron_condor of calendar."
         )
     if theta < 0:
         alerts.append(
@@ -137,7 +137,7 @@ def generate_alerts(greeks: Dict[str, Dict[str, float]]) -> List[str]:
         )
     if vega < -100:
         alerts.append(
-            "⚠️ Alert: Je bent kwetsbaar bij stijgende implied volatility.\n💡 Strategie: overweeg vega-neutrale of vega-positieve strategieën zoals calender of Ratio Backspreads."
+            "⚠️ Alert: Je bent kwetsbaar bij stijgende implied volatility.\n💡 Strategie: overweeg vega-neutrale of vega-positieve strategieën zoals calendar of Ratio Backspreads."
         )
     if vega > 50:
         alerts.append(

@@ -7,9 +7,9 @@ from typing import Callable, Dict, Optional
 # Description functions keyed by strategy type
 STRATEGY_DESCRIPTION_MAP: Dict[str, Callable[[Optional[float]], str]] = {
     "iron_condor": lambda _: "Inzet op range bij hoge IV, gericht op premie-inname en daling van IV",
-    "Calendar Spread": lambda _: "Inzet op zijwaartse markt met lage IV, gericht op stijging in IV of term structure voordeel",
-    "Put Calendar Spread": lambda _: "Inzet op lichte daling bij lage IV, speelt in op stijging IV of termijnstructuur",
-    "Call Calendar Spread": lambda _: "Inzet op lichte stijging bij lage IV, speelt in op stijging IV of termijnstructuur",
+    "calendar": lambda _: "Inzet op zijwaartse markt met lage IV, gericht op stijging in IV of term structure voordeel",
+    "Put calendar": lambda _: "Inzet op lichte daling bij lage IV, speelt in op stijging IV of termijnstructuur",
+    "Call calendar": lambda _: "Inzet op lichte stijging bij lage IV, speelt in op stijging IV of termijnstructuur",
     "Ratio Put Backspread": lambda _: "Inzet op forse daling én stijgende IV – asymmetrisch long gamma/vega",
     "Ratio Call Backspread": lambda _: "Inzet op forse stijging én stijgende IV – asymmetrisch long gamma/vega",
     "Vertical": lambda delta: (
@@ -36,9 +36,9 @@ def get_strategy_description(strategy_type: str, delta: Optional[float] = None) 
 # Alert filtering per strategy type
 ALERT_PROFILE = {
     "iron_condor": ["theta", "vega", "iv", "skew", "rom", "dte"],
-    "Calendar Spread": ["iv", "term", "vega", "dte"],
-    "Put Calendar Spread": ["iv", "term", "vega", "dte"],
-    "Call Calendar Spread": ["iv", "term", "vega", "dte"],
+    "calendar": ["iv", "term", "vega", "dte"],
+    "Put calendar": ["iv", "term", "vega", "dte"],
+    "Call calendar": ["iv", "term", "vega", "dte"],
     "Ratio Put Backspread": ["delta", "vega", "iv", "dte"],
     "Ratio Call Backspread": ["delta", "vega", "iv", "dte"],
     "Vertical": ["delta", "pnl", "dte"],

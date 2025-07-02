@@ -74,7 +74,7 @@ def determine_strategy_type(legs: List[Dict[str, Any]]) -> str:
         if right == "C":
             return "Long Call" if qty > 0 else "Short Call"
         if right == "P":
-            return "Naked Put" if qty < 0 else "Long Put"
+            return "naked_put" if qty < 0 else "Long Put"
 
     return "Other"
 
