@@ -584,6 +584,10 @@ class OptionChainClient(MarketClient):
                     self.cancelMktData(rid)
                 except Exception:
                     pass
+            # Give IB a moment to process the cancel request to avoid
+            # ``duplicate ticker id`` errors when we immediately resend
+            # a request with the same ``reqId``.
+            time.sleep(0.2)
             use_snapshot = getattr(self, "_use_snapshot", not self.market_open)
             include_greeks = (
                 not cfg_get("INCLUDE_GREEKS_ONLY_IF_MARKET_OPEN", False)
