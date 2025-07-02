@@ -57,7 +57,7 @@ from tomic.journal.utils import load_json
 from tomic.utils import today
 from tomic.cli.volatility_recommender import recommend_strategy
 from tomic.api.market_export import load_exported_chain, export_option_chain
-from tomic.providers.polygon_iv import fetch_polygon_option_chain
+from tomic.providers.polygon_iv import fetch_polygon_option_chain, _load_latest_close
 from tomic.strike_selector import StrikeSelector, filter_by_expiry, FilterConfig
 from tomic.loader import load_strike_config
 from tomic.utils import get_option_mid_price
@@ -67,6 +67,7 @@ from tomic.metrics import (
     calculate_edge,
     calculate_ev,
 )
+from tomic.cli.bs_calculator import black_scholes
 
 setup_logging()
 
@@ -105,6 +106,22 @@ def find_latest_chain(symbol: str) -> Path | None:
     if not chains:
         return None
     return max(chains, key=lambda p: p.stat().st_mtime)
+
+
+def _load_spot_from_metrics(directory: Path, symbol: str) -> float | None:
+    """Return spot price from a metrics CSV in ``directory`` if available."""
+    pattern = f"other_data_{symbol.upper()}_*.csv"
+    files = list(directory.glob(pattern))
+    if not files:
+        return None
+    latest = max(files, key=lambda p: p.stat().st_mtime)
+    try:
+        with latest.open(newline="") as f:
+            row = next(csv.DictReader(f))
+            spot = row.get("SpotPrice") or row.get("spotprice")
+            return float(spot) if spot is not None else None
+    except Exception:
+        return None
 
 
 def run_module(module_name: str, *args: str) -> None:
@@ -670,6 +687,11 @@ def run_portfolio_menu() -> None:
             print(f"⚠️ Fout bij laden van chain: {exc}")
             return
         logger.info(f"Loaded {len(data)} rows from {path}")
+
+        symbol = str(SESSION_STATE.get("symbol", ""))
+        spot_price = _load_spot_from_metrics(path.parent, symbol)
+        if spot_price is None:
+            spot_price, _ = _load_latest_close(symbol)
         exp_counts: dict[str, int] = {}
         for row in data:
             exp = row.get("expiry")
@@ -754,6 +776,41 @@ def run_portfolio_menu() -> None:
                 )
             except Exception:
                 model = None
+            if model is None:
+                try:
+                    iv = float(opt.get("iv")) if float(opt.get("iv", 0)) > 0 else None
+                except Exception:
+                    iv = None
+                try:
+                    strike_val = float(opt.get("strike"))
+                except Exception:
+                    strike_val = None
+                expiry_str = str(opt.get("expiry")) if opt.get("expiry") else None
+                opt_type = str(opt.get("type") or opt.get("right", "")).upper()[:1]
+                if (
+                    spot_price is not None
+                    and iv is not None
+                    and strike_val is not None
+                    and expiry_str
+                    and opt_type in {"C", "P"}
+                ):
+                    try:
+                        exp = datetime.strptime(expiry_str, "%Y%m%d").date()
+                        dte_calc = max((exp - datetime.now().date()).days, 0)
+                        model = round(
+                            black_scholes(
+                                opt_type,
+                                float(spot_price),
+                                strike_val,
+                                dte_calc,
+                                iv,
+                                cfg.get("INTEREST_RATE", 0.05),
+                                0.0,
+                            ),
+                            2,
+                        )
+                    except Exception:
+                        model = None
             try:
                 margin = (
                     float(opt.get("marginreq"))
@@ -777,6 +834,8 @@ def run_portfolio_menu() -> None:
                 rom = calculate_rom(mid * 100, margin)
             if model is not None and mid is not None:
                 edge = calculate_edge(model, mid)
+            if model is not None:
+                opt["model"] = model
             if None not in (pos, mid, margin):
                 ev = calculate_ev(pos, mid * 100, -margin)
 
@@ -843,10 +902,8 @@ def run_portfolio_menu() -> None:
         symbol = str(SESSION_STATE.get("symbol", "SYMB"))
         strat = str(SESSION_STATE.get("strategy", "strategy")).replace(" ", "_")
         expiry = str(trades[0].get("expiry", "")) if trades else ""
-        base = (
-            Path(cfg.get("EXPORT_DIR", "exports"))
-            / "tradecandidates"
-            / datetime.now().strftime("%Y%m%d")
+        base = Path(cfg.get("EXPORT_DIR", "exports")) / datetime.now().strftime(
+            "%Y%m%d"
         )
         base.mkdir(parents=True, exist_ok=True)
         ts = datetime.now().strftime("%H%M%S")
@@ -854,7 +911,17 @@ def run_portfolio_menu() -> None:
         with path.open("w", newline="") as f:
             writer = csv.DictWriter(f, fieldnames=trades[0].keys())
             writer.writeheader()
-            writer.writerows(trades)
+            for row in trades:
+                out: dict[str, object] = {}
+                for k, v in row.items():
+                    if k in {"pos", "rom", "ev", "edge", "mid", "model", "delta", "margin"}:
+                        try:
+                            out[k] = f"{float(v):.2f}"
+                        except Exception:
+                            out[k] = ""
+                    else:
+                        out[k] = v
+                writer.writerow(out)
         print(f"✅ Trades opgeslagen in: {path.resolve()}")
 
     def choose_chain_source() -> None:
