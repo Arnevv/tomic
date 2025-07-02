@@ -1,4 +1,5 @@
 import importlib
+import json
 
 from tomic import utils
 
@@ -20,5 +21,38 @@ def test_get_option_mid_price_bid_ask():
 def test_get_option_mid_price_fallback_close():
     option = {"bid": None, "ask": None, "close": 0.8}
     assert utils.get_option_mid_price(option) == 0.8
+
+
+def test_latest_atr(monkeypatch, tmp_path):
+    data = [
+        {"date": "2024-01-01", "close": 100.0, "atr": None},
+        {"date": "2024-01-02", "close": 101.0, "atr": 1.5},
+        {"date": "2024-01-03", "close": 102.0, "atr": None},
+    ]
+    path = tmp_path / "AAA.json"
+    path.write_text(json.dumps(data))
+
+    monkeypatch.setattr(
+        utils, "cfg_get", lambda name, default=None: str(tmp_path)
+        if name == "PRICE_HISTORY_DIR"
+        else default,
+    )
+    importlib.reload(utils)
+
+    assert utils.latest_atr("AAA") == 1.5
+
+
+def test_latest_atr_none(monkeypatch, tmp_path):
+    path = tmp_path / "AAA.json"
+    path.write_text("[]")
+
+    monkeypatch.setattr(
+        utils, "cfg_get", lambda name, default=None: str(tmp_path)
+        if name == "PRICE_HISTORY_DIR"
+        else default,
+    )
+    importlib.reload(utils)
+
+    assert utils.latest_atr("AAA") is None
 
 
