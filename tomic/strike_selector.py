@@ -41,6 +41,24 @@ class FilterConfig:
     max_vega: Optional[float] = None
     min_theta: Optional[float] = None
 
+    def __str__(self) -> str:  # pragma: no cover - logging helper
+        parts = [
+            f"delta={self.delta_min}..{self.delta_max}",
+            f"ROM>={self.min_rom}",
+            f"edge>={self.min_edge}",
+            f"PoS>={self.min_pos}",
+            f"EV>={self.min_ev}",
+            f"skew={self.skew_min}..{self.skew_max}",
+            f"term={self.term_min}..{self.term_max}",
+        ]
+        if self.max_gamma is not None:
+            parts.append(f"gamma<={self.max_gamma}")
+        if self.max_vega is not None:
+            parts.append(f"vega<={self.max_vega}")
+        if self.min_theta is not None:
+            parts.append(f"theta>={self.min_theta}")
+        return " ".join(parts)
+
 
 def load_filter_config() -> FilterConfig:
     """Return filter config from YAML or defaults."""
@@ -142,13 +160,30 @@ class StrikeSelector:
     ) -> List[Dict[str, Any]]:
         """Return ``options`` filtered by expiry and configured criteria."""
 
+        logger.info(
+            "StrikeSelector start: %s options, dte_range=%s, multi=%s, config=%s",
+            len(options),
+            dte_range,
+            multi,
+            self.config,
+        )
+
         working = options
         if dte_range is not None:
             working = filter_by_expiry(working, dte_range, multi=multi)
+            logger.info(
+                "After expiry filter %s: %s options remain",
+                dte_range,
+                len(working),
+            )
+        else:
+            logger.info("No expiry filter applied: %s options", len(working))
 
         selected: List[Dict[str, Any]] = []
+        reasons: Dict[str, int] = {}
         for opt in working:
-            if self._passes(opt):
+            ok, reason = self._passes(opt)
+            if ok:
                 logger.debug(
                     f"✅ Accept {opt.get('expiry')} {opt.get('strike')} {opt.get('type')}"
                 )
@@ -157,21 +192,26 @@ class StrikeSelector:
                 logger.debug(
                     f"❌ Reject {opt.get('expiry')} {opt.get('strike')} {opt.get('type')}"
                 )
+                reasons[reason] = reasons.get(reason, 0) + 1
         logger.info(f"StrikeSelector result: {len(selected)}/{len(working)} kept")
+        if not selected and reasons:
+            for r, cnt in reasons.items():
+                logger.info("- %d rejected because %s", cnt, r)
         return selected
 
     # ------------------------------------------------------------------
     # Filtering helpers
     # ------------------------------------------------------------------
-    def _passes(self, option: Dict[str, Any]) -> bool:
+    def _passes(self, option: Dict[str, Any]) -> Tuple[bool, str]:
         for name, func in self._filters:
             ok, reason = func(option)
             if not ok:
+                msg = f"{name}: {reason}"
                 logger.debug(
                     f"❌ [{name}] {option.get('expiry')} {option.get('strike')}: {reason}"
                 )
-                return False
-        return True
+                return False, msg
+        return True, ""
 
     def _delta_filter(self, option: Dict[str, Any]) -> Tuple[bool, str]:
         delta = _as_float(option.get("delta") or option.get("Delta"))
