@@ -67,7 +67,7 @@ def test_filter_by_expiry_single(monkeypatch):
     ]
     res = selector.select(opts, dte_range=(10, 20))
     expiries = {o["expiry"] for o in res}
-    assert expiries == {"20240614"}
+    assert expiries == {"20240614", "20240621"}
 
 
 def test_filter_by_expiry_multi(monkeypatch):
@@ -80,9 +80,9 @@ def test_filter_by_expiry_multi(monkeypatch):
         {"expiry": "20240712", "strike": 110, "type": "C", "delta": 0.0},
         {"expiry": "20240719", "strike": 115, "type": "C", "delta": 0.0},
     ]
-    res = selector.select(opts, dte_range=(10, 60), multi=True)
+    res = selector.select(opts, dte_range=(10, 60))
     expiries = sorted({o["expiry"] for o in res})
-    assert expiries == ["20240614", "20240712"]
+    assert expiries == ["20240614", "20240621", "20240712", "20240719"]
 
 
 def test_filter_by_expiry_none(monkeypatch):

@@ -69,6 +69,7 @@ strategies:
     min_edge: 0.04
     direction: volatility_play
     dte_range: [25, 40]
+    min_expiry_gap: 20
 
   ratio_spread:
     method: delta
