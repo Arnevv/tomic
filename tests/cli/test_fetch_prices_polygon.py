@@ -1,4 +1,5 @@
 import importlib
+from datetime import datetime, date
 
 
 def test_fetch_prices_polygon_main(monkeypatch):
@@ -66,3 +67,31 @@ def test_fetch_prices_polygon_no_data(monkeypatch):
 
     mod.main(["XYZ"])
     assert not captured
+
+
+def test_latest_trading_day_before_close(monkeypatch):
+    mod = importlib.import_module("tomic.cli.fetch_prices_polygon")
+
+    class FakeDT(datetime):
+        @classmethod
+        def now(cls, tz=None):
+            return datetime(2025, 7, 2, 10, 0, tzinfo=tz)
+
+    monkeypatch.setattr(mod, "datetime", FakeDT)
+
+    day = mod.latest_trading_day()
+    assert day == date(2025, 7, 1)
+
+
+def test_latest_trading_day_after_close(monkeypatch):
+    mod = importlib.import_module("tomic.cli.fetch_prices_polygon")
+
+    class FakeDT(datetime):
+        @classmethod
+        def now(cls, tz=None):
+            return datetime(2025, 7, 2, 21, 0, tzinfo=tz)
+
+    monkeypatch.setattr(mod, "datetime", FakeDT)
+
+    day = mod.latest_trading_day()
+    assert day == date(2025, 7, 2)
