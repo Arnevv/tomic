@@ -16,6 +16,7 @@ strategies:
     iv_rank_min: 0.30
     dte_range: [28, 42]
     max_skew: 1.2  # bijvoorbeeld: max 20% put-skew (indicatief)
+    min_risk_reward: 0.25
 
   bull_put_spread:
     method: delta
@@ -24,8 +25,9 @@ strategies:
     min_rom: 0.12
     direction: bullish
     iv_rank_min: 0.25
-    dte_range: [30, 45]
+    dte_range: [28, 45]
     max_skew: 0.1
+    min_risk_reward: 0.4
 
   bear_call_spread:
     method: delta
@@ -34,26 +36,28 @@ strategies:
     min_rom: 0.12
     direction: bearish
     iv_rank_min: 0.25
-    dte_range: [30, 45]
+    dte_range: [28, 45]
     max_skew: 0.1
+    min_risk_reward: 0.6
 
   iron_condor:
     method: stddev_range
-    stddevs: 3.0
-    delta_range: [-0.5, 0.5]
+    stddevs: 2.5
+    delta_range: [-1, 1] #todo, nog support leveren van delta range van short en long legs
     min_edge: 0.04
     min_rom: 0.10
     direction: neutral
     iv_rank_min: 0.40
     min_risk_reward: 1.0
-    dte_range: [15, 60]
+    dte_range: [20, 50]
+    max_skew: 0.1
 
   atm_iron_butterfly:
     method: spot_distance
     include_around_atm: true
     distance_points: 0
     min_edge: 0.06
-    min_rom: 0.12
+    min_rom: 0.10
     iv_rank_min: 0.25
     max_skew: 0.10  # indicatief, skew ≈ vlak
     direction: neutral
@@ -70,6 +74,7 @@ strategies:
     direction: volatility_play
     dte_range: [25, 40]
     min_expiry_gap: 20
+    max_skew: 0.1
 
   ratio_spread:
     method: delta
