@@ -2,7 +2,7 @@ from __future__ import annotations
 
 """Fetch daily price history using the Polygon API."""
 
-from datetime import datetime, timedelta, date
+from datetime import datetime, timedelta, date, time as dt_time
 from pathlib import Path
 from time import sleep
 import time
@@ -45,13 +45,16 @@ def _next_trading_day(d: date) -> date:
 def latest_trading_day() -> date:
     """Return the most recent US trading day.
 
-    The function checks from yesterday backwards until it finds a weekday that
-    is not a US holiday. The current date is determined using the
-    ``America/New_York`` timezone to align with the US market schedule.
+    Using the ``America/New_York`` timezone, the function returns today's date
+    once the market is considered closed (18:00 ET).  When run earlier it falls
+    back to the previous workday and always skips weekends and US holidays.
     """
 
     tz = ZoneInfo("America/New_York")
-    d = datetime.now(tz).date() - timedelta(days=1)
+    now = datetime.now(tz)
+    d = now.date()
+    if now.time() < dt_time(18, 0):
+        d -= timedelta(days=1)
     us_holidays = holidays.US()
     while d.weekday() >= 5 or d in us_holidays:
         d -= timedelta(days=1)
