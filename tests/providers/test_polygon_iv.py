@@ -464,29 +464,25 @@ def test_load_polygon_expiries(monkeypatch):
 def test_fetch_polygon_option_chain_filters(monkeypatch):
     mod = importlib.import_module("tomic.providers.polygon_iv")
 
-    monkeypatch.setattr(mod, "load_polygon_expiries", lambda s, k=None: ["2024-01-19", "2024-02-16"])
+    opts1 = [
+        {"expiration_date": "2024-01-19", "delta": 0.5},
+        {"expiration_date": "2024-01-19", "delta": 0.9},
+        {"expiration_date": "2024-01-19", "greeks": {"delta": 0.7}},
+    ]
+    opts2 = [
+        {"expiration_date": "2024-02-16", "delta": -0.9},
+        {"expiration_date": "2024-02-16", "delta": None, "greeks": {"delta": 0.2}},
+        {"expiration_date": "2024-02-16", "delta": None},
+    ]
 
-    calls = []
-
-    class FakeFetcher:
-        def __init__(self, key=None):
-            pass
-
-        def fetch_expiry(self, symbol, expiry):
-            calls.append(expiry)
-            if expiry == "2024-01-19":
-                return [
-                    {"expiration_date": expiry, "delta": 0.5},
-                    {"expiration_date": expiry, "delta": 0.9},
-                    {"expiration_date": expiry, "greeks": {"delta": 0.7}},
-                ]
-            return [
-                {"expiration_date": expiry, "delta": -0.9},
-                {"expiration_date": expiry, "delta": None, "greeks": {"delta": 0.2}},
-                {"expiration_date": expiry, "delta": None},
-            ]
-
-    monkeypatch.setattr(mod, "SnapshotFetcher", lambda key=None: FakeFetcher())
+    monkeypatch.setattr(
+        mod,
+        "load_polygon_expiries",
+        lambda s, k=None, include_contracts=False: (
+            ["2024-01-19", "2024-02-16"],
+            {"2024-01-19": opts1, "2024-02-16": opts2},
+        ),
+    )
     captured = []
     monkeypatch.setattr(mod, "_export_option_chain", lambda s, opts: captured.append(opts))
 
@@ -502,7 +498,6 @@ def test_fetch_polygon_option_chain_filters(monkeypatch):
 
     mod.fetch_polygon_option_chain("XYZ")
 
-    assert calls == ["2024-01-19", "2024-02-16"]
     assert captured
     exported = captured[0]
     assert len(exported) == 4
