@@ -10,6 +10,7 @@ import os
 from tomic.config import get as cfg_get
 
 from tomic.logutils import logger, log_result
+from .client_registry import ACTIVE_CLIENT_IDS
 
 PROTOBUF_PATH = os.path.join(os.path.dirname(__file__), "..", "ibapi", "protobuf")
 sys.path.insert(0, os.path.abspath(PROTOBUF_PATH))
@@ -22,6 +23,15 @@ class IBClient(EClient, EWrapper):
     def nextValidId(self, orderId: int) -> None:  # noqa: N802 - IB API callback
         self.next_valid_id = orderId
         logger.debug(f"IB nextValidId -> {orderId}")
+
+    def disconnect(self) -> None:  # type: ignore[override]
+        """Disconnect from IB and update the active client registry."""
+        client_id = getattr(self, "clientId", None)
+        try:
+            super().disconnect()
+        finally:
+            if client_id is not None:
+                ACTIVE_CLIENT_IDS.discard(client_id)
 
     # Match the signature expected by :class:`ibapi.wrapper.EWrapper` so
     # callbacks from the decoder don't fail if additional arguments are passed.
@@ -58,11 +68,15 @@ def connect_ib(
         client_id = int(time.time() * 1000) % 2_000_000
     elif client_id is None:
         client_id = int(cfg_get("IB_CLIENT_ID", 100))
+
+    if client_id in ACTIVE_CLIENT_IDS:
+        logger.warning(f"IB client_id {client_id} already active")
     app = IBClient()
 
     try:
         logger.debug(f"Connecting to IB host={host} port={port} client_id={client_id}")
         app.connect(host, port, client_id)
+        ACTIVE_CLIENT_IDS.add(client_id)
     except socket.error as e:
         raise RuntimeError(f"❌ Kon niet verbinden met TWS op {host}:{port}: {e}")
 
