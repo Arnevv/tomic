@@ -44,7 +44,7 @@
     - "term_m1_m3 < 0"
     - "IV < HV20"
 - feature: "Lage IV Rank + Compressie TS"
-  strategy: "Long Straddle / Butterfly"
+  strategy: "Long Straddle or Butterfly"
   greeks: "delta neutral, vega long, gamma long, theta short"
   indication: "Grote beweging of IV-explosie verwacht"
   criteria:
@@ -54,7 +54,7 @@
     - "IV > HV90"
     - "skew < 1"
 - feature: "Compressie in Term Structure"
-  strategy: "Calendar Spread / Time Spread"
+  strategy: "Calendar Spread"
   greeks: "vega long, theta short"
   indication: "Mean reversion in IV-structuur, rustige spot"
   criteria:
@@ -62,7 +62,7 @@
     - "iv_rank < 40"
     - "IV < HV20"
 - feature: "Expansie in Term Structure"
-  strategy: "Short Vertical / Iron Condor"
+  strategy: "Short Vertical or Iron Condor"
   greeks: "theta long, vega short"
   indication: "Premie afromen bij volatiele maar begrensde markt"
   criteria:
@@ -72,7 +72,7 @@
     - "iv_percentile > 60"
     - "skew < 2.5"
 - feature: "Zeer hoge skew (> 5)"
-  strategy: "Ratio Put Spread / Asym. Vertical"
+  strategy: "Ratio Put Spread or Asymmetrical Vertical"
   greeks: "delta directional, vega neutral, gamma long"
   indication: "Overgeprijsde OTM-leg benutten, directional bias"
   criteria:
@@ -81,7 +81,7 @@
     - "IV > HV20"
     - "term_m1_m3 > 0"
 - feature: "Negatieve skew (<-2) bij lage IV"
-  strategy: "Long Vega Butterfly / Backspread"
+  strategy: "Long Vega Butterfly or Backspread"
   greeks: "vega long, gamma long, theta short"
   indication: "Mogelijke herprijzing in IV op downside"
   criteria:
