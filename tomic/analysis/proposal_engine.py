@@ -265,7 +265,7 @@ def suggest_strategies(
         ):
             impact = _sum_greeks(legs)
             after = {k: exposure.get(k, 0.0) + impact[k] for k in impact}
-            risk = _calc_metrics("iron condor", legs)
+            risk = _calc_metrics("iron_condor", legs)
             rom = risk.get("ROM")
             rr = risk.get("RR")
             if metrics or vix is not None:
@@ -280,7 +280,7 @@ def suggest_strategies(
             if risk_ok:
                 suggestions.append(
                     {
-                        "strategy": "Iron Condor",
+                        "strategy": "iron_condor",
                         "legs": [leg.__dict__ for leg in legs],
                         "impact": impact,
                         "score": _tomic_score(after),

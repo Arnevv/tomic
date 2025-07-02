@@ -30,7 +30,7 @@ class TestDetermineStrategyType:
             {"right": "P", "position": 1},
             {"right": "P", "position": -1},
         ]
-        assert determine_strategy_type(legs) == "Iron Condor"
+        assert determine_strategy_type(legs) == "iron_condor"
 
     def test_straddle(self):
         legs = [

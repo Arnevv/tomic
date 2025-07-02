@@ -47,7 +47,7 @@ def determine_strategy_type(legs: List[Dict[str, Any]]) -> str:
             == len(short_puts)
             == 1
         ):
-            return "Iron Condor"
+            return "iron_condor"
 
     if n == 3 and len(puts) == 3:
         long_puts = [leg for leg in puts if leg.get("position", 0) > 0]
