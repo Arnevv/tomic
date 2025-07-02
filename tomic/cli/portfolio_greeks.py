@@ -133,7 +133,7 @@ def generate_alerts(greeks: Dict[str, Dict[str, float]]) -> List[str]:
         )
     if theta < 0:
         alerts.append(
-            "⚠️ Alert: Je portfolio verliest waarde door tijdsverloop.\n💡 Strategie: overweeg short premium setups zoals iron_condor of ATM_iron_butterfly."
+            "⚠️ Alert: Je portfolio verliest waarde door tijdsverloop.\n💡 Strategie: overweeg short premium setups zoals iron_condor of atm_iron_butterfly."
         )
     if vega < -100:
         alerts.append(

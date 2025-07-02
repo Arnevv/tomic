@@ -54,7 +54,7 @@ def test_calculate_margin_calendar():
         {"strike": 100, "type": "C", "action": "SELL"},
     ]
     assert math.isclose(
-        calculate_margin("calendar spread", legs, entry_price=2.5), 250.0
+        calculate_margin("calendar", legs, entry_price=2.5), 250.0
     )
 
 
