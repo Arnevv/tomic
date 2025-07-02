@@ -99,9 +99,9 @@ def calculate_margin(
         width = abs(strikes[0] - strikes[1])
         return max(width * 100 - premium * 100, 0.0)
 
-    if strat in {"iron condor", "iron butterfly"}:
+    if strat in {"iron_condor", "atm_iron_butterfly"}:
         if len(legs) != 4:
-            raise ValueError("Condor/butterfly requires four legs")
+            raise ValueError("iron_condor/atm_iron_butterfly requires four legs")
         puts = [
             float(l.get("strike"))
             for l in legs
@@ -113,7 +113,7 @@ def calculate_margin(
             if (l.get("type") or l.get("right")) == "C"
         ]
         if len(puts) != 2 or len(calls) != 2:
-            raise ValueError("Invalid condor/butterfly structure")
+            raise ValueError("Invalid iron_condor/atm_iron_butterfly structure")
         width_put = abs(puts[0] - puts[1])
         width_call = abs(calls[0] - calls[1])
         width = max(width_put, width_call)
