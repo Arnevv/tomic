@@ -665,7 +665,7 @@ def run_portfolio_menu() -> None:
         except Exception:
             dte_tuple = (0, 365)
 
-        filtered = filter_by_expiry(data, dte_tuple, multi=bool(rules.get("multi")))
+        filtered = filter_by_expiry(data, dte_tuple)
 
         after_counts: dict[str, int] = {}
         for row in filtered:

@@ -96,43 +96,46 @@ def _dte(expiry: str) -> Optional[int]:
 def filter_by_expiry(
     options: List[Dict[str, Any]],
     dte_range: Tuple[int, int],
-    *,
-    multi: bool = False,
 ) -> List[Dict[str, Any]]:
-    """Return ``options`` filtered to expiries within ``dte_range``.
+    """Return ``options`` for all expiries whose DTE lies within ``dte_range``.
 
-    When ``multi`` is ``True``, include the nearest expiry in range and a second
-    expiry at least 20 days later when available.
+    All options belonging to an expiry with a days-to-expiry (DTE) between
+    ``min_dte`` and ``max_dte`` (inclusive) are returned. Expiries outside the
+    range are ignored.
     """
 
     min_dte, max_dte = dte_range
+
     exp_map: Dict[str, List[Dict[str, Any]]] = {}
     for opt in options:
         exp = opt.get("expiry")
         if exp:
             exp_map.setdefault(str(exp), []).append(opt)
 
-    valid: List[tuple[str, int]] = []
-    for exp in exp_map:
+    included: List[tuple[str, int]] = []
+    for exp, opts in exp_map.items():
         dte = _dte(exp)
         if dte is not None and min_dte <= dte <= max_dte:
-            valid.append((exp, dte))
+            included.append((exp, dte))
 
-    if not valid:
+    if not included:
+        logger.info(
+            "filter_by_expiry: no expiries within range %s-%s DTE", min_dte, max_dte
+        )
         return []
 
-    valid.sort(key=lambda t: t[1])
+    included.sort(key=lambda t: t[1])
+
     selected: List[Dict[str, Any]] = []
+    for exp, dte in included:
+        logger.info(f"Including expiry {exp} (DTE {dte})")
+        selected.extend(exp_map[exp])
 
-    first_exp, first_dte = valid[0]
-    selected.extend(exp_map[first_exp])
-
-    if multi:
-        for exp, dte in valid[1:]:
-            if dte - first_dte >= 20:
-                selected.extend(exp_map[exp])
-                break
-
+    logger.info(
+        "filter_by_expiry selected %s options across %s expiries",
+        len(selected),
+        len(included),
+    )
     return selected
 
 
@@ -160,22 +163,20 @@ class StrikeSelector:
         options: List[Dict[str, Any]],
         *,
         dte_range: Tuple[int, int] | None = None,
-        multi: bool = False,
         debug_csv: str | os.PathLike[str] | None = None,
     ) -> List[Dict[str, Any]]:
         """Return ``options`` filtered by expiry and configured criteria."""
 
         logger.info(
-            "StrikeSelector start: %s options, dte_range=%s, multi=%s, config=%s",
+            "StrikeSelector start: %s options, dte_range=%s, config=%s",
             len(options),
             dte_range,
-            multi,
             self.config,
         )
 
         working = options
         if dte_range is not None:
-            working = filter_by_expiry(working, dte_range, multi=multi)
+            working = filter_by_expiry(working, dte_range)
             logger.info(
                 "After expiry filter %s: %s options remain",
                 dte_range,
