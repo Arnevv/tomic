@@ -256,6 +256,9 @@ class MarketClient(BaseIBApp):
         )
 
         timeout = cfg_get("SPOT_TIMEOUT", 10)
+        logger.debug(
+            f"Spot data request snapshot={use_snapshot} timeout={timeout}s"
+        )
         self.data_event.clear()
         req_id = self._next_id()
         if use_snapshot:
@@ -285,8 +288,10 @@ class MarketClient(BaseIBApp):
 
         if not received_any and self.spot_price is None:
             logger.warning(
-                "No tick received within %ss; waiting short grace period",
+                "No market data ticks for %s within %ss (snapshot=%s); waiting short grace period",
+                self.symbol,
                 timeout,
+                use_snapshot,
             )
             self.data_event.wait(1.5)
 
@@ -306,7 +311,11 @@ class MarketClient(BaseIBApp):
                     logger.warning("Fallback spot price could not be parsed")
 
         if self.spot_price is None:
-            logger.error("❌ FAIL stap 3: Spot price not available after all retries")
+            logger.error(
+                "❌ FAIL stap 3: Spot price not available after all retries (timeout=%ss snapshot=%s)",
+                timeout,
+                use_snapshot,
+            )
 
     @log_result
     def start_requests(self) -> None:  # pragma: no cover - runtime behaviour
