@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from typing import Any, Callable, Dict, List, Optional, Tuple
+import os
+import csv
 
 from datetime import datetime
 
@@ -81,12 +83,14 @@ def load_filter_config() -> FilterConfig:
 
 
 def _dte(expiry: str) -> Optional[int]:
-    """Return days to expiry for ``expiry`` in ``YYYYMMDD`` format."""
-    try:
-        exp_date = datetime.strptime(str(expiry), "%Y%m%d").date()
-    except Exception:
-        return None
-    return (exp_date - today()).days
+    """Return days to expiry for ``expiry``."""
+    for fmt in ("%Y%m%d", "%Y-%m-%d"):
+        try:
+            exp_date = datetime.strptime(str(expiry), fmt).date()
+            return (exp_date - today()).days
+        except Exception:
+            continue
+    return None
 
 
 def filter_by_expiry(
@@ -157,6 +161,7 @@ class StrikeSelector:
         *,
         dte_range: Tuple[int, int] | None = None,
         multi: bool = False,
+        debug_csv: str | os.PathLike[str] | None = None,
     ) -> List[Dict[str, Any]]:
         """Return ``options`` filtered by expiry and configured criteria."""
 
@@ -181,6 +186,8 @@ class StrikeSelector:
 
         selected: List[Dict[str, Any]] = []
         reasons: Dict[str, int] = {}
+        by_filter: Dict[str, int] = {}
+        rejected_rows: List[Dict[str, Any]] = []
         for opt in working:
             ok, reason = self._passes(opt)
             if ok:
@@ -193,10 +200,38 @@ class StrikeSelector:
                     f"❌ Reject {opt.get('expiry')} {opt.get('strike')} {opt.get('type')}"
                 )
                 reasons[reason] = reasons.get(reason, 0) + 1
+                cat = reason.split(":", 1)[0]
+                by_filter[cat] = by_filter.get(cat, 0) + 1
+                if debug_csv:
+                    row = dict(opt)
+                    row["reject_reason"] = reason
+                    rejected_rows.append(row)
         logger.info(f"StrikeSelector result: {len(selected)}/{len(working)} kept")
-        if not selected and reasons:
-            for r, cnt in reasons.items():
-                logger.info("- %d rejected because %s", cnt, r)
+        for flt, cnt in by_filter.items():
+            logger.info("- %d rejected by %s filter", cnt, flt)
+
+        if debug_csv and rejected_rows:
+            try:
+                with open(debug_csv, "w", newline="", encoding="utf-8") as f:
+                    writer = csv.DictWriter(f, fieldnames=rejected_rows[0].keys())
+                    writer.writeheader()
+                    writer.writerows(rejected_rows)
+                logger.info(f"Debug rejects written to {os.fspath(debug_csv)}")
+            except Exception as exc:
+                logger.warning(f"Failed to write debug CSV {debug_csv}: {exc}")
+
+        if not selected and rejected_rows:
+            preview = rejected_rows[:3]
+            logger.info("Top rejected options:")
+            for row in preview:
+                logger.info(
+                    "- %s %s %s: %s",
+                    row.get("expiry"),
+                    row.get("strike"),
+                    row.get("type"),
+                    row.get("reject_reason"),
+                )
+
         return selected
 
     # ------------------------------------------------------------------
