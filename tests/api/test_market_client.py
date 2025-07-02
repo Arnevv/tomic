@@ -1314,7 +1314,7 @@ def test_await_market_data_historical_no_retry(monkeypatch):
     monkeypatch.setattr(
         client,
         "retry_incomplete_requests",
-        lambda ids=None, wait=True: called.append(ids),
+        lambda ids=None, wait=True, **kw: called.append(ids),
     )
 
     ok = mod.await_market_data(client, "ABC", timeout=0.1)

@@ -63,4 +63,4 @@ def test_show_market_info(monkeypatch, tmp_path):
     mod.run_portfolio_menu()
 
     assert any("2025-06-28" in line for line in prints)
-    assert any("Short Put Spread" in line for line in prints)
+    assert any("short_put_spread" in line for line in prints)
