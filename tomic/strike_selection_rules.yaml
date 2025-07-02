@@ -3,38 +3,50 @@ default:
   delta_range: [0.25, 0.45]
   min_edge: 0.05
   min_rom: 0.10
-  max_strikes: 10
+  max_strikes: 50
 
 strategies:
 
   naked_put:
     method: delta
-    delta_range: [0.20, 0.30]
+    delta_range: [-0.30, -0.25]
     min_edge: 0.05
-    min_rom: 0.12
+    min_rom: 0.10
     direction: bullish
     iv_rank_min: 0.30
-    dte_range: [30, 45]
+    dte_range: [28, 42]
+    max_skew: 1.2  # bijvoorbeeld: max 20% put-skew (indicatief)
 
-  vertical_spread:
+  bull_put_spread:
+    method: delta
+    delta_range: [-0.35, -0.20]
+    min_edge: 0.04
+    min_rom: 0.12
+    direction: bullish
+    iv_rank_min: 0.25
+    dte_range: [30, 45]
+    max_skew: 0.1
+
+  bear_call_spread:
     method: delta
     delta_range: [0.20, 0.35]
     min_edge: 0.04
-    min_rom: 0.10
-    direction: directional
+    min_rom: 0.12
+    direction: bearish
     iv_rank_min: 0.25
     dte_range: [30, 45]
+    max_skew: 0.1
 
   iron_condor:
     method: stddev_range
-    stddevs: 1.0
-    delta_range: [0.10, 0.20]
+    stddevs: 3.0
+    delta_range: [-0.5, 0.5]
     min_edge: 0.04
     min_rom: 0.10
     direction: neutral
     iv_rank_min: 0.40
     min_risk_reward: 1.0
-    dte_range: [45, 60]
+    dte_range: [15, 60]
 
   atm_iron_butterfly:
     method: spot_distance
