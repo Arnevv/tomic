@@ -46,10 +46,12 @@ def load_chain_csv(path: str) -> List[Leg]:
         reader = csv.DictReader(f)
         for row in reader:
             try:
+                option_type = row.get("Type", "")
+                option_type = option_type[:1].upper() if option_type else ""
                 legs.append(
                     Leg(
                         expiry=row.get("Expiry", ""),
-                        type=row.get("Type", ""),
+                        type=option_type,
                         strike=float(row.get("Strike", 0) or 0),
                         delta=_parse_float(row.get("Delta")) or 0.0,
                         gamma=_parse_float(row.get("Gamma")) or 0.0,
