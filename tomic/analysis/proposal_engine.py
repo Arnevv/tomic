@@ -280,7 +280,7 @@ def suggest_strategies(
             if risk_ok:
                 suggestions.append(
                     {
-                        "strategy": "iron_condor",
+                        "strategy": "Iron Condor",
                         "legs": [leg.__dict__ for leg in legs],
                         "impact": impact,
                         "score": _tomic_score(after),
