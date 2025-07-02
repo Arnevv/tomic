@@ -69,7 +69,7 @@ from tomic.metrics import (
 )
 from tomic.cli.bs_calculator import black_scholes
 
-setup_logging()
+setup_logging(stdout=True)
 
 
 POSITIONS_FILE = Path(cfg.get("POSITIONS_FILE", "positions.json"))
@@ -862,6 +862,10 @@ def run_portfolio_menu() -> None:
 
         SESSION_STATE.setdefault("evaluated_trades", []).extend(evaluated)
         if evaluated:
+            close_price, close_date = _load_latest_close(symbol)
+            if close_price is not None and close_date:
+                print(f"Close {close_date}: {close_price}")
+
             rows = []
             for row in evaluated[:10]:
                 rows.append(
