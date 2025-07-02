@@ -47,7 +47,11 @@ class InterceptHandler(logging.Handler):
             logger.log(record.levelno, record.getMessage())
 
 
-def setup_logging(default_level: int = logging.INFO) -> None:
+def setup_logging(
+    default_level: int = logging.INFO,
+    *,
+    stdout: bool = False,
+) -> None:
     """Configure loguru logging based on configuration and environment."""
 
     debug_env = os.getenv("TOMIC_DEBUG", "0")
@@ -60,10 +64,12 @@ def setup_logging(default_level: int = logging.INFO) -> None:
 
     level = getattr(logging, level_name, default_level)
 
+    stream = sys.stdout if stdout else sys.stderr
+
     if _LOGURU_AVAILABLE:
         logger.remove()
         logger.add(
-            sys.stderr,
+            stream,
             level=level,
             format="{level} - {time:HH:mm:ss}: {message}",
         )
@@ -74,6 +80,7 @@ def setup_logging(default_level: int = logging.INFO) -> None:
             level=level,
             format="%(levelname)s - %(asctime)s: %(message)s",
             datefmt="%H:%M:%S",
+            stream=stream,
         )
 
     ib_level = logging.DEBUG if is_debug else logging.WARNING
