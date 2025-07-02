@@ -48,7 +48,7 @@
     - "IV > HV20"
 
 - feature: "Hoge IV Rank + BullishSkew"
-  strategy: "Naked Put"
+  strategy: "naked_put"
   greeks: "delta positive, vega short, theta long"
   indication: "Premie innen bij overgeprijsde puts met bullish verwachting"
   criteria:
