@@ -509,7 +509,9 @@ class OptionChainClient(MarketClient):
         retries = self._request_retries.get(req_id, 0)
         if retries > 0:
             self._request_retries[req_id] = retries - 1
-            self.retry_incomplete_requests([req_id], wait=False)
+            # Use a new request id when retrying to avoid ``duplicate ticker id``
+            # errors that may occur if the previous id is reused too quickly.
+            self.retry_incomplete_requests([req_id], wait=False, use_new_id=True)
         else:
             self._invalidate_request(req_id)
 
@@ -549,7 +551,11 @@ class OptionChainClient(MarketClient):
             ]
 
     async def retry_incomplete_requests_async(
-        self, ids: list[int] | None = None, *, wait: bool = True
+        self,
+        ids: list[int] | None = None,
+        *,
+        wait: bool = True,
+        use_new_id: bool = False,
     ) -> bool:
         """Re-request market data for incomplete option contracts."""
         wait_time = int(cfg_get("OPTION_RETRY_WAIT", 1)) if wait else 0
@@ -577,17 +583,32 @@ class OptionChainClient(MarketClient):
             )
             evt = threading.Event()
             with self.data_lock:
-                self.market_data[rid]["event"] = evt
                 self.invalid_contracts.discard(rid)
                 self._completed_requests.discard(rid)
                 try:
                     self.cancelMktData(rid)
                 except Exception:
                     pass
-            # Give IB a moment to process the cancel request to avoid
-            # ``duplicate ticker id`` errors when we immediately resend
-            # a request with the same ``reqId``.
-            time.sleep(0.2)
+            # Allow IB time to process the cancel before reusing the ticker ID.
+            delay = 0.5
+            time.sleep(delay)
+
+            new_rid = rid
+            if use_new_id:
+                new_rid = self._next_id()
+                with self.data_lock:
+                    data = self.market_data.pop(rid, {})
+                    data["event"] = evt
+                    self.market_data[new_rid] = data
+                    self.option_info[new_rid] = self.option_info.pop(rid, details)
+                    retry_cnt = self._request_retries.pop(rid, self._retry_rounds)
+                    self._request_retries[new_rid] = retry_cnt
+                    timer = self._invalid_timers.pop(rid, None)
+                    if timer is not None:
+                        timer.cancel()
+            else:
+                with self.data_lock:
+                    self.market_data[rid]["event"] = evt
             use_snapshot = getattr(self, "_use_snapshot", not self.market_open)
             include_greeks = (
                 not cfg_get("INCLUDE_GREEKS_ONLY_IF_MARKET_OPEN", False)
@@ -602,9 +623,9 @@ class OptionChainClient(MarketClient):
                 generic = ",".join(ticks)
             async with sem:
                 await asyncio.to_thread(
-                    self.reqMktData, rid, con, generic, use_snapshot, False, []
+                    self.reqMktData, new_rid, con, generic, use_snapshot, False, []
                 )
-            self._schedule_invalid_timer(rid)
+            self._schedule_invalid_timer(new_rid)
 
         tasks = [asyncio.create_task(send_request(rid)) for rid in ids]
         await asyncio.gather(*tasks)
@@ -614,9 +635,15 @@ class OptionChainClient(MarketClient):
         return True
 
     def retry_incomplete_requests(
-        self, ids: list[int] | None = None, *, wait: bool = True
+        self,
+        ids: list[int] | None = None,
+        *,
+        wait: bool = True,
+        use_new_id: bool = False,
     ) -> bool:
-        return asyncio.run(self.retry_incomplete_requests_async(ids, wait=wait))
+        return asyncio.run(
+            self.retry_incomplete_requests_async(ids, wait=wait, use_new_id=use_new_id)
+        )
 
     def all_data_received(self) -> bool:
         """Return ``True`` when all requested option data has been received."""
