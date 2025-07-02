@@ -475,7 +475,6 @@ def export_option_chain(
         return avg_parity
 
     app.disconnect()
-    app.disconnect()
     time.sleep(1)
     if output_dir is None:
         today_str = datetime.now().strftime("%Y%m%d")
