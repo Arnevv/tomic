@@ -12,6 +12,8 @@ from tomic.analysis.greeks import compute_greeks_by_symbol
 from tomic.analysis.strategy import heuristic_risk_metrics
 from tomic.journal.utils import load_json
 from tomic.utils import get_option_mid_price
+from tomic.metrics import calculate_margin
+from tomic.logutils import logger
 
 
 @dataclass
@@ -100,21 +102,43 @@ def _cost_basis(legs: Iterable[Leg]) -> float:
     return cost * 100
 
 
-def _calc_rr_rom(legs: List[Leg]) -> Dict[str, Optional[float]]:
-    """Return rough risk/reward and ROM for ``legs``."""
+def _calc_metrics(strategy: str, legs: List[Leg]) -> Dict[str, Optional[float]]:
+    """Return margin and risk metrics for ``strategy`` with ``legs``."""
+
     cb = _cost_basis(legs)
     legs_dict = [
-        {"strike": leg.strike, "right": leg.type, "position": leg.position}
+        {"strike": leg.strike, "type": leg.type, "position": leg.position}
         for leg in legs
     ]
+
+    credit = -cb if cb < 0 else 0.0
+    debit = cb if cb > 0 else 0.0
+    try:
+        margin = calculate_margin(
+            strategy,
+            legs_dict,
+            premium=credit / 100,
+            entry_price=debit / 100,
+        )
+    except Exception as exc:  # pragma: no cover - defensive fallback
+        logger.warning(f"calculate_margin failed for {strategy}: {exc}")
+        margin = 350.0
+
     risk = heuristic_risk_metrics(legs_dict, cb)
     max_profit = risk.get("max_profit")
     max_loss = risk.get("max_loss")
     rr = risk.get("risk_reward")
     rom = None
-    if max_profit is not None and max_loss:
-        rom = (max_profit / abs(max_loss)) * 100
-    return {"ROM": rom, "RR": rr, "max_profit": max_profit, "max_loss": max_loss}
+    if max_profit is not None and margin:
+        rom = (max_profit / margin) * 100
+
+    return {
+        "ROM": rom,
+        "RR": rr,
+        "max_profit": max_profit,
+        "max_loss": max_loss,
+        "margin": margin,
+    }
 
 
 def _make_vertical(chain: List[Leg], bullish: bool) -> Optional[List[Leg]]:
@@ -217,7 +241,7 @@ def suggest_strategies(
         if legs:
             impact = _sum_greeks(legs)
             after = {k: exposure.get(k, 0.0) + impact[k] for k in impact}
-            risk = _calc_rr_rom(legs)
+            risk = _calc_metrics("vertical spread", legs)
             suggestions.append(
                 {
                     "strategy": "Vertical",
@@ -227,6 +251,9 @@ def suggest_strategies(
                     "reason": "Delta-balancering",
                     "ROM": risk.get("ROM"),
                     "RR": risk.get("RR"),
+                    "margin": risk.get("margin"),
+                    "max_profit": risk.get("max_profit"),
+                    "max_loss": risk.get("max_loss"),
                 }
             )
     if exposure.get("Vega", 0.0) > 50:
@@ -238,7 +265,7 @@ def suggest_strategies(
         ):
             impact = _sum_greeks(legs)
             after = {k: exposure.get(k, 0.0) + impact[k] for k in impact}
-            risk = _calc_rr_rom(legs)
+            risk = _calc_metrics("iron condor", legs)
             rom = risk.get("ROM")
             rr = risk.get("RR")
             if metrics or vix is not None:
@@ -260,6 +287,9 @@ def suggest_strategies(
                         "reason": "Vega verlagen",
                         "ROM": rom,
                         "RR": rr,
+                        "margin": risk.get("margin"),
+                        "max_profit": risk.get("max_profit"),
+                        "max_loss": risk.get("max_loss"),
                     }
                 )
     if exposure.get("Vega", 0.0) < -50:
@@ -272,7 +302,7 @@ def suggest_strategies(
         ):
             impact = _sum_greeks(legs)
             after = {k: exposure.get(k, 0.0) + impact[k] for k in impact}
-            risk = _calc_rr_rom(legs)
+            risk = _calc_metrics("calendar spread", legs)
             rom = risk.get("ROM")
             if metrics or vix is not None:
                 risk_ok = rom is None or rom >= 10
@@ -288,6 +318,9 @@ def suggest_strategies(
                         "reason": "Vega verhogen",
                         "ROM": rom,
                         "RR": risk.get("RR"),
+                        "margin": risk.get("margin"),
+                        "max_profit": risk.get("max_profit"),
+                        "max_loss": risk.get("max_loss"),
                     }
                 )
     return suggestions
