@@ -729,28 +729,33 @@ def run_portfolio_menu() -> None:
             if exp not in kept_expiries:
                 logger.info(f"- {exp}: skipped (outside DTE range)")
 
-        fc = FilterConfig()
-        if (
-            isinstance(rules.get("delta_range"), list)
-            and len(rules.get("delta_range")) == 2
-        ):
+        def _val(item, default=None):
             try:
-                fc.delta_min = float(rules["delta_range"][0])
-                fc.delta_max = float(rules["delta_range"][1])
+                return float(item)
             except Exception:
-                pass
-        if rules.get("min_edge") is not None:
-            try:
-                fc.min_edge = float(rules["min_edge"])
-            except Exception:
-                pass
-        if rules.get("min_rom") is not None:
-            try:
-                fc.min_rom = float(rules["min_rom"])
-            except Exception:
-                pass
+                return default
 
-        selector = StrikeSelector(fc)
+        d_range = rules.get("delta_range", [-1.0, 1.0])
+        delta_min = _val(d_range[0], -1.0) if isinstance(d_range, (list, tuple)) else -1.0
+        delta_max = _val(d_range[1], 1.0) if isinstance(d_range, (list, tuple)) and len(d_range) > 1 else 1.0
+
+        fc = FilterConfig(
+            delta_min=delta_min,
+            delta_max=delta_max,
+            min_rom=_val(rules.get("min_rom"), 0.0),
+            min_edge=_val(rules.get("min_edge"), 0.0),
+            min_pos=_val(rules.get("min_pos"), 0.0),
+            min_ev=_val(rules.get("min_ev"), 0.0),
+            skew_min=_val(rules.get("skew_min"), float("-inf")),
+            skew_max=_val(rules.get("skew_max"), float("inf")),
+            term_min=_val(rules.get("term_min"), float("-inf")),
+            term_max=_val(rules.get("term_max"), float("inf")),
+            max_gamma=_val(rules.get("max_gamma"), None),
+            max_vega=_val(rules.get("max_vega"), None),
+            min_theta=_val(rules.get("min_theta"), None),
+        )
+
+        selector = StrikeSelector(config=fc)
         debug_csv = Path(cfg.get("EXPORT_DIR", "exports")) / "PEP_debugfilter.csv"
         selected = selector.select(filtered, debug_csv=debug_csv)
 
