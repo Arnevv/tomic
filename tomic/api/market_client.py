@@ -1626,7 +1626,7 @@ def await_market_data(
                 and app.spot_price is not None
             ):
                 if not hist and retries > 0 and app.incomplete_requests():
-                    app.retry_incomplete_requests(wait=True)
+                    app.retry_incomplete_requests(wait=True, use_new_id=True)
                     retries -= 1
                     start = time.time()
                     continue
