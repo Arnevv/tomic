@@ -205,13 +205,13 @@ class EClient(object):
 
     def sendMsgProtoBuf(self, msgId: int, msg: bytes):
         full_msg = comm.make_msg_proto(msgId, msg)
-        logger.info("%s %s %s", "SENDING", current_fn_name(1), full_msg)
+        logger.info(f"SENDING {current_fn_name(1)} {full_msg}")
         self.conn.sendMsg(full_msg)
 
     def sendMsg(self, msgId:int, msg: str):
         useRawIntMsgId = self.serverVersion() >= MIN_SERVER_VER_PROTOBUF
         full_msg = comm.make_msg(msgId, useRawIntMsgId, msg)
-        logger.info("%s %s %s", "SENDING", current_fn_name(1), full_msg)
+        logger.info(f"SENDING {current_fn_name(1)} {full_msg}")
         self.conn.sendMsg(full_msg)
 
     def logRequest(self, fnName, fnParams):
