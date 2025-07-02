@@ -1,8 +1,6 @@
 default:
-  method: delta
-  delta_range: [0.25, 0.45]
-  min_edge: 0.05
-  min_rom: 0.10
+  method: spot_distance
+  delta_range: [-1, 1]
   max_strikes: 50
 
 strategies:
