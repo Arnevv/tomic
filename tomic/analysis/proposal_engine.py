@@ -302,7 +302,7 @@ def suggest_strategies(
         ):
             impact = _sum_greeks(legs)
             after = {k: exposure.get(k, 0.0) + impact[k] for k in impact}
-            risk = _calc_metrics("calendar spread", legs)
+            risk = _calc_metrics("calendar", legs)
             rom = risk.get("ROM")
             if metrics or vix is not None:
                 risk_ok = rom is None or rom >= 10
@@ -311,7 +311,7 @@ def suggest_strategies(
             if risk_ok:
                 suggestions.append(
                     {
-                        "strategy": "Calendar Spread",
+                        "strategy": "calendar",
                         "legs": [leg.__dict__ for leg in legs],
                         "impact": impact,
                         "score": _tomic_score(after),

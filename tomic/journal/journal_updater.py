@@ -37,7 +37,7 @@ def interactieve_trade_invoer():
     print(f"TradeID automatisch toegekend: {trade_id}")
 
     symbool = input("Symbool (bijv. SPY): ").strip()
-    trade_type = input("Strategie type (bijv. Put Ratio Spread): ").strip()
+    trade_type = input("Strategie type (bijv. ratio_spread Spread): ").strip()
     expiry = date_prompt("Expiry (YYYY-MM-DD): ")
     richting = input("Richting (Bullish / Bearish / Sideways): ").strip()
 
