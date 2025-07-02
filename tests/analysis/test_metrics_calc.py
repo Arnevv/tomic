@@ -64,5 +64,5 @@ def test_calculate_margin_ratio_backspread():
         {"strike": 100, "type": "P", "action": "BUY", "qty": 2},
     ]
     assert math.isclose(
-        calculate_margin("ratio put backspread", legs, premium=0.2), 0.0
+        calculate_margin("backspread_put", legs, premium=0.2), 0.0
     )
