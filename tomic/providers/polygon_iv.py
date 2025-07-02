@@ -178,8 +178,15 @@ class SnapshotFetcher:
         return options
 
 
-def load_polygon_expiries(symbol: str, api_key: str | None = None) -> list[str]:
-    """Return upcoming expiries for ``symbol`` using Polygon."""
+def load_polygon_expiries(
+    symbol: str, api_key: str | None = None, *, include_contracts: bool = False
+) -> list[str] | tuple[list[str], dict[str, List[Dict[str, Any]]]]:
+    """Return upcoming expiries for ``symbol`` using Polygon.
+
+    When ``include_contracts`` is ``True`` the return value is a tuple of the
+    list of valid expiries and a mapping of expiries to their option contracts.
+    Otherwise only the list of expiries is returned (default behaviour).
+    """
 
     today_date = today()
 
@@ -220,6 +227,7 @@ def load_polygon_expiries(symbol: str, api_key: str | None = None) -> list[str]:
 
     fetcher = SnapshotFetcher(api_key)
     valid_expiries: list[str] = []
+    options_by_expiry: dict[str, List[Dict[str, Any]]] = {}
     for expiry in candidate_expiries:
         contracts: list[Dict[str, Any]] = []
         try:
@@ -228,12 +236,14 @@ def load_polygon_expiries(symbol: str, api_key: str | None = None) -> list[str]:
             logger.warning(f"Polygon snapshot failed for {symbol} {expiry}: {exc}")
         if any(isinstance(c, dict) for c in contracts):
             valid_expiries.append(expiry)
+            if include_contracts:
+                options_by_expiry[expiry] = contracts
         else:
             logger.warning(
                 f"Expiry {expiry} bevat geen contracten en wordt overgeslagen"
             )
 
-    return valid_expiries
+    return (valid_expiries, options_by_expiry) if include_contracts else valid_expiries
 
 
 def _export_option_chain(symbol: str, options: List[Dict[str, Any]]) -> None:
@@ -773,7 +783,9 @@ def fetch_polygon_option_chain(symbol: str) -> None:
     """Export a Polygon option chain filtered by delta range."""
 
     api_key = cfg_get("POLYGON_API_KEY", "")
-    expiries = load_polygon_expiries(symbol, api_key)
+    expiries, options_map = load_polygon_expiries(
+        symbol, api_key, include_contracts=True
+    )
     if not expiries:
         logger.warning(f"No expiries found for {symbol}")
         return
@@ -781,10 +793,9 @@ def fetch_polygon_option_chain(symbol: str) -> None:
     d_min = float(cfg_get("DELTA_MIN", -1))
     d_max = float(cfg_get("DELTA_MAX", 1))
 
-    fetcher = SnapshotFetcher(api_key)
     filtered: list[dict] = []
     for exp in expiries:
-        for opt in fetcher.fetch_expiry(symbol, exp):
+        for opt in options_map.get(exp, []):
             greeks = opt.get("greeks") or {}
             delta = opt.get("delta") if opt.get("delta") is not None else greeks.get("delta")
             try:
