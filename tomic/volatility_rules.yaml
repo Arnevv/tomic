@@ -1,5 +1,16 @@
+- feature: "Hoge IV Rank + Vlakke Skew"
+  strategy: "iron_condor"
+  greeks: "delta neutral, vega short, theta long"
+  indication: "Zijwaartse markt met hoge premie"
+  criteria:
+    - "iv_rank > 50"
+    - "iv_percentile > 60"
+    - "skew < 1.5"
+    - "term_m1_m3 > 1"
+    - "IV > HV20"
+
 - feature: "Hoge IV Rank + Positieve Skew"
-  strategy: "Short Put Spread"
+  strategy: "short_put_spread"
   greeks: "delta neutral, vega short, theta long"
   indication: "Premie innen bij overgeprijsde puts"
   criteria:
@@ -14,7 +25,7 @@
     - delta
     - iv
 - feature: "Hoge IV Rank + Negatieve Skew"
-  strategy: "Short Call Spread"
+  strategy: "short_call_spread"
   greeks: "delta neutral, vega short, theta long"
   indication: "Premie innen bij overgeprijsde calls"
   criteria:
@@ -23,46 +34,8 @@
     - "skew < -3"
     - "term_m1_m3 > 1"
     - "IV > HV20"
-- feature: "Hoge IV Rank + Vlakke Skew"
-  strategy: "Short Iron Condor"
-  greeks: "delta neutral, vega short, theta long"
-  indication: "Zijwaartse markt met hoge premie"
-  criteria:
-    - "iv_rank > 50"
-    - "iv_percentile > 60"
-    - "skew < 1.5"
-    - "term_m1_m3 > 1"
-    - "IV > HV20"
-- feature: "Lage IV Rank + Vlakke Skew"
-  strategy: "Calendar Spread"
-  greeks: "delta neutral, vega long, theta short"
-  indication: "Profiteren van IV-toename zonder koersbeweging"
-  criteria:
-    - "iv_rank < 25"
-    - "iv_percentile < 40"
-    - "skew < 1.5"
-    - "term_m1_m3 < 0"
-    - "IV < HV20"
-- feature: "Lage IV Rank + Compressie TS"
-  strategy: "Long Straddle or Butterfly"
-  greeks: "delta neutral, vega long, gamma long, theta short"
-  indication: "Grote beweging of IV-explosie verwacht"
-  criteria:
-    - "iv_rank < 30"
-    - "term_m1_m3 < 0"
-    - "IV < HV20"
-    - "IV > HV90"
-    - "skew < 1"
-- feature: "Compressie in Term Structure"
-  strategy: "Calendar Spread"
-  greeks: "vega long, theta short"
-  indication: "Mean reversion in IV-structuur, rustige spot"
-  criteria:
-    - "term_m1_m3 < 0"
-    - "iv_rank < 40"
-    - "IV < HV20"
 - feature: "Expansie in Term Structure"
-  strategy: "Short Vertical or Iron Condor"
+  strategy: "iron_condor"
   greeks: "theta long, vega short"
   indication: "Premie afromen bij volatiele maar begrensde markt"
   criteria:
@@ -71,8 +44,52 @@
     - "IV > HV20"
     - "iv_percentile > 60"
     - "skew < 2.5"
+
+- feature: "Hoge IV Rank + Bullish Skew"
+  strategy: "Naked Put"
+  greeks: "delta positive, vega short, theta long"
+  indication: "Premie innen bij overgeprijsde puts met bullish verwachting"
+  criteria:
+    - "iv_rank > 50"
+    - "iv_percentile > 60"
+    - "skew > 2"
+    - "term_m1_m3 > 1"
+    - "IV > HV20"
+
+# Nu de long vega plays, lagere TOMIC-prioriteit
+- feature: "Compressie in Term Structure"
+  strategy: "calendar"
+  greeks: "vega long, theta short"
+  indication: "Mean reversion in IV-structuur, rustige spot"
+  criteria:
+    - "term_m1_m3 < 0"
+    - "iv_rank < 40"
+    - "IV < HV20"
+
+- feature: "Lage IV Rank + Vlakke Skew"
+  strategy: "calendar"
+  greeks: "delta neutral, vega long, theta short"
+  indication: "Profiteren van IV-toename zonder koersbeweging"
+  criteria:
+    - "iv_rank < 25"
+    - "iv_percentile < 40"
+    - "skew < 1.5"
+    - "term_m1_m3 < 0"
+    - "IV < HV20"
+
+- feature: "Lage IV Rank + Compressie TS"
+  strategy: "atm_iron_butterfly"
+  greeks: "delta neutral, vega long, gamma long, theta short"
+  indication: "Grote beweging of IV-explosie verwacht"
+  criteria:
+    - "iv_rank < 30"
+    - "term_m1_m3 < 0"
+    - "IV < HV20"
+    - "IV > HV90"
+    - "skew < 1"
+
 - feature: "Zeer hoge skew (> 5)"
-  strategy: "Ratio Put Spread or Asymmetrical Vertical"
+  strategy: "ratio_spread"
   greeks: "delta directional, vega neutral, gamma long"
   indication: "Overgeprijsde OTM-leg benutten, directional bias"
   criteria:
@@ -80,8 +97,9 @@
     - "iv_rank 30-60"
     - "IV > HV20"
     - "term_m1_m3 > 0"
+
 - feature: "Negatieve skew (<-2) bij lage IV"
-  strategy: "Long Vega Butterfly or Backspread"
+  strategy: "backspread"
   greeks: "vega long, gamma long, theta short"
   indication: "Mogelijke herprijzing in IV op downside"
   criteria:

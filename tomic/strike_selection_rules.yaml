@@ -16,7 +16,7 @@ strategies:
     max_skew: 1.2  # bijvoorbeeld: max 20% put-skew (indicatief)
     min_risk_reward: 0.25
 
-  bull_put_spread:
+  short_put_spread:
     method: delta
     delta_range: [-0.35, -0.20]
     min_edge: 0.04
@@ -27,7 +27,7 @@ strategies:
     max_skew: 0.1
     min_risk_reward: 0.4
 
-  bear_call_spread:
+  short_call_spread:
     method: delta
     delta_range: [0.20, 0.35]
     min_edge: 0.04
@@ -83,3 +83,17 @@ strategies:
     allow_extra_wings: true
     direction: bullish_or_bearish
     dte_range: [20, 35]
+
+  backspread_put:
+    method: delta
+    delta_range: [ 0.15, 0.30 ]  # short leg ATM, long legs OTM
+    allow_extra_wings: true
+    min_edge: 0.05
+    iv_rank_max: 40
+    iv_percentile_max: 40
+    direction: bearish
+    skew_max: -2.0
+    dte_range: [ 25, 45 ]
+    min_risk_reward: 0.8
+    require_term_compression: true
+
