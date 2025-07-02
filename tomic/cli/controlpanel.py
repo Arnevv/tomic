@@ -800,7 +800,15 @@ def run_portfolio_menu() -> None:
                     and opt_type in {"C", "P"}
                 ):
                     try:
-                        exp = datetime.strptime(expiry_str, "%Y%m%d").date()
+                        exp = None
+                        for fmt in ("%Y%m%d", "%Y-%m-%d"):
+                            try:
+                                exp = datetime.strptime(expiry_str, fmt).date()
+                                break
+                            except Exception:
+                                continue
+                        if exp is None:
+                            raise ValueError("invalid expiry format")
                         dte_calc = max((exp - datetime.now().date()).days, 0)
                         model = round(
                             black_scholes(
