@@ -113,3 +113,21 @@ def get_option_mid_price(option: dict) -> float | None:
         return float(close) if close is not None else None
     except Exception:
         return None
+
+
+def latest_atr(symbol: str) -> float | None:
+    """Return the most recent ATR value for ``symbol`` from price history."""
+
+    base = Path(cfg_get("PRICE_HISTORY_DIR", "tomic/data/spot_prices"))
+    path = base / f"{symbol}.json"
+    data = load_json(path)
+    if isinstance(data, list):
+        data.sort(key=lambda r: r.get("date", ""))
+        for rec in reversed(data):
+            atr = rec.get("atr")
+            try:
+                if atr is not None:
+                    return float(atr)
+            except Exception:
+                continue
+    return None
