@@ -120,7 +120,7 @@ def filter_by_expiry(
 
     if not included:
         logger.info(
-            "filter_by_expiry: no expiries within range %s-%s DTE", min_dte, max_dte
+            f"filter_by_expiry: no expiries within range {min_dte}-{max_dte} DTE"
         )
         return []
 
@@ -132,9 +132,7 @@ def filter_by_expiry(
         selected.extend(exp_map[exp])
 
     logger.info(
-        "filter_by_expiry selected %s options across %s expiries",
-        len(selected),
-        len(included),
+        f"filter_by_expiry selected {len(selected)} options across {len(included)} expiries"
     )
     return selected
 
@@ -168,22 +166,17 @@ class StrikeSelector:
         """Return ``options`` filtered by expiry and configured criteria."""
 
         logger.info(
-            "StrikeSelector start: %s options, dte_range=%s, config=%s",
-            len(options),
-            dte_range,
-            self.config,
+            f"StrikeSelector start: {len(options)} options, dte_range={dte_range}, config={self.config}"
         )
 
         working = options
         if dte_range is not None:
             working = filter_by_expiry(working, dte_range)
             logger.info(
-                "After expiry filter %s: %s options remain",
-                dte_range,
-                len(working),
+                f"After expiry filter {dte_range}: {len(working)} options remain"
             )
         else:
-            logger.info("No expiry filter applied: %s options", len(working))
+            logger.info(f"No expiry filter applied: {len(working)} options")
 
         selected: List[Dict[str, Any]] = []
         reasons: Dict[str, int] = {}
@@ -209,7 +202,7 @@ class StrikeSelector:
                     rejected_rows.append(row)
         logger.info(f"StrikeSelector result: {len(selected)}/{len(working)} kept")
         for flt, cnt in by_filter.items():
-            logger.info("- %d rejected by %s filter", cnt, flt)
+            logger.info(f"- {cnt} rejected by {flt} filter")
 
         if debug_csv and rejected_rows:
             try:
@@ -226,11 +219,7 @@ class StrikeSelector:
             logger.info("Top rejected options:")
             for row in preview:
                 logger.info(
-                    "- %s %s %s: %s",
-                    row.get("expiry"),
-                    row.get("strike"),
-                    row.get("type"),
-                    row.get("reject_reason"),
+                    f"- {row.get('expiry')} {row.get('strike')} {row.get('type')}: {row.get('reject_reason')}"
                 )
 
         return selected
