@@ -56,7 +56,8 @@ from tomic.analysis.greeks import compute_portfolio_greeks
 from tomic.journal.utils import load_json
 from tomic.utils import today
 from tomic.cli.volatility_recommender import recommend_strategy
-from tomic.api.market_export import load_exported_chain
+from tomic.api.market_export import load_exported_chain, export_option_chain
+from tomic.providers.polygon_iv import fetch_polygon_option_chain
 from tomic.strike_selector import StrikeSelector, filter_by_expiry, FilterConfig
 from tomic.loader import load_strike_config
 from tomic.utils import get_option_mid_price
@@ -627,7 +628,11 @@ def run_portfolio_menu() -> None:
                             "iv_rank": chosen.get("iv_rank"),
                         }
                     )
-                    break
+                    print(
+                        f"\n🎯 Gekozen strategie: {SESSION_STATE.get('symbol')} – {SESSION_STATE.get('strategy')}\n"
+                    )
+                    choose_chain_source()
+                    return
 
     def _process_chain(path: Path) -> None:
         if not path.exists():
@@ -707,6 +712,7 @@ def run_portfolio_menu() -> None:
                 "expiry": opt.get("expiry"),
                 "strike": opt.get("strike"),
                 "type": opt.get("type"),
+                "delta": delta,
                 "mid": mid,
                 "model": model,
                 "margin": margin,
@@ -719,12 +725,33 @@ def run_portfolio_menu() -> None:
 
         SESSION_STATE.setdefault("evaluated_trades", []).extend(evaluated)
         if evaluated:
-            for row in evaluated[:5]:
-                print(
-                    f"{row['expiry']} {row['strike']} {row['type']} edge={row['edge']} rom={row['rom']} ev={row['ev']}"
+            rows = []
+            for row in evaluated[:10]:
+                rows.append(
+                    [
+                        row.get("expiry"),
+                        row.get("strike"),
+                        row.get("type"),
+                        f"{row.get('delta'):+.2f}" if row.get("delta") is not None else "",
+                        f"{row.get('rom'):.1f}%" if row.get("rom") is not None else "",
+                        f"{row.get('edge'):.2f}" if row.get("edge") is not None else "",
+                        f"{row.get('pos'):.1f}%" if row.get("pos") is not None else "",
+                        f"{row.get('ev'):.2f}" if row.get("ev") is not None else "",
+                    ]
                 )
+            print(
+                tabulate(
+                    rows,
+                    headers=["Expiry", "Strike", "Type", "Delta", "ROM", "Edge", "PoS", "EV"],
+                    tablefmt="github",
+                )
+            )
             if prompt_yes_no("Opslaan naar CSV?", False):
                 _save_trades(evaluated)
+        else:
+            print("⚠️ Geen geschikte strikes gevonden.")
+            print("➤ Controleer of de juiste expiraties beschikbaar zijn in de chain.")
+            print("➤ Of pas je selectiecriteria aan in strike_selection_rules.yaml.")
 
     def _save_trades(trades: list[dict[str, object]]) -> None:
         symbol = str(SESSION_STATE.get("symbol", "SYMB"))
@@ -747,6 +774,7 @@ def run_portfolio_menu() -> None:
             return
 
         def use_ib() -> None:
+            export_option_chain(str(symbol))
             path = find_latest_chain(str(symbol))
             if not path:
                 print("⚠️ Geen chain gevonden")
@@ -754,6 +782,7 @@ def run_portfolio_menu() -> None:
             _process_chain(path)
 
         def use_polygon() -> None:
+            fetch_polygon_option_chain(str(symbol))
             base = Path(cfg.get("EXPORT_DIR", "exports"))
             pattern = f"{symbol}_*-optionchainpolygon.csv"
             files = list(base.rglob(pattern))
@@ -769,9 +798,9 @@ def run_portfolio_menu() -> None:
                 return
             _process_chain(Path(p))
 
-        menu = Menu("Chainbron kiezen")
-        menu.add("Laatste TWS-export", use_ib)
-        menu.add("Laatste Polygon-export", use_polygon)
+        menu = Menu("Chain ophalen")
+        menu.add("Download nieuwe chain via TWS", use_ib)
+        menu.add("Download nieuwe chain via Polygon", use_polygon)
         menu.add("CSV handmatig kiezen", manual)
         menu.run()
 
@@ -781,7 +810,6 @@ def run_portfolio_menu() -> None:
     menu.add("Laatst opgehaalde portfolio tonen", show_saved)
     menu.add("Toon portfolio greeks", show_greeks)
     menu.add("Toon marktinformatie", show_market_info)
-    menu.add("Chainbron kiezen", choose_chain_source)
     menu.run()
 
 
