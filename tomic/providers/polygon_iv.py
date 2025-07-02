@@ -793,8 +793,13 @@ def fetch_polygon_option_chain(symbol: str) -> None:
     d_min = float(cfg_get("DELTA_MIN", -1))
     d_max = float(cfg_get("DELTA_MAX", 1))
 
+    total_before = sum(len(v) for v in options_map.values())
+    logger.info(f"{symbol}: {total_before} contracts before delta filter")
+
     filtered: list[dict] = []
     for exp in expiries:
+        before = len(options_map.get(exp, []))
+        kept = 0
         for opt in options_map.get(exp, []):
             greeks = opt.get("greeks") or {}
             delta = opt.get("delta") if opt.get("delta") is not None else greeks.get("delta")
@@ -805,6 +810,8 @@ def fetch_polygon_option_chain(symbol: str) -> None:
             if delta_f is not None and (delta_f < d_min or delta_f > d_max):
                 continue
             filtered.append(opt)
+            kept += 1
+        logger.info(f"Expiry {exp}: {before} -> {kept} after delta filter")
 
     _export_option_chain(symbol, filtered)
 
