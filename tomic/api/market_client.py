@@ -1492,6 +1492,10 @@ class OptionChainClient(MarketClient):
         self.strikes = self._exp_strikes.get(expiry, self.strikes)
         self.expected_contracts = len(self.expiries) * len(self.strikes) * 2
 
+        # Reset validated contract info so bulk validation counts match the
+        # expected number of combinations for this expiry.
+        self.option_info.clear()
+
         self._request_option_data()
         self.all_data_event.wait(cfg_get("MARKET_DATA_TIMEOUT", 480))
 
