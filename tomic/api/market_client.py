@@ -29,6 +29,7 @@ except Exception:  # pragma: no cover - tests provide stub
 from tomic.api.base_client import BaseIBApp
 from tomic.analysis.volatility_fetcher import fetch_volatility_metrics
 from tomic.config import get as cfg_get
+from .client_registry import ACTIVE_CLIENT_IDS
 from tomic.logutils import log_result, logger
 from tomic.models import OptionContract
 from tomic.utils import _is_third_friday, _is_weekly, today
@@ -1566,8 +1567,13 @@ def start_app(app: MarketClient, *, client_id: int | None = None) -> None:
     port = int(cfg_get("IB_PORT", 7497))
     if client_id is None:
         client_id = int(cfg_get("IB_CLIENT_ID", 100))
+
+    if client_id in ACTIVE_CLIENT_IDS:
+        logger.warning(f"IB client_id {client_id} already active")
+
     logger.debug(f"Connecting app to host={host} port={port} id={client_id}")
     app.connect(host, port, client_id)
+    ACTIVE_CLIENT_IDS.add(client_id)
     thread = threading.Thread(target=app.run, daemon=True)
     thread.start()
     start = time.time()
