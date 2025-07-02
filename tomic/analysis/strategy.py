@@ -53,7 +53,7 @@ def determine_strategy_type(legs: List[Dict[str, Any]]) -> str:
         long_puts = [leg for leg in puts if leg.get("position", 0) > 0]
         short_puts = [leg for leg in puts if leg.get("position", 0) < 0]
         if len(long_puts) == 1 and len(short_puts) == 2:
-            return "Put Ratio Spread"
+            return "ratio_spread"
 
     if n == 2 and len(calls) == 1 and len(puts) == 1:
         call = calls[0]
