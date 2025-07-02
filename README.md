@@ -44,6 +44,32 @@ Optie Beschrijving
 3. Controleer CSV-kwaliteit    Valideert een lokaal CSV-bestand met chaindata: kolommen, lege velden, duplicaten enz.
 4. Terug    Keert terug naar het hoofdmenu.
 
+📊 ANALYSE & STRATEGIE
+1. Trading Plan
+2. Portfolio ophalen en tonen
+3. Laatst opgehaalde portfolio tonen
+4. Toon portfolio greeks
+5. Toon marktinformatie
+6. Chainbron kiezen
+
+Wat doet elk item?
+Optie Beschrijving
+1. Trading Plan    Open het "TOMIC Trading Plan"-overzicht.
+2. Portfolio ophalen en tonen    Haal actuele posities op en toon het strategie-dashboard.
+3. Laatst opgehaalde portfolio tonen    Gebruik eerder opgeslagen portfolio-data.
+4. Toon portfolio greeks    Laat delta, gamma, vega en theta van je posities zien.
+5. Toon marktinformatie    Geeft IV- en HV-metrics weer voor je standaard-symbolen.
+6. Chainbron kiezen    Selecteer een option chain via TWS, Polygon of een eigen CSV.
+
+Kies je voor **Chainbron kiezen**, dan kun je eerst bepalen waar de keten vandaan
+komt. Na het laden filtert de *StrikeSelector* op DTE, delta en overige regels
+uit `strike_selection_rules.yaml`. Voor de overblijvende opties worden edge,
+ROM, EV en PoS berekend. De top vijf wordt getoond en je kunt de complete lijst
+exporteren.
+
+Exports worden geplaatst onder `exports/tradecandidates/YYYYMMDD/` met de naam
+`trade_candidates_<symbol>_<strategy>_<expiry>_<HHMMSS>.csv`.
+
 ⏳ Verbindingstips
 Wacht na het verbinden tot de callback `nextValidId()` is aangeroepen voordat
 je verzoeken naar TWS stuurt. Pas dan is de client klaar om orders of
