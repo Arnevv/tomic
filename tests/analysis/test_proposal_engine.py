@@ -54,7 +54,7 @@ def test_suggest_condor(tmp_path: Path) -> None:
     chain = load_chain_csv(str(path))
     exposure = {"Delta": 0, "Theta": 0, "Vega": 80, "Gamma": 0}
     props = suggest_strategies("XYZ", chain, exposure)
-    assert any(p["strategy"] == "Iron Condor" for p in props)
+    assert any(p["strategy"] == "iron_condor" for p in props)
 
 
 def test_condor_margin(tmp_path: Path) -> None:
@@ -63,7 +63,7 @@ def test_condor_margin(tmp_path: Path) -> None:
     chain = load_chain_csv(str(path))
     exposure = {"Delta": 0, "Theta": 0, "Vega": 80, "Gamma": 0}
     props = suggest_strategies("XYZ", chain, exposure)
-    condor = next(p for p in props if p["strategy"] == "Iron Condor")
+    condor = next(p for p in props if p["strategy"] == "iron_condor")
     assert math.isclose(condor["margin"], 430.0)
     assert math.isclose(
         condor["ROM"], condor["max_profit"] / condor["margin"] * 100
