@@ -45,7 +45,7 @@
     - "iv_percentile > 60"
     - "skew < 2.5"
 
-- feature: "Hoge IV Rank + Bullish Skew"
+- feature: "Hoge IV Rank + BullishSkew"
   strategy: "Naked Put"
   greeks: "delta positive, vega short, theta long"
   indication: "Premie innen bij overgeprijsde puts met bullish verwachting"
