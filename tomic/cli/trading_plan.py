@@ -18,15 +18,16 @@ Mijn tradingaanpak is gebaseerd op het TOMIC-principe: handelen als een verzeker
 3. **Strategieprofiel**
 
 *Toegestane strategieën*
-- Vertical spreads (call/put, bullish/bearish)
-- Iron condors
-- ATM iron butterflies
-- Calendar/time spreads
-- Ratio spreads (vooral put ratio’s)
+naked_put
+  short_put_spread
+  short_call_spread
+  iron_condor
+  atm_iron_butterfly
+  calendar
+  ratio_spread
+  backspread_put
 
 *Niet toegestane strategieën*
-- Naked long options zonder specifieke IV/EV-ratio
-- Earnings plays zonder IV-analyse
 - Symbolen met lage liquiditeit of zeer brede spreads
 
 4. **Trade selectieproces**
@@ -52,7 +53,7 @@ VIX-stijging      Kans op daling IV binnen 30 dagen  Betekenis
 NB: Deze cijfers gelden voor implied volatility (zoals VIX), niet voor aandelenprijzen zelf. De grootste correctie na spikes treedt vaak op binnen 10–15 dagen.
 
 *Toepassing*
-- Bij VIX-stijging >5% prioriteit op vega-negatieve strategieën (iron condors, put ratio spreads).
+- Bij VIX-stijging >5% prioriteit op vega-negatieve strategieën.
 - Bij +8–10% spikes: time-based setups voor mean-reversion.
 
 6. **Risicomanagement**

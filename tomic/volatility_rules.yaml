@@ -9,6 +9,17 @@
     - "term_m1_m3 > 1"
     - "IV > HV20"
 
+- feature: "Expansie in Term Structure"
+  strategy: "iron_condor"
+  greeks: "theta long, vega short"
+  indication: "Premie afromen bij volatiele maar begrensde markt"
+  criteria:
+    - "term_m1_m3 > 1"
+    - "iv_rank > 50"
+    - "IV > HV20"
+    - "iv_percentile > 60"
+    - "skew < 2.5"
+
 - feature: "Hoge IV Rank + Positieve Skew"
   strategy: "short_put_spread"
   greeks: "delta neutral, vega short, theta long"
@@ -24,6 +35,7 @@
     - strike
     - delta
     - iv
+
 - feature: "Hoge IV Rank + Negatieve Skew"
   strategy: "short_call_spread"
   greeks: "delta neutral, vega short, theta long"
@@ -34,16 +46,6 @@
     - "skew < -3"
     - "term_m1_m3 > 1"
     - "IV > HV20"
-- feature: "Expansie in Term Structure"
-  strategy: "iron_condor"
-  greeks: "theta long, vega short"
-  indication: "Premie afromen bij volatiele maar begrensde markt"
-  criteria:
-    - "term_m1_m3 > 1"
-    - "iv_rank > 50"
-    - "IV > HV20"
-    - "iv_percentile > 60"
-    - "skew < 2.5"
 
 - feature: "Hoge IV Rank + BullishSkew"
   strategy: "Naked Put"
@@ -99,7 +101,7 @@
     - "term_m1_m3 > 0"
 
 - feature: "Negatieve skew (<-2) bij lage IV"
-  strategy: "backspread"
+  strategy: "backspread_put"
   greeks: "vega long, gamma long, theta short"
   indication: "Mogelijke herprijzing in IV op downside"
   criteria:
