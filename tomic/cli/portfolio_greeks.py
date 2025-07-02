@@ -137,7 +137,7 @@ def generate_alerts(greeks: Dict[str, Dict[str, float]]) -> List[str]:
         )
     if vega < -100:
         alerts.append(
-            "⚠️ Alert: Je bent kwetsbaar bij stijgende implied volatility.\n💡 Strategie: overweeg vega-neutrale of vega-positieve strategieën zoals calendar of Ratio Backspreads."
+            "⚠️ Alert: Je bent kwetsbaar bij stijgende implied volatility.\n💡 Strategie: overweeg vega-neutrale of vega-positieve strategieën zoals calendar of ratio_spread of backspreat_put."
         )
     if vega > 50:
         alerts.append(

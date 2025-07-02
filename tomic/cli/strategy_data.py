@@ -10,8 +10,8 @@ STRATEGY_DESCRIPTION_MAP: Dict[str, Callable[[Optional[float]], str]] = {
     "calendar": lambda _: "Inzet op zijwaartse markt met lage IV, gericht op stijging in IV of term structure voordeel",
     "Put calendar": lambda _: "Inzet op lichte daling bij lage IV, speelt in op stijging IV of termijnstructuur",
     "Call calendar": lambda _: "Inzet op lichte stijging bij lage IV, speelt in op stijging IV of termijnstructuur",
-    "Ratio Put Backspread": lambda _: "Inzet op forse daling én stijgende IV – asymmetrisch long gamma/vega",
-    "Ratio Call Backspread": lambda _: "Inzet op forse stijging én stijgende IV – asymmetrisch long gamma/vega",
+    "backspread_put": lambda _: "Inzet op forse daling én stijgende IV – asymmetrisch long gamma/vega",
+    "backspread_call": lambda _: "Inzet op forse stijging én stijgende IV – asymmetrisch long gamma/vega",
     "Vertical": lambda delta: (
         "Bullish vertical – inzet op stijging" if (delta or 0) > 0 else "Bearish vertical – inzet op daling"
     ),
@@ -39,8 +39,8 @@ ALERT_PROFILE = {
     "calendar": ["iv", "term", "vega", "dte"],
     "Put calendar": ["iv", "term", "vega", "dte"],
     "Call calendar": ["iv", "term", "vega", "dte"],
-    "Ratio Put Backspread": ["delta", "vega", "iv", "dte"],
-    "Ratio Call Backspread": ["delta", "vega", "iv", "dte"],
+    "backspread_put": ["delta", "vega", "iv", "dte"],
+    "backspread_call": ["delta", "vega", "iv", "dte"],
     "Vertical": ["delta", "pnl", "dte"],
     "Straddle": ["delta", "vega", "iv", "dte"],
     "Strangle": ["delta", "vega", "iv", "dte"],

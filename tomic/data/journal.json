@@ -213,7 +213,7 @@
     "DatumIn": "2025-05-28",
     "DatumUit": "2025-06-03",
     "Symbool": "EWZ",
-    "Type": "Ratio Put Backspread",
+    "Type": "backspread_put",
     "Expiry": "2025-06-20",
     "Richting": "Bearish",
     "Status": "Gesloten",
