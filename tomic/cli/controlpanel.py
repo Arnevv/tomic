@@ -833,7 +833,16 @@ def run_portfolio_menu() -> None:
             except Exception:
                 margin = None
             if margin is None:
-                margin = 350.0
+                try:
+                    strike_val = float(opt.get("strike"))
+                except Exception:
+                    strike_val = None
+                base = (
+                    float(spot_price)
+                    if spot_price is not None
+                    else strike_val
+                )
+                margin = round(base * 100 * 0.2, 2) if base else 350.0
             try:
                 delta = float(opt.get("delta"))
             except Exception:
