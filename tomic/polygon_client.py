@@ -49,26 +49,39 @@ class PolygonClient(MarketDataProvider):
         if self._session is None:
             raise RuntimeError("Client not connected")
         params = dict(params or {})
-        params["apiKey"] = self._next_api_key()
-        masked = {**params, "apiKey": "***"}
+        api_key = self._next_api_key()
         url = f"{self.BASE_URL.rstrip('/')}/{path.lstrip('/')}"
-        logger.debug(f"GET {url} params={masked}")
         attempts = 0
+        key_attempts = 0
+        max_keys = max(len(self._api_keys), 1)
+
         while True:
+            params["apiKey"] = api_key
+            masked = {**params, "apiKey": "***"}
+            logger.debug(f"GET {url} params={masked}")
             resp = self._session.get(url, params=params, timeout=10)
             status = getattr(resp, "status_code", "n/a")
             text = getattr(resp, "text", "")
             logger.debug(f"Response {status}: {text[:200]}")
-            if status != 429:
-                break
-            attempts += 1
-            wait = min(60, 2 ** attempts + random.uniform(0, 1))
-            logger.warning(
-                f"Polygon rate limit hit (attempt {attempts}), sleeping {wait:.1f}s"
-            )
-            time.sleep(wait)
-            if attempts >= 5:
-                break
+
+            if status == 429:
+                attempts += 1
+                wait = min(60, 2 ** attempts + random.uniform(0, 1))
+                logger.warning(
+                    f"Polygon rate limit hit (attempt {attempts}), sleeping {wait:.1f}s"
+                )
+                time.sleep(wait)
+                if attempts >= 5:
+                    break
+                continue
+
+            if status == 403 and key_attempts < max_keys - 1:
+                key_attempts += 1
+                api_key = self._next_api_key()
+                logger.warning("Polygon unauthorized (403), rotating API key")
+                continue
+
+            break
 
         resp.raise_for_status()
         try:
