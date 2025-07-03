@@ -693,6 +693,7 @@ def run_portfolio_menu() -> None:
         spot_price = _load_spot_from_metrics(path.parent, symbol)
         if spot_price is None:
             spot_price, _ = _load_latest_close(symbol)
+        SESSION_STATE["spot_price"] = spot_price
         exp_counts: dict[str, int] = {}
         for row in data:
             exp = row.get("expiry")
@@ -923,12 +924,16 @@ def run_portfolio_menu() -> None:
                 _save_trades(evaluated)
             if prompt_yes_no("Doorgaan naar strategie voorstellen?", False):
                 atr_val = latest_atr(symbol) or 0.0
+                spot_for_strats = SESSION_STATE.get("spot_price")
+                if spot_for_strats is None:
+                    spot_for_strats, _ = _load_latest_close(symbol)
                 proposals, reason = generate_strategy_candidates(
                     symbol,
                     strat,
                     selected,
                     atr_val,
                     config_data or {},
+                    spot_for_strats,
                 )
                 if proposals:
                     rom_w = cfg.get("SCORE_WEIGHT_ROM", 0.5)
