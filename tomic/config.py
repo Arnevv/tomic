@@ -71,6 +71,9 @@ class AppConfig(BaseModel):
     DELTA_MAX: float = 0.8
     USE_HISTORICAL_IV_WHEN_CLOSED: bool = True
     INCLUDE_GREEKS_ONLY_IF_MARKET_OPEN: bool = True
+    SCORE_WEIGHT_ROM: float = 0.5
+    SCORE_WEIGHT_POS: float = 0.3
+    SCORE_WEIGHT_EV: float = 0.2
 
     # Parameters for IV history snapshots -------------------------------
     IV_TRACKING_DELTAS: List[float] = [0.25, 0.5]

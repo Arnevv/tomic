@@ -67,7 +67,7 @@ from tomic.metrics import (
     calculate_edge,
     calculate_ev,
 )
-from tomic.strategy_candidates import generate_strategy_candidates
+from tomic.strategy_candidates import generate_strategy_candidates, StrategyProposal
 from tomic.cli.bs_calculator import black_scholes
 
 setup_logging(stdout=True)
@@ -931,6 +931,12 @@ def run_portfolio_menu() -> None:
                     config_data or {},
                 )
                 if proposals:
+                    rom_w = cfg.get("SCORE_WEIGHT_ROM", 0.5)
+                    pos_w = cfg.get("SCORE_WEIGHT_POS", 0.3)
+                    ev_w = cfg.get("SCORE_WEIGHT_EV", 0.2)
+                    print(
+                        f"Scoregewichten: ROM {rom_w*100:.0f}% | PoS {pos_w*100:.0f}% | EV {ev_w*100:.0f}%"
+                    )
                     rows2 = []
                     for prop in proposals:
                         legs_desc = "; ".join(
@@ -953,12 +959,54 @@ def run_portfolio_menu() -> None:
                             tablefmt="github",
                         )
                     )
+                    while True:
+                        sel = prompt("Kies voorstel (0 om terug): ")
+                        if sel in {"", "0"}:
+                            break
+                        try:
+                            idx = int(sel) - 1
+                            chosen_prop = proposals[idx]
+                        except (ValueError, IndexError):
+                            print("❌ Ongeldige keuze")
+                            continue
+                        _show_proposal_details(chosen_prop)
+                        break
                 else:
                     print("⚠️ Geen voorstellen gevonden.")
         else:
             print("⚠️ Geen geschikte strikes gevonden.")
             print("➤ Controleer of de juiste expiraties beschikbaar zijn in de chain.")
             print("➤ Of pas je selectiecriteria aan in strike_selection_rules.yaml.")
+
+    def _show_proposal_details(proposal: StrategyProposal) -> None:
+        rows: list[list[str]] = []
+        for leg in proposal.legs:
+            rows.append(
+                [
+                    leg.get("expiry"),
+                    leg.get("strike"),
+                    leg.get("type"),
+                    "S" if leg.get("position", 0) < 0 else "L",
+                    f"{leg.get('mid', 0):.2f}",
+                    f"{leg.get('delta', 0):+.2f}" if leg.get("delta") is not None else "",
+                    f"{leg.get('theta', 0):+.2f}" if leg.get("theta") is not None else "",
+                    f"{leg.get('vega', 0):+.2f}" if leg.get("vega") is not None else "",
+                ]
+            )
+        print(
+            tabulate(
+                rows,
+                headers=["Expiry", "Strike", "Type", "Pos", "Mid", "Δ", "Θ", "V"],
+                tablefmt="github",
+            )
+        )
+        print(f"Credit: {proposal.credit:.2f}")
+        print(f"Max loss: {proposal.max_loss}")
+        if proposal.breakevens:
+            be = ", ".join(f"{b:.2f}" for b in proposal.breakevens)
+            print(f"Breakevens: {be}")
+        if prompt_yes_no("Voorstel opslaan naar CSV?", False):
+            _export_proposal_csv(proposal)
 
     def _save_trades(trades: list[dict[str, object]]) -> None:
         symbol = str(SESSION_STATE.get("symbol", "SYMB"))
@@ -988,6 +1036,34 @@ def run_portfolio_menu() -> None:
                         out[k] = v
                 writer.writerow(out)
         print(f"✅ Trades opgeslagen in: {path.resolve()}")
+
+    def _export_proposal_csv(proposal: StrategyProposal) -> None:
+        symbol = str(SESSION_STATE.get("symbol", "SYMB"))
+        strat = str(SESSION_STATE.get("strategy", "strategy")).replace(" ", "_")
+        base = Path(cfg.get("EXPORT_DIR", "exports")) / datetime.now().strftime("%Y%m%d")
+        base.mkdir(parents=True, exist_ok=True)
+        ts = datetime.now().strftime("%H%M%S")
+        path = base / f"strategy_proposal_{symbol}_{strat}_{ts}.csv"
+        with path.open("w", newline="") as f:
+            writer = csv.writer(f)
+            writer.writerow(["expiry", "strike", "type", "position", "mid", "delta", "theta", "vega"])
+            for leg in proposal.legs:
+                writer.writerow([
+                    leg.get("expiry"),
+                    leg.get("strike"),
+                    leg.get("type"),
+                    leg.get("position"),
+                    leg.get("mid"),
+                    leg.get("delta"),
+                    leg.get("theta"),
+                    leg.get("vega"),
+                ])
+            writer.writerow([])
+            writer.writerow(["credit", proposal.credit])
+            writer.writerow(["max_loss", proposal.max_loss])
+            if proposal.breakevens:
+                writer.writerow(["breakevens", *proposal.breakevens])
+        print(f"✅ Voorstel opgeslagen in: {path.resolve()}")
 
     def choose_chain_source() -> None:
         symbol = SESSION_STATE.get("symbol")
