@@ -74,17 +74,6 @@ def _breakevens(strategy: str, legs: List[Dict[str, Any]], credit: float) -> Opt
     return None
 
 
-def _spot_from_chain(chain: List[Dict[str, Any]]) -> Optional[float]:
-    for opt in chain:
-        for key in ("spot", "spot_price", "underlyingPrice", "Spot"):
-            if opt.get(key) is not None:
-                try:
-                    return float(opt[key])
-                except Exception:
-                    continue
-    return None
-
-
 def _find_option(
     chain: List[Dict[str, Any]],
     expiry: str,
@@ -210,15 +199,15 @@ def generate_strategy_candidates(
     option_chain: List[Dict[str, Any]],
     atr: float,
     config: Dict[str, Any],
+    spot: float | None,
 ) -> tuple[List[StrategyProposal], str | None]:
     """Return top strategy proposals for ``strategy_type`` with optional reason."""
 
     strat_cfg = config.get("strategies", {}).get(strategy_type, {})
     rules = strat_cfg.get("strike_to_strategy_config", {})
     use_atr = bool(rules.get("use_ATR"))
-    spot = _spot_from_chain(option_chain)
     if spot is None:
-        return [], "spot price ontbreekt"
+        raise ValueError("spot price is required")
 
     expiries = sorted({str(o.get("expiry")) for o in option_chain})
     if not expiries:
