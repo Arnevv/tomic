@@ -9,7 +9,7 @@ from .metrics import (
     calculate_rom,
     calculate_ev,
 )
-from .analysis.strategy import heuristic_risk_metrics
+from .analysis.strategy import heuristic_risk_metrics, parse_date
 from .utils import get_option_mid_price
 
 
@@ -28,6 +28,48 @@ class StrategyProposal:
     max_loss: Optional[float] = None
     breakevens: Optional[List[float]] = None
     score: Optional[float] = None
+
+
+def select_expiry_pairs(expiries: List[str], min_gap: int) -> List[tuple[str, str]]:
+    """Return pairs of expiries separated by at least ``min_gap`` days."""
+    parsed = []
+    for exp in expiries:
+        d = parse_date(str(exp))
+        if d:
+            parsed.append((exp, d))
+    parsed.sort(key=lambda t: t[1])
+    pairs: List[tuple[str, str]] = []
+    for i in range(len(parsed)):
+        for j in range(i + 1, len(parsed)):
+            if (parsed[j][1] - parsed[i][1]).days >= min_gap:
+                pairs.append((parsed[i][0], parsed[j][0]))
+    return pairs
+
+
+def _breakevens(strategy: str, legs: List[Dict[str, Any]], credit: float) -> Optional[List[float]]:
+    """Return simple breakeven estimates for supported strategies."""
+    if not legs:
+        return None
+    if strategy in {"bull put spread", "bear call spread"}:
+        short = [l for l in legs if l.get("position") < 0][0]
+        strike = float(short.get("strike"))
+        if strategy == "bull put spread":
+            return [strike - credit]
+        return [strike + credit]
+    if strategy in {"iron_condor", "atm_iron_butterfly"}:
+        short_put = [l for l in legs if l.get("position") < 0 and (l.get("type") or l.get("right")) == "P"]
+        short_call = [l for l in legs if l.get("position") < 0 and (l.get("type") or l.get("right")) == "C"]
+        if short_put and short_call:
+            sp = float(short_put[0].get("strike"))
+            sc = float(short_call[0].get("strike"))
+            return [sp - credit, sc + credit]
+    if strategy == "naked_put":
+        short = legs[0]
+        strike = float(short.get("strike"))
+        return [strike - credit]
+    if strategy == "calendar":
+        return [float(legs[0].get("strike"))]
+    return None
 
 
 def _spot_from_chain(chain: List[Dict[str, Any]]) -> Optional[float]:
@@ -101,6 +143,8 @@ def _metrics(strategy: str, legs: List[Dict[str, Any]]) -> Dict[str, Any]:
     if ev is not None:
         score += ev * 0.2
 
+    breakevens = _breakevens(strategy, legs, credit * 100)
+
     return {
         "pos": pos_val,
         "ev": ev,
@@ -109,6 +153,7 @@ def _metrics(strategy: str, legs: List[Dict[str, Any]]) -> Dict[str, Any]:
         "margin": margin,
         "max_profit": max_profit,
         "max_loss": max_loss,
+        "breakevens": breakevens,
         "score": round(score, 2),
     }
 
@@ -221,11 +266,121 @@ def generate_strategy_candidates(
                 metrics = _metrics("bear call spread", legs)
                 proposals.append(StrategyProposal(legs=legs, **metrics))
 
+    elif strategy_type == "naked_put":
+        delta_range = rules.get("short_put_delta_range", [])
+        if len(delta_range) == 2:
+            for opt in option_chain:
+                if (
+                    str(opt.get("expiry")) == expiry
+                    and (opt.get("type") or opt.get("right")) == "P"
+                    and opt.get("delta") is not None
+                    and delta_range[0] <= float(opt.get("delta")) <= delta_range[1]
+                ):
+                    leg = make_leg(opt, -1)
+                    metrics = _metrics("naked_put", [leg])
+                    proposals.append(StrategyProposal(legs=[leg], **metrics))
+                    if len(proposals) >= 5:
+                        break
+
+    elif strategy_type == "calendar":
+        min_gap = int(rules.get("expiry_gap_min_days", 0))
+        pairs = select_expiry_pairs(expiries, min_gap)
+        strikes = rules.get("base_strikes_relative_to_spot", [])
+        for near, far in pairs[:3]:
+            for off in strikes:
+                strike = spot + (off * atr if use_atr else off)
+                short_opt = _find_option(option_chain, near, strike, "C")
+                long_opt = _find_option(option_chain, far, strike, "C")
+                if not short_opt or not long_opt:
+                    continue
+                legs = [make_leg(short_opt, -1), make_leg(long_opt, 1)]
+                metrics = _metrics("calendar", legs)
+                proposals.append(StrategyProposal(legs=legs, **metrics))
+                if len(proposals) >= 5:
+                    break
+
+    elif strategy_type == "atm_iron_butterfly":
+        centers = rules.get("center_strike_relative_to_spot", [0])
+        widths = rules.get("wing_width_points", [])
+        for c_off in centers:
+            center = spot + (c_off * atr if use_atr else c_off)
+            for width in widths:
+                sc_opt = _find_option(option_chain, expiry, center, "C")
+                sp_opt = _find_option(option_chain, expiry, center, "P")
+                lc_opt = _find_option(option_chain, expiry, center + width, "C")
+                lp_opt = _find_option(option_chain, expiry, center - width, "P")
+                if not all([sc_opt, sp_opt, lc_opt, lp_opt]):
+                    continue
+                legs = [
+                    make_leg(sc_opt, -1),
+                    make_leg(lc_opt, 1),
+                    make_leg(sp_opt, -1),
+                    make_leg(lp_opt, 1),
+                ]
+                metrics = _metrics("atm_iron_butterfly", legs)
+                proposals.append(StrategyProposal(legs=legs, **metrics))
+                if len(proposals) >= 5:
+                    break
+
+    elif strategy_type == "ratio_spread":
+        delta_range = rules.get("short_leg_delta_range", [])
+        widths = rules.get("long_leg_distance_points", [])
+        if len(delta_range) == 2:
+            for width in widths[:5]:
+                short_opt = None
+                for opt in option_chain:
+                    if (
+                        str(opt.get("expiry")) == expiry
+                        and (opt.get("type") or opt.get("right")) == "C"
+                        and opt.get("delta") is not None
+                        and delta_range[0] <= float(opt.get("delta")) <= delta_range[1]
+                    ):
+                        short_opt = opt
+                        break
+                if not short_opt:
+                    continue
+                long_strike = float(short_opt.get("strike")) + width
+                long_opt = _find_option(option_chain, expiry, long_strike, "C")
+                if not long_opt:
+                    continue
+                legs = [make_leg(short_opt, -1), make_leg(long_opt, 2)]
+                metrics = _metrics("ratio_spread", legs)
+                proposals.append(StrategyProposal(legs=legs, **metrics))
+
+    elif strategy_type == "backspread_put":
+        delta_range = rules.get("short_put_delta_range", [])
+        widths = rules.get("long_put_distance_points", [])
+        min_gap = int(rules.get("expiry_gap_min_days", 0))
+        pairs = select_expiry_pairs(expiries, min_gap)
+        if len(delta_range) == 2:
+            for near, far in pairs[:3]:
+                for width in widths:
+                    short_opt = None
+                    for opt in option_chain:
+                        if (
+                            str(opt.get("expiry")) == near
+                            and (opt.get("type") or opt.get("right")) == "P"
+                            and opt.get("delta") is not None
+                            and delta_range[0] <= float(opt.get("delta")) <= delta_range[1]
+                        ):
+                            short_opt = opt
+                            break
+                    if not short_opt:
+                        continue
+                    long_strike = float(short_opt.get("strike")) - width
+                    long_opt = _find_option(option_chain, far, long_strike, "P")
+                    if not long_opt:
+                        continue
+                    legs = [make_leg(short_opt, -1), make_leg(long_opt, 2)]
+                    metrics = _metrics("backspread_put", legs)
+                    proposals.append(StrategyProposal(legs=legs, **metrics))
+
     proposals.sort(key=lambda p: p.score or 0, reverse=True)
     return proposals[:5]
 
 
 __all__ = [
     "StrategyProposal",
+    "select_expiry_pairs",
     "generate_strategy_candidates",
 ]

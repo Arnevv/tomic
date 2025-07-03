@@ -60,13 +60,14 @@ from tomic.api.market_export import load_exported_chain, export_option_chain
 from tomic.providers.polygon_iv import fetch_polygon_option_chain, _load_latest_close
 from tomic.strike_selector import StrikeSelector, filter_by_expiry, FilterConfig
 from tomic.loader import load_strike_config
-from tomic.utils import get_option_mid_price
+from tomic.utils import get_option_mid_price, latest_atr
 from tomic.metrics import (
     calculate_pos,
     calculate_rom,
     calculate_edge,
     calculate_ev,
 )
+from tomic.strategy_candidates import generate_strategy_candidates
 from tomic.cli.bs_calculator import black_scholes
 
 setup_logging(stdout=True)
@@ -882,6 +883,11 @@ def run_portfolio_menu() -> None:
             close_price, close_date = _load_latest_close(symbol)
             if close_price is not None and close_date:
                 print(f"Close {close_date}: {close_price}")
+            atr_val = latest_atr(symbol)
+            if atr_val is not None:
+                print(f"ATR: {atr_val:.2f}")
+            else:
+                print("ATR: n.v.t.")
 
             rows = []
             for row in evaluated[:10]:
@@ -895,10 +901,8 @@ def run_portfolio_menu() -> None:
                             if row.get("delta") is not None
                             else ""
                         ),
-                        f"{row.get('rom'):.1f}%" if row.get("rom") is not None else "",
                         f"{row.get('edge'):.2f}" if row.get("edge") is not None else "",
                         f"{row.get('pos'):.1f}%" if row.get("pos") is not None else "",
-                        f"{row.get('ev'):.2f}" if row.get("ev") is not None else "",
                     ]
                 )
             print(
@@ -909,16 +913,48 @@ def run_portfolio_menu() -> None:
                         "Strike",
                         "Type",
                         "Delta",
-                        "ROM",
                         "Edge",
                         "PoS",
-                        "EV",
                     ],
                     tablefmt="github",
                 )
             )
             if prompt_yes_no("Opslaan naar CSV?", False):
                 _save_trades(evaluated)
+            if prompt_yes_no("Doorgaan naar strategie voorstellen?", False):
+                atr_val = latest_atr(symbol) or 0.0
+                proposals = generate_strategy_candidates(
+                    symbol,
+                    strat,
+                    selected,
+                    atr_val,
+                    config_data or {},
+                )
+                if proposals:
+                    rows2 = []
+                    for prop in proposals:
+                        legs_desc = "; ".join(
+                            f"{'S' if leg.get('position',0)<0 else 'L'}{leg.get('type')}{leg.get('strike')}"
+                            for leg in prop.legs
+                        )
+                        rows2.append(
+                            [
+                                prop.score,
+                                prop.pos,
+                                prop.ev,
+                                prop.rom,
+                                legs_desc,
+                            ]
+                        )
+                    print(
+                        tabulate(
+                            rows2,
+                            headers=["Score", "PoS", "EV", "ROM", "Legs"],
+                            tablefmt="github",
+                        )
+                    )
+                else:
+                    print("⚠️ Geen voorstellen gevonden.")
         else:
             print("⚠️ Geen geschikte strikes gevonden.")
             print("➤ Controleer of de juiste expiraties beschikbaar zijn in de chain.")
@@ -934,12 +970,15 @@ def run_portfolio_menu() -> None:
         base.mkdir(parents=True, exist_ok=True)
         ts = datetime.now().strftime("%H%M%S")
         path = base / f"trade_candidates_{symbol}_{strat}_{expiry}_{ts}.csv"
+        fieldnames = [k for k in trades[0].keys() if k not in {"rom", "ev"}]
         with path.open("w", newline="") as f:
-            writer = csv.DictWriter(f, fieldnames=trades[0].keys())
+            writer = csv.DictWriter(f, fieldnames=fieldnames)
             writer.writeheader()
             for row in trades:
                 out: dict[str, object] = {}
                 for k, v in row.items():
+                    if k not in fieldnames:
+                        continue
                     if k in {"pos", "rom", "ev", "edge", "mid", "model", "delta", "margin"}:
                         try:
                             out[k] = f"{float(v):.2f}"
