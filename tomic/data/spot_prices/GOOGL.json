@@ -1776,5 +1776,12 @@
     "close": 175.84,
     "volume": 35904526.0,
     "atr": null
+  },
+  {
+    "symbol": "GOOGL",
+    "date": "2025-07-02",
+    "close": 178.64,
+    "volume": 29128947.0,
+    "atr": null
   }
 ]

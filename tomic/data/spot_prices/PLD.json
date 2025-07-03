@@ -1755,5 +1755,12 @@
     "close": 106.58,
     "volume": 6626322.0,
     "atr": null
+  },
+  {
+    "symbol": "PLD",
+    "date": "2025-07-02",
+    "close": 108.31,
+    "volume": 3459338.0,
+    "atr": null
   }
 ]
