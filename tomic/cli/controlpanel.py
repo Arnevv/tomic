@@ -923,7 +923,7 @@ def run_portfolio_menu() -> None:
                 _save_trades(evaluated)
             if prompt_yes_no("Doorgaan naar strategie voorstellen?", False):
                 atr_val = latest_atr(symbol) or 0.0
-                proposals = generate_strategy_candidates(
+                proposals, reason = generate_strategy_candidates(
                     symbol,
                     strat,
                     selected,
@@ -972,7 +972,10 @@ def run_portfolio_menu() -> None:
                         _show_proposal_details(chosen_prop)
                         break
                 else:
-                    print("⚠️ Geen voorstellen gevonden.")
+                    msg = "⚠️ Geen voorstellen gevonden"
+                    if reason:
+                        msg += f" — {reason}"
+                    print(msg)
         else:
             print("⚠️ Geen geschikte strikes gevonden.")
             print("➤ Controleer of de juiste expiraties beschikbaar zijn in de chain.")
@@ -1001,12 +1004,22 @@ def run_portfolio_menu() -> None:
             )
         )
         print(f"Credit: {proposal.credit:.2f}")
+        if proposal.margin is not None:
+            print(f"Margin: {proposal.margin:.2f}")
+        print(f"Max win: {proposal.max_profit}")
         print(f"Max loss: {proposal.max_loss}")
         if proposal.breakevens:
             be = ", ".join(f"{b:.2f}" for b in proposal.breakevens)
             print(f"Breakevens: {be}")
+        print(f"PoS: {proposal.pos}")
+        print(f"ROM: {proposal.rom}")
+        print(f"EV: {proposal.ev}")
         if prompt_yes_no("Voorstel opslaan naar CSV?", False):
             _export_proposal_csv(proposal)
+        if prompt_yes_no("Voorstel opslaan naar JSON?", False):
+            _export_proposal_json(proposal)
+        journal = _proposal_journal_text(proposal)
+        print("\nJournal entry voorstel:\n" + journal)
 
     def _save_trades(trades: list[dict[str, object]]) -> None:
         symbol = str(SESSION_STATE.get("symbol", "SYMB"))
@@ -1064,6 +1077,44 @@ def run_portfolio_menu() -> None:
             if proposal.breakevens:
                 writer.writerow(["breakevens", *proposal.breakevens])
         print(f"✅ Voorstel opgeslagen in: {path.resolve()}")
+
+    def _export_proposal_json(proposal: StrategyProposal) -> None:
+        symbol = str(SESSION_STATE.get("symbol", "SYMB"))
+        strat = str(SESSION_STATE.get("strategy", "strategy")).replace(" ", "_")
+        base = Path(cfg.get("EXPORT_DIR", "exports")) / datetime.now().strftime("%Y%m%d")
+        base.mkdir(parents=True, exist_ok=True)
+        ts = datetime.now().strftime("%H%M%S")
+        path = base / f"strategy_proposal_{symbol}_{strat}_{ts}.json"
+        with path.open("w", encoding="utf-8") as f:
+            json.dump({
+                "legs": proposal.legs,
+                "credit": proposal.credit,
+                "margin": proposal.margin,
+                "pos": proposal.pos,
+                "ev": proposal.ev,
+                "rom": proposal.rom,
+                "max_profit": proposal.max_profit,
+                "max_loss": proposal.max_loss,
+                "breakevens": proposal.breakevens,
+            }, f, ensure_ascii=False, indent=2)
+        print(f"✅ Voorstel opgeslagen in: {path.resolve()}")
+
+    def _proposal_journal_text(proposal: StrategyProposal) -> str:
+        lines = [
+            f"Symbol: {SESSION_STATE.get('symbol')}",
+            f"Strategy: {SESSION_STATE.get('strategy')}",
+            f"Credit: {proposal.credit:.2f}",
+            f"Margin: {proposal.margin}",
+            f"ROM: {proposal.rom}",
+            f"PoS: {proposal.pos}",
+            f"EV: {proposal.ev}",
+        ]
+        for leg in proposal.legs:
+            side = "Short" if leg.get("position", 0) < 0 else "Long"
+            lines.append(
+                f"{side} {leg.get('type')} {leg.get('strike')} {leg.get('expiry')} @ {leg.get('mid'):.2f}"
+            )
+        return "\n".join(lines)
 
     def choose_chain_source() -> None:
         symbol = SESSION_STATE.get("symbol")
