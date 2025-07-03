@@ -11,6 +11,8 @@ from .metrics import (
 )
 from .analysis.strategy import heuristic_risk_metrics, parse_date
 from .utils import get_option_mid_price
+from .logutils import logger
+from .config import get as cfg_get
 
 
 @dataclass
@@ -88,6 +90,8 @@ def _find_option(
     expiry: str,
     strike: float,
     right: str,
+    *,
+    strategy: str = "",
 ) -> Optional[Dict[str, Any]]:
     for opt in chain:
         try:
@@ -99,6 +103,8 @@ def _find_option(
                 return opt
         except Exception:
             continue
+    if strategy:
+        logger.info(f"[{strategy}] Strike {strike}{right} {expiry} niet gevonden")
     return None
 
 
@@ -135,13 +141,17 @@ def _metrics(strategy: str, legs: List[Dict[str, Any]]) -> Dict[str, Any]:
         if pos_val is not None and max_profit is not None and max_loss is not None
         else None
     )
+    rom_w = float(cfg_get("SCORE_WEIGHT_ROM", 0.5))
+    pos_w = float(cfg_get("SCORE_WEIGHT_POS", 0.3))
+    ev_w = float(cfg_get("SCORE_WEIGHT_EV", 0.2))
+
     score = 0.0
     if rom is not None:
-        score += rom * 0.5
+        score += rom * rom_w
     if pos_val is not None:
-        score += pos_val * 0.3
+        score += pos_val * pos_w
     if ev is not None:
-        score += ev * 0.2
+        score += ev * ev_w
 
     breakevens = _breakevens(strategy, legs, credit * 100)
 
@@ -156,6 +166,28 @@ def _metrics(strategy: str, legs: List[Dict[str, Any]]) -> Dict[str, Any]:
         "breakevens": breakevens,
         "score": round(score, 2),
     }
+
+
+def _validate_ratio(strategy: str, legs: List[Dict[str, Any]], credit: float) -> bool:
+    shorts = [l for l in legs if l.get("position", 0) < 0]
+    longs = [l for l in legs if l.get("position", 0) > 0]
+    if not (len(shorts) == 1 and len(longs) == 2):
+        logger.info(
+            f"[{strategy}] Verhouding klopt niet: gevonden {len(shorts)} short en {len(longs)} long"
+        )
+        return False
+    if credit <= 0:
+        logger.info(f"[{strategy}] Credit niet positief: {credit}")
+        return False
+    short_strike = float(shorts[0].get("strike", 0))
+    long_strikes = [float(l.get("strike", 0)) for l in longs]
+    if strategy == "ratio_spread" and not all(ls > short_strike for ls in long_strikes):
+        logger.info(f"[{strategy}] Long strikes niet hoger dan short strike")
+        return False
+    if strategy == "backspread_put" and not all(ls < short_strike for ls in long_strikes):
+        logger.info(f"[{strategy}] Long strikes niet lager dan short strike")
+        return False
+    return True
 
 
 def generate_strategy_candidates(
@@ -201,10 +233,10 @@ def generate_strategy_candidates(
             sp = spot - (p_mult * atr if use_atr else p_mult)
             lc = sc + width
             lp = sp - width
-            sc_opt = _find_option(option_chain, expiry, sc, "C")
-            sp_opt = _find_option(option_chain, expiry, sp, "P")
-            lc_opt = _find_option(option_chain, expiry, lc, "C")
-            lp_opt = _find_option(option_chain, expiry, lp, "P")
+            sc_opt = _find_option(option_chain, expiry, sc, "C", strategy=strategy_type)
+            sp_opt = _find_option(option_chain, expiry, sp, "P", strategy=strategy_type)
+            lc_opt = _find_option(option_chain, expiry, lc, "C", strategy=strategy_type)
+            lp_opt = _find_option(option_chain, expiry, lp, "P", strategy=strategy_type)
             if not all([sc_opt, sp_opt, lc_opt, lp_opt]):
                 continue
             legs = [
@@ -234,7 +266,7 @@ def generate_strategy_candidates(
                 if not short_opt:
                     continue
                 long_strike = float(short_opt.get("strike")) - width
-                long_opt = _find_option(option_chain, expiry, long_strike, "P")
+                long_opt = _find_option(option_chain, expiry, long_strike, "P", strategy=strategy_type)
                 if not long_opt:
                     continue
                 legs = [make_leg(short_opt, -1), make_leg(long_opt, 1)]
@@ -259,7 +291,7 @@ def generate_strategy_candidates(
                 if not short_opt:
                     continue
                 long_strike = float(short_opt.get("strike")) + width
-                long_opt = _find_option(option_chain, expiry, long_strike, "C")
+                long_opt = _find_option(option_chain, expiry, long_strike, "C", strategy=strategy_type)
                 if not long_opt:
                     continue
                 legs = [make_leg(short_opt, -1), make_leg(long_opt, 1)]
@@ -289,8 +321,8 @@ def generate_strategy_candidates(
         for near, far in pairs[:3]:
             for off in strikes:
                 strike = spot + (off * atr if use_atr else off)
-                short_opt = _find_option(option_chain, near, strike, "C")
-                long_opt = _find_option(option_chain, far, strike, "C")
+                short_opt = _find_option(option_chain, near, strike, "C", strategy=strategy_type)
+                long_opt = _find_option(option_chain, far, strike, "C", strategy=strategy_type)
                 if not short_opt or not long_opt:
                     continue
                 legs = [make_leg(short_opt, -1), make_leg(long_opt, 1)]
@@ -305,10 +337,10 @@ def generate_strategy_candidates(
         for c_off in centers:
             center = spot + (c_off * atr if use_atr else c_off)
             for width in widths:
-                sc_opt = _find_option(option_chain, expiry, center, "C")
-                sp_opt = _find_option(option_chain, expiry, center, "P")
-                lc_opt = _find_option(option_chain, expiry, center + width, "C")
-                lp_opt = _find_option(option_chain, expiry, center - width, "P")
+                sc_opt = _find_option(option_chain, expiry, center, "C", strategy=strategy_type)
+                sp_opt = _find_option(option_chain, expiry, center, "P", strategy=strategy_type)
+                lc_opt = _find_option(option_chain, expiry, center + width, "C", strategy=strategy_type)
+                lp_opt = _find_option(option_chain, expiry, center - width, "P", strategy=strategy_type)
                 if not all([sc_opt, sp_opt, lc_opt, lp_opt]):
                     continue
                 legs = [
@@ -340,12 +372,13 @@ def generate_strategy_candidates(
                 if not short_opt:
                     continue
                 long_strike = float(short_opt.get("strike")) + width
-                long_opt = _find_option(option_chain, expiry, long_strike, "C")
+                long_opt = _find_option(option_chain, expiry, long_strike, "C", strategy=strategy_type)
                 if not long_opt:
                     continue
                 legs = [make_leg(short_opt, -1), make_leg(long_opt, 2)]
                 metrics = _metrics("ratio_spread", legs)
-                proposals.append(StrategyProposal(legs=legs, **metrics))
+                if _validate_ratio("ratio_spread", legs, metrics.get("credit", 0.0)):
+                    proposals.append(StrategyProposal(legs=legs, **metrics))
 
     elif strategy_type == "backspread_put":
         delta_range = rules.get("short_put_delta_range", [])
@@ -368,12 +401,13 @@ def generate_strategy_candidates(
                     if not short_opt:
                         continue
                     long_strike = float(short_opt.get("strike")) - width
-                    long_opt = _find_option(option_chain, far, long_strike, "P")
+                    long_opt = _find_option(option_chain, far, long_strike, "P", strategy=strategy_type)
                     if not long_opt:
                         continue
                     legs = [make_leg(short_opt, -1), make_leg(long_opt, 2)]
                     metrics = _metrics("backspread_put", legs)
-                    proposals.append(StrategyProposal(legs=legs, **metrics))
+                    if _validate_ratio("backspread_put", legs, metrics.get("credit", 0.0)):
+                        proposals.append(StrategyProposal(legs=legs, **metrics))
 
     proposals.sort(key=lambda p: p.score or 0, reverse=True)
     return proposals[:5]
