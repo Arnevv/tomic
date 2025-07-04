@@ -4,6 +4,7 @@ from pathlib import Path
 
 from tomic.config import get as cfg_get
 from tomic.journal.utils import load_json
+from tomic.logutils import logger
 
 
 def filter_future_expiries(expirations: list[str]) -> list[str]:
@@ -108,6 +109,10 @@ def get_option_mid_price(option: dict) -> float | None:
             return (bid + ask) / 2
     except Exception:
         pass
+    if not option.get("bid") and not option.get("ask"):
+        logger.info(
+            f"[parser] Geen bid/ask beschikbaar voor strike {option.get('strike')}{option.get('type','')} {option.get('expiry')} — edgeberekening overgeslagen"
+        )
     close = option.get("close")
     try:
         return float(close) if close is not None else None

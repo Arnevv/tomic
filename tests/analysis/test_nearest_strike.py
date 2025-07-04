@@ -9,6 +9,15 @@ def test_nearest_strike_simple():
         {"expiry": "20250101", "strike": 129.5, "type": "P"},
     ]
     m = _build_strike_map(chain)
-    assert _nearest_strike(m, "20250101", "C", 135.71) == 136
-    assert _nearest_strike(m, "20250101", "P", 129.6) == 129.5
-    assert _nearest_strike(m, "20250101", "C", 135.0) == 135
+    assert _nearest_strike(m, "20250101", "C", 135.71).matched == 136
+    assert _nearest_strike(m, "20250101", "P", 129.6).matched == 129.5
+    assert _nearest_strike(m, "20250101", "C", 135.0).matched == 135
+
+
+def test_nearest_strike_tolerance():
+    chain = [
+        {"expiry": "20250101", "strike": 100, "type": "C"},
+    ]
+    m = _build_strike_map(chain)
+    res = _nearest_strike(m, "20250101", "C", 110, tolerance_percent=5.0)
+    assert res.matched is None
