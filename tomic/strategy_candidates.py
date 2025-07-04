@@ -60,7 +60,9 @@ def select_expiry_pairs(expiries: List[str], min_gap: int) -> List[tuple[str, st
     return pairs
 
 
-def _breakevens(strategy: str, legs: List[Dict[str, Any]], credit: float) -> Optional[List[float]]:
+def _breakevens(
+    strategy: str, legs: List[Dict[str, Any]], credit: float
+) -> Optional[List[float]]:
     """Return simple breakeven estimates for supported strategies."""
     if not legs:
         return None
@@ -71,8 +73,16 @@ def _breakevens(strategy: str, legs: List[Dict[str, Any]], credit: float) -> Opt
             return [strike - credit]
         return [strike + credit]
     if strategy in {"iron_condor", "atm_iron_butterfly"}:
-        short_put = [l for l in legs if l.get("position") < 0 and (l.get("type") or l.get("right")) == "P"]
-        short_call = [l for l in legs if l.get("position") < 0 and (l.get("type") or l.get("right")) == "C"]
+        short_put = [
+            l
+            for l in legs
+            if l.get("position") < 0 and (l.get("type") or l.get("right")) == "P"
+        ]
+        short_call = [
+            l
+            for l in legs
+            if l.get("position") < 0 and (l.get("type") or l.get("right")) == "C"
+        ]
         if short_put and short_call:
             sp = float(short_put[0].get("strike"))
             sc = float(short_call[0].get("strike"))
@@ -181,13 +191,19 @@ def _find_option(
         except Exception:
             continue
     if strategy:
-        attempted = f"{strike}" if target is None or math.isclose(strike, target, abs_tol=0.001) else f"{strike} (origineel {target})"
+        attempted = (
+            f"{strike}"
+            if target is None or math.isclose(strike, target, abs_tol=0.001)
+            else f"{strike} (origineel {target})"
+        )
         if leg_desc:
             logger.info(
                 f"[{strategy}] {leg_desc} {attempted} niet gevonden voor expiry {expiry}"
             )
         else:
-            logger.info(f"[{strategy}] Strike {attempted}{right} {expiry} niet gevonden")
+            logger.info(
+                f"[{strategy}] Strike {attempted}{right} {expiry} niet gevonden"
+            )
     return None
 
 
@@ -199,7 +215,9 @@ def _metrics(strategy: str, legs: List[Dict[str, Any]]) -> Optional[Dict[str, An
         for leg in legs
         if leg.get("position", 0) < 0 and leg.get("delta") is not None
     ]
-    pos_val = calculate_pos(sum(short_deltas) / len(short_deltas)) if short_deltas else None
+    pos_val = (
+        calculate_pos(sum(short_deltas) / len(short_deltas)) if short_deltas else None
+    )
 
     credit = 0.0
     entry = 0.0
@@ -218,10 +236,14 @@ def _metrics(strategy: str, legs: List[Dict[str, Any]]) -> Optional[Dict[str, An
         else:
             entry += mid_val
     if missing_mid:
-        logger.info(f"[{strategy}] Ontbrekende bid/ask-data voor strikes {','.join(missing_mid)}")
+        logger.info(
+            f"[{strategy}] Ontbrekende bid/ask-data voor strikes {','.join(missing_mid)}"
+        )
     strikes = "/".join(str(l.get("strike")) for l in legs)
     if strategy not in {"ratio_spread", "backspread_put"} and credit <= 0:
-        logger.info(f"[{strategy}] Credit ≤ 0 voor strikes {strikes} — voorstel afgewezen")
+        logger.info(
+            f"[{strategy}] Credit ≤ 0 voor strikes {strikes} — voorstel afgewezen"
+        )
         return None
 
     risk = heuristic_risk_metrics(legs, (entry - credit) * 100)
@@ -235,13 +257,19 @@ def _metrics(strategy: str, legs: List[Dict[str, Any]]) -> Optional[Dict[str, An
         )
     except Exception:
         margin = None
-    if margin is None:
-        logger.info(f"[{strategy}] Marginberekening gefaald voor strikes {strikes}")
+    if margin is None or (isinstance(margin, float) and math.isnan(margin)):
+        logger.warning(
+            f"[{strategy}] Margin ontbreekt voor legs: {[l.get('strike') for l in legs]} — ROM niet berekend"
+        )
         return None
+    for leg in legs:
+        leg["margin"] = margin
 
     max_profit = risk.get("max_profit")
     max_loss = risk.get("max_loss")
-    rom = calculate_rom(max_profit, margin) if max_profit is not None and margin else None
+    rom = (
+        calculate_rom(max_profit, margin) if max_profit is not None and margin else None
+    )
     ev = (
         calculate_ev(pos_val or 0.0, max_profit or 0.0, max_loss or 0.0)
         if pos_val is not None and max_profit is not None and max_loss is not None
@@ -290,7 +318,9 @@ def _validate_ratio(strategy: str, legs: List[Dict[str, Any]], credit: float) ->
     if strategy == "ratio_spread" and not all(ls > short_strike for ls in long_strikes):
         logger.info(f"[{strategy}] Long strikes niet hoger dan short strike")
         return False
-    if strategy == "backspread_put" and not all(ls < short_strike for ls in long_strikes):
+    if strategy == "backspread_put" and not all(
+        ls < short_strike for ls in long_strikes
+    ):
         logger.info(f"[{strategy}] Long strikes niet lager dan short strike")
         return False
     return True
@@ -425,7 +455,9 @@ def generate_strategy_candidates(
                 if not short_opt:
                     continue
                 long_strike_target = float(short_opt.get("strike")) - width
-                long_strike = _nearest_strike(strike_map, expiry, "P", long_strike_target)
+                long_strike = _nearest_strike(
+                    strike_map, expiry, "P", long_strike_target
+                )
                 logger.info(
                     f"[short_put_spread] probeer short {short_opt.get('strike')} long {long_strike.matched}"
                 )
@@ -470,7 +502,9 @@ def generate_strategy_candidates(
                 if not short_opt:
                     continue
                 long_strike_target = float(short_opt.get("strike")) + width
-                long_strike = _nearest_strike(strike_map, expiry, "C", long_strike_target)
+                long_strike = _nearest_strike(
+                    strike_map, expiry, "C", long_strike_target
+                )
                 logger.info(
                     f"[short_call_spread] probeer short {short_opt.get('strike')} long {long_strike.matched}"
                 )
@@ -506,9 +540,7 @@ def generate_strategy_candidates(
                     and opt.get("delta") is not None
                     and delta_range[0] <= float(opt.get("delta")) <= delta_range[1]
                 ):
-                    logger.info(
-                        f"[naked_put] probeer strike {opt.get('strike')}"
-                    )
+                    logger.info(f"[naked_put] probeer strike {opt.get('strike')}")
                     leg = make_leg(opt, -1)
                     metrics = _metrics("naked_put", [leg])
                     if metrics:
@@ -654,7 +686,9 @@ def generate_strategy_candidates(
                 if not short_opt:
                     continue
                 long_strike_target = float(short_opt.get("strike")) + width
-                long_strike = _nearest_strike(strike_map, expiry, "C", long_strike_target)
+                long_strike = _nearest_strike(
+                    strike_map, expiry, "C", long_strike_target
+                )
                 logger.info(
                     f"[ratio_spread] probeer short {short_opt.get('strike')} long {long_strike.matched}"
                 )
@@ -675,7 +709,9 @@ def generate_strategy_candidates(
                     continue
                 legs = [make_leg(short_opt, -1), make_leg(long_opt, 2)]
                 metrics = _metrics("ratio_spread", legs)
-                if metrics and _validate_ratio("ratio_spread", legs, metrics.get("credit", 0.0)):
+                if metrics and _validate_ratio(
+                    "ratio_spread", legs, metrics.get("credit", 0.0)
+                ):
                     proposals.append(StrategyProposal(legs=legs, **metrics))
                 elif not metrics:
                     invalid_metrics += 1
@@ -695,7 +731,9 @@ def generate_strategy_candidates(
                             str(opt.get("expiry")) == near
                             and (opt.get("type") or opt.get("right")) == "P"
                             and opt.get("delta") is not None
-                            and delta_range[0] <= float(opt.get("delta")) <= delta_range[1]
+                            and delta_range[0]
+                            <= float(opt.get("delta"))
+                            <= delta_range[1]
                         ):
                             short_opt = opt
                             break
@@ -736,9 +774,15 @@ def generate_strategy_candidates(
     if missing_legs > 0:
         return [], "benodigde strikes ontbreken in de option chain"
     if invalid_metrics > 0:
-        return [], "alle combinaties afgekeurd wegens ongeldige metrics (bijv. negatieve credit of onvoldoende edge)"
+        return (
+            [],
+            "alle combinaties afgekeurd wegens ongeldige metrics (bijv. negatieve credit of onvoldoende edge)",
+        )
     if num_pairs_tested == 0:
-        return [], "geen combinaties konden worden getest (bijv. door lege expiry selectie of strike set)"
+        return (
+            [],
+            "geen combinaties konden worden getest (bijv. door lege expiry selectie of strike set)",
+        )
     return [], None
 
 
