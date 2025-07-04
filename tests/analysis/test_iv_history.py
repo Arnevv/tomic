@@ -9,12 +9,12 @@ def _sample_data():
     for exp in expiries:
         data.extend(
             [
-                {"expiry": exp, "strike": 100, "right": "C", "iv": 0.2, "delta": 0.5},
-                {"expiry": exp, "strike": 100, "right": "P", "iv": 0.21, "delta": -0.5},
-                {"expiry": exp, "strike": 110, "right": "C", "iv": 0.18, "delta": 0.25},
-                {"expiry": exp, "strike": 110, "right": "P", "iv": 0.22, "delta": -0.75},
-                {"expiry": exp, "strike": 90, "right": "C", "iv": 0.19, "delta": 0.75},
-                {"expiry": exp, "strike": 90, "right": "P", "iv": 0.23, "delta": -0.25},
+                {"expiry": exp, "strike": 100, "right": "call", "iv": 0.2, "delta": 0.5},
+                {"expiry": exp, "strike": 100, "right": "put", "iv": 0.21, "delta": -0.5},
+                {"expiry": exp, "strike": 110, "right": "CALL", "iv": 0.18, "delta": 0.25},
+                {"expiry": exp, "strike": 110, "right": "PUT", "iv": 0.22, "delta": -0.75},
+                {"expiry": exp, "strike": 90, "right": "c", "iv": 0.19, "delta": 0.75},
+                {"expiry": exp, "strike": 90, "right": "p", "iv": 0.23, "delta": -0.25},
             ]
         )
     return data, expiries

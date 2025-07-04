@@ -12,8 +12,8 @@ def test_find_option_normalizes_fields():
 
 def test_find_option_tolerance_float():
     chain = [
-        {"expiry": "2025-01-01", "strike": 100.0, "type": "C"},
+        {"expiry": "2025-01-01", "strike": 100.0, "type": "CALL"},
     ]
-    opt = _find_option(chain, "2025-01-01", 100.005, "call")
+    opt = _find_option(chain, "2025-01-01", 100.005, "c")
     assert opt is chain[0]
 
