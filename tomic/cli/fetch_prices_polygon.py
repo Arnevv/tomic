@@ -2,6 +2,8 @@ from __future__ import annotations
 
 """Fetch daily price history using the Polygon API."""
 
+print("🚀 Script bootstrap start")  # stdout fallback
+
 from datetime import datetime, timedelta, date, time as dt_time
 from pathlib import Path
 from time import sleep
@@ -95,7 +97,14 @@ def _request_bars(client: PolygonClient, symbol: str) -> Iterable[dict]:
         path = f"{base_path}/{from_date}/{to_date}"
         params.update({"limit": 252})
 
-    data = client._request(path, params)
+    try:
+        data = client._request(path, params)
+    except Exception as exc:
+        status = getattr(getattr(exc, "response", None), "status_code", None)
+        if status == 403:
+            logger.warning(f"⚠️ Skipping {symbol} — all keys rejected with 403")
+            return []
+        raise
     bars = data.get("results") or []
     records = []
     for bar in bars:
