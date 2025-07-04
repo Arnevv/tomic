@@ -997,7 +997,7 @@ def run_portfolio_menu() -> None:
                     leg.get("strike"),
                     leg.get("type"),
                     "S" if leg.get("position", 0) < 0 else "L",
-                    f"{leg.get('mid', 0):.2f}",
+                    f"{leg.get('mid'):.2f}" if leg.get("mid") is not None else "",
                     f"{leg.get('delta', 0):+.2f}" if leg.get("delta") is not None else "",
                     f"{leg.get('theta', 0):+.2f}" if leg.get("theta") is not None else "",
                     f"{leg.get('vega', 0):+.2f}" if leg.get("vega") is not None else "",
@@ -1118,8 +1118,10 @@ def run_portfolio_menu() -> None:
         ]
         for leg in proposal.legs:
             side = "Short" if leg.get("position", 0) < 0 else "Long"
+            mid = leg.get("mid")
+            mid_str = f"{mid:.2f}" if mid is not None else ""
             lines.append(
-                f"{side} {leg.get('type')} {leg.get('strike')} {leg.get('expiry')} @ {leg.get('mid'):.2f}"
+                f"{side} {leg.get('type')} {leg.get('strike')} {leg.get('expiry')} @ {mid_str}"
             )
         return "\n".join(lines)
 
