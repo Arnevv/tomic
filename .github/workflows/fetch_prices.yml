@@ -2,12 +2,14 @@ name: Update price history
 
 on:
   schedule:
-    - cron: '30 00 * * 1-5'  # Elke werkdag om om 00:30 UTC en 02.30 NL tijd
+    - cron: '*/15 * * * *'
   workflow_dispatch:
 
 jobs:
   fetch-prices:
     runs-on: ubuntu-latest
+    concurrency:
+      group: fetch_prices_polygon
     permissions:
       contents: write
 
