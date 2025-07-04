@@ -132,3 +132,38 @@ def latest_atr(symbol: str) -> float | None:
             except Exception:
                 continue
     return None
+
+
+_NUMERIC_KEYS = {
+    "delta",
+    "mid",
+    "edge",
+    "margin",
+    "pos",
+    "credit",
+    "strike",
+    "bid",
+    "ask",
+    "close",
+    "iv",
+    "theta",
+    "vega",
+    "gamma",
+}
+
+
+def normalize_leg(leg: dict) -> dict:
+    """Cast numeric fields in ``leg`` to ``float`` if possible."""
+
+    for key in list(leg.keys()):
+        canonical = key.lower()
+        val = leg[key]
+        if canonical in _NUMERIC_KEYS:
+            try:
+                leg[canonical] = float(val)
+            except Exception:
+                leg[canonical] = None
+            if canonical != key:
+                del leg[key]
+    return leg
+

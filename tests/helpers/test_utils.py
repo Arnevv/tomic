@@ -56,3 +56,24 @@ def test_latest_atr_none(monkeypatch, tmp_path):
     assert utils.latest_atr("AAA") is None
 
 
+def test_normalize_leg(monkeypatch):
+    leg = {
+        "Delta": "0.5",
+        "mid": "1.2",
+        "strike": "100",
+        "gamma": "0.1",
+        "bad": "x",
+    }
+    out = utils.normalize_leg(leg)
+    assert out["delta"] == 0.5
+    assert out["mid"] == 1.2
+    assert out["strike"] == 100.0
+    assert out["gamma"] == 0.1
+    assert out["bad"] == "x"
+    assert "Delta" not in out
+
+    leg2 = {"delta": "abc"}
+    out2 = utils.normalize_leg(leg2)
+    assert out2["delta"] is None
+
+

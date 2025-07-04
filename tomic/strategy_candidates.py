@@ -13,7 +13,7 @@ from .metrics import (
     calculate_ev,
 )
 from .analysis.strategy import heuristic_risk_metrics, parse_date
-from .utils import get_option_mid_price
+from .utils import get_option_mid_price, normalize_leg
 from .logutils import logger
 from .config import get as cfg_get
 
@@ -203,6 +203,8 @@ def _find_option(
 
 
 def _metrics(strategy: str, legs: List[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
+    for leg in legs:
+        normalize_leg(leg)
     short_deltas = [
         abs(leg.get("delta", 0))
         for leg in legs
@@ -332,16 +334,17 @@ def generate_strategy_candidates(
     num_pairs_tested = 0
 
     def make_leg(opt: Dict[str, Any], position: int) -> Dict[str, Any]:
-        return {
+        leg = {
             "expiry": opt.get("expiry"),
             "type": opt.get("type") or opt.get("right"),
-            "strike": float(opt.get("strike")),
+            "strike": opt.get("strike"),
             "delta": opt.get("delta"),
             "bid": opt.get("bid"),
             "ask": opt.get("ask"),
             "mid": get_option_mid_price(opt),
             "position": position,
         }
+        return normalize_leg(leg)
 
     if strategy_type == "iron_condor":
         calls = rules.get("short_call_multiplier", [])
