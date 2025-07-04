@@ -1762,5 +1762,12 @@
     "close": 33.41,
     "volume": 6849429.0,
     "atr": null
+  },
+  {
+    "symbol": "DVN",
+    "date": "2025-07-03",
+    "close": 33.23,
+    "volume": 2849157.0,
+    "atr": null
   }
 ]

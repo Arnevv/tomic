@@ -1783,5 +1783,12 @@
     "close": 138.52,
     "volume": 39227986.0,
     "atr": null
+  },
+  {
+    "symbol": "AMD",
+    "date": "2025-07-03",
+    "close": 137.91,
+    "volume": 28645747.0,
+    "atr": null
   }
 ]

@@ -1762,5 +1762,12 @@
     "close": 133.19,
     "volume": 1474231.0,
     "atr": null
+  },
+  {
+    "symbol": "BIIB",
+    "date": "2025-07-03",
+    "close": 132.87,
+    "volume": 633329,
+    "atr": null
   }
 ]

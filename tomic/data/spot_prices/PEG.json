@@ -1762,5 +1762,12 @@
     "close": 81.22,
     "volume": 2221920.0,
     "atr": null
+  },
+  {
+    "symbol": "PEG",
+    "date": "2025-07-03",
+    "close": 81.17,
+    "volume": 2018416.0,
+    "atr": null
   }
 ]

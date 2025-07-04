@@ -1762,5 +1762,12 @@
     "close": 94.44,
     "volume": 9436035.0,
     "atr": null
+  },
+  {
+    "symbol": "COP",
+    "date": "2025-07-03",
+    "close": 93.68,
+    "volume": 4331450.0,
+    "atr": null
   }
 ]

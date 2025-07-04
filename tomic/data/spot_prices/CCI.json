@@ -1762,5 +1762,12 @@
     "close": 103.17,
     "volume": 1951495.0,
     "atr": null
+  },
+  {
+    "symbol": "CCI",
+    "date": "2025-07-03",
+    "close": 102.92,
+    "volume": 1246285.0,
+    "atr": null
   }
 ]

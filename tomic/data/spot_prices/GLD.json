@@ -1783,5 +1783,12 @@
     "close": 309.25,
     "volume": 8316377.0,
     "atr": null
+  },
+  {
+    "symbol": "GLD",
+    "date": "2025-07-03",
+    "close": 307.14,
+    "volume": 5275640.0,
+    "atr": null
   }
 ]
