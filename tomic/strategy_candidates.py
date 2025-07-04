@@ -195,8 +195,13 @@ def _metrics(strategy: str, legs: List[Dict[str, Any]]) -> Optional[Dict[str, An
 
     risk = heuristic_risk_metrics(legs, (entry - credit) * 100)
     margin = None
+    net_cashflow = credit if credit else -entry
     try:
-        margin = calculate_margin(strategy, legs, premium=credit, entry_price=entry)
+        margin = calculate_margin(
+            strategy,
+            legs,
+            net_cashflow=net_cashflow,
+        )
     except Exception:
         margin = None
     if margin is None:
