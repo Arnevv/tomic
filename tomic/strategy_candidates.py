@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from itertools import islice
 from typing import Any, Dict, List, Optional
 
 from .metrics import (
@@ -233,7 +234,7 @@ def generate_strategy_candidates(
         calls = rules.get("short_call_multiplier", [])
         puts = rules.get("short_put_multiplier", [])
         width = float(rules.get("wing_width", 0))
-        for c_mult, p_mult in zip(calls, puts)[:5]:
+        for c_mult, p_mult in islice(zip(calls, puts), 5):
             sc = spot + (c_mult * atr if use_atr else c_mult)
             sp = spot - (p_mult * atr if use_atr else p_mult)
             lc = sc + width
