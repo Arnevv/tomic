@@ -116,6 +116,17 @@ def get_option_mid_price(option: dict) -> float | None:
         return None
 
 
+def normalize_right(val: str) -> str:
+    """Return normalized option right as 'call' or 'put'."""
+
+    val = (val or "").strip().lower()
+    if val in {"c", "call"}:
+        return "call"
+    if val in {"p", "put"}:
+        return "put"
+    return ""
+
+
 def latest_atr(symbol: str) -> float | None:
     """Return the most recent ATR value for ``symbol`` from price history."""
 

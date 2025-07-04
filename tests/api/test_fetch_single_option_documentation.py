@@ -5,10 +5,10 @@ def test_fetch_single_option_documentation_writes_csv(tmp_path, monkeypatch):
     mod = importlib.import_module("tomic.api.fetch_single_option_documentation")
 
     rows = [
-        {"symbol": "AAA", "expiry": "2025-06-20", "strike": 100, "right": "C"},
-        {"symbol": "AAA", "expiry": "2025-06-20", "strike": 100, "right": "P"},
-        {"symbol": "AAA", "expiry": "2025-06-20", "strike": 110, "right": "C"},
-        {"symbol": "AAA", "expiry": "2025-06-20", "strike": 110, "right": "P"},
+        {"symbol": "AAA", "expiry": "2025-06-20", "strike": 100, "right": "c"},
+        {"symbol": "AAA", "expiry": "2025-06-20", "strike": 100, "right": "Put"},
+        {"symbol": "AAA", "expiry": "2025-06-20", "strike": 110, "right": "CALL"},
+        {"symbol": "AAA", "expiry": "2025-06-20", "strike": 110, "right": "p"},
     ]
     called = []
     monkeypatch.setattr(

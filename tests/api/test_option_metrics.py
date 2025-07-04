@@ -16,14 +16,14 @@ class DummyApp:
             1: {
                 "expiry": "20250101",
                 "strike": 100.0,
-                "right": "C",
+                "right": "CALL",
                 "volume": 5,
                 "open_interest": 50,
             },
             2: {
                 "expiry": "20250101",
                 "strike": 100.0,
-                "right": "P",
+                "right": "put",
                 "volume": 7,
                 "open_interest": 70,
             },
@@ -51,14 +51,14 @@ def test_fetch_option_metrics_aggregates():
 
 
 def test_fetch_option_metrics_filters_call():
-    result = option_metrics.fetch_option_metrics("ABC", "2025-01-01", 100.0, "C")
+    result = option_metrics.fetch_option_metrics("ABC", "2025-01-01", 100.0, "c")
     assert result.spot_price == 123.0
     assert result.volume == 5
     assert result.open_interest == 50
 
 
 def test_fetch_option_metrics_filters_put():
-    result = option_metrics.fetch_option_metrics("ABC", "2025-01-01", 100.0, "P")
+    result = option_metrics.fetch_option_metrics("ABC", "2025-01-01", 100.0, "PUT")
     assert result.spot_price == 123.0
     assert result.volume == 7
     assert result.open_interest == 70
