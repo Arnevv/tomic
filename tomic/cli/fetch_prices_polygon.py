@@ -47,15 +47,21 @@ def _next_trading_day(d: date) -> date:
 def latest_trading_day() -> date:
     """Return the most recent US trading day.
 
-    Using the ``America/New_York`` timezone, the function returns today's date
-    once the market is considered closed (18:00 ET).  When run earlier it falls
-    back to the previous workday and always skips weekends and US holidays.
+    Using the ``America/New_York`` timezone, the function returns the most
+    recent trading day **with finalized data**. Polygon publishes daily bars
+    around 11:00 AM ET on the next business day.  Runs before that time still
+    fall back an extra day to avoid requesting incomplete data.  Weekends and US
+    holidays are always skipped.
     """
 
     tz = ZoneInfo("America/New_York")
     now = datetime.now(tz)
-    d = now.date()
-    if now.time() < dt_time(18, 0):
+
+    # Start from "yesterday" as Polygon finalizes daily bars the next day.
+    d = now.date() - timedelta(days=1)
+
+    # Before 11:00 AM ET even yesterday's data might not be ready yet.
+    if now.time() < dt_time(11, 0):
         d -= timedelta(days=1)
     us_holidays = holidays.US()
     while d.weekday() >= 5 or d in us_holidays:

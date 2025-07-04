@@ -81,7 +81,7 @@ def test_latest_trading_day_before_close(monkeypatch):
     monkeypatch.setattr(mod, "datetime", FakeDT)
 
     day = mod.latest_trading_day()
-    assert day == date(2025, 7, 1)
+    assert day == date(2025, 6, 30)
 
 
 def test_latest_trading_day_after_close(monkeypatch):
@@ -95,7 +95,7 @@ def test_latest_trading_day_after_close(monkeypatch):
     monkeypatch.setattr(mod, "datetime", FakeDT)
 
     day = mod.latest_trading_day()
-    assert day == date(2025, 7, 2)
+    assert day == date(2025, 7, 1)
 
 
 def test_request_bars_skips_on_403(monkeypatch):
