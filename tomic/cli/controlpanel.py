@@ -60,7 +60,7 @@ from tomic.api.market_export import load_exported_chain, export_option_chain
 from tomic.providers.polygon_iv import fetch_polygon_option_chain, _load_latest_close
 from tomic.strike_selector import StrikeSelector, filter_by_expiry, FilterConfig
 from tomic.loader import load_strike_config
-from tomic.utils import get_option_mid_price, latest_atr
+from tomic.utils import get_option_mid_price, latest_atr, normalize_leg
 from tomic.metrics import (
     calculate_pos,
     calculate_rom,
@@ -878,6 +878,7 @@ def run_portfolio_menu() -> None:
                 "edge": edge,
                 "ev": ev,
             }
+            normalize_leg(res)
             evaluated.append(res)
 
         SESSION_STATE.setdefault("evaluated_trades", []).extend(evaluated)
