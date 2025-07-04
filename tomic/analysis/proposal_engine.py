@@ -115,12 +115,12 @@ def _calc_metrics(strategy: str, legs: List[Leg]) -> Dict[str, Optional[float]]:
 
     credit = -cb if cb < 0 else 0.0
     debit = cb if cb > 0 else 0.0
+    net_cashflow = credit / 100 if credit else -debit / 100
     try:
         margin = calculate_margin(
             strategy,
             legs_dict,
-            premium=credit / 100,
-            entry_price=debit / 100,
+            net_cashflow=net_cashflow,
         )
     except Exception as exc:  # pragma: no cover - defensive fallback
         logger.warning(f"calculate_margin failed for {strategy}: {exc}")

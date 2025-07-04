@@ -44,9 +44,9 @@ def _option_direction(leg: dict) -> int:
 
 
 def _max_loss(
-    legs: Iterable[dict], *, premium: float = 0.0, entry: float = 0.0
+    legs: Iterable[dict], *, net_cashflow: float = 0.0
 ) -> float:
-    """Return worst-case loss for ``legs`` with given credit/debit."""
+    """Return worst-case loss for ``legs`` with given net cashflow."""
 
     strikes = sorted(float(leg.get("strike", 0)) for leg in legs)
     if not strikes:
@@ -54,7 +54,7 @@ def _max_loss(
     high = strikes[-1] * 10
 
     def payoff(price: float) -> float:
-        total = premium * 100 - entry * 100
+        total = net_cashflow * 100
         for leg in legs:
             qty = abs(
                 float(leg.get("qty") or leg.get("quantity") or leg.get("position") or 1)
@@ -85,8 +85,7 @@ def _max_loss(
 def calculate_margin(
     strategy: str,
     legs: list[dict],
-    premium: float = 0.0,
-    entry_price: float = 0.0,
+    net_cashflow: float = 0.0,
 ) -> float:
     """Return approximate initial margin for a multi-leg strategy."""
 
@@ -97,7 +96,7 @@ def calculate_margin(
             raise ValueError("Spread requires two legs")
         strikes = [float(legs[0].get("strike")), float(legs[1].get("strike"))]
         width = abs(strikes[0] - strikes[1])
-        return max(width * 100 - premium * 100, 0.0)
+        return max(width * 100 - net_cashflow * 100, 0.0)
 
     if strat in {"iron_condor", "atm_iron_butterfly"}:
         if len(legs) != 4:
@@ -117,15 +116,15 @@ def calculate_margin(
         width_put = abs(puts[0] - puts[1])
         width_call = abs(calls[0] - calls[1])
         width = max(width_put, width_call)
-        return max(width * 100 - premium * 100, 0.0)
+        return max(width * 100 - net_cashflow * 100, 0.0)
 
     if strat in {"calendar"}:
         if len(legs) != 2:
             raise ValueError("calendar requires two legs")
-        return entry_price * 100
+        return abs(net_cashflow) * 100
 
     if strat in {"ratio_spread", "backspread_put"}:
-        loss = _max_loss(legs, premium=premium, entry=entry_price)
+        loss = _max_loss(legs, net_cashflow=net_cashflow)
         if loss is inf:
             raise ValueError("Ratio spread has unlimited risk")
         return loss
