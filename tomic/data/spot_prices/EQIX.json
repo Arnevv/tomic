@@ -1762,5 +1762,12 @@
     "close": 795.15,
     "volume": 630971,
     "atr": null
+  },
+  {
+    "symbol": "EQIX",
+    "date": "2025-07-03",
+    "close": 787,
+    "volume": 539871,
+    "atr": null
   }
 ]

@@ -1762,5 +1762,12 @@
     "close": 117.06,
     "volume": 2834457.0,
     "atr": null
+  },
+  {
+    "symbol": "DUK",
+    "date": "2025-07-03",
+    "close": 117.31,
+    "volume": 1953868.0,
+    "atr": null
   }
 ]

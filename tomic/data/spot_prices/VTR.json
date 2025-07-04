@@ -1762,5 +1762,12 @@
     "close": 62.93,
     "volume": 2707547.0,
     "atr": null
+  },
+  {
+    "symbol": "VTR",
+    "date": "2025-07-03",
+    "close": 62.93,
+    "volume": 1328594.0,
+    "atr": null
   }
 ]

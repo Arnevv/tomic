@@ -1762,5 +1762,12 @@
     "close": 74.82,
     "volume": 3303805.0,
     "atr": null
+  },
+  {
+    "symbol": "SRE",
+    "date": "2025-07-03",
+    "close": 75.12,
+    "volume": 1972704.0,
+    "atr": null
   }
 ]

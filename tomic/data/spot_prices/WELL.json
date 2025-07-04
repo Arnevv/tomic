@@ -1762,5 +1762,12 @@
     "close": 150.71,
     "volume": 2921360.0,
     "atr": null
+  },
+  {
+    "symbol": "WELL",
+    "date": "2025-07-03",
+    "close": 152.77,
+    "volume": 1513927.0,
+    "atr": null
   }
 ]

@@ -1762,5 +1762,12 @@
     "close": 147.98,
     "volume": 8228683.0,
     "atr": null
+  },
+  {
+    "symbol": "CVX",
+    "date": "2025-07-03",
+    "close": 148.37,
+    "volume": 5173114.0,
+    "atr": null
   }
 ]
