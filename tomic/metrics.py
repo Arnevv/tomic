@@ -6,6 +6,8 @@ from __future__ import annotations
 from math import inf
 from typing import Optional, Iterable
 
+from .utils import normalize_right
+
 
 def calculate_edge(theoretical: float, mid_price: float) -> float:
     """Return theoretical minus mid price."""
@@ -60,9 +62,9 @@ def _max_loss(
                 float(leg.get("qty") or leg.get("quantity") or leg.get("position") or 1)
             )
             direction = _option_direction(leg)
-            right = (leg.get("type") or leg.get("right", "")).upper()
+            right = normalize_right(leg.get("type") or leg.get("right"))
             strike = float(leg.get("strike"))
-            if right == "C":
+            if right == "call":
                 total += direction * qty * max(price - strike, 0)
             else:
                 total += direction * qty * max(strike - price, 0)
@@ -72,7 +74,7 @@ def _max_loss(
         _option_direction(leg)
         * abs(float(leg.get("qty") or leg.get("quantity") or leg.get("position") or 1))
         for leg in legs
-        if (leg.get("type") or leg.get("right", "")).upper() == "C"
+        if normalize_right(leg.get("type") or leg.get("right")) == "call"
     )
     if slope_high < 0:
         return inf
@@ -104,12 +106,12 @@ def calculate_margin(
         puts = [
             float(l.get("strike"))
             for l in legs
-            if (l.get("type") or l.get("right")) == "P"
+            if normalize_right(l.get("type") or l.get("right")) == "put"
         ]
         calls = [
             float(l.get("strike"))
             for l in legs
-            if (l.get("type") or l.get("right")) == "C"
+            if normalize_right(l.get("type") or l.get("right")) == "call"
         ]
         if len(puts) != 2 or len(calls) != 2:
             raise ValueError("Invalid iron_condor/atm_iron_butterfly structure")

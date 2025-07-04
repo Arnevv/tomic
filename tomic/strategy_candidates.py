@@ -13,7 +13,7 @@ from .metrics import (
     calculate_ev,
 )
 from .analysis.strategy import heuristic_risk_metrics, parse_date
-from .utils import get_option_mid_price, normalize_leg
+from .utils import get_option_mid_price, normalize_leg, normalize_right
 from .logutils import logger
 from .config import get as cfg_get
 
@@ -42,12 +42,6 @@ class StrikeMatch:
     target: float
     matched: float | None = None
     diff: float | None = None
-
-
-def normalize_right(val: str) -> str:
-    """Return normalized option right as 'call' or 'put'."""
-    r = val.strip().lower()
-    return {"c": "call", "p": "put"}.get(r, r)
 
 
 def select_expiry_pairs(expiries: List[str], min_gap: int) -> List[tuple[str, str]]:
@@ -167,12 +161,7 @@ def _find_option(
         return d.strftime("%Y-%m-%d") if d else s
 
     def _norm_right(val: Any) -> str:
-        r = str(val).strip().lower()
-        if r in {"c", "call"}:
-            return "call"
-        if r in {"p", "put"}:
-            return "put"
-        return r
+        return normalize_right(str(val))
 
     target_exp = _norm_exp(expiry)
     target_right = _norm_right(right)

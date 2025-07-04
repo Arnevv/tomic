@@ -8,6 +8,7 @@ from typing import Iterable, Dict, Any, List
 
 from tomic.config import get as cfg_get
 from tomic.journal.utils import update_json_file
+from tomic.utils import normalize_right
 
 
 def _parse_expiry(raw: str) -> date | None:
@@ -19,11 +20,13 @@ def _parse_expiry(raw: str) -> date | None:
         return None
 
 
-def _nearest_strike_by_delta(records: Iterable[Dict[str, Any]], target: float, right: str) -> float | None:
+def _nearest_strike_by_delta(
+    records: Iterable[Dict[str, Any]], target: float, right: str
+) -> float | None:
     best: float | None = None
     best_diff: float | None = None
     for rec in records:
-        if rec.get("right") != right:
+        if normalize_right(rec.get("right")) != normalize_right(right):
             continue
         d = rec.get("delta")
         s = rec.get("strike")
@@ -95,19 +98,19 @@ def extract_iv_points(
             d = float(d)
             if d == 0.5:
                 continue
-            c_strike = _nearest_strike_by_delta(exp_records, d, "C")
+            c_strike = _nearest_strike_by_delta(exp_records, d, "call")
             if c_strike is not None:
                 target_strikes.append(c_strike)
-            p_strike = _nearest_strike_by_delta(exp_records, -d, "P")
+            p_strike = _nearest_strike_by_delta(exp_records, -d, "put")
             if p_strike is not None:
                 target_strikes.append(p_strike)
         for strike in sorted(set(target_strikes)):
-            for right in ("C", "P"):
+            for right in ("call", "put"):
                 rec = next(
                     (
                         r
                         for r in exp_records
-                        if r.get("strike") == strike and r.get("right") == right
+                        if normalize_right(r.get("right")) == right and r.get("strike") == strike
                     ),
                     None,
                 )
@@ -124,7 +127,7 @@ def extract_iv_points(
                         "dte": dte,
                         "strike": strike,
                         "delta": delta,
-                        "right": "CALL" if right == "C" else "PUT",
+                        "right": "CALL" if right == "call" else "PUT",
                         "iv": iv,
                     }
                 )

@@ -11,7 +11,7 @@ from typing import Any, Dict, Iterable, List, Optional
 from tomic.analysis.greeks import compute_greeks_by_symbol
 from tomic.analysis.strategy import heuristic_risk_metrics
 from tomic.journal.utils import load_json
-from tomic.utils import get_option_mid_price
+from tomic.utils import get_option_mid_price, normalize_right
 from tomic.metrics import calculate_margin
 from tomic.logutils import logger
 
@@ -46,8 +46,7 @@ def load_chain_csv(path: str) -> List[Leg]:
         reader = csv.DictReader(f)
         for row in reader:
             try:
-                option_type = row.get("Type", "")
-                option_type = option_type[:1].upper() if option_type else ""
+                option_type = normalize_right(row.get("Type", ""))
                 legs.append(
                     Leg(
                         expiry=row.get("Expiry", ""),
@@ -144,8 +143,8 @@ def _calc_metrics(strategy: str, legs: List[Leg]) -> Dict[str, Optional[float]]:
 
 
 def _make_vertical(chain: List[Leg], bullish: bool) -> Optional[List[Leg]]:
-    calls = [c for c in chain if c.type == "C"]
-    puts = [p for p in chain if p.type == "P"]
+    calls = [c for c in chain if c.type == "call"]
+    puts = [p for p in chain if p.type == "put"]
     if bullish:
         group = calls
     else:
@@ -162,8 +161,8 @@ def _make_vertical(chain: List[Leg], bullish: bool) -> Optional[List[Leg]]:
 
 
 def _make_condor(chain: List[Leg]) -> Optional[List[Leg]]:
-    calls = [c for c in chain if c.type == "C"]
-    puts = [p for p in chain if p.type == "P"]
+    calls = [c for c in chain if c.type == "call"]
+    puts = [p for p in chain if p.type == "put"]
     if len(calls) < 2 or len(puts) < 2:
         return None
     calls.sort(key=lambda x: x.strike)
