@@ -75,6 +75,40 @@ def _breakevens(strategy: str, legs: List[Dict[str, Any]], credit: float) -> Opt
     return None
 
 
+def _build_strike_map(chain: List[Dict[str, Any]]) -> Dict[str, Dict[str, List[float]]]:
+    """Return mapping of expiries and option types to available strikes."""
+
+    strike_map: Dict[str, Dict[str, set[float]]] = {}
+    for opt in chain:
+        try:
+            expiry = str(opt.get("expiry"))
+            right = (opt.get("type") or opt.get("right"))
+            strike = float(opt.get("strike"))
+        except Exception:
+            continue
+        strike_map.setdefault(expiry, {}).setdefault(right, set()).add(strike)
+
+    # convert sets to sorted lists for deterministic behaviour
+    return {
+        exp: {r: sorted(strikes) for r, strikes in rights.items()}
+        for exp, rights in strike_map.items()
+    }
+
+
+def _nearest_strike(
+    strike_map: Dict[str, Dict[str, List[float]]],
+    expiry: str,
+    right: str,
+    target: float,
+) -> float:
+    """Return available strike closest to ``target`` or ``target`` if none."""
+
+    strikes = strike_map.get(str(expiry), {}).get(right)
+    if not strikes:
+        return target
+    return min(strikes, key=lambda s: abs(s - target))
+
+
 def _find_option(
     chain: List[Dict[str, Any]],
     expiry: str,
@@ -214,6 +248,7 @@ def generate_strategy_candidates(
     if not expiries:
         return [], "geen expiries beschikbaar"
     expiry = expiries[0]
+    strike_map = _build_strike_map(option_chain)
     proposals: List[StrategyProposal] = []
     missing_legs = 0
     invalid_metrics = 0
@@ -239,6 +274,10 @@ def generate_strategy_candidates(
             sp = spot - (p_mult * atr if use_atr else p_mult)
             lc = sc + width
             lp = sp - width
+            sc = _nearest_strike(strike_map, expiry, "C", sc)
+            sp = _nearest_strike(strike_map, expiry, "P", sp)
+            lc = _nearest_strike(strike_map, expiry, "C", lc)
+            lp = _nearest_strike(strike_map, expiry, "P", lp)
             sc_opt = _find_option(
                 option_chain,
                 expiry,
@@ -304,6 +343,7 @@ def generate_strategy_candidates(
                 if not short_opt:
                     continue
                 long_strike = float(short_opt.get("strike")) - width
+                long_strike = _nearest_strike(strike_map, expiry, "P", long_strike)
                 long_opt = _find_option(
                     option_chain,
                     expiry,
@@ -340,6 +380,7 @@ def generate_strategy_candidates(
                 if not short_opt:
                     continue
                 long_strike = float(short_opt.get("strike")) + width
+                long_strike = _nearest_strike(strike_map, expiry, "C", long_strike)
                 long_opt = _find_option(
                     option_chain,
                     expiry,
@@ -386,6 +427,7 @@ def generate_strategy_candidates(
         for near, far in pairs[:3]:
             for off in strikes:
                 strike = spot + (off * atr if use_atr else off)
+                strike = _nearest_strike(strike_map, near, "C", strike)
                 short_opt = _find_option(
                     option_chain,
                     near,
@@ -394,10 +436,11 @@ def generate_strategy_candidates(
                     strategy=strategy_type,
                     leg_desc="Short call",
                 )
+                long_strike = _nearest_strike(strike_map, far, "C", strike)
                 long_opt = _find_option(
                     option_chain,
                     far,
-                    strike,
+                    long_strike,
                     "C",
                     strategy=strategy_type,
                     leg_desc="Long call",
@@ -419,11 +462,16 @@ def generate_strategy_candidates(
         widths = rules.get("wing_width_points", [])
         for c_off in centers:
             center = spot + (c_off * atr if use_atr else c_off)
+            center = _nearest_strike(strike_map, expiry, "C", center)
             for width in widths:
+                sc_strike = _nearest_strike(strike_map, expiry, "C", center)
+                sp_strike = _nearest_strike(strike_map, expiry, "P", center)
+                lc_strike = _nearest_strike(strike_map, expiry, "C", center + width)
+                lp_strike = _nearest_strike(strike_map, expiry, "P", center - width)
                 sc_opt = _find_option(
                     option_chain,
                     expiry,
-                    center,
+                    sc_strike,
                     "C",
                     strategy=strategy_type,
                     leg_desc="Short call",
@@ -431,7 +479,7 @@ def generate_strategy_candidates(
                 sp_opt = _find_option(
                     option_chain,
                     expiry,
-                    center,
+                    sp_strike,
                     "P",
                     strategy=strategy_type,
                     leg_desc="Short put",
@@ -439,7 +487,7 @@ def generate_strategy_candidates(
                 lc_opt = _find_option(
                     option_chain,
                     expiry,
-                    center + width,
+                    lc_strike,
                     "C",
                     strategy=strategy_type,
                     leg_desc="Long call",
@@ -447,7 +495,7 @@ def generate_strategy_candidates(
                 lp_opt = _find_option(
                     option_chain,
                     expiry,
-                    center - width,
+                    lp_strike,
                     "P",
                     strategy=strategy_type,
                     leg_desc="Long put",
@@ -487,6 +535,7 @@ def generate_strategy_candidates(
                 if not short_opt:
                     continue
                 long_strike = float(short_opt.get("strike")) + width
+                long_strike = _nearest_strike(strike_map, expiry, "C", long_strike)
                 long_opt = _find_option(
                     option_chain,
                     expiry,
@@ -526,6 +575,7 @@ def generate_strategy_candidates(
                     if not short_opt:
                         continue
                     long_strike = float(short_opt.get("strike")) - width
+                    long_strike = _nearest_strike(strike_map, far, "P", long_strike)
                     long_opt = _find_option(
                         option_chain,
                         far,
