@@ -44,6 +44,12 @@ class StrikeMatch:
     diff: float | None = None
 
 
+def normalize_right(val: str) -> str:
+    """Return normalized option right as 'call' or 'put'."""
+    r = val.strip().lower()
+    return {"c": "call", "p": "put"}.get(r, r)
+
+
 def select_expiry_pairs(expiries: List[str], min_gap: int) -> List[tuple[str, str]]:
     """Return pairs of expiries separated by at least ``min_gap`` days."""
     parsed = []
@@ -93,7 +99,7 @@ def _build_strike_map(chain: List[Dict[str, Any]]) -> Dict[str, Dict[str, List[f
     for opt in chain:
         try:
             expiry = str(opt.get("expiry"))
-            right = (opt.get("type") or opt.get("right"))
+            right = normalize_right(opt.get("type") or opt.get("right", ""))
             strike = float(opt.get("strike"))
         except Exception:
             continue
@@ -120,6 +126,7 @@ def _nearest_strike(
     ``matched`` will be ``None``.
     """
 
+    right = normalize_right(right)
     strikes = strike_map.get(str(expiry), {}).get(right)
     if not strikes:
         logger.info(
