@@ -3,6 +3,8 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from itertools import islice
 from typing import Any, Dict, List, Optional
+from datetime import date, datetime
+import math
 
 from .metrics import (
     calculate_margin,
@@ -118,12 +120,34 @@ def _find_option(
     strategy: str = "",
     leg_desc: str | None = None,
 ) -> Optional[Dict[str, Any]]:
+    def _norm_exp(val: Any) -> str:
+        if isinstance(val, (datetime, date)):
+            return val.strftime("%Y-%m-%d")
+        s = str(val)
+        d = parse_date(s)
+        return d.strftime("%Y-%m-%d") if d else s
+
+    def _norm_right(val: Any) -> str:
+        r = str(val).strip().lower()
+        if r in {"c", "call"}:
+            return "call"
+        if r in {"p", "put"}:
+            return "put"
+        return r
+
+    target_exp = _norm_exp(expiry)
+    target_right = _norm_right(right)
+    target_strike = float(strike)
+
     for opt in chain:
         try:
+            opt_exp = _norm_exp(opt.get("expiry"))
+            opt_right = _norm_right(opt.get("type") or opt.get("right"))
+            opt_strike = float(opt.get("strike"))
             if (
-                str(opt.get("expiry")) == str(expiry)
-                and (opt.get("type") or opt.get("right")) == right
-                and float(opt.get("strike")) == float(strike)
+                opt_exp == target_exp
+                and opt_right == target_right
+                and math.isclose(opt_strike, target_strike, abs_tol=0.01)
             ):
                 return opt
         except Exception:
@@ -148,14 +172,22 @@ def _metrics(strategy: str, legs: List[Dict[str, Any]]) -> Optional[Dict[str, An
 
     credit = 0.0
     entry = 0.0
+    missing_mid: List[str] = []
     for leg in legs:
         mid = leg.get("mid")
-        if mid is None:
+        try:
+            mid_val = float(mid) if mid is not None else math.nan
+        except Exception:
+            mid_val = math.nan
+        if math.isnan(mid_val):
+            missing_mid.append(str(leg.get("strike")))
             continue
         if leg.get("position", 0) < 0:
-            credit += mid
+            credit += mid_val
         else:
-            entry += mid
+            entry += mid_val
+    if missing_mid:
+        logger.info(f"[{strategy}] Ontbrekende bid/ask-data voor strikes {','.join(missing_mid)}")
     strikes = "/".join(str(l.get("strike")) for l in legs)
     if strategy not in {"ratio_spread", "backspread_put"} and credit <= 0:
         logger.info(f"[{strategy}] Credit ≤ 0 voor strikes {strikes} — voorstel afgewezen")
@@ -278,6 +310,9 @@ def generate_strategy_candidates(
             sp = _nearest_strike(strike_map, expiry, "P", sp)
             lc = _nearest_strike(strike_map, expiry, "C", lc)
             lp = _nearest_strike(strike_map, expiry, "P", lp)
+            logger.info(
+                f"[iron_condor] probeer SC {sc} SP {sp} LC {lc} LP {lp}"
+            )
             sc_opt = _find_option(
                 option_chain,
                 expiry,
@@ -344,6 +379,9 @@ def generate_strategy_candidates(
                     continue
                 long_strike = float(short_opt.get("strike")) - width
                 long_strike = _nearest_strike(strike_map, expiry, "P", long_strike)
+                logger.info(
+                    f"[short_put_spread] probeer short {short_opt.get('strike')} long {long_strike}"
+                )
                 long_opt = _find_option(
                     option_chain,
                     expiry,
@@ -381,6 +419,9 @@ def generate_strategy_candidates(
                     continue
                 long_strike = float(short_opt.get("strike")) + width
                 long_strike = _nearest_strike(strike_map, expiry, "C", long_strike)
+                logger.info(
+                    f"[short_call_spread] probeer short {short_opt.get('strike')} long {long_strike}"
+                )
                 long_opt = _find_option(
                     option_chain,
                     expiry,
@@ -409,6 +450,9 @@ def generate_strategy_candidates(
                     and opt.get("delta") is not None
                     and delta_range[0] <= float(opt.get("delta")) <= delta_range[1]
                 ):
+                    logger.info(
+                        f"[naked_put] probeer strike {opt.get('strike')}"
+                    )
                     leg = make_leg(opt, -1)
                     metrics = _metrics("naked_put", [leg])
                     if metrics:
@@ -428,6 +472,9 @@ def generate_strategy_candidates(
             for off in strikes:
                 strike = spot + (off * atr if use_atr else off)
                 strike = _nearest_strike(strike_map, near, "C", strike)
+                logger.info(
+                    f"[calendar] probeer near {near} far {far} strike {strike}"
+                )
                 short_opt = _find_option(
                     option_chain,
                     near,
@@ -437,6 +484,9 @@ def generate_strategy_candidates(
                     leg_desc="Short call",
                 )
                 long_strike = _nearest_strike(strike_map, far, "C", strike)
+                logger.info(
+                    f"[calendar] long leg strike {long_strike} voor far {far}"
+                )
                 long_opt = _find_option(
                     option_chain,
                     far,
@@ -468,6 +518,9 @@ def generate_strategy_candidates(
                 sp_strike = _nearest_strike(strike_map, expiry, "P", center)
                 lc_strike = _nearest_strike(strike_map, expiry, "C", center + width)
                 lp_strike = _nearest_strike(strike_map, expiry, "P", center - width)
+                logger.info(
+                    f"[atm_iron_butterfly] probeer center {center} width {width}"
+                )
                 sc_opt = _find_option(
                     option_chain,
                     expiry,
@@ -536,6 +589,9 @@ def generate_strategy_candidates(
                     continue
                 long_strike = float(short_opt.get("strike")) + width
                 long_strike = _nearest_strike(strike_map, expiry, "C", long_strike)
+                logger.info(
+                    f"[ratio_spread] probeer short {short_opt.get('strike')} long {long_strike}"
+                )
                 long_opt = _find_option(
                     option_chain,
                     expiry,
@@ -572,27 +628,32 @@ def generate_strategy_candidates(
                         ):
                             short_opt = opt
                             break
-                    if not short_opt:
-                        continue
-                    long_strike = float(short_opt.get("strike")) - width
-                    long_strike = _nearest_strike(strike_map, far, "P", long_strike)
-                    long_opt = _find_option(
-                        option_chain,
-                        far,
-                        long_strike,
-                        "P",
-                        strategy=strategy_type,
-                        leg_desc="Long put",
-                    )
-                    if not long_opt:
-                        missing_legs += 1
-                        continue
-                    legs = [make_leg(short_opt, -1), make_leg(long_opt, 2)]
-                    metrics = _metrics("backspread_put", legs)
-                    if metrics and _validate_ratio("backspread_put", legs, metrics.get("credit", 0.0)):
-                        proposals.append(StrategyProposal(legs=legs, **metrics))
-                    elif not metrics:
-                        invalid_metrics += 1
+                if not short_opt:
+                    continue
+                long_strike = float(short_opt.get("strike")) - width
+                long_strike = _nearest_strike(strike_map, far, "P", long_strike)
+                logger.info(
+                    f"[backspread_put] probeer near {near} far {far} short {short_opt.get('strike')} long {long_strike}"
+                )
+                long_opt = _find_option(
+                    option_chain,
+                    far,
+                    long_strike,
+                    "P",
+                    strategy=strategy_type,
+                    leg_desc="Long put",
+                )
+                if not long_opt:
+                    missing_legs += 1
+                    continue
+                legs = [make_leg(short_opt, -1), make_leg(long_opt, 2)]
+                metrics = _metrics("backspread_put", legs)
+                if metrics and _validate_ratio(
+                    "backspread_put", legs, metrics.get("credit", 0.0)
+                ):
+                    proposals.append(StrategyProposal(legs=legs, **metrics))
+                elif not metrics:
+                    invalid_metrics += 1
 
     proposals.sort(key=lambda p: p.score or 0, reverse=True)
     if proposals:
