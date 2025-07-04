@@ -24,6 +24,7 @@ from typing import Any
 import pandas as pd
 
 from tomic.logutils import logger, log_result
+from tomic.utils import normalize_leg
 import asyncio
 import threading
 from tomic.api.market_client import (
@@ -101,7 +102,9 @@ def load_exported_chain(filepath: str) -> list[dict[str, Any]]:
         reader = csv.DictReader(f)
         rows = []
         for row in reader:
-            rows.append({k.lower(): v for k, v in row.items()})
+            rec = {k.lower(): v for k, v in row.items()}
+            normalize_leg(rec)
+            rows.append(rec)
         return rows
 
 
