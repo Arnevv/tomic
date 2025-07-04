@@ -2,7 +2,7 @@ name: Update price history
 
 on:
   schedule:
-    - cron: '*/57 * * * *'
+    - cron: '0 5-11 * * *'
   workflow_dispatch:
 
 jobs:
