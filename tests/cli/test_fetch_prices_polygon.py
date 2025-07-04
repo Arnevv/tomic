@@ -1,5 +1,6 @@
 import importlib
 from datetime import datetime, date
+from types import SimpleNamespace
 
 
 def test_fetch_prices_polygon_main(monkeypatch):
@@ -95,3 +96,21 @@ def test_latest_trading_day_after_close(monkeypatch):
 
     day = mod.latest_trading_day()
     assert day == date(2025, 7, 2)
+
+
+def test_request_bars_skips_on_403(monkeypatch):
+    mod = importlib.import_module("tomic.cli.fetch_prices_polygon")
+
+    monkeypatch.setattr(mod, "latest_trading_day", lambda: date(2024, 1, 2))
+    monkeypatch.setattr(mod, "_load_latest_close", lambda s: (None, None))
+
+    class FakeHTTPError(Exception):
+        def __init__(self, status):
+            self.response = SimpleNamespace(status_code=status)
+
+    class FakeClient:
+        def _request(self, path, params):
+            raise FakeHTTPError(403)
+
+    records = list(mod._request_bars(FakeClient(), "ABC"))
+    assert records == []

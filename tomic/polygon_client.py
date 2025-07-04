@@ -50,6 +50,8 @@ class PolygonClient(MarketDataProvider):
             raise RuntimeError("Client not connected")
         params = dict(params or {})
         api_key = self._next_api_key()
+        if api_key:
+            logger.info(f"Using Polygon key: {api_key[:5]}***")
         url = f"{self.BASE_URL.rstrip('/')}/{path.lstrip('/')}"
         attempts = 0
         key_attempts = 0
@@ -77,8 +79,12 @@ class PolygonClient(MarketDataProvider):
 
             if status == 403 and key_attempts < max_keys - 1:
                 key_attempts += 1
+                logger.warning(
+                    f"Polygon 403 for key {api_key[:5]}*** — trying next key."
+                )
                 api_key = self._next_api_key()
-                logger.warning("Polygon unauthorized (403), rotating API key")
+                if api_key:
+                    logger.info(f"Using Polygon key: {api_key[:5]}***")
                 continue
 
             break
