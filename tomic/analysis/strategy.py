@@ -8,7 +8,7 @@ from statistics import mean
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
-from tomic.utils import today
+from tomic.utils import today, normalize_right
 from tomic.analysis.alerts import check_entry_conditions, generate_risk_alerts
 
 
@@ -26,8 +26,16 @@ def parse_date(date_str: str) -> Optional[datetime.date]:
 
 def determine_strategy_type(legs: List[Dict[str, Any]]) -> str:
     """Return basic strategy type derived from legs."""
-    calls = [leg for leg in legs if (leg.get("right") or leg.get("type")) == "C"]
-    puts = [leg for leg in legs if (leg.get("right") or leg.get("type")) == "P"]
+    calls = [
+        leg
+        for leg in legs
+        if normalize_right(leg.get("right") or leg.get("type")) == "call"
+    ]
+    puts = [
+        leg
+        for leg in legs
+        if normalize_right(leg.get("right") or leg.get("type")) == "put"
+    ]
     n = len(legs)
 
     if (
@@ -70,10 +78,10 @@ def determine_strategy_type(legs: List[Dict[str, Any]]) -> str:
     if n == 1:
         leg = legs[0]
         qty = leg.get("position", 0)
-        right = leg.get("right") or leg.get("type")
-        if right == "C":
+        right = normalize_right(leg.get("right") or leg.get("type"))
+        if right == "call":
             return "Long Call" if qty > 0 else "Short Call"
-        if right == "P":
+        if right == "put":
             return "naked_put" if qty < 0 else "Long Put"
 
     return "Other"
@@ -123,10 +131,10 @@ def aggregate_metrics(legs: List[Dict[str, Any]]) -> Dict[str, Any]:
         if leg.get("iv") is not None:
             iv = leg.get("iv")
             iv_values.append(iv)
-            right = leg.get("right") or leg.get("type")
-            if right == "C":
+            right = normalize_right(leg.get("right") or leg.get("type"))
+            if right == "call":
                 call_iv.append(iv)
-            elif right == "P":
+            elif right == "put":
                 put_iv.append(iv)
             hv = leg.get("HV30")
             if hv is not None:
@@ -180,7 +188,9 @@ def heuristic_risk_metrics(
 ) -> Dict[str, Any]:
     """Rough estimation of max win/loss for simple strategies."""
     if len(legs) == 2:
-        rights = {leg.get("right") or leg.get("type") for leg in legs}
+        rights = {
+            normalize_right(leg.get("right") or leg.get("type")) for leg in legs
+        }
         if len(rights) == 1:
             strikes = [leg.get("strike", 0) for leg in legs]
             width = abs(strikes[0] - strikes[1]) * 100
@@ -201,30 +211,30 @@ def heuristic_risk_metrics(
                 "risk_reward": rr,
             }
     if len(legs) == 4:
-        rights = [leg.get("right") or leg.get("type") for leg in legs]
-        if rights.count("P") == 2 and rights.count("C") == 2:
+        rights = [normalize_right(leg.get("right") or leg.get("type")) for leg in legs]
+        if rights.count("put") == 2 and rights.count("call") == 2:
             put_short = [
                 leg
                 for leg in legs
-                if (leg.get("right") or leg.get("type")) == "P"
+                if normalize_right(leg.get("right") or leg.get("type")) == "put"
                 and leg.get("position", 0) < 0
             ][0]
             put_long = [
                 leg
                 for leg in legs
-                if (leg.get("right") or leg.get("type")) == "P"
+                if normalize_right(leg.get("right") or leg.get("type")) == "put"
                 and leg.get("position", 0) > 0
             ][0]
             call_short = [
                 leg
                 for leg in legs
-                if (leg.get("right") or leg.get("type")) == "C"
+                if normalize_right(leg.get("right") or leg.get("type")) == "call"
                 and leg.get("position", 0) < 0
             ][0]
             call_long = [
                 leg
                 for leg in legs
-                if (leg.get("right") or leg.get("type")) == "C"
+                if normalize_right(leg.get("right") or leg.get("type")) == "call"
                 and leg.get("position", 0) > 0
             ][0]
             width_put = abs(put_short.get("strike", 0) - put_long.get("strike", 0))
@@ -253,7 +263,11 @@ def collapse_legs(legs: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
             expiry = (
                 leg.get("lastTradeDate") or leg.get("expiry") or leg.get("expiration")
             )
-            key = (leg.get("strike"), leg.get("right") or leg.get("type"), expiry)
+            key = (
+                leg.get("strike"),
+                normalize_right(leg.get("right") or leg.get("type")),
+                expiry,
+            )
         else:
             key = cid
         if key not in merged:

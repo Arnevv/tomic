@@ -51,7 +51,7 @@ def test_write_option_chain_skips_invalid(tmp_path):
     market_data = {
         1: {
             "expiry": "20240101",
-            "right": "C",
+            "right": "call",
             "strike": 100,
             "bid": 1.0,
             "ask": 1.2,
@@ -64,7 +64,7 @@ def test_write_option_chain_skips_invalid(tmp_path):
         },
         2: {
             "expiry": "20240101",
-            "right": "P",
+            "right": "PUT",
             "strike": 90,
             "bid": 0.8,
             "ask": 1.0,
@@ -101,7 +101,7 @@ def test_write_option_chain_negative_bid(tmp_path):
     market_data = {
         1: {
             "expiry": "20240101",
-            "right": "C",
+            "right": "c",
             "strike": 100,
             "bid": -1.0,
             "ask": 1.2,
@@ -114,7 +114,7 @@ def test_write_option_chain_negative_bid(tmp_path):
         },
         2: {
             "expiry": "20240101",
-            "right": "P",
+            "right": "p",
             "strike": 100,
             "bid": 0.8,
             "ask": 1.0,
@@ -272,9 +272,9 @@ def test_fetch_market_metrics_computes_term_structure(monkeypatch):
 
 def test_write_option_chain_simple(tmp_path):
     market_data = {
-        1: {"expiry": "20240101", "right": "C", "strike": 100, "bid": 1.0, "ask": 1.2},
-        2: {"expiry": "20240101", "right": "P", "strike": 90, "bid": 0.8, "ask": 1.0},
-        3: {"expiry": "20240101", "right": "C", "strike": 110, "bid": None, "ask": None},
+        1: {"expiry": "20240101", "right": "CALL", "strike": 100, "bid": 1.0, "ask": 1.2},
+        2: {"expiry": "20240101", "right": "put", "strike": 90, "bid": 0.8, "ask": 1.0},
+        3: {"expiry": "20240101", "right": "c", "strike": 110, "bid": None, "ask": None},
     }
     app = SimpleNamespace(
         market_data=market_data,
@@ -294,7 +294,7 @@ def test_write_option_chain_simple(tmp_path):
 
 def test_write_option_chain_simple_close_only(tmp_path):
     market_data = {
-        1: {"expiry": "20240101", "right": "C", "strike": 100, "close": 2.0},
+        1: {"expiry": "20240101", "right": "Call", "strike": 100, "close": 2.0},
     }
     app = SimpleNamespace(
         market_data=market_data,
@@ -315,8 +315,8 @@ def test_write_option_chain_simple_close_only(tmp_path):
 
 def test_write_option_chain_skips_spot_id(tmp_path):
     market_data = {
-        1: {"expiry": "20240101", "right": "C", "strike": 100, "bid": 1.0, "ask": 1.2},
-        2: {"expiry": "20240101", "right": "P", "strike": 100, "bid": 0.8, "ask": 1.0},
+        1: {"expiry": "20240101", "right": "c", "strike": 100, "bid": 1.0, "ask": 1.2},
+        2: {"expiry": "20240101", "right": "p", "strike": 100, "bid": 0.8, "ask": 1.0},
     }
     app = SimpleNamespace(
         market_data=market_data,
@@ -337,10 +337,10 @@ def test_write_option_chain_skips_spot_id(tmp_path):
 
 def test_write_option_chain_all_rows_exported(tmp_path):
     market_data = {
-        10: {"expiry": "20240101", "right": "C", "strike": 100, "bid": 1.0, "ask": 1.2},
-        11: {"expiry": "20240101", "right": "P", "strike": 100, "bid": 0.8, "ask": 1.0},
-        12: {"expiry": "20240101", "right": "C", "strike": 110, "bid": 1.5, "ask": 1.7},
-        13: {"expiry": "20240101", "right": "P", "strike": 110, "bid": 1.3, "ask": 1.6},
+        10: {"expiry": "20240101", "right": "CALL", "strike": 100, "bid": 1.0, "ask": 1.2},
+        11: {"expiry": "20240101", "right": "put", "strike": 100, "bid": 0.8, "ask": 1.0},
+        12: {"expiry": "20240101", "right": "c", "strike": 110, "bid": 1.5, "ask": 1.7},
+        13: {"expiry": "20240101", "right": "p", "strike": 110, "bid": 1.3, "ask": 1.6},
     }
     app = SimpleNamespace(
         market_data=market_data,
@@ -360,9 +360,9 @@ def test_write_option_chain_all_rows_exported(tmp_path):
 
 def test_write_option_chain_ignores_multiple_spot_ids(tmp_path):
     market_data = {
-        1: {"expiry": "20240101", "right": "C", "strike": 100, "bid": 1.0, "ask": 1.2},
-        2: {"expiry": "20240101", "right": "P", "strike": 100, "bid": 0.8, "ask": 1.0},
-        3: {"expiry": "20240101", "right": "C", "strike": 110, "bid": 1.5, "ask": 1.7},
+        1: {"expiry": "20240101", "right": "CALL", "strike": 100, "bid": 1.0, "ask": 1.2},
+        2: {"expiry": "20240101", "right": "p", "strike": 100, "bid": 0.8, "ask": 1.0},
+        3: {"expiry": "20240101", "right": "c", "strike": 110, "bid": 1.5, "ask": 1.7},
     }
     app = SimpleNamespace(
         market_data=market_data,
@@ -459,7 +459,7 @@ def test_export_market_data_heatmap(monkeypatch, tmp_path):
                 1: {
                     "expiry": "20240101",
                     "strike": 100,
-                    "right": "C",
+                    "right": "c",
                     "delta": 0.5,
                     "iv": 0.2,
                 }
@@ -499,7 +499,7 @@ def test_write_option_chain_runs_selector(tmp_path, monkeypatch):
     market_data = {
         1: {
             "expiry": "20240101",
-            "right": "C",
+            "right": "CALL",
             "strike": 100,
             "bid": 1.0,
             "ask": 1.2,

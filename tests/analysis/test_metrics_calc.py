@@ -42,16 +42,16 @@ def test_calculate_ev():
 
 def test_calculate_margin_credit_spread():
     legs = [
-        {"strike": 105, "type": "P", "action": "SELL"},
-        {"strike": 100, "type": "P", "action": "BUY"},
+        {"strike": 105, "type": "p", "action": "SELL"},
+        {"strike": 100, "type": "Put", "action": "BUY"},
     ]
     assert math.isclose(calculate_margin("bull put spread", legs, net_cashflow=1.2), 380.0)
 
 
 def test_calculate_margin_calendar():
     legs = [
-        {"strike": 100, "type": "C", "action": "BUY"},
-        {"strike": 100, "type": "C", "action": "SELL"},
+        {"strike": 100, "type": "c", "action": "BUY"},
+        {"strike": 100, "type": "CALL", "action": "SELL"},
     ]
     assert math.isclose(
         calculate_margin("calendar", legs, net_cashflow=-2.5), 250.0
@@ -60,8 +60,8 @@ def test_calculate_margin_calendar():
 
 def test_calculate_margin_ratio_backspread():
     legs = [
-        {"strike": 105, "type": "P", "action": "SELL", "qty": 1},
-        {"strike": 100, "type": "P", "action": "BUY", "qty": 2},
+        {"strike": 105, "type": "PUT", "action": "SELL", "qty": 1},
+        {"strike": 100, "type": "p", "action": "BUY", "qty": 2},
     ]
     assert math.isclose(
         calculate_margin("backspread_put", legs, net_cashflow=0.2), 0.0

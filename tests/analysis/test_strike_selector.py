@@ -23,7 +23,7 @@ def test_selector_filters(monkeypatch):
         {
             "expiry": "20250101",
             "strike": 100,
-            "type": "C",
+            "type": "Call",
             "delta": 0.4,
             "rom": 15,
             "edge": 0.3,
@@ -38,7 +38,7 @@ def test_selector_filters(monkeypatch):
         {
             "expiry": "20250101",
             "strike": 110,
-            "type": "C",
+            "type": "c",
             "delta": 0.7,
             "rom": 20,
             "edge": 0.1,
@@ -61,9 +61,9 @@ def test_filter_by_expiry_single(monkeypatch):
     reload(ss)
     selector = ss.StrikeSelector()
     opts = [
-        {"expiry": "20240614", "strike": 100, "type": "C", "delta": 0.0},
-        {"expiry": "20240621", "strike": 105, "type": "C", "delta": 0.0},
-        {"expiry": "20240719", "strike": 110, "type": "C", "delta": 0.0},
+        {"expiry": "20240614", "strike": 100, "type": "c", "delta": 0.0},
+        {"expiry": "20240621", "strike": 105, "type": "CALL", "delta": 0.0},
+        {"expiry": "20240719", "strike": 110, "type": "Call", "delta": 0.0},
     ]
     res = selector.select(opts, dte_range=(10, 20))
     expiries = {o["expiry"] for o in res}
@@ -75,10 +75,10 @@ def test_filter_by_expiry_multi(monkeypatch):
     reload(ss)
     selector = ss.StrikeSelector()
     opts = [
-        {"expiry": "20240614", "strike": 100, "type": "C", "delta": 0.0},
-        {"expiry": "20240621", "strike": 105, "type": "C", "delta": 0.0},
-        {"expiry": "20240712", "strike": 110, "type": "C", "delta": 0.0},
-        {"expiry": "20240719", "strike": 115, "type": "C", "delta": 0.0},
+        {"expiry": "20240614", "strike": 100, "type": "c", "delta": 0.0},
+        {"expiry": "20240621", "strike": 105, "type": "Call", "delta": 0.0},
+        {"expiry": "20240712", "strike": 110, "type": "CALL", "delta": 0.0},
+        {"expiry": "20240719", "strike": 115, "type": "call", "delta": 0.0},
     ]
     res = selector.select(opts, dte_range=(10, 60))
     expiries = sorted({o["expiry"] for o in res})
@@ -90,8 +90,8 @@ def test_filter_by_expiry_none(monkeypatch):
     reload(ss)
     selector = ss.StrikeSelector()
     opts = [
-        {"expiry": "20240610", "strike": 100, "type": "C"},
-        {"expiry": "20240801", "strike": 105, "type": "C"},
+        {"expiry": "20240610", "strike": 100, "type": "Call"},
+        {"expiry": "20240801", "strike": 105, "type": "c"},
     ]
     res = selector.select(opts, dte_range=(20, 40))
     assert res == []
