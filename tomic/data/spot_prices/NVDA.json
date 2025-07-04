@@ -4,1791 +4,1791 @@
     "date": "2024-06-26",
     "close": 126.4,
     "volume": 362960318.0,
-    "atr": null
+    "atr": 0.0
   },
   {
     "symbol": "NVDA",
     "date": "2024-06-27",
     "close": 123.99,
     "volume": 252450593.0,
-    "atr": null
+    "atr": 2.410000000000011
   },
   {
     "symbol": "NVDA",
     "date": "2024-06-28",
     "close": 123.54,
     "volume": 315510540.0,
-    "atr": null
+    "atr": 1.4299999999999997
   },
   {
     "symbol": "NVDA",
     "date": "2024-07-01",
     "close": 124.3,
     "volume": 284804398.0,
-    "atr": null
+    "atr": 1.2066666666666634
   },
   {
     "symbol": "NVDA",
     "date": "2024-07-02",
     "close": 122.67,
     "volume": 217141469.0,
-    "atr": null
+    "atr": 1.3124999999999964
   },
   {
     "symbol": "NVDA",
     "date": "2024-07-03",
     "close": 128.28,
     "volume": 215648955.0,
-    "atr": null
+    "atr": 2.171999999999997
   },
   {
     "symbol": "NVDA",
     "date": "2024-07-05",
     "close": 125.83,
     "volume": 214176689.0,
-    "atr": null
+    "atr": 2.2183333333333315
   },
   {
     "symbol": "NVDA",
     "date": "2024-07-08",
     "close": 128.2,
     "volume": 237586322.0,
-    "atr": null
+    "atr": 2.239999999999997
   },
   {
     "symbol": "NVDA",
     "date": "2024-07-09",
     "close": 131.38,
     "volume": 287020820.0,
-    "atr": null
+    "atr": 2.357499999999998
   },
   {
     "symbol": "NVDA",
     "date": "2024-07-10",
     "close": 134.91,
     "volume": 248978569.0,
-    "atr": null
+    "atr": 2.4877777777777763
   },
   {
     "symbol": "NVDA",
     "date": "2024-07-11",
     "close": 127.4,
     "volume": 373156088.0,
-    "atr": null
+    "atr": 2.9899999999999975
   },
   {
     "symbol": "NVDA",
     "date": "2024-07-12",
     "close": 129.24,
     "volume": 252674535.0,
-    "atr": null
+    "atr": 2.8854545454545435
   },
   {
     "symbol": "NVDA",
     "date": "2024-07-15",
     "close": 128.44,
     "volume": 207788164.0,
-    "atr": null
+    "atr": 2.711666666666666
   },
   {
     "symbol": "NVDA",
     "date": "2024-07-16",
     "close": 126.36,
     "volume": 214720615.0,
-    "atr": null
+    "atr": 2.6630769230769222
   },
   {
     "symbol": "NVDA",
     "date": "2024-07-17",
     "close": 117.99,
     "volume": 389973989.0,
-    "atr": null
+    "atr": 3.0707142857142853
   },
   {
     "symbol": "NVDA",
     "date": "2024-07-18",
     "close": 121.09,
     "volume": 320930830.0,
-    "atr": null
+    "atr": 3.1199999999999997
   },
   {
     "symbol": "NVDA",
     "date": "2024-07-19",
     "close": 117.93,
     "volume": 217223800.0,
-    "atr": null
+    "atr": 3.3135714285714286
   },
   {
     "symbol": "NVDA",
     "date": "2024-07-22",
     "close": 123.54,
     "volume": 258045693.0,
-    "atr": null
+    "atr": 3.6600000000000006
   },
   {
     "symbol": "NVDA",
     "date": "2024-07-23",
     "close": 122.59,
     "volume": 173906183.0,
-    "atr": null
+    "atr": 3.6114285714285725
   },
   {
     "symbol": "NVDA",
     "date": "2024-07-24",
     "close": 114.25,
     "volume": 327776884.0,
-    "atr": null
+    "atr": 3.806428571428573
   },
   {
     "symbol": "NVDA",
     "date": "2024-07-25",
     "close": 112.28,
     "volume": 457439119.0,
-    "atr": null
+    "atr": 3.772142857142858
   },
   {
     "symbol": "NVDA",
     "date": "2024-07-26",
     "close": 113.06,
     "volume": 291106073.0,
-    "atr": null
+    "atr": 3.6585714285714306
   },
   {
     "symbol": "NVDA",
     "date": "2024-07-29",
     "close": 111.59,
     "volume": 248147118.0,
-    "atr": null
+    "atr": 3.536428571428573
   },
   {
     "symbol": "NVDA",
     "date": "2024-07-30",
     "close": 103.73,
     "volume": 486492918.0,
-    "atr": null
+    "atr": 3.845714285714287
   },
   {
     "symbol": "NVDA",
     "date": "2024-07-31",
     "close": 117.02,
     "volume": 472922582.0,
-    "atr": null
+    "atr": 4.25857142857143
   },
   {
     "symbol": "NVDA",
     "date": "2024-08-01",
     "close": 109.21,
     "volume": 523413526.0,
-    "atr": null
+    "atr": 4.685000000000001
   },
   {
     "symbol": "NVDA",
     "date": "2024-08-02",
     "close": 107.27,
     "volume": 481699964.0,
-    "atr": null
+    "atr": 4.7664285714285715
   },
   {
     "symbol": "NVDA",
     "date": "2024-08-05",
     "close": 100.45,
     "volume": 552840342.0,
-    "atr": null
+    "atr": 5.1049999999999995
   },
   {
     "symbol": "NVDA",
     "date": "2024-08-06",
     "close": 104.25,
     "volume": 409012089.0,
-    "atr": null
+    "atr": 4.778571428571428
   },
   {
     "symbol": "NVDA",
     "date": "2024-08-07",
     "close": 98.91,
     "volume": 411433623.0,
-    "atr": null
+    "atr": 4.938571428571428
   },
   {
     "symbol": "NVDA",
     "date": "2024-08-08",
     "close": 104.97,
     "volume": 391910023.0,
-    "atr": null
+    "atr": 5.145714285714285
   },
   {
     "symbol": "NVDA",
     "date": "2024-08-09",
     "close": 104.75,
     "volume": 290620407.0,
-    "atr": null
+    "atr": 4.760714285714285
   },
   {
     "symbol": "NVDA",
     "date": "2024-08-12",
     "close": 109.02,
     "volume": 325545870.0,
-    "atr": null
+    "atr": 4.997857142857142
   },
   {
     "symbol": "NVDA",
     "date": "2024-08-13",
     "close": 116.14,
     "volume": 312646660.0,
-    "atr": null
+    "atr": 4.910714285714285
   },
   {
     "symbol": "NVDA",
     "date": "2024-08-14",
     "close": 118.08,
     "volume": 339078657.0,
-    "atr": null
+    "atr": 4.9085714285714275
   },
   {
     "symbol": "NVDA",
     "date": "2024-08-15",
     "close": 122.86,
     "volume": 318069573.0,
-    "atr": null
+    "atr": 5.194285714285713
   },
   {
     "symbol": "NVDA",
     "date": "2024-08-16",
     "close": 124.58,
     "volume": 302589872.0,
-    "atr": null
+    "atr": 5.212142857142856
   },
   {
     "symbol": "NVDA",
     "date": "2024-08-19",
     "close": 130,
     "volume": 318321577.0,
-    "atr": null
+    "atr": 5.037857142857142
   },
   {
     "symbol": "NVDA",
     "date": "2024-08-20",
     "close": 127.25,
     "volume": 300085915.0,
-    "atr": null
+    "atr": 4.284999999999999
   },
   {
     "symbol": "NVDA",
     "date": "2024-08-21",
     "close": 128.5,
     "volume": 257822622.0,
-    "atr": null
+    "atr": 3.816428571428571
   },
   {
     "symbol": "NVDA",
     "date": "2024-08-22",
     "close": 123.74,
     "volume": 376133876.0,
-    "atr": null
+    "atr": 4.017857142857143
   },
   {
     "symbol": "NVDA",
     "date": "2024-08-23",
     "close": 129.37,
     "volume": 323155332.0,
-    "atr": null
+    "atr": 3.932857142857144
   },
   {
     "symbol": "NVDA",
     "date": "2024-08-26",
     "close": 126.46,
     "volume": 331907172.0,
-    "atr": null
+    "atr": 3.8692857142857164
   },
   {
     "symbol": "NVDA",
     "date": "2024-08-27",
     "close": 128.3,
     "volume": 302834073.0,
-    "atr": null
+    "atr": 3.6192857142857173
   },
   {
     "symbol": "NVDA",
     "date": "2024-08-28",
     "close": 125.61,
     "volume": 447901465.0,
-    "atr": null
+    "atr": 3.3785714285714326
   },
   {
     "symbol": "NVDA",
     "date": "2024-08-29",
     "close": 117.59,
     "volume": 452965405.0,
-    "atr": null
+    "atr": 3.9357142857142895
   },
   {
     "symbol": "NVDA",
     "date": "2024-08-30",
     "close": 119.37,
     "volume": 333580583.0,
-    "atr": null
+    "atr": 3.757857142857147
   },
   {
     "symbol": "NVDA",
     "date": "2024-09-03",
     "close": 108,
     "volume": 477137100.0,
-    "atr": null
+    "atr": 4.061428571428576
   },
   {
     "symbol": "NVDA",
     "date": "2024-09-04",
     "close": 106.21,
     "volume": 372087666.0,
-    "atr": null
+    "atr": 4.050714285714291
   },
   {
     "symbol": "NVDA",
     "date": "2024-09-05",
     "close": 107.21,
     "volume": 306784696.0,
-    "atr": null
+    "atr": 3.78071428571429
   },
   {
     "symbol": "NVDA",
     "date": "2024-09-06",
     "close": 102.83,
     "volume": 413518098.0,
-    "atr": null
+    "atr": 3.97071428571429
   },
   {
     "symbol": "NVDA",
     "date": "2024-09-09",
     "close": 106.47,
     "volume": 273912015.0,
-    "atr": null
+    "atr": 3.843571428571433
   },
   {
     "symbol": "NVDA",
     "date": "2024-09-10",
     "close": 108.1,
     "volume": 268132646.0,
-    "atr": null
+    "atr": 3.7635714285714323
   },
   {
     "symbol": "NVDA",
     "date": "2024-09-11",
     "close": 116.91,
     "volume": 441320370.0,
-    "atr": null
+    "atr": 4.303571428571432
   },
   {
     "symbol": "NVDA",
     "date": "2024-09-12",
     "close": 119.14,
     "volume": 366600496.0,
-    "atr": null
+    "atr": 4.122857142857147
   },
   {
     "symbol": "NVDA",
     "date": "2024-09-13",
     "close": 119.1,
     "volume": 238281625.0,
-    "atr": null
+    "atr": 3.7235714285714323
   },
   {
     "symbol": "NVDA",
     "date": "2024-09-16",
     "close": 116.78,
     "volume": 248573278.0,
-    "atr": null
+    "atr": 3.6814285714285737
   },
   {
     "symbol": "NVDA",
     "date": "2024-09-17",
     "close": 115.59,
     "volume": 231916876.0,
-    "atr": null
+    "atr": 3.635000000000001
   },
   {
     "symbol": "NVDA",
     "date": "2024-09-18",
     "close": 113.37,
     "volume": 310103387.0,
-    "atr": null
+    "atr": 3.6014285714285714
   },
   {
     "symbol": "NVDA",
     "date": "2024-09-19",
     "close": 117.87,
     "volume": 293471883.0,
-    "atr": null
+    "atr": 3.3500000000000005
   },
   {
     "symbol": "NVDA",
     "date": "2024-09-20",
     "close": 116,
     "volume": 382335024.0,
-    "atr": null
+    "atr": 3.356428571428572
   },
   {
     "symbol": "NVDA",
     "date": "2024-09-23",
     "close": 116.26,
     "volume": 206228490.0,
-    "atr": null
+    "atr": 2.5628571428571436
   },
   {
     "symbol": "NVDA",
     "date": "2024-09-24",
     "close": 120.87,
     "volume": 354834772.0,
-    "atr": null
+    "atr": 2.7642857142857147
   },
   {
     "symbol": "NVDA",
     "date": "2024-09-25",
     "close": 123.51,
     "volume": 284124348.0,
-    "atr": null
+    "atr": 2.8814285714285717
   },
   {
     "symbol": "NVDA",
     "date": "2024-09-26",
     "close": 124.04,
     "volume": 302555868.0,
-    "atr": null
+    "atr": 2.606428571428572
   },
   {
     "symbol": "NVDA",
     "date": "2024-09-27",
     "close": 121.4,
     "volume": 270822175.0,
-    "atr": null
+    "atr": 2.5350000000000006
   },
   {
     "symbol": "NVDA",
     "date": "2024-09-30",
     "close": 121.44,
     "volume": 227011633.0,
-    "atr": null
+    "atr": 2.4214285714285717
   },
   {
     "symbol": "NVDA",
     "date": "2024-10-01",
     "close": 117,
     "volume": 301394485.0,
-    "atr": null
+    "atr": 2.1092857142857144
   },
   {
     "symbol": "NVDA",
     "date": "2024-10-02",
     "close": 118.85,
     "volume": 221821887.0,
-    "atr": null
+    "atr": 2.0821428571428564
   },
   {
     "symbol": "NVDA",
     "date": "2024-10-03",
     "close": 122.85,
     "volume": 277109873.0,
-    "atr": null
+    "atr": 2.364999999999999
   },
   {
     "symbol": "NVDA",
     "date": "2024-10-04",
     "close": 124.92,
     "volume": 244465552.0,
-    "atr": null
+    "atr": 2.347142857142857
   },
   {
     "symbol": "NVDA",
     "date": "2024-10-07",
     "close": 127.72,
     "volume": 346129233.0,
-    "atr": null
+    "atr": 2.462142857142857
   },
   {
     "symbol": "NVDA",
     "date": "2024-10-08",
     "close": 132.89,
     "volume": 285722485.0,
-    "atr": null
+    "atr": 2.672857142857142
   },
   {
     "symbol": "NVDA",
     "date": "2024-10-09",
     "close": 132.65,
     "volume": 245598762.0,
-    "atr": null
+    "atr": 2.368571428571426
   },
   {
     "symbol": "NVDA",
     "date": "2024-10-10",
     "close": 134.81,
     "volume": 242311337.0,
-    "atr": null
+    "atr": 2.3892857142857116
   },
   {
     "symbol": "NVDA",
     "date": "2024-10-11",
     "close": 134.8,
     "volume": 170186254.0,
-    "atr": null
+    "atr": 2.3714285714285674
   },
   {
     "symbol": "NVDA",
     "date": "2024-10-14",
     "close": 138.07,
     "volume": 232347668.0,
-    "atr": null
+    "atr": 2.2757142857142805
   },
   {
     "symbol": "NVDA",
     "date": "2024-10-15",
     "close": 131.6,
     "volume": 377750221.0,
-    "atr": null
+    "atr": 2.549285714285709
   },
   {
     "symbol": "NVDA",
     "date": "2024-10-16",
     "close": 135.72,
     "volume": 264863170.0,
-    "atr": null
+    "atr": 2.8057142857142807
   },
   {
     "symbol": "NVDA",
     "date": "2024-10-17",
     "close": 136.93,
     "volume": 303995921.0,
-    "atr": null
+    "atr": 2.7035714285714243
   },
   {
     "symbol": "NVDA",
     "date": "2024-10-18",
     "close": 138,
     "volume": 176007854.0,
-    "atr": null
+    "atr": 2.7771428571428527
   },
   {
     "symbol": "NVDA",
     "date": "2024-10-21",
     "close": 143.71,
     "volume": 264516114.0,
-    "atr": null
+    "atr": 2.8678571428571393
   },
   {
     "symbol": "NVDA",
     "date": "2024-10-22",
     "close": 143.59,
     "volume": 226311589.0,
-    "atr": null
+    "atr": 2.7442857142857116
   },
   {
     "symbol": "NVDA",
     "date": "2024-10-23",
     "close": 139.56,
     "volume": 285917538.0,
-    "atr": null
+    "atr": 2.7464285714285688
   },
   {
     "symbol": "NVDA",
     "date": "2024-10-24",
     "close": 140.41,
     "volume": 172354817.0,
-    "atr": null
+    "atr": 2.6592857142857107
   },
   {
     "symbol": "NVDA",
     "date": "2024-10-25",
     "close": 141.54,
     "volume": 202730559.0,
-    "atr": null
+    "atr": 2.539999999999996
   },
   {
     "symbol": "NVDA",
     "date": "2024-10-28",
     "close": 140.52,
     "volume": 173586745.0,
-    "atr": null
+    "atr": 2.2435714285714243
   },
   {
     "symbol": "NVDA",
     "date": "2024-10-29",
     "close": 141.25,
     "volume": 157593634.0,
-    "atr": null
+    "atr": 2.278571428571425
   },
   {
     "symbol": "NVDA",
     "date": "2024-10-30",
     "close": 139.335,
     "volume": 179308582.0,
-    "atr": null
+    "atr": 2.2610714285714244
   },
   {
     "symbol": "NVDA",
     "date": "2024-10-31",
     "close": 132.76,
     "volume": 270039641.0,
-    "atr": null
+    "atr": 2.7299999999999978
   },
   {
     "symbol": "NVDA",
     "date": "2024-11-01",
     "close": 135.4,
     "volume": 207127838.0,
-    "atr": null
+    "atr": 2.685
   },
   {
     "symbol": "NVDA",
     "date": "2024-11-04",
     "close": 136.05,
     "volume": 187504773.0,
-    "atr": null
+    "atr": 2.269285714285715
   },
   {
     "symbol": "NVDA",
     "date": "2024-11-05",
     "close": 139.91,
     "volume": 160427873.0,
-    "atr": null
+    "atr": 2.250714285714285
   },
   {
     "symbol": "NVDA",
     "date": "2024-11-06",
     "close": 145.61,
     "volume": 242043691.0,
-    "atr": null
+    "atr": 2.5714285714285716
   },
   {
     "symbol": "NVDA",
     "date": "2024-11-07",
     "close": 148.88,
     "volume": 207323303.0,
-    "atr": null
+    "atr": 2.7285714285714278
   },
   {
     "symbol": "NVDA",
     "date": "2024-11-08",
     "close": 147.63,
     "volume": 175580530.0,
-    "atr": null
+    "atr": 2.409999999999999
   },
   {
     "symbol": "NVDA",
     "date": "2024-11-11",
     "close": 145.26,
     "volume": 182325620.0,
-    "atr": null
+    "atr": 2.5707142857142844
   },
   {
     "symbol": "NVDA",
     "date": "2024-11-12",
     "close": 148.29,
     "volume": 198634738.0,
-    "atr": null
+    "atr": 2.499285714285713
   },
   {
     "symbol": "NVDA",
     "date": "2024-11-13",
     "close": 146.27,
     "volume": 191903267.0,
-    "atr": null
+    "atr": 2.5828571428571405
   },
   {
     "symbol": "NVDA",
     "date": "2024-11-14",
     "close": 146.76,
     "volume": 194388301.0,
-    "atr": null
+    "atr": 2.537142857142854
   },
   {
     "symbol": "NVDA",
     "date": "2024-11-15",
     "close": 141.98,
     "volume": 250032869.0,
-    "atr": null
+    "atr": 2.805714285714284
   },
   {
     "symbol": "NVDA",
     "date": "2024-11-18",
     "close": 140.15,
     "volume": 221859993.0,
-    "atr": null
+    "atr": 2.884285714285712
   },
   {
     "symbol": "NVDA",
     "date": "2024-11-19",
     "close": 147.01,
     "volume": 227821412.0,
-    "atr": null
+    "atr": 3.237499999999997
   },
   {
     "symbol": "NVDA",
     "date": "2024-11-20",
     "close": 145.89,
     "volume": 309821654.0,
-    "atr": null
+    "atr": 2.8478571428571393
   },
   {
     "symbol": "NVDA",
     "date": "2024-11-21",
     "close": 146.67,
     "volume": 400416570.0,
-    "atr": null
+    "atr": 2.7149999999999954
   },
   {
     "symbol": "NVDA",
     "date": "2024-11-22",
     "close": 141.95,
     "volume": 235598654.0,
-    "atr": null
+    "atr": 3.0057142857142805
   },
   {
     "symbol": "NVDA",
     "date": "2024-11-25",
     "close": 136.02,
     "volume": 344941875.0,
-    "atr": null
+    "atr": 3.1535714285714227
   },
   {
     "symbol": "NVDA",
     "date": "2024-11-26",
     "close": 136.92,
     "volume": 190283654.0,
-    "atr": null
+    "atr": 2.810714285714277
   },
   {
     "symbol": "NVDA",
     "date": "2024-11-27",
     "close": 135.34,
     "volume": 226090912.0,
-    "atr": null
+    "atr": 2.6899999999999915
   },
   {
     "symbol": "NVDA",
     "date": "2024-11-29",
     "close": 138.25,
     "volume": 141863156.0,
-    "atr": null
+    "atr": 2.80857142857142
   },
   {
     "symbol": "NVDA",
     "date": "2024-12-02",
     "close": 138.63,
     "volume": 171679277.0,
-    "atr": null
+    "atr": 2.666428571428562
   },
   {
     "symbol": "NVDA",
     "date": "2024-12-03",
     "close": 140.26,
     "volume": 162451965.0,
-    "atr": null
+    "atr": 2.566428571428562
   },
   {
     "symbol": "NVDA",
     "date": "2024-12-04",
     "close": 145.14,
     "volume": 231213095.0,
-    "atr": null
+    "atr": 2.770714285714277
   },
   {
     "symbol": "NVDA",
     "date": "2024-12-05",
     "close": 145.06,
     "volume": 172558660.0,
-    "atr": null
+    "atr": 2.741428571428563
   },
   {
     "symbol": "NVDA",
     "date": "2024-12-06",
     "close": 142.44,
     "volume": 188475973.0,
-    "atr": null
+    "atr": 2.5871428571428488
   },
   {
     "symbol": "NVDA",
     "date": "2024-12-09",
     "close": 138.81,
     "volume": 188405025.0,
-    "atr": null
+    "atr": 2.715714285714278
   },
   {
     "symbol": "NVDA",
     "date": "2024-12-10",
     "close": 135.07,
     "volume": 209987888.0,
-    "atr": null
+    "atr": 2.492857142857137
   },
   {
     "symbol": "NVDA",
     "date": "2024-12-11",
     "close": 139.31,
     "volume": 184742692.0,
-    "atr": null
+    "atr": 2.7157142857142804
   },
   {
     "symbol": "NVDA",
     "date": "2024-12-12",
     "close": 137.34,
     "volume": 159211393.0,
-    "atr": null
+    "atr": 2.8007142857142804
   },
   {
     "symbol": "NVDA",
     "date": "2024-12-13",
     "close": 134.25,
     "volume": 231337881.0,
-    "atr": null
+    "atr": 2.6842857142857093
   },
   {
     "symbol": "NVDA",
     "date": "2024-12-16",
     "close": 132,
     "volume": 237683653.0,
-    "atr": null
+    "atr": 2.4214285714285677
   },
   {
     "symbol": "NVDA",
     "date": "2024-12-17",
     "close": 130.39,
     "volume": 259136513.0,
-    "atr": null
+    "atr": 2.472142857142856
   },
   {
     "symbol": "NVDA",
     "date": "2024-12-18",
     "close": 128.91,
     "volume": 277212733.0,
-    "atr": null
+    "atr": 2.4649999999999994
   },
   {
     "symbol": "NVDA",
     "date": "2024-12-19",
     "close": 130.68,
     "volume": 209716290.0,
-    "atr": null
+    "atr": 2.383571428571429
   },
   {
     "symbol": "NVDA",
     "date": "2024-12-20",
     "close": 134.7,
     "volume": 304366553.0,
-    "atr": null
+    "atr": 2.643571428571428
   },
   {
     "symbol": "NVDA",
     "date": "2024-12-23",
     "close": 139.67,
     "volume": 175415306.0,
-    "atr": null
+    "atr": 2.8821428571428567
   },
   {
     "symbol": "NVDA",
     "date": "2024-12-24",
     "close": 140.22,
     "volume": 105156989.0,
-    "atr": null
+    "atr": 2.5728571428571434
   },
   {
     "symbol": "NVDA",
     "date": "2024-12-26",
     "close": 139.93,
     "volume": 116519090.0,
-    "atr": null
+    "atr": 2.587857142857144
   },
   {
     "symbol": "NVDA",
     "date": "2024-12-27",
     "close": 137.01,
     "volume": 170555003.0,
-    "atr": null
+    "atr": 2.609285714285716
   },
   {
     "symbol": "NVDA",
     "date": "2024-12-30",
     "close": 137.49,
     "volume": 167025700.0,
-    "atr": null
+    "atr": 2.384285714285718
   },
   {
     "symbol": "NVDA",
     "date": "2024-12-31",
     "close": 134.29,
     "volume": 154668311.0,
-    "atr": null
+    "atr": 2.34571428571429
   },
   {
     "symbol": "NVDA",
     "date": "2025-01-02",
     "close": 138.31,
     "volume": 198226166.0,
-    "atr": null
+    "atr": 2.3300000000000045
   },
   {
     "symbol": "NVDA",
     "date": "2025-01-03",
     "close": 144.47,
     "volume": 229300628.0,
-    "atr": null
+    "atr": 2.6292857142857184
   },
   {
     "symbol": "NVDA",
     "date": "2025-01-06",
     "close": 149.43,
     "volume": 265356909.0,
-    "atr": null
+    "atr": 2.7628571428571473
   },
   {
     "symbol": "NVDA",
     "date": "2025-01-07",
     "close": 140.14,
     "volume": 351724174.0,
-    "atr": null
+    "atr": 3.265714285714292
   },
   {
     "symbol": "NVDA",
     "date": "2025-01-08",
     "close": 140.11,
     "volume": 227288848.0,
-    "atr": null
+    "atr": 3.152857142857146
   },
   {
     "symbol": "NVDA",
     "date": "2025-01-10",
     "close": 135.91,
     "volume": 207559414.0,
-    "atr": null
+    "atr": 3.3471428571428623
   },
   {
     "symbol": "NVDA",
     "date": "2025-01-13",
     "close": 133.23,
     "volume": 204581014.0,
-    "atr": null
+    "atr": 3.412142857142862
   },
   {
     "symbol": "NVDA",
     "date": "2025-01-14",
     "close": 131.76,
     "volume": 195464885.0,
-    "atr": null
+    "atr": 3.230000000000006
   },
   {
     "symbol": "NVDA",
     "date": "2025-01-15",
     "close": 136.24,
     "volume": 185129838.0,
-    "atr": null
+    "atr": 3.1950000000000074
   },
   {
     "symbol": "NVDA",
     "date": "2025-01-16",
     "close": 133.57,
     "volume": 208706783.0,
-    "atr": null
+    "atr": 3.346428571428579
   },
   {
     "symbol": "NVDA",
     "date": "2025-01-17",
     "close": 137.71,
     "volume": 200876684.0,
-    "atr": null
+    "atr": 3.6214285714285808
   },
   {
     "symbol": "NVDA",
     "date": "2025-01-21",
     "close": 140.83,
     "volume": 197696885.0,
-    "atr": null
+    "atr": 3.635714285714294
   },
   {
     "symbol": "NVDA",
     "date": "2025-01-22",
     "close": 147.07,
     "volume": 237617040.0,
-    "atr": null
+    "atr": 4.047142857142863
   },
   {
     "symbol": "NVDA",
     "date": "2025-01-23",
     "close": 147.22,
     "volume": 155909592.0,
-    "atr": null
+    "atr": 3.8292857142857195
   },
   {
     "symbol": "NVDA",
     "date": "2025-01-24",
     "close": 142.62,
     "volume": 234644435.0,
-    "atr": null
+    "atr": 3.8707142857142895
   },
   {
     "symbol": "NVDA",
     "date": "2025-01-27",
     "close": 118.42,
     "volume": 817690876.0,
-    "atr": null
+    "atr": 5.159285714285718
   },
   {
     "symbol": "NVDA",
     "date": "2025-01-28",
     "close": 128.99,
     "volume": 579493750.0,
-    "atr": null
+    "atr": 5.560000000000004
   },
   {
     "symbol": "NVDA",
     "date": "2025-01-29",
     "close": 123.7,
     "volume": 466646840.0,
-    "atr": null
+    "atr": 5.274285714285718
   },
   {
     "symbol": "NVDA",
     "date": "2025-01-30",
     "close": 124.65,
     "volume": 392771367.0,
-    "atr": null
+    "atr": 5.340000000000005
   },
   {
     "symbol": "NVDA",
     "date": "2025-01-31",
     "close": 120.07,
     "volume": 388011099.0,
-    "atr": null
+    "atr": 5.367142857142862
   },
   {
     "symbol": "NVDA",
     "date": "2025-02-03",
     "close": 116.66,
     "volume": 369669577.0,
-    "atr": null
+    "atr": 5.419285714285719
   },
   {
     "symbol": "NVDA",
     "date": "2025-02-04",
     "close": 118.65,
     "volume": 253381586.0,
-    "atr": null
+    "atr": 5.456428571428576
   },
   {
     "symbol": "NVDA",
     "date": "2025-02-05",
     "close": 124.83,
     "volume": 262825249.0,
-    "atr": null
+    "atr": 5.577857142857146
   },
   {
     "symbol": "NVDA",
     "date": "2025-02-06",
     "close": 128.68,
     "volume": 251483574.0,
-    "atr": null
+    "atr": 5.66214285714286
   },
   {
     "symbol": "NVDA",
     "date": "2025-02-07",
     "close": 129.84,
     "volume": 228121198.0,
-    "atr": null
+    "atr": 5.449285714285716
   },
   {
     "symbol": "NVDA",
     "date": "2025-02-10",
     "close": 133.57,
     "volume": 216895986.0,
-    "atr": null
+    "atr": 5.492857142857143
   },
   {
     "symbol": "NVDA",
     "date": "2025-02-11",
     "close": 132.8,
     "volume": 178900279.0,
-    "atr": null
+    "atr": 5.102142857142858
   },
   {
     "symbol": "NVDA",
     "date": "2025-02-12",
     "close": 131.14,
     "volume": 160278552.0,
-    "atr": null
+    "atr": 5.210000000000002
   },
   {
     "symbol": "NVDA",
     "date": "2025-02-13",
     "close": 135.29,
     "volume": 197334835.0,
-    "atr": null
+    "atr": 5.177857142857145
   },
   {
     "symbol": "NVDA",
     "date": "2025-02-14",
     "close": 138.85,
     "volume": 195435363.0,
-    "atr": null
+    "atr": 3.7035714285714314
   },
   {
     "symbol": "NVDA",
     "date": "2025-02-18",
     "close": 139.4,
     "volume": 219173591.0,
-    "atr": null
+    "atr": 2.9878571428571457
   },
   {
     "symbol": "NVDA",
     "date": "2025-02-19",
     "close": 139.23,
     "volume": 167524206.0,
-    "atr": null
+    "atr": 2.622142857142861
   },
   {
     "symbol": "NVDA",
     "date": "2025-02-20",
     "close": 140.11,
     "volume": 143894123.0,
-    "atr": null
+    "atr": 2.6171428571428623
   },
   {
     "symbol": "NVDA",
     "date": "2025-02-21",
     "close": 134.43,
     "volume": 228098935.0,
-    "atr": null
+    "atr": 2.6957142857142906
   },
   {
     "symbol": "NVDA",
     "date": "2025-02-24",
     "close": 130.28,
     "volume": 251165137.0,
-    "atr": null
+    "atr": 2.748571428571434
   },
   {
     "symbol": "NVDA",
     "date": "2025-02-25",
     "close": 126.63,
     "volume": 271310011.0,
-    "atr": null
+    "atr": 2.8671428571428623
   },
   {
     "symbol": "NVDA",
     "date": "2025-02-26",
     "close": 131.28,
     "volume": 322493814.0,
-    "atr": null
+    "atr": 2.757857142857149
   },
   {
     "symbol": "NVDA",
     "date": "2025-02-27",
     "close": 120.15,
     "volume": 443130950.0,
-    "atr": null
+    "atr": 3.277857142857148
   },
   {
     "symbol": "NVDA",
     "date": "2025-02-28",
     "close": 124.92,
     "volume": 389091145.0,
-    "atr": null
+    "atr": 3.535714285714291
   },
   {
     "symbol": "NVDA",
     "date": "2025-03-03",
     "close": 114.06,
     "volume": 411115773.0,
-    "atr": null
+    "atr": 4.045000000000006
   },
   {
     "symbol": "NVDA",
     "date": "2025-03-04",
     "close": 115.99,
     "volume": 397827425.0,
-    "atr": null
+    "atr": 4.12785714285715
   },
   {
     "symbol": "NVDA",
     "date": "2025-03-05",
     "close": 117.3,
     "volume": 284316386.0,
-    "atr": null
+    "atr": 4.102857142857148
   },
   {
     "symbol": "NVDA",
     "date": "2025-03-06",
     "close": 110.57,
     "volume": 320436861.0,
-    "atr": null
+    "atr": 4.287142857142862
   },
   {
     "symbol": "NVDA",
     "date": "2025-03-07",
     "close": 112.69,
     "volume": 340735468.0,
-    "atr": null
+    "atr": 4.1842857142857195
   },
   {
     "symbol": "NVDA",
     "date": "2025-03-10",
     "close": 106.98,
     "volume": 366260463.0,
-    "atr": null
+    "atr": 4.552857142857147
   },
   {
     "symbol": "NVDA",
     "date": "2025-03-11",
     "close": 108.76,
     "volume": 353196487.0,
-    "atr": null
+    "atr": 4.667857142857145
   },
   {
     "symbol": "NVDA",
     "date": "2025-03-12",
     "close": 115.74,
     "volume": 323857454.0,
-    "atr": null
+    "atr": 5.103571428571429
   },
   {
     "symbol": "NVDA",
     "date": "2025-03-13",
     "close": 115.58,
     "volume": 298827031.0,
-    "atr": null
+    "atr": 4.709285714285714
   },
   {
     "symbol": "NVDA",
     "date": "2025-03-14",
     "close": 121.67,
     "volume": 276484855.0,
-    "atr": null
+    "atr": 4.847857142857142
   },
   {
     "symbol": "NVDA",
     "date": "2025-03-17",
     "close": 119.53,
     "volume": 255501481.0,
-    "atr": null
+    "atr": 4.739999999999999
   },
   {
     "symbol": "NVDA",
     "date": "2025-03-18",
     "close": 115.43,
     "volume": 299612031.0,
-    "atr": null
+    "atr": 4.700714285714284
   },
   {
     "symbol": "NVDA",
     "date": "2025-03-19",
     "close": 117.52,
     "volume": 273417345.0,
-    "atr": null
+    "atr": 4.054999999999998
   },
   {
     "symbol": "NVDA",
     "date": "2025-03-20",
     "close": 118.53,
     "volume": 248828549.0,
-    "atr": null
+    "atr": 3.7864285714285697
   },
   {
     "symbol": "NVDA",
     "date": "2025-03-21",
     "close": 117.7,
     "volume": 266498528.0,
-    "atr": null
+    "atr": 3.069999999999998
   },
   {
     "symbol": "NVDA",
     "date": "2025-03-24",
     "close": 121.41,
     "volume": 227399684.0,
-    "atr": null
+    "atr": 3.1971428571428553
   },
   {
     "symbol": "NVDA",
     "date": "2025-03-25",
     "close": 120.69,
     "volume": 167162198.0,
-    "atr": null
+    "atr": 3.154999999999998
   },
   {
     "symbol": "NVDA",
     "date": "2025-03-26",
     "close": 113.76,
     "volume": 296091617.0,
-    "atr": null
+    "atr": 3.1692857142857114
   },
   {
     "symbol": "NVDA",
     "date": "2025-03-27",
     "close": 111.43,
     "volume": 236887555.0,
-    "atr": null
+    "atr": 3.184285714285711
   },
   {
     "symbol": "NVDA",
     "date": "2025-03-28",
     "close": 109.67,
     "volume": 229872549.0,
-    "atr": null
+    "atr": 2.902142857142855
   },
   {
     "symbol": "NVDA",
     "date": "2025-03-31",
     "close": 108.38,
     "volume": 299132653.0,
-    "atr": null
+    "atr": 2.867142857142855
   },
   {
     "symbol": "NVDA",
     "date": "2025-04-01",
     "close": 110.15,
     "volume": 222527384.0,
-    "atr": null
+    "atr": 2.4949999999999997
   },
   {
     "symbol": "NVDA",
     "date": "2025-04-02",
     "close": 110.42,
     "volume": 220483243.0,
-    "atr": null
+    "atr": 2.5028571428571422
   },
   {
     "symbol": "NVDA",
     "date": "2025-04-03",
     "close": 101.8,
     "volume": 338692412.0,
-    "atr": null
+    "atr": 2.6835714285714283
   },
   {
     "symbol": "NVDA",
     "date": "2025-04-04",
     "close": 94.31,
     "volume": 532052710.0,
-    "atr": null
+    "atr": 3.065714285714285
   },
   {
     "symbol": "NVDA",
     "date": "2025-04-07",
     "close": 97.64,
     "volume": 610884947.0,
-    "atr": null
+    "atr": 3.0107142857142852
   },
   {
     "symbol": "NVDA",
     "date": "2025-04-08",
     "close": 96.3,
     "volume": 476243390.0,
-    "atr": null
+    "atr": 2.9571428571428577
   },
   {
     "symbol": "NVDA",
     "date": "2025-04-09",
     "close": 114.33,
     "volume": 612830336.0,
-    "atr": null
+    "atr": 4.172857142857143
   },
   {
     "symbol": "NVDA",
     "date": "2025-04-10",
     "close": 107.57,
     "volume": 437770503.0,
-    "atr": null
+    "atr": 4.596428571428572
   },
   {
     "symbol": "NVDA",
     "date": "2025-04-11",
     "close": 110.93,
     "volume": 313052615.0,
-    "atr": null
+    "atr": 4.571428571428574
   },
   {
     "symbol": "NVDA",
     "date": "2025-04-14",
     "close": 110.71,
     "volume": 264683346.0,
-    "atr": null
+    "atr": 4.535714285714289
   },
   {
     "symbol": "NVDA",
     "date": "2025-04-15",
     "close": 112.2,
     "volume": 228966900.0,
-    "atr": null
+    "atr": 4.147142857142861
   },
   {
     "symbol": "NVDA",
     "date": "2025-04-16",
     "close": 104.49,
     "volume": 397016870.0,
-    "atr": null
+    "atr": 4.5314285714285765
   },
   {
     "symbol": "NVDA",
     "date": "2025-04-17",
     "close": 101.49,
     "volume": 292472120.0,
-    "atr": null
+    "atr": 4.6200000000000045
   },
   {
     "symbol": "NVDA",
     "date": "2025-04-21",
     "close": 96.91,
     "volume": 287634736.0,
-    "atr": null
+    "atr": 4.855000000000004
   },
   {
     "symbol": "NVDA",
     "date": "2025-04-22",
     "close": 98.89,
     "volume": 240704784.0,
-    "atr": null
+    "atr": 4.870000000000004
   },
   {
     "symbol": "NVDA",
     "date": "2025-04-23",
     "close": 102.71,
     "volume": 247160684.0,
-    "atr": null
+    "atr": 5.123571428571432
   },
   {
     "symbol": "NVDA",
     "date": "2025-04-24",
     "close": 106.43,
     "volume": 220719441.0,
-    "atr": null
+    "atr": 4.773571428571432
   },
   {
     "symbol": "NVDA",
     "date": "2025-04-25",
     "close": 111.01,
     "volume": 250989422.0,
-    "atr": null
+    "atr": 4.56571428571429
   },
   {
     "symbol": "NVDA",
     "date": "2025-04-28",
     "close": 108.73,
     "volume": 207708479.0,
-    "atr": null
+    "atr": 4.49071428571429
   },
   {
     "symbol": "NVDA",
     "date": "2025-04-29",
     "close": 109.02,
     "volume": 170434063.0,
-    "atr": null
+    "atr": 4.415714285714289
   },
   {
     "symbol": "NVDA",
     "date": "2025-04-30",
     "close": 108.92,
     "volume": 235044611.0,
-    "atr": null
+    "atr": 3.135000000000003
   },
   {
     "symbol": "NVDA",
     "date": "2025-05-01",
     "close": 111.61,
     "volume": 236099382.0,
-    "atr": null
+    "atr": 2.844285714285717
   },
   {
     "symbol": "NVDA",
     "date": "2025-05-02",
     "close": 114.5,
     "volume": 190083778.0,
-    "atr": null
+    "atr": 2.8107142857142873
   },
   {
     "symbol": "NVDA",
     "date": "2025-05-05",
     "close": 113.82,
     "volume": 133078241.0,
-    "atr": null
+    "atr": 2.8435714285714297
   },
   {
     "symbol": "NVDA",
     "date": "2025-05-06",
     "close": 113.54,
     "volume": 158045621.0,
-    "atr": null
+    "atr": 2.7571428571428567
   },
   {
     "symbol": "NVDA",
     "date": "2025-05-07",
     "close": 117.06,
     "volume": 207827821.0,
-    "atr": null
+    "atr": 2.4578571428571414
   },
   {
     "symbol": "NVDA",
     "date": "2025-05-08",
     "close": 117.37,
     "volume": 198428122.0,
-    "atr": null
+    "atr": 2.2657142857142847
   },
   {
     "symbol": "NVDA",
     "date": "2025-05-09",
     "close": 116.65,
     "volume": 132972189.0,
-    "atr": null
+    "atr": 1.9899999999999989
   },
   {
     "symbol": "NVDA",
     "date": "2025-05-12",
     "close": 123,
     "volume": 225023345.0,
-    "atr": null
+    "atr": 2.3021428571428553
   },
   {
     "symbol": "NVDA",
     "date": "2025-05-13",
     "close": 129.93,
     "volume": 330430105.0,
-    "atr": null
+    "atr": 2.5242857142857136
   },
   {
     "symbol": "NVDA",
     "date": "2025-05-14",
     "close": 135.34,
     "volume": 281180830.0,
-    "atr": null
+    "atr": 2.6449999999999982
   },
   {
     "symbol": "NVDA",
     "date": "2025-05-15",
     "close": 134.83,
     "volume": 226632563.0,
-    "atr": null
+    "atr": 2.354285714285712
   },
   {
     "symbol": "NVDA",
     "date": "2025-05-16",
     "close": 135.4,
     "volume": 226542451.0,
-    "atr": null
+    "atr": 2.232142857142854
   },
   {
     "symbol": "NVDA",
     "date": "2025-05-19",
     "close": 135.57,
     "volume": 193154571.0,
-    "atr": null
+    "atr": 2.223571428571425
   },
   {
     "symbol": "NVDA",
     "date": "2025-05-20",
     "close": 134.38,
     "volume": 161514247.0,
-    "atr": null
+    "atr": 2.3014285714285685
   },
   {
     "symbol": "NVDA",
     "date": "2025-05-21",
     "close": 131.8,
     "volume": 270608738.0,
-    "atr": null
+    "atr": 2.2935714285714246
   },
   {
     "symbol": "NVDA",
     "date": "2025-05-22",
     "close": 132.83,
     "volume": 187343954.0,
-    "atr": null
+    "atr": 2.1607142857142816
   },
   {
     "symbol": "NVDA",
     "date": "2025-05-23",
     "close": 131.29,
     "volume": 198821324.0,
-    "atr": null
+    "atr": 2.222142857142854
   },
   {
     "symbol": "NVDA",
     "date": "2025-05-27",
     "close": 135.5,
     "volume": 192953613.0,
-    "atr": null
+    "atr": 2.5028571428571413
   },
   {
     "symbol": "NVDA",
     "date": "2025-05-28",
     "close": 134.81,
     "volume": 304021146.0,
-    "atr": null
+    "atr": 2.3007142857142844
   },
   {
     "symbol": "NVDA",
     "date": "2025-05-29",
     "close": 139.19,
     "volume": 370615167.0,
-    "atr": null
+    "atr": 2.5914285714285694
   },
   {
     "symbol": "NVDA",
     "date": "2025-05-30",
     "close": 135.13,
     "volume": 333170851.0,
-    "atr": null
+    "atr": 2.8299999999999983
   },
   {
     "symbol": "NVDA",
     "date": "2025-06-02",
     "close": 137.38,
     "volume": 197663116.0,
-    "atr": null
+    "atr": 2.537142857142856
   },
   {
     "symbol": "NVDA",
     "date": "2025-06-03",
     "close": 141.22,
     "volume": 225578783.0,
-    "atr": null
+    "atr": 2.31642857142857
   },
   {
     "symbol": "NVDA",
     "date": "2025-06-04",
     "close": 141.92,
     "volume": 167120819.0,
-    "atr": null
+    "atr": 1.979999999999998
   },
   {
     "symbol": "NVDA",
     "date": "2025-06-05",
     "close": 139.99,
     "volume": 232410759.0,
-    "atr": null
+    "atr": 2.0814285714285683
   },
   {
     "symbol": "NVDA",
     "date": "2025-06-06",
     "close": 141.72,
     "volume": 153986153.0,
-    "atr": null
+    "atr": 2.164285714285711
   },
   {
     "symbol": "NVDA",
     "date": "2025-06-09",
     "close": 142.63,
     "volume": 185114494.0,
-    "atr": null
+    "atr": 2.2171428571428544
   },
   {
     "symbol": "NVDA",
     "date": "2025-06-10",
     "close": 143.96,
     "volume": 155881897.0,
-    "atr": null
+    "atr": 2.2271428571428555
   },
   {
     "symbol": "NVDA",
     "date": "2025-06-11",
     "close": 142.83,
     "volume": 167694044.0,
-    "atr": null
+    "atr": 2.1235714285714278
   },
   {
     "symbol": "NVDA",
     "date": "2025-06-12",
     "close": 145,
     "volume": 162364991.0,
-    "atr": null
+    "atr": 2.2049999999999983
   },
   {
     "symbol": "NVDA",
     "date": "2025-06-13",
     "close": 141.97,
     "volume": 180820565.0,
-    "atr": null
+    "atr": 2.3114285714285683
   },
   {
     "symbol": "NVDA",
     "date": "2025-06-16",
     "close": 144.69,
     "volume": 183133666.0,
-    "atr": null
+    "atr": 2.204999999999996
   },
   {
     "symbol": "NVDA",
     "date": "2025-06-17",
     "close": 144.12,
     "volume": 139108000.0,
-    "atr": null
+    "atr": 2.196428571428567
   },
   {
     "symbol": "NVDA",
     "date": "2025-06-18",
     "close": 145.48,
     "volume": 161494121.0,
-    "atr": null
+    "atr": 1.980714285714281
   },
   {
     "symbol": "NVDA",
     "date": "2025-06-20",
     "close": 143.85,
     "volume": 242956157.0,
-    "atr": null
+    "atr": 1.8071428571428518
   },
   {
     "symbol": "NVDA",
     "date": "2025-06-23",
     "close": 144.17,
     "volume": 154308941.0,
-    "atr": null
+    "atr": 1.6692857142857085
   },
   {
     "symbol": "NVDA",
     "date": "2025-06-24",
     "close": 147.9,
     "volume": 187566121.0,
-    "atr": null
+    "atr": 1.6614285714285668
   },
   {
     "symbol": "NVDA",
     "date": "2025-06-25",
     "close": 154.31,
     "volume": 269146471.0,
-    "atr": null
+    "atr": 2.06928571428571
   },
   {
     "symbol": "NVDA",
     "date": "2025-06-26",
     "close": 155.02,
     "volume": 198145746.0,
-    "atr": null
+    "atr": 1.9821428571428552
   },
   {
     "symbol": "NVDA",
     "date": "2025-06-27",
     "close": 157.75,
     "volume": 263234539.0,
-    "atr": null
+    "atr": 2.0535714285714266
   },
   {
     "symbol": "NVDA",
     "date": "2025-06-30",
     "close": 157.99,
     "volume": 194580316.0,
-    "atr": null
+    "atr": 2.0057142857142845
   },
   {
     "symbol": "NVDA",
     "date": "2025-07-01",
     "close": 153.3,
     "volume": 213143621.0,
-    "atr": null
+    "atr": 2.2457142857142833
   },
   {
     "symbol": "NVDA",
     "date": "2025-07-02",
     "close": 157.25,
     "volume": 171224111.0,
-    "atr": null
+    "atr": 2.4471428571428544
   },
   {
     "symbol": "NVDA",
     "date": "2025-07-03",
     "close": 159.34,
     "volume": 143713402.0,
-    "atr": null
+    "atr": 2.44142857142857
   }
 ]

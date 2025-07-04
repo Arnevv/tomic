@@ -4,1791 +4,1791 @@
     "date": "2024-06-26",
     "close": 513.12,
     "volume": 8882337.0,
-    "atr": null
+    "atr": 0.0
   },
   {
     "symbol": "META",
     "date": "2024-06-27",
     "close": 519.56,
     "volume": 9821199.0,
-    "atr": null
+    "atr": 6.439999999999941
   },
   {
     "symbol": "META",
     "date": "2024-06-28",
     "close": 504.22,
     "volume": 15855137.0,
-    "atr": null
+    "atr": 10.88999999999993
   },
   {
     "symbol": "META",
     "date": "2024-07-01",
     "close": 504.68,
     "volume": 10328150.0,
-    "atr": null
+    "atr": 7.41333333333328
   },
   {
     "symbol": "META",
     "date": "2024-07-02",
     "close": 509.5,
     "volume": 7739479.0,
-    "atr": null
+    "atr": 6.764999999999958
   },
   {
     "symbol": "META",
     "date": "2024-07-03",
     "close": 509.96,
     "volume": 6005615.0,
-    "atr": null
+    "atr": 5.503999999999962
   },
   {
     "symbol": "META",
     "date": "2024-07-05",
     "close": 539.91,
     "volume": 21354093.0,
-    "atr": null
+    "atr": 9.5783333333333
   },
   {
     "symbol": "META",
     "date": "2024-07-08",
     "close": 529.32,
     "volume": 14917495.0,
-    "atr": null
+    "atr": 9.722857142857103
   },
   {
     "symbol": "META",
     "date": "2024-07-09",
     "close": 530,
     "volume": 8769088.0,
-    "atr": null
+    "atr": 8.592499999999959
   },
   {
     "symbol": "META",
     "date": "2024-07-10",
     "close": 534.69,
     "volume": 10733276.0,
-    "atr": null
+    "atr": 8.158888888888859
   },
   {
     "symbol": "META",
     "date": "2024-07-11",
     "close": 512.7,
     "volume": 16443149.0,
-    "atr": null
+    "atr": 9.541999999999973
   },
   {
     "symbol": "META",
     "date": "2024-07-12",
     "close": 498.87,
     "volume": 19694854.0,
-    "atr": null
+    "atr": 9.93181818181816
   },
   {
     "symbol": "META",
     "date": "2024-07-15",
     "close": 496.16,
     "volume": 12419853.0,
-    "atr": null
+    "atr": 9.329999999999979
   },
   {
     "symbol": "META",
     "date": "2024-07-16",
     "close": 489.79,
     "volume": 14075833.0,
-    "atr": null
+    "atr": 9.102307692307674
   },
   {
     "symbol": "META",
     "date": "2024-07-17",
     "close": 461.99,
     "volume": 28049915.0,
-    "atr": null
+    "atr": 10.437857142857126
   },
   {
     "symbol": "META",
     "date": "2024-07-18",
     "close": 475.85,
     "volume": 19267160.0,
-    "atr": null
+    "atr": 10.967857142857131
   },
   {
     "symbol": "META",
     "date": "2024-07-19",
     "close": 476.79,
     "volume": 15081416.0,
-    "atr": null
+    "atr": 9.939285714285708
   },
   {
     "symbol": "META",
     "date": "2024-07-22",
     "close": 487.4,
     "volume": 11993088.0,
-    "atr": null
+    "atr": 10.664285714285707
   },
   {
     "symbol": "META",
     "date": "2024-07-23",
     "close": 488.69,
     "volume": 9380527.0,
-    "atr": null
+    "atr": 10.412142857142852
   },
   {
     "symbol": "META",
     "date": "2024-07-24",
     "close": 461.27,
     "volume": 17622138.0,
-    "atr": null
+    "atr": 12.33785714285714
   },
   {
     "symbol": "META",
     "date": "2024-07-25",
     "close": 453.41,
     "volume": 18162689.0,
-    "atr": null
+    "atr": 10.759999999999994
   },
   {
     "symbol": "META",
     "date": "2024-07-26",
     "close": 465.7,
     "volume": 14221188.0,
-    "atr": null
+    "atr": 10.88142857142857
   },
   {
     "symbol": "META",
     "date": "2024-07-29",
     "close": 465.71,
     "volume": 11339630.0,
-    "atr": null
+    "atr": 10.83357142857143
   },
   {
     "symbol": "META",
     "date": "2024-07-30",
     "close": 463.19,
     "volume": 11369289.0,
-    "atr": null
+    "atr": 10.678571428571425
   },
   {
     "symbol": "META",
     "date": "2024-07-31",
     "close": 474.83,
     "volume": 24281402.0,
-    "atr": null
+    "atr": 9.939285714285708
   },
   {
     "symbol": "META",
     "date": "2024-08-01",
     "close": 497.74,
     "volume": 43034082.0,
-    "atr": null
+    "atr": 10.587857142857136
   },
   {
     "symbol": "META",
     "date": "2024-08-02",
     "close": 488.14,
     "volume": 24036228.0,
-    "atr": null
+    "atr": 11.079999999999997
   },
   {
     "symbol": "META",
     "date": "2024-08-05",
     "close": 475.73,
     "volume": 21396191.0,
-    "atr": null
+    "atr": 11.511428571428565
   },
   {
     "symbol": "META",
     "date": "2024-08-06",
     "close": 494.09,
     "volume": 20939959.0,
-    "atr": null
+    "atr": 10.837142857142847
   },
   {
     "symbol": "META",
     "date": "2024-08-07",
     "close": 488.92,
     "volume": 19945907.0,
-    "atr": null
+    "atr": 10.216428571428557
   },
   {
     "symbol": "META",
     "date": "2024-08-08",
     "close": 509.63,
     "volume": 16156843.0,
-    "atr": null
+    "atr": 11.628571428571414
   },
   {
     "symbol": "META",
     "date": "2024-08-09",
     "close": 517.77,
     "volume": 13695515.0,
-    "atr": null
+    "atr": 11.452142857142844
   },
   {
     "symbol": "META",
     "date": "2024-08-12",
     "close": 515.95,
     "volume": 9767422.0,
-    "atr": null
+    "atr": 11.48999999999998
   },
   {
     "symbol": "META",
     "date": "2024-08-13",
     "close": 528.54,
     "volume": 13743839.0,
-    "atr": null
+    "atr": 10.43071428571426
   },
   {
     "symbol": "META",
     "date": "2024-08-14",
     "close": 526.76,
     "volume": 11444189.0,
-    "atr": null
+    "atr": 9.996428571428547
   },
   {
     "symbol": "META",
     "date": "2024-08-15",
     "close": 537.33,
     "volume": 13481541.0,
-    "atr": null
+    "atr": 9.87357142857141
   },
   {
     "symbol": "META",
     "date": "2024-08-16",
     "close": 527.42,
     "volume": 14776684.0,
-    "atr": null
+    "atr": 10.580714285714274
   },
   {
     "symbol": "META",
     "date": "2024-08-19",
     "close": 529.28,
     "volume": 9879713.0,
-    "atr": null
+    "atr": 10.533571428571419
   },
   {
     "symbol": "META",
     "date": "2024-08-20",
     "close": 526.73,
     "volume": 7937814.0,
-    "atr": null
+    "atr": 9.884285714285701
   },
   {
     "symbol": "META",
     "date": "2024-08-21",
     "close": 535.16,
     "volume": 13423292.0,
-    "atr": null
+    "atr": 8.849999999999982
   },
   {
     "symbol": "META",
     "date": "2024-08-22",
     "close": 531.93,
     "volume": 15708292.0,
-    "atr": null
+    "atr": 8.394999999999982
   },
   {
     "symbol": "META",
     "date": "2024-08-23",
     "close": 528,
     "volume": 11312936.0,
-    "atr": null
+    "atr": 7.789285714285695
   },
   {
     "symbol": "META",
     "date": "2024-08-26",
     "close": 521.12,
     "volume": 9581242.0,
-    "atr": null
+    "atr": 6.969285714285697
   },
   {
     "symbol": "META",
     "date": "2024-08-27",
     "close": 519.1,
     "volume": 6282720.0,
-    "atr": null
+    "atr": 6.7442857142857
   },
   {
     "symbol": "META",
     "date": "2024-08-28",
     "close": 516.78,
     "volume": 9092077.0,
-    "atr": null
+    "atr": 5.430714285714275
   },
   {
     "symbol": "META",
     "date": "2024-08-29",
     "close": 518.22,
     "volume": 8317424.0,
-    "atr": null
+    "atr": 4.952142857142852
   },
   {
     "symbol": "META",
     "date": "2024-08-30",
     "close": 521.31,
     "volume": 9157541.0,
-    "atr": null
+    "atr": 5.0428571428571365
   },
   {
     "symbol": "META",
     "date": "2024-09-03",
     "close": 511.76,
     "volume": 12459113.0,
-    "atr": null
+    "atr": 4.825714285714282
   },
   {
     "symbol": "META",
     "date": "2024-09-04",
     "close": 512.74,
     "volume": 8335207.0,
-    "atr": null
+    "atr": 4.768571428571428
   },
   {
     "symbol": "META",
     "date": "2024-09-05",
     "close": 516.86,
     "volume": 8640888.0,
-    "atr": null
+    "atr": 4.307857142857139
   },
   {
     "symbol": "META",
     "date": "2024-09-06",
     "close": 500.27,
     "volume": 14732521.0,
-    "atr": null
+    "atr": 4.784999999999992
   },
   {
     "symbol": "META",
     "date": "2024-09-09",
     "close": 504.79,
     "volume": 11043731.0,
-    "atr": null
+    "atr": 4.974999999999994
   },
   {
     "symbol": "META",
     "date": "2024-09-10",
     "close": 504.79,
     "volume": 9893966.0,
-    "atr": null
+    "atr": 4.79285714285714
   },
   {
     "symbol": "META",
     "date": "2024-09-11",
     "close": 511.83,
     "volume": 10692532.0,
-    "atr": null
+    "atr": 4.693571428571427
   },
   {
     "symbol": "META",
     "date": "2024-09-12",
     "close": 525.6,
     "volume": 11993342.0,
-    "atr": null
+    "atr": 5.446428571428571
   },
   {
     "symbol": "META",
     "date": "2024-09-13",
     "close": 524.62,
     "volume": 10321422.0,
-    "atr": null
+    "atr": 5.23571428571429
   },
   {
     "symbol": "META",
     "date": "2024-09-16",
     "close": 533.28,
     "volume": 9527646.0,
-    "atr": null
+    "atr": 5.362857142857146
   },
   {
     "symbol": "META",
     "date": "2024-09-17",
     "close": 536.315,
     "volume": 11690779.0,
-    "atr": null
+    "atr": 5.4353571428571525
   },
   {
     "symbol": "META",
     "date": "2024-09-18",
     "close": 537.95,
     "volume": 10323537.0,
-    "atr": null
+    "atr": 5.386428571428577
   },
   {
     "symbol": "META",
     "date": "2024-09-19",
     "close": 559.1,
     "volume": 15646951.0,
-    "atr": null
+    "atr": 6.7942857142857145
   },
   {
     "symbol": "META",
     "date": "2024-09-20",
     "close": 561.35,
     "volume": 22066817.0,
-    "atr": null
+    "atr": 6.73428571428572
   },
   {
     "symbol": "META",
     "date": "2024-09-23",
     "close": 564.41,
     "volume": 12830669.0,
-    "atr": null
+    "atr": 6.270714285714291
   },
   {
     "symbol": "META",
     "date": "2024-09-24",
     "close": 563.33,
     "volume": 12977456.0,
-    "atr": null
+    "atr": 6.277857142857142
   },
   {
     "symbol": "META",
     "date": "2024-09-25",
     "close": 568.31,
     "volume": 16540230.0,
-    "atr": null
+    "atr": 6.339285714285706
   },
   {
     "symbol": "META",
     "date": "2024-09-26",
     "close": 567.84,
     "volume": 14400787.0,
-    "atr": null
+    "atr": 5.187857142857126
   },
   {
     "symbol": "META",
     "date": "2024-09-27",
     "close": 567.36,
     "volume": 9091367.0,
-    "atr": null
+    "atr": 4.899285714285696
   },
   {
     "symbol": "META",
     "date": "2024-09-30",
     "close": 572.44,
     "volume": 12807206.0,
-    "atr": null
+    "atr": 5.262142857142842
   },
   {
     "symbol": "META",
     "date": "2024-10-01",
     "close": 576.47,
     "volume": 15257274.0,
-    "atr": null
+    "atr": 5.047142857142843
   },
   {
     "symbol": "META",
     "date": "2024-10-02",
     "close": 572.81,
     "volume": 6520650.0,
-    "atr": null
+    "atr": 4.324999999999989
   },
   {
     "symbol": "META",
     "date": "2024-10-03",
     "close": 582.77,
     "volume": 11580980.0,
-    "atr": null
+    "atr": 4.966428571428561
   },
   {
     "symbol": "META",
     "date": "2024-10-04",
     "close": 595.94,
     "volume": 14199788.0,
-    "atr": null
+    "atr": 5.288571428571426
   },
   {
     "symbol": "META",
     "date": "2024-10-07",
     "close": 584.78,
     "volume": 12014198.0,
-    "atr": null
+    "atr": 5.868928571428569
   },
   {
     "symbol": "META",
     "date": "2024-10-08",
     "close": 592.89,
     "volume": 7857377.0,
-    "atr": null
+    "atr": 6.33142857142857
   },
   {
     "symbol": "META",
     "date": "2024-10-09",
     "close": 590.51,
     "volume": 9529707.0,
-    "atr": null
+    "atr": 4.990714285714286
   },
   {
     "symbol": "META",
     "date": "2024-10-10",
     "close": 583.83,
     "volume": 7734249.0,
-    "atr": null
+    "atr": 5.307142857142854
   },
   {
     "symbol": "META",
     "date": "2024-10-11",
     "close": 589.95,
     "volume": 8587051.0,
-    "atr": null
+    "atr": 5.525714285714287
   },
   {
     "symbol": "META",
     "date": "2024-10-14",
     "close": 590.42,
     "volume": 8251971.0,
-    "atr": null
+    "atr": 5.482142857142857
   },
   {
     "symbol": "META",
     "date": "2024-10-15",
     "close": 586.27,
     "volume": 9556236.0,
-    "atr": null
+    "atr": 5.422857142857148
   },
   {
     "symbol": "META",
     "date": "2024-10-16",
     "close": 576.79,
     "volume": 11268384.0,
-    "atr": null
+    "atr": 6.066428571428584
   },
   {
     "symbol": "META",
     "date": "2024-10-17",
     "close": 576.93,
     "volume": 8686918.0,
-    "atr": null
+    "atr": 6.042142857142868
   },
   {
     "symbol": "META",
     "date": "2024-10-18",
     "close": 576.47,
     "volume": 7694274.0,
-    "atr": null
+    "atr": 5.712142857142859
   },
   {
     "symbol": "META",
     "date": "2024-10-21",
     "close": 575.16,
     "volume": 8171879.0,
-    "atr": null
+    "atr": 5.517857142857151
   },
   {
     "symbol": "META",
     "date": "2024-10-22",
     "close": 582.01,
     "volume": 8461963.0,
-    "atr": null
+    "atr": 5.74571428571429
   },
   {
     "symbol": "META",
     "date": "2024-10-23",
     "close": 563.69,
     "volume": 14235219.0,
-    "atr": null
+    "atr": 6.34285714285714
   },
   {
     "symbol": "META",
     "date": "2024-10-24",
     "close": 567.78,
     "volume": 7184651.0,
-    "atr": null
+    "atr": 5.6942857142857
   },
   {
     "symbol": "META",
     "date": "2024-10-25",
     "close": 573.25,
     "volume": 11337874.0,
-    "atr": null
+    "atr": 5.287857142857125
   },
   {
     "symbol": "META",
     "date": "2024-10-28",
     "close": 578.16,
     "volume": 10925131.0,
-    "atr": null
+    "atr": 5.059285714285693
   },
   {
     "symbol": "META",
     "date": "2024-10-29",
     "close": 593.28,
     "volume": 13019092.0,
-    "atr": null
+    "atr": 5.969285714285694
   },
   {
     "symbol": "META",
     "date": "2024-10-30",
     "close": 591.8,
     "volume": 26814925.0,
-    "atr": null
+    "atr": 5.597857142857127
   },
   {
     "symbol": "META",
     "date": "2024-10-31",
     "close": 567.58,
     "volume": 26834195.0,
-    "atr": null
+    "atr": 6.890714285714263
   },
   {
     "symbol": "META",
     "date": "2024-11-01",
     "close": 567.16,
     "volume": 15284995.0,
-    "atr": null
+    "atr": 6.887142857142846
   },
   {
     "symbol": "META",
     "date": "2024-11-04",
     "close": 560.68,
     "volume": 12054601.0,
-    "atr": null
+    "atr": 7.053571428571421
   },
   {
     "symbol": "META",
     "date": "2024-11-05",
     "close": 572.43,
     "volume": 9775379.0,
-    "atr": null
+    "atr": 7.215714285714276
   },
   {
     "symbol": "META",
     "date": "2024-11-06",
     "close": 572.05,
     "volume": 18305429.0,
-    "atr": null
+    "atr": 7.232857142857134
   },
   {
     "symbol": "META",
     "date": "2024-11-07",
     "close": 591.7,
     "volume": 14653708.0,
-    "atr": null
+    "atr": 8.603571428571431
   },
   {
     "symbol": "META",
     "date": "2024-11-08",
     "close": 589.34,
     "volume": 9415699.0,
-    "atr": null
+    "atr": 8.678571428571429
   },
   {
     "symbol": "META",
     "date": "2024-11-11",
     "close": 583.17,
     "volume": 10209051.0,
-    "atr": null
+    "atr": 8.630000000000004
   },
   {
     "symbol": "META",
     "date": "2024-11-12",
     "close": 584.82,
     "volume": 16287724.0,
-    "atr": null
+    "atr": 7.439285714285729
   },
   {
     "symbol": "META",
     "date": "2024-11-13",
     "close": 580,
     "volume": 10757583.0,
-    "atr": null
+    "atr": 7.491428571428595
   },
   {
     "symbol": "META",
     "date": "2024-11-14",
     "close": 577.16,
     "volume": 11052043.0,
-    "atr": null
+    "atr": 7.303571428571453
   },
   {
     "symbol": "META",
     "date": "2024-11-15",
     "close": 554.08,
     "volume": 17661334.0,
-    "atr": null
+    "atr": 8.601428571428594
   },
   {
     "symbol": "META",
     "date": "2024-11-18",
     "close": 554.4,
     "volume": 14346715.0,
-    "atr": null
+    "atr": 7.5442857142857305
   },
   {
     "symbol": "META",
     "date": "2024-11-19",
     "close": 561.09,
     "volume": 9522445.0,
-    "atr": null
+    "atr": 7.9164285714285905
   },
   {
     "symbol": "META",
     "date": "2024-11-20",
     "close": 565.52,
     "volume": 9797339.0,
-    "atr": null
+    "atr": 6.502857142857165
   },
   {
     "symbol": "META",
     "date": "2024-11-21",
     "close": 563.09,
     "volume": 11154749.0,
-    "atr": null
+    "atr": 6.646428571428585
   },
   {
     "symbol": "META",
     "date": "2024-11-22",
     "close": 559.14,
     "volume": 9164004.0,
-    "atr": null
+    "atr": 6.4657142857143
   },
   {
     "symbol": "META",
     "date": "2024-11-25",
     "close": 565.11,
     "volume": 13595930.0,
-    "atr": null
+    "atr": 6.052857142857159
   },
   {
     "symbol": "META",
     "date": "2024-11-26",
     "close": 573.54,
     "volume": 10356550.0,
-    "atr": null
+    "atr": 6.627857142857157
   },
   {
     "symbol": "META",
     "date": "2024-11-27",
     "close": 569.2,
     "volume": 7200228.0,
-    "atr": null
+    "atr": 5.534285714285716
   },
   {
     "symbol": "META",
     "date": "2024-11-29",
     "close": 574.32,
     "volume": 7130519.0,
-    "atr": null
+    "atr": 5.731428571428572
   },
   {
     "symbol": "META",
     "date": "2024-12-02",
     "close": 592.83,
     "volume": 12522371.0,
-    "atr": null
+    "atr": 6.612857142857138
   },
   {
     "symbol": "META",
     "date": "2024-12-03",
     "close": 613.65,
     "volume": 14907164.0,
-    "atr": null
+    "atr": 7.982142857142841
   },
   {
     "symbol": "META",
     "date": "2024-12-04",
     "close": 613.78,
     "volume": 14697006.0,
-    "atr": null
+    "atr": 7.647142857142837
   },
   {
     "symbol": "META",
     "date": "2024-12-05",
     "close": 608.93,
     "volume": 8081212.0,
-    "atr": null
+    "atr": 7.790714285714265
   },
   {
     "symbol": "META",
     "date": "2024-12-06",
     "close": 623.77,
     "volume": 16907414.0,
-    "atr": null
+    "atr": 7.202142857142844
   },
   {
     "symbol": "META",
     "date": "2024-12-09",
     "close": 613.57,
     "volume": 11426015.0,
-    "atr": null
+    "atr": 7.90785714285713
   },
   {
     "symbol": "META",
     "date": "2024-12-10",
     "close": 619.32,
     "volume": 10938854.0,
-    "atr": null
+    "atr": 7.840714285714268
   },
   {
     "symbol": "META",
     "date": "2024-12-11",
     "close": 632.68,
     "volume": 10683928.0,
-    "atr": null
+    "atr": 8.478571428571408
   },
   {
     "symbol": "META",
     "date": "2024-12-12",
     "close": 630.79,
     "volume": 7474717.0,
-    "atr": null
+    "atr": 8.439999999999982
   },
   {
     "symbol": "META",
     "date": "2024-12-13",
     "close": 620.35,
     "volume": 8437849.0,
-    "atr": null
+    "atr": 8.903571428571402
   },
   {
     "symbol": "META",
     "date": "2024-12-16",
     "close": 624.24,
     "volume": 10883325.0,
-    "atr": null
+    "atr": 8.75499999999997
   },
   {
     "symbol": "META",
     "date": "2024-12-17",
     "close": 619.44,
     "volume": 12592842.0,
-    "atr": null
+    "atr": 8.495714285714257
   },
   {
     "symbol": "META",
     "date": "2024-12-18",
     "close": 597.19,
     "volume": 17075480.0,
-    "atr": null
+    "atr": 9.774999999999977
   },
   {
     "symbol": "META",
     "date": "2024-12-19",
     "close": 595.57,
     "volume": 14958082.0,
-    "atr": null
+    "atr": 9.524999999999977
   },
   {
     "symbol": "META",
     "date": "2024-12-20",
     "close": 585.25,
     "volume": 48989390.0,
-    "atr": null
+    "atr": 8.939999999999982
   },
   {
     "symbol": "META",
     "date": "2024-12-23",
     "close": 599.85,
     "volume": 9980750.0,
-    "atr": null
+    "atr": 8.495714285714273
   },
   {
     "symbol": "META",
     "date": "2024-12-24",
     "close": 607.75,
     "volume": 4726056.0,
-    "atr": null
+    "atr": 9.050714285714273
   },
   {
     "symbol": "META",
     "date": "2024-12-26",
     "close": 603.35,
     "volume": 6091239.0,
-    "atr": null
+    "atr": 9.018571428571411
   },
   {
     "symbol": "META",
     "date": "2024-12-27",
     "close": 599.81,
     "volume": 8082429.0,
-    "atr": null
+    "atr": 8.211428571428558
   },
   {
     "symbol": "META",
     "date": "2024-12-30",
     "close": 591.24,
     "volume": 7025864.0,
-    "atr": null
+    "atr": 8.094999999999986
   },
   {
     "symbol": "META",
     "date": "2024-12-31",
     "close": 585.51,
     "volume": 6019520.0,
-    "atr": null
+    "atr": 8.093571428571417
   },
   {
     "symbol": "META",
     "date": "2025-01-02",
     "close": 599.24,
     "volume": 12682269.0,
-    "atr": null
+    "atr": 8.119999999999996
   },
   {
     "symbol": "META",
     "date": "2025-01-03",
     "close": 604.63,
     "volume": 11436784.0,
-    "atr": null
+    "atr": 8.369999999999996
   },
   {
     "symbol": "META",
     "date": "2025-01-06",
     "close": 630.2,
     "volume": 14560754.0,
-    "atr": null
+    "atr": 9.45071428571429
   },
   {
     "symbol": "META",
     "date": "2025-01-07",
     "close": 617.89,
     "volume": 12071479.0,
-    "atr": null
+    "atr": 10.052142857142867
   },
   {
     "symbol": "META",
     "date": "2025-01-08",
     "close": 610.72,
     "volume": 10085846.0,
-    "atr": null
+    "atr": 10.22142857142858
   },
   {
     "symbol": "META",
     "date": "2025-01-10",
     "close": 615.86,
     "volume": 19256564.0,
-    "atr": null
+    "atr": 8.999285714285723
   },
   {
     "symbol": "META",
     "date": "2025-01-13",
     "close": 608.33,
     "volume": 10785031.0,
-    "atr": null
+    "atr": 9.421428571428578
   },
   {
     "symbol": "META",
     "date": "2025-01-14",
     "close": 594.25,
     "volume": 13587342.0,
-    "atr": null
+    "atr": 9.690000000000007
   },
   {
     "symbol": "META",
     "date": "2025-01-15",
     "close": 617.12,
     "volume": 15515302.0,
-    "atr": null
+    "atr": 10.280714285714291
   },
   {
     "symbol": "META",
     "date": "2025-01-16",
     "close": 611.3,
     "volume": 8355349.0,
-    "atr": null
+    "atr": 10.132142857142867
   },
   {
     "symbol": "META",
     "date": "2025-01-17",
     "close": 612.77,
     "volume": 16979600.0,
-    "atr": null
+    "atr": 9.922857142857156
   },
   {
     "symbol": "META",
     "date": "2025-01-21",
     "close": 616.46,
     "volume": 11674016.0,
-    "atr": null
+    "atr": 9.93357142857144
   },
   {
     "symbol": "META",
     "date": "2025-01-22",
     "close": 623.5,
     "volume": 12274011.0,
-    "atr": null
+    "atr": 9.824285714285727
   },
   {
     "symbol": "META",
     "date": "2025-01-23",
     "close": 636.45,
     "volume": 9910163.0,
-    "atr": null
+    "atr": 10.340000000000016
   },
   {
     "symbol": "META",
     "date": "2025-01-24",
     "close": 647.49,
     "volume": 19065329.0,
-    "atr": null
+    "atr": 10.147857142857154
   },
   {
     "symbol": "META",
     "date": "2025-01-27",
     "close": 659.88,
     "volume": 28399190.0,
-    "atr": null
+    "atr": 10.647857142857154
   },
   {
     "symbol": "META",
     "date": "2025-01-28",
     "close": 674.33,
     "volume": 20917557.0,
-    "atr": null
+    "atr": 9.85357142857144
   },
   {
     "symbol": "META",
     "date": "2025-01-29",
     "close": 676.49,
     "volume": 21377820.0,
-    "atr": null
+    "atr": 9.128571428571433
   },
   {
     "symbol": "META",
     "date": "2025-01-30",
     "close": 687,
     "volume": 29322898.0,
-    "atr": null
+    "atr": 9.367142857142865
   },
   {
     "symbol": "META",
     "date": "2025-01-31",
     "close": 689.18,
     "volume": 19331660.0,
-    "atr": null
+    "atr": 9.155714285714291
   },
   {
     "symbol": "META",
     "date": "2025-02-03",
     "close": 697.46,
     "volume": 21408339.0,
-    "atr": null
+    "atr": 9.209285714285727
   },
   {
     "symbol": "META",
     "date": "2025-02-04",
     "close": 704.19,
     "volume": 13826270.0,
-    "atr": null
+    "atr": 8.684285714285725
   },
   {
     "symbol": "META",
     "date": "2025-02-05",
     "close": 704.87,
     "volume": 17743766.0,
-    "atr": null
+    "atr": 7.099285714285721
   },
   {
     "symbol": "META",
     "date": "2025-02-06",
     "close": 711.99,
     "volume": 13080690.0,
-    "atr": null
+    "atr": 7.192142857142861
   },
   {
     "symbol": "META",
     "date": "2025-02-07",
     "close": 714.52,
     "volume": 16427067.0,
-    "atr": null
+    "atr": 7.267857142857143
   },
   {
     "symbol": "META",
     "date": "2025-02-10",
     "close": 717.4,
     "volume": 12904317.0,
-    "atr": null
+    "atr": 7.2099999999999955
   },
   {
     "symbol": "META",
     "date": "2025-02-11",
     "close": 719.8,
     "volume": 12997959.0,
-    "atr": null
+    "atr": 6.8785714285714255
   },
   {
     "symbol": "META",
     "date": "2025-02-12",
     "close": 725.38,
     "volume": 12016517.0,
-    "atr": null
+    "atr": 6.352142857142853
   },
   {
     "symbol": "META",
     "date": "2025-02-13",
     "close": 728.56,
     "volume": 12569064.0,
-    "atr": null
+    "atr": 5.790714285714281
   },
   {
     "symbol": "META",
     "date": "2025-02-14",
     "close": 736.67,
     "volume": 16851249.0,
-    "atr": null
+    "atr": 5.484999999999998
   },
   {
     "symbol": "META",
     "date": "2025-02-18",
     "close": 716.37,
     "volume": 21938703.0,
-    "atr": null
+    "atr": 5.902857142857134
   },
   {
     "symbol": "META",
     "date": "2025-02-19",
     "close": 703.77,
     "volume": 17535480.0,
-    "atr": null
+    "atr": 6.648571428571423
   },
   {
     "symbol": "META",
     "date": "2025-02-20",
     "close": 694.84,
     "volume": 12587408.0,
-    "atr": null
+    "atr": 6.535714285714278
   },
   {
     "symbol": "META",
     "date": "2025-02-21",
     "close": 683.55,
     "volume": 15658055.0,
-    "atr": null
+    "atr": 7.186428571428572
   },
   {
     "symbol": "META",
     "date": "2025-02-24",
     "close": 668.13,
     "volume": 15676994.0,
-    "atr": null
+    "atr": 7.696428571428563
   },
   {
     "symbol": "META",
     "date": "2025-02-25",
     "close": 657.5,
     "volume": 20579662.0,
-    "atr": null
+    "atr": 7.97499999999999
   },
   {
     "symbol": "META",
     "date": "2025-02-26",
     "close": 673.7,
     "volume": 14488705.0,
-    "atr": null
+    "atr": 9.083571428571426
   },
   {
     "symbol": "META",
     "date": "2025-02-27",
     "close": 658.24,
     "volume": 12500013.0,
-    "atr": null
+    "atr": 9.679285714285713
   },
   {
     "symbol": "META",
     "date": "2025-02-28",
     "close": 668.2,
     "volume": 17534168.0,
-    "atr": null
+    "atr": 10.210000000000004
   },
   {
     "symbol": "META",
     "date": "2025-03-03",
     "close": 655.05,
     "volume": 10843763.0,
-    "atr": null
+    "atr": 10.94357142857144
   },
   {
     "symbol": "META",
     "date": "2025-03-04",
     "close": 640,
     "volume": 21495208.0,
-    "atr": null
+    "atr": 11.847142857142867
   },
   {
     "symbol": "META",
     "date": "2025-03-05",
     "close": 656.47,
     "volume": 13770026.0,
-    "atr": null
+    "atr": 12.625000000000009
   },
   {
     "symbol": "META",
     "date": "2025-03-06",
     "close": 627.93,
     "volume": 13446454.0,
-    "atr": null
+    "atr": 14.43642857142859
   },
   {
     "symbol": "META",
     "date": "2025-03-07",
     "close": 625.66,
     "volume": 21373046.0,
-    "atr": null
+    "atr": 14.01928571428573
   },
   {
     "symbol": "META",
     "date": "2025-03-10",
     "close": 597.99,
     "volume": 21997943.0,
-    "atr": null
+    "atr": 14.5457142857143
   },
   {
     "symbol": "META",
     "date": "2025-03-11",
     "close": 605.71,
     "volume": 17301469.0,
-    "atr": null
+    "atr": 14.197142857142873
   },
   {
     "symbol": "META",
     "date": "2025-03-12",
     "close": 619.56,
     "volume": 15746966.0,
-    "atr": null
+    "atr": 14.54857142857144
   },
   {
     "symbol": "META",
     "date": "2025-03-13",
     "close": 590.64,
     "volume": 16476574.0,
-    "atr": null
+    "atr": 15.807857142857147
   },
   {
     "symbol": "META",
     "date": "2025-03-14",
     "close": 607.6,
     "volume": 12364505.0,
-    "atr": null
+    "atr": 15.917857142857153
   },
   {
     "symbol": "META",
     "date": "2025-03-17",
     "close": 604.9,
     "volume": 15473909.0,
-    "atr": null
+    "atr": 15.351428571428585
   },
   {
     "symbol": "META",
     "date": "2025-03-18",
     "close": 582.36,
     "volume": 20296504.0,
-    "atr": null
+    "atr": 15.804285714285722
   },
   {
     "symbol": "META",
     "date": "2025-03-19",
     "close": 584.06,
     "volume": 20535458.0,
-    "atr": null
+    "atr": 14.821428571428571
   },
   {
     "symbol": "META",
     "date": "2025-03-20",
     "close": 586,
     "volume": 24029305.0,
-    "atr": null
+    "atr": 14.248571428571429
   },
   {
     "symbol": "META",
     "date": "2025-03-21",
     "close": 596.25,
     "volume": 24909514.0,
-    "atr": null
+    "atr": 14.041428571428566
   },
   {
     "symbol": "META",
     "date": "2025-03-24",
     "close": 618.85,
     "volume": 15741274.0,
-    "atr": null
+    "atr": 14.580714285714285
   },
   {
     "symbol": "META",
     "date": "2025-03-25",
     "close": 626.31,
     "volume": 15312540.0,
-    "atr": null
+    "atr": 13.937142857142849
   },
   {
     "symbol": "META",
     "date": "2025-03-26",
     "close": 610.98,
     "volume": 12661891.0,
-    "atr": null
+    "atr": 12.99357142857141
   },
   {
     "symbol": "META",
     "date": "2025-03-27",
     "close": 602.58,
     "volume": 10436524.0,
-    "atr": null
+    "atr": 13.431428571428553
   },
   {
     "symbol": "META",
     "date": "2025-03-28",
     "close": 576.74,
     "volume": 17602823.0,
-    "atr": null
+    "atr": 13.300714285714273
   },
   {
     "symbol": "META",
     "date": "2025-03-31",
     "close": 576.36,
     "volume": 21124677.0,
-    "atr": null
+    "atr": 12.776428571428555
   },
   {
     "symbol": "META",
     "date": "2025-04-01",
     "close": 586,
     "volume": 12826374.0,
-    "atr": null
+    "atr": 12.475714285714275
   },
   {
     "symbol": "META",
     "date": "2025-04-02",
     "close": 583.93,
     "volume": 13470778.0,
-    "atr": null
+    "atr": 10.55785714285714
   },
   {
     "symbol": "META",
     "date": "2025-04-03",
     "close": 531.62,
     "volume": 34769360.0,
-    "atr": null
+    "atr": 13.082857142857133
   },
   {
     "symbol": "META",
     "date": "2025-04-04",
     "close": 504.73,
     "volume": 38589814.0,
-    "atr": null
+    "atr": 14.81071428571427
   },
   {
     "symbol": "META",
     "date": "2025-04-07",
     "close": 516.25,
     "volume": 36566336.0,
-    "atr": null
+    "atr": 14.023571428571415
   },
   {
     "symbol": "META",
     "date": "2025-04-08",
     "close": 510.45,
     "volume": 28034211.0,
-    "atr": null
+    "atr": 14.316428571428563
   },
   {
     "symbol": "META",
     "date": "2025-04-09",
     "close": 585.77,
     "volume": 39188208.0,
-    "atr": null
+    "atr": 19.55785714285713
   },
   {
     "symbol": "META",
     "date": "2025-04-10",
     "close": 546.29,
     "volume": 28173491.0,
-    "atr": null
+    "atr": 21.645714285714273
   },
   {
     "symbol": "META",
     "date": "2025-04-11",
     "close": 543.57,
     "volume": 17627477.0,
-    "atr": null
+    "atr": 20.225714285714268
   },
   {
     "symbol": "META",
     "date": "2025-04-14",
     "close": 531.48,
     "volume": 14130923.0,
-    "atr": null
+    "atr": 20.55642857142856
   },
   {
     "symbol": "META",
     "date": "2025-04-15",
     "close": 521.52,
     "volume": 15554459.0,
-    "atr": null
+    "atr": 20.17285714285714
   },
   {
     "symbol": "META",
     "date": "2025-04-16",
     "close": 502.31,
     "volume": 18735075.0,
-    "atr": null
+    "atr": 20.944999999999997
   },
   {
     "symbol": "META",
     "date": "2025-04-17",
     "close": 501.48,
     "volume": 14593508.0,
-    "atr": null
+    "atr": 19.158571428571424
   },
   {
     "symbol": "META",
     "date": "2025-04-21",
     "close": 484.66,
     "volume": 16165982.0,
-    "atr": null
+    "atr": 20.332857142857137
   },
   {
     "symbol": "META",
     "date": "2025-04-22",
     "close": 500.28,
     "volume": 17399408.0,
-    "atr": null
+    "atr": 20.75999999999999
   },
   {
     "symbol": "META",
     "date": "2025-04-23",
     "close": 520.27,
     "volume": 18173910.0,
-    "atr": null
+    "atr": 22.03999999999999
   },
   {
     "symbol": "META",
     "date": "2025-04-24",
     "close": 533.15,
     "volume": 13904431.0,
-    "atr": null
+    "atr": 19.22357142857142
   },
   {
     "symbol": "META",
     "date": "2025-04-25",
     "close": 547.27,
     "volume": 17098921.0,
-    "atr": null
+    "atr": 18.311428571428564
   },
   {
     "symbol": "META",
     "date": "2025-04-28",
     "close": 549.74,
     "volume": 15178995.0,
-    "atr": null
+    "atr": 17.664999999999996
   },
   {
     "symbol": "META",
     "date": "2025-04-29",
     "close": 554.44,
     "volume": 11835036.0,
-    "atr": null
+    "atr": 17.58642857142857
   },
   {
     "symbol": "META",
     "date": "2025-04-30",
     "close": 549,
     "volume": 29223021.0,
-    "atr": null
+    "atr": 12.595000000000002
   },
   {
     "symbol": "META",
     "date": "2025-05-01",
     "close": 572.21,
     "volume": 31159033.0,
-    "atr": null
+    "atr": 11.432857142857147
   },
   {
     "symbol": "META",
     "date": "2025-05-02",
     "close": 597.02,
     "volume": 24739260.0,
-    "atr": null
+    "atr": 13.010714285714291
   },
   {
     "symbol": "META",
     "date": "2025-05-05",
     "close": 599.27,
     "volume": 13887724.0,
-    "atr": null
+    "atr": 12.307857142857147
   },
   {
     "symbol": "META",
     "date": "2025-05-06",
     "close": 587.31,
     "volume": 10600650.0,
-    "atr": null
+    "atr": 12.45071428571429
   },
   {
     "symbol": "META",
     "date": "2025-05-07",
     "close": 596.81,
     "volume": 13160976.0,
-    "atr": null
+    "atr": 11.757142857142863
   },
   {
     "symbol": "META",
     "date": "2025-05-08",
     "close": 598.01,
     "volume": 14622805.0,
-    "atr": null
+    "atr": 11.783571428571438
   },
   {
     "symbol": "META",
     "date": "2025-05-09",
     "close": 592.49,
     "volume": 10427286.0,
-    "atr": null
+    "atr": 10.976428571428581
   },
   {
     "symbol": "META",
     "date": "2025-05-12",
     "close": 639.43,
     "volume": 21965085.0,
-    "atr": null
+    "atr": 13.213571428571438
   },
   {
     "symbol": "META",
     "date": "2025-05-13",
     "close": 656.03,
     "volume": 18570821.0,
-    "atr": null
+    "atr": 12.97142857142858
   },
   {
     "symbol": "META",
     "date": "2025-05-14",
     "close": 659.36,
     "volume": 12348179.0,
-    "atr": null
+    "atr": 12.289285714285727
   },
   {
     "symbol": "META",
     "date": "2025-05-15",
     "close": 643.88,
     "volume": 14341835.0,
-    "atr": null
+    "atr": 12.386428571428585
   },
   {
     "symbol": "META",
     "date": "2025-05-16",
     "close": 640.34,
     "volume": 18518972.0,
-    "atr": null
+    "atr": 12.462857142857152
   },
   {
     "symbol": "META",
     "date": "2025-05-19",
     "close": 640.43,
     "volume": 9592374.0,
-    "atr": null
+    "atr": 12.133571428571429
   },
   {
     "symbol": "META",
     "date": "2025-05-20",
     "close": 637.1,
     "volume": 6743473.0,
-    "atr": null
+    "atr": 11.982857142857133
   },
   {
     "symbol": "META",
     "date": "2025-05-21",
     "close": 635.5,
     "volume": 11464569.0,
-    "atr": null
+    "atr": 10.439285714285704
   },
   {
     "symbol": "META",
     "date": "2025-05-22",
     "close": 636.57,
     "volume": 8228443.0,
-    "atr": null
+    "atr": 8.743571428571427
   },
   {
     "symbol": "META",
     "date": "2025-05-23",
     "close": 627.06,
     "volume": 8454067.0,
-    "atr": null
+    "atr": 9.262142857142862
   },
   {
     "symbol": "META",
     "date": "2025-05-27",
     "close": 642.32,
     "volume": 9508367.0,
-    "atr": null
+    "atr": 9.497857142857153
   },
   {
     "symbol": "META",
     "date": "2025-05-28",
     "close": 643.58,
     "volume": 9042874.0,
-    "atr": null
+    "atr": 8.909285714285724
   },
   {
     "symbol": "META",
     "date": "2025-05-29",
     "close": 645.05,
     "volume": 8883436.0,
-    "atr": null
+    "atr": 8.928571428571429
   },
   {
     "symbol": "META",
     "date": "2025-05-30",
     "close": 647.49,
     "volume": 16240951.0,
-    "atr": null
+    "atr": 8.708571428571434
   },
   {
     "symbol": "META",
     "date": "2025-06-02",
     "close": 670.9,
     "volume": 15766258.0,
-    "atr": null
+    "atr": 7.02785714285715
   },
   {
     "symbol": "META",
     "date": "2025-06-03",
     "close": 666.85,
     "volume": 11585031.0,
-    "atr": null
+    "atr": 6.1314285714285734
   },
   {
     "symbol": "META",
     "date": "2025-06-04",
     "close": 687.95,
     "volume": 14031931.0,
-    "atr": null
+    "atr": 7.400714285714287
   },
   {
     "symbol": "META",
     "date": "2025-06-05",
     "close": 684.62,
     "volume": 13120335.0,
-    "atr": null
+    "atr": 6.532857142857146
   },
   {
     "symbol": "META",
     "date": "2025-06-06",
     "close": 697.71,
     "volume": 11727961.0,
-    "atr": null
+    "atr": 7.215000000000008
   },
   {
     "symbol": "META",
     "date": "2025-06-09",
     "close": 694.06,
     "volume": 12773221.0,
-    "atr": null
+    "atr": 7.469285714285734
   },
   {
     "symbol": "META",
     "date": "2025-06-10",
     "close": 702.4,
     "volume": 10850146.0,
-    "atr": null
+    "atr": 7.827142857142884
   },
   {
     "symbol": "META",
     "date": "2025-06-11",
     "close": 694.14,
     "volume": 9582508.0,
-    "atr": null
+    "atr": 8.302857142857167
   },
   {
     "symbol": "META",
     "date": "2025-06-12",
     "close": 693.36,
     "volume": 7322730.0,
-    "atr": null
+    "atr": 8.282142857142876
   },
   {
     "symbol": "META",
     "date": "2025-06-13",
     "close": 682.87,
     "volume": 9274441.0,
-    "atr": null
+    "atr": 8.35214285714287
   },
   {
     "symbol": "META",
     "date": "2025-06-16",
     "close": 702.12,
     "volume": 13720288.0,
-    "atr": null
+    "atr": 8.637142857142862
   },
   {
     "symbol": "META",
     "date": "2025-06-17",
     "close": 697.23,
     "volume": 10066110.0,
-    "atr": null
+    "atr": 8.896428571428576
   },
   {
     "symbol": "META",
     "date": "2025-06-18",
     "close": 695.77,
     "volume": 10068255.0,
-    "atr": null
+    "atr": 8.8957142857143
   },
   {
     "symbol": "META",
     "date": "2025-06-20",
     "close": 682.35,
     "volume": 22538640.0,
-    "atr": null
+    "atr": 9.680000000000007
   },
   {
     "symbol": "META",
     "date": "2025-06-23",
     "close": 698.53,
     "volume": 11080055.0,
-    "atr": null
+    "atr": 9.163571428571434
   },
   {
     "symbol": "META",
     "date": "2025-06-24",
     "close": 712.2,
     "volume": 13823180.0,
-    "atr": null
+    "atr": 9.8507142857143
   },
   {
     "symbol": "META",
     "date": "2025-06-25",
     "close": 708.68,
     "volume": 9320436.0,
-    "atr": null
+    "atr": 8.595000000000018
   },
   {
     "symbol": "META",
     "date": "2025-06-26",
     "close": 726.09,
     "volume": 13964793.0,
-    "atr": null
+    "atr": 9.600714285714307
   },
   {
     "symbol": "META",
     "date": "2025-06-27",
     "close": 733.63,
     "volume": 18775735.0,
-    "atr": null
+    "atr": 9.204285714285732
   },
   {
     "symbol": "META",
     "date": "2025-06-30",
     "close": 738.09,
     "volume": 15402105.0,
-    "atr": null
+    "atr": 9.262142857142871
   },
   {
     "symbol": "META",
     "date": "2025-07-01",
     "close": 719.22,
     "volume": 13431248.0,
-    "atr": null
+    "atr": 10.014285714285725
   },
   {
     "symbol": "META",
     "date": "2025-07-02",
     "close": 713.57,
     "volume": 9336740.0,
-    "atr": null
+    "atr": 9.827857142857154
   },
   {
     "symbol": "META",
     "date": "2025-07-03",
     "close": 719.01,
     "volume": 8601476.0,
-    "atr": null
+    "atr": 10.160714285714294
   }
 ]
