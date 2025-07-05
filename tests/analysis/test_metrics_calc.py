@@ -5,6 +5,7 @@ from tomic.metrics import (
     calculate_rom,
     calculate_pos,
     calculate_ev,
+    calculate_credit,
     calculate_margin,
 )
 
@@ -66,3 +67,16 @@ def test_calculate_margin_ratio_backspread():
     assert math.isclose(
         calculate_margin("backspread_put", legs, net_cashflow=0.2), 0.0
     )
+
+
+def test_calculate_credit_and_margin_condor():
+    legs = [
+        {"strike": 105, "type": "C", "action": "SELL", "mid": 2.07, "position": -1},
+        {"strike": 110, "type": "C", "action": "BUY", "mid": 0.95, "position": 1},
+        {"strike": 95, "type": "P", "action": "SELL", "mid": 2.07, "position": -1},
+        {"strike": 90, "type": "P", "action": "BUY", "mid": 0.95, "position": 1},
+    ]
+    credit = calculate_credit(legs)
+    assert math.isclose(credit, 224.0)
+    margin = calculate_margin("iron_condor", legs, net_cashflow=credit / 100)
+    assert math.isclose(margin, 500.0)
