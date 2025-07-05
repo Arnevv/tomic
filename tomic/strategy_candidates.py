@@ -213,6 +213,11 @@ def _find_option(
 
 
 def _metrics(strategy: str, legs: List[Dict[str, Any]]) -> tuple[Optional[Dict[str, Any]], list[str]]:
+    if any(
+        leg.get("model") is None or leg.get("edge") is None or leg.get("delta") is None
+        for leg in legs
+    ):
+        return None, ["Edge, model of delta ontbreekt — metrics kunnen niet worden berekend"]
     for leg in legs:
         normalize_leg(leg)
     short_deltas = [
