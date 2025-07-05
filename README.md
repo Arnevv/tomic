@@ -70,6 +70,10 @@ exporteren.
 Exports worden geplaatst onder `exports/tradecandidates/YYYYMMDD/` met de naam
 `trade_candidates_<symbol>_<strategy>_<expiry>_<HHMMSS>.csv`.
 
+Krijg je geen voorstellen, dan toont TOMIC nu ook hoeveel combinaties zijn
+afgewezen door een ratioscheck of risicocriteria. Zo weet je direct waarom er
+geen strategie werd gevonden.
+
 ⏳ Verbindingstips
 Wacht na het verbinden tot de callback `nextValidId()` is aangeroepen voordat
 je verzoeken naar TWS stuurt. Pas dan is de client klaar om orders of
