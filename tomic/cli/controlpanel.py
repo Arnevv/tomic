@@ -8,6 +8,7 @@ from pathlib import Path
 import os
 import csv
 from collections import defaultdict
+import math
 
 try:
     from tabulate import tabulate
@@ -995,26 +996,47 @@ def run_portfolio_menu() -> None:
 
     def _show_proposal_details(proposal: StrategyProposal) -> None:
         rows: list[list[str]] = []
+        warns: list[str] = []
         for leg in proposal.legs:
+            bid = leg.get("bid")
+            ask = leg.get("ask")
+            mid = leg.get("mid")
+            if bid is None or ask is None:
+                warns.append(f"⚠️ Bid/ask ontbreekt voor strike {leg.get('strike')}")
+            if mid is not None:
+                try:
+                    mid_f = float(mid)
+                    if bid is not None and math.isclose(mid_f, float(bid), abs_tol=1e-6):
+                        warns.append(f"⚠️ Midprijs gelijk aan bid voor strike {leg.get('strike')}")
+                    if ask is not None and math.isclose(mid_f, float(ask), abs_tol=1e-6):
+                        warns.append(f"⚠️ Midprijs gelijk aan ask voor strike {leg.get('strike')}")
+                except Exception:
+                    pass
+
             rows.append(
                 [
                     leg.get("expiry"),
                     leg.get("strike"),
                     leg.get("type"),
                     "S" if leg.get("position", 0) < 0 else "L",
-                    f"{leg.get('mid'):.2f}" if leg.get("mid") is not None else "",
+                    f"{bid:.2f}" if bid is not None else "—",
+                    f"{ask:.2f}" if ask is not None else "—",
+                    f"{mid:.2f}" if mid is not None else "—",
                     f"{leg.get('delta', 0):+.2f}" if leg.get("delta") is not None else "",
                     f"{leg.get('theta', 0):+.2f}" if leg.get("theta") is not None else "",
                     f"{leg.get('vega', 0):+.2f}" if leg.get("vega") is not None else "",
+                    f"{leg.get('edge'):.2f}" if leg.get("edge") is not None else "—",
                 ]
             )
         print(
             tabulate(
                 rows,
-                headers=["Expiry", "Strike", "Type", "Pos", "Mid", "Δ", "Θ", "V"],
+                headers=["Expiry", "Strike", "Type", "Pos", "Bid", "Ask", "Mid", "Δ", "Θ", "V", "Edge"],
                 tablefmt="github",
             )
         )
+        for warning in warns:
+            print(warning)
         print(f"Credit: {proposal.credit:.2f}")
         if proposal.margin is not None:
             print(f"Margin: {proposal.margin:.2f}")
@@ -1080,10 +1102,13 @@ def run_portfolio_menu() -> None:
                 "strike",
                 "type",
                 "position",
+                "bid",
+                "ask",
                 "mid",
                 "delta",
                 "theta",
                 "vega",
+                "edge",
                 "manual_override",
             ])
             for leg in proposal.legs:
@@ -1092,10 +1117,13 @@ def run_portfolio_menu() -> None:
                     leg.get("strike"),
                     leg.get("type"),
                     leg.get("position"),
+                    leg.get("bid"),
+                    leg.get("ask"),
                     leg.get("mid"),
                     leg.get("delta"),
                     leg.get("theta"),
                     leg.get("vega"),
+                    leg.get("edge"),
                     leg.get("manual_override"),
                 ])
             writer.writerow([])
