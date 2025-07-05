@@ -947,27 +947,36 @@ def run_portfolio_menu() -> None:
                         f"Scoregewichten: ROM {rom_w*100:.0f}% | PoS {pos_w*100:.0f}% | EV {ev_w*100:.0f}%"
                     )
                     rows2 = []
+                    warn_edge = False
                     for prop in proposals:
                         legs_desc = "; ".join(
                             f"{'S' if leg.get('position',0)<0 else 'L'}{leg.get('type')}{leg.get('strike')}"
                             for leg in prop.legs
                         )
+                        if any(
+                            leg.get("position", 0) < 0 and leg.get("edge") is None
+                            for leg in prop.legs
+                        ):
+                            warn_edge = True
                         rows2.append(
                             [
-                                prop.score,
-                                prop.pos,
-                                prop.ev,
-                                prop.rom,
+                                f"{prop.score:.2f}" if prop.score is not None else "—",
+                                f"{prop.pos:.1f}" if prop.pos is not None else "—",
+                                f"{prop.ev:.2f}" if prop.ev is not None else "—",
+                                f"{prop.rom:.2f}" if prop.rom is not None else "—",
+                                f"{prop.edge:.2f}" if prop.edge is not None else "—",
                                 legs_desc,
                             ]
                         )
                     print(
                         tabulate(
                             rows2,
-                            headers=["Score", "PoS", "EV", "ROM", "Legs"],
+                            headers=["Score", "PoS", "EV", "ROM", "Edge", "Legs"],
                             tablefmt="github",
                         )
                     )
+                    if warn_edge:
+                        print("⚠️ Eén of meerdere edges niet beschikbaar")
                     while True:
                         sel = prompt("Kies voorstel (0 om terug): ")
                         if sel in {"", "0"}:
@@ -1028,6 +1037,10 @@ def run_portfolio_menu() -> None:
                     f"{leg.get('edge'):.2f}" if leg.get("edge") is not None else "—",
                 ]
             )
+        missing_edge = any(
+            leg.get("position", 0) < 0 and leg.get("edge") is None for leg in proposal.legs
+        )
+
         print(
             tabulate(
                 rows,
@@ -1035,6 +1048,8 @@ def run_portfolio_menu() -> None:
                 tablefmt="github",
             )
         )
+        if missing_edge:
+            warns.append("⚠️ Eén of meerdere edges niet beschikbaar")
         for warning in warns:
             print(warning)
         print(f"Credit: {proposal.credit:.2f}")
