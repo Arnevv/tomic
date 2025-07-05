@@ -981,7 +981,7 @@ def run_portfolio_menu() -> None:
                 else:
                     msg = "⚠️ Geen voorstellen gevonden"
                     if reason:
-                        msg += f" — {reason}"
+                        msg += f"\nReden: {reason}"
                     print(msg)
         else:
             print("⚠️ Geen geschikte strikes gevonden.")
