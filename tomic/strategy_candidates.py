@@ -351,6 +351,14 @@ def generate_strategy_candidates(
     missing_legs = 0
     invalid_metrics = 0
     num_pairs_tested = 0
+    invalid_ratio = 0
+    risk_rejected = 0
+
+    min_rr = 0.0
+    try:
+        min_rr = float(strat_cfg.get("min_risk_reward", 0.0))
+    except Exception:
+        min_rr = 0.0
 
     def make_leg(opt: Dict[str, Any], position: int) -> Dict[str, Any]:
         leg = {
@@ -364,6 +372,19 @@ def generate_strategy_candidates(
             "position": position,
         }
         return normalize_leg(leg)
+
+    def _passes_risk(metrics: Dict[str, Any]) -> bool:
+        if not metrics or min_rr <= 0:
+            return True
+        mp = metrics.get("max_profit")
+        ml = metrics.get("max_loss")
+        if mp is None or ml is None or not ml:
+            return True
+        try:
+            rr = mp / abs(ml)
+        except Exception:
+            return True
+        return rr >= min_rr
 
     if strategy_type == "iron_condor":
         calls = rules.get("short_call_multiplier", [])
@@ -432,6 +453,9 @@ def generate_strategy_candidates(
             ]
             metrics = _metrics("iron_condor", legs)
             if metrics:
+                if not _passes_risk(metrics):
+                    risk_rejected += 1
+                    continue
                 proposals.append(StrategyProposal(legs=legs, **metrics))
             else:
                 invalid_metrics += 1
@@ -479,6 +503,9 @@ def generate_strategy_candidates(
                 legs = [make_leg(short_opt, -1), make_leg(long_opt, 1)]
                 metrics = _metrics("bull put spread", legs)
                 if metrics:
+                    if not _passes_risk(metrics):
+                        risk_rejected += 1
+                        continue
                     proposals.append(StrategyProposal(legs=legs, **metrics))
                 else:
                     invalid_metrics += 1
@@ -526,6 +553,9 @@ def generate_strategy_candidates(
                 legs = [make_leg(short_opt, -1), make_leg(long_opt, 1)]
                 metrics = _metrics("bear call spread", legs)
                 if metrics:
+                    if not _passes_risk(metrics):
+                        risk_rejected += 1
+                        continue
                     proposals.append(StrategyProposal(legs=legs, **metrics))
                 else:
                     invalid_metrics += 1
@@ -544,6 +574,9 @@ def generate_strategy_candidates(
                     leg = make_leg(opt, -1)
                     metrics = _metrics("naked_put", [leg])
                     if metrics:
+                        if not _passes_risk(metrics):
+                            risk_rejected += 1
+                            continue
                         proposals.append(StrategyProposal(legs=[leg], **metrics))
                     else:
                         invalid_metrics += 1
@@ -598,6 +631,9 @@ def generate_strategy_candidates(
                 legs = [make_leg(short_opt, -1), make_leg(long_opt, 1)]
                 metrics = _metrics("calendar", legs)
                 if metrics:
+                    if not _passes_risk(metrics):
+                        risk_rejected += 1
+                        continue
                     proposals.append(StrategyProposal(legs=legs, **metrics))
                 else:
                     invalid_metrics += 1
@@ -661,6 +697,9 @@ def generate_strategy_candidates(
                 ]
                 metrics = _metrics("atm_iron_butterfly", legs)
                 if metrics:
+                    if not _passes_risk(metrics):
+                        risk_rejected += 1
+                        continue
                     proposals.append(StrategyProposal(legs=legs, **metrics))
                 else:
                     invalid_metrics += 1
@@ -709,11 +748,15 @@ def generate_strategy_candidates(
                     continue
                 legs = [make_leg(short_opt, -1), make_leg(long_opt, 2)]
                 metrics = _metrics("ratio_spread", legs)
-                if metrics and _validate_ratio(
-                    "ratio_spread", legs, metrics.get("credit", 0.0)
-                ):
-                    proposals.append(StrategyProposal(legs=legs, **metrics))
-                elif not metrics:
+                if metrics:
+                    if not _passes_risk(metrics):
+                        risk_rejected += 1
+                        continue
+                    if _validate_ratio("ratio_spread", legs, metrics.get("credit", 0.0)):
+                        proposals.append(StrategyProposal(legs=legs, **metrics))
+                    else:
+                        invalid_ratio += 1
+                else:
                     invalid_metrics += 1
 
     elif strategy_type == "backspread_put":
@@ -761,11 +804,15 @@ def generate_strategy_candidates(
                     continue
                 legs = [make_leg(short_opt, -1), make_leg(long_opt, 2)]
                 metrics = _metrics("backspread_put", legs)
-                if metrics and _validate_ratio(
-                    "backspread_put", legs, metrics.get("credit", 0.0)
-                ):
-                    proposals.append(StrategyProposal(legs=legs, **metrics))
-                elif not metrics:
+                if metrics:
+                    if not _passes_risk(metrics):
+                        risk_rejected += 1
+                        continue
+                    if _validate_ratio("backspread_put", legs, metrics.get("credit", 0.0)):
+                        proposals.append(StrategyProposal(legs=legs, **metrics))
+                    else:
+                        invalid_ratio += 1
+                else:
                     invalid_metrics += 1
 
     proposals.sort(key=lambda p: p.score or 0, reverse=True)
@@ -783,6 +830,13 @@ def generate_strategy_candidates(
             [],
             "geen combinaties konden worden getest (bijv. door lege expiry selectie of strike set)",
         )
+    if invalid_ratio > 0 or risk_rejected > 0:
+        parts: list[str] = []
+        if invalid_ratio > 0:
+            parts.append(f"{invalid_ratio} afgewezen door ratioscheck")
+        if risk_rejected > 0:
+            parts.append(f"{risk_rejected} afgewezen door risk-check")
+        return [], "; ".join(parts)
     return [], None
 
 
