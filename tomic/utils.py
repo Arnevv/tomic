@@ -116,6 +116,40 @@ def get_option_mid_price(option: dict) -> float | None:
         return None
 
 
+def prompt_user_for_price(
+    strike: float | str,
+    expiry: str | None,
+    opt_type: str | None,
+    position: int,
+) -> float | None:
+    """Return user-supplied mid price for ``strike`` if confirmed."""
+
+    pos_txt = "long" if position > 0 else "short"
+    right = normalize_right(opt_type or "") or opt_type or ""
+    header = (
+        f"\N{WARNING SIGN} Geen bid/ask/mid gevonden voor {pos_txt} {right} {strike}"
+    )
+    if expiry:
+        header += f" (expiry: {expiry})"
+    ans = input(f"{header}\nWil je handmatig een waarde invullen? [y/N]: ").strip().lower()
+    if ans not in {"y", "yes"}:
+        return None
+    while True:
+        val = input("Voer mid-prijs in (bijv. 0.25): ").strip().replace(",", ".")
+        if val == "":
+            return None
+        try:
+            price = float(val)
+            if price > 0:
+                return price
+        except ValueError:
+            pass
+        ans = input("Ongeldige waarde. Opnieuw proberen? [y/N]: ").strip().lower()
+        if ans not in {"y", "yes"}:
+            break
+    return None
+
+
 def normalize_right(val: str) -> str:
     """Return normalized option right as 'call' or 'put'."""
 
