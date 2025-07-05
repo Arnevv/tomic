@@ -982,7 +982,11 @@ def run_portfolio_menu() -> None:
                 else:
                     msg = "⚠️ Geen voorstellen gevonden"
                     if reason:
-                        msg += f"\nReden: {reason}"
+                        if isinstance(reason, list):
+                            for r in reason:
+                                msg += f"\n• {r}"
+                        else:
+                            msg += f"\n• {reason}"
                     print(msg)
         else:
             print("⚠️ Geen geschikte strikes gevonden.")
@@ -1014,14 +1018,18 @@ def run_portfolio_menu() -> None:
         print(f"Credit: {proposal.credit:.2f}")
         if proposal.margin is not None:
             print(f"Margin: {proposal.margin:.2f}")
+        else:
+            print("Margin: —")
         print(f"Max win: {proposal.max_profit}")
         print(f"Max loss: {proposal.max_loss}")
         if proposal.breakevens:
             be = ", ".join(f"{b:.2f}" for b in proposal.breakevens)
             print(f"Breakevens: {be}")
         print(f"PoS: {proposal.pos}")
-        print(f"ROM: {proposal.rom}")
-        print(f"EV: {proposal.ev}")
+        rom_str = f"{proposal.rom:.2f}" if proposal.rom is not None else "—"
+        print(f"ROM: {rom_str}")
+        ev_str = f"{proposal.ev:.2f}" if proposal.ev is not None else "—"
+        print(f"EV: {ev_str}")
         if prompt_yes_no("Voorstel opslaan naar CSV?", False):
             _export_proposal_csv(proposal)
         if prompt_yes_no("Voorstel opslaan naar JSON?", False):

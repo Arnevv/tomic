@@ -27,7 +27,7 @@ def test_generate_strategy_candidates_with_strings():
             }
         }
     }
-    props, reason = generate_strategy_candidates(
+    props, reasons = generate_strategy_candidates(
         "AAA",
         "iron_condor",
         chain,
@@ -36,7 +36,7 @@ def test_generate_strategy_candidates_with_strings():
         100.0,
         interactive_mode=False,
     )
-    assert reason is None
+    assert reasons == []
     assert props
     for leg in props[0].legs:
         assert isinstance(leg["strike"], float)
