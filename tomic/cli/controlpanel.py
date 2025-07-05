@@ -1057,12 +1057,15 @@ def run_portfolio_menu() -> None:
             print(f"Margin: {proposal.margin:.2f}")
         else:
             print("Margin: —")
-        print(f"Max win: {proposal.max_profit}")
-        print(f"Max loss: {proposal.max_loss}")
+        max_win = f"{proposal.max_profit:.2f}" if proposal.max_profit is not None else "—"
+        print(f"Max win: {max_win}")
+        max_loss = f"{proposal.max_loss:.2f}" if proposal.max_loss is not None else "—"
+        print(f"Max loss: {max_loss}")
         if proposal.breakevens:
             be = ", ".join(f"{b:.2f}" for b in proposal.breakevens)
             print(f"Breakevens: {be}")
-        print(f"PoS: {proposal.pos}")
+        pos_str = f"{proposal.pos:.2f}" if proposal.pos is not None else "—"
+        print(f"PoS: {pos_str}")
         rom_str = f"{proposal.rom:.2f}" if proposal.rom is not None else "—"
         print(f"ROM: {rom_str}")
         ev_str = f"{proposal.ev:.2f}" if proposal.ev is not None else "—"
@@ -1170,14 +1173,18 @@ def run_portfolio_menu() -> None:
         print(f"✅ Voorstel opgeslagen in: {path.resolve()}")
 
     def _proposal_journal_text(proposal: StrategyProposal) -> str:
+        margin_str = f"{proposal.margin:.2f}" if proposal.margin is not None else "—"
+        pos_str = f"{proposal.pos:.2f}" if proposal.pos is not None else "—"
+        rom_str = f"{proposal.rom:.2f}" if proposal.rom is not None else "—"
+        ev_str = f"{proposal.ev:.2f}" if proposal.ev is not None else "—"
         lines = [
             f"Symbol: {SESSION_STATE.get('symbol')}",
             f"Strategy: {SESSION_STATE.get('strategy')}",
             f"Credit: {proposal.credit:.2f}",
-            f"Margin: {proposal.margin}",
-            f"ROM: {proposal.rom}",
-            f"PoS: {proposal.pos}",
-            f"EV: {proposal.ev}",
+            f"Margin: {margin_str}",
+            f"ROM: {rom_str}",
+            f"PoS: {pos_str}",
+            f"EV: {ev_str}",
         ]
         for leg in proposal.legs:
             side = "Short" if leg.get("position", 0) < 0 else "Long"
