@@ -7,6 +7,7 @@ from math import inf
 from typing import Optional, Iterable
 
 from .utils import normalize_right
+from .logutils import logger
 
 
 def calculate_edge(theoretical: float, mid_price: float) -> float:
@@ -19,6 +20,20 @@ def calculate_rom(max_profit: float, margin: float) -> Optional[float]:
     if not margin:
         return None
     return (max_profit / margin) * 100
+
+
+def calculate_credit(legs: Iterable[dict]) -> float:
+    """Return net credit in dollars for ``legs``."""
+
+    credit = 0.0
+    for leg in legs:
+        try:
+            price = float(leg.get("mid", 0) or 0)
+        except Exception:
+            continue
+        direction = 1 if leg.get("position", 0) > 0 else -1
+        credit -= direction * price
+    return credit * 100
 
 
 def calculate_pos(delta: float) -> float:
@@ -118,7 +133,10 @@ def calculate_margin(
         width_put = abs(puts[0] - puts[1])
         width_call = abs(calls[0] - calls[1])
         width = max(width_put, width_call)
-        return max(width * 100 - net_cashflow * 100, 0.0)
+        if width <= 0:
+            logger.warning("iron_condor wing width is non-positive")
+            return None
+        return width * 100
 
     if strat in {"calendar"}:
         if len(legs) != 2:
@@ -139,5 +157,6 @@ __all__ = [
     "calculate_rom",
     "calculate_pos",
     "calculate_ev",
+    "calculate_credit",
     "calculate_margin",
 ]

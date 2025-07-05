@@ -212,7 +212,7 @@ def _find_option(
     return None
 
 
-def _metrics(strategy: str, legs: List[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
+def _metrics(strategy: str, legs: List[Dict[str, Any]]) -> tuple[Optional[Dict[str, Any]], list[str]]:
     for leg in legs:
         normalize_leg(leg)
     short_deltas = [
@@ -224,8 +224,9 @@ def _metrics(strategy: str, legs: List[Dict[str, Any]]) -> Optional[Dict[str, An
         calculate_pos(sum(short_deltas) / len(short_deltas)) if short_deltas else None
     )
 
-    credit = 0.0
-    entry = 0.0
+    reasons: list[str] = []
+    credit_short = 0.0
+    debit_long = 0.0
     missing_mid: List[str] = []
     for leg in legs:
         mid = leg.get("mid")
@@ -237,23 +238,23 @@ def _metrics(strategy: str, legs: List[Dict[str, Any]]) -> Optional[Dict[str, An
             missing_mid.append(str(leg.get("strike")))
             continue
         if leg.get("position", 0) < 0:
-            credit += mid_val
+            credit_short += mid_val
         else:
-            entry += mid_val
+            debit_long += mid_val
     if missing_mid:
         logger.info(
             f"[{strategy}] Ontbrekende bid/ask-data voor strikes {','.join(missing_mid)}"
         )
+        reasons.append("ontbrekende bid/ask-data")
+    net_credit = credit_short - debit_long
     strikes = "/".join(str(l.get("strike")) for l in legs)
-    if strategy not in {"ratio_spread", "backspread_put"} and credit <= 0:
-        logger.info(
-            f"[{strategy}] Credit ≤ 0 voor strikes {strikes} — voorstel afgewezen"
-        )
-        return None
+    if strategy not in {"ratio_spread", "backspread_put"} and net_credit <= 0:
+        reasons.append("negatieve credit")
+        return None, reasons
 
-    risk = heuristic_risk_metrics(legs, (entry - credit) * 100)
+    risk = heuristic_risk_metrics(legs, (debit_long - credit_short) * 100)
     margin = None
-    net_cashflow = credit if credit else -entry
+    net_cashflow = net_credit
     try:
         margin = calculate_margin(
             strategy,
@@ -263,10 +264,8 @@ def _metrics(strategy: str, legs: List[Dict[str, Any]]) -> Optional[Dict[str, An
     except Exception:
         margin = None
     if margin is None or (isinstance(margin, float) and math.isnan(margin)):
-        logger.warning(
-            f"[{strategy}] Margin ontbreekt voor legs: {[l.get('strike') for l in legs]} — ROM niet berekend"
-        )
-        return None
+        reasons.append("margin kon niet worden berekend")
+        return None, reasons
     for leg in legs:
         leg["margin"] = margin
 
@@ -275,6 +274,8 @@ def _metrics(strategy: str, legs: List[Dict[str, Any]]) -> Optional[Dict[str, An
     rom = (
         calculate_rom(max_profit, margin) if max_profit is not None and margin else None
     )
+    if rom is None:
+        reasons.append("ROM kon niet worden berekend omdat margin ontbreekt")
     ev = (
         calculate_ev(pos_val or 0.0, max_profit or 0.0, max_loss or 0.0)
         if pos_val is not None and max_profit is not None and max_loss is not None
@@ -292,20 +293,20 @@ def _metrics(strategy: str, legs: List[Dict[str, Any]]) -> Optional[Dict[str, An
     if ev is not None:
         score += ev * ev_w
 
-    breakevens = _breakevens(strategy, legs, credit * 100)
+    breakevens = _breakevens(strategy, legs, net_credit * 100)
 
-    return {
+    result = {
         "pos": pos_val,
         "ev": ev,
         "rom": rom,
-        "credit": credit * 100,
+        "credit": net_credit * 100,
         "margin": margin,
         "max_profit": max_profit,
         "max_loss": max_loss,
         "breakevens": breakevens,
         "score": round(score, 2),
     }
-
+    return result, reasons
 
 def _validate_ratio(strategy: str, legs: List[Dict[str, Any]], credit: float) -> bool:
     shorts = [l for l in legs if l.get("position", 0) < 0]
@@ -351,7 +352,7 @@ def generate_strategy_candidates(
 
     expiries = sorted({str(o.get("expiry")) for o in option_chain})
     if not expiries:
-        return [], "geen expiries beschikbaar"
+        return [], ["Geen expiries beschikbaar in de optiechain"]
     expiry = expiries[0]
     strike_map = _build_strike_map(option_chain)
     proposals: List[StrategyProposal] = []
@@ -360,6 +361,7 @@ def generate_strategy_candidates(
     num_pairs_tested = 0
     invalid_ratio = 0
     risk_rejected = 0
+    reasons: set[str] = set()
 
     min_rr = 0.0
     try:
@@ -475,7 +477,7 @@ def generate_strategy_candidates(
                 make_leg(sp_opt, -1),
                 make_leg(lp_opt, 1),
             ]
-            metrics = _metrics("iron_condor", legs)
+            metrics, m_reasons = _metrics("iron_condor", legs)
             if metrics:
                 if not _passes_risk(metrics):
                     risk_rejected += 1
@@ -483,6 +485,7 @@ def generate_strategy_candidates(
                 proposals.append(StrategyProposal(legs=legs, **metrics))
             else:
                 invalid_metrics += 1
+                reasons.update(m_reasons)
 
     elif strategy_type == "short_put_spread":
         delta_range = rules.get("short_put_delta_range", [])
@@ -525,7 +528,7 @@ def generate_strategy_candidates(
                     missing_legs += 1
                     continue
                 legs = [make_leg(short_opt, -1), make_leg(long_opt, 1)]
-                metrics = _metrics("bull put spread", legs)
+                metrics, m_reasons = _metrics("bull put spread", legs)
                 if metrics:
                     if not _passes_risk(metrics):
                         risk_rejected += 1
@@ -533,6 +536,7 @@ def generate_strategy_candidates(
                     proposals.append(StrategyProposal(legs=legs, **metrics))
                 else:
                     invalid_metrics += 1
+                    reasons.update(m_reasons)
 
     elif strategy_type == "short_call_spread":
         delta_range = rules.get("short_call_delta_range", [])
@@ -575,7 +579,7 @@ def generate_strategy_candidates(
                     missing_legs += 1
                     continue
                 legs = [make_leg(short_opt, -1), make_leg(long_opt, 1)]
-                metrics = _metrics("bear call spread", legs)
+                metrics, m_reasons = _metrics("bear call spread", legs)
                 if metrics:
                     if not _passes_risk(metrics):
                         risk_rejected += 1
@@ -583,6 +587,7 @@ def generate_strategy_candidates(
                     proposals.append(StrategyProposal(legs=legs, **metrics))
                 else:
                     invalid_metrics += 1
+                    reasons.update(m_reasons)
 
     elif strategy_type == "naked_put":
         delta_range = rules.get("short_put_delta_range", [])
@@ -596,7 +601,7 @@ def generate_strategy_candidates(
                 ):
                     logger.info(f"[naked_put] probeer strike {opt.get('strike')}")
                     leg = make_leg(opt, -1)
-                    metrics = _metrics("naked_put", [leg])
+                    metrics, m_reasons = _metrics("naked_put", [leg])
                     if metrics:
                         if not _passes_risk(metrics):
                             risk_rejected += 1
@@ -604,6 +609,7 @@ def generate_strategy_candidates(
                         proposals.append(StrategyProposal(legs=[leg], **metrics))
                     else:
                         invalid_metrics += 1
+                        reasons.update(m_reasons)
                     if len(proposals) >= 5:
                         break
 
@@ -612,7 +618,8 @@ def generate_strategy_candidates(
         pairs = select_expiry_pairs(expiries, min_gap)
         strikes = rules.get("base_strikes_relative_to_spot", [])
         if not pairs:
-            return [], f"geen geldige expiryparen gevonden (min_gap={min_gap} dagen)"
+            reasons.add("Geen geldige expiry-combinaties gevonden voor calendar spread")
+            return [], sorted(reasons)
         for near, far in pairs[:3]:
             for off in strikes:
                 num_pairs_tested += 1
@@ -653,7 +660,7 @@ def generate_strategy_candidates(
                     missing_legs += 1
                     continue
                 legs = [make_leg(short_opt, -1), make_leg(long_opt, 1)]
-                metrics = _metrics("calendar", legs)
+                metrics, m_reasons = _metrics("calendar", legs)
                 if metrics:
                     if not _passes_risk(metrics):
                         risk_rejected += 1
@@ -661,6 +668,7 @@ def generate_strategy_candidates(
                     proposals.append(StrategyProposal(legs=legs, **metrics))
                 else:
                     invalid_metrics += 1
+                    reasons.update(m_reasons)
                 if len(proposals) >= 5:
                     break
 
@@ -719,7 +727,7 @@ def generate_strategy_candidates(
                     make_leg(sp_opt, -1),
                     make_leg(lp_opt, 1),
                 ]
-                metrics = _metrics("atm_iron_butterfly", legs)
+                metrics, m_reasons = _metrics("atm_iron_butterfly", legs)
                 if metrics:
                     if not _passes_risk(metrics):
                         risk_rejected += 1
@@ -727,6 +735,7 @@ def generate_strategy_candidates(
                     proposals.append(StrategyProposal(legs=legs, **metrics))
                 else:
                     invalid_metrics += 1
+                    reasons.update(m_reasons)
                 if len(proposals) >= 5:
                     break
 
@@ -771,7 +780,7 @@ def generate_strategy_candidates(
                     missing_legs += 1
                     continue
                 legs = [make_leg(short_opt, -1), make_leg(long_opt, 2)]
-                metrics = _metrics("ratio_spread", legs)
+                metrics, m_reasons = _metrics("ratio_spread", legs)
                 if metrics:
                     if not _passes_risk(metrics):
                         risk_rejected += 1
@@ -782,6 +791,7 @@ def generate_strategy_candidates(
                         invalid_ratio += 1
                 else:
                     invalid_metrics += 1
+                    reasons.update(m_reasons)
 
     elif strategy_type == "backspread_put":
         delta_range = rules.get("short_put_delta_range", [])
@@ -827,7 +837,7 @@ def generate_strategy_candidates(
                     missing_legs += 1
                     continue
                 legs = [make_leg(short_opt, -1), make_leg(long_opt, 2)]
-                metrics = _metrics("backspread_put", legs)
+                metrics, m_reasons = _metrics("backspread_put", legs)
                 if metrics:
                     if not _passes_risk(metrics):
                         risk_rejected += 1
@@ -838,30 +848,26 @@ def generate_strategy_candidates(
                         invalid_ratio += 1
                 else:
                     invalid_metrics += 1
+                    reasons.update(m_reasons)
 
     proposals.sort(key=lambda p: p.score or 0, reverse=True)
     if proposals:
-        return proposals[:5], None
+        return proposals[:5], []
+
     if missing_legs > 0:
-        return [], "benodigde strikes ontbreken in de option chain"
+        reasons.add("Benodigde strikes ontbreken in de optiechain")
     if invalid_metrics > 0:
-        return (
-            [],
-            "alle combinaties afgekeurd wegens ongeldige metrics (bijv. negatieve credit of onvoldoende edge)",
-        )
+        reasons.add("Ongeldige of onvolledige metrics")
     if num_pairs_tested == 0:
-        return (
-            [],
-            "geen combinaties konden worden getest (bijv. door lege expiry selectie of strike set)",
-        )
-    if invalid_ratio > 0 or risk_rejected > 0:
-        parts: list[str] = []
-        if invalid_ratio > 0:
-            parts.append(f"{invalid_ratio} afgewezen door ratioscheck")
-        if risk_rejected > 0:
-            parts.append(f"{risk_rejected} afgewezen door risk-check")
-        return [], "; ".join(parts)
-    return [], None
+        reasons.add("Er konden geen combinaties getest worden")
+    if invalid_ratio > 0:
+        reasons.add("Verhouding legs ongeldig")
+    if risk_rejected > 0:
+        reasons.add("Risk/Reward-ratio onvoldoende")
+
+    if not reasons:
+        reasons.add("Onbekende reden")
+    return [], sorted(reasons)
 
 
 __all__ = [
