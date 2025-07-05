@@ -224,6 +224,17 @@ def _metrics(strategy: str, legs: List[Dict[str, Any]]) -> tuple[Optional[Dict[s
         calculate_pos(sum(short_deltas) / len(short_deltas)) if short_deltas else None
     )
 
+    short_edges: List[float] = []
+    for leg in legs:
+        if leg.get("position", 0) < 0:
+            try:
+                edge_val = float(leg.get("edge"))
+            except Exception:
+                edge_val = math.nan
+            if not math.isnan(edge_val):
+                short_edges.append(edge_val)
+    edge_avg = round(sum(short_edges) / len(short_edges), 2) if short_edges else None
+
     reasons: list[str] = []
     credit_short = 0.0
     debit_long = 0.0
@@ -299,6 +310,7 @@ def _metrics(strategy: str, legs: List[Dict[str, Any]]) -> tuple[Optional[Dict[s
         "pos": pos_val,
         "ev": ev,
         "rom": rom,
+        "edge": edge_avg,
         "credit": net_credit * 100,
         "margin": margin,
         "max_profit": max_profit,
@@ -393,6 +405,8 @@ def generate_strategy_candidates(
             "bid": opt.get("bid"),
             "ask": opt.get("ask"),
             "mid": mid,
+            "edge": opt.get("edge"),
+            "model": opt.get("model"),
             "position": position,
         }
         if manual_override:
