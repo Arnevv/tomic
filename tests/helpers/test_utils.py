@@ -77,3 +77,17 @@ def test_normalize_leg(monkeypatch):
     assert out2["delta"] is None
 
 
+def test_prompt_user_for_price_accept(monkeypatch):
+    inputs = iter(["y", "0.25"])
+    monkeypatch.setattr("builtins.input", lambda *a: next(inputs))
+    price = utils.prompt_user_for_price(143, "2025-07-25", "C", 1)
+    assert price == 0.25
+
+
+def test_prompt_user_for_price_decline(monkeypatch):
+    inputs = iter(["n"])
+    monkeypatch.setattr("builtins.input", lambda *a: next(inputs))
+    price = utils.prompt_user_for_price(143, "2025-07-25", "C", 1)
+    assert price is None
+
+

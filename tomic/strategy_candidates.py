@@ -13,7 +13,12 @@ from .metrics import (
     calculate_ev,
 )
 from .analysis.strategy import heuristic_risk_metrics, parse_date
-from .utils import get_option_mid_price, normalize_leg, normalize_right
+from .utils import (
+    get_option_mid_price,
+    normalize_leg,
+    normalize_right,
+    prompt_user_for_price,
+)
 from .logutils import logger
 from .config import get as cfg_get
 
@@ -333,6 +338,8 @@ def generate_strategy_candidates(
     atr: float,
     config: Dict[str, Any],
     spot: float | None,
+    *,
+    interactive_mode: bool = False,
 ) -> tuple[List[StrategyProposal], str | None]:
     """Return top strategy proposals for ``strategy_type`` with optional reason."""
 
@@ -361,6 +368,21 @@ def generate_strategy_candidates(
         min_rr = 0.0
 
     def make_leg(opt: Dict[str, Any], position: int) -> Dict[str, Any]:
+        mid = get_option_mid_price(opt)
+        manual_override = False
+        if mid is None and interactive_mode:
+            mid = prompt_user_for_price(
+                opt.get("strike"),
+                str(opt.get("expiry")),
+                opt.get("type") or opt.get("right"),
+                position,
+            )
+            if mid is not None:
+                manual_override = True
+                right = normalize_right(opt.get("type") or opt.get("right"))
+                logger.info(
+                    f"[override] Handmatige prijsinvoer voor {opt.get('strike')}{right[0].upper() if right else ''}: mid = {mid}"
+                )
         leg = {
             "expiry": opt.get("expiry"),
             "type": opt.get("type") or opt.get("right"),
@@ -368,9 +390,11 @@ def generate_strategy_candidates(
             "delta": opt.get("delta"),
             "bid": opt.get("bid"),
             "ask": opt.get("ask"),
-            "mid": get_option_mid_price(opt),
+            "mid": mid,
             "position": position,
         }
+        if manual_override:
+            leg["manual_override"] = True
         return normalize_leg(leg)
 
     def _passes_risk(metrics: Dict[str, Any]) -> bool:
