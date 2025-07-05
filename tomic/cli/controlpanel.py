@@ -936,6 +936,7 @@ def run_portfolio_menu() -> None:
                     atr_val,
                     config_data or {},
                     spot_for_strats,
+                    interactive_mode=True,
                 )
                 if proposals:
                     rom_w = cfg.get("SCORE_WEIGHT_ROM", 0.5)
@@ -1066,7 +1067,17 @@ def run_portfolio_menu() -> None:
         path = base / f"strategy_proposal_{symbol}_{strat}_{ts}.csv"
         with path.open("w", newline="") as f:
             writer = csv.writer(f)
-            writer.writerow(["expiry", "strike", "type", "position", "mid", "delta", "theta", "vega"])
+            writer.writerow([
+                "expiry",
+                "strike",
+                "type",
+                "position",
+                "mid",
+                "delta",
+                "theta",
+                "vega",
+                "manual_override",
+            ])
             for leg in proposal.legs:
                 writer.writerow([
                     leg.get("expiry"),
@@ -1077,6 +1088,7 @@ def run_portfolio_menu() -> None:
                     leg.get("delta"),
                     leg.get("theta"),
                     leg.get("vega"),
+                    leg.get("manual_override"),
                 ])
             writer.writerow([])
             writer.writerow(["credit", proposal.credit])
