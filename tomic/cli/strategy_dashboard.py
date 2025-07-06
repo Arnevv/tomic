@@ -210,9 +210,9 @@ def print_strategy_full(strategy, rule=None, *, details: bool = False):
     spot_open = strategy.get("spot_open")
     if spot_open is not None:
         try:
-            entry_lines.append(f"- Spot bij open: {float(spot_open):.2f}")
+            entry_lines.append(f"📍 Spot bij open: {float(spot_open):.2f}")
         except (TypeError, ValueError):
-            entry_lines.append(f"- Spot bij open: {spot_open}")
+            entry_lines.append(f"📍 Spot bij open: {spot_open}")
     parts_main: list[str] = []
     parts_extra: list[str] = []
     iv = strategy.get("iv_entry")
@@ -240,9 +240,9 @@ def print_strategy_full(strategy, rule=None, *, details: bool = False):
     if atr is not None:
         parts_extra.append(f"ATR {atr:.2f}")
     if parts_main:
-        entry_lines.append("- " + " | ".join(parts_main))
+        entry_lines.append("📍 " + " | ".join(parts_main))
     if parts_extra:
-        entry_lines.append("- " + " | ".join(parts_extra))
+        entry_lines.append("📍 " + " | ".join(parts_extra))
     delta_entry = strategy.get("delta_entry")
     gamma_entry = strategy.get("gamma_entry")
     vega_entry = strategy.get("vega_entry")
@@ -253,7 +253,7 @@ def print_strategy_full(strategy, rule=None, *, details: bool = False):
     theta = strategy.get("theta")
     if any(x is not None for x in (delta_entry, gamma_entry, vega_entry, theta_entry)):
         entry_lines.append(
-            "- "
+            "📍 "
             f"Delta: {delta_entry:+.3f} | "
             f"Gamma: {gamma_entry:+.3f} | "
             f"Vega: {vega_entry:+.3f} | "
@@ -261,7 +261,7 @@ def print_strategy_full(strategy, rule=None, *, details: bool = False):
         )
     elif any(x is not None for x in (delta, gamma, vega, theta)):
         entry_lines.append(
-            "- "
+            "📍 "
             f"Delta: {delta:+.3f} | "
             f"Gamma: {gamma:+.3f} | "
             f"Vega: {vega:+.3f} | "
@@ -269,20 +269,21 @@ def print_strategy_full(strategy, rule=None, *, details: bool = False):
         )
     rom_entry = strategy.get("rom_entry")
     if rom_entry is not None:
-        entry_lines.append(f"- ROM bij instap: {rom_entry:+.1f}%")
+        entry_lines.append(f"📍 ROM bij instap: {rom_entry:+.1f}%")
     max_p = strategy.get("max_profit")
     max_l = strategy.get("max_loss")
     rr = strategy.get("risk_reward")
     if max_p is not None and max_l is not None:
         rr_disp = f" (R/R {rr:.2f})" if rr is not None else ""
         entry_lines.append(
-            f"- Max winst {_fmt_money(max_p)} | Max verlies {_fmt_money(max_l)}{rr_disp}"
+            f"📍 Max winst {_fmt_money(max_p)} | Max verlies {_fmt_money(max_l)}{rr_disp}"
         )
     dte_entry = strategy.get("dte_entry")
     if dte_entry is not None:
-        entry_lines.append(f"- DTE bij opening: {dte_entry} dagen")
+        entry_lines.append(f"📍 DTE bij opening: {dte_entry} dagen")
     for line in entry_lines:
         print(line)
+    print()
 
     print("📈 HUIDIGE POSITIE")
     mgmt_lines: list[str] = []
@@ -313,13 +314,13 @@ def print_strategy_full(strategy, rule=None, *, details: bool = False):
             except (TypeError, ValueError):
                 spot_open_str = str(spot_open)
             parts.append(f"Spot bij open: {spot_open_str}")
-        mgmt_lines.append("- " + " | ".join(parts))
+        mgmt_lines.append("📍 " + " | ".join(parts))
     delta_fmt = f"{delta:+.3f}" if delta is not None else "n.v.t."
     gamma_fmt = f"{gamma:+.3f}" if gamma is not None else "n.v.t."
     vega_fmt = f"{vega:+.3f}" if vega is not None else "n.v.t."
     theta_fmt = f"{theta:+.3f}" if theta is not None else "n.v.t."
     mgmt_lines.append(
-        f"- Delta: {delta_fmt} "
+        f"📍 Delta: {delta_fmt} "
         f"Gamma: {gamma_fmt} "
         f"Vega: {vega_fmt} "
         f"Theta: {theta_fmt}"
@@ -347,7 +348,7 @@ def print_strategy_full(strategy, rule=None, *, details: bool = False):
     if term is not None:
         parts.append(f"Term {term*100:.1f}bp")
     if parts:
-        mgmt_lines.append("- " + " | ".join(parts))
+        mgmt_lines.append("📍 " + " | ".join(parts))
     days_line: list[str] = []
     dte = strategy.get("days_to_expiry")
     dit = strategy.get("days_in_trade")
@@ -356,7 +357,7 @@ def print_strategy_full(strategy, rule=None, *, details: bool = False):
     if dit is not None:
         days_line.append(f"{dit}d in trade")
     if days_line:
-        mgmt_lines.append("- " + " | ".join(days_line))
+        mgmt_lines.append("📍 " + " | ".join(days_line))
 
     cost_basis = strategy.get("cost_basis")
     if cost_basis is not None:
@@ -366,13 +367,13 @@ def print_strategy_full(strategy, rule=None, *, details: bool = False):
         )
         if total_contracts:
             avg_price = cost_basis / total_contracts
-            mgmt_lines.append(f"- Gem. prijs: {avg_price:+.2f}")
+            mgmt_lines.append(f"📍 Gem. prijs: {avg_price:+.2f}")
 
     pnl_val = strategy.get("unrealizedPnL")
     if pnl_val is not None:
         margin_ref = strategy.get("init_margin") or strategy.get("margin_used") or 1000
         rom_now = (pnl_val / margin_ref) * 100
-        mgmt_lines.append(f"- PnL: {pnl_val:+.2f} (ROM: {rom_now:+.1f}%)")
+        mgmt_lines.append(f"📍 PnL: {pnl_val:+.2f} (ROM: {rom_now:+.1f}%)")
     spot = strategy.get("spot", 0)
     delta_dollar = strategy.get("delta_dollar")
     if delta is not None and spot and delta_dollar is not None:
@@ -381,7 +382,7 @@ def print_strategy_full(strategy, rule=None, *, details: bool = False):
         except (TypeError, ValueError):
             spot_fmt = str(spot)
         mgmt_lines.append(
-            f"- Delta exposure ≈ ${delta_dollar:,.0f} bij spot {spot_fmt}"
+            f"📍 Delta exposure ≈ ${delta_dollar:,.0f} bij spot {spot_fmt}"
         )
     margin = strategy.get("init_margin") or strategy.get("margin_used") or 1000
     if theta is not None and margin:
@@ -395,13 +396,15 @@ def print_strategy_full(strategy, rule=None, *, details: bool = False):
         else:
             rating = "🟢 ideaal"
         mgmt_lines.append(
-            f"- Theta-rendement: {theta_efficiency:.2f}% per $1.000 margin - {rating}"
+            f"📍 Theta-rendement: {theta_efficiency:.2f}% per $1.000 margin - {rating}"
         )
     for line in mgmt_lines:
         print(line)
+    print()
 
     print("📊 KPI BOX")
     print(render_kpi_box(strategy))
+    print()
 
     exit_text = strategy.get("exit_strategy")
     if exit_text:
@@ -561,6 +564,8 @@ def main(argv=None):
         args.append(arg)
         i += 1
 
+    print(f"🧭 Weergavemodus geactiveerd: {view_mode}")
+
     if not args:
         print(
             "Gebruik: python -m tomic.cli.strategy_dashboard positions.json [account_info.json] [--json-output PATH] [--refresh]"
@@ -607,15 +612,7 @@ def main(argv=None):
     dtes = []
     total_pnl = 0.0
     total_margin = 0.0
-    print("=== Open posities ===")
     for s in strategies:
-        rule = exit_rules.get((s["symbol"], s["expiry"]))
-        if view_mode == "compact":
-            print_strategy_compact(s)
-        elif view_mode == "alerts":
-            print_strategy_alerts(s)
-        else:
-            print_strategy_full(s, rule=rule, details=details)
         type_counts[s.get("type")] += 1
         if s.get("delta_dollar") is not None:
             total_delta_dollar += s["delta_dollar"]
@@ -623,12 +620,23 @@ def main(argv=None):
             total_vega += s["vega"]
         if s.get("days_to_expiry") is not None:
             dtes.append(s["days_to_expiry"])
-
         pnl_val = s.get("unrealizedPnL")
         margin_ref = s.get("init_margin") or s.get("margin_used") or 1000
         if pnl_val is not None:
             total_pnl += pnl_val
             total_margin += margin_ref
+
+    avg_rom = (total_pnl / total_margin) * 100 if total_margin else 0.0
+
+    print("=== Portfolio-overzicht ===")
+    print(f"- Aantal strategieën: {len(strategies)}")
+    print(f"- Gemiddeld ROM: {avg_rom:.1f}%")
+    print(f"- Netto Δ$: ${total_delta_dollar:,.0f}")
+    print(f"- Totale vega: {total_vega:+.2f}")
+    if dtes:
+        avg_dte = sum(dtes) / len(dtes)
+        print(f"- Gemiddelde DTE: {avg_dte:.1f} dagen")
+    print()
 
     global_alerts = []
     portfolio_vega = portfolio.get("Vega")
@@ -656,19 +664,16 @@ def main(argv=None):
         global_alerts.sort(key=alert_severity, reverse=True)
         for alert in global_alerts[:3]:
             print(alert)
-
-    if strategies:
-        print("=== Overzicht Open posities ===")
-        for t, c in type_counts.items():
-            print(f"{c}x {t}")
-        print(f"Netto delta-dollar: ${total_delta_dollar:,.0f}")
-        print(f"Totaal vega exposure: {total_vega:+.2f}")
-        if dtes:
-            avg_dte = sum(dtes) / len(dtes)
-            print(f"Gemiddelde DTE: {avg_dte:.1f} dagen")
-        if total_margin:
-            avg_rom = (total_pnl / total_margin) * 100
-            print(f"Gemiddeld ROM portfolio: {avg_rom:.1f}%")
+    
+    print("=== Open posities ===")
+    for s in strategies:
+        rule = exit_rules.get((s["symbol"], s["expiry"]))
+        if view_mode == "compact":
+            print_strategy_compact(s)
+        elif view_mode == "alerts":
+            print_strategy_alerts(s)
+        else:
+            print_strategy_full(s, rule=rule, details=details)
 
     if json_output:
         strategies.sort(key=lambda s: (s["symbol"], s.get("expiry")))

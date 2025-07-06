@@ -410,11 +410,13 @@ def run_portfolio_menu() -> None:
         except subprocess.CalledProcessError:
             print("❌ Ophalen van portfolio mislukt")
             return
+        view = prompt("Weergavemodus (compact/full/alerts): ", "full").strip().lower()
         try:
             run_module(
                 STRATEGY_DASHBOARD_MODULE,
                 str(POSITIONS_FILE),
                 str(ACCOUNT_INFO_FILE),
+                f"--view={view}",
             )
             run_module("tomic.analysis.performance_analyzer")
         except subprocess.CalledProcessError:
@@ -428,11 +430,13 @@ def run_portfolio_menu() -> None:
         if ts:
             print(f"ℹ️ Laatste update: {ts}")
         print_saved_portfolio_greeks()
+        view = prompt("Weergavemodus (compact/full/alerts): ", "full").strip().lower()
         try:
             run_module(
                 STRATEGY_DASHBOARD_MODULE,
                 str(POSITIONS_FILE),
                 str(ACCOUNT_INFO_FILE),
+                f"--view={view}",
             )
             run_module("tomic.analysis.performance_analyzer")
         except subprocess.CalledProcessError:
