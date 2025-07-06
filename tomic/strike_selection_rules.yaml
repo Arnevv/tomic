@@ -60,7 +60,6 @@ strategies:
     direction: bullish
     iv_rank_min: 0.30
     dte_range: [28, 42]
-    max_skew: 1.2  # bijvoorbeeld: max 20% put-skew (indicatief)
     min_risk_reward: 0.25
     strike_to_strategy_config:
       short_put_delta_range: [ -0.30, -0.25 ]

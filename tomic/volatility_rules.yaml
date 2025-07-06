@@ -68,17 +68,6 @@
     - "iv_rank < 40"
     - "IV < HV20"
 
-- feature: "Lage IV Rank + Vlakke Skew"
-  strategy: "calendar"
-  greeks: "delta neutral, vega long, theta short"
-  indication: "Profiteren van IV-toename zonder koersbeweging"
-  criteria:
-    - "iv_rank < 25"
-    - "iv_percentile < 40"
-    - "skew < 1.5"
-    - "term_m1_m3 < 0"
-    - "IV < HV20"
-
 - feature: "Lage IV Rank + Compressie TS"
   strategy: "atm_iron_butterfly"
   greeks: "delta neutral, vega long, gamma long, theta short"
