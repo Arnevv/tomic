@@ -58,7 +58,7 @@ Optie Beschrijving
 2. Portfolio ophalen en tonen    Haal actuele posities op en toon het strategie-dashboard.
 3. Laatst opgehaalde portfolio tonen    Gebruik eerder opgeslagen portfolio-data.
 4. Toon portfolio greeks    Laat delta, gamma, vega en theta van je posities zien.
-5. Toon marktinformatie    Geeft IV- en HV-metrics weer voor je standaard-symbolen.
+5. Toon marktinformatie    Geeft IV- en HV-metrics weer voor je standaard-symbolen en toont de eerstvolgende earningsdatum.
 6. Chainbron kiezen    Selecteer een option chain via TWS, Polygon of een eigen CSV.
 
 Kies je voor **Chainbron kiezen**, dan kun je eerst bepalen waar de keten vandaan
@@ -98,6 +98,9 @@ Belangrijke mappen in `config.yaml`:
 - `IV_HISTORY_DIR`
 - `IV_DAILY_SUMMARY_DIR`
 - `HISTORICAL_VOLATILITY_DIR`
+- `EARNINGS_DATES_FILE`
+
+Het bestand `earnings_dates.json` bevat verwachte earnings per symbool. De optie "Toon marktinformatie" gebruikt dit om de eerstvolgende datum te tonen.
 
 Dagelijkse prijsdata wordt met `tomic/cli/fetch_prices.py` tot maximaal 504 dagen
 terug opgehaald en in `PRICE_HISTORY_DIR` opgeslagen.
