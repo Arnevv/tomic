@@ -56,7 +56,7 @@ from tomic.logutils import setup_logging, logger
 from tomic.analysis.greeks import compute_portfolio_greeks
 from tomic.journal.utils import load_json
 from tomic.utils import today
-from tomic.cli.volatility_recommender import recommend_strategy
+from tomic.cli.volatility_recommender import recommend_strategy, recommend_strategies
 from tomic.api.market_export import load_exported_chain, export_option_chain
 from tomic.providers.polygon_iv import fetch_polygon_option_chain, _load_latest_close
 from tomic.strike_selector import StrikeSelector, filter_by_expiry, FilterConfig
@@ -548,18 +548,42 @@ def run_portfolio_menu() -> None:
 
         print(tabulate(formatted_rows, headers=headers, tablefmt="github"))
 
-        # Strategy recommendation per symbol (grouped by Greek exposure)
+        # Strategy recommendation table per symbol
         def categorize(exposure: str) -> str:
             if "vega long" in exposure:
                 return "Vega Long"
-            elif "vega short" in exposure:
+            if "vega short" in exposure:
                 return "Vega Short"
-            elif "delta directional" in exposure:
+            if (
+                "delta directional" in exposure
+                or "delta positive" in exposure
+                or "delta negative" in exposure
+            ):
                 return "Delta Directioneel"
-            elif "delta neutral" in exposure:
+            if "delta neutral" in exposure:
                 return "Delta Neutraal"
-            else:
-                return "Overig"
+            return "Overig"
+
+        def parse_greeks(expr: str) -> tuple[str, str, str]:
+            low = expr.lower()
+            vega = "Neutraal"
+            theta = "Neutraal"
+            delta = "Neutraal"
+            if "vega long" in low:
+                vega = "Long"
+            elif "vega short" in low:
+                vega = "Short"
+            if "theta long" in low:
+                theta = "Long"
+            elif "theta short" in low:
+                theta = "Short"
+            if "delta positive" in low or "delta directional" in low:
+                delta = "Richting ↑"
+            elif "delta negative" in low:
+                delta = "Richting ↓"
+            elif "delta neutral" in low:
+                delta = "Neutraal"
+            return vega, theta, delta
 
         recs: list[dict[str, object]] = []
         for r in rows:
@@ -574,38 +598,24 @@ def run_portfolio_menu() -> None:
                 "term_m1_m3": r[10],
                 "skew": r[11],
             }
-            rec = recommend_strategy(metrics)
-            if not rec:
-                continue
-            crit = ", ".join(rec.get("criteria", []))
-            recs.append(
-                {
-                    "symbol": r[0],
-                    "strategy": rec["strategy"],
-                    "greeks": rec["greeks"],
-                    "indication": rec["indication"],
-                    "criteria": crit,
-                    "iv_rank": r[7],
-                    "iv_percentile": r[8],
-                    "category": categorize(rec["greeks"].lower()),
-                }
-            )
+            matches = recommend_strategies(metrics)
+            for rec in matches:
+                crit = ", ".join(rec.get("criteria", []))
+                recs.append(
+                    {
+                        "symbol": r[0],
+                        "strategy": rec["strategy"],
+                        "greeks": rec["greeks"],
+                        "indication": rec.get("indication"),
+                        "criteria": crit,
+                        "iv_rank": r[7],
+                        "iv_percentile": r[8],
+                        "skew": r[11],
+                        "category": categorize(rec["greeks"].lower()),
+                    }
+                )
 
         if recs:
-            groups: dict[str, list[dict[str, object]]] = defaultdict(list)
-            for rec in recs:
-                groups[rec["category"]].append(rec)
-
-            def sort_key(item: dict[str, object]) -> float:
-                ivr = item.get("iv_rank")
-                ivp = item.get("iv_percentile")
-                score = -1.0
-                if isinstance(ivr, (int, float)):
-                    score = float(ivr)
-                elif isinstance(ivp, (int, float)):
-                    score = float(ivp)
-                return score
-
             order = [
                 "Vega Short",
                 "Delta Directioneel",
@@ -613,72 +623,71 @@ def run_portfolio_menu() -> None:
                 "Delta Neutraal",
                 "Overig",
             ]
-            icon_map = {
-                "Vega Short": "🎯",
-                "Delta Directioneel": "📈",
-                "Vega Long": "📉",
-                "Delta Neutraal": "⚖️",
-                "Overig": "🔍",
-            }
+            order_idx = {cat: i for i, cat in enumerate(order)}
+            recs.sort(key=lambda r: (r["symbol"], order_idx.get(r["category"], 99)))
 
-            for cat in order:
-                items = groups.get(cat)
-                if not items:
+            table_rows: list[list[str]] = []
+            for idx, rec in enumerate(recs, 1):
+                vega, theta, delta = parse_greeks(rec["greeks"])
+                ivr = rec.get("iv_rank")
+                iv_val = f"{ivr:.0f}" if isinstance(ivr, (int, float)) else ""
+                skew_val = rec.get("skew")
+                skew_str = (
+                    f"{skew_val:.2f}" if isinstance(skew_val, (int, float)) else ""
+                )
+                table_rows.append(
+                    [
+                        idx,
+                        rec["symbol"],
+                        rec["strategy"],
+                        vega,
+                        theta,
+                        delta,
+                        iv_val,
+                        skew_str,
+                    ]
+                )
+
+            print(
+                tabulate(
+                    table_rows,
+                    headers=[
+                        "Nr",
+                        "Symbool",
+                        "Strategie",
+                        "Vega",
+                        "Theta",
+                        "Delta",
+                        "IV Rank",
+                        "Skew",
+                    ],
+                    tablefmt="github",
+                )
+            )
+
+            while True:
+                sel = prompt("Selectie (0 om terug): ")
+                if sel in {"", "0"}:
+                    break
+                try:
+                    idx = int(sel) - 1
+                    chosen = recs[idx]
+                except (ValueError, IndexError):
+                    print("❌ Ongeldige keuze")
                     continue
-                items.sort(key=sort_key, reverse=True)
-                icon = icon_map.get(cat, "🔍")
-                print(f"{icon} Focus: {cat}")
-                for i, item in enumerate(items, 1):
-                    ivr = item.get("iv_rank")
-                    ivp = item.get("iv_percentile")
-                    if isinstance(ivr, (int, float)):
-                        iv_str = f"iv_rank: {ivr:.0f}"
-                    elif isinstance(ivp, (int, float)):
-                        iv_str = f"iv_pct: {ivp:.0f}"
-                    else:
-                        iv_str = "iv n.v.t."
-                    print(
-                        f"{i}. {item['symbol']}: {item['strategy']} — {item['greeks']} ({iv_str})"
-                    )
-                print()
-
-            flat_choices: list[dict[str, object]] = []
-            for cat in order:
-                items = groups.get(cat)
-                if not items:
-                    continue
-                items.sort(key=sort_key, reverse=True)
-                flat_choices.extend(items)
-
-            if flat_choices:
-                print("Kies een strategie:\n")
-                for idx, choice in enumerate(flat_choices, 1):
-                    print(
-                        f"{idx}. {choice['symbol']} – {choice['strategy']} ({choice['greeks']})"
-                    )
-                while True:
-                    sel = prompt("Selectie (0 om terug): ")
-                    if sel in {"", "0"}:
-                        break
-                    try:
-                        idx = int(sel) - 1
-                        chosen = flat_choices[idx]
-                    except (ValueError, IndexError):
-                        print("❌ Ongeldige keuze")
-                        continue
-                    SESSION_STATE.update(
-                        {
-                            "symbol": chosen.get("symbol"),
-                            "strategy": chosen.get("strategy"),
-                            "greeks": chosen.get("greeks"),
-                            "iv_rank": chosen.get("iv_rank"),
-                        }
-                    )
-                    print(
-                        f"\n🎯 Gekozen strategie: {SESSION_STATE.get('symbol')} – {SESSION_STATE.get('strategy')}\n"
-                    )
-                    choose_chain_source()
-                    return
+                SESSION_STATE.update(
+                    {
+                        "symbol": chosen.get("symbol"),
+                        "strategy": chosen.get("strategy"),
+                        "greeks": chosen.get("greeks"),
+                        "iv_rank": chosen.get("iv_rank"),
+                    }
+                )
+                print(
+                    f"\n🎯 Gekozen strategie: {SESSION_STATE.get('symbol')} – {SESSION_STATE.get('strategy')}\n"
+                )
+                choose_chain_source()
+                return
 
     def _process_chain(path: Path) -> None:
         if not path.exists():
@@ -740,8 +749,14 @@ def run_portfolio_menu() -> None:
                 return default
 
         d_range = rules.get("delta_range", [-1.0, 1.0])
-        delta_min = _val(d_range[0], -1.0) if isinstance(d_range, (list, tuple)) else -1.0
-        delta_max = _val(d_range[1], 1.0) if isinstance(d_range, (list, tuple)) and len(d_range) > 1 else 1.0
+        delta_min = (
+            _val(d_range[0], -1.0) if isinstance(d_range, (list, tuple)) else -1.0
+        )
+        delta_max = (
+            _val(d_range[1], 1.0)
+            if isinstance(d_range, (list, tuple)) and len(d_range) > 1
+            else 1.0
+        )
 
         fc = FilterConfig(
             delta_min=delta_min,
@@ -841,11 +856,7 @@ def run_portfolio_menu() -> None:
                     strike_val = float(opt.get("strike"))
                 except Exception:
                     strike_val = None
-                base = (
-                    float(spot_price)
-                    if spot_price is not None
-                    else strike_val
-                )
+                base = float(spot_price) if spot_price is not None else strike_val
                 margin = round(base * 100 * 0.2, 2) if base else 350.0
             try:
                 delta = float(opt.get("delta"))
@@ -1015,10 +1026,18 @@ def run_portfolio_menu() -> None:
             if mid is not None:
                 try:
                     mid_f = float(mid)
-                    if bid is not None and math.isclose(mid_f, float(bid), abs_tol=1e-6):
-                        warns.append(f"⚠️ Midprijs gelijk aan bid voor strike {leg.get('strike')}")
-                    if ask is not None and math.isclose(mid_f, float(ask), abs_tol=1e-6):
-                        warns.append(f"⚠️ Midprijs gelijk aan ask voor strike {leg.get('strike')}")
+                    if bid is not None and math.isclose(
+                        mid_f, float(bid), abs_tol=1e-6
+                    ):
+                        warns.append(
+                            f"⚠️ Midprijs gelijk aan bid voor strike {leg.get('strike')}"
+                        )
+                    if ask is not None and math.isclose(
+                        mid_f, float(ask), abs_tol=1e-6
+                    ):
+                        warns.append(
+                            f"⚠️ Midprijs gelijk aan ask voor strike {leg.get('strike')}"
+                        )
                 except Exception:
                     pass
 
@@ -1031,20 +1050,41 @@ def run_portfolio_menu() -> None:
                     f"{bid:.2f}" if bid is not None else "—",
                     f"{ask:.2f}" if ask is not None else "—",
                     f"{mid:.2f}" if mid is not None else "—",
-                    f"{leg.get('delta', 0):+.2f}" if leg.get("delta") is not None else "",
-                    f"{leg.get('theta', 0):+.2f}" if leg.get("theta") is not None else "",
+                    (
+                        f"{leg.get('delta', 0):+.2f}"
+                        if leg.get("delta") is not None
+                        else ""
+                    ),
+                    (
+                        f"{leg.get('theta', 0):+.2f}"
+                        if leg.get("theta") is not None
+                        else ""
+                    ),
                     f"{leg.get('vega', 0):+.2f}" if leg.get("vega") is not None else "",
                     f"{leg.get('edge'):.2f}" if leg.get("edge") is not None else "—",
                 ]
             )
         missing_edge = any(
-            leg.get("position", 0) < 0 and leg.get("edge") is None for leg in proposal.legs
+            leg.get("position", 0) < 0 and leg.get("edge") is None
+            for leg in proposal.legs
         )
 
         print(
             tabulate(
                 rows,
-                headers=["Expiry", "Strike", "Type", "Pos", "Bid", "Ask", "Mid", "Δ", "Θ", "V", "Edge"],
+                headers=[
+                    "Expiry",
+                    "Strike",
+                    "Type",
+                    "Pos",
+                    "Bid",
+                    "Ask",
+                    "Mid",
+                    "Δ",
+                    "Θ",
+                    "V",
+                    "Edge",
+                ],
                 tablefmt="github",
             )
         )
@@ -1057,7 +1097,9 @@ def run_portfolio_menu() -> None:
             print(f"Margin: {proposal.margin:.2f}")
         else:
             print("Margin: —")
-        max_win = f"{proposal.max_profit:.2f}" if proposal.max_profit is not None else "—"
+        max_win = (
+            f"{proposal.max_profit:.2f}" if proposal.max_profit is not None else "—"
+        )
         print(f"Max win: {max_win}")
         max_loss = f"{proposal.max_loss:.2f}" if proposal.max_loss is not None else "—"
         print(f"Max loss: {max_loss}")
@@ -1096,7 +1138,16 @@ def run_portfolio_menu() -> None:
                 for k, v in row.items():
                     if k not in fieldnames:
                         continue
-                    if k in {"pos", "rom", "ev", "edge", "mid", "model", "delta", "margin"}:
+                    if k in {
+                        "pos",
+                        "rom",
+                        "ev",
+                        "edge",
+                        "mid",
+                        "model",
+                        "delta",
+                        "margin",
+                    }:
                         try:
                             out[k] = f"{float(v):.2f}"
                         except Exception:
@@ -1109,41 +1160,47 @@ def run_portfolio_menu() -> None:
     def _export_proposal_csv(proposal: StrategyProposal) -> None:
         symbol = str(SESSION_STATE.get("symbol", "SYMB"))
         strat = str(SESSION_STATE.get("strategy", "strategy")).replace(" ", "_")
-        base = Path(cfg.get("EXPORT_DIR", "exports")) / datetime.now().strftime("%Y%m%d")
+        base = Path(cfg.get("EXPORT_DIR", "exports")) / datetime.now().strftime(
+            "%Y%m%d"
+        )
         base.mkdir(parents=True, exist_ok=True)
         ts = datetime.now().strftime("%H%M%S")
         path = base / f"strategy_proposal_{symbol}_{strat}_{ts}.csv"
         with path.open("w", newline="") as f:
             writer = csv.writer(f)
-            writer.writerow([
-                "expiry",
-                "strike",
-                "type",
-                "position",
-                "bid",
-                "ask",
-                "mid",
-                "delta",
-                "theta",
-                "vega",
-                "edge",
-                "manual_override",
-            ])
+            writer.writerow(
+                [
+                    "expiry",
+                    "strike",
+                    "type",
+                    "position",
+                    "bid",
+                    "ask",
+                    "mid",
+                    "delta",
+                    "theta",
+                    "vega",
+                    "edge",
+                    "manual_override",
+                ]
+            )
             for leg in proposal.legs:
-                writer.writerow([
-                    leg.get("expiry"),
-                    leg.get("strike"),
-                    leg.get("type"),
-                    leg.get("position"),
-                    leg.get("bid"),
-                    leg.get("ask"),
-                    leg.get("mid"),
-                    leg.get("delta"),
-                    leg.get("theta"),
-                    leg.get("vega"),
-                    leg.get("edge"),
-                    leg.get("manual_override"),
-                ])
+                writer.writerow(
+                    [
+                        leg.get("expiry"),
+                        leg.get("strike"),
+                        leg.get("type"),
+                        leg.get("position"),
+                        leg.get("bid"),
+                        leg.get("ask"),
+                        leg.get("mid"),
+                        leg.get("delta"),
+                        leg.get("theta"),
+                        leg.get("vega"),
+                        leg.get("edge"),
+                        leg.get("manual_override"),
+                    ]
+                )
             writer.writerow([])
             writer.writerow(["credit", proposal.credit])
             writer.writerow(["max_loss", proposal.max_loss])
@@ -1154,22 +1211,29 @@ def run_portfolio_menu() -> None:
     def _export_proposal_json(proposal: StrategyProposal) -> None:
         symbol = str(SESSION_STATE.get("symbol", "SYMB"))
         strat = str(SESSION_STATE.get("strategy", "strategy")).replace(" ", "_")
-        base = Path(cfg.get("EXPORT_DIR", "exports")) / datetime.now().strftime("%Y%m%d")
+        base = Path(cfg.get("EXPORT_DIR", "exports")) / datetime.now().strftime(
+            "%Y%m%d"
+        )
         base.mkdir(parents=True, exist_ok=True)
         ts = datetime.now().strftime("%H%M%S")
         path = base / f"strategy_proposal_{symbol}_{strat}_{ts}.json"
         with path.open("w", encoding="utf-8") as f:
-            json.dump({
-                "legs": proposal.legs,
-                "credit": proposal.credit,
-                "margin": proposal.margin,
-                "pos": proposal.pos,
-                "ev": proposal.ev,
-                "rom": proposal.rom,
-                "max_profit": proposal.max_profit,
-                "max_loss": proposal.max_loss,
-                "breakevens": proposal.breakevens,
-            }, f, ensure_ascii=False, indent=2)
+            json.dump(
+                {
+                    "legs": proposal.legs,
+                    "credit": proposal.credit,
+                    "margin": proposal.margin,
+                    "pos": proposal.pos,
+                    "ev": proposal.ev,
+                    "rom": proposal.rom,
+                    "max_profit": proposal.max_profit,
+                    "max_loss": proposal.max_loss,
+                    "breakevens": proposal.breakevens,
+                },
+                f,
+                ensure_ascii=False,
+                indent=2,
+            )
         print(f"✅ Voorstel opgeslagen in: {path.resolve()}")
 
     def _proposal_journal_text(proposal: StrategyProposal) -> str:
