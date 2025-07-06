@@ -274,9 +274,7 @@ Strikte timeboxing: OPTION_MAX_MARKETDATA_TIME (default 60s) als laatste fallbac
 Disconnect vóór het schrijven naar disk
 
 CSV-bestanden:
-
 option_chain_<symbol>_<timestamp>.csv
-
 other_data_<symbol>_<timestamp>.csv met o.a. IV Rank, HV30, ATR14, VIX
 
 Snapshot-export via Polygon:
@@ -291,20 +289,10 @@ Functies: _write_option_chain(), _write_metrics_csv()
 
 11. (Fallback) Term structure berekenen
 Als term_m1_m2 of term_m1_m3 ontbreekt in Barchart scrape, dan:
-
 Berekening met gemiddelde IV’s rond spot (±TERM_STRIKE_WINDOW, default: 5)
-
 Per expiry → mean IV → bereken M1-M2 en M1-M3
-
 Functie: compute_iv_term_structure()
-
-
-
-
-
 
 ✅ Tests
 Run alle basistests met:
 pytest tests/
-
-Notes from video:
