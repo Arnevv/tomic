@@ -2,7 +2,7 @@
 
 import subprocess
 import sys
-from datetime import datetime
+from datetime import datetime, timedelta, date
 import json
 from pathlib import Path
 import os
@@ -493,16 +493,25 @@ def run_portfolio_menu() -> None:
             next_earn = ""
             earnings_list = earnings_dict.get(symbol)
             if isinstance(earnings_list, list):
-                upcoming = []
+                dates: list[date] = []
                 for ds in earnings_list:
                     try:
-                        d = datetime.strptime(ds, "%Y-%m-%d").date()
+                        dates.append(datetime.strptime(ds, "%Y-%m-%d").date())
                     except Exception:
                         continue
-                    if d >= today():
-                        upcoming.append(d)
-                if upcoming:
-                    next_earn = min(upcoming).strftime("%Y-%m-%d")
+                if dates:
+                    today_date = today()
+                    upcoming = [d for d in dates if d >= today_date]
+                    if upcoming:
+                        next_earn = min(upcoming).strftime("%Y-%m-%d")
+                    else:
+                        predicted = max(dates)
+                        while predicted < today_date:
+                            try:
+                                predicted = predicted.replace(year=predicted.year + 1)
+                            except ValueError:
+                                predicted += timedelta(days=365)
+                        next_earn = predicted.strftime("%Y-%m-%d")
 
             rows.append(
                 [
