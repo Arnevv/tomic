@@ -1,4 +1,4 @@
-from tomic.cli.strategy_dashboard import print_strategy
+from tomic.cli.strategy_dashboard import print_strategy_full
 
 
 def test_print_strategy_spot_diff(capsys):
@@ -14,7 +14,7 @@ def test_print_strategy_spot_diff(capsys):
         "IV_Rank": 0.0,
         "IV_Percentile": 0.0,
     }
-    print_strategy(strat)
+    print_strategy_full(strat)
     captured = capsys.readouterr().out
     assert "- Huidige spot: 105.12 (+5.12%)" in captured
 
@@ -29,7 +29,7 @@ def test_print_strategy_entry_greeks(capsys):
         "vega_entry": -0.3,
         "theta_entry": 0.4,
     }
-    print_strategy(strat)
+    print_strategy_full(strat)
     captured = capsys.readouterr().out
     assert "Delta: +0.100 | Gamma: +0.200 | Vega: -0.300 | Theta: +0.400" in captured
 
@@ -40,7 +40,7 @@ def test_print_strategy_exit_criteria(capsys):
         "type": "Test",
         "exit_strategy": "❌ Stop\n✅ Profit"
     }
-    print_strategy(strat)
+    print_strategy_full(strat)
     out = capsys.readouterr().out
     assert "🚪 EXITCRITERIA" in out
     assert "Stop" in out
