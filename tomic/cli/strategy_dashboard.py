@@ -193,7 +193,7 @@ def alert_severity(alert: str) -> int:
     return 0
 
 
-def print_strategy(strategy, rule=None, *, details: bool = False):
+def print_strategy_full(strategy, rule=None, *, details: bool = False):
     """Print a strategy with entry info, current status, KPI box and alerts."""
     pnl = strategy.get("unrealizedPnL")
     color = "🟩" if pnl is not None and pnl >= 0 else "🟥"
@@ -474,6 +474,48 @@ def print_strategy(strategy, rule=None, *, details: bool = False):
     print()
 
 
+def print_strategy_compact(strategy: dict) -> None:
+    """Print one-line summary of a strategy."""
+    symbol = strategy.get("symbol")
+    typ = strategy.get("type")
+    pnl = strategy.get("unrealizedPnL", 0)
+    dte = strategy.get("days_to_expiry", "n.v.t.")
+    rom = strategy.get("rom")
+    delta_dollar = strategy.get("delta_dollar")
+    alerts = strategy.get("alerts", [])
+    alert_count = sum(alert_severity(a) > 0 for a in alerts)
+    icon = "🟩" if pnl >= 0 else "🟥"
+    rom_disp = f"{rom:+.1f}%" if rom is not None else "n.v.t."
+    pnl_disp = f"{pnl:+.2f}" if pnl is not None else "n.v.t."
+    dte_disp = f"{dte}d" if isinstance(dte, int) else str(dte)
+    dd_disp = f"{delta_dollar:+.0f}" if delta_dollar is not None else "n.v.t."
+    print(
+        f"{icon} {symbol} | {typ} | ROM {rom_disp} | PnL {pnl_disp} | DTE {dte_disp} | Δ$ {dd_disp} | ⚠️ {alert_count} alerts"
+    )
+
+
+def print_strategy_alerts(strategy: dict) -> None:
+    """Print alerts for a strategy if any have positive severity."""
+    alerts = strategy.get("alerts", [])
+    if not any(alert_severity(a) > 0 for a in alerts):
+        return
+    symbol = strategy.get("symbol")
+    typ = strategy.get("type")
+    trade_id = strategy.get("trade_id")
+    header = f"🚨 {symbol} – {typ}"
+    if trade_id:
+        header += f" – TradeId {trade_id}"
+    print(header)
+    for alert in sorted(alerts, key=alert_severity, reverse=True)[:3]:
+        print(f"- {alert}")
+    print()
+
+
+def print_strategy(strategy, rule=None, *, details: bool = False):
+    """Deprecated wrapper for :func:`print_strategy_full`."""
+    return print_strategy_full(strategy, rule=rule, details=details)
+
+
 def main(argv=None):
     if argv is None:
         argv = sys.argv[1:]
@@ -483,6 +525,7 @@ def main(argv=None):
     details = False
     account_details = False
     refresh = False
+    view_mode = "full"
     i = 0
     while i < len(argv):
         arg = argv[i]
@@ -505,6 +548,10 @@ def main(argv=None):
             continue
         if arg == "--refresh":
             refresh = True
+            i += 1
+            continue
+        if arg.startswith("--view="):
+            view_mode = arg.split("=")[1]
             i += 1
             continue
         if arg == "--account":
@@ -563,7 +610,12 @@ def main(argv=None):
     print("=== Open posities ===")
     for s in strategies:
         rule = exit_rules.get((s["symbol"], s["expiry"]))
-        print_strategy(s, rule, details=details)
+        if view_mode == "compact":
+            print_strategy_compact(s)
+        elif view_mode == "alerts":
+            print_strategy_alerts(s)
+        else:
+            print_strategy_full(s, rule=rule, details=details)
         type_counts[s.get("type")] += 1
         if s.get("delta_dollar") is not None:
             total_delta_dollar += s["delta_dollar"]

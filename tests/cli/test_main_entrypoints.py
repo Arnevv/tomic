@@ -248,7 +248,7 @@ def test_strategy_dashboard_main(tmp_path, monkeypatch):
     monkeypatch.setattr(mod, "print_account_overview", lambda *a, **k: None)
     monkeypatch.setattr(mod, "group_strategies", lambda p, journal=None: [])
     monkeypatch.setattr(mod, "compute_term_structure", lambda s: None)
-    monkeypatch.setattr(mod, "print_strategy", lambda *a, **k: None)
+    monkeypatch.setattr(mod, "print_strategy_full", lambda *a, **k: None)
     res = mod.main([str(pos), str(acc)])
     assert res == 0
 
