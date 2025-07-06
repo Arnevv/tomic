@@ -13,8 +13,14 @@ def test_show_market_info(monkeypatch, tmp_path):
     for p in (sum_dir, hv_dir, spot_dir):
         p.mkdir()
 
+    earn_file = tmp_path / "earnings_dates.json"
+    save_json({"AAA": ["2030-01-01"]}, earn_file)
+
     save_json(
-        [{"date": "2025-06-28", "close": 534.5}, {"date": "2025-06-27", "close": 530.1}],
+        [
+            {"date": "2025-06-28", "close": 534.5},
+            {"date": "2025-06-27", "close": 530.1},
+        ],
         spot_dir / "AAA.json",
     )
     save_json(
@@ -50,7 +56,15 @@ def test_show_market_info(monkeypatch, tmp_path):
             else (
                 str(hv_dir)
                 if key == "HISTORICAL_VOLATILITY_DIR"
-                else (str(spot_dir) if key == "PRICE_HISTORY_DIR" else default)
+                else (
+                    str(spot_dir)
+                    if key == "PRICE_HISTORY_DIR"
+                    else (
+                        str(earn_file)
+                        if key == "EARNINGS_DATES_FILE"
+                        else default
+                    )
+                )
             )
         ),
     )
@@ -62,5 +76,5 @@ def test_show_market_info(monkeypatch, tmp_path):
     monkeypatch.setattr(builtins, "input", lambda *a: next(inputs))
     mod.run_portfolio_menu()
 
-    assert any("2025-06-28" in line for line in prints)
+    assert any("2030-01-01" in line for line in prints)
     assert any("short_put_spread" in line for line in prints)
