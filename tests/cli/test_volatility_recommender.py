@@ -1,4 +1,4 @@
-from tomic.cli.volatility_recommender import recommend_strategy
+from tomic.cli.volatility_recommender import recommend_strategy, recommend_strategies
 
 
 def test_recommend_strategy_match():
@@ -27,3 +27,31 @@ def test_recommend_strategy_none():
     }
     rec = recommend_strategy(metrics)
     assert rec is None
+
+
+def test_recommend_strategies_multiple():
+    metrics = {
+        "iv_rank": 60,
+        "iv_percentile": 70,
+        "skew": 1.0,
+        "term_m1_m3": 1.2,
+        "IV": 0.4,
+        "HV20": 0.2,
+    }
+    recs = recommend_strategies(metrics)
+    names = {r["strategy"] for r in recs}
+    assert "iron_condor" in names
+    assert len(recs) >= 2
+
+
+def test_recommend_strategies_none():
+    metrics = {
+        "iv_rank": 5,
+        "iv_percentile": 10,
+        "skew": 0,
+        "term_m1_m3": 0,
+        "IV": 0.2,
+        "HV20": 0.3,
+    }
+    recs = recommend_strategies(metrics)
+    assert recs == []
