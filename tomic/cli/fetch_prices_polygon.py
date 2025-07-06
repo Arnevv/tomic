@@ -74,7 +74,7 @@ def _request_bars(client: PolygonClient, symbol: str) -> Iterable[dict]:
 
     This function fetches only the missing dates based on the last close
     available in ``PRICE_HISTORY_DIR``. If no local data exists it falls back
-    to requesting the last 252 trading days.
+    to requesting the last 504 trading days.
     """
 
     end_dt = latest_trading_day()
@@ -87,7 +87,7 @@ def _request_bars(client: PolygonClient, symbol: str) -> Iterable[dict]:
         try:
             last_dt = datetime.strptime(last_date, "%Y-%m-%d").date()
         except Exception:
-            last_dt = end_dt - timedelta(days=365)
+            last_dt = end_dt - timedelta(days=730)
         next_expected = _next_trading_day(last_dt)
         if next_expected > end_dt:
             logger.info(
@@ -99,9 +99,9 @@ def _request_bars(client: PolygonClient, symbol: str) -> Iterable[dict]:
         path = f"{base_path}/{from_date}/{to_date}"
     else:
         to_date = end_dt.strftime("%Y-%m-%d")
-        from_date = (end_dt - timedelta(days=365)).strftime("%Y-%m-%d")
+        from_date = (end_dt - timedelta(days=730)).strftime("%Y-%m-%d")
         path = f"{base_path}/{from_date}/{to_date}"
-        params.update({"limit": 252})
+        params.update({"limit": 504})
 
     try:
         data = client._request(path, params)
