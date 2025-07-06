@@ -9,7 +9,7 @@ from typing import Any, Dict, List, Optional
 
 def _load_rules(path: Path | None = None) -> List[Dict[str, Any]]:
     if path is None:
-        path = (Path(__file__).resolve().parent.parent / "volatility_rules.yaml")
+        path = Path(__file__).resolve().parent.parent / "volatility_rules.yaml"
     if not path.exists():
         return []
     try:
@@ -106,13 +106,26 @@ def recommend_strategy(
     metrics: Dict[str, Any], rules: List[Dict[str, Any]] | None = None
 ) -> Optional[Dict[str, Any]]:
     """Return first matching strategy rule for given metrics."""
+    matches = recommend_strategies(metrics, rules)
+    return matches[0] if matches else None
+
+
+def recommend_strategies(
+    metrics: Dict[str, Any], rules: List[Dict[str, Any]] | None = None
+) -> List[Dict[str, Any]]:
+    """Return all matching strategy rules for given metrics."""
     if rules is None:
         rules = _RULES
+    matched: List[Dict[str, Any]] = []
+    seen: set[str] = set()
     for rule in rules:
         crit = rule.get("criteria", [])
         if all(_check_expr(c, metrics) for c in crit):
-            return rule
-    return None
+            strategy = str(rule.get("strategy"))
+            if strategy not in seen:
+                seen.add(strategy)
+                matched.append(rule)
+    return matched
 
 
-__all__ = ["recommend_strategy", "_load_rules"]
+__all__ = ["recommend_strategy", "recommend_strategies", "_load_rules"]
