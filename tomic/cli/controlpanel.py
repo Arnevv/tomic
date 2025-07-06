@@ -493,14 +493,16 @@ def run_portfolio_menu() -> None:
             next_earn = ""
             earnings_list = earnings_dict.get(symbol)
             if isinstance(earnings_list, list):
+                upcoming = []
                 for ds in earnings_list:
                     try:
                         d = datetime.strptime(ds, "%Y-%m-%d").date()
                     except Exception:
                         continue
                     if d >= today():
-                        next_earn = ds
-                        break
+                        upcoming.append(d)
+                if upcoming:
+                    next_earn = min(upcoming).strftime("%Y-%m-%d")
 
             rows.append(
                 [
