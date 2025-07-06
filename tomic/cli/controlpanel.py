@@ -455,6 +455,11 @@ def run_portfolio_menu() -> None:
             cfg.get("HISTORICAL_VOLATILITY_DIR", "tomic/data/historical_volatility")
         )
         spot_dir = Path(cfg.get("PRICE_HISTORY_DIR", "tomic/data/spot_prices"))
+        earnings_dict = load_json(
+            cfg.get("EARNINGS_DATES_FILE", "tomic/data/earnings_dates.json")
+        )
+        if not isinstance(earnings_dict, dict):
+            earnings_dict = {}
 
         symbols = [s.upper() for s in cfg.get("DEFAULT_SYMBOLS", [])]
         rows: list[list] = []
@@ -485,6 +490,18 @@ def run_portfolio_menu() -> None:
             except IndexError:
                 continue
 
+            next_earn = ""
+            earnings_list = earnings_dict.get(symbol)
+            if isinstance(earnings_list, list):
+                for ds in earnings_list:
+                    try:
+                        d = datetime.strptime(ds, "%Y-%m-%d").date()
+                    except Exception:
+                        continue
+                    if d >= today():
+                        next_earn = ds
+                        break
+
             rows.append(
                 [
                     symbol,
@@ -499,7 +516,7 @@ def run_portfolio_menu() -> None:
                     summary.get("term_m1_m2"),
                     summary.get("term_m1_m3"),
                     summary.get("skew"),
-                    spot.get("date"),
+                    next_earn,
                 ]
             )
 
@@ -543,7 +560,7 @@ def run_portfolio_menu() -> None:
             "term_m1_m2",
             "term_m1_m3",
             "skew",
-            "date",
+            "next_earnings",
         ]
 
         print(tabulate(formatted_rows, headers=headers, tablefmt="github"))
