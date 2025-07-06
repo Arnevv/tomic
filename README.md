@@ -99,7 +99,7 @@ Belangrijke mappen in `config.yaml`:
 - `IV_DAILY_SUMMARY_DIR`
 - `HISTORICAL_VOLATILITY_DIR`
 
-Dagelijkse prijsdata wordt met `tomic/cli/fetch_prices.py` tot maximaal 252 dagen
+Dagelijkse prijsdata wordt met `tomic/cli/fetch_prices.py` tot maximaal 504 dagen
 terug opgehaald en in `PRICE_HISTORY_DIR` opgeslagen.
 
 Alle configuratiefuncties gebruiken een interne lock. Zowel lezen via

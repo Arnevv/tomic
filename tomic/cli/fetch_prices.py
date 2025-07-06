@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-"""Fetch the last 252 days of daily price history for configured symbols."""
+"""Fetch the last 504 days of daily price history for configured symbols."""
 
 from datetime import datetime, timezone
 from types import MethodType
@@ -57,7 +57,7 @@ def _request_bars(app, symbol: str) -> Iterable[dict]:
         1,
         contract,
         query_time,
-        "252 D",
+        "504 D",
         "1 day",
         "TRADES",
         0,
