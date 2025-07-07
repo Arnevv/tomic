@@ -37,12 +37,18 @@ def _fetch_symbol(symbol: str, api_key: str) -> List[str]:
     resp.raise_for_status()
     return _parse_dates(resp.text)
 
+def _safe_parse_date(d: str) -> date | None:
+    try:
+        return datetime.strptime(d, "%Y-%m-%d").date()
+    except ValueError:
+        logger.warning(f"⚠️ Ongeldige datum overgeslagen: {d}")
+        return None
 
 def _merge_dates(existing: List[str], new: List[str]) -> List[str]:
     """Return merged list with updated upcoming dates."""
     today = date.today()
-    existing_dates = [datetime.strptime(d, "%Y-%m-%d").date() for d in existing]
-    new_dates = [datetime.strptime(d, "%Y-%m-%d").date() for d in new]
+    existing_dates = [d for d in (_safe_parse_date(x) for x in existing) if d]
+    new_dates = [d for d in (_safe_parse_date(x) for x in new) if d]
 
     past = [d for d in existing_dates if d < today]
     upcoming = [d for d in existing_dates if d >= today]
@@ -87,14 +93,34 @@ def main(argv: List[str] | None = None) -> None:
         for sym in symbols:
             try:
                 dates = _fetch_symbol(sym, api_key)
+                logger.info(f"{sym} new dates from API: {dates}")
             except Exception as exc:  # pragma: no cover - network errors
                 logger.error(f"Failed to fetch {sym}: {exc}")
                 continue
             if not dates:
+                logger.warning(f"⚠️ Geen earnings data voor {sym}, mogelijk API-probleem.")
                 continue
+
             current = data.get(sym, []) if isinstance(data.get(sym), list) else []
-            data[sym] = _merge_dates(current, dates)
-            stored += 1
+            merged = _merge_dates(current, dates)
+
+            current = data.get(sym, []) if isinstance(data.get(sym), list) else []
+
+            merged = _merge_dates(current, dates)
+            # Regressie-detectie
+            if not merged and current:
+                logger.warning(f"⚠️ Merge resulteerde in lege lijst voor {sym}, hou oude data aan.")
+                data[sym] = current
+            elif len(merged) < len(current):
+                logger.warning(
+                    f"⚠️ Merge voor {sym} lijkt regressie te bevatten ({len(merged)} < {len(current)}), oude data behouden.")
+                data[sym] = current
+            elif set(merged).issubset(set(current)):
+                logger.warning(f"⚠️ Merge voor {sym} voegt niets toe, hou oude data aan.")
+                data[sym] = current
+            else:
+                data[sym] = merged
+                stored += 1
 
     save_json(data, earnings_file)
     logger.success(f"✅ Earnings dates updated for {stored} symbols")
