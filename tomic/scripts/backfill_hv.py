@@ -83,11 +83,16 @@ def run_backfill_hv(symbols: List[str] | None = None) -> None:
         dates, closes = zip(*price_records)
         hv_data, path = _load_existing_hv(sym)
         existing_dates = {rec.get("date") for rec in hv_data}
-        if hv_data:
-            last_date = hv_data[-1]["date"]
-            start_idx = dates.index(last_date) + 1 if last_date in dates else 0
-        else:
-            start_idx = 252
+
+        if len(dates) != len(set(dates)):
+            logger.error(f"❌ {sym}: dubbele datums in spotprijsdata")
+            continue
+
+        if len(dates) <= 252:
+            logger.warning(f"⚠️ {sym}: te weinig spotdata (<252 dagen)")
+            continue
+
+        start_idx = 252
         new_records: list[dict] = []
         hv_values = _calculate_hv(list(closes))
         for idx in range(start_idx, len(dates)):
