@@ -42,6 +42,7 @@ class AppConfig(BaseModel):
     ]
     POSITIONS_FILE: str = "positions.json"
     ACCOUNT_INFO_FILE: str = "account_info.json"
+    PRICE_META_FILE: str = "price_meta.json"
     PORTFOLIO_META_FILE: str = "portfolio_meta.json"
     JOURNAL_FILE: str = "journal.json"
     EARNINGS_DATES_FILE: str = "tomic/data/earnings_dates.json"

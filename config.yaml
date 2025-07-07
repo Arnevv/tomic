@@ -141,6 +141,7 @@ POLYGON_API_KEYS:
 POLYGON_DELAY_SNAPSHOT_MS: 200
 POLYGON_SLEEP_BETWEEN: 1.2
 PORTFOLIO_META_FILE: tomic/data/portfolio_meta.json
+PRICE_META_FILE: tomic/data/price_meta.json
 POSITIONS_FILE: tomic/data/positions.json
 PRICE_HISTORY_DIR: tomic/data/spot_prices
 SCORE_WEIGHT_EV: 0.2
