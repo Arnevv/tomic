@@ -127,9 +127,13 @@ def main(argv: List[str] | None = None) -> None:
 
     summary_dir = Path(cfg_get("IV_DAILY_SUMMARY_DIR", "tomic/data/iv_daily_summary"))
     earnings_file = Path(cfg_get("EARNINGS_DATES_FILE", "tomic/data/earnings_dates.json"))
-    earnings_data = load_json(earnings_file)
-    if not isinstance(earnings_data, list):
-        earnings_data = []
+    earnings_dict = load_json(earnings_file)
+    earnings_data: list[dict] = []
+    if isinstance(earnings_dict, dict):
+        for symbol, dates in earnings_dict.items():
+            if isinstance(dates, list):
+                for date_str in dates:
+                    earnings_data.append({"symbol": symbol, "date": date_str})
 
     rows: list[dict[str, object]] = []
     warnings: list[str] = []
