@@ -29,6 +29,7 @@ from tomic.journal.utils import load_json, save_json
 from tomic.polygon_client import PolygonClient
 from tomic.helpers.price_utils import _load_latest_close
 from .compute_volstats_polygon import main as compute_volstats_polygon_main
+from tomic.helpers.price_meta import load_price_meta, save_price_meta
 
 
 def _is_weekday(d: date) -> bool:
@@ -79,6 +80,29 @@ def _request_bars(client: PolygonClient, symbol: str) -> Iterable[dict]:
 
     end_dt = latest_trading_day()
     _, last_date = _load_latest_close(symbol)
+    meta = load_price_meta()
+    ts_str = meta.get(symbol)
+    if last_date and ts_str:
+        try:
+            tz = ZoneInfo("America/New_York")
+            ts = datetime.fromisoformat(ts_str)
+            if ts.tzinfo is None:
+                ts = ts.replace(tzinfo=tz)
+            else:
+                ts = ts.astimezone(tz)
+            if (
+                ts.date() == datetime.strptime(last_date, "%Y-%m-%d").date()
+                and ts.time() < dt_time(16, 0)
+            ):
+                base = Path(cfg_get("PRICE_HISTORY_DIR", "tomic/data/spot_prices"))
+                file = base / f"{symbol}.json"
+                data = load_json(file)
+                if isinstance(data, list):
+                    data = [r for r in data if r.get("date") != last_date]
+                    save_json(data, file)
+                _, last_date = _load_latest_close(symbol)
+        except Exception:
+            pass
     params = {"adjusted": "true"}
     base_path = f"v2/aggs/ticker/{symbol}/range/1/day"
     path = base_path
@@ -211,6 +235,9 @@ def main(argv: List[str] | None = None) -> None:
                 if added:
                     stored += 1
                     sleep(10)
+                meta = load_price_meta()
+                meta[sym] = datetime.now(ZoneInfo("America/New_York")).isoformat()
+                save_price_meta(meta)
             processed.append(sym)
             sleep(sleep_between)
     finally:
