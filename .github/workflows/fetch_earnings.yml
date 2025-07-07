@@ -1,0 +1,47 @@
+name: Update earnings dates
+
+on:
+  schedule:
+    - cron: '0 1 * * *'
+  workflow_dispatch:
+
+jobs:
+  fetch-earnings:
+    runs-on: ubuntu-latest
+    concurrency:
+      group: fetch_earnings_alpha
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Run earnings fetch via Alpha Vantage
+        run: python -m tomic.cli.fetch_earnings_alpha
+
+      - name: Configure Git
+        run: |
+          git config --global user.name 'github-actions[bot]'
+          git config --global user.email 'github-actions[bot]@users.noreply.github.com'
+
+      - name: Commit and push changes
+        run: |
+          git status --short
+          if [ -n "$(git status --porcelain)" ]; then
+            git add tomic/data/earnings_dates.json
+            git commit -m "Update earnings dates"
+            git push
+          else
+            echo "No changes to commit"
+          fi
