@@ -41,6 +41,13 @@ def _load_iv_data(symbol: str, directory: Path) -> dict[str, dict]:
     return {rec.get("date"): rec for rec in data if isinstance(rec, dict)}
 
 
+def _load_hv_data(symbol: str, directory: Path) -> dict[str, dict]:
+    data = load_json(directory / f"{symbol}.json")
+    if not isinstance(data, list):
+        return {}
+    return {rec.get("date"): rec for rec in data if isinstance(rec, dict)}
+
+
 def _most_recent_iv_record(
     iv_data: dict[str, dict], today_str: str
 ) -> tuple[str | None, dict | None]:
@@ -53,15 +60,14 @@ def _most_recent_iv_record(
     return None, None
 
 
-def _next_earnings(symbol: str, earnings: dict[str, list[str]]) -> tuple[str | None, int | None]:
-    dates = earnings.get(symbol)
-    if not isinstance(dates, list):
-        return None, None
+def _next_earnings(symbol: str, earnings: list[dict]) -> tuple[str | None, int | None]:
     today_dt = today()
     selected: datetime | None = None
-    for ds in dates:
+    for rec in earnings:
+        if rec.get("symbol") != symbol:
+            continue
         try:
-            ed = datetime.strptime(ds, "%Y-%m-%d").date()
+            ed = datetime.strptime(rec.get("date", ""), "%Y-%m-%d").date()
         except Exception:
             continue
         dte = (ed - today_dt).days
@@ -73,29 +79,44 @@ def _next_earnings(symbol: str, earnings: dict[str, list[str]]) -> tuple[str | N
     return selected.strftime("%Y-%m-%d"), (selected - today_dt).days
 
 
-def _historical_iv_delta(symbol: str, dte: int, earnings: dict[str, list[str]], iv_by_date: dict[str, dict]) -> float | None:
-    dates = earnings.get(symbol)
-    if not isinstance(dates, list) or dte is None:
+def historical_hv_delta(
+    symbol: str,
+    dte: int,
+    earnings_data: list[dict],
+    hv_by_date: dict[str, dict],
+) -> float | None:
+    if dte is None:
         return None
-    vals: list[float] = []
-    for ds in dates:
+    today_dt = today()
+    deltas: list[float] = []
+    for rec in earnings_data:
+        if rec.get("symbol") != symbol:
+            continue
         try:
-            ed = datetime.strptime(ds, "%Y-%m-%d").date()
+            ed = datetime.strptime(rec.get("date", ""), "%Y-%m-%d").date()
         except Exception:
             continue
-        if ed >= today():
+        if ed >= today_dt:
             continue
-        start = ed - timedelta(days=dte)
-        iv_start = iv_by_date.get(start.strftime("%Y-%m-%d"), {}).get("atm_iv")
-        iv_end = iv_by_date.get(ed.strftime("%Y-%m-%d"), {}).get("atm_iv")
-        if iv_start is None or iv_end is None:
+        start_date = ed - timedelta(days=dte)
+        hv_start = None
+        hv_end = None
+        for off in (-1, 0, 1):
+            hv = hv_by_date.get((start_date + timedelta(days=off)).strftime("%Y-%m-%d"))
+            if hv is not None and hv_start is None:
+                hv_start = hv.get("hv20")
+        for off in (-1, 0, 1):
+            hv = hv_by_date.get((ed + timedelta(days=off)).strftime("%Y-%m-%d"))
+            if hv is not None and hv_end is None:
+                hv_end = hv.get("hv20")
+        if hv_start is None or hv_end is None:
             continue
-        if iv_start == 0:
+        if hv_start == 0:
             continue
-        vals.append((iv_end - iv_start) / iv_start)
-    if not vals:
+        deltas.append((hv_end - hv_start) / hv_start)
+    if len(deltas) < 2:
         return None
-    return sum(vals) / len(vals)
+    return sum(deltas) / len(deltas)
 
 
 def main(argv: List[str] | None = None) -> None:
@@ -107,8 +128,8 @@ def main(argv: List[str] | None = None) -> None:
     summary_dir = Path(cfg_get("IV_DAILY_SUMMARY_DIR", "tomic/data/iv_daily_summary"))
     earnings_file = Path(cfg_get("EARNINGS_DATES_FILE", "tomic/data/earnings_dates.json"))
     earnings_data = load_json(earnings_file)
-    if not isinstance(earnings_data, dict):
-        earnings_data = {}
+    if not isinstance(earnings_data, list):
+        earnings_data = []
 
     rows: list[dict[str, object]] = []
     warnings: list[str] = []
@@ -122,20 +143,21 @@ def main(argv: List[str] | None = None) -> None:
         iv_age = (
             today() - datetime.strptime(iv_date_used, "%Y-%m-%d").date()
         ).days
+        hv_data = _load_hv_data(sym, Path(cfg_get("HISTORICAL_VOLATILITY_DIR", "tomic/data/historical_volatility")))
         earn_date, dte = _next_earnings(sym, earnings_data)
         if earn_date is None or dte is None:
             continue
         iv_today_val = iv_today_rec.get("atm_iv")
         iv_rank_val = iv_today_rec.get("iv_rank (HV)")
-        iv_delta = _historical_iv_delta(sym, dte, earnings_data, iv_data)
+        hv_delta = historical_hv_delta(sym, dte, earnings_data, hv_data)
         proj_iv = None
-        if iv_today_val is not None and iv_delta is not None:
-            proj_iv = iv_today_val * (1 + iv_delta)
+        if hv_delta is not None and iv_today_val is not None:
+            proj_iv = iv_today_val * (1 + hv_delta)
         # Determine strategy
         strat = "—"
-        if dte >= 10 and (iv_delta or 0) >= 0.10:
+        if dte >= 10 and (hv_delta or 0) >= 0.10:
             strat = "Calendar \U0001F4C6"
-        elif 3 <= dte <= 9 and (iv_delta or 0) >= 0.05:
+        elif 3 <= dte <= 9 and (hv_delta or 0) >= 0.05:
             strat = "Ratio \u2696\uFE0F"
         elif -1 <= dte <= 0:
             strat = "Iron Condor \U0001F916"
@@ -147,7 +169,7 @@ def main(argv: List[str] | None = None) -> None:
                 "iv_rank": iv_rank_val,
                 "iv_today": iv_today_val,
                 "iv_date_used": iv_date_used,
-                "iv_delta": iv_delta,
+                "hv_delta": hv_delta,
                 "projected_iv": proj_iv,
                 "strategie": strat,
             }
@@ -172,8 +194,11 @@ def main(argv: List[str] | None = None) -> None:
         iv_today_str = f"{iv_today:.3f}" if isinstance(iv_today, (int, float)) else ""
         iv_date_used = r.get("iv_date_used")
         iv_today_date_str = f"{iv_date_used[5:]}" if iv_date_used else ""
-        iv_delta = r.get("iv_delta")
-        iv_delta_str = f"{iv_delta*100:+.1f}%" if isinstance(iv_delta, (int, float)) else ""
+        hv_delta_val = r.get("hv_delta")
+        if isinstance(hv_delta_val, (int, float)):
+            iv_delta_str = f"{hv_delta_val*100:+.1f}% (gebaseerd op hv20)"
+        else:
+            iv_delta_str = ""
         proj = r.get("projected_iv")
         proj_str = f"{proj:.3f}" if isinstance(proj, (int, float)) else "—"
         table_rows.append(
