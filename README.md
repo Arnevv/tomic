@@ -35,14 +35,18 @@ python tomic/cli/controlpanel.py
 1. OptionChain ophalen via TWS API
 2. OptionChain ophalen via Polygon API
 3. Controleer CSV-kwaliteit
-4. Terug
+4. Run GitHub Action lokaal
+5. Backfill historical_volatility obv spotprices
+6. Terug
 
 Wat doet elk item?
 Optie Beschrijving
 1. OptionChain ophalen via TWS API    Interactief bulk-exportscript voor één symbool via TWS API (option_lookup_bulk). Wordt je standaardweg voor deep dive chains.
 2. OptionChain ophalen via Polygon API    Roept fetch_polygon_option_chain(symbol) aan en slaat option chain info op (nu nog in ontwikkeling).
 3. Controleer CSV-kwaliteit    Valideert een lokaal CSV-bestand met chaindata: kolommen, lege velden, duplicaten enz.
-4. Terug    Keert terug naar het hoofdmenu.
+4. Run GitHub Action lokaal    Start fetch_prices_polygon en commit/pusht wijzigingen.
+5. Backfill historical_volatility obv spotprices    Berekent HV op basis van lokale spotprijzen.
+6. Terug    Keert terug naar het hoofdmenu.
 
 📊 ANALYSE & STRATEGIE
 1. Trading Plan
