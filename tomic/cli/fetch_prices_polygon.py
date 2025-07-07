@@ -27,7 +27,7 @@ from tomic.config import get as cfg_get
 from tomic.logutils import logger, setup_logging
 from tomic.journal.utils import load_json, save_json
 from tomic.polygon_client import PolygonClient
-from tomic.providers.polygon_iv import _load_latest_close
+from tomic.helpers.price_utils import _load_latest_close
 from .compute_volstats_polygon import main as compute_volstats_polygon_main
 
 
