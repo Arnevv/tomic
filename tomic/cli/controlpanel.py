@@ -1325,6 +1325,7 @@ def run_portfolio_menu() -> None:
     menu.add("Laatst opgehaalde portfolio tonen", show_saved)
     menu.add("Toon portfolio greeks", show_greeks)
     menu.add("Toon marktinformatie", show_market_info)
+    menu.add("Earnings-informatie", lambda: run_module("tomic.cli.earnings_info"))
     menu.run()
 
 
