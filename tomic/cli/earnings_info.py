@@ -8,6 +8,7 @@ from typing import List
 from tomic.config import get as cfg_get
 from tomic.journal.utils import load_json
 from tomic.utils import today
+from tomic.cli.volatility_recommender import recommend_strategies
 
 try:
     from tabulate import tabulate
@@ -157,14 +158,19 @@ def main(argv: List[str] | None = None) -> None:
         proj_iv = None
         if hv_delta is not None and iv_today_val is not None:
             proj_iv = iv_today_val * (1 + hv_delta)
-        # Determine strategy
-        strat = "—"
-        if dte >= 10 and (hv_delta or 0) >= 0.10:
-            strat = "Calendar \U0001F4C6"
-        elif 3 <= dte <= 9 and (hv_delta or 0) >= 0.05:
-            strat = "Ratio \u2696\uFE0F"
-        elif -1 <= dte <= 0:
-            strat = "Iron Condor \U0001F916"
+
+        recs = recommend_strategies(
+            {
+                "symbol": sym,
+                "iv_rank": iv_rank_val,
+                "iv": iv_today_val,
+                "hv_delta": hv_delta,
+                "term_structure": None,
+                "skew": None,
+                "dte": dte,
+            }
+        )
+        strat = recs[0]["strategy"] if recs else "—"
         rows.append(
             {
                 "symbol": sym,
@@ -237,8 +243,59 @@ def main(argv: List[str] | None = None) -> None:
     for msg in warnings:
         print(msg)
 
-    _ = input("Voer het nummer in om dit symbool te analyseren \u2192 ")
-    print("Moet nog uitgewerkt worden")
+    sel = input("Voer het nummer in om dit symbool te analyseren \u2192 ").strip()
+    try:
+        idx = int(sel) - 1
+        chosen = rows[idx]
+    except Exception:
+        return
+
+    sym = chosen.get("symbol")
+    print(f"\n=== \U0001F4CA Earningsanalyse voor {sym} ===")
+    edate = chosen.get("earnings_date")
+    dte = chosen.get("dte")
+    print(f"Earningsdatum    : {edate} (DTE = {dte})")
+    iv_today = chosen.get("iv_today")
+    iv_date_used = chosen.get("iv_date_used")
+    iv_str = f"{iv_today:.3f}" if isinstance(iv_today, (int, float)) else "—"
+    iv_date_str = f"{iv_date_used[5:]}" if iv_date_used else ""
+    print(f"Huidige IV       : {iv_str} ({iv_date_str})")
+    ivr = chosen.get("iv_rank")
+    ivr_str = f"{ivr:.0f}%" if isinstance(ivr, (int, float)) else "—"
+    print(f"IV Rank          : {ivr_str}")
+    hvd = chosen.get("hv_delta")
+    hvd_str = f"{hvd*100:+.1f}%" if isinstance(hvd, (int, float)) else "—"
+    print(f"HV-delta (hv20)  : {hvd_str}")
+    proj = chosen.get("projected_iv")
+    proj_str = f"{proj:.3f}" if isinstance(proj, (int, float)) else "—"
+    print(f"Projected IV     : {proj_str}")
+
+    recs = recommend_strategies(
+        {
+            "symbol": sym,
+            "iv_rank": ivr,
+            "iv": iv_today,
+            "hv_delta": hvd,
+            "term_structure": None,
+            "skew": None,
+            "dte": dte,
+        }
+    )
+    strat = recs[0]["strategy"] if recs else "—"
+    print(f"Strategieadvies  : {strat}")
+    if recs:
+        print("\n\U0001F4D8 Strategie\u00ebn volgens volatility_rules.yaml:")
+        for r in recs:
+            reason = r.get("indication") or ""
+            print(f"- {r.get('strategy')} \u2192 reden: {reason}")
+
+    print("\n⚠️ De option chain is nog niet opgehaald.")
+    print("Kies [C] om de chain op te halen en strategievoorstellen te genereren")
+    print("Kies [Q] om terug te keren")
+
+    choice = input("→ ").strip().lower()
+    if choice.startswith("c"):
+        print("Chain ophalen via Control Panel is nog niet geïntegreerd.")
 
 
 if __name__ == "__main__":

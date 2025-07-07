@@ -39,6 +39,7 @@ def test_earnings_info(monkeypatch, tmp_path, capsys):
     out = capsys.readouterr().out
     assert "AAA" in out
     assert "2025-07-05" in out
+    assert "Strategie" in out
 
 
 def test_earnings_info_fallback(monkeypatch, tmp_path, capsys):
@@ -77,6 +78,7 @@ def test_earnings_info_fallback(monkeypatch, tmp_path, capsys):
     out = capsys.readouterr().out
     assert "BBB" in out
     assert "07-03" in out  # date of IV record used
+    assert "Strategie" in out
 
 
 def test_earnings_info_skip_when_no_iv(monkeypatch, tmp_path, capsys):
