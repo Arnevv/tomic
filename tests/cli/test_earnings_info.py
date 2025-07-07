@@ -1,0 +1,41 @@
+import importlib
+from pathlib import Path
+from tomic.journal.utils import save_json
+
+
+def test_earnings_info(monkeypatch, tmp_path, capsys):
+    mod = importlib.import_module("tomic.cli.earnings_info")
+
+    sum_dir = tmp_path / "sum"
+    sum_dir.mkdir()
+    earn_file = tmp_path / "earn.json"
+
+    save_json(
+        [
+            {"date": "2025-07-02", "atm_iv": 0.5, "iv_rank (HV)": 40.0},
+            {"date": "2025-07-05", "atm_iv": 0.6, "iv_rank (HV)": 50.0},
+        ],
+        sum_dir / "AAA.json",
+    )
+    save_json({"AAA": ["2025-07-05", "2025-04-01"]}, earn_file)
+
+    monkeypatch.setenv("TOMIC_TODAY", "2025-07-02")
+    monkeypatch.setattr(
+        mod,
+        "cfg_get",
+        lambda name, default=None: ["AAA"]
+        if name == "DEFAULT_SYMBOLS"
+        else str(sum_dir)
+        if name == "IV_DAILY_SUMMARY_DIR"
+        else str(earn_file)
+        if name == "EARNINGS_DATES_FILE"
+        else default,
+    )
+
+    monkeypatch.setattr(__import__('builtins'), 'input', lambda *a: '')
+
+    mod.main([])
+
+    out = capsys.readouterr().out
+    assert "AAA" in out
+    assert "2025-07-05" in out

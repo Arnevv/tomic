@@ -72,7 +72,7 @@ def test_show_market_info(monkeypatch, tmp_path):
     prints = []
     monkeypatch.setattr(builtins, "print", lambda *a, **k: prints.append(" ".join(str(x) for x in a)))
 
-    inputs = iter(["5", "0", "6"])
+    inputs = iter(["5", "0", "7"])
     monkeypatch.setattr(builtins, "input", lambda *a: next(inputs))
     mod.run_portfolio_menu()
 
