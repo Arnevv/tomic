@@ -70,6 +70,7 @@ from tomic.metrics import (
 )
 from tomic.strategy_candidates import generate_strategy_candidates, StrategyProposal
 from tomic.cli.bs_calculator import black_scholes
+from tomic.scripts.backfill_hv import run_backfill_hv
 
 setup_logging(stdout=True)
 
@@ -356,6 +357,7 @@ def run_dataexporter() -> None:
     menu.add("OptionChain ophalen via Polygon API", polygon_chain)
     menu.add("Controleer CSV-kwaliteit", csv_check)
     menu.add("Run GitHub Action lokaal", run_github_action)
+    menu.add("Backfill historical_volatility obv spotprices", run_backfill_hv)
 
     menu.run()
 
