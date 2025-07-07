@@ -1,4 +1,5 @@
 import importlib
+import json
 from datetime import datetime, date
 from types import SimpleNamespace
 
@@ -114,3 +115,38 @@ def test_request_bars_skips_on_403(monkeypatch):
 
     records = list(mod._request_bars(FakeClient(), "ABC"))
     assert records == []
+
+
+def test_incomplete_day_triggers_refetch(monkeypatch, tmp_path):
+    mod = importlib.import_module("tomic.cli.fetch_prices_polygon")
+
+    price_dir = tmp_path / "prices"
+    price_dir.mkdir()
+    (price_dir / "ABC.json").write_text(json.dumps([{"date": "2024-01-02", "close": 1.0}]))
+
+    meta_file = tmp_path / "meta.json"
+    meta_file.write_text(json.dumps({"ABC": "2024-01-02T15:00:00-05:00"}))
+
+    cfg_lambda = lambda name, default=None: (
+        str(price_dir)
+        if name == "PRICE_HISTORY_DIR"
+        else (str(meta_file) if name == "PRICE_META_FILE" else default)
+    )
+
+    monkeypatch.setattr(mod, "cfg_get", cfg_lambda)
+    import tomic.helpers.price_utils as price_utils
+    monkeypatch.setattr(price_utils, "cfg_get", cfg_lambda)
+    import tomic.helpers.price_meta as price_meta
+    monkeypatch.setattr(price_meta, "cfg_get", cfg_lambda)
+
+    monkeypatch.setattr(mod, "latest_trading_day", lambda: date(2024, 1, 2))
+
+    called = []
+
+    class FakeClient:
+        def _request(self, path, params):
+            called.append(path)
+            return {"results": []}
+
+    records = list(mod._request_bars(FakeClient(), "ABC"))
+    assert called, "refetch should occur when last fetch before close"
