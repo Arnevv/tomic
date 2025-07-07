@@ -36,5 +36,5 @@ def test_run_backfill_hv(monkeypatch):
     monkeypatch.setattr(mod, "_save_hv", lambda s, data: saved.extend(data))
 
     mod.run_backfill_hv()
-    assert len(saved) == 4
+    assert len(saved) == 27
     assert all(rec["hv252"] == 0.0 for rec in saved)
