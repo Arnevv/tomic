@@ -353,12 +353,19 @@ def run_dataexporter() -> None:
         except subprocess.CalledProcessError:
             print("❌ Git-commando mislukt")
 
+    def fetch_earnings() -> None:
+        try:
+            run_module("tomic.cli.fetch_earnings_alpha")
+        except subprocess.CalledProcessError:
+            print("❌ Earnings ophalen mislukt")
+
     menu = Menu("📁 DATA & MARKTDATA")
     menu.add("OptionChain ophalen via TWS API", export_chain_bulk)
     menu.add("OptionChain ophalen via Polygon API", polygon_chain)
     menu.add("Controleer CSV-kwaliteit", csv_check)
     menu.add("Run GitHub Action lokaal", run_github_action)
     menu.add("Backfill historical_volatility obv spotprices", run_backfill_hv)
+    menu.add("Fetch Earnings", fetch_earnings)
 
     menu.run()
 
