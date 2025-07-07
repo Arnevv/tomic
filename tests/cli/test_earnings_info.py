@@ -17,7 +17,10 @@ def test_earnings_info(monkeypatch, tmp_path, capsys):
         ],
         sum_dir / "AAA.json",
     )
-    save_json({"AAA": ["2025-07-05", "2025-04-01"]}, earn_file)
+    save_json([
+        {"symbol": "AAA", "date": "2025-07-05"},
+        {"symbol": "AAA", "date": "2025-04-01"},
+    ], earn_file)
 
     monkeypatch.setenv("TOMIC_TODAY", "2025-07-02")
     monkeypatch.setattr(
@@ -55,7 +58,9 @@ def test_earnings_info_fallback(monkeypatch, tmp_path, capsys):
         ],
         sum_dir / "BBB.json",
     )
-    save_json({"BBB": ["2025-07-05"]}, earn_file)
+    save_json([
+        {"symbol": "BBB", "date": "2025-07-05"},
+    ], earn_file)
 
     monkeypatch.setenv("TOMIC_TODAY", "2025-07-04")
     monkeypatch.setattr(
@@ -92,7 +97,9 @@ def test_earnings_info_skip_when_no_iv(monkeypatch, tmp_path, capsys):
         ],
         sum_dir / "CCC.json",
     )
-    save_json({"CCC": ["2025-07-08"]}, earn_file)
+    save_json([
+        {"symbol": "CCC", "date": "2025-07-08"},
+    ], earn_file)
 
     monkeypatch.setenv("TOMIC_TODAY", "2025-07-05")
     monkeypatch.setattr(
