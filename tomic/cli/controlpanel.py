@@ -58,7 +58,8 @@ from tomic.journal.utils import load_json
 from tomic.utils import today
 from tomic.cli.volatility_recommender import recommend_strategy, recommend_strategies
 from tomic.api.market_export import load_exported_chain, export_option_chain
-from tomic.providers.polygon_iv import fetch_polygon_option_chain, _load_latest_close
+from tomic.providers.polygon_iv import fetch_polygon_option_chain
+from tomic.helpers.price_utils import _load_latest_close
 from tomic.strike_selector import StrikeSelector, filter_by_expiry, FilterConfig
 from tomic.loader import load_strike_config
 from tomic.utils import get_option_mid_price, latest_atr, normalize_leg

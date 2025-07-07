@@ -19,19 +19,22 @@ def test_fetch_polygon_iv30d(monkeypatch, tmp_path):
     )
 
     iv_dir = tmp_path / "iv_debug"
-    monkeypatch.setattr(
-        mod,
-        "cfg_get",
-        lambda name, default=None: (
-            "key"
-            if name == "POLYGON_API_KEY"
+    cfg_lambda = lambda name, default=None: (
+        "key"
+        if name == "POLYGON_API_KEY"
+        else (
+            str(price_dir)
+            if name == "PRICE_HISTORY_DIR"
             else (
-                str(price_dir)
-                if name == "PRICE_HISTORY_DIR"
-                else str(iv_dir) if name == "IV_DEBUG_DIR" else default
+                str(iv_dir)
+                if name in {"IV_DEBUG_DIR", "IV_SUMMARY_DIR"}
+                else default
             )
-        ),
+        )
     )
+    monkeypatch.setattr(mod, "cfg_get", cfg_lambda)
+    import tomic.helpers.price_utils as price_utils
+    monkeypatch.setattr(price_utils, "cfg_get", cfg_lambda)
 
     exp1 = {
         "results": {
@@ -147,19 +150,22 @@ def test_fetch_polygon_iv30d_fallback(monkeypatch, tmp_path):
     )
 
     iv_dir = tmp_path / "iv_debug"
-    monkeypatch.setattr(
-        mod,
-        "cfg_get",
-        lambda name, default=None: (
-            "key"
-            if name == "POLYGON_API_KEY"
+    cfg_lambda = lambda name, default=None: (
+        "key"
+        if name == "POLYGON_API_KEY"
+        else (
+            str(price_dir)
+            if name == "PRICE_HISTORY_DIR"
             else (
-                str(price_dir)
-                if name == "PRICE_HISTORY_DIR"
-                else str(iv_dir) if name == "IV_DEBUG_DIR" else default
+                str(iv_dir)
+                if name in {"IV_DEBUG_DIR", "IV_SUMMARY_DIR"}
+                else default
             )
-        ),
+        )
     )
+    monkeypatch.setattr(mod, "cfg_get", cfg_lambda)
+    import tomic.helpers.price_utils as price_utils
+    monkeypatch.setattr(price_utils, "cfg_get", cfg_lambda)
 
     exp1 = {
         "results": {
