@@ -37,7 +37,9 @@ python tomic/cli/controlpanel.py
 3. Controleer CSV-kwaliteit
 4. Run GitHub Action lokaal
 5. Backfill historical_volatility obv spotprices
-6. Terug
+6. Fetch Earnings
+
+7. Terug
 
 Wat doet elk item?
 Optie Beschrijving
@@ -46,7 +48,8 @@ Optie Beschrijving
 3. Controleer CSV-kwaliteit    Valideert een lokaal CSV-bestand met chaindata: kolommen, lege velden, duplicaten enz.
 4. Run GitHub Action lokaal    Start fetch_prices_polygon en commit/pusht wijzigingen.
 5. Backfill historical_volatility obv spotprices    Berekent HV op basis van lokale spotprijzen.
-6. Terug    Keert terug naar het hoofdmenu.
+6. Fetch Earnings    Haalt earnings data op via Alpha Vantage API.
+7. Terug    Keert terug naar het hoofdmenu.
 
 📊 ANALYSE & STRATEGIE
 1. Trading Plan
