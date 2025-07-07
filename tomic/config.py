@@ -57,6 +57,7 @@ class AppConfig(BaseModel):
     IB_CLIENT_ID: int = 100
     DATA_PROVIDER: str = "ib"
     POLYGON_API_KEY: str = ""
+    ALPHAVANTAGE_API_KEY: str = ""
     LOG_LEVEL: str = "INFO"
     INTEREST_RATE: float = 0.05
     # Default venues for retrieving market data
