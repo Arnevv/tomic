@@ -248,7 +248,7 @@ def _write_option_chain(
             )
     logger.info(f"✅ [stap 10] Optieketen opgeslagen in: {chain_file}")
     stats = analyze_csv(chain_file)
-    quality = (stats["valid"] / stats["total"] * 100) if stats["total"] else 0
+    quality = stats.get("partial_quality", 0)
     min_q = cfg_get("CSV_MIN_QUALITY", 70)
     if quality < min_q:
         logger.warning(
