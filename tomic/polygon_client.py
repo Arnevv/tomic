@@ -51,7 +51,7 @@ class PolygonClient(MarketDataProvider):
         params = dict(params or {})
         api_key = self._next_api_key()
         if api_key:
-            logger.info(f"Using Polygon key: {api_key[:5]}***")
+            logger.debug(f"Using Polygon key: {api_key[:5]}***")
         url = f"{self.BASE_URL.rstrip('/')}/{path.lstrip('/')}"
         attempts = 0
         key_attempts = 0
@@ -84,7 +84,7 @@ class PolygonClient(MarketDataProvider):
                 )
                 api_key = self._next_api_key()
                 if api_key:
-                    logger.info(f"Using Polygon key: {api_key[:5]}***")
+                    logger.debug(f"Using Polygon key: {api_key[:5]}***")
                 continue
 
             break
