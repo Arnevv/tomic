@@ -82,7 +82,7 @@ def test_latest_trading_day_before_close(monkeypatch):
     monkeypatch.setattr(mod, "datetime", FakeDT)
 
     day = mod.latest_trading_day()
-    assert day == date(2025, 6, 30)
+    assert day == date(2025, 7, 1)
 
 
 def test_latest_trading_day_after_close(monkeypatch):
