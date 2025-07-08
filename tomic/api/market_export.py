@@ -39,6 +39,7 @@ from ibapi.contract import Contract
 from tomic.models import MarketMetrics, OptionContract
 from tomic.config import get as cfg_get
 from tomic.strike_selector import StrikeSelector
+from tomic.cli.csv_quality_check import analyze_csv
 from .historical_iv import fetch_historical_option_data
 
 try:
@@ -246,9 +247,18 @@ def _write_option_chain(
                 ]
             )
     logger.info(f"✅ [stap 10] Optieketen opgeslagen in: {chain_file}")
-    chain_data = load_exported_chain(chain_file)
-    selector = StrikeSelector()
-    selected = selector.select(chain_data)
+    stats = analyze_csv(chain_file)
+    quality = (stats["valid"] / stats["total"] * 100) if stats["total"] else 0
+    min_q = cfg_get("CSV_MIN_QUALITY", 70)
+    if quality < min_q:
+        logger.warning(
+            f"CSV kwaliteit {quality:.1f}% lager dan {min_q}%, selectie overgeslagen"
+        )
+        selected = []
+    else:
+        chain_data = load_exported_chain(chain_file)
+        selector = StrikeSelector()
+        selected = selector.select(chain_data)
 
     filtered_path = os.path.join(
         export_dir, f"filtered_chain_{symbol}_{timestamp}.csv"
