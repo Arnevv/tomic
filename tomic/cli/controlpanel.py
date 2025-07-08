@@ -58,6 +58,7 @@ from tomic.journal.utils import load_json
 from tomic.utils import today
 from tomic.cli.volatility_recommender import recommend_strategy, recommend_strategies
 from tomic.api.market_export import load_exported_chain, export_option_chain
+from tomic.cli.csv_quality_check import analyze_csv
 from tomic.providers.polygon_iv import fetch_polygon_option_chain
 from tomic.helpers.price_utils import _load_latest_close
 from tomic.strike_selector import StrikeSelector, filter_by_expiry, FilterConfig
@@ -732,6 +733,14 @@ def run_portfolio_menu() -> None:
             print(f"⚠️ Fout bij laden van chain: {exc}")
             return
         logger.info(f"Loaded {len(data)} rows from {path}")
+
+        stats = analyze_csv(str(path))
+        quality = (stats["valid"] / stats["total"] * 100) if stats["total"] else 0
+        min_q = cfg.get("CSV_MIN_QUALITY", 70)
+        if quality < min_q:
+            print(f"⚠️ CSV kwaliteit {quality:.1f}% lager dan {min_q}%")
+            if not prompt_yes_no("Doorgaan?", False):
+                return
 
         symbol = str(SESSION_STATE.get("symbol", ""))
         spot_price = _load_spot_from_metrics(path.parent, symbol)

@@ -94,6 +94,7 @@ class AppConfig(BaseModel):
     OPTION_RETRY_WAIT: int = 1
     OPTION_PARAMS_TIMEOUT: int = 20
     OPTION_MAX_MARKETDATA_TIME: int = 30
+    CSV_MIN_QUALITY: int = 70
 
     # Historical and market data settings ---------------------------------
     HIST_DURATION: str = "1 D"
