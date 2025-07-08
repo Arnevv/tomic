@@ -354,6 +354,35 @@ def run_dataexporter() -> None:
         except subprocess.CalledProcessError:
             print("❌ Git-commando mislukt")
 
+    def run_intraday_action() -> None:
+        """Run the intraday price update GitHub Action locally."""
+        try:
+            run_module("tomic.cli.fetch_intraday_polygon")
+        except subprocess.CalledProcessError:
+            print("❌ Ophalen van intraday prijzen mislukt")
+            return
+
+        try:
+            subprocess.run(["git", "status", "--short"], check=True)
+            result = subprocess.run(
+                ["git", "status", "--porcelain"],
+                capture_output=True,
+                text=True,
+                check=True,
+            )
+            if result.stdout.strip():
+                files = list(Path("tomic/data/spot_prices").glob("*.json"))
+                if files:
+                    subprocess.run(["git", "add", *[str(f) for f in files]], check=True)
+                    subprocess.run(
+                        ["git", "commit", "-m", "Update intraday prices"], check=True
+                    )
+                    subprocess.run(["git", "push"], check=True)
+            else:
+                print("No changes to commit")
+        except subprocess.CalledProcessError:
+            print("❌ Git-commando mislukt")
+
     def fetch_earnings() -> None:
         try:
             run_module("tomic.cli.fetch_earnings_alpha")
@@ -365,6 +394,7 @@ def run_dataexporter() -> None:
     menu.add("OptionChain ophalen via Polygon API", polygon_chain)
     menu.add("Controleer CSV-kwaliteit", csv_check)
     menu.add("Run GitHub Action lokaal", run_github_action)
+    menu.add("Run GitHub Action lokaal - intraday", run_intraday_action)
     menu.add("Backfill historical_volatility obv spotprices", run_backfill_hv)
     menu.add("Fetch Earnings", fetch_earnings)
 
