@@ -13,6 +13,7 @@ from tomic.journal.utils import load_json, update_json_file
 from tomic.logutils import logger, setup_logging
 from tomic.providers.polygon_iv import fetch_polygon_iv30d
 from tomic.polygon_client import PolygonClient
+from tomic.helpers.price_utils import _load_latest_close
 
 
 def _get_closes(symbol: str) -> list[float]:
@@ -26,24 +27,10 @@ def _get_closes(symbol: str) -> list[float]:
     return [float(rec.get("close", 0)) for rec in data]
 
 
-def _latest_close(symbol: str) -> tuple[float | None, str | None]:
-    """Return the last known close price and date."""
-    base = Path(cfg_get("PRICE_HISTORY_DIR", "tomic/data/spot_prices"))
-    path = base / f"{symbol}.json"
-    data = load_json(path)
-    if not isinstance(data, list) or not data:
-        return None, None
-    data.sort(key=lambda r: r.get("date", ""))
-    rec = data[-1]
-    try:
-        return float(rec.get("close")), str(rec.get("date"))
-    except Exception:
-        return None, None
-
 
 def _polygon_term_and_skew(symbol: str) -> tuple[float | None, float | None, float | None]:
     """Compute term structure and skew metrics using Polygon snapshot data."""
-    spot, spot_date = _latest_close(symbol)
+    spot, spot_date = _load_latest_close(symbol)
     if spot is None or spot_date is None:
         return None, None, None
 
@@ -216,7 +203,7 @@ def main(argv: List[str] | None = None) -> None:
         hv30 = historical_volatility(closes, window=30)
         hv90 = historical_volatility(closes, window=90)
         hv252 = historical_volatility(closes, window=252)
-        _, date_str = _latest_close(sym)
+        _, date_str = _load_latest_close(sym)
         metrics = fetch_polygon_iv30d(sym)
         if date_str is None:
             logger.warning(f"No price history for {sym}")
