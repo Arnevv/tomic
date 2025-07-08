@@ -107,6 +107,9 @@ class AppConfig(BaseModel):
     MAX_SYMBOLS_PER_RUN: int | None = None
     POLYGON_API_KEYS: List[str] = []
 
+    # Alpha Vantage API tuning
+    ALPHAVANTAGE_SLEEP_BETWEEN: float = 12.0
+
 
 _BASE_DIR = Path(__file__).resolve().parent.parent
 
