@@ -735,7 +735,7 @@ def run_portfolio_menu() -> None:
         logger.info(f"Loaded {len(data)} rows from {path}")
 
         stats = analyze_csv(str(path))
-        quality = (stats["valid"] / stats["total"] * 100) if stats["total"] else 0
+        quality = stats.get("partial_quality", 0)
         min_q = cfg.get("CSV_MIN_QUALITY", 70)
         if quality < min_q:
             print(f"⚠️ CSV kwaliteit {quality:.1f}% lager dan {min_q}%")
