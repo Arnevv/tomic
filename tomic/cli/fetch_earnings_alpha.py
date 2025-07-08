@@ -86,9 +86,25 @@ def main(argv: List[str] | None = None) -> None:
 
     symbols = [s.upper() for s in cfg_get("DEFAULT_SYMBOLS", [])]
     earnings_file = Path(cfg_get("EARNINGS_DATES_FILE", "tomic/data/earnings_dates.json"))
+    meta_file = Path(cfg_get("EARNINGS_DATA_FILE", "tomic/data/earnings_data.json"))
+
     data = load_json(earnings_file)
     if not isinstance(data, dict):
         data = {}
+    meta = load_json(meta_file)
+    if not isinstance(meta, dict):
+        meta = {}
+
+    def _last_seen(sym: str) -> datetime:
+        ts = meta.get(sym)
+        if isinstance(ts, str):
+            try:
+                return datetime.fromisoformat(ts)
+            except ValueError:
+                pass
+        return datetime.fromtimestamp(0)
+
+    symbols.sort(key=_last_seen)
 
     stored = 0
     with TemporaryDirectory() as _tmp:
@@ -107,10 +123,6 @@ def main(argv: List[str] | None = None) -> None:
 
             current = data.get(sym, []) if isinstance(data.get(sym), list) else []
             merged = _merge_dates(current, dates)
-
-            current = data.get(sym, []) if isinstance(data.get(sym), list) else []
-
-            merged = _merge_dates(current, dates)
             # Regressie-detectie
             if not merged and current:
                 logger.warning(f"⚠️ Merge resulteerde in lege lijst voor {sym}, hou oude data aan.")
@@ -125,9 +137,11 @@ def main(argv: List[str] | None = None) -> None:
             else:
                 data[sym] = merged
                 stored += 1
+                meta[sym] = datetime.now().isoformat()
             sleep(sleep_between)
 
     save_json(data, earnings_file)
+    save_json(meta, meta_file)
     logger.success(f"✅ Earnings dates updated for {stored} symbols")
 
 

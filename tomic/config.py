@@ -46,6 +46,7 @@ class AppConfig(BaseModel):
     PORTFOLIO_META_FILE: str = "portfolio_meta.json"
     JOURNAL_FILE: str = "journal.json"
     EARNINGS_DATES_FILE: str = "tomic/data/earnings_dates.json"
+    EARNINGS_DATA_FILE: str = "tomic/data/earnings_data.json"
     PRICE_HISTORY_DIR: str = "tomic/data/spot_prices"
     IV_HISTORY_DIR: str = "tomic/data/iv_history"
     IV_DAILY_SUMMARY_DIR: str = "tomic/data/iv_daily_summary"
