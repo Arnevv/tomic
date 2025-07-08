@@ -6,6 +6,7 @@ import csv
 from datetime import date, datetime
 from pathlib import Path
 from tempfile import TemporaryDirectory
+from time import sleep
 from typing import List
 
 import requests
@@ -81,6 +82,7 @@ def main(argv: List[str] | None = None) -> None:
     if not api_key:
         logger.error("Missing ALPHAVANTAGE_API_KEY in configuration")
         return
+    sleep_between = float(cfg_get("ALPHAVANTAGE_SLEEP_BETWEEN", 12.0))
 
     symbols = [s.upper() for s in cfg_get("DEFAULT_SYMBOLS", [])]
     earnings_file = Path(cfg_get("EARNINGS_DATES_FILE", "tomic/data/earnings_dates.json"))
@@ -96,9 +98,11 @@ def main(argv: List[str] | None = None) -> None:
                 logger.info(f"{sym} new dates from API: {dates}")
             except Exception as exc:  # pragma: no cover - network errors
                 logger.error(f"Failed to fetch {sym}: {exc}")
+                sleep(sleep_between)
                 continue
             if not dates:
                 logger.warning(f"⚠️ Geen earnings data voor {sym}, mogelijk API-probleem.")
+                sleep(sleep_between)
                 continue
 
             current = data.get(sym, []) if isinstance(data.get(sym), list) else []
@@ -121,6 +125,7 @@ def main(argv: List[str] | None = None) -> None:
             else:
                 data[sym] = merged
                 stored += 1
+            sleep(sleep_between)
 
     save_json(data, earnings_file)
     logger.success(f"✅ Earnings dates updated for {stored} symbols")
