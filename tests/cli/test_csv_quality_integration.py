@@ -8,7 +8,11 @@ def test_process_chain_respects_quality(tmp_path, monkeypatch):
     csv_path.write_text("data")
 
     monkeypatch.setattr(mod, "load_exported_chain", lambda p: [{"expiry": "20240101"}])
-    monkeypatch.setattr(mod, "analyze_csv", lambda p: {"total": 10, "valid": 5})
+    monkeypatch.setattr(
+        mod,
+        "analyze_csv",
+        lambda p: {"total": 10, "valid": 5, "partial_quality": 50},
+    )
     monkeypatch.setattr(mod.cfg, "get", lambda name, default=None: 70 if name == "CSV_MIN_QUALITY" else default)
     monkeypatch.setattr(mod.cfg, "_load_yaml", lambda p: {})
     monkeypatch.setattr(mod, "load_strike_config", lambda strat, data: {})
@@ -32,7 +36,11 @@ def test_write_option_chain_skips_selector_on_low_quality(tmp_path, monkeypatch)
     }
     app = SimpleNamespace(market_data=market_data, invalid_contracts=set(), spot_price=100.0)
 
-    monkeypatch.setattr(mod, "analyze_csv", lambda p: {"total": 10, "valid": 5})
+    monkeypatch.setattr(
+        mod,
+        "analyze_csv",
+        lambda p: {"total": 10, "valid": 5, "partial_quality": 50},
+    )
     monkeypatch.setattr(mod, "cfg_get", lambda name, default=None: 70 if name == "CSV_MIN_QUALITY" else default)
 
     class DummySelector:
