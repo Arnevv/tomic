@@ -195,7 +195,11 @@ def main(argv: List[str] | None = None) -> None:
     for idx, sym in enumerate(symbols):
         if max_syms is not None and idx >= max_syms:
             break
+        close_price, date_str = _load_latest_close(sym)
         closes = _get_closes(sym)
+        if close_price is not None and closes:
+            if closes[-1] != close_price:
+                closes.append(close_price)
         if not closes:
             logger.warning(f"No price history for {sym}")
             continue
@@ -203,7 +207,6 @@ def main(argv: List[str] | None = None) -> None:
         hv30 = historical_volatility(closes, window=30)
         hv90 = historical_volatility(closes, window=90)
         hv252 = historical_volatility(closes, window=252)
-        _, date_str = _load_latest_close(sym)
         metrics = fetch_polygon_iv30d(sym)
         if date_str is None:
             logger.warning(f"No price history for {sym}")
