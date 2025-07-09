@@ -29,3 +29,14 @@ def test_spline_interpolation_iv():
     })
     result = interpolate_missing_fields(df)
     assert not result['iv'].isnull().any()
+
+
+def test_spline_handles_unsorted_duplicates():
+    df = pd.DataFrame({
+        'expiration': ['2025-08-16'] * 8,
+        'strike': [110, 100, 105, 110, 120, 115, 125, 100],
+        'delta': [0.9] * 8,
+        'iv': [0.30, 0.28, 0.29, np.nan, 0.27, np.nan, 0.31, 0.32],
+    })
+    result = interpolate_missing_fields(df)
+    assert not result['iv'].isnull().any()
