@@ -1,27 +1,59 @@
-import pandas as pd
+"""Utilities for interpolating missing option chain fields."""
+
+import logging
+
 import numpy as np
+import pandas as pd
 from scipy.interpolate import UnivariateSpline
 
+logger = logging.getLogger(__name__)
 
 
 def interpolate_missing_fields(df: pd.DataFrame) -> pd.DataFrame:
+    """Fill missing ``delta`` and ``iv`` fields in ``df``.
+
+    Interpolation happens per ``expiration`` and option ``type`` to avoid mixing
+    call and put data. ``delta`` values are linearly interpolated while ``iv``
+    values are spline interpolated. If IV values appear to be in percentage
+    format (> 3.0) they are converted to decimals before interpolation.
+    """
+
     df = df.copy()
+    logger.info("Interpolating delta (linear) and iv (spline) per (expiration, type)")
 
-    # Interpoleer DELTA met lineaire interpolatie per expiry
-    if 'delta' in df.columns:
-        df['delta'] = (
-            df.groupby('expiration', group_keys=False)
-            .apply(_interpolate_column, column='delta', method='linear')
-        )
+    result_frames: list[pd.DataFrame] = []
 
-    # Interpoleer IV met spline-interpolatie per expiry
-    if 'iv' in df.columns:
-        df['iv'] = (
-            df.groupby('expiration', group_keys=False)
-            .apply(_interpolate_column, column='iv', method='spline')
-        )
+    for (exp, opt_type), group in df.groupby(["expiration", "type"]):
+        g = group.copy()
 
-    return df
+        # Ensure numeric strikes for interpolation
+        g["strike"] = pd.to_numeric(g["strike"], errors="coerce")
+        g = g.dropna(subset=["strike"])
+
+        if g.empty:
+            continue
+
+        # Detect percentage scale for IV and normalise to decimals
+        if "iv" in g.columns and g["iv"].notna().any():
+            max_iv = g["iv"].dropna().max()
+            if max_iv > 3.0:
+                logger.info(
+                    f"IV appears to be in % scale – converting by dividing by 100 for ({exp}, {opt_type})"
+                )
+                g["iv"] = g["iv"] / 100
+
+        if "delta" in g.columns:
+            g["delta"] = _interpolate_column(g, column="delta", method="linear")
+            g["delta"] = g["delta"].clip(lower=-1.0, upper=1.0)
+
+        if "iv" in g.columns:
+            g["iv"] = _interpolate_column(g, column="iv", method="spline")
+            g["iv"] = g["iv"].clip(lower=0.01, upper=5.0)
+            logger.info("Clipped interpolated IV to [0.01, 5.0]")
+
+        result_frames.append(g)
+
+    return pd.concat(result_frames, ignore_index=True)
 
 
 def _interpolate_column(group: pd.DataFrame, column: str, method: str) -> pd.Series:
