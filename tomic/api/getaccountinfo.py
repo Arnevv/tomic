@@ -95,10 +95,25 @@ class IBApp(BaseIBApp):
 
         mkt_id = self.market_req_id
         self.market_req_map[mkt_id] = idx
-        if not getattr(contract, "exchange", None):
-            contract.exchange = cfg_get("OPTIONS_EXCHANGE", "SMART")
-            contract.primaryExchange = cfg_get("OPTIONS_PRIMARY_EXCHANGE", "ARCA")
-        self.reqMktData(mkt_id, contract, "", True, False, [])
+        expired = False
+        expiry = getattr(contract, "lastTradeDateOrContractMonth", "")
+        if expiry:
+            try:
+                exp_dt = datetime.strptime(expiry.split(" ")[0][:8], "%Y%m%d")
+                if exp_dt.date() < datetime.utcnow().date():
+                    expired = True
+            except Exception:
+                pass
+
+        if expired:
+            logger.warning(
+                "Sla marktdataverzoek over voor verlopen contract %s", contract.localSymbol
+            )
+        else:
+            if not getattr(contract, "exchange", None):
+                contract.exchange = cfg_get("OPTIONS_EXCHANGE", "SMART")
+                contract.primaryExchange = cfg_get("OPTIONS_PRIMARY_EXCHANGE", "ARCA")
+            self.reqMktData(mkt_id, contract, "", True, False, [])
         self.market_req_id += 1
 
         if contract.symbol not in self.spot_data:
@@ -335,8 +350,9 @@ def fetch_historical_metrics(app: IBApp) -> None:
         contract.primaryExchange = cfg_get("UNDERLYING_PRIMARY_EXCHANGE", "ARCA")
         contract.currency = "USD"
         contract.includeExpired = True
-        # IB API expects a space between date and time, not a dash
-        queryTime = datetime.now().strftime("%Y%m%d %H:%M:%S")
+        # Newer API versions require explicit time zone information
+        # Use UTC to avoid ambiguous local times
+        queryTime = datetime.utcnow().strftime("%Y%m%d-%H:%M:%S UTC")
         req_id = app.market_req_id
         app.market_req_id += 1
         logger.debug(contract.__dict__)
