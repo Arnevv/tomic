@@ -5,6 +5,7 @@ from pathlib import Path
 from tomic.config import get as cfg_get
 from tomic.journal.utils import load_json
 from tomic.logutils import logger
+from tomic.helpers.csv_utils import parse_euro_float
 
 
 def filter_future_expiries(expirations: list[str]) -> list[str]:
@@ -204,10 +205,7 @@ def normalize_leg(leg: dict) -> dict:
         canonical = key.lower()
         val = leg[key]
         if canonical in _NUMERIC_KEYS:
-            try:
-                leg[canonical] = float(val)
-            except Exception:
-                leg[canonical] = None
+            leg[canonical] = parse_euro_float(val)
             if canonical != key:
                 del leg[key]
     return leg

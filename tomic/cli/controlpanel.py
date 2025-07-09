@@ -63,6 +63,7 @@ from tomic.helpers.price_utils import _load_latest_close
 from tomic.strike_selector import StrikeSelector, filter_by_expiry, FilterConfig
 from tomic.loader import load_strike_config
 from tomic.utils import get_option_mid_price, latest_atr, normalize_leg
+from tomic.helpers.csv_utils import normalize_european_number_format
 from tomic.helpers.interpolation import interpolate_missing_fields
 from tomic.helpers.quality_check import calculate_csv_quality
 import pandas as pd
@@ -766,6 +767,20 @@ def run_portfolio_menu() -> None:
             print(f"⚠️ Fout bij laden van chain: {exc}")
             return
         df.columns = [c.lower() for c in df.columns]
+        df = normalize_european_number_format(
+            df,
+            [
+                "bid",
+                "ask",
+                "close",
+                "iv",
+                "delta",
+                "gamma",
+                "vega",
+                "theta",
+                "mid",
+            ],
+        )
         if "expiration" in df.columns and "expiry" not in df.columns:
             df["expiry"] = df["expiration"]
         if "expiry" in df.columns and "expiration" not in df.columns:
