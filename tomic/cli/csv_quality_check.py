@@ -8,6 +8,7 @@ from typing import Any, Dict, List, Set
 from tomic.logutils import logger
 from tomic.logutils import setup_logging
 from tomic.utils import get_option_mid_price
+from tomic.helpers.csv_utils import parse_euro_float
 from .common import prompt
 
 
@@ -80,51 +81,43 @@ def analyze_csv(path: str) -> Dict[str, Any]:
                 row_invalid = True
 
             if not is_empty(iv_val):
-                try:
-                    float(iv_val)
+                if parse_euro_float(iv_val) is not None:
                     row_score += 2
-                except (ValueError, TypeError):
+                else:
                     row_invalid = True
             else:
                 row_invalid = True
 
             if not is_empty(delta_field):
-                try:
-                    d_val = float(delta_field)
-                    if -1.0 <= d_val <= 1.0:
-                        row_score += 2
-                    else:
-                        bad_delta += 1
-                        row_invalid = True
-                except (ValueError, TypeError):
+                d_val = parse_euro_float(delta_field)
+                if d_val is not None and -1.0 <= d_val <= 1.0:
+                    row_score += 2
+                else:
                     bad_delta += 1
                     row_invalid = True
             else:
                 row_invalid = True
 
             if not is_empty(gamma_val):
-                try:
-                    float(gamma_val)
+                if parse_euro_float(gamma_val) is not None:
                     row_score += 1
-                except (ValueError, TypeError):
+                else:
                     row_invalid = True
             else:
                 row_invalid = True
 
             if not is_empty(vega_val):
-                try:
-                    float(vega_val)
+                if parse_euro_float(vega_val) is not None:
                     row_score += 1
-                except (ValueError, TypeError):
+                else:
                     row_invalid = True
             else:
                 row_invalid = True
 
             if not is_empty(theta_val):
-                try:
-                    float(theta_val)
+                if parse_euro_float(theta_val) is not None:
                     row_score += 1
-                except (ValueError, TypeError):
+                else:
                     row_invalid = True
             else:
                 row_invalid = True
@@ -159,7 +152,9 @@ def analyze_csv(path: str) -> Dict[str, Any]:
                     val = row[k].strip()
                     if not is_empty(val):
                         try:
-                            num = float(val)
+                            num = parse_euro_float(val)
+                            if num is None:
+                                raise ValueError
                             if key_l in {"bid", "ask"} and num == -1:
                                 minus_one_quotes += 1
                                 invalid = True
