@@ -1,4 +1,5 @@
 import importlib
+import pandas as pd
 from types import SimpleNamespace
 
 
@@ -7,12 +8,14 @@ def test_process_chain_respects_quality(tmp_path, monkeypatch):
     csv_path = tmp_path / "chain.csv"
     csv_path.write_text("data")
 
-    monkeypatch.setattr(mod, "load_exported_chain", lambda p: [{"expiry": "20240101"}])
-    monkeypatch.setattr(
-        mod,
-        "analyze_csv",
-        lambda p: {"total": 10, "valid": 5, "partial_quality": 50},
-    )
+    df = pd.DataFrame({
+        "expiration": ["20240101"],
+        "strike": [100],
+        "delta": [0.5],
+        "iv": [0.2],
+    })
+    monkeypatch.setattr(mod.pd, "read_csv", lambda p: df)
+    monkeypatch.setattr(mod, "calculate_csv_quality", lambda d: 50.0)
     monkeypatch.setattr(mod.cfg, "get", lambda name, default=None: 70 if name == "CSV_MIN_QUALITY" else default)
     monkeypatch.setattr(mod.cfg, "_load_yaml", lambda p: {})
     monkeypatch.setattr(mod, "load_strike_config", lambda strat, data: {})

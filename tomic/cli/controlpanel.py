@@ -58,12 +58,14 @@ from tomic.journal.utils import load_json
 from tomic.utils import today
 from tomic.cli.volatility_recommender import recommend_strategy, recommend_strategies
 from tomic.api.market_export import load_exported_chain, export_option_chain
-from tomic.cli.csv_quality_check import analyze_csv
 from tomic.providers.polygon_iv import fetch_polygon_option_chain
 from tomic.helpers.price_utils import _load_latest_close
 from tomic.strike_selector import StrikeSelector, filter_by_expiry, FilterConfig
 from tomic.loader import load_strike_config
 from tomic.utils import get_option_mid_price, latest_atr, normalize_leg
+from tomic.helpers.interpolation import interpolate_missing_fields
+from tomic.helpers.quality_check import calculate_csv_quality
+import pandas as pd
 from tomic.metrics import (
     calculate_pos,
     calculate_rom,
@@ -757,21 +759,43 @@ def run_portfolio_menu() -> None:
         if not path.exists():
             print("⚠️ Chain-bestand ontbreekt")
             return
+
         try:
-            data = load_exported_chain(str(path))
+            df = pd.read_csv(path)
         except Exception as exc:
             print(f"⚠️ Fout bij laden van chain: {exc}")
             return
-        logger.info(f"Loaded {len(data)} rows from {path}")
+        df.columns = [c.lower() for c in df.columns]
+        if "expiry" in df.columns and "expiration" not in df.columns:
+            df = df.rename(columns={"expiry": "expiration"})
+        logger.info(f"Loaded {len(df)} rows from {path}")
 
-        stats = analyze_csv(str(path))
-        quality = stats.get("partial_quality", 0)
+        quality = calculate_csv_quality(df)
         min_q = cfg.get("CSV_MIN_QUALITY", 70)
         if quality < min_q:
             print(f"⚠️ CSV kwaliteit {quality:.1f}% lager dan {min_q}%")
-            if not prompt_yes_no("Doorgaan?", False):
-                return
-
+        else:
+            print(f"CSV kwaliteit {quality:.1f}%")
+        logger.info(f"CSV loaded from {path} with quality {quality:.1f}%")
+        if not prompt_yes_no("Doorgaan?", False):
+            return
+        do_interpolate = prompt_yes_no(
+            "Wil je delta/iv interpoleren om de data te verbeteren?", False
+        )
+        if do_interpolate:
+            logger.info(
+                "Interpolating missing delta/iv values using linear (delta) and spline (iv)"
+            )
+            df = interpolate_missing_fields(df)
+            print("✅ Interpolatie toegepast op ontbrekende delta/iv.")
+            logger.info("Interpolation completed successfully")
+            quality = calculate_csv_quality(df)
+            print(f"Nieuwe CSV kwaliteit {quality:.1f}%")
+            new_path = path.with_name(path.stem + "_interpolated.csv")
+            df.to_csv(new_path, index=False)
+            logger.info(f"Interpolated CSV saved to {new_path}")
+            path = new_path
+        data = [normalize_leg({k.lower(): v for k, v in rec.items()}) for rec in df.to_dict(orient="records")]
         symbol = str(SESSION_STATE.get("symbol", ""))
         spot_price = _load_spot_from_metrics(path.parent, symbol)
         if spot_price is None:
