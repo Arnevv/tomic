@@ -262,6 +262,8 @@ def _metrics(strategy: str, legs: List[Dict[str, Any]]) -> tuple[Optional[Dict[s
             f"[{strategy}] Ontbrekende bid/ask-data voor strikes {','.join(missing_mid)}"
         )
         reasons.append("ontbrekende bid/ask-data")
+    if any(leg.get("mid_fallback") == "close" for leg in legs):
+        reasons.append("fallback naar close gebruikt voor midprijs")
     net_credit = credit_short - debit_long
     strikes = "/".join(str(l.get("strike")) for l in legs)
     if strategy not in {"ratio_spread", "backspread_put"} and net_credit <= 0:
@@ -323,6 +325,8 @@ def _metrics(strategy: str, legs: List[Dict[str, Any]]) -> tuple[Optional[Dict[s
         "breakevens": breakevens,
         "score": round(score, 2),
     }
+    if any(leg.get("mid_fallback") == "close" for leg in legs):
+        result["fallback"] = "close"
     return result, reasons
 
 def _validate_ratio(strategy: str, legs: List[Dict[str, Any]], credit: float) -> bool:
@@ -388,7 +392,20 @@ def generate_strategy_candidates(
 
     def make_leg(opt: Dict[str, Any], position: int) -> Dict[str, Any]:
         mid = get_option_mid_price(opt)
+        used_close_as_mid = False
         manual_override = False
+        if mid is None:
+            try:
+                close_val = float(opt.get("close"))
+                if close_val > 0:
+                    mid = close_val
+                    used_close_as_mid = True
+                    right = normalize_right(opt.get("type") or opt.get("right"))
+                    logger.info(
+                        f"[fallback] Gebruik close als mid voor {opt.get('strike')}{right[0].upper() if right else ''}: {close_val}"
+                    )
+            except Exception:
+                pass
         if mid is None and interactive_mode:
             mid = prompt_user_for_price(
                 opt.get("strike"),
@@ -414,6 +431,8 @@ def generate_strategy_candidates(
             "model": opt.get("model"),
             "position": position,
         }
+        if used_close_as_mid:
+            leg["mid_fallback"] = "close"
         if manual_override:
             leg["manual_override"] = True
         return normalize_leg(leg)
