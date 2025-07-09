@@ -12,6 +12,7 @@ from tomic.analysis.greeks import compute_greeks_by_symbol
 from tomic.analysis.strategy import heuristic_risk_metrics
 from tomic.journal.utils import load_json
 from tomic.utils import get_option_mid_price, normalize_right
+from tomic.helpers.csv_utils import parse_euro_float
 from tomic.metrics import calculate_margin
 from tomic.logutils import logger
 
@@ -31,12 +32,7 @@ class Leg:
 
 
 def _parse_float(value: str | None) -> Optional[float]:
-    if value is None or value.strip() == "":
-        return None
-    try:
-        return float(value)
-    except ValueError:
-        return None
+    return parse_euro_float(value)
 
 
 def load_chain_csv(path: str) -> List[Leg]:
