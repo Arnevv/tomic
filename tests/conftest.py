@@ -56,12 +56,15 @@ def stub_external_modules():
 
     pd_stub = types.ModuleType("pandas")
     pd_stub.DataFrame = object
+    pd_stub.Series = object
     pd_stub.concat = lambda frames, ignore_index=False: object()
     sys.modules["pandas"] = pd_stub
 
     sys.modules.setdefault("google", types.ModuleType("google"))
     sys.modules.setdefault("google.protobuf", types.ModuleType("protobuf"))
-    sys.modules.setdefault("numpy", types.ModuleType("numpy"))
+    numpy_stub = types.ModuleType("numpy")
+    numpy_stub.nan = float("nan")
+    sys.modules.setdefault("numpy", numpy_stub)
     sys.modules.setdefault("requests", types.ModuleType("requests"))
 
     aiohttp_stub = types.ModuleType("aiohttp")

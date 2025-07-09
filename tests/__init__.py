@@ -35,3 +35,28 @@ class _DummySession:
 
 aiohttp_stub.ClientSession = lambda *a, **k: _DummySession()
 sys.modules.setdefault("aiohttp", aiohttp_stub)
+
+# Minimal pandas/numpy stubs for environments without these packages
+pandas_stub = types.ModuleType("pandas")
+pandas_stub.DataFrame = object
+pandas_stub.concat = lambda frames, ignore_index=False: object()
+pandas_stub.Series = object
+sys.modules.setdefault("pandas", pandas_stub)
+
+numpy_stub = types.ModuleType("numpy")
+numpy_stub.nan = float('nan')
+sys.modules.setdefault("numpy", numpy_stub)
+
+scipy_stub = types.ModuleType("scipy")
+interpolate_stub = types.ModuleType("scipy.interpolate")
+
+def _dummy_spline(x, y, s=0):
+    class _S:
+        def __call__(self, new_x):
+            return [y[0] for _ in new_x]
+    return _S()
+
+interpolate_stub.UnivariateSpline = _dummy_spline
+scipy_stub.interpolate = interpolate_stub
+sys.modules.setdefault("scipy", scipy_stub)
+sys.modules.setdefault("scipy.interpolate", interpolate_stub)
