@@ -766,8 +766,10 @@ def run_portfolio_menu() -> None:
             print(f"⚠️ Fout bij laden van chain: {exc}")
             return
         df.columns = [c.lower() for c in df.columns]
+        if "expiration" in df.columns and "expiry" not in df.columns:
+            df["expiry"] = df["expiration"]
         if "expiry" in df.columns and "expiration" not in df.columns:
-            df = df.rename(columns={"expiry": "expiration"})
+            df["expiration"] = df["expiry"]
         logger.info(f"Loaded {len(df)} rows from {path}")
 
         quality = calculate_csv_quality(df)
