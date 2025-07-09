@@ -104,6 +104,10 @@ def load_exported_chain(filepath: str) -> list[dict[str, Any]]:
         rows = []
         for row in reader:
             rec = {k.lower(): v for k, v in row.items()}
+            if "expiry" not in rec and "expiration" in rec:
+                rec["expiry"] = rec["expiration"]
+            if "expiration" not in rec and "expiry" in rec:
+                rec["expiration"] = rec["expiry"]
             normalize_leg(rec)
             rows.append(rec)
         return rows
