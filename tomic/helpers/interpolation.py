@@ -12,18 +12,30 @@ logger = logging.getLogger(__name__)
 def interpolate_missing_fields(df: pd.DataFrame) -> pd.DataFrame:
     """Fill missing ``delta`` and ``iv`` fields in ``df``.
 
-    Interpolation happens per ``expiration`` and option ``type`` to avoid mixing
-    call and put data. ``delta`` values are linearly interpolated while ``iv``
-    values are spline interpolated. If IV values appear to be in percentage
-    format (> 3.0) they are converted to decimals before interpolation.
+    Interpolation happens per expiry and option ``type`` to avoid mixing call and
+    put data. Both ``expiry`` and ``expiration`` column names are supported. If
+    ``expiration`` is present but ``expiry`` is not, it is used transparently
+    without creating an additional column.
+
+    ``delta`` values are linearly interpolated while ``iv`` values are spline
+    interpolated. If IV values appear to be in percentage format (> 3.0) they are
+    converted to decimals before interpolation.
     """
 
     df = df.copy()
-    logger.info("Interpolating delta (linear) and iv (spline) per (expiration, type)")
+    logger.info("Interpolating delta (linear) and iv (spline) per expiry/type")
+
+    expiry_col = "expiry" if "expiry" in df.columns else "expiration" if "expiration" in df.columns else None
+    if expiry_col is None:
+        raise KeyError("DataFrame must contain 'expiry' or 'expiration' column")
 
     result_frames: list[pd.DataFrame] = []
 
-    for (exp, opt_type), group in df.groupby(["expiration", "type"]):
+    group_cols = [expiry_col]
+    if "type" in df.columns:
+        group_cols.append("type")
+
+    for (exp, opt_type), group in df.groupby(group_cols):
         g = group.copy()
 
         # Ensure numeric strikes for interpolation

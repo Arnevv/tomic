@@ -781,10 +781,16 @@ def run_portfolio_menu() -> None:
                 "mid",
             ],
         )
-        if "expiration" in df.columns and "expiry" not in df.columns:
-            df["expiry"] = df["expiration"]
-        if "expiry" in df.columns and "expiration" not in df.columns:
-            df["expiration"] = df["expiry"]
+        if "expiry" not in df.columns and "expiration" in df.columns:
+            df = df.rename(columns={"expiration": "expiry"})
+        elif "expiry" in df.columns and "expiration" in df.columns:
+            df = df.drop(columns=["expiration"])
+
+        if "expiry" in df.columns:
+            df["expiry"] = (
+                pd.to_datetime(df["expiry"], errors="coerce")
+                .dt.strftime("%Y-%m-%d")
+            )
         logger.info(f"Loaded {len(df)} rows from {path}")
 
         quality = calculate_csv_quality(df)
