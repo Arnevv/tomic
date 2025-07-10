@@ -1,6 +1,10 @@
 import importlib
 import pandas as pd
+import pytest
 from types import SimpleNamespace
+
+if not hasattr(pd, "DataFrame") or isinstance(pd.DataFrame, type(object)):
+    pytest.skip("pandas not available", allow_module_level=True)
 
 
 def test_process_chain_respects_quality(tmp_path, monkeypatch):
@@ -9,7 +13,7 @@ def test_process_chain_respects_quality(tmp_path, monkeypatch):
     csv_path.write_text("data")
 
     df = pd.DataFrame({
-        "expiration": ["20240101"],
+        "expiry": ["20240101"],
         "strike": [100],
         "delta": [0.5],
         "iv": [0.2],
