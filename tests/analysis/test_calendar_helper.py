@@ -1,5 +1,5 @@
 import pytest
-from tomic.strategy_candidates import _options_by_strike, generate_strategy_candidates
+import tomic.strategy_candidates as sc
 
 
 def test_options_by_strike_filters_missing_mid():
@@ -8,7 +8,7 @@ def test_options_by_strike_filters_missing_mid():
         {"expiry": "2025-02-01", "strike": 100, "type": "C", "bid": 0, "ask": 0, "close": 0.8},
         {"expiry": "2025-03-01", "strike": 100, "type": "C", "bid": 0, "ask": 0, "close": None},
     ]
-    res = _options_by_strike(chain, "C")
+    res = sc._options_by_strike(chain, "C")
     assert sorted(res.keys()) == [100.0]
     assert set(res[100.0]) == {"2025-01-01", "2025-02-01"}
 
@@ -31,7 +31,7 @@ def test_calendar_generates_from_valid_pairs(monkeypatch):
             }
         }
     }
-    props, reasons = generate_strategy_candidates(
+    props, reasons = sc.generate_strategy_candidates(
         "AAA",
         "calendar",
         chain,
@@ -43,3 +43,38 @@ def test_calendar_generates_from_valid_pairs(monkeypatch):
     assert reasons == []
     assert props
     assert props[0].legs[0]["strike"] == 100.0
+
+
+def test_calendar_logs_skip_on_missing_mid(monkeypatch):
+    monkeypatch.setenv("TOMIC_TODAY", "2024-06-01")
+    chain = [
+        {"expiry": "2025-01-01", "strike": 100, "type": "C", "bid": 1, "ask": 1.2, "delta": 0.4, "edge": 0.1, "iv": 0.2},
+        {"expiry": "2025-02-01", "strike": 100, "type": "C", "bid": 0, "ask": 0, "close": None, "delta": 0.3, "edge": 0.1, "iv": 0.25},
+    ]
+    cfg = {
+        "strategies": {
+            "calendar": {
+                "strike_to_strategy_config": {
+                    "expiry_gap_min_days": 20,
+                    "base_strikes_relative_to_spot": [0],
+                    "use_ATR": False,
+                }
+            }
+        }
+    }
+    infos: list[str] = []
+    monkeypatch.setattr(
+        sc.logger, "info", lambda msg, *a, **k: infos.append(msg.format(*a))
+    )
+    props, reasons = sc.generate_strategy_candidates(
+        "AAA",
+        "calendar",
+        chain,
+        1.0,
+        cfg,
+        100.0,
+        interactive_mode=False,
+    )
+    assert not props
+    assert any("midprijs" in r for r in reasons)
+    assert any("skip strike" in m for m in infos)
