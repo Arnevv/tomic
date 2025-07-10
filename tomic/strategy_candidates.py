@@ -442,6 +442,7 @@ def generate_strategy_candidates(
     num_pairs_tested = 0
     invalid_ratio = 0
     risk_rejected = 0
+    skipped_mid: List[str] = []
     reasons: set[str] = set()
 
     min_rr = 0.0
@@ -786,14 +787,25 @@ def generate_strategy_candidates(
                 for exp in all_exp:
                     if exp not in valid_exp:
                         logger.info(
-                            f"[calendar] overslaan strike {nearest} expiry {exp} ontbrekende mid"
+                            f"[calendar] skip strike {nearest} {exp} – no mid price"
                         )
+                        skipped_mid.append(f"{nearest}-{exp}")
                 continue
             has_valid_pair = True
             for near, far in pairs[:3]:
                 num_pairs_tested += 1
                 short_opt = by_strike[nearest].get(near)
                 long_opt = by_strike[nearest].get(far)
+                if not short_opt:
+                    logger.info(
+                        f"[calendar] skip strike {nearest} {near} – no mid price"
+                    )
+                    skipped_mid.append(f"{nearest}-{near}")
+                if not long_opt:
+                    logger.info(
+                        f"[calendar] skip strike {nearest} {far} – no mid price"
+                    )
+                    skipped_mid.append(f"{nearest}-{far}")
                 if not short_opt or not long_opt:
                     missing_legs += 1
                     continue
@@ -999,6 +1011,8 @@ def generate_strategy_candidates(
     if proposals:
         return proposals[:5], []
 
+    if skipped_mid:
+        reasons.add(f"{len(skipped_mid)} legs overgeslagen door ontbrekende midprijs")
     if missing_legs > 0:
         reasons.add("Benodigde strikes ontbreken in de optiechain")
     if invalid_metrics > 0:
