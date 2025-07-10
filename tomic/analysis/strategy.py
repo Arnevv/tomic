@@ -187,6 +187,7 @@ def heuristic_risk_metrics(
     legs: List[Dict[str, Any]], cost_basis: float
 ) -> Dict[str, Any]:
     """Rough estimation of max win/loss for simple strategies."""
+    strategy_id = determine_strategy_type(legs)
     if len(legs) == 2:
         rights = {
             normalize_right(leg.get("right") or leg.get("type")) for leg in legs
@@ -205,6 +206,10 @@ def heuristic_risk_metrics(
             rr = max_profit / abs(max_loss) if max_loss else None
             if abs(abs(max_profit) - abs(max_loss)) < 1e-2:
                 rr = None
+            if rr is not None:
+                logger.info(
+                    f"[R/R check] {strategy_id}: reward={max_profit:.2f}, risk={max_loss:.2f}, ratio={rr:.2f}"
+                )
             return {
                 "max_profit": max_profit,
                 "max_loss": -abs(max_loss),
@@ -246,6 +251,10 @@ def heuristic_risk_metrics(
             rr = max_profit / abs(max_loss) if max_loss else None
             if abs(abs(max_profit) - abs(max_loss)) < 1e-2:
                 rr = None
+            if rr is not None:
+                logger.info(
+                    f"[R/R check] {strategy_id}: reward={max_profit:.2f}, risk={max_loss:.2f}, ratio={rr:.2f}"
+                )
             return {
                 "max_profit": max_profit,
                 "max_loss": -abs(max_loss),

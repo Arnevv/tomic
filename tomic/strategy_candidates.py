@@ -217,10 +217,24 @@ def _find_option(
 
 
 def _metrics(strategy: str, legs: List[Dict[str, Any]]) -> tuple[Optional[Dict[str, Any]], list[str]]:
-    if any(
-        leg.get("model") is None or leg.get("edge") is None or leg.get("delta") is None
-        for leg in legs
-    ):
+    missing_fields = False
+    for leg in legs:
+        missing: List[str] = []
+        if not leg.get("mid"):
+            missing.append("mid")
+        if not leg.get("model"):
+            missing.append("model")
+        if not leg.get("delta"):
+            missing.append("delta")
+        if missing:
+            logger.debug(
+                f"[leg-missing] {leg['type']} {leg['strike']} {leg['expiry']}: {', '.join(missing)}"
+            )
+            missing_fields = True
+    if missing_fields:
+        logger.info(
+            f"[❌ voorstel afgewezen] {strategy} — reason: ontbrekende metrics (details in debug)"
+        )
         return None, ["Edge, model of delta ontbreekt — metrics kunnen niet worden berekend"]
     for leg in legs:
         normalize_leg(leg)
@@ -275,6 +289,13 @@ def _metrics(strategy: str, legs: List[Dict[str, Any]]) -> tuple[Optional[Dict[s
         return None, reasons
 
     risk = heuristic_risk_metrics(legs, (debit_long - credit_short) * 100)
+    reward_val = risk.get("max_profit")
+    risk_val = risk.get("max_loss")
+    if reward_val is not None and risk_val is not None and risk_val != 0:
+        rr = reward_val / abs(risk_val)
+        logger.info(
+            f"[R/R check] {strategy}: reward={reward_val:.2f}, risk={risk_val:.2f}, ratio={rr:.2f}"
+        )
     margin = None
     net_cashflow = net_credit
     try:
