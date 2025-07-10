@@ -1,0 +1,45 @@
+import pytest
+from tomic.strategy_candidates import _options_by_strike, generate_strategy_candidates
+
+
+def test_options_by_strike_filters_missing_mid():
+    chain = [
+        {"expiry": "2025-01-01", "strike": 100, "type": "C", "bid": 1.0, "ask": 1.2},
+        {"expiry": "2025-02-01", "strike": 100, "type": "C", "bid": 0, "ask": 0, "close": 0.8},
+        {"expiry": "2025-03-01", "strike": 100, "type": "C", "bid": 0, "ask": 0, "close": None},
+    ]
+    res = _options_by_strike(chain, "C")
+    assert sorted(res.keys()) == [100.0]
+    assert set(res[100.0]) == {"2025-01-01", "2025-02-01"}
+
+
+def test_calendar_generates_from_valid_pairs(monkeypatch):
+    monkeypatch.setenv("TOMIC_TODAY", "2024-06-01")
+    chain = [
+        {"expiry": "2025-01-01", "strike": 100, "type": "C", "bid": 1, "ask": 1.2, "delta": 0.4, "edge": 0.1, "iv": 0.2},
+        {"expiry": "2025-02-01", "strike": 100, "type": "C", "bid": 1, "ask": 1.1, "delta": 0.3, "edge": 0.1, "iv": 0.25},
+        {"expiry": "2025-03-01", "strike": 105, "type": "C", "bid": 1, "ask": 1.3, "delta": 0.2, "edge": 0.1, "iv": 0.3},
+    ]
+    cfg = {
+        "strategies": {
+            "calendar": {
+                "strike_to_strategy_config": {
+                    "expiry_gap_min_days": 20,
+                    "base_strikes_relative_to_spot": [0],
+                    "use_ATR": False,
+                }
+            }
+        }
+    }
+    props, reasons = generate_strategy_candidates(
+        "AAA",
+        "calendar",
+        chain,
+        1.0,
+        cfg,
+        100.0,
+        interactive_mode=False,
+    )
+    assert reasons == []
+    assert props
+    assert props[0].legs[0]["strike"] == 100.0
