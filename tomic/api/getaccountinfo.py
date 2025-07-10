@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timezone
 import threading
 import time
 
@@ -100,7 +100,7 @@ class IBApp(BaseIBApp):
         if expiry:
             try:
                 exp_dt = datetime.strptime(expiry.split(" ")[0][:8], "%Y%m%d")
-                if exp_dt.date() < datetime.utcnow().date():
+                if exp_dt.date() < datetime.now(timezone.utc).date():
                     expired = True
             except Exception:
                 pass
@@ -352,7 +352,7 @@ def fetch_historical_metrics(app: IBApp) -> None:
         contract.includeExpired = True
         # Newer API versions require explicit time zone information
         # Use UTC to avoid ambiguous local times
-        queryTime = datetime.utcnow().strftime("%Y%m%d-%H:%M:%S UTC")
+        queryTime = datetime.now(timezone.utc).strftime("%Y%m%d-%H:%M:%S")
         req_id = app.market_req_id
         app.market_req_id += 1
         logger.debug(contract.__dict__)
