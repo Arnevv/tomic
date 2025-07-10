@@ -787,9 +787,8 @@ def run_portfolio_menu() -> None:
             df = df.drop(columns=["expiration"])
 
         if "expiry" in df.columns:
-            df["expiry"] = (
-                pd.to_datetime(df["expiry"], errors="coerce")
-                .dt.strftime("%Y-%m-%d")
+            df["expiry"] = pd.to_datetime(df["expiry"], errors="coerce").dt.strftime(
+                "%Y-%m-%d"
             )
         logger.info(f"Loaded {len(df)} rows from {path}")
 
@@ -818,7 +817,10 @@ def run_portfolio_menu() -> None:
             df.to_csv(new_path, index=False)
             logger.info(f"Interpolated CSV saved to {new_path}")
             path = new_path
-        data = [normalize_leg({k.lower(): v for k, v in rec.items()}) for rec in df.to_dict(orient="records")]
+        data = [
+            normalize_leg({k.lower(): v for k, v in rec.items()})
+            for rec in df.to_dict(orient="records")
+        ]
         symbol = str(SESSION_STATE.get("symbol", ""))
         spot_price = _load_spot_from_metrics(path.parent, symbol)
         if spot_price is None:
@@ -1083,18 +1085,37 @@ def run_portfolio_menu() -> None:
                             f"{'S' if leg.get('position',0)<0 else 'L'}{leg.get('type')}{leg.get('strike')}"
                             for leg in prop.legs
                         )
-                        if any(
-                            leg.get("position", 0) < 0 and leg.get("edge") is None
-                            for leg in prop.legs
-                        ):
+                        for leg in prop.legs:
+                            if leg.get("edge") is None:
+                                logger.debug(
+                                    f"[EDGE missing] {leg.get('position')} {leg.get('type')} {leg.get('strike')} {leg.get('expiry')}"
+                                )
+                        if any(leg.get("edge") is None for leg in prop.legs):
                             warn_edge = True
+                        edge_vals = [
+                            float(leg.get("edge"))
+                            for leg in prop.legs
+                            if leg.get("edge") is not None
+                        ]
+                        if not edge_vals:
+                            edge_display = "—"
+                        elif len(edge_vals) < len(prop.legs):
+                            mn = min(edge_vals)
+                            if mn < 0:
+                                edge_display = f"min={mn:.2f}"
+                            else:
+                                edge_display = (
+                                    f"avg={sum(edge_vals)/len(edge_vals):.2f}"
+                                )
+                        else:
+                            edge_display = f"{sum(edge_vals)/len(edge_vals):.2f}"
                         rows2.append(
                             [
                                 f"{prop.score:.2f}" if prop.score is not None else "—",
                                 f"{prop.pos:.1f}" if prop.pos is not None else "—",
                                 f"{prop.ev:.2f}" if prop.ev is not None else "—",
                                 f"{prop.rom:.2f}" if prop.rom is not None else "—",
-                                f"{prop.edge:.2f}" if prop.edge is not None else "—",
+                                edge_display,
                                 legs_desc,
                             ]
                         )
@@ -1137,6 +1158,10 @@ def run_portfolio_menu() -> None:
         rows: list[list[str]] = []
         warns: list[str] = []
         for leg in proposal.legs:
+            if leg.get("edge") is None:
+                logger.debug(
+                    f"[EDGE missing] {leg.get('position')} {leg.get('type')} {leg.get('strike')} {leg.get('expiry')}"
+                )
             bid = leg.get("bid")
             ask = leg.get("ask")
             mid = leg.get("mid")
@@ -1183,10 +1208,7 @@ def run_portfolio_menu() -> None:
                     f"{leg.get('edge'):.2f}" if leg.get("edge") is not None else "—",
                 ]
             )
-        missing_edge = any(
-            leg.get("position", 0) < 0 and leg.get("edge") is None
-            for leg in proposal.legs
-        )
+        missing_edge = any(leg.get("edge") is None for leg in proposal.legs)
 
         print(
             tabulate(
@@ -1211,6 +1233,12 @@ def run_portfolio_menu() -> None:
             warns.append("⚠️ Eén of meerdere edges niet beschikbaar")
         for warning in warns:
             print(warning)
+        if missing_edge and not cfg.get("ALLOW_INCOMPLETE_METRICS", False):
+            if not prompt_yes_no(
+                "⚠️ Deze strategie bevat onvolledige edge-informatie. Toch accepteren?",
+                False,
+            ):
+                return
         print(f"Credit: {proposal.credit:.2f}")
         if proposal.margin is not None:
             print(f"Margin: {proposal.margin:.2f}")
