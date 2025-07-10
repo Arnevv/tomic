@@ -222,6 +222,11 @@ class StrikeSelector:
                     f"- {row.get('expiry')} {row.get('strike')} {row.get('type')}: {row.get('reject_reason')}"
                 )
 
+        if len(selected) == 0:
+            logger.info(
+                f"[FILTER] Geen opties over na filtering — config: delta={self.config.delta_min}..{self.config.delta_max}, rom={self.config.min_rom}, dte={dte_range}, edge={self.config.min_edge}"
+            )
+
         return selected
 
     # ------------------------------------------------------------------
