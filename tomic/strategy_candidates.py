@@ -6,6 +6,10 @@ from typing import Any, Dict, List, Optional
 from datetime import date, datetime
 import math
 
+from tomic.bs_calculator import black_scholes
+from tomic.helpers.dateutils import dte_between_dates
+from tomic.helpers.timeutils import today
+
 from .metrics import (
     calculate_margin,
     calculate_pos,
@@ -390,7 +394,7 @@ def generate_strategy_candidates(
     except Exception:
         min_rr = 0.0
 
-    def make_leg(opt: Dict[str, Any], position: int) -> Dict[str, Any]:
+    def make_leg(opt: Dict[str, Any], position: int, spot_price: float) -> Dict[str, Any]:
         mid = get_option_mid_price(opt)
         used_close_as_mid = False
         manual_override = False
@@ -435,6 +439,30 @@ def generate_strategy_candidates(
             leg["mid_fallback"] = "close"
         if manual_override:
             leg["manual_override"] = True
+
+        # Black-Scholes modelprijs berekening
+        model_price = None
+        try:
+            opt_type = (opt.get("type") or opt.get("right") or "").upper()[0]
+            strike = float(opt["strike"])
+            iv = float(opt["iv"])
+            expiry = str(opt["expiry"])
+            if spot_price and iv > 0.0 and expiry:
+                dte = dte_between_dates(today(), expiry)
+                model_price = black_scholes(
+                    opt_type,
+                    spot_price,
+                    strike,
+                    dte,
+                    iv,
+                    r=0.045,
+                    q=0.0,
+                )
+        except Exception as e:
+            logger.warning(f"[model] Black-Scholes faalde voor {opt.get('strike')}: {e}")
+
+        if model_price is not None:
+            leg["model"] = model_price
         return normalize_leg(leg)
 
     def _passes_risk(metrics: Dict[str, Any]) -> bool:
@@ -510,10 +538,10 @@ def generate_strategy_candidates(
                 missing_legs += 1
                 continue
             legs = [
-                make_leg(sc_opt, -1),
-                make_leg(lc_opt, 1),
-                make_leg(sp_opt, -1),
-                make_leg(lp_opt, 1),
+                make_leg(sc_opt, -1, spot),
+                make_leg(lc_opt, 1, spot),
+                make_leg(sp_opt, -1, spot),
+                make_leg(lp_opt, 1, spot),
             ]
             metrics, m_reasons = _metrics("iron_condor", legs)
             if metrics:
@@ -565,7 +593,7 @@ def generate_strategy_candidates(
                 if not long_opt:
                     missing_legs += 1
                     continue
-                legs = [make_leg(short_opt, -1), make_leg(long_opt, 1)]
+                legs = [make_leg(short_opt, -1, spot), make_leg(long_opt, 1, spot)]
                 metrics, m_reasons = _metrics("bull put spread", legs)
                 if metrics:
                     if not _passes_risk(metrics):
@@ -616,7 +644,7 @@ def generate_strategy_candidates(
                 if not long_opt:
                     missing_legs += 1
                     continue
-                legs = [make_leg(short_opt, -1), make_leg(long_opt, 1)]
+                legs = [make_leg(short_opt, -1, spot), make_leg(long_opt, 1, spot)]
                 metrics, m_reasons = _metrics("bear call spread", legs)
                 if metrics:
                     if not _passes_risk(metrics):
@@ -638,7 +666,7 @@ def generate_strategy_candidates(
                     and delta_range[0] <= float(opt.get("delta")) <= delta_range[1]
                 ):
                     logger.info(f"[naked_put] probeer strike {opt.get('strike')}")
-                    leg = make_leg(opt, -1)
+                    leg = make_leg(opt, -1, spot)
                     metrics, m_reasons = _metrics("naked_put", [leg])
                     if metrics:
                         if not _passes_risk(metrics):
@@ -697,7 +725,7 @@ def generate_strategy_candidates(
                 if not short_opt or not long_opt:
                     missing_legs += 1
                     continue
-                legs = [make_leg(short_opt, -1), make_leg(long_opt, 1)]
+                legs = [make_leg(short_opt, -1, spot), make_leg(long_opt, 1, spot)]
                 metrics, m_reasons = _metrics("calendar", legs)
                 if metrics:
                     if not _passes_risk(metrics):
@@ -760,10 +788,10 @@ def generate_strategy_candidates(
                     missing_legs += 1
                     continue
                 legs = [
-                    make_leg(sc_opt, -1),
-                    make_leg(lc_opt, 1),
-                    make_leg(sp_opt, -1),
-                    make_leg(lp_opt, 1),
+                    make_leg(sc_opt, -1, spot),
+                    make_leg(lc_opt, 1, spot),
+                    make_leg(sp_opt, -1, spot),
+                    make_leg(lp_opt, 1, spot),
                 ]
                 metrics, m_reasons = _metrics("atm_iron_butterfly", legs)
                 if metrics:
@@ -817,7 +845,7 @@ def generate_strategy_candidates(
                 if not long_opt:
                     missing_legs += 1
                     continue
-                legs = [make_leg(short_opt, -1), make_leg(long_opt, 2)]
+                legs = [make_leg(short_opt, -1, spot), make_leg(long_opt, 2, spot)]
                 metrics, m_reasons = _metrics("ratio_spread", legs)
                 if metrics:
                     if not _passes_risk(metrics):
@@ -874,7 +902,7 @@ def generate_strategy_candidates(
                 if not long_opt:
                     missing_legs += 1
                     continue
-                legs = [make_leg(short_opt, -1), make_leg(long_opt, 2)]
+                legs = [make_leg(short_opt, -1, spot), make_leg(long_opt, 2, spot)]
                 metrics, m_reasons = _metrics("backspread_put", legs)
                 if metrics:
                     if not _passes_risk(metrics):
