@@ -5,10 +5,12 @@ from itertools import islice
 from typing import Any, Dict, List, Optional
 from datetime import date, datetime
 import math
+import pandas as pd
 
 from tomic.bs_calculator import black_scholes
 from tomic.helpers.dateutils import dte_between_dates
 from tomic.helpers.timeutils import today
+from tomic.helpers.put_call_parity import fill_missing_mid_with_parity
 
 from .metrics import (
     calculate_margin,
@@ -399,6 +401,14 @@ def generate_strategy_candidates(
         return [], ["Geen expiries beschikbaar in de optiechain"]
     expiry = expiries[0]
     strike_map = _build_strike_map(option_chain)
+
+    if hasattr(pd, "DataFrame") and not isinstance(pd.DataFrame, type(object)):
+        df_chain = pd.DataFrame(option_chain)
+        if spot is not None and spot > 0:
+            if "expiration" not in df_chain.columns and "expiry" in df_chain.columns:
+                df_chain["expiration"] = df_chain["expiry"]
+            df_chain = fill_missing_mid_with_parity(df_chain, spot=spot)
+            option_chain = df_chain.to_dict(orient="records")
     proposals: List[StrategyProposal] = []
     missing_legs = 0
     invalid_metrics = 0
@@ -416,7 +426,17 @@ def generate_strategy_candidates(
     def make_leg(
         opt: Dict[str, Any], position: int, spot_price: float
     ) -> Dict[str, Any]:
-        mid = get_option_mid_price(opt)
+        mid = opt.get("mid")
+        try:
+            mid_val = float(mid)
+            if math.isnan(mid_val):
+                mid = None
+            else:
+                mid = mid_val
+        except Exception:
+            mid = None
+        if mid is None:
+            mid = get_option_mid_price(opt)
         used_close_as_mid = False
         manual_override = False
         if mid is None:
@@ -465,6 +485,8 @@ def generate_strategy_candidates(
             leg["mid_fallback"] = "close"
         if manual_override:
             leg["manual_override"] = True
+        if opt.get("mid_from_parity"):
+            leg["mid_from_parity"] = True
 
         # Black-Scholes modelprijs berekening
         model_price = None
