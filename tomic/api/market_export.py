@@ -43,7 +43,7 @@ from tomic.cli.csv_quality_check import analyze_csv
 from .historical_iv import fetch_historical_option_data
 
 try:
-    from tomic.cli.bs_calculator import black_scholes
+    from tomic.bs_calculator import black_scholes
 except Exception:  # pragma: no cover - fallback if helper missing
     black_scholes = None
 
