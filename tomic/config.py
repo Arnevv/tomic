@@ -78,6 +78,7 @@ class AppConfig(BaseModel):
     SCORE_WEIGHT_ROM: float = 0.5
     SCORE_WEIGHT_POS: float = 0.3
     SCORE_WEIGHT_EV: float = 0.2
+    ALLOW_INCOMPLETE_METRICS: bool = False
 
     # Parameters for IV history snapshots -------------------------------
     IV_TRACKING_DELTAS: List[float] = [0.25, 0.5]

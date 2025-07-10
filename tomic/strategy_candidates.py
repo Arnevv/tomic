@@ -216,7 +216,9 @@ def _find_option(
     return None
 
 
-def _metrics(strategy: str, legs: List[Dict[str, Any]]) -> tuple[Optional[Dict[str, Any]], list[str]]:
+def _metrics(
+    strategy: str, legs: List[Dict[str, Any]]
+) -> tuple[Optional[Dict[str, Any]], list[str]]:
     missing_fields = False
     for leg in legs:
         missing: List[str] = []
@@ -235,7 +237,9 @@ def _metrics(strategy: str, legs: List[Dict[str, Any]]) -> tuple[Optional[Dict[s
         logger.info(
             f"[❌ voorstel afgewezen] {strategy} — reason: ontbrekende metrics (details in debug)"
         )
-        return None, ["Edge, model of delta ontbreekt — metrics kunnen niet worden berekend"]
+        return None, [
+            "Edge, model of delta ontbreekt — metrics kunnen niet worden berekend"
+        ]
     for leg in legs:
         normalize_leg(leg)
     short_deltas = [
@@ -289,13 +293,6 @@ def _metrics(strategy: str, legs: List[Dict[str, Any]]) -> tuple[Optional[Dict[s
         return None, reasons
 
     risk = heuristic_risk_metrics(legs, (debit_long - credit_short) * 100)
-    reward_val = risk.get("max_profit")
-    risk_val = risk.get("max_loss")
-    if reward_val is not None and risk_val is not None and risk_val != 0:
-        rr = reward_val / abs(risk_val)
-        logger.info(
-            f"[R/R check] {strategy}: reward={reward_val:.2f}, risk={risk_val:.2f}, ratio={rr:.2f}"
-        )
     margin = None
     net_cashflow = net_credit
     try:
@@ -353,6 +350,7 @@ def _metrics(strategy: str, legs: List[Dict[str, Any]]) -> tuple[Optional[Dict[s
     if any(leg.get("mid_fallback") == "close" for leg in legs):
         result["fallback"] = "close"
     return result, reasons
+
 
 def _validate_ratio(strategy: str, legs: List[Dict[str, Any]], credit: float) -> bool:
     shorts = [l for l in legs if l.get("position", 0) < 0]
@@ -415,7 +413,9 @@ def generate_strategy_candidates(
     except Exception:
         min_rr = 0.0
 
-    def make_leg(opt: Dict[str, Any], position: int, spot_price: float) -> Dict[str, Any]:
+    def make_leg(
+        opt: Dict[str, Any], position: int, spot_price: float
+    ) -> Dict[str, Any]:
         mid = get_option_mid_price(opt)
         used_close_as_mid = False
         manual_override = False
@@ -480,7 +480,9 @@ def generate_strategy_candidates(
                     q=0.0,
                 )
         except Exception as e:
-            logger.warning(f"[model] Black-Scholes faalde voor {opt.get('strike')}: {e}")
+            logger.warning(
+                f"[model] Black-Scholes faalde voor {opt.get('strike')}: {e}"
+            )
 
         if model_price is not None:
             leg["model"] = model_price
@@ -872,7 +874,9 @@ def generate_strategy_candidates(
                     if not _passes_risk(metrics):
                         risk_rejected += 1
                         continue
-                    if _validate_ratio("ratio_spread", legs, metrics.get("credit", 0.0)):
+                    if _validate_ratio(
+                        "ratio_spread", legs, metrics.get("credit", 0.0)
+                    ):
                         proposals.append(StrategyProposal(legs=legs, **metrics))
                     else:
                         invalid_ratio += 1
@@ -929,7 +933,9 @@ def generate_strategy_candidates(
                     if not _passes_risk(metrics):
                         risk_rejected += 1
                         continue
-                    if _validate_ratio("backspread_put", legs, metrics.get("credit", 0.0)):
+                    if _validate_ratio(
+                        "backspread_put", legs, metrics.get("credit", 0.0)
+                    ):
                         proposals.append(StrategyProposal(legs=legs, **metrics))
                     else:
                         invalid_ratio += 1
