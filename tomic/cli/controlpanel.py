@@ -74,7 +74,7 @@ from tomic.metrics import (
     calculate_ev,
 )
 from tomic.strategy_candidates import generate_strategy_candidates, StrategyProposal
-from tomic.cli.bs_calculator import black_scholes
+from tomic.bs_calculator import black_scholes
 from tomic.scripts.backfill_hv import run_backfill_hv
 
 setup_logging(stdout=True)
