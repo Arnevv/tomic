@@ -10,7 +10,7 @@ from tomic.helpers.interpolation import interpolate_missing_fields
 
 def test_linear_interpolation_delta():
     df = pd.DataFrame({
-        'expiration': ['2025-08-16'] * 5,
+        'expiry': ['2025-08-16'] * 5,
         'strike': [100, 105, 110, 115, 120],
         'delta': [0.9, np.nan, np.nan, 0.2, 0.1],
         'iv': [0.25] * 5
@@ -22,7 +22,7 @@ def test_linear_interpolation_delta():
 
 def test_spline_interpolation_iv():
     df = pd.DataFrame({
-        'expiration': ['2025-08-16'] * 6,
+        'expiry': ['2025-08-16'] * 6,
         'strike': [100, 105, 110, 115, 120, 125],
         'delta': [0.9] * 6,
         'iv': [0.30, 0.28, np.nan, 0.27, 0.29, 0.31]
@@ -33,7 +33,7 @@ def test_spline_interpolation_iv():
 
 def test_spline_handles_unsorted_duplicates():
     df = pd.DataFrame({
-        'expiration': ['2025-08-16'] * 8,
+        'expiry': ['2025-08-16'] * 8,
         'strike': [110, 100, 105, 110, 120, 115, 125, 100],
         'delta': [0.9] * 8,
         'iv': [0.30, 0.28, 0.29, np.nan, 0.27, np.nan, 0.31, 0.32],
@@ -44,7 +44,7 @@ def test_spline_handles_unsorted_duplicates():
 
 def test_interpolates_per_expiration_and_type():
     df = pd.DataFrame({
-        'expiration': ['2025-08-16'] * 8,
+        'expiry': ['2025-08-16'] * 8,
         'strike': [100, 105, 110, 115, 100, 105, 110, 115],
         'type': ['call'] * 4 + ['put'] * 4,
         'delta': [0.6, np.nan, 0.4, 0.3, -0.6, np.nan, -0.4, -0.3],
@@ -59,7 +59,7 @@ def test_interpolates_per_expiration_and_type():
 
 def test_iv_scale_detection_and_interpolation():
     df = pd.DataFrame({
-        'expiration': ['2025-08-16'] * 6,
+        'expiry': ['2025-08-16'] * 6,
         'strike': [100, 105, 110, 115, 120, 125],
         'type': ['call'] * 6,
         'delta': [0.5] * 6,
@@ -72,7 +72,7 @@ def test_iv_scale_detection_and_interpolation():
 
 def test_clipping_of_values():
     df = pd.DataFrame({
-        'expiration': ['2025-08-16'] * 5,
+        'expiry': ['2025-08-16'] * 5,
         'strike': [100, 110, 120, 130, 140],
         'type': ['call'] * 5,
         'delta': [1.2, np.nan, np.nan, 1.1, 0.9],
@@ -85,7 +85,7 @@ def test_clipping_of_values():
 
 def test_no_interpolation_with_insufficient_points():
     df = pd.DataFrame({
-        'expiration': ['2025-08-16'] * 3,
+        'expiry': ['2025-08-16'] * 3,
         'strike': [100, 105, 110],
         'type': ['call'] * 3,
         'delta': [0.9, np.nan, np.nan],
