@@ -3512,5 +3512,12 @@
     "close": 33.29,
     "volume": 17473123.0,
     "atr": null
+  },
+  {
+    "symbol": "SLV",
+    "date": "2025-07-09",
+    "close": 33,
+    "volume": 17764093.0,
+    "atr": null
   }
 ]

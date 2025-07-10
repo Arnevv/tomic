@@ -3512,5 +3512,12 @@
     "close": 72.46,
     "volume": 19550843.0,
     "atr": null
+  },
+  {
+    "symbol": "NEE",
+    "date": "2025-07-09",
+    "close": 73.65,
+    "volume": 8818666.0,
+    "atr": null
   }
 ]
