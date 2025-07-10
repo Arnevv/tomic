@@ -10,6 +10,7 @@ from typing import Any, Dict, List, Optional
 
 from tomic.utils import today, normalize_right
 from tomic.analysis.alerts import check_entry_conditions, generate_risk_alerts
+from tomic.logutils import logger
 
 
 def parse_date(date_str: str) -> Optional[datetime.date]:
