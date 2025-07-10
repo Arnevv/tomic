@@ -127,6 +127,33 @@ def _build_strike_map(chain: List[Dict[str, Any]]) -> Dict[str, Dict[str, List[f
     }
 
 
+def _options_by_strike(
+    chain: List[Dict[str, Any]], right: str
+) -> Dict[float, Dict[str, Dict[str, Any]]]:
+    """Return mapping ``{strike: {expiry: option}}`` with valid mid prices."""
+
+    result: Dict[float, Dict[str, Dict[str, Any]]] = {}
+    norm_right = normalize_right(right)
+    for opt in chain:
+        try:
+            opt_right = normalize_right(opt.get("type") or opt.get("right"))
+            if opt_right != norm_right:
+                continue
+            strike = float(opt.get("strike"))
+            expiry = str(opt.get("expiry"))
+        except Exception:
+            continue
+        mid = get_option_mid_price(opt)
+        try:
+            mid_val = float(mid) if mid is not None else math.nan
+        except Exception:
+            mid_val = math.nan
+        if math.isnan(mid_val):
+            continue
+        result.setdefault(strike, {})[expiry] = opt
+    return result
+
+
 def _nearest_strike(
     strike_map: Dict[str, Dict[str, List[float]]],
     expiry: str,
@@ -731,47 +758,42 @@ def generate_strategy_candidates(
 
     elif strategy_type == "calendar":
         min_gap = int(rules.get("expiry_gap_min_days", 0))
-        pairs = select_expiry_pairs(expiries, min_gap)
-        strikes = rules.get("base_strikes_relative_to_spot", [])
-        if not pairs:
-            reasons.add("Geen geldige expiry-combinaties gevonden voor calendar spread")
-            return [], sorted(reasons)
-        for near, far in pairs[:3]:
-            for off in strikes:
+        base_strikes = rules.get("base_strikes_relative_to_spot", [])
+        by_strike = _options_by_strike(option_chain, "C")
+        has_valid_pair = False
+
+        for off in base_strikes:
+            strike_target = spot + (off * atr if use_atr else off)
+            if not by_strike:
+                continue
+            avail = sorted(by_strike)
+            nearest = min(avail, key=lambda s: abs(s - strike_target))
+            diff = abs(nearest - strike_target)
+            pct = (diff / strike_target * 100) if strike_target else 0.0
+            if pct > 1.0:
+                logger.info(
+                    f"[calendar] strike {strike_target} buiten tolerantie voor beschikbare {nearest}"
+                )
+                continue
+            valid_exp = sorted(by_strike[nearest])
+            pairs = select_expiry_pairs(valid_exp, min_gap)
+            if not pairs:
+                all_exp = [
+                    exp
+                    for exp, rights in strike_map.items()
+                    if nearest in rights.get("call", [])
+                ]
+                for exp in all_exp:
+                    if exp not in valid_exp:
+                        logger.info(
+                            f"[calendar] overslaan strike {nearest} expiry {exp} ontbrekende mid"
+                        )
+                continue
+            has_valid_pair = True
+            for near, far in pairs[:3]:
                 num_pairs_tested += 1
-                strike_target = spot + (off * atr if use_atr else off)
-                strike = _nearest_strike(strike_map, near, "C", strike_target)
-                logger.info(
-                    f"[calendar] probeer near {near} far {far} strike {strike.matched}"
-                )
-                if not strike.matched:
-                    missing_legs += 1
-                    continue
-                short_opt = _find_option(
-                    option_chain,
-                    near,
-                    strike.matched,
-                    "C",
-                    strategy=strategy_type,
-                    leg_desc="Short call",
-                    target=strike.target,
-                )
-                long_strike = _nearest_strike(strike_map, far, "C", strike_target)
-                logger.info(
-                    f"[calendar] long leg strike {long_strike.matched} voor far {far}"
-                )
-                if not long_strike.matched:
-                    missing_legs += 1
-                    continue
-                long_opt = _find_option(
-                    option_chain,
-                    far,
-                    long_strike.matched,
-                    "C",
-                    strategy=strategy_type,
-                    leg_desc="Long call",
-                    target=long_strike.target,
-                )
+                short_opt = by_strike[nearest].get(near)
+                long_opt = by_strike[nearest].get(far)
                 if not short_opt or not long_opt:
                     missing_legs += 1
                     continue
@@ -787,6 +809,9 @@ def generate_strategy_candidates(
                     reasons.update(m_reasons)
                 if len(proposals) >= 5:
                     break
+
+        if not has_valid_pair:
+            reasons.add("Geen geldige expiry-combinaties gevonden voor calendar spread")
 
     elif strategy_type == "atm_iron_butterfly":
         centers = rules.get("center_strike_relative_to_spot", [0])
