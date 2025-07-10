@@ -444,6 +444,11 @@ def generate_strategy_candidates(
                 logger.info(
                     f"[override] Handmatige prijsinvoer voor {opt.get('strike')}{right[0].upper() if right else ''}: mid = {mid}"
                 )
+        if mid is None:
+            right = normalize_right(opt.get("type") or opt.get("right"))
+            logger.info(
+                f"[make_leg] Geen mid voor {opt.get('strike')}{right[0].upper() if right else ''} — geen bid/ask, geen close, geen handmatige invoer"
+            )
         leg = {
             "expiry": opt.get("expiry"),
             "type": opt.get("type") or opt.get("right"),
