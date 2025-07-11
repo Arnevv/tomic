@@ -444,6 +444,7 @@ def generate_strategy_candidates(
     risk_rejected = 0
     skipped_mid: List[str] = []
     reasons: set[str] = set()
+    best_candidate: Dict[str, Any] | None = None
 
     min_rr = 0.0
     try:
@@ -556,6 +557,36 @@ def generate_strategy_candidates(
             return True
         return rr >= min_rr
 
+    def _log_candidate(desc: str, strategy: str, metrics: Optional[Dict[str, Any]], status: str) -> None:
+        nonlocal best_candidate
+        reward = risk = ev_val = rr = None
+        score = None
+        if metrics:
+            reward = metrics.get("max_profit")
+            ml = metrics.get("max_loss")
+            risk = abs(ml) if ml is not None else None
+            ev_val = metrics.get("ev")
+            try:
+                rr = reward / risk if reward is not None and risk else None
+            except Exception:
+                rr = None
+            score = metrics.get("score") or (ev_val if ev_val is not None else 0)
+        msg = f"[check] {strategy} {desc}"
+        if reward is not None and risk is not None and ev_val is not None:
+            msg += f" | reward={reward}, risk={risk}, EV={ev_val}"
+        msg += f" | {status}"
+        logger.info(msg)
+        if metrics:
+            if best_candidate is None or (score is not None and score > best_candidate.get("score", float("-inf"))):
+                best_candidate = {
+                    "desc": desc,
+                    "strategy": strategy,
+                    "ev": ev_val,
+                    "rr": rr,
+                    "score": score if score is not None else 0,
+                    "reason": status.replace("afgekeurd: ", ""),
+                }
+
     if strategy_type == "iron_condor":
         calls = rules.get("short_call_multiplier", [])
         puts = rules.get("short_put_multiplier", [])
@@ -621,15 +652,22 @@ def generate_strategy_candidates(
                 make_leg(sp_opt, -1, spot),
                 make_leg(lp_opt, 1, spot),
             ]
+            desc = (
+                f"SC={sc.matched} SP={sp.matched} LC={lc.matched} LP={lp.matched}"
+            )
             metrics, m_reasons = _metrics("iron_condor", legs)
             if metrics:
                 if not _passes_risk(metrics):
                     risk_rejected += 1
+                    _log_candidate(desc, strategy_type, metrics, "afgekeurd: R/R te laag")
                     continue
                 proposals.append(StrategyProposal(legs=legs, **metrics))
+                _log_candidate(desc, strategy_type, metrics, "OK")
             else:
                 invalid_metrics += 1
                 reasons.update(m_reasons)
+                reason = ", ".join(m_reasons) if m_reasons else "onbekend"
+                _log_candidate(desc, strategy_type, None, f"afgekeurd: {reason}")
 
     elif strategy_type == "short_put_spread":
         delta_range = rules.get("short_put_delta_range", [])
@@ -672,15 +710,20 @@ def generate_strategy_candidates(
                     missing_legs += 1
                     continue
                 legs = [make_leg(short_opt, -1, spot), make_leg(long_opt, 1, spot)]
+                desc = f"SP={short_opt.get('strike')} LP={long_strike.matched}"
                 metrics, m_reasons = _metrics("bull put spread", legs)
                 if metrics:
                     if not _passes_risk(metrics):
                         risk_rejected += 1
+                        _log_candidate(desc, strategy_type, metrics, "afgekeurd: R/R te laag")
                         continue
                     proposals.append(StrategyProposal(legs=legs, **metrics))
+                    _log_candidate(desc, strategy_type, metrics, "OK")
                 else:
                     invalid_metrics += 1
                     reasons.update(m_reasons)
+                    reason = ", ".join(m_reasons) if m_reasons else "onbekend"
+                    _log_candidate(desc, strategy_type, None, f"afgekeurd: {reason}")
 
     elif strategy_type == "short_call_spread":
         delta_range = rules.get("short_call_delta_range", [])
@@ -723,15 +766,20 @@ def generate_strategy_candidates(
                     missing_legs += 1
                     continue
                 legs = [make_leg(short_opt, -1, spot), make_leg(long_opt, 1, spot)]
+                desc = f"SC={short_opt.get('strike')} LC={long_strike.matched}"
                 metrics, m_reasons = _metrics("bear call spread", legs)
                 if metrics:
                     if not _passes_risk(metrics):
                         risk_rejected += 1
+                        _log_candidate(desc, strategy_type, metrics, "afgekeurd: R/R te laag")
                         continue
                     proposals.append(StrategyProposal(legs=legs, **metrics))
+                    _log_candidate(desc, strategy_type, metrics, "OK")
                 else:
                     invalid_metrics += 1
                     reasons.update(m_reasons)
+                    reason = ", ".join(m_reasons) if m_reasons else "onbekend"
+                    _log_candidate(desc, strategy_type, None, f"afgekeurd: {reason}")
 
     elif strategy_type == "naked_put":
         delta_range = rules.get("short_put_delta_range", [])
@@ -745,15 +793,20 @@ def generate_strategy_candidates(
                 ):
                     logger.info(f"[naked_put] probeer strike {opt.get('strike')}")
                     leg = make_leg(opt, -1, spot)
+                    desc = f"SP={opt.get('strike')}"
                     metrics, m_reasons = _metrics("naked_put", [leg])
                     if metrics:
                         if not _passes_risk(metrics):
                             risk_rejected += 1
+                            _log_candidate(desc, strategy_type, metrics, "afgekeurd: R/R te laag")
                             continue
                         proposals.append(StrategyProposal(legs=[leg], **metrics))
+                        _log_candidate(desc, strategy_type, metrics, "OK")
                     else:
                         invalid_metrics += 1
                         reasons.update(m_reasons)
+                        reason = ", ".join(m_reasons) if m_reasons else "onbekend"
+                        _log_candidate(desc, strategy_type, None, f"afgekeurd: {reason}")
                     if len(proposals) >= 5:
                         break
 
@@ -810,15 +863,20 @@ def generate_strategy_candidates(
                     missing_legs += 1
                     continue
                 legs = [make_leg(short_opt, -1, spot), make_leg(long_opt, 1, spot)]
+                desc = f"strike={nearest} near={near} far={far}"
                 metrics, m_reasons = _metrics("calendar", legs)
                 if metrics:
                     if not _passes_risk(metrics):
                         risk_rejected += 1
+                        _log_candidate(desc, strategy_type, metrics, "afgekeurd: R/R te laag")
                         continue
                     proposals.append(StrategyProposal(legs=legs, **metrics))
+                    _log_candidate(desc, strategy_type, metrics, "OK")
                 else:
                     invalid_metrics += 1
                     reasons.update(m_reasons)
+                    reason = ", ".join(m_reasons) if m_reasons else "onbekend"
+                    _log_candidate(desc, strategy_type, None, f"afgekeurd: {reason}")
                 if len(proposals) >= 5:
                     break
 
@@ -880,15 +938,22 @@ def generate_strategy_candidates(
                     make_leg(sp_opt, -1, spot),
                     make_leg(lp_opt, 1, spot),
                 ]
+                desc = (
+                    f"SC={sc_strike} SP={sp_strike} LC={lc_strike} LP={lp_strike}"
+                )
                 metrics, m_reasons = _metrics("atm_iron_butterfly", legs)
                 if metrics:
                     if not _passes_risk(metrics):
                         risk_rejected += 1
+                        _log_candidate(desc, strategy_type, metrics, "afgekeurd: R/R te laag")
                         continue
                     proposals.append(StrategyProposal(legs=legs, **metrics))
+                    _log_candidate(desc, strategy_type, metrics, "OK")
                 else:
                     invalid_metrics += 1
                     reasons.update(m_reasons)
+                    reason = ", ".join(m_reasons) if m_reasons else "onbekend"
+                    _log_candidate(desc, strategy_type, None, f"afgekeurd: {reason}")
                 if len(proposals) >= 5:
                     break
 
@@ -933,20 +998,26 @@ def generate_strategy_candidates(
                     missing_legs += 1
                     continue
                 legs = [make_leg(short_opt, -1, spot), make_leg(long_opt, 2, spot)]
+                desc = f"SC={short_opt.get('strike')} LC={long_strike.matched}"
                 metrics, m_reasons = _metrics("ratio_spread", legs)
                 if metrics:
                     if not _passes_risk(metrics):
                         risk_rejected += 1
+                        _log_candidate(desc, strategy_type, metrics, "afgekeurd: R/R te laag")
                         continue
                     if _validate_ratio(
                         "ratio_spread", legs, metrics.get("credit", 0.0)
                     ):
                         proposals.append(StrategyProposal(legs=legs, **metrics))
+                        _log_candidate(desc, strategy_type, metrics, "OK")
                     else:
                         invalid_ratio += 1
+                        _log_candidate(desc, strategy_type, metrics, "afgekeurd: verhouding ongeldig")
                 else:
                     invalid_metrics += 1
                     reasons.update(m_reasons)
+                    reason = ", ".join(m_reasons) if m_reasons else "onbekend"
+                    _log_candidate(desc, strategy_type, None, f"afgekeurd: {reason}")
 
     elif strategy_type == "backspread_put":
         delta_range = rules.get("short_put_delta_range", [])
@@ -992,24 +1063,39 @@ def generate_strategy_candidates(
                     missing_legs += 1
                     continue
                 legs = [make_leg(short_opt, -1, spot), make_leg(long_opt, 2, spot)]
+                desc = f"near={near} far={far} SP={short_opt.get('strike')} LP={long_strike.matched}"
                 metrics, m_reasons = _metrics("backspread_put", legs)
                 if metrics:
                     if not _passes_risk(metrics):
                         risk_rejected += 1
+                        _log_candidate(desc, strategy_type, metrics, "afgekeurd: R/R te laag")
                         continue
                     if _validate_ratio(
                         "backspread_put", legs, metrics.get("credit", 0.0)
                     ):
                         proposals.append(StrategyProposal(legs=legs, **metrics))
+                        _log_candidate(desc, strategy_type, metrics, "OK")
                     else:
                         invalid_ratio += 1
+                        _log_candidate(desc, strategy_type, metrics, "afgekeurd: verhouding ongeldig")
                 else:
                     invalid_metrics += 1
                     reasons.update(m_reasons)
+                    reason = ", ".join(m_reasons) if m_reasons else "onbekend"
+                    _log_candidate(desc, strategy_type, None, f"afgekeurd: {reason}")
 
     proposals.sort(key=lambda p: p.score or 0, reverse=True)
     if proposals:
         return proposals[:5], []
+
+    if best_candidate:
+        ev_val = best_candidate.get("ev")
+        rr_val = best_candidate.get("rr")
+        desc = f"{best_candidate['strategy']} {best_candidate['desc']}"
+        reason = best_candidate.get("reason", "onbekend")
+        logger.info(
+            f"[fallback] Beste combinatie was {desc} met EV={ev_val} en R/R={rr_val} — afgewezen vanwege {reason}"
+        )
 
     if skipped_mid:
         reasons.add(f"{len(skipped_mid)} legs overgeslagen door ontbrekende midprijs")
