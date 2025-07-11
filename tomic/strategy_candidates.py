@@ -496,7 +496,7 @@ def generate_strategy_candidates(
         if mid is None:
             right = normalize_right(opt.get("type") or opt.get("right"))
             logger.info(
-                f"[make_leg] Geen mid voor {opt.get('strike')}{right[0].upper() if right else ''} — geen bid/ask, geen close, geen handmatige invoer"
+                f"[make_leg] Geen mid beschikbaar voor {opt.get('strike')}{right[0].upper() if right else ''} — leg wordt overgeslagen"
             )
         leg = {
             "expiry": opt.get("expiry"),
@@ -583,6 +583,8 @@ def generate_strategy_candidates(
                     "strategy": strategy,
                     "ev": ev_val,
                     "rr": rr,
+                    "reward": reward,
+                    "risk": risk,
                     "score": score if score is not None else 0,
                     "reason": status.replace("afgekeurd: ", ""),
                 }
@@ -961,6 +963,21 @@ def generate_strategy_candidates(
         delta_range = rules.get("short_leg_delta_range", [])
         widths = rules.get("long_leg_distance_points", [])
         if len(delta_range) == 2:
+            calls_pre = [
+                opt
+                for opt in option_chain
+                if str(opt.get("expiry")) == expiry
+                and (opt.get("type") or opt.get("right")) == "C"
+                and opt.get("delta") is not None
+                and delta_range[0] <= float(opt.get("delta")) <= delta_range[1]
+                and get_option_mid_price(opt) is not None
+            ]
+            call_strikes = {float(o.get("strike")) for o in calls_pre}
+            if len(call_strikes) < 2:
+                logger.info(
+                    f"[ratio_spread] Te weinig geldige calls ({len(call_strikes)}) voor expiry {expiry} — combinatie overgeslagen"
+                )
+                reasons.add("Te weinig geldige calls")
             for width in widths[:5]:
                 num_pairs_tested += 1
                 short_opt = None
@@ -1001,6 +1018,15 @@ def generate_strategy_candidates(
                 desc = f"SC={short_opt.get('strike')} LC={long_strike.matched}"
                 metrics, m_reasons = _metrics("ratio_spread", legs)
                 if metrics:
+                    reward_val = metrics.get("max_profit")
+                    risk_val = abs(metrics.get("max_loss") or 0)
+                    ev_val = metrics.get("ev")
+                    if reward_val is not None and reward_val <= 0:
+                        _log_candidate(desc, strategy_type, metrics, "afgekeurd: reward ≤ 0")
+                        continue
+                    if ev_val is not None and ev_val <= 0:
+                        _log_candidate(desc, strategy_type, metrics, "afgekeurd: EV ≤ 0")
+                        continue
                     if not _passes_risk(metrics):
                         risk_rejected += 1
                         _log_candidate(desc, strategy_type, metrics, "afgekeurd: R/R te laag")
@@ -1091,10 +1117,12 @@ def generate_strategy_candidates(
     if best_candidate:
         ev_val = best_candidate.get("ev")
         rr_val = best_candidate.get("rr")
+        reward_val = best_candidate.get("reward")
+        risk_val = best_candidate.get("risk")
         desc = f"{best_candidate['strategy']} {best_candidate['desc']}"
         reason = best_candidate.get("reason", "onbekend")
         logger.info(
-            f"[fallback] Beste combinatie was {desc} met EV={ev_val} en R/R={rr_val} — afgewezen vanwege {reason}"
+            f"[fallback] Beste combinatie was {desc} met reward={reward_val} risk={risk_val}, EV={ev_val} en R/R={rr_val} — afgewezen vanwege {reason}"
         )
 
     if skipped_mid:
