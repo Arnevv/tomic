@@ -6,7 +6,7 @@ import sys
 
 from tomic.config import get as cfg_get
 from functools import wraps
-from typing import Any, Callable, TypeVar
+from typing import Any, Callable, Optional, TypeVar
 
 
 def _format_result(result: Any, max_length: int = 200) -> str:
@@ -142,4 +142,37 @@ def trace_calls(func: Callable[..., T]) -> Callable[..., T]:
             sys.setprofile(old_profiler)
 
     return wrapper
+
+
+def log_combo_evaluation(
+    strategy: str,
+    desc: str,
+    metrics: Optional[dict],
+    result: str,
+    reason: str,
+    extra: dict | None = None,
+) -> None:
+    """Log a strategy combination evaluation on INFO level."""
+
+    pos = metrics.get("pos") if metrics else None
+    reward = metrics.get("max_profit") if metrics else None
+    max_loss = metrics.get("max_loss") if metrics else None
+    ev = metrics.get("ev") if metrics else None
+    rr = None
+    try:
+        rr = reward / abs(max_loss) if reward is not None and max_loss else None
+    except Exception:
+        rr = None
+
+    pos_str = f"{round(pos, 1)}%" if isinstance(pos, (float, int)) else "n/a"
+    rr_str = f"{round(rr, 2)}" if isinstance(rr, (float, int)) else "n/a"
+    ev_str = f"{round(ev, 4)}" if isinstance(ev, (float, int)) else "n/a"
+
+    extra_str = ""
+    if extra:
+        extra_str = " | " + " | ".join(f"{k}={v}" for k, v in extra.items())
+
+    logger.info(
+        f"[{strategy}] {desc} — PoS {pos_str}, RR {rr_str}, EV {ev_str} — {result.upper()} ({reason}){extra_str}"
+    )
 
