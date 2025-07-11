@@ -25,7 +25,7 @@ from .utils import (
     normalize_right,
     prompt_user_for_price,
 )
-from .logutils import logger
+from .logutils import logger, log_combo_evaluation
 from .config import get as cfg_get
 
 
@@ -576,6 +576,12 @@ def generate_strategy_candidates(
             msg += f" | reward={reward}, risk={risk}, EV={ev_val}"
         msg += f" | {status}"
         logger.info(msg)
+        result = "accepted"
+        reason = status
+        if status.startswith("afgekeurd"):
+            result = "rejected"
+            reason = status.replace("afgekeurd: ", "")
+        log_combo_evaluation(strategy, desc, metrics, result, reason)
         if metrics:
             if best_candidate is None or (score is not None and score > best_candidate.get("score", float("-inf"))):
                 best_candidate = {
@@ -1113,6 +1119,10 @@ def generate_strategy_candidates(
     proposals.sort(key=lambda p: p.score or 0, reverse=True)
     if proposals:
         return proposals[:5], []
+
+    logger.info(
+        f"[{strategy_type}] Geen geldige combinaties over. Evaluaties gelogd op info-niveau."
+    )
 
     if best_candidate:
         ev_val = best_candidate.get("ev")
