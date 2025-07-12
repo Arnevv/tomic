@@ -3526,5 +3526,12 @@
     "close": 95.15,
     "volume": 6916235.0,
     "atr": null
+  },
+  {
+    "symbol": "SBUX",
+    "date": "2025-07-11",
+    "close": 94.94,
+    "volume": 6339762.0,
+    "atr": null
   }
 ]
