@@ -969,16 +969,34 @@ def generate_strategy_candidates(
         delta_range = rules.get("short_leg_delta_range", [])
         widths = rules.get("long_leg_distance_points", [])
         if len(delta_range) == 2:
-            calls_pre = [
-                opt
-                for opt in option_chain
-                if str(opt.get("expiry")) == expiry
-                and (opt.get("type") or opt.get("right")) == "C"
-                and opt.get("delta") is not None
-                and delta_range[0] <= float(opt.get("delta")) <= delta_range[1]
-                and get_option_mid_price(opt) is not None
-            ]
+            calls_pre = []
+            for opt in option_chain:
+                if str(opt.get("expiry")) != expiry:
+                    continue
+                if (opt.get("type") or opt.get("right")) != "C":
+                    continue
+                delta = opt.get("delta")
+                mid = get_option_mid_price(opt)
+                strike = opt.get("strike")
+                if delta is None or not (delta_range[0] <= float(delta) <= delta_range[1]):
+                    logger.info(
+                        f"[ratio_spread] strike {strike}: delta {delta} buiten bereik"
+                    )
+                    continue
+                try:
+                    mid_val = float(mid) if mid is not None else math.nan
+                except Exception:
+                    mid_val = math.nan
+                if math.isnan(mid_val):
+                    logger.info(
+                        f"[ratio_spread] strike {strike}: mid ontbreekt of ongeldig"
+                    )
+                    continue
+                calls_pre.append(opt)
             call_strikes = {float(o.get("strike")) for o in calls_pre}
+            logger.info(
+                f"[ratio_spread] Geldige strikes voor expiry {expiry}: {sorted(call_strikes)}"
+            )
             if len(call_strikes) < 2:
                 logger.info(
                     f"[ratio_spread] Te weinig geldige calls ({len(call_strikes)}) voor expiry {expiry} — combinatie overgeslagen"
