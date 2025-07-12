@@ -116,12 +116,36 @@ def calculate_margin(
 
     strat = strategy.lower()
 
-    if strat in {"bull put spread", "bear call spread", "vertical spread"}:
+    if strat == "bull put spread":
         if len(legs) != 2:
             raise ValueError("Spread requires two legs")
-        strikes = [float(legs[0].get("strike")), float(legs[1].get("strike"))]
-        width = abs(strikes[0] - strikes[1])
+        shorts = [l for l in legs if _option_direction(l) < 0]
+        longs = [l for l in legs if _option_direction(l) > 0]
+        if not shorts or not longs:
+            raise ValueError("Invalid bull put spread structure")
+        short_strike = float(shorts[0].get("strike"))
+        long_strike = float(longs[0].get("strike"))
+        width = short_strike - long_strike
         return max(width * 100 - net_cashflow * 100, 0.0)
+
+    if strat == "bear call spread":
+        if len(legs) != 2:
+            raise ValueError("Spread requires two legs")
+        shorts = [l for l in legs if _option_direction(l) < 0]
+        longs = [l for l in legs if _option_direction(l) > 0]
+        if not shorts or not longs:
+            raise ValueError("Invalid bear call spread structure")
+        short_strike = float(shorts[0].get("strike"))
+        long_strike = float(longs[0].get("strike"))
+        width = long_strike - short_strike
+        return max(width * 100 - net_cashflow * 100, 0.0)
+
+    if strat == "naked_put":
+        if len(legs) != 1:
+            raise ValueError("naked_put requires one leg")
+        short = legs[0]
+        strike = float(short.get("strike"))
+        return max(strike * 100 - net_cashflow * 100, 0.0)
 
     if strat in {"iron_condor", "atm_iron_butterfly"}:
         if len(legs) != 4:
