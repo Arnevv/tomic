@@ -91,3 +91,13 @@ def test_prompt_user_for_price_decline(monkeypatch):
     assert price is None
 
 
+def test_get_option_mid_price_nan_bid_ask():
+    option = {"bid": "NaN", "ask": "nan", "close": None}
+    assert utils.get_option_mid_price(option) is None
+
+
+def test_get_option_mid_price_nan_close():
+    option = {"bid": None, "ask": None, "close": "NaN"}
+    assert utils.get_option_mid_price(option) is None
+
+
