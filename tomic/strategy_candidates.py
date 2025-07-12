@@ -258,7 +258,7 @@ def _metrics(
         if not leg.get("delta"):
             missing.append("delta")
         if missing:
-            logger.debug(
+            logger.info(
                 f"[leg-missing] {leg['type']} {leg['strike']} {leg['expiry']}: {', '.join(missing)}"
             )
             missing_fields = True
