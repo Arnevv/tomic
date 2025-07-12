@@ -29,6 +29,16 @@ from .logutils import logger, log_combo_evaluation
 from .config import get as cfg_get
 
 
+# Strategies that must yield a positive net credit. Calendar spreads are
+# intentionally omitted because they are debit strategies.
+STRATEGIES_THAT_REQUIRE_POSITIVE_CREDIT = {
+    "bull put spread",
+    "bear call spread",
+    "iron_condor",
+    "atm_iron_butterfly",
+}
+
+
 @dataclass
 class StrategyProposal:
     """Container for a generated option strategy."""
@@ -327,7 +337,7 @@ def _metrics(
         reasons.append("fallback naar close gebruikt voor midprijs")
     net_credit = credit_short - debit_long
     strikes = "/".join(str(l.get("strike")) for l in legs)
-    if strategy not in {"ratio_spread", "backspread_put"} and net_credit <= 0:
+    if strategy in STRATEGIES_THAT_REQUIRE_POSITIVE_CREDIT and net_credit <= 0:
         reasons.append("negatieve credit")
         return None, reasons
 
