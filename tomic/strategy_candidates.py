@@ -304,9 +304,9 @@ def _metrics(
     edge_avg = round(sum(short_edges) / len(short_edges), 2) if short_edges else None
 
     reasons: list[str] = []
-    credit_short = 0.0
-    debit_long = 0.0
     missing_mid: List[str] = []
+    credits: List[float] = []
+    debits: List[float] = []
     for leg in legs:
         mid = leg.get("mid")
         try:
@@ -324,10 +324,13 @@ def _metrics(
                 or 1
             )
         )
-        if leg.get("position", 0) < 0:
-            credit_short += mid_val * qty
-        else:
-            debit_long += mid_val * qty
+        pos = float(leg.get("position") or 0)
+        if pos < 0:
+            credits.append(mid_val * qty)
+        elif pos > 0:
+            debits.append(mid_val * qty)
+    credit_short = sum(credits)
+    debit_long = sum(debits)
     if missing_mid:
         logger.info(
             f"[{strategy}] Ontbrekende bid/ask-data voor strikes {','.join(missing_mid)}"
@@ -341,14 +344,14 @@ def _metrics(
         reasons.append("negatieve credit")
         return None, reasons
 
-    risk = heuristic_risk_metrics(legs, (debit_long - credit_short) * 100)
+    cost_basis = -net_credit * 100
+    risk = heuristic_risk_metrics(legs, cost_basis)
     margin = None
-    net_cashflow = (debit_long - credit_short) * 100
     try:
         margin = calculate_margin(
             strategy,
             legs,
-            net_cashflow=net_cashflow,
+            net_cashflow=net_credit,
         )
     except Exception:
         margin = None
@@ -360,7 +363,11 @@ def _metrics(
 
     max_profit = risk.get("max_profit")
     max_loss = risk.get("max_loss")
-    if strategy in {"ratio_spread", "backspread_put"}:
+    if strategy == "naked_put":
+        max_profit = net_credit * 100
+        max_loss = -margin
+    elif strategy in {"ratio_spread", "backspread_put"}:
+        max_profit = net_credit * 100
         max_loss = -margin
     rom = (
         calculate_rom(max_profit, margin) if max_profit is not None and margin else None
