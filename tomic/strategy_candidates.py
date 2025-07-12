@@ -306,10 +306,18 @@ def _metrics(
         if math.isnan(mid_val):
             missing_mid.append(str(leg.get("strike")))
             continue
+        qty = abs(
+            float(
+                leg.get("qty")
+                or leg.get("quantity")
+                or leg.get("position")
+                or 1
+            )
+        )
         if leg.get("position", 0) < 0:
-            credit_short += mid_val
+            credit_short += mid_val * qty
         else:
-            debit_long += mid_val
+            debit_long += mid_val * qty
     if missing_mid:
         logger.info(
             f"[{strategy}] Ontbrekende bid/ask-data voor strikes {','.join(missing_mid)}"
@@ -325,7 +333,7 @@ def _metrics(
 
     risk = heuristic_risk_metrics(legs, (debit_long - credit_short) * 100)
     margin = None
-    net_cashflow = net_credit
+    net_cashflow = (debit_long - credit_short) * 100
     try:
         margin = calculate_margin(
             strategy,
@@ -342,6 +350,8 @@ def _metrics(
 
     max_profit = risk.get("max_profit")
     max_loss = risk.get("max_loss")
+    if strategy in {"ratio_spread", "backspread_put"}:
+        max_loss = -margin
     rom = (
         calculate_rom(max_profit, margin) if max_profit is not None and margin else None
     )
