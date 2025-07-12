@@ -87,12 +87,14 @@ def _breakevens(
         short_put = [
             l
             for l in legs
-            if l.get("position") < 0 and (l.get("type") or l.get("right")) == "P"
+            if l.get("position") < 0
+            and normalize_right(l.get("type") or l.get("right")) == "put"
         ]
         short_call = [
             l
             for l in legs
-            if l.get("position") < 0 and (l.get("type") or l.get("right")) == "C"
+            if l.get("position") < 0
+            and normalize_right(l.get("type") or l.get("right")) == "call"
         ]
         if short_put and short_call:
             sp = float(short_put[0].get("strike"))
@@ -973,7 +975,7 @@ def generate_strategy_candidates(
             for opt in option_chain:
                 if str(opt.get("expiry")) != expiry:
                     continue
-                if (opt.get("type") or opt.get("right")) != "C":
+                if normalize_right(opt.get("type") or opt.get("right")) != "call":
                     continue
                 delta = opt.get("delta")
                 mid = get_option_mid_price(opt)
@@ -1008,7 +1010,7 @@ def generate_strategy_candidates(
                 for opt in option_chain:
                     if (
                         str(opt.get("expiry")) == expiry
-                        and (opt.get("type") or opt.get("right")) == "C"
+                        and normalize_right(opt.get("type") or opt.get("right")) == "call"
                         and opt.get("delta") is not None
                         and delta_range[0] <= float(opt.get("delta")) <= delta_range[1]
                     ):
