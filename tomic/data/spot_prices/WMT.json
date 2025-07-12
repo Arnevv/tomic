@@ -3526,5 +3526,12 @@
     "close": 94.86,
     "volume": 18894787.0,
     "atr": null
+  },
+  {
+    "symbol": "WMT",
+    "date": "2025-07-11",
+    "close": 94.4,
+    "volume": 14595047.0,
+    "atr": null
   }
 ]
