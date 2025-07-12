@@ -31,8 +31,16 @@ def calculate_credit(legs: Iterable[dict]) -> float:
             price = float(leg.get("mid", 0) or 0)
         except Exception:
             continue
+        qty = abs(
+            float(
+                leg.get("qty")
+                or leg.get("quantity")
+                or leg.get("position")
+                or 1
+            )
+        )
         direction = 1 if leg.get("position", 0) > 0 else -1
-        credit -= direction * price
+        credit -= direction * price * qty
     return credit * 100
 
 
@@ -80,9 +88,9 @@ def _max_loss(
             right = normalize_right(leg.get("type") or leg.get("right"))
             strike = float(leg.get("strike"))
             if right == "call":
-                total += direction * qty * max(price - strike, 0)
+                total += direction * qty * max(price - strike, 0) * 100
             else:
-                total += direction * qty * max(strike - price, 0)
+                total += direction * qty * max(strike - price, 0) * 100
         return total
 
     slope_high = sum(
