@@ -367,7 +367,10 @@ def _metrics(
         max_profit = net_credit * 100
         max_loss = -margin
     elif strategy in {"ratio_spread", "backspread_put"}:
-        max_profit = net_credit * 100
+        max_profit = None
+        max_loss = -margin
+    elif strategy == "calendar":
+        max_profit = None
         max_loss = -margin
     rom = (
         calculate_rom(max_profit, margin) if max_profit is not None and margin else None
@@ -392,6 +395,13 @@ def _metrics(
         score += ev * ev_w
 
     breakevens = _breakevens(strategy, legs, net_credit * 100)
+
+    if (ev is not None and ev <= 0) or score < 0:
+        reasons.append("negatieve EV of score")
+        logger.info(
+            f"[❌ voorstel afgewezen] {strategy} — reason: EV/score te laag"
+        )
+        return None, reasons
 
     result = {
         "pos": pos_val,

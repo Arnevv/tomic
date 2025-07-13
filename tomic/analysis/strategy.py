@@ -198,6 +198,17 @@ def heuristic_risk_metrics(
             width = abs(strikes[0] - strikes[1]) * 100
             credit = -cost_basis if cost_basis < 0 else 0
             debit = cost_basis if cost_basis > 0 else 0
+
+            if width == 0:
+                # Calendar spread – profit potential depends on volatility and
+                # cannot be capped realistically. Treat max profit as
+                # undefined and max loss as the paid debit.
+                return {
+                    "max_profit": None,
+                    "max_loss": -debit,
+                    "risk_reward": None,
+                }
+
             if credit:
                 max_profit = credit
                 max_loss = width - credit
