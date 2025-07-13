@@ -32,9 +32,11 @@ def test_dataexporter_menu_invokes_new_scripts(monkeypatch):
     monkeypatch.setattr(mod, "run_module", lambda name, *a: called.append(name))
     # intercept polygon API call
     polygon_called = []
+    import tomic.cli.services as services
     monkeypatch.setattr(
-        "tomic.providers.polygon_iv.fetch_polygon_option_chain",
-        lambda symbol: polygon_called.append(symbol),
+        services,
+        "fetch_polygon_chain",
+        lambda symbol: polygon_called.append(symbol) or None,
     )
     inputs = iter(["1", "AAA", "2", "BBB", "8"])
     monkeypatch.setattr("builtins.input", lambda *a: next(inputs))
