@@ -172,7 +172,7 @@ def _nearest_strike(
     right: str,
     target: float,
     *,
-    tolerance_percent: float = 1.0,
+    tolerance_percent: float = 2.0,
 ) -> StrikeMatch:
     """Return closest strike information for ``target``.
 

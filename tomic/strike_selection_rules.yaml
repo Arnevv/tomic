@@ -75,8 +75,8 @@ strategies:
     term_structure_required: contango
     #min_edge: 0.04
     direction: volatility_play
-    dte_range: [20, 50]
-    min_expiry_gap: 20
+    dte_range: [19, 75]
+    min_expiry_gap: 13
     max_skew: 0.1
     strike_to_strategy_config:
       base_strikes_relative_to_spot: [ -5, -2.5, 0, 2.5, 5 ]
