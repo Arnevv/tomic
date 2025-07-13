@@ -423,14 +423,19 @@ def _metrics(
 def _validate_ratio(strategy: str, legs: List[Dict[str, Any]], credit: float) -> bool:
     shorts = [l for l in legs if l.get("position", 0) < 0]
     longs = [l for l in legs if l.get("position", 0) > 0]
-    if not (len(shorts) == 1 and len(longs) == 2):
+
+    short_qty = sum(abs(float(l.get("position", 0))) for l in shorts)
+    long_qty = sum(float(l.get("position", 0)) for l in longs)
+
+    if not (len(shorts) == 1 and short_qty == 1 and long_qty == 2):
         logger.info(
-            f"[{strategy}] Verhouding klopt niet: gevonden {len(shorts)} short en {len(longs)} long"
+            f"[{strategy}] Verhouding klopt niet: {len(shorts)} short (qty {short_qty}) en {len(longs)} long (qty {long_qty})"
         )
         return False
     if credit <= 0:
         logger.info(f"[{strategy}] Credit niet positief: {credit}")
         return False
+
     short_strike = float(shorts[0].get("strike", 0))
     long_strikes = [float(l.get("strike", 0)) for l in longs]
     if strategy == "ratio_spread" and not all(ls > short_strike for ls in long_strikes):
