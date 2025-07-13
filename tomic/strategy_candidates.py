@@ -177,7 +177,7 @@ def _nearest_strike(
     right: str,
     target: float,
     *,
-    tolerance_percent: float = 2.0,
+    tolerance_percent: float | None = None,
 ) -> StrikeMatch:
     """Return closest strike information for ``target``.
 
@@ -192,6 +192,9 @@ def _nearest_strike(
             f"[nearest_strike] geen strikes voor expiry {expiry} (type={right})"
         )
         return StrikeMatch(target)
+
+    if tolerance_percent is None:
+        tolerance_percent = float(cfg_get("NEAREST_STRIKE_TOLERANCE_PERCENT", 2.0))
 
     nearest = min(strikes, key=lambda s: abs(s - target))
     diff = abs(nearest - target)
