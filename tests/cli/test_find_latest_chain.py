@@ -12,7 +12,7 @@ def _patch_export_dir(mod, path: Path, monkeypatch):
 
 
 def test_find_latest_chain_found(tmp_path, monkeypatch):
-    mod = importlib.import_module("tomic.cli.controlpanel")
+    mod = importlib.import_module("tomic.cli.services")
     _patch_export_dir(mod, tmp_path, monkeypatch)
 
     d1 = tmp_path / "20240101"
@@ -30,14 +30,14 @@ def test_find_latest_chain_found(tmp_path, monkeypatch):
 
 
 def test_find_latest_chain_none(tmp_path, monkeypatch):
-    mod = importlib.import_module("tomic.cli.controlpanel")
+    mod = importlib.import_module("tomic.cli.services")
     _patch_export_dir(mod, tmp_path, monkeypatch)
 
     assert mod.find_latest_chain("AAA") is None
 
 
 def test_find_latest_chain_no_base(monkeypatch, tmp_path):
-    mod = importlib.import_module("tomic.cli.controlpanel")
+    mod = importlib.import_module("tomic.cli.services")
     nonexist = tmp_path / "missing"
     _patch_export_dir(mod, nonexist, monkeypatch)
 
@@ -45,7 +45,7 @@ def test_find_latest_chain_no_base(monkeypatch, tmp_path):
 
 
 def test_find_latest_chain_case_insensitive(tmp_path, monkeypatch):
-    mod = importlib.import_module("tomic.cli.controlpanel")
+    mod = importlib.import_module("tomic.cli.services")
     _patch_export_dir(mod, tmp_path, monkeypatch)
 
     d = tmp_path / "d"

@@ -57,8 +57,8 @@ from tomic.analysis.greeks import compute_portfolio_greeks
 from tomic.journal.utils import load_json
 from tomic.utils import today
 from tomic.cli.volatility_recommender import recommend_strategy, recommend_strategies
-from tomic.api.market_export import load_exported_chain, export_option_chain
-from tomic.providers.polygon_iv import fetch_polygon_option_chain
+from tomic.api.market_export import load_exported_chain
+from tomic.cli import services
 from tomic.helpers.price_utils import _load_latest_close
 from tomic.strike_selector import StrikeSelector, filter_by_expiry, FilterConfig
 from tomic.loader import load_strike_config
@@ -89,31 +89,6 @@ STRATEGY_DASHBOARD_MODULE = "tomic.cli.strategy_dashboard"
 SESSION_STATE: dict[str, object] = {"evaluated_trades": []}
 
 
-def _latest_export_dir(base: Path) -> Path | None:
-    """Return newest subdirectory inside ``base`` or ``None`` if none exist."""
-    if not base.exists():
-        return None
-    subdirs = [d for d in base.iterdir() if d.is_dir()]
-    if not subdirs:
-        return None
-    return max(subdirs, key=lambda d: d.stat().st_mtime)
-
-
-def find_latest_chain(symbol: str) -> Path | None:
-    """Return the most recent option chain CSV for ``symbol``.
-
-    Searches all dated subdirectories of ``EXPORT_DIR`` for files matching
-    ``option_chain_{symbol}_*.csv`` and returns the newest match.
-    """
-    base = Path(cfg.get("EXPORT_DIR", "exports"))
-    if not base.exists():
-        return None
-
-    pattern = f"option_chain_{symbol.upper()}_*.csv"
-    chains = list(base.rglob(pattern))
-    if not chains:
-        return None
-    return max(chains, key=lambda p: p.stat().st_mtime)
 
 
 def _load_spot_from_metrics(directory: Path, symbol: str) -> float | None:
@@ -286,26 +261,16 @@ def run_dataexporter() -> None:
             print("❌ Geen symbool opgegeven")
             return
 
-        from tomic.providers.polygon_iv import fetch_polygon_option_chain
-
         try:
-            fetch_polygon_option_chain(symbol)
+            path = services.fetch_polygon_chain(symbol)
         except Exception as exc:
             print(f"❌ Ophalen van optionchain mislukt: {exc}")
             return
 
-        base = Path(cfg.get("EXPORT_DIR", "exports"))
-        date_dir = base / datetime.now().strftime("%Y%m%d")
-        pattern = f"{symbol}_*-optionchainpolygon.csv"
-        try:
-            files = list(date_dir.glob(pattern)) if date_dir.exists() else []
-            latest = max(files, key=lambda f: f.stat().st_mtime) if files else None
-        except Exception:
-            latest = None
-
-        if latest:
-            print(f"✅ Option chain opgeslagen in: {latest.resolve()}")
+        if path:
+            print(f"✅ Option chain opgeslagen in: {path.resolve()}")
         else:
+            date_dir = Path(cfg.get("EXPORT_DIR", "exports")) / datetime.now().strftime("%Y%m%d")
             print(f"⚠️ Geen exportbestand gevonden in {date_dir.resolve()}")
 
     def polygon_metrics() -> None:
@@ -334,25 +299,13 @@ def run_dataexporter() -> None:
             return
 
         try:
-            subprocess.run(["git", "status", "--short"], check=True)
-            result = subprocess.run(
-                ["git", "status", "--porcelain"],
-                capture_output=True,
-                text=True,
-                check=True,
+            changed = services.git_commit(
+                "Update price history",
+                Path("tomic/data/spot_prices"),
+                Path("tomic/data/iv_daily_summary"),
+                Path("tomic/data/historical_volatility"),
             )
-            if result.stdout.strip():
-                files = []
-                files.extend(Path("tomic/data/spot_prices").glob("*.json"))
-                files.extend(Path("tomic/data/iv_daily_summary").glob("*.json"))
-                files.extend(Path("tomic/data/historical_volatility").glob("*.json"))
-                if files:
-                    subprocess.run(["git", "add", *[str(f) for f in files]], check=True)
-                    subprocess.run(
-                        ["git", "commit", "-m", "Update price history"], check=True
-                    )
-                    subprocess.run(["git", "push"], check=True)
-            else:
+            if not changed:
                 print("No changes to commit")
         except subprocess.CalledProcessError:
             print("❌ Git-commando mislukt")
@@ -366,22 +319,10 @@ def run_dataexporter() -> None:
             return
 
         try:
-            subprocess.run(["git", "status", "--short"], check=True)
-            result = subprocess.run(
-                ["git", "status", "--porcelain"],
-                capture_output=True,
-                text=True,
-                check=True,
+            changed = services.git_commit(
+                "Update intraday prices", Path("tomic/data/spot_prices")
             )
-            if result.stdout.strip():
-                files = list(Path("tomic/data/spot_prices").glob("*.json"))
-                if files:
-                    subprocess.run(["git", "add", *[str(f) for f in files]], check=True)
-                    subprocess.run(
-                        ["git", "commit", "-m", "Update intraday prices"], check=True
-                    )
-                    subprocess.run(["git", "push"], check=True)
-            else:
+            if not changed:
                 print("No changes to commit")
         except subprocess.CalledProcessError:
             print("❌ Git-commando mislukt")
@@ -1413,22 +1354,17 @@ def run_portfolio_menu() -> None:
             return
 
         def use_ib() -> None:
-            export_option_chain(str(symbol))
-            path = find_latest_chain(str(symbol))
+            path = services.export_chain(str(symbol))
             if not path:
                 print("⚠️ Geen chain gevonden")
                 return
             _process_chain(path)
 
         def use_polygon() -> None:
-            fetch_polygon_option_chain(str(symbol))
-            base = Path(cfg.get("EXPORT_DIR", "exports"))
-            pattern = f"{symbol}_*-optionchainpolygon.csv"
-            files = list(base.rglob(pattern))
-            if not files:
+            path = services.fetch_polygon_chain(str(symbol))
+            if not path:
                 print("⚠️ Geen polygon chain gevonden")
                 return
-            path = max(files, key=lambda p: p.stat().st_mtime)
             _process_chain(path)
 
         def manual() -> None:
