@@ -75,6 +75,7 @@ class AppConfig(BaseModel):
     DELTA_MAX: float = 0.8
     USE_HISTORICAL_IV_WHEN_CLOSED: bool = True
     INCLUDE_GREEKS_ONLY_IF_MARKET_OPEN: bool = True
+    NEAREST_STRIKE_TOLERANCE_PERCENT: float = 2.0
     SCORE_WEIGHT_ROM: float = 0.5
     SCORE_WEIGHT_POS: float = 0.3
     SCORE_WEIGHT_EV: float = 0.2
