@@ -40,12 +40,12 @@ def test_metrics_bull_put_spread():
     assert "negatieve EV of score" in reasons
 
 
-def test_metrics_bear_call_spread():
+def test_metrics_short_call_spread():
     legs = [
         {"type": "C", "strike": 60, "expiry": "2025-08-01", "position": -1, "mid": 1.5, "model": 1.5, "delta": 0.4},
         {"type": "C", "strike": 65, "expiry": "2025-08-01", "position": 1, "mid": 0.5, "model": 0.5, "delta": 0.2},
     ]
-    metrics, reasons = _metrics("bear call spread", legs)
+    metrics, reasons = _metrics("short_call_spread", legs)
     assert metrics is None
     assert "negatieve EV of score" in reasons
 
