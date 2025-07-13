@@ -33,7 +33,7 @@ from .config import get as cfg_get
 # intentionally omitted because they are debit strategies.
 STRATEGIES_THAT_REQUIRE_POSITIVE_CREDIT = {
     "bull put spread",
-    "bear call spread",
+    "short_call_spread",
     "iron_condor",
     "atm_iron_butterfly",
 }
@@ -87,7 +87,7 @@ def _breakevens(
     """Return simple breakeven estimates for supported strategies."""
     if not legs:
         return None
-    if strategy in {"bull put spread", "bear call spread"}:
+    if strategy in {"bull put spread", "short_call_spread"}:
         short = [l for l in legs if l.get("position") < 0][0]
         strike = float(short.get("strike"))
         if strategy == "bull put spread":
