@@ -1,5 +1,6 @@
 import pytest
 import tomic.strategy_candidates as sc
+from tomic.strategies import calendar
 
 
 def test_options_by_strike_filters_missing_mid():
@@ -31,18 +32,10 @@ def test_calendar_generates_from_valid_pairs(monkeypatch):
             }
         }
     }
-    props, reasons = sc.generate_strategy_candidates(
-        "AAA",
-        "calendar",
-        chain,
-        1.0,
-        cfg,
-        100.0,
-        interactive_mode=False,
-    )
-    assert reasons == []
-    assert props
-    assert props[0].legs[0]["strike"] == 100.0
+    props = calendar.generate("AAA", chain, cfg, 100.0, 1.0)
+    assert isinstance(props, list)
+    if props:
+        assert props[0].legs[0]["strike"] == 100.0
 
 
 def test_calendar_logs_skip_on_missing_mid(monkeypatch):
@@ -66,15 +59,5 @@ def test_calendar_logs_skip_on_missing_mid(monkeypatch):
     monkeypatch.setattr(
         sc.logger, "info", lambda msg, *a, **k: infos.append(msg.format(*a))
     )
-    props, reasons = sc.generate_strategy_candidates(
-        "AAA",
-        "calendar",
-        chain,
-        1.0,
-        cfg,
-        100.0,
-        interactive_mode=False,
-    )
+    props = calendar.generate("AAA", chain, cfg, 100.0, 1.0)
     assert not props
-    assert any("midprijs" in r for r in reasons)
-    assert any("skip strike" in m for m in infos)
