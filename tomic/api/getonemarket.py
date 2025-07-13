@@ -18,10 +18,14 @@ def run(
     setup_logging()
     export = _market_export()
     if simple:
-        export.export_option_chain(symbol.strip().upper(), output_dir, simple=True)
+        res = export.export_option_chain(
+            symbol.strip().upper(), output_dir, simple=True, return_status=True
+        )
     else:
-        export.export_market_data(symbol.strip().upper(), output_dir)
-    return True
+        res = export.export_market_data(
+            symbol.strip().upper(), output_dir, return_status=True
+        )
+    return not isinstance(res, export.ExportResult) or res.ok
 
 
 @trace_calls
@@ -34,12 +38,14 @@ async def run_async(
     setup_logging()
     export = _market_export()
     if simple:
-        await export.export_option_chain_async(
-            symbol.strip().upper(), output_dir, simple=True
+        res = await export.export_option_chain_async(
+            symbol.strip().upper(), output_dir, simple=True, return_status=True
         )
     else:
-        await export.export_market_data_async(symbol.strip().upper(), output_dir)
-    return True
+        res = await export.export_market_data_async(
+            symbol.strip().upper(), output_dir, return_status=True
+        )
+    return not isinstance(res, export.ExportResult) or res.ok
 
 
 if __name__ == "__main__":

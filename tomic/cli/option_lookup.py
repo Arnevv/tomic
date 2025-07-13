@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from tomic.logutils import setup_logging
-from tomic.api.market_export import export_option_chain
+from tomic.api.market_export import export_option_chain, ExportResult
 from .common import prompt
 
 
@@ -15,8 +15,11 @@ def run() -> None:
         print("Geen symbool opgegeven")
         return
 
-    export_option_chain(symbol)
-    print(f"✅ Optieketen geëxporteerd voor {symbol}")
+    res = export_option_chain(symbol, return_status=True)
+    if isinstance(res, ExportResult) and not res.ok:
+        print(f"❌ Export mislukt: {res.error}")
+    else:
+        print(f"✅ Optieketen geëxporteerd voor {symbol}")
 
 
 def main(argv: list[str] | None = None) -> None:
@@ -28,8 +31,11 @@ def main(argv: list[str] | None = None) -> None:
         symbol = argv[0]
         output_dir = argv[1] if len(argv) == 2 else None
         setup_logging()
-        export_option_chain(symbol.upper(), output_dir)
-        print(f"✅ Optieketen geëxporteerd voor {symbol.upper()}")
+        res = export_option_chain(symbol.upper(), output_dir, return_status=True)
+        if isinstance(res, ExportResult) and not res.ok:
+            print(f"❌ Export mislukt: {res.error}")
+        else:
+            print(f"✅ Optieketen geëxporteerd voor {symbol.upper()}")
     else:
         run()
 
