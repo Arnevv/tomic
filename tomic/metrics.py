@@ -128,13 +128,13 @@ def calculate_margin(
         width = short_strike - long_strike
         return max(width * 100 - net_cashflow * 100, 0.0)
 
-    if strat == "bear call spread":
+    if strat == "short_call_spread":
         if len(legs) != 2:
             raise ValueError("Spread requires two legs")
         shorts = [l for l in legs if _option_direction(l) < 0]
         longs = [l for l in legs if _option_direction(l) > 0]
         if not shorts or not longs:
-            raise ValueError("Invalid bear call spread structure")
+            raise ValueError("Invalid short_call_spread structure")
         short_strike = float(shorts[0].get("strike"))
         long_strike = float(longs[0].get("strike"))
         width = long_strike - short_strike
