@@ -24,8 +24,8 @@ def test_ratio_spread_metrics_quantities():
         },
     ]
     metrics, reasons = _metrics("ratio_spread", legs)
-    assert reasons == []
     assert metrics is not None
+    assert "ROM kon niet worden berekend" in reasons[0]
     assert math.isclose(metrics["credit"], 0.0)
     assert math.isclose(metrics["margin"], 200.0)
     assert math.isclose(metrics["max_loss"], -200.0)

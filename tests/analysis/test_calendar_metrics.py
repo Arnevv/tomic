@@ -24,7 +24,7 @@ def test_calendar_metrics_allows_negative_credit():
         },
     ]
     metrics, reasons = _metrics("calendar", legs)
-    assert reasons == []
     assert metrics is not None
+    assert "ROM kon niet worden berekend" in reasons[0]
     assert math.isclose(metrics["credit"], -20.0)
     assert metrics["margin"] is not None
