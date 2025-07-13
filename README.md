@@ -148,6 +148,10 @@ Extra opties in `config.yaml`:
   markt open is.
 - `IV_TRACKING_DELTAS`: lijst van deltawaarden voor IV-historie (default `[0.25, 0.5]`).
 - `IV_EXPIRY_LOOKAHEAD_DAYS`: doelen voor expiries in dagen (default `[0, 30, 60]`).
+- `NEAREST_STRIKE_TOLERANCE_PERCENT`: toegestane afwijking bij strike matching (default `2.0`).
+- `SCORE_WEIGHT_ROM`: weging voor Return on Margin in strategie-score (default `0.5`).
+- `SCORE_WEIGHT_POS`: weging voor probability of success in strategie-score (default `0.3`).
+- `SCORE_WEIGHT_EV`: weging voor expected value in strategie-score (default `0.2`).
 
 
 Stappenplan Data Ophalen – Technische Documentatie

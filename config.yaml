@@ -150,6 +150,7 @@ PORTFOLIO_META_FILE: tomic/data/portfolio_meta.json
 POSITIONS_FILE: tomic/data/positions.json
 PRICE_HISTORY_DIR: tomic/data/spot_prices
 PRICE_META_FILE: tomic/data/price_meta.json
+NEAREST_STRIKE_TOLERANCE_PERCENT: 2.0
 SCORE_WEIGHT_EV: 0.2
 SCORE_WEIGHT_POS: 0.3
 SCORE_WEIGHT_ROM: 0.5

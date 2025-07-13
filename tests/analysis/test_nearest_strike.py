@@ -21,3 +21,17 @@ def test_nearest_strike_tolerance():
     m = _build_strike_map(chain)
     res = _nearest_strike(m, "20250101", "c", 110, tolerance_percent=5.0)
     assert res.matched is None
+
+
+def test_nearest_strike_uses_config(monkeypatch):
+    chain = [{"expiry": "20250101", "strike": 100, "type": "c"}]
+    m = _build_strike_map(chain)
+
+    def fake_cfg_get(key, default=None):
+        if key == "NEAREST_STRIKE_TOLERANCE_PERCENT":
+            return 5.0
+        return default
+
+    monkeypatch.setattr("tomic.strategy_candidates.cfg_get", fake_cfg_get)
+    res = _nearest_strike(m, "20250101", "c", 104)
+    assert res.matched == 100
