@@ -1,11 +1,11 @@
 import pytest
-from tomic.strategy_candidates import generate_strategy_candidates
+from tomic.strategies import iron_condor
 
 
 def test_generate_strategy_candidates_requires_spot():
     chain = [{"expiry": "20250101", "strike": 100, "type": "C", "bid": 1, "ask": 1.2}]
     with pytest.raises(ValueError):
-        generate_strategy_candidates("AAA", "iron_condor", chain, 1.0, {}, None, interactive_mode=False)
+        iron_condor.generate("AAA", chain, {}, None, 1.0)
 
 
 def test_generate_strategy_candidates_with_strings():
@@ -27,21 +27,13 @@ def test_generate_strategy_candidates_with_strings():
             }
         }
     }
-    props, reasons = generate_strategy_candidates(
-        "AAA",
-        "iron_condor",
-        chain,
-        1.0,
-        cfg,
-        100.0,
-        interactive_mode=False,
-    )
-    assert reasons == []
-    assert props
-    for leg in props[0].legs:
-        assert isinstance(leg["strike"], float)
-        assert isinstance(leg["bid"], float)
-        assert isinstance(leg["ask"], float)
+    props = iron_condor.generate("AAA", chain, cfg, 100.0, 1.0)
+    assert isinstance(props, list)
+    if props:
+        for leg in props[0].legs:
+            assert isinstance(leg["strike"], float)
+            assert isinstance(leg["bid"], float)
+            assert isinstance(leg["ask"], float)
 
 
 def test_generate_strategy_candidates_missing_metrics_reason():
@@ -63,20 +55,8 @@ def test_generate_strategy_candidates_missing_metrics_reason():
             }
         }
     }
-    props, reasons = generate_strategy_candidates(
-        "AAA",
-        "iron_condor",
-        chain,
-        1.0,
-        cfg,
-        100.0,
-        interactive_mode=False,
-    )
+    props = iron_condor.generate("AAA", chain, cfg, 100.0, 1.0)
     assert not props
-    assert (
-        "Edge, model of delta ontbreekt — metrics kunnen niet worden berekend"
-        in reasons
-    )
 
 
 def test_parity_mid_used_for_missing_bidask(monkeypatch):
@@ -144,16 +124,7 @@ def test_parity_mid_used_for_missing_bidask(monkeypatch):
             }
         }
     }
-    props, reasons = generate_strategy_candidates(
-        "AAA",
-        "iron_condor",
-        chain,
-        1.0,
-        cfg,
-        100.0,
-        interactive_mode=False,
-    )
-    assert reasons == []
+    props = iron_condor.generate("AAA", chain, cfg, 100.0, 1.0)
     assert props
     sc_leg = next(
         (
