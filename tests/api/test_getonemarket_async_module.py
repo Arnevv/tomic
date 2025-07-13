@@ -14,6 +14,7 @@ def test_run_async_does_not_connect(monkeypatch):
         return None
 
     export_stub = types.SimpleNamespace(
+        ExportResult=type("ExportResult", (), {}),
         export_market_data_async=fake_market,
         export_option_chain_async=fake_chain,
     )

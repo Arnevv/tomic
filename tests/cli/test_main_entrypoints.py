@@ -263,7 +263,8 @@ def test_journal_inspector_main(monkeypatch):
 
 def test_getonemarket_run(monkeypatch):
     export_stub = types.ModuleType("tomic.api.market_export")
-    export_stub.export_market_data = lambda sym, out=None: sym
+    export_stub.ExportResult = type("ExportResult", (), {})
+    export_stub.export_market_data = lambda sym, out=None, **k: sym
     monkeypatch.setitem(sys.modules, "tomic.api.market_export", export_stub)
     rpc_stub = types.ModuleType("tomic.proto.rpc")
     rpc_stub.submit_task = lambda *a, **k: None
@@ -283,7 +284,8 @@ def test_getonemarket_run(monkeypatch):
 
 def test_getallmarkets_run(monkeypatch):
     export_stub = types.ModuleType("tomic.api.market_export")
-    export_stub.export_market_data = lambda sym, out=None: sym
+    export_stub.ExportResult = type("ExportResult", (), {})
+    export_stub.export_market_data = lambda sym, out=None, **k: sym
     monkeypatch.setitem(sys.modules, "tomic.api.market_export", export_stub)
     mod = importlib.reload(importlib.import_module("tomic.api.getallmarkets"))
     monkeypatch.setattr(mod, "connect_ib", lambda *a, **k: types.SimpleNamespace(disconnect=lambda: None))

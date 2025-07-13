@@ -11,7 +11,7 @@ import pandas as pd
 from tomic.logutils import logger, setup_logging
 from tomic.config import get as cfg_get
 from .ib_connection import connect_ib
-from .market_export import export_market_data
+from .market_export import export_market_data, ExportResult
 
 try:  # pragma: no cover - optional during tests
     from .market_export import export_market_metrics, export_option_chain
@@ -32,23 +32,33 @@ def run(
 
     if fetch_metrics and fetch_chains:
         if client_id is None:
-            return export_market_data(symbol, output_dir)
-        return export_market_data(symbol, output_dir, client_id=client_id)
+            res = export_market_data(symbol, output_dir, return_status=True)
+        else:
+            res = export_market_data(
+                symbol, output_dir, client_id=client_id, return_status=True
+            )
+        return res.value if isinstance(res, ExportResult) and res.ok else None
     if fetch_metrics:
         if export_market_metrics is None:
             logger.error("export_market_metrics not available")
             return None
         if client_id is None:
-            return export_market_metrics(symbol, output_dir)
-        return export_market_metrics(symbol, output_dir, client_id=client_id)
+            res = export_market_metrics(symbol, output_dir, return_status=True)
+        else:
+            res = export_market_metrics(
+                symbol, output_dir, client_id=client_id, return_status=True
+            )
+        return res.value if isinstance(res, ExportResult) and res.ok else None
     if fetch_chains:
         if export_option_chain is None:
             logger.error("export_option_chain not available")
             return None
         if client_id is None:
-            export_option_chain(symbol, output_dir)
+            export_option_chain(symbol, output_dir, return_status=True)
         else:
-            export_option_chain(symbol, output_dir, client_id=client_id)
+            export_option_chain(
+                symbol, output_dir, client_id=client_id, return_status=True
+            )
     return None
 
 
