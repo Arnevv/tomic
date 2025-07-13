@@ -84,15 +84,20 @@ def select_expiry_pairs(expiries: List[str], min_gap: int) -> List[tuple[str, st
 def _breakevens(
     strategy: str, legs: List[Dict[str, Any]], credit: float
 ) -> Optional[List[float]]:
-    """Return simple breakeven estimates for supported strategies."""
+    """Return simple breakeven estimates for supported strategies.
+
+    ``credit`` should be the net credit per contract. Breakevens are offset
+    using the per-share value (``credit / 100``).
+    """
     if not legs:
         return None
+    credit_ps = credit / 100.0
     if strategy in {"bull put spread", "short_call_spread"}:
         short = [l for l in legs if l.get("position") < 0][0]
         strike = float(short.get("strike"))
         if strategy == "bull put spread":
-            return [strike - credit]
-        return [strike + credit]
+            return [strike - credit_ps]
+        return [strike + credit_ps]
     if strategy in {"iron_condor", "atm_iron_butterfly"}:
         short_put = [
             l
@@ -109,11 +114,11 @@ def _breakevens(
         if short_put and short_call:
             sp = float(short_put[0].get("strike"))
             sc = float(short_call[0].get("strike"))
-            return [sp - credit, sc + credit]
+            return [sp - credit_ps, sc + credit_ps]
     if strategy == "naked_put":
         short = legs[0]
         strike = float(short.get("strike"))
-        return [strike - credit]
+        return [strike - credit_ps]
     if strategy == "calendar":
         return [float(legs[0].get("strike"))]
     return None
