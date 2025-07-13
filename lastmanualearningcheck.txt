@@ -6,11 +6,11 @@
 - AMT: 13/7/25
 - AMZN: 13/7/25
 - AXP: 13/7/25
-- BA
-- BAC
-- BMY
-- C
-- CAT
+- BA: 13/7/25
+- BAC: 13/7/25
+- BMY: 13/7/25
+- C: 13/7/25
+- CAT: 13/7/25
 - CL
 - COST
 - CRM
@@ -29,14 +29,14 @@
 - GLD
 - GILD
 - GOOGL
-- GS
+- GS: 13/7/25
 - HAL
 - HD
 - HON
 - IWM
 - INTC
-- JNJ
-- JPM
+- JNJ: 13/7/25
+- JPM: 13/7/25
 - KMB
 - KO
 - KR
@@ -49,7 +49,7 @@
 - MMM
 - MO
 - MRK
-- MS
+- MS: 13/7/25
 - MSFT
 - MU
 - NEE
@@ -59,10 +59,10 @@
 - NVDA
 - ORCL
 - OXY
-- PEP
+- PEP: 13/7/25
 - PFE
 - PG
-- PM
+- PM: 13/7/25
 - PXD
 - QQQ
 - ROST
@@ -82,7 +82,7 @@
 - USO
 - V
 - VLO
-- WFC
+- WFC: 13/7/25
 - WMT
 - XEL
 - XOM
