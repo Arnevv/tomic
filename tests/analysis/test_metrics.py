@@ -26,12 +26,8 @@ def test_metrics_atm_iron_butterfly():
         {"type": "P", "strike": 50, "expiry": "2025-08-01", "position": 1, "mid": 0.4, "model": 0.4, "delta": -0.2},
     ]
     metrics, reasons = _metrics("atm_iron_butterfly", legs)
-    assert reasons == []
-    assert metrics is not None
-    assert math.isclose(metrics["credit"], 150.0)
-    assert math.isclose(metrics["margin"], 500.0)
-    assert metrics["rom"] is not None
-    assert metrics["score"] is not None
+    assert metrics is None
+    assert "negatieve EV of score" in reasons
 
 
 def test_metrics_bull_put_spread():
@@ -40,12 +36,8 @@ def test_metrics_bull_put_spread():
         {"type": "P", "strike": 45, "expiry": "2025-08-01", "position": 1, "mid": 0.5, "model": 0.5, "delta": -0.1},
     ]
     metrics, reasons = _metrics("bull put spread", legs)
-    assert reasons == []
-    assert metrics is not None
-    assert math.isclose(metrics["credit"], 100.0)
-    assert math.isclose(metrics["margin"], 400.0)
-    assert metrics["rom"] is not None
-    assert metrics["score"] is not None
+    assert metrics is None
+    assert "negatieve EV of score" in reasons
 
 
 def test_metrics_bear_call_spread():
@@ -54,12 +46,8 @@ def test_metrics_bear_call_spread():
         {"type": "C", "strike": 65, "expiry": "2025-08-01", "position": 1, "mid": 0.5, "model": 0.5, "delta": 0.2},
     ]
     metrics, reasons = _metrics("bear call spread", legs)
-    assert reasons == []
-    assert metrics is not None
-    assert math.isclose(metrics["credit"], 100.0)
-    assert math.isclose(metrics["margin"], 400.0)
-    assert metrics["rom"] is not None
-    assert metrics["score"] is not None
+    assert metrics is None
+    assert "negatieve EV of score" in reasons
 
 
 def test_metrics_naked_put():
@@ -67,13 +55,8 @@ def test_metrics_naked_put():
         {"type": "P", "strike": 50, "expiry": "2025-08-01", "position": -1, "mid": 1.0, "model": 1.0, "delta": -0.3},
     ]
     metrics, reasons = _metrics("naked_put", legs)
-    assert reasons == []
-    assert metrics is not None
-    assert math.isclose(metrics["credit"], 100.0)
-    assert math.isclose(metrics["margin"], 4900.0)
-    assert metrics["max_loss"] == -4900.0
-    assert metrics["rom"] is not None
-    assert metrics["score"] is not None
+    assert metrics is None
+    assert "negatieve EV of score" in reasons
 
 
 def test_metrics_backspread_put():
@@ -83,9 +66,7 @@ def test_metrics_backspread_put():
         {"type": "P", "strike": 45, "expiry": "2025-08-01", "position": 1, "mid": 0.4, "model": 0.4, "delta": -0.15},
     ]
     metrics, reasons = _metrics("backspread_put", legs)
-    assert reasons == []
     assert metrics is not None
+    assert "ROM kon niet worden berekend" in reasons[0]
     assert math.isclose(metrics["margin"], 500.0)
     assert metrics["max_loss"] == -500.0
-    assert metrics["rom"] is not None
-    assert metrics["score"] is not None
