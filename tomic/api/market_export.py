@@ -19,9 +19,10 @@ import json
 from datetime import datetime
 import math
 
-from typing import Any
+from typing import Any, Generic, Optional, TypeVar
 
 import pandas as pd
+from dataclasses import dataclass
 
 from tomic.logutils import logger, log_result
 from tomic.utils import normalize_leg
@@ -93,6 +94,21 @@ _HEADERS_SIMPLE = [
     "Theta",
     "Status",
 ]
+
+
+T = TypeVar("T")
+
+
+@dataclass
+class ExportResult(Generic[T]):
+    """Return value wrapper for export helpers."""
+
+    ok: bool
+    value: Optional[T] = None
+    error: Optional[Exception] = None
+
+    def __bool__(self) -> bool:  # pragma: no cover - trivial
+        return self.ok
 
 
 
@@ -414,12 +430,22 @@ def _write_metrics_csv(
 
 @log_result
 def export_market_metrics(
-    symbol: str, output_dir: str | None = None, *, client_id: int | None = None
-) -> pd.DataFrame | None:
+    symbol: str,
+    output_dir: str | None = None,
+    *,
+    client_id: int | None = None,
+    raise_exceptions: bool = False,
+    return_status: bool = False,
+) -> pd.DataFrame | ExportResult[pd.DataFrame] | None:
     """Export only market metrics for ``symbol`` to a CSV file."""
     symbol = symbol.strip().upper()
     if not symbol:
+        err = ValueError("invalid symbol")
         logger.error("❌ Geen geldig symbool ingevoerd.")
+        if raise_exceptions:
+            raise err
+        if return_status:
+            return ExportResult(False, error=err)
         return None
     app = TermStructureClient(symbol)
     start_app(app, client_id=client_id)
@@ -432,10 +458,18 @@ def export_market_metrics(
     except Exception as exc:  # pragma: no cover - network failures
         logger.error(f"❌ Marktkenmerken ophalen mislukt: {exc}")
         app.disconnect()
+        if raise_exceptions:
+            raise
+        if return_status:
+            return ExportResult(False, error=exc)
         return None
     if raw_metrics is None:
         logger.error(f"❌ Geen expiries gevonden voor {symbol}")
         app.disconnect()
+        if raise_exceptions:
+            raise ValueError("no expiries")
+        if return_status:
+            return ExportResult(False, error=ValueError("no expiries"))
         return None
     metrics = MarketMetrics.from_dict(raw_metrics)
     if output_dir is None:
@@ -448,6 +482,8 @@ def export_market_metrics(
     df_metrics = _write_metrics_csv(metrics, symbol, export_dir, timestamp, None)
     app.disconnect()
     logger.success(f"✅ Marktdata verwerkt voor {symbol}")
+    if return_status:
+        return ExportResult(True, value=df_metrics)
     return df_metrics
 
 
@@ -459,12 +495,19 @@ def export_option_chain(
     simple: bool = False,
     client_id: int | None = None,
     heatmap_columns: list[str] | None = None,
+    raise_exceptions: bool = False,
+    return_status: bool = False,
 ) -> float | None:
     """Export only the option chain for ``symbol`` to a CSV file."""
     logger.info("▶️ START stap 1 - Invoer van symbool")
     symbol = symbol.strip().upper()
     if not symbol or not symbol.replace(".", "").isalnum():
+        err = ValueError("invalid symbol")
         logger.error("❌ FAIL stap 1: ongeldig symbool.")
+        if raise_exceptions:
+            raise err
+        if return_status:
+            return ExportResult(False, error=err)
         return None
     logger.info(f"✅ [stap 1] {symbol} ontvangen, ga nu aan de slag!")
     logger.info("▶️ START stap 2 - Initialiseren client + verbinden met IB")
@@ -484,11 +527,15 @@ def export_option_chain(
         if simple:
             _write_option_chain_simple(app, symbol, export_dir, timestamp)
             logger.success(f"✅ Optieketen verwerkt voor {symbol}")
+            if return_status:
+                return ExportResult(True, value=None)
             return None
         avg_parity = _write_option_chain(
             app, symbol, export_dir, timestamp, heatmap_columns
         )
         logger.success(f"✅ Optieketen verwerkt voor {symbol}")
+        if return_status:
+            return ExportResult(True, value=avg_parity)
         return avg_parity
 
     app.disconnect()
@@ -506,6 +553,8 @@ def export_option_chain(
     else:
         avg_parity = _write_option_chain(app, symbol, export_dir, timestamp, heatmap_columns)
     logger.success(f"✅ Optieketen verwerkt voor {symbol}")
+    if return_status:
+        return ExportResult(True, value=avg_parity)
     return avg_parity
 
 
@@ -660,13 +709,20 @@ def export_option_chain_bulk(
     simple: bool = False,
     client_id: int | None = None,
     heatmap_columns: list[str] | None = None,
+    raise_exceptions: bool = False,
+    return_status: bool = False,
 ) -> float | None:
     """Export option chain using the BulkQualifyFlow."""
 
     logger.info("▶️ START stap 1 - Invoer van symbool")
     symbol = symbol.strip().upper()
     if not symbol or not symbol.replace(".", "").isalnum():
+        err = ValueError("invalid symbol")
         logger.error("❌ FAIL stap 1: ongeldig symbool.")
+        if raise_exceptions:
+            raise err
+        if return_status:
+            return ExportResult(False, error=err)
         return None
     logger.info(f"✅ [stap 1] {symbol} ontvangen, ga nu aan de slag!")
     logger.info("▶️ START stap 2 - Initialiseren client + verbinden met IB")
@@ -687,9 +743,13 @@ def export_option_chain_bulk(
         if simple:
             _write_option_chain_simple(app, symbol, export_dir, ts)
             logger.success(f"✅ Optieketen verwerkt voor {symbol}")
+            if return_status:
+                return ExportResult(True, value=None)
             return None
         avg_parity = _write_option_chain(app, symbol, export_dir, ts, heatmap_columns)
         logger.success(f"✅ Optieketen verwerkt voor {symbol}")
+        if return_status:
+            return ExportResult(True, value=avg_parity)
         return avg_parity
 
     app.disconnect()
@@ -713,6 +773,8 @@ def export_option_chain_bulk(
     )
     if app.error_count:
         logger.info(f"🆕 BULK vermeden errors 200/300: {app.error_count}")
+    if return_status:
+        return ExportResult(True, value=avg_parity)
     return avg_parity
 
 
@@ -726,12 +788,19 @@ def export_market_data(
     app: OptionChainClient | None = None,
     export_heatmap: bool = False,
     heatmap_columns: list[str] | None = None,
+    raise_exceptions: bool = False,
+    return_status: bool = False,
 ) -> pd.DataFrame | None:
     """Export option chain and market metrics for ``symbol`` to CSV files."""
     logger.info("▶️ START stap 1 - Invoer van symbool")
     symbol = symbol.strip().upper()
     if not symbol or not symbol.replace(".", "").isalnum():
+        err = ValueError("invalid symbol")
         logger.error("❌ FAIL stap 1: ongeldig symbool.")
+        if raise_exceptions:
+            raise err
+        if return_status:
+            return ExportResult(False, error=err)
         return None
     logger.info(f"✅ [stap 1] {symbol} ontvangen, ga nu aan de slag!")
     logger.info("▶️ START stap 2 - Initialiseren client + verbinden met IB")
@@ -750,11 +819,19 @@ def export_market_data(
         logger.error(f"❌ Marktkenmerken ophalen mislukt: {exc}")
         if owns_app:
             app.disconnect()
+        if raise_exceptions:
+            raise
+        if return_status:
+            return ExportResult(False, error=exc)
         return None
     if raw_metrics is None:
         logger.error(f"❌ Geen expiries gevonden voor {symbol}")
         if owns_app:
             app.disconnect()
+        if raise_exceptions:
+            raise ValueError("no expiries")
+        if return_status:
+            return ExportResult(False, error=ValueError("no expiries"))
         return None
     metrics = MarketMetrics.from_dict(raw_metrics)
     if not await_market_data(app, symbol, timeout=30):
@@ -780,6 +857,8 @@ def export_market_data(
             metrics, symbol, export_dir, timestamp, avg_parity
         )
         logger.success(f"✅ Marktdata verwerkt voor {symbol}")
+        if return_status:
+            return ExportResult(True, value=df_metrics)
         return df_metrics
     if owns_app:
         app.disconnect()
@@ -802,6 +881,8 @@ def export_market_data(
         metrics, symbol, export_dir, timestamp, avg_parity
     )
     logger.success(f"✅ Marktdata verwerkt voor {symbol}")
+    if return_status:
+        return ExportResult(True, value=df_metrics)
     return df_metrics
 
 
@@ -867,13 +948,20 @@ async def export_option_chain_async(
     simple: bool = False,
     client_id: int | None = None,
     heatmap_columns: list[str] | None = None,
+    raise_exceptions: bool = False,
+    return_status: bool = False,
 ) -> float | None:
     """Async version of :func:`export_option_chain`."""
 
     logger.info("▶️ START stap 1 - Invoer van symbool")
     symbol = symbol.strip().upper()
     if not symbol or not symbol.replace(".", "").isalnum():
+        err = ValueError("invalid symbol")
         logger.error("❌ FAIL stap 1: ongeldig symbool.")
+        if raise_exceptions:
+            raise err
+        if return_status:
+            return ExportResult(False, error=err)
         return None
     logger.info(f"✅ [stap 1] {symbol} ontvangen, ga nu aan de slag!")
     logger.info("▶️ START stap 2 - Initialiseren client + verbinden met IB")
@@ -896,6 +984,8 @@ async def export_option_chain_async(
                 _write_option_chain_simple, app, symbol, export_dir, timestamp
             )
             logger.success(f"✅ Optieketen verwerkt voor {symbol}")
+            if return_status:
+                return ExportResult(True, value=None)
             return None
         avg_parity = await asyncio.to_thread(
             _write_option_chain,
@@ -906,6 +996,8 @@ async def export_option_chain_async(
             heatmap_columns,
         )
         logger.success(f"✅ Optieketen verwerkt voor {symbol}")
+        if return_status:
+            return ExportResult(True, value=avg_parity)
         return avg_parity
     app.disconnect()
     await asyncio.sleep(1)
@@ -931,6 +1023,8 @@ async def export_option_chain_async(
             heatmap_columns,
         )
     logger.success(f"✅ Optieketen verwerkt voor {symbol}")
+    if return_status:
+        return ExportResult(True, value=avg_parity)
     return avg_parity
 
 
@@ -942,13 +1036,20 @@ async def export_market_data_async(
     app: OptionChainClient | None = None,
     export_heatmap: bool = False,
     heatmap_columns: list[str] | None = None,
+    raise_exceptions: bool = False,
+    return_status: bool = False,
 ) -> pd.DataFrame | None:
     """Async version of :func:`export_market_data`."""
 
     logger.info("▶️ START stap 1 - Invoer van symbool")
     symbol = symbol.strip().upper()
     if not symbol or not symbol.replace(".", "").isalnum():
+        err = ValueError("invalid symbol")
         logger.error("❌ FAIL stap 1: ongeldig symbool.")
+        if raise_exceptions:
+            raise err
+        if return_status:
+            return ExportResult(False, error=err)
         return None
     logger.info(f"✅ [stap 1] {symbol} ontvangen, ga nu aan de slag!")
     logger.info("▶️ START stap 2 - Initialiseren client + verbinden met IB")
@@ -967,11 +1068,19 @@ async def export_market_data_async(
         logger.error(f"❌ Marktkenmerken ophalen mislukt: {exc}")
         if owns_app:
             app.disconnect()
+        if raise_exceptions:
+            raise
+        if return_status:
+            return ExportResult(False, error=exc)
         return None
     if raw_metrics is None:
         logger.error(f"❌ Geen expiries gevonden voor {symbol}")
         if owns_app:
             app.disconnect()
+        if raise_exceptions:
+            raise ValueError("no expiries")
+        if return_status:
+            return ExportResult(False, error=ValueError("no expiries"))
         return None
     metrics = MarketMetrics.from_dict(raw_metrics)
     if not ok:
@@ -998,6 +1107,8 @@ async def export_market_data_async(
             _write_metrics_csv, metrics, symbol, export_dir, timestamp, avg_parity
         )
         logger.success(f"✅ Marktdata verwerkt voor {symbol}")
+        if return_status:
+            return ExportResult(True, value=df_metrics)
         return df_metrics
     if owns_app:
         app.disconnect()
@@ -1021,10 +1132,13 @@ async def export_market_data_async(
         _write_metrics_csv, metrics, symbol, export_dir, timestamp, avg_parity
     )
     logger.success(f"✅ Marktdata verwerkt voor {symbol}")
+    if return_status:
+        return ExportResult(True, value=df_metrics)
     return df_metrics
 
 
 __all__ = [
+    "ExportResult",
     "export_market_data",
     "export_market_metrics",
     "export_option_chain",
