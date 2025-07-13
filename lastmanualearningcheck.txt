@@ -3,9 +3,9 @@
 - AEP: 12/7/25
 - AMD: 12/7/25
 - AMGN: 12/7/25
-- AMT
-- AMZN
-- AXP
+- AMT: 13/7/25
+- AMZN: 13/7/25
+- AXP: 13/7/25
 - BA
 - BAC
 - BMY
