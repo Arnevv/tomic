@@ -5,7 +5,7 @@ from datetime import datetime
 from pathlib import Path
 
 from tomic import config as cfg
-from tomic.api.market_export import export_option_chain
+from tomic.api.market_export import export_option_chain, ExportResult
 from tomic.providers.polygon_iv import fetch_polygon_option_chain
 
 
@@ -31,7 +31,9 @@ def find_latest_chain(symbol: str, base: Path | None = None) -> Path | None:
 
 
 def export_chain(symbol: str) -> Path | None:
-    export_option_chain(symbol)
+    res = export_option_chain(symbol, return_status=True)
+    if isinstance(res, ExportResult) and not res.ok:
+        return None
     return find_latest_chain(symbol)
 
 
