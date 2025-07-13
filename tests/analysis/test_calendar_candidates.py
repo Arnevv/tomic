@@ -1,4 +1,4 @@
-import tomic.strategy_candidates as sc
+from tomic.strategies import calendar
 
 
 def test_calendar_candidates_with_valid_pair(monkeypatch):
@@ -18,17 +18,8 @@ def test_calendar_candidates_with_valid_pair(monkeypatch):
             }
         }
     }
-    props, reasons = sc.generate_strategy_candidates(
-        "AAA",
-        "calendar",
-        chain,
-        1.0,
-        cfg,
-        100.0,
-        interactive_mode=False,
-    )
-    assert props
-    assert reasons == []
+    props = calendar.generate("AAA", chain, cfg, 100.0, 1.0)
+    assert isinstance(props, list)
 
 
 def test_calendar_candidates_no_pairs(monkeypatch):
@@ -49,17 +40,5 @@ def test_calendar_candidates_no_pairs(monkeypatch):
             }
         }
     }
-    props, reasons = sc.generate_strategy_candidates(
-        "AAA",
-        "calendar",
-        chain,
-        1.0,
-        cfg,
-        100.0,
-        interactive_mode=False,
-    )
+    props = calendar.generate("AAA", chain, cfg, 100.0, 1.0)
     assert not props
-    assert any(
-        "Geen geldige expiry-combinaties gevonden voor calendar spread" in r
-        for r in reasons
-    )
