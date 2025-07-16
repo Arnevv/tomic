@@ -20,4 +20,7 @@ Backups/
 
 #Positions en acccountdata
 tomic/data/account_info.json
+tomic/cli/account_info.json
+tomic/data/positions.json
 tomic/cli/positions.json
+.env
