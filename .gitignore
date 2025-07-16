@@ -17,10 +17,13 @@ exports/
 
 # Backups
 Backups/
+backup-restore
 
 #Positions en acccountdata
 tomic/data/account_info.json
 tomic/cli/account_info.json
 tomic/data/positions.json
 tomic/cli/positions.json
+journal.json
+config.yaml
 .env
