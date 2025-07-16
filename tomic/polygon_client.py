@@ -3,10 +3,19 @@ from __future__ import annotations
 """Polygon REST API client implementing :class:`MarketDataProvider`."""
 
 from typing import Any, Dict, List
+import os
 import random
 import requests
 import time
 from .logutils import logger
+
+# Enable full API key logging when TOMIC_SHOW_POLYGON_KEY is truthy
+_SHOW_POLYGON_KEY = os.getenv("TOMIC_SHOW_POLYGON_KEY", "0").lower() not in {
+    "0",
+    "",
+    "false",
+    "no",
+}
 
 from .market_provider import MarketDataProvider
 from . import config as cfg
@@ -51,7 +60,8 @@ class PolygonClient(MarketDataProvider):
         params = dict(params or {})
         api_key = self._next_api_key()
         if api_key:
-            logger.debug(f"Using Polygon key: {api_key[:5]}***")
+            display_key = api_key if _SHOW_POLYGON_KEY else f"{api_key[:5]}***"
+            logger.debug(f"Using Polygon key: {display_key}")
         url = f"{self.BASE_URL.rstrip('/')}/{path.lstrip('/')}"
         attempts = 0
         key_attempts = 0
@@ -59,7 +69,8 @@ class PolygonClient(MarketDataProvider):
 
         while True:
             params["apiKey"] = api_key
-            masked = {**params, "apiKey": "***"}
+            masked_key = api_key if _SHOW_POLYGON_KEY else "***"
+            masked = {**params, "apiKey": masked_key}
             logger.debug(f"GET {url} params={masked}")
             resp = self._session.get(url, params=params, timeout=10)
             status = getattr(resp, "status_code", "n/a")
@@ -79,12 +90,16 @@ class PolygonClient(MarketDataProvider):
 
             if status == 403 and key_attempts < max_keys - 1:
                 key_attempts += 1
+                display_key = api_key if _SHOW_POLYGON_KEY else f"{api_key[:5]}***"
                 logger.warning(
-                    f"Polygon 403 for key {api_key[:5]}*** — trying next key."
+                    f"Polygon 403 for key {display_key} — trying next key."
                 )
                 api_key = self._next_api_key()
                 if api_key:
-                    logger.debug(f"Using Polygon key: {api_key[:5]}***")
+                    display_key = (
+                        api_key if _SHOW_POLYGON_KEY else f"{api_key[:5]}***"
+                    )
+                    logger.debug(f"Using Polygon key: {display_key}")
                 continue
 
             break
