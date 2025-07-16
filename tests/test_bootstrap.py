@@ -17,8 +17,8 @@ def test_required_packages():
 def test_config_files():
     """Check of basisdata aanwezig is"""
     expected = [
-        "account_info.json",
-        "positions.json",
+        "account_info.example.json",
+        "positions.example.json",
         "portfolio_meta.json",
     ]
     root = os.path.dirname(os.path.dirname(__file__))
