@@ -9,6 +9,8 @@ from tempfile import TemporaryDirectory
 from time import sleep
 from typing import List
 
+import os
+
 import requests
 
 from tomic.config import get as cfg_get
@@ -78,7 +80,9 @@ def main(argv: List[str] | None = None) -> None:
     """Fetch and update earnings dates for configured symbols."""
     setup_logging()
     logger.info("\U0001F680 Earnings dates fetch")
-    api_key = cfg_get("ALPHAVANTAGE_API_KEY", "")
+    api_key = cfg_get("ALPHAVANTAGE_API_KEY", "") or os.environ.get(
+        "ALPHAVANTAGE_API_KEY", ""
+    )
     if not api_key:
         logger.error("Missing ALPHAVANTAGE_API_KEY in configuration")
         return
