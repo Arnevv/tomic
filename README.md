@@ -309,3 +309,6 @@ Functie: compute_iv_term_structure()
 ✅ Tests
 Run alle basistests met:
 pytest tests/
+
+🔍 Debugging
+Om de volledige Polygon API-sleutel te loggen, zet je de omgevingsvariabele `TOMIC_SHOW_POLYGON_KEY=1` voordat je scripts start. De sleutel wordt dan niet gemaskeerd.
