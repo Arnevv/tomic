@@ -7,10 +7,14 @@ from pathlib import Path
 from typing import Any, Iterable, List, Union
 
 from tomic.config import get as cfg_get
+from tomic import config
 from tomic.helpers.json_utils import dump_json
 from tomic.logutils import logger
 
-JOURNAL_FILE = Path(cfg_get("JOURNAL_FILE", "journal.json"))
+_default = cfg_get("JOURNAL_FILE", str(config._BASE_DIR / "journal.json"))
+JOURNAL_FILE = Path(_default).expanduser()
+if not JOURNAL_FILE.is_absolute():
+    JOURNAL_FILE = config._BASE_DIR / JOURNAL_FILE
 
 
 PathLike = Union[str, Path]
@@ -34,6 +38,7 @@ def save_json(data: Any, path: PathLike) -> None:
     """Write ``data`` to ``path`` as JSON."""
 
     p = Path(path)
+    p.parent.mkdir(parents=True, exist_ok=True)
     tmp = p.with_name(f"temp_{p.name}")
     dump_json(data, tmp)
     tmp.replace(p)
