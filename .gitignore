@@ -18,6 +18,6 @@ exports/
 # Backups
 Backups/
 
-#Positions en accountdata
+#Positions en acccountdata
 tomic/data/account_info.json
 tomic/cli/positions.json
