@@ -26,4 +26,7 @@ tomic/data/positions.json
 tomic/cli/positions.json
 journal.json
 config.yaml
+portfolio_meta.json
+positions.json
+account_info.json
 .env
