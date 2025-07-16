@@ -39,16 +39,31 @@ jobs:
 
       - name: Commit and force push changes
         run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          echo "🔍 Git status:"
           git status --short
+
           if [ -n "$(git status --porcelain)" ]; then
-            git config user.name "github-actions[bot]"
-            git config user.email "github-actions[bot]@users.noreply.github.com"
+            echo "📝 Committing changes..."
             git add tomic/data/spot_prices/*.json tomic/data/iv_daily_summary/*.json tomic/data/historical_volatility/*.json
             git commit -m "Update price history"
-            git fetch origin main
-            git reset --soft origin/main
-            git push origin HEAD:main --force
+
+            echo "🔧 Setting upstream to origin/main..."
+            git branch --set-upstream-to=origin/main main
+
+            echo "📦 Git remote:"
+            git remote -v
+            echo "🌿 Git branches:"
+            git branch -vv
+            echo "📜 Recent commits:"
+            git log --oneline -n 5
+
+            echo "🚀 Pushing with --force-with-lease..."
+            git push origin main --force-with-lease
           else
-            echo "No changes to commit"
+            echo "✅ No changes to commit"
           fi
+      
       
