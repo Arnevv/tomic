@@ -3554,5 +3554,12 @@
     "close": 257.95,
     "volume": 5649489.0,
     "atr": null
+  },
+  {
+    "symbol": "CRM",
+    "date": "2025-07-17",
+    "close": 259.88,
+    "volume": 5837430.0,
+    "atr": null
   }
 ]

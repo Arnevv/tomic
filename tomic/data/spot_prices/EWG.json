@@ -3512,5 +3512,12 @@
     "close": 42.18,
     "volume": 3383976.0,
     "atr": null
+  },
+  {
+    "symbol": "EWG",
+    "date": "2025-07-17",
+    "close": 42.35,
+    "volume": 1601486.0,
+    "atr": null
   }
 ]
