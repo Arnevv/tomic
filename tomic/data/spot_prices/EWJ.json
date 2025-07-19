@@ -3519,5 +3519,12 @@
     "close": 72.39,
     "volume": 4096277.0,
     "atr": null
+  },
+  {
+    "symbol": "EWJ",
+    "date": "2025-07-18",
+    "close": 71.81,
+    "volume": 5679228.0,
+    "atr": null
   }
 ]

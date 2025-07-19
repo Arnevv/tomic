@@ -3519,5 +3519,12 @@
     "close": 55.01,
     "volume": 6059541.0,
     "atr": null
+  },
+  {
+    "symbol": "INDA",
+    "date": "2025-07-18",
+    "close": 54.5,
+    "volume": 8929891.0,
+    "atr": null
   }
 ]

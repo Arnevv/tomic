@@ -3561,5 +3561,12 @@
     "close": 319.41,
     "volume": 73922870.0,
     "atr": null
+  },
+  {
+    "symbol": "TSLA",
+    "date": "2025-07-18",
+    "close": 329.65,
+    "volume": 94254993.0,
+    "atr": null
   }
 ]

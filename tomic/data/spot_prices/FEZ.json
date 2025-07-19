@@ -3519,5 +3519,12 @@
     "close": 59.63,
     "volume": 2064193.0,
     "atr": null
+  },
+  {
+    "symbol": "FEZ",
+    "date": "2025-07-18",
+    "close": 59.24,
+    "volume": 1501497.0,
+    "atr": null
   }
 ]

@@ -3519,5 +3519,12 @@
     "close": 132.72,
     "volume": 15740942.0,
     "atr": null
+  },
+  {
+    "symbol": "XLV",
+    "date": "2025-07-18",
+    "close": 131.84,
+    "volume": 13245489.0,
+    "atr": null
   }
 ]
