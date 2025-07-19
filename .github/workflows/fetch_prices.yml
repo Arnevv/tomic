@@ -28,7 +28,13 @@ jobs:
           pip install -r requirements.txt
 
       - name: Run price history fetch via Polygon
-        run: python -m tomic.cli.fetch_prices_polygon
+        run: >-
+          python -m tomic.cli.fetch_prices_polygon
+          AAPL ABBV AEP AMD AMGN AMT AMZN AXP BA BAC BMY C CAT CL COST CRM CVS CVX
+          D DE DLR DIA EEM ED EOG ESS EXC GE GLD GILD GOOGL GS HAL HD HON IWM INTC
+          JNJ JPM KMB KO KR LOW LMT LULU MA MCD META MMM MO MRK MS MSFT MU NEE
+          NFLX NKE NOC NVDA ORCL OXY PEP PFE PG PM PXD QQQ ROST SBUX SCHW SLB SLV
+          SO SPG SPY TGT TLT TSLA UNH UNP UPS USO V VLO WFC WMT XEL XOM
         env:
           POLYGON_API_KEYS: ${{ secrets.POLYGON_API_KEYS }}
 
