@@ -3575,5 +3575,12 @@
     "close": 235.22,
     "volume": 2894201.0,
     "atr": null
+  },
+  {
+    "symbol": "HON",
+    "date": "2025-07-22",
+    "close": 236.58,
+    "volume": 3409052.0,
+    "atr": null
   }
 ]
