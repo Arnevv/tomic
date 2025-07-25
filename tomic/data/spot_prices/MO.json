@@ -3589,5 +3589,12 @@
     "close": 59.77,
     "volume": 7172201.0,
     "atr": null
+  },
+  {
+    "symbol": "MO",
+    "date": "2025-07-24",
+    "close": 59.61,
+    "volume": 6933909.0,
+    "atr": null
   }
 ]

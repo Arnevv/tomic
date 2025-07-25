@@ -3589,5 +3589,12 @@
     "close": 75.28,
     "volume": 4811523.0,
     "atr": null
+  },
+  {
+    "symbol": "USO",
+    "date": "2025-07-24",
+    "close": 76.09,
+    "volume": 5938372.0,
+    "atr": null
   }
 ]
