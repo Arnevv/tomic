@@ -3596,5 +3596,12 @@
     "close": 634.42,
     "volume": 71307134.0,
     "atr": null
+  },
+  {
+    "symbol": "SPY",
+    "date": "2025-07-25",
+    "close": 637.1,
+    "volume": 56865364.0,
+    "atr": null
   }
 ]

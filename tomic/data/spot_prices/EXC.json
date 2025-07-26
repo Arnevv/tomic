@@ -3596,5 +3596,12 @@
     "close": 43.735,
     "volume": 4661625.0,
     "atr": null
+  },
+  {
+    "symbol": "EXC",
+    "date": "2025-07-25",
+    "close": 43.99,
+    "volume": 3894715.0,
+    "atr": null
   }
 ]

@@ -3596,5 +3596,12 @@
     "close": 75.42,
     "volume": 10037823.0,
     "atr": null
+  },
+  {
+    "symbol": "NKE",
+    "date": "2025-07-25",
+    "close": 76.27,
+    "volume": 7208387.0,
+    "atr": null
   }
 ]

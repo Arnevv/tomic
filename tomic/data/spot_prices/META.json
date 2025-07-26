@@ -3596,5 +3596,12 @@
     "close": 714.8,
     "volume": 10920836.0,
     "atr": null
+  },
+  {
+    "symbol": "META",
+    "date": "2025-07-25",
+    "close": 712.68,
+    "volume": 8271698.0,
+    "atr": null
   }
 ]
