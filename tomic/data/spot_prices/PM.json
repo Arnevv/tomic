@@ -3603,5 +3603,12 @@
     "close": 160.92,
     "volume": 4544616.0,
     "atr": null
+  },
+  {
+    "symbol": "PM",
+    "date": "2025-07-28",
+    "close": 157.77,
+    "volume": 8676890.0,
+    "atr": null
   }
 ]
