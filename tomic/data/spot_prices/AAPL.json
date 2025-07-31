@@ -3617,5 +3617,12 @@
     "close": 211.27,
     "volume": 51411723.0,
     "atr": null
+  },
+  {
+    "symbol": "AAPL",
+    "date": "2025-07-30",
+    "close": 209.05,
+    "volume": 45512514.0,
+    "atr": null
   }
 ]

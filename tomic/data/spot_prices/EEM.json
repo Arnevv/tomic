@@ -3617,5 +3617,12 @@
     "close": 49.2,
     "volume": 24742726.0,
     "atr": null
+  },
+  {
+    "symbol": "EEM",
+    "date": "2025-07-30",
+    "close": 48.84,
+    "volume": 37855503.0,
+    "atr": null
   }
 ]
