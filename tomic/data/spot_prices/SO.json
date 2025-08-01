@@ -3624,5 +3624,12 @@
     "close": 94.9,
     "volume": 6808047.0,
     "atr": null
+  },
+  {
+    "symbol": "SO",
+    "date": "2025-07-31",
+    "close": 94.48,
+    "volume": 12682471.0,
+    "atr": null
   }
 ]
