@@ -49,7 +49,9 @@ def main(argv: List[str] | None = None) -> None:
         file = summary_dir / f"{sym}.json"
         existing = load_json(file)
         if any(
-            isinstance(r, dict) and r.get("date") == date_str
+            isinstance(r, dict)
+            and r.get("date") == date_str
+            and r.get("atm_iv") is not None
             for r in existing
         ):
             logger.info(f"⏭️ {sym} al aanwezig voor {date_str}")
