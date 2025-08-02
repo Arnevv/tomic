@@ -3631,5 +3631,12 @@
     "close": 223.57,
     "volume": 2778602.0,
     "atr": null
+  },
+  {
+    "symbol": "LOW",
+    "date": "2025-08-01",
+    "close": 226.4,
+    "volume": 3400947.0,
+    "atr": null
   }
 ]
