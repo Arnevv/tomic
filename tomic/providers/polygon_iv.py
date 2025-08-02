@@ -18,7 +18,7 @@ from tomic.polygon_client import PolygonClient
 
 from tomic.config import get as cfg_get
 from tomic.logutils import logger
-from tomic.journal.utils import load_json
+from tomic.journal.utils import load_json, update_json_file
 from tomic.helpers.price_utils import _load_latest_close
 
 
@@ -742,21 +742,8 @@ def fetch_polygon_iv30d(symbol: str) -> Dict[str, float | None] | None:
     summary_file = summary_dir / f"{symbol}.json"
 
     try:
-        if summary_file.exists():
-            existing = load_json(summary_file)
-            if not isinstance(existing, list):
-                existing = []
-        else:
-            existing = []
-        # Alleen toevoegen als deze datum nog niet bestaat
-        dates = [row.get("date") for row in existing]
-        if today_str not in dates:
-            existing.append(daily_iv_data)
-            with summary_file.open("w", encoding="utf-8") as f:
-                json.dump(existing, f, indent=2)
-            logger.info(f"✅ Updated {summary_file}")
-        else:
-            logger.info(f"⏭️ {symbol} on {today_str} already in summary file.")
+        update_json_file(summary_file, daily_iv_data, ["date"])
+        logger.info(f"✅ Updated {summary_file}")
     except Exception as exc:
         logger.error(f"❌ Failed to update {summary_file}: {exc}")
 

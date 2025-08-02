@@ -251,6 +251,141 @@ def test_fetch_polygon_iv30d_fallback(monkeypatch, tmp_path):
     assert (iv_dir / "ABC.log").exists()
 
 
+def test_fetch_polygon_iv30d_refetch_null(monkeypatch, tmp_path):
+    mod = importlib.import_module("tomic.providers.polygon_iv")
+
+    price_dir = tmp_path / "prices"
+    price_dir.mkdir()
+    (price_dir / "ABC.json").write_text(
+        json.dumps(
+            [
+                {"date": "2023-12-31", "close": 99.0},
+                {"date": "2024-01-01", "close": 100.0},
+            ]
+        )
+    )
+
+    iv_dir = tmp_path / "iv_debug"
+    cfg_lambda = lambda name, default=None: (
+        "key"
+        if name == "POLYGON_API_KEY"
+        else (
+            str(price_dir)
+            if name == "PRICE_HISTORY_DIR"
+            else (
+                str(iv_dir)
+                if name in {"IV_DEBUG_DIR", "IV_SUMMARY_DIR"}
+                else default
+            )
+        )
+    )
+    monkeypatch.setattr(mod, "cfg_get", cfg_lambda)
+    import tomic.helpers.price_utils as price_utils
+    monkeypatch.setattr(price_utils, "cfg_get", cfg_lambda)
+
+    exp1 = {
+        "results": {
+            "options": [
+                {
+                    "expiration_date": "2024-01-19",
+                    "strike_price": 100.0,
+                    "implied_volatility": 0.2,
+                    "delta": 0.5,
+                    "option_type": "call",
+                },
+                {
+                    "expiration_date": "2024-01-19",
+                    "strike_price": 105.0,
+                    "implied_volatility": 0.21,
+                    "delta": 0.25,
+                    "option_type": "call",
+                },
+                {
+                    "expiration_date": "2024-01-19",
+                    "strike_price": 90.0,
+                    "implied_volatility": 0.24,
+                    "delta": -0.24,
+                    "option_type": "put",
+                },
+            ]
+        }
+    }
+    exp2 = {
+        "results": {
+            "options": [
+                {
+                    "expiration_date": "2024-02-16",
+                    "strike_price": 100.0,
+                    "implied_volatility": 0.19,
+                    "delta": 0.5,
+                    "option_type": "call",
+                }
+            ]
+        }
+    }
+    exp3 = {
+        "results": {
+            "options": [
+                {
+                    "expiration_date": "2024-03-15",
+                    "strike_price": 100.0,
+                    "implied_volatility": 0.18,
+                    "delta": 0.5,
+                    "option_type": "call",
+                }
+            ]
+        }
+    }
+
+    def fake_request(path, params=None):
+        exp = params.get("expiration_date") if params else None
+        if exp == "2024-01-19":
+            return exp1
+        elif exp == "2024-02-16":
+            return exp2
+        elif exp == "2024-03-15":
+            return exp3
+        return {"results": {"options": []}}
+
+    class FakeClient:
+        def __init__(self, api_key=None):
+            pass
+
+        def connect(self):
+            pass
+
+        def disconnect(self):
+            pass
+
+        def _request(self, path, params=None):
+            return fake_request(path, params or {})
+
+    monkeypatch.setattr(mod, "PolygonClient", lambda api_key=None: FakeClient())
+    monkeypatch.setattr(mod.time, "sleep", lambda s: None)
+    monkeypatch.setattr(mod, "_get_closes", lambda sym: [])
+
+    class FakeDT(datetime):
+        @classmethod
+        def now(cls, tz=None):
+            return datetime(2024, 1, 3, tzinfo=tz)
+
+    monkeypatch.setattr(mod, "datetime", FakeDT)
+
+    metrics = mod.fetch_polygon_iv30d("ABC")
+    assert metrics["atm_iv"] == 0.2
+
+    summary_file = iv_dir / "ABC.json"
+    data = json.loads(summary_file.read_text())
+    data[0]["atm_iv"] = None
+    summary_file.write_text(json.dumps(data))
+
+    metrics2 = mod.fetch_polygon_iv30d("ABC")
+    assert metrics2["atm_iv"] == 0.2
+
+    updated = json.loads(summary_file.read_text())
+    assert updated[0]["atm_iv"] == 0.2
+
+
 def test_extract_skew_greeks_none():
     mod = importlib.import_module("tomic.providers.polygon_iv")
     options = [
