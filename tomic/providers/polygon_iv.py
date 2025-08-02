@@ -591,11 +591,18 @@ def fetch_polygon_iv30d(symbol: str) -> Dict[str, float | None] | None:
     summary_file = Path(cfg_get("IV_SUMMARY_DIR", "tomic/data/iv_daily_summary")) / f"{symbol}.json"
     if summary_file.exists():
         existing = load_json(summary_file)
-        if any(row.get("date") == spot_date for row in existing if isinstance(row, dict)):
+        for row in existing:
+            if not isinstance(row, dict) or row.get("date") != spot_date:
+                continue
+            if row.get("atm_iv") is not None:
+                logger.info(
+                    f"⏭️ {symbol} on {spot_date} already in summary file, skipping snapshot fetch."
+                )
+                return None
             logger.info(
-                f"⏭️ {symbol} on {spot_date} already in summary file, skipping snapshot fetch."
+                f"♻️ {symbol} on {spot_date} has null IV, attempting refetch."
             )
-            return None
+            break
 
     api_key = cfg_get("POLYGON_API_KEY", "")
     spot = round(float(spot), 2)
