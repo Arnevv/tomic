@@ -8,7 +8,7 @@ from datetime import datetime, timedelta, date, time as dt_time
 from pathlib import Path
 from time import sleep
 import time
-from typing import Iterable, List
+from typing import List
 from zoneinfo import ZoneInfo
 from types import SimpleNamespace
 
@@ -65,12 +65,13 @@ def latest_trading_day() -> date:
     return d
 
 
-def _request_bars(client: PolygonClient, symbol: str) -> Iterable[dict]:
-    """Return daily bar records for ``symbol`` using Polygon.
+def _request_bars(client: PolygonClient, symbol: str) -> tuple[list[dict], bool]:
+    """Return daily bar records and whether a request was made.
 
     This function fetches only the missing dates based on the last close
     available in ``PRICE_HISTORY_DIR``. If no local data exists it falls back
-    to requesting the last 504 trading days.
+    to requesting the last 504 trading days. The boolean indicates if a
+    request to Polygon was performed.
     """
 
     end_dt = latest_trading_day()
@@ -101,6 +102,7 @@ def _request_bars(client: PolygonClient, symbol: str) -> Iterable[dict]:
     params = {"adjusted": "true"}
     base_path = f"v2/aggs/ticker/{symbol}/range/1/day"
     path = base_path
+    requested = False
 
     if last_date:
         try:
@@ -112,7 +114,7 @@ def _request_bars(client: PolygonClient, symbol: str) -> Iterable[dict]:
             logger.info(
                 f"⏭️ {symbol}: laatste data is van {last_date}, geen nieuwe werkdag beschikbaar."
             )
-            return []
+            return [], requested
         from_date = next_expected.strftime("%Y-%m-%d")
         to_date = end_dt.strftime("%Y-%m-%d")
         path = f"{base_path}/{from_date}/{to_date}"
@@ -122,16 +124,17 @@ def _request_bars(client: PolygonClient, symbol: str) -> Iterable[dict]:
         path = f"{base_path}/{from_date}/{to_date}"
         params.update({"limit": 504})
 
+    requested = True
     try:
         data = client._request(path, params)
     except Exception as exc:
         status = getattr(getattr(exc, "response", None), "status_code", None)
         if status == 403:
             logger.warning(f"⚠️ Skipping {symbol} — all keys rejected with 403")
-            return []
+            return [], requested
         raise
     bars = data.get("results") or []
-    records = []
+    records: list[dict] = []
     for bar in bars:
         try:
             ts = int(bar.get("t")) / 1000
@@ -162,7 +165,7 @@ def _request_bars(client: PolygonClient, symbol: str) -> Iterable[dict]:
         rec.pop("open", None)
         rec.pop("high", None)
         rec.pop("low", None)
-    return records
+    return records, requested
 
 
 def _merge_price_data(file: Path, records: list[dict]) -> int:
@@ -219,8 +222,9 @@ def main(argv: List[str] | None = None) -> None:
                 request_times = [t for t in request_times if now - t < 60]
 
             logger.info(f"Fetching bars for {sym}")
-            records = list(_request_bars(client, sym))
-            request_times.append(time.time())
+            records, requested = _request_bars(client, sym)
+            if requested:
+                request_times.append(time.time())
             if not records:
                 logger.warning(f"No price data for {sym}")
             else:
@@ -234,7 +238,8 @@ def main(argv: List[str] | None = None) -> None:
                 meta[sym] = datetime.now(ZoneInfo("America/New_York")).isoformat()
                 save_price_meta(meta)
             processed.append(sym)
-            sleep(sleep_between)
+            if requested:
+                sleep(sleep_between)
     finally:
         client.disconnect()
     logger.success(f"✅ Historische prijzen opgeslagen voor {stored} symbolen")
