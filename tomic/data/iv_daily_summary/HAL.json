@@ -181,11 +181,11 @@
   },
   {
     "date": "2025-08-01",
-    "atm_iv": null,
-    "iv_rank (HV)": null,
-    "iv_percentile (HV)": null,
-    "term_m1_m2": null,
+    "atm_iv": 0.3480677731304731,
+    "iv_rank (HV)": 27.917840232951484,
+    "iv_percentile (HV)": 81.05906313645622,
+    "term_m1_m2": -0.82,
     "term_m1_m3": null,
-    "skew": null
+    "skew": 6.24
   }
 ]
