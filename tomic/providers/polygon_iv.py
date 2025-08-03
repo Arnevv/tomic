@@ -613,7 +613,7 @@ def fetch_polygon_iv30d(symbol: str) -> Dict[str, float | None] | None:
     target: date | None = None
     for exp in expiries:
         dte = (exp - today_dt).days
-        if 15 <= dte <= 45:
+        if 13 <= dte <= 48:
             target = exp
             break
     if target is None:
