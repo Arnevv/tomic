@@ -11,15 +11,18 @@ def test_fetch_prices_polygon_main(monkeypatch):
     monkeypatch.setattr(
         mod,
         "_request_bars",
-        lambda client, sym: [
-            {
-                "symbol": sym,
-                "date": "2024-01-01",
-                "close": 1.23,
-                "volume": 100,
-                "atr": None,
-            }
-        ],
+        lambda client, sym: (
+            [
+                {
+                    "symbol": sym,
+                    "date": "2024-01-01",
+                    "close": 1.23,
+                    "volume": 100,
+                    "atr": None,
+                }
+            ],
+            True,
+        ),
     )
 
     class FakeClient:
@@ -33,6 +36,10 @@ def test_fetch_prices_polygon_main(monkeypatch):
 
     captured = []
     monkeypatch.setattr(mod, "_merge_price_data", lambda f, recs: (captured.extend(recs), len(recs))[1])
+
+    meta_store = {}
+    monkeypatch.setattr(mod, "load_price_meta", lambda: meta_store.copy())
+    monkeypatch.setattr(mod, "save_price_meta", lambda m: meta_store.update(m))
 
     called = []
     monkeypatch.setattr(mod, "compute_volstats_polygon_main", lambda syms: called.append(syms))
@@ -49,7 +56,7 @@ def test_fetch_prices_polygon_no_data(monkeypatch):
     mod = importlib.import_module("tomic.cli.fetch_prices_polygon")
 
     monkeypatch.setattr(mod, "setup_logging", lambda: None)
-    monkeypatch.setattr(mod, "_request_bars", lambda client, sym: [])
+    monkeypatch.setattr(mod, "_request_bars", lambda client, sym: ([], True))
 
     class FakeClient:
         def connect(self):
@@ -62,6 +69,10 @@ def test_fetch_prices_polygon_no_data(monkeypatch):
 
     captured = []
     monkeypatch.setattr(mod, "_merge_price_data", lambda f, recs: (captured.extend(recs), 0)[1])
+
+    meta_store = {}
+    monkeypatch.setattr(mod, "load_price_meta", lambda: meta_store.copy())
+    monkeypatch.setattr(mod, "save_price_meta", lambda m: meta_store.update(m))
 
     monkeypatch.setattr(mod, "compute_volstats_polygon_main", lambda syms: None)
 
@@ -113,8 +124,9 @@ def test_request_bars_skips_on_403(monkeypatch):
         def _request(self, path, params):
             raise FakeHTTPError(403)
 
-    records = list(mod._request_bars(FakeClient(), "ABC"))
+    records, requested = mod._request_bars(FakeClient(), "ABC")
     assert records == []
+    assert requested is True
 
 
 def test_incomplete_day_triggers_refetch(monkeypatch, tmp_path):
@@ -148,5 +160,40 @@ def test_incomplete_day_triggers_refetch(monkeypatch, tmp_path):
             called.append(path)
             return {"results": []}
 
-    records = list(mod._request_bars(FakeClient(), "ABC"))
+    records, requested = mod._request_bars(FakeClient(), "ABC")
     assert called, "refetch should occur when last fetch before close"
+    assert requested is True
+
+
+def test_no_new_workday_skips_sleep(monkeypatch):
+    mod = importlib.import_module("tomic.cli.fetch_prices_polygon")
+
+    monkeypatch.setattr(mod, "setup_logging", lambda: None)
+    monkeypatch.setattr(mod, "_request_bars", lambda client, sym: ([], False))
+
+    class FakeClient:
+        def connect(self):
+            pass
+
+        def disconnect(self):
+            pass
+
+    monkeypatch.setattr(mod, "PolygonClient", lambda: FakeClient())
+
+    sleep_calls = []
+    monkeypatch.setattr(mod, "sleep", lambda s: sleep_calls.append(s))
+
+    meta_store = {}
+    monkeypatch.setattr(mod, "load_price_meta", lambda: meta_store.copy())
+    monkeypatch.setattr(mod, "save_price_meta", lambda m: meta_store.update(m))
+
+    monkeypatch.setattr(mod, "compute_volstats_polygon_main", lambda syms: None)
+
+    monkeypatch.setattr(
+        mod,
+        "cfg_get",
+        lambda name, default=None: 1 if name == "POLYGON_REQUESTS_PER_MINUTE" else default,
+    )
+
+    mod.main(["AAA", "BBB"])
+    assert sleep_calls == []
