@@ -2,7 +2,7 @@ name: Update earnings dates
 
 on:
   schedule:
-    - cron: '0 1 * * *'
+    - cron: '0 1,2,3,5,6 * * *'
   workflow_dispatch:
 
 jobs:
