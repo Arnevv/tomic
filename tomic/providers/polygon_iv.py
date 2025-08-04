@@ -359,8 +359,76 @@ class IVExtractor:
         symbol: str | None = None,
         expiry: str | None = None,
     ) -> tuple[float | None, float | None, float | None]:
+        # ------------------------------------------------------------------
+        # Deduplicate options by strike and type
+        # Polygon occasionally returns multiple entries for the same contract.
+        # To avoid skewed calculations we keep the most reliable entry for
+        # each (strike, type) pair. Reliability is determined first by the
+        # highest reported volume and then by the latest timestamp.
+        # ------------------------------------------------------------------
+        grouped: dict[tuple[float, str], Dict[str, Any]] = {}
+
+        def _get_volume(o: Dict[str, Any]) -> float:
+            vol = o.get("volume")
+            if vol is None and isinstance(o.get("day"), dict):
+                vol = o["day"].get("volume")
+            if vol is None and isinstance(o.get("details"), dict):
+                vol = o["details"].get("volume")
+            try:
+                return float(vol)
+            except Exception:
+                return 0.0
+
+        def _get_updated(o: Dict[str, Any]) -> float:
+            for key in ("last_updated", "updated", "t", "timestamp"):
+                ts = o.get(key)
+                if ts is None and isinstance(o.get("details"), dict):
+                    ts = o["details"].get(key)
+                if ts is not None:
+                    try:
+                        return float(ts)
+                    except Exception:
+                        continue
+            return 0.0
+
+        for opt in options:
+            details = opt.get("details") or {}
+            right = (
+                opt.get("option_type")
+                or opt.get("type")
+                or opt.get("contract_type")
+                or details.get("contract_type")
+                or opt.get("right")
+            )
+
+            strike = (
+                    opt.get("strike_price")
+                    or opt.get("strike")
+                    or opt.get("exercise_price")
+                    or (details.get("strike_price") if isinstance(details, dict) else None)
+            )
+
+            if right is None or strike is None:
+                continue
+            try:
+                strike_f = float(strike)
+            except Exception:
+                continue
+            key = (strike_f, str(right).lower())
+            existing = grouped.get(key)
+            if existing is None:
+                grouped[key] = opt
+            else:
+                existing_vol = _get_volume(existing)
+                new_vol = _get_volume(opt)
+                if new_vol > existing_vol or (
+                    new_vol == existing_vol and _get_updated(opt) > _get_updated(existing)
+                ):
+                    grouped[key] = opt
+
+        options = list(grouped.values())
         options.sort(key=lambda o: float(o.get("strike_price") or o.get("strike") or 0))
-        logger.info(f"extract_skew: {len(options)} options")
+        logger.info(f"extract_skew: {len(options)} options after dedup")
         if options:
             logger.debug(f"Voorbeeldoptie: {options[0]}")
         atm_iv: float | None = None
