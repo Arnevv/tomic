@@ -558,6 +558,55 @@ def test_export_option_chain_rounding(monkeypatch, tmp_path):
     assert rows[1][9] == "0.0047"
 
 
+def test_export_option_chain_deduplicates(monkeypatch, tmp_path):
+    import csv
+
+    mod = importlib.import_module("tomic.providers.polygon_iv")
+
+    from pathlib import Path as RealPath
+
+    monkeypatch.setattr(mod, "Path", lambda p="": RealPath(tmp_path) / p if p else RealPath(tmp_path))
+
+    options = [
+        {
+            "strike_price": 100,
+            "expiration_date": "2024-01-19",
+            "option_type": "call",
+            "bid": 1.0,
+            "volume": 10,
+        },
+        {
+            "strike_price": 100,
+            "expiration_date": "2024-01-19",
+            "option_type": "call",
+            "bid": 1.1,
+            "ask": 1.3,
+            "volume": 5,
+        },
+        {
+            "strike_price": 100,
+            "expiration_date": "2024-01-19",
+            "option_type": "call",
+            "bid": 1.0,
+            "ask": 1.2,
+            "volume": 20,
+        },
+    ]
+
+    mod._export_option_chain("XYZ", options)
+
+    csv_file = next(tmp_path.glob("**/*optionchainpolygon.csv"))
+    with csv_file.open(newline="") as f:
+        rows = list(csv.reader(f))
+
+    # header + one unique row
+    assert len(rows) == 2
+    # selected row has highest volume among entries with bid and ask
+    assert rows[1][3] == "1.0"
+    assert rows[1][4] == "1.2"
+    assert rows[1][11] == "20"
+
+
 def test_load_polygon_expiries(monkeypatch):
     mod = importlib.import_module("tomic.providers.polygon_iv")
 

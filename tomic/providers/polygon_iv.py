@@ -265,13 +265,85 @@ def _export_option_chain(symbol: str, options: List[Dict[str, Any]]) -> None:
             return val
 
     try:
+        def _extract_key_metrics(opt: Dict[str, Any]):
+            details = opt.get("details") or {}
+            day = opt.get("day") or {}
+            strike_raw = (
+                opt.get("strike_price")
+                or opt.get("strike")
+                or opt.get("exercise_price")
+                or details.get("strike_price")
+            )
+            try:
+                strike_f = float(strike_raw)
+                strike_out = int(strike_f) if strike_f.is_integer() else round(strike_f, 2)
+            except Exception:
+                strike_out = strike_raw
+            expiry = (
+                opt.get("expiration_date")
+                or opt.get("expDate")
+                or opt.get("expiry")
+                or details.get("expiration_date")
+                or details.get("expiry")
+                or details.get("expDate")
+            )
+            opt_type = (
+                opt.get("option_type")
+                or opt.get("type")
+                or opt.get("contract_type")
+                or details.get("contract_type")
+                or opt.get("right")
+            )
+            bid = (
+                opt.get("bid")
+                or opt.get("bid_price")
+                or (opt.get("last_quote") or {}).get("bid")
+                or details.get("bid")
+            )
+            ask = (
+                opt.get("ask")
+                or opt.get("ask_price")
+                or (opt.get("last_quote") or {}).get("ask")
+                or details.get("ask")
+            )
+            volume = opt.get("volume") or day.get("volume") or day.get("v")
+            return (expiry, opt_type, strike_out), bid, ask, volume
+
+        groups: Dict[tuple[Any, Any, Any], Dict[str, Any]] = {}
+        metrics: Dict[tuple[Any, Any, Any], tuple[bool, float]] = {}
+        for opt in options:
+            key, bid, ask, volume = _extract_key_metrics(opt)
+            has_ba = bid is not None and ask is not None
+            vol_val = float(volume) if isinstance(volume, (int, float)) else 0.0
+            if key not in groups:
+                groups[key] = opt
+                metrics[key] = (has_ba, vol_val)
+            else:
+                best_ba, best_vol = metrics[key]
+                if has_ba and not best_ba:
+                    groups[key] = opt
+                    metrics[key] = (has_ba, vol_val)
+                elif has_ba == best_ba and vol_val > best_vol:
+                    groups[key] = opt
+                    metrics[key] = (has_ba, vol_val)
+
+        def _sort_key(k: tuple[Any, Any, Any]):
+            exp, typ, strike = k
+            try:
+                strike_val = float(strike)
+            except Exception:
+                strike_val = float("inf")
+            return (exp or "", typ or "", strike_val)
+
         with path.open("w", newline="", encoding="utf-8") as csvfile:
             writer = csv.writer(csvfile)
             writer.writerow(headers)
-            for opt in options:
+            for key in sorted(groups.keys(), key=_sort_key):
+                opt = groups[key]
                 greeks = opt.get("greeks") or {}
                 day = opt.get("day") or {}
                 details = opt.get("details") or {}
+                # recompute values for output to ensure consistency
                 strike_raw = (
                     opt.get("strike_price")
                     or opt.get("strike")
