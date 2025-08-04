@@ -11,7 +11,7 @@
 - BMY: 13/7/25
 - C: 13/7/25
 - CAT: 13/7/25
-- CL
+- CL: 4 aug 2025
 - COST
 - CRM
 - CVS
