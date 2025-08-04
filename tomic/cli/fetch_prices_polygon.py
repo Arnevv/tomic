@@ -125,6 +125,7 @@ def _request_bars(client: PolygonClient, symbol: str) -> tuple[list[dict], bool]
         params.update({"limit": 504})
 
     requested = True
+    logger.info(f"Fetching bars for {symbol}")
     try:
         data = client._request(path, params)
     except Exception as exc:
@@ -221,7 +222,6 @@ def main(argv: List[str] | None = None) -> None:
                 now = time.time()
                 request_times = [t for t in request_times if now - t < 60]
 
-            logger.info(f"Fetching bars for {sym}")
             records, requested = _request_bars(client, sym)
             if requested:
                 request_times.append(time.time())
