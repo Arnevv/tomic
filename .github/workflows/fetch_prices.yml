@@ -53,15 +53,11 @@ jobs:
 
           if [ -n "$(git status --porcelain)" ]; then
             echo "📝 Committing changes."
-            git add tomic/data/spot_prices/*.json tomic/data/iv_daily_summary/*.json tomic/data/historical_volatility/*.json
+            git add tomic/data/spot_prices tomic/data/iv_daily_summary tomic/data/historical_volatility
             git commit -m "Update price history"
 
-            echo "🔧 Fetching and rebasing on latest origin/main."
-            git fetch origin main
-            git rebase origin/main
-
-            echo "🚀 Pushing with --force-with-lease."
-            git push origin main --force-with-lease
+            echo "🚀 Pushing changes."
+            git push origin main
           else
             echo "✅ No changes to commit"
           fi
