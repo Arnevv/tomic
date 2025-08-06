@@ -110,6 +110,7 @@ Belangrijke mappen in `config.yaml`:
 - `EARNINGS_DATES_FILE`
 
 Het bestand `earnings_dates.json` bevat verwachte earnings per symbool. De optie "Toon marktinformatie" gebruikt dit om de eerstvolgende datum te tonen.
+Het bestand `tomic/data/earnings_data.json` bevat enkel metadata (bijv. laatste fetch-tijdstempel per symbool) en is niet nodig voor runtime-functies.
 
 Dagelijkse prijsdata wordt met `tomic/cli/fetch_prices.py` tot maximaal 504 dagen
 terug opgehaald en in `PRICE_HISTORY_DIR` opgeslagen.
