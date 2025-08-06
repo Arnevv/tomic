@@ -77,6 +77,12 @@ def test_normalize_leg(monkeypatch):
     assert out2["delta"] is None
 
 
+def test_normalize_leg_camel_case():
+    leg = {"OpenInterest": "415"}
+    out = utils.normalize_leg(leg)
+    assert out == {"open_interest": 415.0}
+
+
 def test_prompt_user_for_price_accept(monkeypatch):
     inputs = iter(["y", "0.25"])
     monkeypatch.setattr("builtins.input", lambda *a: next(inputs))
