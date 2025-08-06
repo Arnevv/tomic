@@ -312,6 +312,29 @@ def _metrics(
     edge_avg = round(sum(short_edges) / len(short_edges), 2) if short_edges else None
 
     reasons: list[str] = []
+
+    min_vol = float(cfg_get("MIN_OPTION_VOLUME", 0))
+    min_oi = float(cfg_get("MIN_OPTION_OPEN_INTEREST", 0))
+    if min_vol > 0 or min_oi > 0:
+        low_liq: List[str] = []
+        for leg in legs:
+            try:
+                vol = float(leg.get("volume") or 0)
+            except Exception:
+                vol = 0.0
+            try:
+                oi = float(leg.get("open_interest") or 0)
+            except Exception:
+                oi = 0.0
+            if (min_vol > 0 and vol < min_vol) or (min_oi > 0 and oi < min_oi):
+                low_liq.append(str(leg.get("strike")))
+        if low_liq:
+            logger.info(
+                f"[{strategy}] Onvoldoende volume/open interest voor strikes {','.join(low_liq)}"
+            )
+            reasons.append("onvoldoende volume/open interest")
+            return None, reasons
+
     missing_mid: List[str] = []
     credits: List[float] = []
     debits: List[float] = []
