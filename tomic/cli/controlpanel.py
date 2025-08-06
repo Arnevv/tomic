@@ -9,6 +9,7 @@ import os
 import csv
 from collections import defaultdict
 import math
+from typing import Any
 
 try:
     from tabulate import tabulate
@@ -1295,33 +1296,136 @@ def run_portfolio_menu() -> None:
             if proposal.breakevens:
                 writer.writerow(["breakevens", *proposal.breakevens])
         print(f"✅ Voorstel opgeslagen in: {path.resolve()}")
+    def _load_acceptance_criteria(strategy: str) -> dict[str, Any]:
+        """Return current acceptance criteria for ``strategy``."""
+        rules_path = Path(
+            cfg.get("STRIKE_RULES_FILE", "tomic/strike_selection_rules.yaml")
+        )
+        try:
+            config_data = cfg._load_yaml(rules_path)
+        except Exception:
+            config_data = {}
+        rules = load_strike_config(strategy, config_data) if config_data else {}
+        try:
+            min_rom = float(rules.get("min_rom")) if rules.get("min_rom") is not None else None
+        except Exception:
+            min_rom = None
+        return {
+            "min_rom": min_rom,
+            "min_pos": 0.0,
+            "require_positive_ev": True,
+            "allow_missing_edge": bool(cfg.get("ALLOW_INCOMPLETE_METRICS", False)),
+        }
+
+    def _load_portfolio_context() -> tuple[dict[str, Any], bool]:
+        """Return portfolio context and availability flag."""
+        ctx = {
+            "net_delta": None,
+            "net_theta": None,
+            "net_vega": None,
+            "margin_used": None,
+            "positions_open": None,
+        }
+        if not POSITIONS_FILE.exists() or not ACCOUNT_INFO_FILE.exists():
+            return ctx, False
+        try:
+            positions = json.loads(POSITIONS_FILE.read_text())
+            account = json.loads(ACCOUNT_INFO_FILE.read_text())
+            greeks = compute_portfolio_greeks(positions)
+            ctx.update(
+                {
+                    "net_delta": greeks.get("Delta"),
+                    "net_theta": greeks.get("Theta"),
+                    "net_vega": greeks.get("Vega"),
+                    "positions_open": len(positions),
+                    "margin_used": float(account.get("FullInitMarginReq"))
+                    if account.get("FullInitMarginReq") is not None
+                    else None,
+                }
+            )
+        except Exception:
+            return ctx, False
+        return ctx, True
 
     def _export_proposal_json(proposal: StrategyProposal) -> None:
         symbol = str(SESSION_STATE.get("symbol", "SYMB"))
-        strat = str(SESSION_STATE.get("strategy", "strategy")).replace(" ", "_")
+        strategy_name = str(SESSION_STATE.get("strategy", "strategy"))
+        strat_file = strategy_name.replace(" ", "_")
         base = Path(cfg.get("EXPORT_DIR", "exports")) / datetime.now().strftime(
             "%Y%m%d"
         )
         base.mkdir(parents=True, exist_ok=True)
         ts = datetime.now().strftime("%H%M%S")
-        path = base / f"strategy_proposal_{symbol}_{strat}_{ts}.json"
-        with path.open("w", encoding="utf-8") as f:
-            json.dump(
-                {
-                    "legs": proposal.legs,
-                    "credit": proposal.credit,
-                    "margin": proposal.margin,
-                    "pos": proposal.pos,
-                    "ev": proposal.ev,
-                    "rom": proposal.rom,
-                    "max_profit": proposal.max_profit,
-                    "max_loss": proposal.max_loss,
-                    "breakevens": proposal.breakevens,
+        path = base / f"strategy_proposal_{symbol}_{strat_file}_{ts}.json"
+
+        accept = _load_acceptance_criteria(strat_file)
+        portfolio_ctx, portfolio_available = _load_portfolio_context()
+        spot_price = SESSION_STATE.get("spot_price")
+
+        data = {
+            "symbol": symbol,
+            "spot_price": spot_price,
+            "strategy": strat_file,
+            "legs": proposal.legs,
+            "metrics": {
+                "credit": proposal.credit,
+                "margin": proposal.margin,
+                "pos": proposal.pos,
+                "rom": proposal.rom,
+                "ev": proposal.ev,
+                "average_edge": proposal.edge,
+                "max_profit": proposal.max_profit
+                if proposal.max_profit is not None
+                else "unlimited",
+                "max_loss": proposal.max_loss
+                if proposal.max_loss is not None
+                else "unlimited",
+                "breakevens": proposal.breakevens or [],
+                "score": proposal.score,
+                "missing_data": {
+                    "missing_bidask": any(
+                        (
+                            (b := l.get("bid")) is None
+                            or (isinstance(b, (int, float)) and (math.isnan(b) or b <= 0))
+                        )
+                        or (
+                            (a := l.get("ask")) is None
+                            or (isinstance(a, (int, float)) and (math.isnan(a) or a <= 0))
+                        )
+                        for l in proposal.legs
+                    ),
+                    "missing_edge": proposal.edge is None,
+                    "fallback_mid": any(
+                        l.get("mid_fallback") == "close"
+                        or (
+                            l.get("mid") is not None
+                            and (
+                                (
+                                    (b := l.get("bid")) is None
+                                    or (
+                                        isinstance(b, (int, float))
+                                        and (math.isnan(b) or b <= 0)
+                                    )
+                                )
+                                or (
+                                    (a := l.get("ask")) is None
+                                    or (
+                                        isinstance(a, (int, float))
+                                        and (math.isnan(a) or a <= 0)
+                                    )
+                                )
+                            )
+                        )
+                        for l in proposal.legs
+                    ),
                 },
-                f,
-                ensure_ascii=False,
-                indent=2,
-            )
+            },
+            "tomic_acceptance_criteria": accept,
+            "portfolio_context": portfolio_ctx,
+            "portfolio_context_available": portfolio_available,
+        }
+        with path.open("w", encoding="utf-8") as f:
+            json.dump(data, f, ensure_ascii=False, indent=2)
         print(f"✅ Voorstel opgeslagen in: {path.resolve()}")
 
     def _proposal_journal_text(proposal: StrategyProposal) -> str:
