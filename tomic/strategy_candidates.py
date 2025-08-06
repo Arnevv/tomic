@@ -326,11 +326,15 @@ def _metrics(
                 oi = float(leg.get("open_interest") or 0)
             except Exception:
                 oi = 0.0
+            exp = leg.get("expiry") or leg.get("expiration")
+            strike = leg.get("strike")
+            if isinstance(strike, float) and strike.is_integer():
+                strike = int(strike)
             if (min_vol > 0 and vol < min_vol) or (min_oi > 0 and oi < min_oi):
-                low_liq.append(str(leg.get("strike")))
+                low_liq.append(f"{strike} [{vol}, {oi}, {exp}]")
         if low_liq:
             logger.info(
-                f"[{strategy}] Onvoldoende volume/open interest voor strikes {','.join(low_liq)}"
+                f"[{strategy}] Onvoldoende volume/open interest voor strikes {', '.join(low_liq)}"
             )
             reasons.append("onvoldoende volume/open interest")
             return None, reasons
