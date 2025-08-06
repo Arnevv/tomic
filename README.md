@@ -83,6 +83,9 @@ Krijg je geen voorstellen, dan toont TOMIC nu ook hoeveel combinaties zijn
 afgewezen door een ratioscheck of risicocriteria. Zo weet je direct waarom er
 geen strategie werd gevonden.
 
+Bij onvoldoende volume of open interest toont de log nu per strike ook volume,
+open interest en expiratie in de vorm `strike [volume, open interest, expiry]`.
+
 ⏳ Verbindingstips
 Wacht na het verbinden tot de callback `nextValidId()` is aangeroepen voordat
 je verzoeken naar TWS stuurt. Pas dan is de client klaar om orders of
