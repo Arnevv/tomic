@@ -199,6 +199,8 @@ _NUMERIC_KEYS = {
     "theta",
     "vega",
     "gamma",
+    "volume",
+    "open_interest",
 }
 
 

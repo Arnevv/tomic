@@ -59,6 +59,8 @@ def generate(symbol: str, option_chain: List[Dict[str, Any]], config: Dict[str, 
             "mid": mid,
             "edge": opt.get("edge"),
             "model": opt.get("model"),
+            "volume": opt.get("volume"),
+            "open_interest": opt.get("open_interest"),
             "position": position,
         }
         try:
