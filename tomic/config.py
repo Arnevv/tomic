@@ -148,8 +148,8 @@ class AppConfig(BaseModel):
     SCORE_WEIGHT_POS: float = 0.3
     SCORE_WEIGHT_EV: float = 0.2
     ALLOW_INCOMPLETE_METRICS: bool = False
-    MIN_OPTION_VOLUME: int = 0
-    MIN_OPTION_OPEN_INTEREST: int = 0
+    MIN_OPTION_VOLUME: int = 50
+    MIN_OPTION_OPEN_INTEREST: int = 500
 
     # Parameters for IV history snapshots -------------------------------
     IV_TRACKING_DELTAS: List[float] = [0.25, 0.5]
