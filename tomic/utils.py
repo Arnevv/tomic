@@ -2,6 +2,7 @@ import os
 from datetime import datetime, date
 from pathlib import Path
 import math
+import re
 
 from tomic.config import get as cfg_get
 from tomic.journal.utils import load_json
@@ -205,14 +206,20 @@ _NUMERIC_KEYS = {
 
 
 def normalize_leg(leg: dict) -> dict:
-    """Cast numeric fields in ``leg`` to ``float`` if possible."""
+    """Cast numeric fields in ``leg`` to ``float`` if possible.
+
+    CamelCase keys are converted to ``snake_case`` before numeric parsing.
+    """
 
     for key in list(leg.keys()):
-        canonical = key.lower()
+        canonical = re.sub(r"(?<!^)(?=[A-Z])", "_", key).lower()
         val = leg[key]
         if canonical in _NUMERIC_KEYS:
             leg[canonical] = parse_euro_float(val)
             if canonical != key:
                 del leg[key]
+        elif canonical != key:
+            leg[canonical] = val
+            del leg[key]
     return leg
 
