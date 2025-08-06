@@ -3645,5 +3645,12 @@
     "close": 45.85,
     "volume": 31038904.0,
     "atr": null
+  },
+  {
+    "symbol": "BAC",
+    "date": "2025-08-05",
+    "close": 45.56,
+    "volume": 36798320.0,
+    "atr": null
   }
 ]

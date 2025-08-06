@@ -3645,5 +3645,12 @@
     "close": 222.34,
     "volume": 5997263.0,
     "atr": null
+  },
+  {
+    "symbol": "BA",
+    "date": "2025-08-05",
+    "close": 224.86,
+    "volume": 5687360.0,
+    "atr": null
   }
 ]
