@@ -1,5 +1,6 @@
 import pytest
 from tomic.strategies import iron_condor
+from tomic.strategy_candidates import _metrics
 
 
 def test_generate_strategy_candidates_requires_spot():
@@ -139,3 +140,35 @@ def test_parity_mid_used_for_missing_bidask(monkeypatch):
     assert sc_leg is not None
     assert sc_leg.get("mid_from_parity") is True
     assert sc_leg.get("mid") is not None
+
+
+def test_metrics_black_scholes_fallback(monkeypatch):
+    monkeypatch.setenv("TOMIC_TODAY", "2024-06-01")
+    legs = [
+        {
+            "expiry": "2024-07-01",
+            "strike": 66,
+            "type": "C",
+            "position": -1,
+            "mid": 1.2,
+            "iv": 0.25,
+            "spot": 65,
+            "volume": 100,
+            "open_interest": 1000,
+        },
+        {
+            "expiry": "2024-07-01",
+            "strike": 68,
+            "type": "C",
+            "position": 2,
+            "mid": 0.6,
+            "iv": 0.24,
+            "spot": 65,
+            "volume": 100,
+            "open_interest": 1000,
+        },
+    ]
+    metrics, _ = _metrics("ratio_spread", legs)
+    assert metrics is not None
+    assert all(leg.get("model") is not None for leg in legs)
+    assert all(leg.get("delta") is not None for leg in legs)

@@ -265,9 +265,54 @@ def _find_option(
     return None
 
 
+def _bs_estimate_missing(legs: List[Dict[str, Any]]) -> None:
+    """Fill missing model price and delta using Black-Scholes."""
+    for leg in legs:
+        need_model = leg.get("model") in (None, 0, "0", "")
+        need_delta = leg.get("delta") in (None, 0, "0", "")
+        if not (need_model or need_delta):
+            continue
+        try:
+            opt_type = (leg.get("type") or leg.get("right") or "").upper()[0]
+            strike = float(leg.get("strike"))
+            spot = float(
+                leg.get("spot")
+                or leg.get("underlying_price")
+                or leg.get("underlying")
+            )
+            iv = float(leg.get("iv"))
+            exp = leg.get("expiry") or leg.get("expiration")
+            if not exp:
+                continue
+            dte = dte_between_dates(today(), exp)
+            if dte is None or dte <= 0 or iv <= 0 or spot <= 0:
+                continue
+        except Exception:
+            continue
+        try:
+            price = black_scholes(opt_type, spot, strike, dte, iv)
+            T = dte / 365.0
+            d1 = (
+                math.log(spot / strike)
+                + (0.045 - 0.0 + 0.5 * iv * iv) * T
+            ) / (iv * math.sqrt(T))
+            nd1 = 0.5 * (1.0 + math.erf(d1 / math.sqrt(2.0)))
+            if opt_type == "C":
+                delta = nd1
+            else:
+                delta = nd1 - 1
+            if need_model:
+                leg["model"] = price
+            if need_delta:
+                leg["delta"] = delta
+        except Exception:
+            continue
+
+
 def _metrics(
     strategy: str, legs: List[Dict[str, Any]]
 ) -> tuple[Optional[Dict[str, Any]], list[str]]:
+    _bs_estimate_missing(legs)
     missing_fields = False
     for leg in legs:
         missing: List[str] = []
