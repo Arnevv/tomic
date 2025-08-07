@@ -1024,7 +1024,7 @@ def run_portfolio_menu() -> None:
                     warn_edge = False
                     for prop in proposals:
                         legs_desc = "; ".join(
-                            f"{'S' if leg.get('position',0)<0 else 'L'}{leg.get('type')}{leg.get('strike')}"
+                            f"{'S' if leg.get('position',0)<0 else 'L'}{leg.get('type')}{leg.get('strike')} {leg.get('expiry', '?')}"
                             for leg in prop.legs
                         )
                         for leg in prop.legs:
