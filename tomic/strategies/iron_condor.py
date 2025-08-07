@@ -75,6 +75,12 @@ def generate(symbol: str, option_chain: List[Dict[str, Any]], config: Dict[str, 
                 leg["model"] = black_scholes(opt_type, spot, strike, dte, iv, r=0.045, q=0.0)
         except Exception:
             pass
+        if (
+            leg.get("edge") is None
+            and leg.get("mid") is not None
+            and leg.get("model") is not None
+        ):
+            leg["edge"] = leg["model"] - leg["mid"]
         return normalize_leg(leg)
 
     def passes_risk(metrics: Dict[str, Any]) -> bool:

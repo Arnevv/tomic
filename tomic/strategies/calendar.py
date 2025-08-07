@@ -87,6 +87,13 @@ def generate(symbol: str, option_chain: List[Dict[str, Any]], config: Dict[str, 
                     "position": 1,
                 },
             ]
+            for leg in legs:
+                if (
+                    leg.get("edge") is None
+                    and leg.get("mid") is not None
+                    and leg.get("model") is not None
+                ):
+                    leg["edge"] = leg["model"] - leg["mid"]
             legs = [normalize_leg(l) for l in legs]
             metrics, _ = _metrics("calendar", legs)
             if not metrics:
