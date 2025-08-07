@@ -363,20 +363,25 @@ def _metrics(
     if min_vol > 0 or min_oi > 0:
         low_liq: List[str] = []
         for leg in legs:
+            vol_raw = leg.get("volume")
             try:
-                vol = float(leg.get("volume") or 0)
+                vol = float(vol_raw) if vol_raw not in (None, "") else None
             except Exception:
-                vol = 0.0
+                vol = None
+            oi_raw = leg.get("open_interest")
             try:
-                oi = float(leg.get("open_interest") or 0)
+                oi = float(oi_raw) if oi_raw not in (None, "") else None
             except Exception:
-                oi = 0.0
+                oi = None
             exp = leg.get("expiry") or leg.get("expiration")
             strike = leg.get("strike")
             if isinstance(strike, float) and strike.is_integer():
                 strike = int(strike)
-            if (min_vol > 0 and vol < min_vol) or (min_oi > 0 and oi < min_oi):
-                low_liq.append(f"{strike} [{vol}, {oi}, {exp}]")
+            if (
+                (min_vol > 0 and vol is not None and vol < min_vol)
+                or (min_oi > 0 and oi is not None and oi < min_oi)
+            ):
+                low_liq.append(f"{strike} [{vol or 0}, {oi or 0}, {exp}]")
         if low_liq:
             logger.info(
                 f"[{strategy}] Onvoldoende volume/open interest voor strikes {', '.join(low_liq)}"

@@ -760,7 +760,7 @@ def run_portfolio_menu() -> None:
             logger.info(f"Interpolated CSV saved to {new_path}")
             path = new_path
         data = [
-            normalize_leg({k.lower(): v for k, v in rec.items()})
+            normalize_leg(rec)
             for rec in df.to_dict(orient="records")
         ]
         symbol = str(SESSION_STATE.get("symbol", ""))

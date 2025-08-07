@@ -204,6 +204,16 @@ _NUMERIC_KEYS = {
     "open_interest",
 }
 
+# Legacy keys that may appear in CSVs without underscores or in other forms
+LEGACY_LEG_KEYS = {
+    "openinterest": "open_interest",
+    "impliedvolatility": "iv",
+    "implied_volatility": "iv",
+    "delta": "delta",  # redundant but explicit
+    "vega": "vega",
+    "theta": "theta",
+}
+
 
 def normalize_leg(leg: dict) -> dict:
     """Cast numeric fields in ``leg`` to ``float`` if possible.
@@ -213,6 +223,7 @@ def normalize_leg(leg: dict) -> dict:
 
     for key in list(leg.keys()):
         canonical = re.sub(r"(?<!^)(?=[A-Z])", "_", key).lower()
+        canonical = LEGACY_LEG_KEYS.get(canonical, canonical)
         val = leg[key]
         if canonical in _NUMERIC_KEYS:
             leg[canonical] = parse_euro_float(val)
