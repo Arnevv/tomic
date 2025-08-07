@@ -3652,5 +3652,12 @@
     "close": 213.75,
     "volume": 51505121.0,
     "atr": null
+  },
+  {
+    "symbol": "AMZN",
+    "date": "2025-08-06",
+    "close": 222.31,
+    "volume": 54823045.0,
+    "atr": null
   }
 ]

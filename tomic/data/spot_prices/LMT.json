@@ -3652,5 +3652,12 @@
     "close": 428.24,
     "volume": 1643922.0,
     "atr": null
+  },
+  {
+    "symbol": "LMT",
+    "date": "2025-08-06",
+    "close": 434.85,
+    "volume": 2032345.0,
+    "atr": null
   }
 ]
