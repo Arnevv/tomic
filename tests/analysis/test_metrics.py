@@ -15,7 +15,8 @@ def test_metrics_iron_condor():
     assert math.isclose(metrics["credit"], 150.0)
     assert math.isclose(metrics["margin"], 500.0)
     assert metrics["rom"] is not None
-    assert metrics["score"] is not None
+    assert math.isclose(metrics["ev_pct"], 10.0)
+    assert math.isclose(metrics["score"], 41.0)
 
 
 def test_metrics_atm_iron_butterfly():

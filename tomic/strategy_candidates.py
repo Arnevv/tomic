@@ -467,6 +467,7 @@ def _metrics(
         if pos_val is not None and max_profit is not None and max_loss is not None
         else None
     )
+    ev_pct = (ev / margin) * 100 if ev is not None and margin else None
     rom_w = float(cfg_get("SCORE_WEIGHT_ROM", 0.5))
     pos_w = float(cfg_get("SCORE_WEIGHT_POS", 0.3))
     ev_w = float(cfg_get("SCORE_WEIGHT_EV", 0.2))
@@ -476,12 +477,12 @@ def _metrics(
         score += rom * rom_w
     if pos_val is not None:
         score += pos_val * pos_w
-    if ev is not None:
-        score += ev * ev_w
+    if ev_pct is not None:
+        score += ev_pct * ev_w
 
     breakevens = _breakevens(strategy, legs, net_credit * 100)
 
-    if (ev is not None and ev <= 0) or score < 0:
+    if (ev_pct is not None and ev_pct <= 0) or score < 0:
         reasons.append("negatieve EV of score")
         logger.info(
             f"[❌ voorstel afgewezen] {strategy} — reason: EV/score te laag"
@@ -491,6 +492,7 @@ def _metrics(
     result = {
         "pos": pos_val,
         "ev": ev,
+        "ev_pct": ev_pct,
         "rom": rom,
         "edge": edge_avg,
         "credit": net_credit * 100,
