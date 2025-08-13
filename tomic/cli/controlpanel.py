@@ -1065,6 +1065,10 @@ def run_portfolio_menu() -> None:
                 if spot_for_strats is None:
                     spot_for_strats, _ = _load_latest_close(symbol)
                 SESSION_STATE["spot_price"] = spot_for_strats
+                if spot_for_strats is not None:
+                    print(f"Spotprice: {spot_for_strats:.2f}")
+                else:
+                    print("Spotprice: n/a")
                 proposals, reason = generate_strategy_candidates(
                     symbol,
                     strat,
