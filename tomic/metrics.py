@@ -4,10 +4,11 @@ from __future__ import annotations
 """Utility functions for option metrics calculations."""
 
 from math import inf
-from typing import Optional, Iterable
+from typing import Optional, Iterable, Any, Dict, List
 
 from .utils import normalize_right
 from .logutils import logger
+from .config import get as cfg_get
 
 
 def calculate_edge(theoretical: float, mid_price: float) -> float:
@@ -114,6 +115,43 @@ def calculate_payoff_at_spot(
             intrinsic = max(strike - spot_price, 0)
         total += position * intrinsic * 100
     return total
+
+
+def estimate_scenario_profit(
+    legs: Iterable[dict],
+    spot_price: float,
+    strategy_type: str,
+) -> tuple[Optional[List[Dict[str, Any]]], Optional[str]]:
+    """Estimate P&L for configured scenario moves.
+
+    Returns a tuple of (results, error). ``results`` is a list of dictionaries
+    each containing ``pnl`` along with ``scenario_spot``, ``scenario_label`` and
+    ``preferred_move``. If no scenario configuration exists for the provided
+    strategy, ``results`` is ``None`` and ``error`` contains the string
+    ``"no scenario defined"``.
+    """
+
+    scenarios_cfg = cfg_get("STRATEGY_SCENARIOS") or {}
+    strat_key = strategy_type.lower().replace(" ", "_")
+    strat_scenarios = scenarios_cfg.get(strat_key)
+    if not strat_scenarios:
+        return None, "no scenario defined"
+
+    results: List[Dict[str, Any]] = []
+    for scenario in strat_scenarios:
+        move_pct = float(getattr(scenario, "scenario_move_pct", 0) or 0)
+        scenario_spot = spot_price * (1 + move_pct / 100)
+        pnl = calculate_payoff_at_spot(legs, scenario_spot)
+        results.append(
+            {
+                "pnl": pnl,
+                "scenario_spot": scenario_spot,
+                "scenario_label": getattr(scenario, "scenario_label", None),
+                "preferred_move": getattr(scenario, "preferred_move", None),
+            }
+        )
+
+    return results, None
 
 
 def _max_loss(
@@ -229,5 +267,6 @@ __all__ = [
     "calculate_ev",
     "calculate_credit",
     "calculate_payoff_at_spot",
+    "estimate_scenario_profit",
     "calculate_margin",
 ]

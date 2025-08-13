@@ -8,6 +8,7 @@ from tomic.metrics import (
     calculate_credit,
     calculate_margin,
     calculate_payoff_at_spot,
+    estimate_scenario_profit,
 )
 
 
@@ -96,3 +97,26 @@ def test_calculate_payoff_at_spot_vertical_call():
     ]
     assert math.isclose(calculate_payoff_at_spot(legs, 95), -150.0)
     assert math.isclose(calculate_payoff_at_spot(legs, 108), 350.0)
+
+
+def test_estimate_scenario_profit():
+    legs = [
+        {"strike": 105, "type": "C", "action": "SELL", "mid": 2.07, "position": -1},
+        {"strike": 110, "type": "C", "action": "BUY", "mid": 0.95, "position": 1},
+        {"strike": 95, "type": "P", "action": "SELL", "mid": 2.07, "position": -1},
+        {"strike": 90, "type": "P", "action": "BUY", "mid": 0.95, "position": 1},
+    ]
+    results, msg = estimate_scenario_profit(legs, 100, "iron_condor")
+    assert msg is None
+    assert results and len(results) == 2
+    down = next(r for r in results if r["scenario_label"] == "Down 5%")
+    assert math.isclose(down["scenario_spot"], 95.0)
+    expected = calculate_payoff_at_spot(legs, 95)
+    assert math.isclose(down["pnl"], expected)
+    assert down["preferred_move"] == "roll_down"
+
+
+def test_estimate_scenario_profit_missing():
+    results, msg = estimate_scenario_profit([], 100, "unknown_strategy")
+    assert results is None
+    assert msg == "no scenario defined"
