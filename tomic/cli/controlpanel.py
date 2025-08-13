@@ -1362,10 +1362,29 @@ def run_portfolio_menu() -> None:
         portfolio_ctx, portfolio_available = _load_portfolio_context()
         spot_price = SESSION_STATE.get("spot_price")
 
+        earnings_dict = load_json(
+            cfg.get("EARNINGS_DATES_FILE", "tomic/data/earnings_dates.json")
+        )
+        next_earn = None
+        if isinstance(earnings_dict, dict):
+            earnings_list = earnings_dict.get(symbol)
+            if isinstance(earnings_list, list):
+                upcoming: list[datetime] = []
+                for ds in earnings_list:
+                    try:
+                        d = datetime.strptime(ds, "%Y-%m-%d").date()
+                    except Exception:
+                        continue
+                    if d >= today():
+                        upcoming.append(d)
+                if upcoming:
+                    next_earn = min(upcoming).strftime("%Y-%m-%d")
+
         data = {
             "symbol": symbol,
             "spot_price": spot_price,
             "strategy": strat_file,
+            "next_earnings_date": next_earn,
             "legs": proposal.legs,
             "metrics": {
                 "credit": proposal.credit,
