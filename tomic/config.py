@@ -183,6 +183,14 @@ class AppConfig(BaseModel):
 
     # Alpha Vantage API tuning
     ALPHAVANTAGE_SLEEP_BETWEEN: float = 12.0
+ 
+
+class StrategyScenario(BaseModel):
+    """Scenario configuration for portfolio strategies."""
+
+    scenario_move_pct: float
+    scenario_label: str
+    preferred_move: str
 
 
 _BASE_DIR = Path(__file__).resolve().parent.parent
@@ -256,6 +264,20 @@ def _load_yaml(path: Path) -> Dict[str, Any]:
     return content or {}
 
 
+def _load_strategy_scenarios() -> Dict[str, List[StrategyScenario]]:
+    """Load strategy scenarios from the default YAML configuration file."""
+
+    path = _BASE_DIR / "config" / "strategy_scenarios.yaml"
+    if not path.exists():
+        return {}
+    data = _load_yaml(path)
+    scenarios: Dict[str, List[StrategyScenario]] = {}
+    for strategy, entries in data.items():
+        if isinstance(entries, list):
+            scenarios[strategy] = [StrategyScenario(**e) for e in entries]
+    return scenarios
+
+
 def load_config() -> AppConfig:
     """Load configuration from .env or YAML file."""
     config_path = os.environ.get("TOMIC_CONFIG")
@@ -307,6 +329,7 @@ def save_config(config: AppConfig, path: Path | None = None) -> None:
 
 CONFIG = load_config()
 LOCK = threading.Lock()
+STRATEGY_SCENARIOS = _load_strategy_scenarios()
 
 
 def get(name: str, default: Any | None = None) -> Any:
@@ -316,14 +339,17 @@ def get(name: str, default: Any | None = None) -> Any:
     access from multiple threads is safe.
     """
     with LOCK:
+        if name == "STRATEGY_SCENARIOS":
+            return STRATEGY_SCENARIOS
         return getattr(CONFIG, name, default)
 
 
 def reload() -> None:
     """Reload configuration from disk into the global CONFIG object."""
-    global CONFIG
+    global CONFIG, STRATEGY_SCENARIOS
     with LOCK:
         CONFIG = load_config()
+        STRATEGY_SCENARIOS = _load_strategy_scenarios()
 
 
 def update(values: Dict[str, Any]) -> None:
