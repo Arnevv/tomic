@@ -52,5 +52,5 @@ def test_metrics_rejects_low_liquidity(monkeypatch):
     assert metrics is None
     assert any("volume" in r for r in reasons)
     assert logged == [
-        "[bull put spread] Onvoldoende volume/open interest voor strikes 100 [0.0, 0.0, 20250101], 90 [0.0, 0.0, 20250101]"
+        "[bull put spread] Onvoldoende volume/open interest voor strikes 100 [0, 0, 20250101], 90 [0, 0, 20250101]"
     ]
