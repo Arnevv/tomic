@@ -155,7 +155,7 @@ Extra opties in `config.yaml`:
 - `NEAREST_STRIKE_TOLERANCE_PERCENT`: toegestane afwijking bij strike matching (default `2.0`).
 - `SCORE_WEIGHT_ROM`: weging voor Return on Margin in strategie-score (default `0.5`).
 - `SCORE_WEIGHT_POS`: weging voor probability of success in strategie-score (default `0.3`).
-- `SCORE_WEIGHT_EV`: weging voor expected value in strategie-score (default `0.2`).
+- `SCORE_WEIGHT_EV`: weging voor expected value als percentage van de margin in strategie-score (default `0.2`).
 
 
 Stappenplan Data Ophalen – Technische Documentatie
