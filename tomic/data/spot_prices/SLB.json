@@ -3680,5 +3680,12 @@
     "close": 32.37,
     "volume": 10020012.0,
     "atr": null
+  },
+  {
+    "symbol": "SLB",
+    "date": "2025-08-12",
+    "close": 32.94,
+    "volume": 10289242.0,
+    "atr": null
   }
 ]
