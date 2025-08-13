@@ -23,6 +23,7 @@ def test_process_chain_respects_quality(tmp_path, monkeypatch):
     monkeypatch.setattr(mod.cfg, "get", lambda name, default=None: 70 if name == "CSV_MIN_QUALITY" else default)
     monkeypatch.setattr(mod.cfg, "_load_yaml", lambda p: {})
     monkeypatch.setattr(mod, "load_strike_config", lambda strat, data: {})
+    monkeypatch.setattr(mod, "refresh_spot_price", lambda s: None)
     monkeypatch.setattr(mod, "_load_spot_from_metrics", lambda d, s: None)
     monkeypatch.setattr(mod, "_load_latest_close", lambda s: (100.0, "20240101"))
 

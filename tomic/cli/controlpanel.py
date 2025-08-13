@@ -55,12 +55,14 @@ from tomic.api.ib_connection import connect_ib
 from tomic import config as cfg
 from tomic.logutils import setup_logging, logger
 from tomic.analysis.greeks import compute_portfolio_greeks
-from tomic.journal.utils import load_json
+from tomic.journal.utils import load_json, save_json
 from tomic.utils import today
 from tomic.cli.volatility_recommender import recommend_strategy, recommend_strategies
 from tomic.api.market_export import load_exported_chain
 from tomic.cli import services
 from tomic.helpers.price_utils import _load_latest_close
+from tomic.helpers.price_meta import load_price_meta, save_price_meta
+from tomic.polygon_client import PolygonClient
 from tomic.strike_selector import StrikeSelector, filter_by_expiry, FilterConfig
 from tomic.loader import load_strike_config
 from tomic.utils import get_option_mid_price, latest_atr, normalize_leg
@@ -106,6 +108,60 @@ def _load_spot_from_metrics(directory: Path, symbol: str) -> float | None:
             return float(spot) if spot is not None else None
     except Exception:
         return None
+
+
+def refresh_spot_price(symbol: str) -> float | None:
+    """Fetch and cache the current spot price for ``symbol``.
+
+    Uses :class:`PolygonClient` to retrieve the delayed last trade price and
+    caches it under :data:`PRICE_HISTORY_DIR`. When existing data is newer
+    than roughly ten minutes the cached value is reused.
+    """
+
+    sym = symbol.upper()
+    base = Path(cfg.get("PRICE_HISTORY_DIR", "tomic/data/spot_prices"))
+    base.mkdir(parents=True, exist_ok=True)
+    spot_file = base / f"{sym}.json"
+
+    meta = load_price_meta()
+    now = datetime.now()
+    ts_str = meta.get(sym)
+    if spot_file.exists() and ts_str:
+        try:
+            ts = datetime.fromisoformat(ts_str)
+            if (now - ts).total_seconds() < 600:
+                data = load_json(spot_file)
+                price = None
+                if isinstance(data, dict):
+                    price = data.get("price") or data.get("close")
+                elif isinstance(data, list) and data:
+                    rec = data[-1]
+                    price = rec.get("price") or rec.get("close")
+                if price is not None:
+                    return float(price)
+        except Exception:
+            pass
+
+    client = PolygonClient()
+    try:
+        client.connect()
+        price = client.fetch_spot_price(sym)
+    except Exception as exc:  # pragma: no cover - network issues
+        logger.warning(f"⚠️ Spot price fetch failed for {sym}: {exc}")
+        price = None
+    finally:
+        try:
+            client.disconnect()
+        except Exception:
+            pass
+
+    if price is None:
+        return None
+
+    save_json({"price": float(price), "timestamp": now.isoformat()}, spot_file)
+    meta[sym] = now.isoformat()
+    save_price_meta(meta)
+    return float(price)
 
 
 def run_module(module_name: str, *args: str) -> None:
@@ -764,7 +820,9 @@ def run_portfolio_menu() -> None:
             for rec in df.to_dict(orient="records")
         ]
         symbol = str(SESSION_STATE.get("symbol", ""))
-        spot_price = _load_spot_from_metrics(path.parent, symbol)
+        spot_price = refresh_spot_price(symbol)
+        if spot_price is None:
+            spot_price = _load_spot_from_metrics(path.parent, symbol)
         if spot_price is None:
             spot_price, _ = _load_latest_close(symbol)
         SESSION_STATE["spot_price"] = spot_price
@@ -1001,9 +1059,12 @@ def run_portfolio_menu() -> None:
                 _save_trades(evaluated)
             if prompt_yes_no("Doorgaan naar strategie voorstellen?", False):
                 atr_val = latest_atr(symbol) or 0.0
-                spot_for_strats = SESSION_STATE.get("spot_price")
+                spot_for_strats = refresh_spot_price(symbol)
+                if spot_for_strats is None:
+                    spot_for_strats = _load_spot_from_metrics(path.parent, symbol)
                 if spot_for_strats is None:
                     spot_for_strats, _ = _load_latest_close(symbol)
+                SESSION_STATE["spot_price"] = spot_for_strats
                 proposals, reason = generate_strategy_candidates(
                     symbol,
                     strat,
