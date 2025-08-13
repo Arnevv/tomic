@@ -1,0 +1,11 @@
+iron_condor:
+  - scenario_move_pct: -5
+    scenario_label: "Down 5%"
+    preferred_move: "roll_down"
+  - scenario_move_pct: 5
+    scenario_label: "Up 5%"
+    preferred_move: "roll_up"
+short_put_spread:
+  - scenario_move_pct: -10
+    scenario_label: "Down 10%"
+    preferred_move: "close"
