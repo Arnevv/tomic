@@ -7,6 +7,7 @@ from tomic.metrics import (
     calculate_ev,
     calculate_credit,
     calculate_margin,
+    calculate_payoff_at_spot,
 )
 
 
@@ -80,3 +81,18 @@ def test_calculate_credit_and_margin_condor():
     assert math.isclose(credit, 224.0)
     margin = calculate_margin("iron_condor", legs, net_cashflow=credit / 100)
     assert math.isclose(margin, 500.0)
+
+
+def test_calculate_payoff_at_spot_naked_put():
+    legs = [{"strike": 100, "type": "P", "position": -1, "mid": 1.5}]
+    assert math.isclose(calculate_payoff_at_spot(legs, 105), 150.0)
+    assert math.isclose(calculate_payoff_at_spot(legs, 90), -850.0)
+
+
+def test_calculate_payoff_at_spot_vertical_call():
+    legs = [
+        {"strike": 100, "type": "CALL", "position": 1, "mid": 2.5},
+        {"strike": 105, "type": "C", "position": -1, "mid": 1.0},
+    ]
+    assert math.isclose(calculate_payoff_at_spot(legs, 95), -150.0)
+    assert math.isclose(calculate_payoff_at_spot(legs, 108), 350.0)
