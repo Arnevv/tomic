@@ -46,6 +46,7 @@ class StrategyProposal:
     legs: List[Dict[str, Any]] = field(default_factory=list)
     pos: Optional[float] = None
     ev: Optional[float] = None
+    ev_pct: Optional[float] = None
     rom: Optional[float] = None
     edge: Optional[float] = None
     credit: Optional[float] = None
@@ -54,6 +55,7 @@ class StrategyProposal:
     max_loss: Optional[float] = None
     breakevens: Optional[List[float]] = None
     score: Optional[float] = None
+    fallback: Optional[str] = None
 
 
 @dataclass
