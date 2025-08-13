@@ -108,12 +108,13 @@ def test_estimate_scenario_profit():
     ]
     results, msg = estimate_scenario_profit(legs, 100, "iron_condor")
     assert msg is None
-    assert results and len(results) == 2
-    down = next(r for r in results if r["scenario_label"] == "Down 5%")
-    assert math.isclose(down["scenario_spot"], 95.0)
-    expected = calculate_payoff_at_spot(legs, 95)
-    assert math.isclose(down["pnl"], expected)
-    assert down["preferred_move"] == "roll_down"
+    assert results and len(results) == 1
+    scen = results[0]
+    assert scen["scenario_label"] == "Spot blijft tussen spreads"
+    assert math.isclose(scen["scenario_spot"], 100.0)
+    expected = calculate_payoff_at_spot(legs, 100)
+    assert math.isclose(scen["pnl"], expected)
+    assert scen["preferred_move"] == "flat"
 
 
 def test_estimate_scenario_profit_missing():
