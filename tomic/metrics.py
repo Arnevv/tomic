@@ -68,6 +68,54 @@ def _option_direction(leg: dict) -> int:
     return 1
 
 
+def calculate_payoff_at_spot(
+    legs: Iterable[dict],
+    spot_price: float,
+    net_cashflow: Optional[float] = None,
+) -> float:
+    """Return total P&L in dollars for ``legs`` at ``spot_price``.
+
+    ``net_cashflow`` represents the initial debit or credit of the strategy in
+    per-share terms. If omitted, it is computed as ``sum(mid * position)`` for
+    all legs, where ``position`` reflects signed quantity (positive for long,
+    negative for short).
+    """
+
+    if net_cashflow is None:
+        net_cashflow = 0.0
+        for leg in legs:
+            price = float(leg.get("mid", 0) or 0)
+            qty = abs(
+                float(
+                    leg.get("qty")
+                    or leg.get("quantity")
+                    or leg.get("position")
+                    or 1
+                )
+            )
+            net_cashflow += price * _option_direction(leg) * qty
+
+    total = -net_cashflow * 100
+    for leg in legs:
+        qty = abs(
+            float(
+                leg.get("qty")
+                or leg.get("quantity")
+                or leg.get("position")
+                or 1
+            )
+        )
+        position = _option_direction(leg) * qty
+        right = normalize_right(leg.get("type") or leg.get("right"))
+        strike = float(leg.get("strike"))
+        if right == "call":
+            intrinsic = max(spot_price - strike, 0)
+        else:
+            intrinsic = max(strike - spot_price, 0)
+        total += position * intrinsic * 100
+    return total
+
+
 def _max_loss(
     legs: Iterable[dict], *, net_cashflow: float = 0.0
 ) -> float:
@@ -79,19 +127,9 @@ def _max_loss(
     high = strikes[-1] * 10
 
     def payoff(price: float) -> float:
-        total = net_cashflow * 100
-        for leg in legs:
-            qty = abs(
-                float(leg.get("qty") or leg.get("quantity") or leg.get("position") or 1)
-            )
-            direction = _option_direction(leg)
-            right = normalize_right(leg.get("type") or leg.get("right"))
-            strike = float(leg.get("strike"))
-            if right == "call":
-                total += direction * qty * max(price - strike, 0) * 100
-            else:
-                total += direction * qty * max(strike - price, 0) * 100
-        return total
+        # ``net_cashflow`` here follows the convention of being positive for a
+        # credit. ``calculate_payoff_at_spot`` expects the opposite sign.
+        return calculate_payoff_at_spot(legs, price, net_cashflow=-net_cashflow)
 
     slope_high = sum(
         _option_direction(leg)
@@ -190,5 +228,6 @@ __all__ = [
     "calculate_pos",
     "calculate_ev",
     "calculate_credit",
+    "calculate_payoff_at_spot",
     "calculate_margin",
 ]
