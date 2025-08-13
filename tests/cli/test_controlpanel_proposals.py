@@ -2,7 +2,7 @@ import importlib
 import builtins
 import json
 import types
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 from tomic.journal.utils import save_json
 from tomic.strategy_candidates import StrategyProposal
@@ -82,6 +82,144 @@ def test_show_market_info(monkeypatch, tmp_path):
 
     assert any("2030-01-01" in line for line in prints)
     assert any("short_put_spread" in line for line in prints)
+
+
+def test_process_chain_refreshes_spot_price(monkeypatch, tmp_path):
+    mod = importlib.import_module("tomic.cli.controlpanel")
+
+    # expose nested _process_chain function
+    proc = None
+    for const in mod.run_portfolio_menu.__code__.co_consts:
+        if isinstance(const, types.CodeType) and const.co_name == "_process_chain":
+            def _cell(value):
+                return (lambda x: lambda: x)(value).__closure__[0]
+
+            cells = []
+            for name in const.co_freevars:
+                cells.append(_cell(lambda *_a, **_k: None))
+            proc = types.FunctionType(
+                const,
+                mod.run_portfolio_menu.__globals__,
+                None,
+                None,
+                tuple(cells),
+            )
+            break
+    assert proc is not None
+    mod._process_chain = proc
+
+    csv_path = tmp_path / "chain.csv"
+    csv_path.write_text("dummy")
+
+    class SimpleDF:
+        def __init__(self):
+            self.columns = ["expiry"]
+            self._data = {"expiry": ["2024-01-01"]}
+
+        def __getitem__(self, key):
+            return self._data[key]
+
+        def __setitem__(self, key, val):
+            self._data[key] = val
+
+        def to_dict(self, orient=None):
+            return [
+                {k: v[0] if isinstance(v, list) else v for k, v in self._data.items()}
+            ]
+
+        def __len__(self):
+            return len(next(iter(self._data.values())))
+
+    df = SimpleDF()
+
+    class DummyPD:
+        def read_csv(self, path):
+            return df
+
+        def to_datetime(self, series, errors=None):
+            class _DT:
+                def strftime(self, fmt):
+                    return series
+
+            return types.SimpleNamespace(dt=_DT())
+
+    monkeypatch.setattr(mod, "pd", DummyPD())
+    monkeypatch.setattr(mod, "normalize_european_number_format", lambda d, c: d)
+    monkeypatch.setattr(mod, "calculate_csv_quality", lambda d: 100.0)
+    monkeypatch.setattr(mod, "interpolate_missing_fields", lambda d: d)
+
+    dummy_option = {
+        "expiry": "2024-01-01",
+        "mid": 1.0,
+        "edge": 0.1,
+        "pos": 0.2,
+        "ev": 0.05,
+        "type": "call",
+        "strike": 100,
+    }
+    monkeypatch.setattr(mod, "filter_by_expiry", lambda data, rng: [dummy_option])
+    monkeypatch.setattr(
+        mod,
+        "StrikeSelector",
+        lambda config: type("S", (), {"select": lambda self, data, debug_csv=None: [dummy_option]})(),
+    )
+    monkeypatch.setattr(mod, "generate_strategy_candidates", lambda *a, **k: ([], None))
+    monkeypatch.setattr(mod, "latest_atr", lambda s: 0.0)
+    monkeypatch.setattr(mod, "_load_spot_from_metrics", lambda d, s: None)
+    monkeypatch.setattr(mod, "_load_latest_close", lambda s: (111.0, "2024-01-01"))
+    monkeypatch.setattr(mod, "normalize_leg", lambda rec: rec)
+    monkeypatch.setattr(mod, "get_option_mid_price", lambda opt: opt.get("mid"))
+    monkeypatch.setattr(mod, "calculate_pos", lambda *a, **k: 0.0)
+    monkeypatch.setattr(mod, "calculate_rom", lambda *a, **k: 0.0)
+    monkeypatch.setattr(mod, "calculate_edge", lambda *a, **k: 0.0)
+    monkeypatch.setattr(mod, "calculate_ev", lambda *a, **k: 0.0)
+
+    def cfg_get(name, default=None):
+        if name == "CSV_MIN_QUALITY":
+            return 0
+        if name == "PRICE_HISTORY_DIR":
+            return str(tmp_path)
+        return default
+
+    monkeypatch.setattr(mod.cfg, "get", cfg_get)
+
+    meta_store: dict[str, str] = {}
+    monkeypatch.setattr(mod, "load_price_meta", lambda: meta_store.copy())
+    monkeypatch.setattr(mod, "save_price_meta", lambda m: meta_store.update(m))
+
+    real_dt = datetime
+    class DummyDateTime:
+        def __init__(self):
+            self.current = real_dt(2024, 1, 1)
+
+        def now(self):
+            self.current += timedelta(minutes=11)
+            return self.current
+
+        def fromisoformat(self, s):
+            return real_dt.fromisoformat(s)
+
+    monkeypatch.setattr(mod, "datetime", DummyDateTime())
+
+    import tomic.polygon_client as poly_mod
+    prices = iter([101.0, 202.0])
+    monkeypatch.setattr(poly_mod.PolygonClient, "connect", lambda self: None)
+    monkeypatch.setattr(poly_mod.PolygonClient, "disconnect", lambda self: None)
+    monkeypatch.setattr(
+        poly_mod.PolygonClient,
+        "fetch_spot_price",
+        lambda self, sym: next(prices),
+    )
+
+    prompts = iter([True, False, False, True])
+    monkeypatch.setattr(mod, "prompt_yes_no", lambda *a, **k: next(prompts))
+
+    mod.SESSION_STATE.clear()
+    mod.SESSION_STATE.update({"evaluated_trades": [], "symbol": "AAA"})
+
+    mod._process_chain(csv_path)
+
+    assert mod.SESSION_STATE.get("spot_price") == 202.0
 
 
 def test_export_proposal_json_includes_earnings(monkeypatch, tmp_path):
