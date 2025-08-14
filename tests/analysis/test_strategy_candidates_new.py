@@ -11,10 +11,50 @@ def test_generate_strategy_candidates_requires_spot():
 
 def test_generate_strategy_candidates_with_strings():
     chain = [
-        {"expiry": "20250101", "strike": "110", "type": "C", "bid": "1", "ask": "1.2", "delta": "0.4", "edge": "0.1", "model": "0"},
-        {"expiry": "20250101", "strike": "120", "type": "C", "bid": "0.5", "ask": "0.7", "delta": "0.2", "edge": "0.1", "model": "0"},
-        {"expiry": "20250101", "strike": "90", "type": "P", "bid": "1.0", "ask": "1.1", "delta": "-0.3", "edge": "0.1", "model": "0"},
-        {"expiry": "20250101", "strike": "80", "type": "P", "bid": "0.4", "ask": "0.6", "delta": "-0.1", "edge": "0.1", "model": "0"},
+        {
+            "expiry": "20250101",
+            "strike": "110",
+            "type": "C",
+            "bid": "1",
+            "ask": "1.2",
+            "delta": "0.4",
+            "edge": "0.1",
+            "model": "0",
+            "iv": "0.2",
+        },
+        {
+            "expiry": "20250101",
+            "strike": "120",
+            "type": "C",
+            "bid": "0.5",
+            "ask": "0.7",
+            "delta": "0.2",
+            "edge": "0.1",
+            "model": "0",
+            "iv": "0.2",
+        },
+        {
+            "expiry": "20250101",
+            "strike": "90",
+            "type": "P",
+            "bid": "1.0",
+            "ask": "1.1",
+            "delta": "-0.3",
+            "edge": "0.1",
+            "model": "0",
+            "iv": "0.2",
+        },
+        {
+            "expiry": "20250101",
+            "strike": "80",
+            "type": "P",
+            "bid": "0.4",
+            "ask": "0.6",
+            "delta": "-0.1",
+            "edge": "0.1",
+            "model": "0",
+            "iv": "0.2",
+        },
     ]
     cfg = {
         "strategies": {
@@ -35,6 +75,8 @@ def test_generate_strategy_candidates_with_strings():
             assert isinstance(leg["strike"], float)
             assert isinstance(leg["bid"], float)
             assert isinstance(leg["ask"], float)
+            assert leg.get("spot") == 100.0
+            assert float(leg.get("iv", 0)) > 0
 
 
 def test_generate_strategy_candidates_missing_metrics_reason():
