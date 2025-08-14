@@ -60,6 +60,15 @@ def test_metrics_naked_put():
     assert "negatieve EV of score" in reasons
 
 
+def test_metrics_naked_put_requires_positive_credit():
+    legs = [
+        {"type": "P", "strike": 50, "expiry": "2025-08-01", "position": 1, "mid": 1.0, "model": 1.0, "delta": -0.3},
+    ]
+    metrics, reasons = _metrics("naked_put", legs)
+    assert metrics is None
+    assert reasons == ["negatieve credit"]
+
+
 def test_metrics_backspread_put():
     legs = [
         {"type": "P", "strike": 50, "expiry": "2025-08-01", "position": -1, "mid": 0.8, "model": 0.8, "delta": -0.3},

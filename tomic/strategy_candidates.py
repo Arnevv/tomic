@@ -37,6 +37,7 @@ STRATEGIES_THAT_REQUIRE_POSITIVE_CREDIT = {
     "short_call_spread",
     "iron_condor",
     "atm_iron_butterfly",
+    "naked_put",
 }
 
 
