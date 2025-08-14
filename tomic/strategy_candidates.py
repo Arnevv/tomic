@@ -17,6 +17,7 @@ from .metrics import (
     calculate_pos,
     calculate_rom,
     calculate_ev,
+    estimate_scenario_profit,
 )
 from .analysis.strategy import heuristic_risk_metrics, parse_date
 from .utils import (
@@ -56,6 +57,8 @@ class StrategyProposal:
     breakevens: Optional[List[float]] = None
     score: Optional[float] = None
     fallback: Optional[str] = None
+    profit_estimated: bool = False
+    scenario_info: Optional[Dict[str, Any]] = None
 
 
 @dataclass
@@ -312,7 +315,7 @@ def _bs_estimate_missing(legs: List[Dict[str, Any]]) -> None:
 
 
 def _metrics(
-    strategy: str, legs: List[Dict[str, Any]]
+    strategy: str, legs: List[Dict[str, Any]], spot: float | None = None
 ) -> tuple[Optional[Dict[str, Any]], list[str]]:
     _bs_estimate_missing(legs)
     missing_fields = False
@@ -450,15 +453,24 @@ def _metrics(
 
     max_profit = risk.get("max_profit")
     max_loss = risk.get("max_loss")
+    profit_estimated = False
+    scenario_info: Optional[Dict[str, Any]] = None
     if strategy == "naked_put":
         max_profit = net_credit * 100
         max_loss = -margin
-    elif strategy in {"ratio_spread", "backspread_put"}:
-        max_profit = None
+    elif strategy in {"ratio_spread", "backspread_put", "calendar"}:
         max_loss = -margin
-    elif strategy == "calendar":
-        max_profit = None
-        max_loss = -margin
+    if max_profit is None and spot is not None:
+        scenarios, err = estimate_scenario_profit(legs, spot, strategy)
+        if scenarios:
+            preferred = next(
+                (s for s in scenarios if s.get("preferred_move")), scenarios[0]
+            )
+            max_profit = preferred.get("pnl")
+            scenario_info = preferred
+            profit_estimated = True
+        else:
+            scenario_info = {"error": err or "no scenario defined"}
     rom = (
         calculate_rom(max_profit, margin) if max_profit is not None and margin else None
     )
@@ -503,6 +515,8 @@ def _metrics(
         "max_loss": max_loss,
         "breakevens": breakevens,
         "score": round(score, 2),
+        "profit_estimated": profit_estimated,
+        "scenario_info": scenario_info,
     }
     if any(leg.get("mid_fallback") == "close" for leg in legs):
         result["fallback"] = "close"

@@ -122,7 +122,7 @@ def generate(symbol: str, option_chain: List[Dict[str, Any]], config: Dict[str, 
             legs = [make_leg(short_opt, -1), make_leg(long_opt, 1)]
             if any(l is None for l in legs):
                 continue
-            metrics, _ = _metrics("bull put spread", legs)
+            metrics, _ = _metrics("bull put spread", legs, spot)
             if metrics and passes_risk(metrics):
                 proposals.append(StrategyProposal(legs=legs, **metrics))
             if len(proposals) >= 5:

@@ -66,8 +66,11 @@ def test_metrics_backspread_put():
         {"type": "P", "strike": 45, "expiry": "2025-08-01", "position": 1, "mid": 0.4, "model": 0.4, "delta": -0.15},
         {"type": "P", "strike": 45, "expiry": "2025-08-01", "position": 1, "mid": 0.4, "model": 0.4, "delta": -0.15},
     ]
-    metrics, reasons = _metrics("backspread_put", legs)
+    metrics, reasons = _metrics("backspread_put", legs, 50.0)
     assert metrics is not None
-    assert "ROM kon niet worden berekend" in reasons[0]
+    assert reasons == []
     assert math.isclose(metrics["margin"], 500.0)
     assert metrics["max_loss"] == -500.0
+    assert metrics["rom"] is not None
+    assert metrics["ev_pct"] is not None
+    assert metrics["profit_estimated"] is True

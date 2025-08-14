@@ -1358,6 +1358,13 @@ def run_portfolio_menu() -> None:
             writer.writerow([])
             writer.writerow(["credit", proposal.credit])
             writer.writerow(["max_loss", proposal.max_loss])
+            writer.writerow(["profit_estimated", proposal.profit_estimated])
+            writer.writerow([
+                "scenario_info",
+                json.dumps(proposal.scenario_info)
+                if proposal.scenario_info is not None
+                else None,
+            ])
             if proposal.breakevens:
                 writer.writerow(["breakevens", *proposal.breakevens])
         print(f"✅ Voorstel opgeslagen in: {path.resolve()}")
@@ -1466,6 +1473,8 @@ def run_portfolio_menu() -> None:
                 else "unlimited",
                 "breakevens": proposal.breakevens or [],
                 "score": proposal.score,
+                "profit_estimated": proposal.profit_estimated,
+                "scenario_info": proposal.scenario_info,
                 "missing_data": {
                     "missing_bidask": any(
                         (
