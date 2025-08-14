@@ -182,6 +182,7 @@ def test_parity_mid_used_for_missing_bidask(monkeypatch):
     assert sc_leg is not None
     assert sc_leg.get("mid_from_parity") is True
     assert sc_leg.get("mid") is not None
+    assert sc_leg.get("mid_fallback") == "parity"
 
 
 def test_metrics_black_scholes_fallback(monkeypatch):

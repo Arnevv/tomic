@@ -40,12 +40,23 @@ def generate(symbol: str, option_chain: List[Dict[str, Any]], config: Dict[str, 
     min_rr = float(strat_cfg.get("min_risk_reward", 0.0))
 
     def make_leg(opt: Dict[str, Any], position: int) -> Dict[str, Any] | None:
+        bid = opt.get("bid")
+        ask = opt.get("ask")
         mid = get_option_mid_price(opt)
+        used_close = False
         if mid is None:
             try:
                 close_val = float(opt.get("close"))
                 if close_val > 0:
                     mid = close_val
+                    used_close = True
+            except Exception:
+                pass
+        else:
+            try:
+                close_val = float(opt.get("close"))
+                if mid == close_val:
+                    used_close = True
             except Exception:
                 pass
         if mid is None:
@@ -57,8 +68,8 @@ def generate(symbol: str, option_chain: List[Dict[str, Any]], config: Dict[str, 
             "spot": spot,
             "iv": opt.get("iv"),
             "delta": opt.get("delta"),
-            "bid": opt.get("bid"),
-            "ask": opt.get("ask"),
+            "bid": bid,
+            "ask": ask,
             "mid": mid,
             "edge": opt.get("edge"),
             "model": opt.get("model"),
@@ -66,6 +77,15 @@ def generate(symbol: str, option_chain: List[Dict[str, Any]], config: Dict[str, 
             "open_interest": opt.get("open_interest"),
             "position": position,
         }
+        def _missing(val: Any) -> bool:
+            try:
+                return float(val) <= 0
+            except Exception:
+                return True
+        if opt.get("mid_from_parity"):
+            leg["mid_fallback"] = "parity"
+        elif used_close and (_missing(bid) or _missing(ask)):
+            leg["mid_fallback"] = "close"
         try:
             opt_type = (opt.get("type") or opt.get("right") or "").upper()[0]
             strike = float(opt["strike"])
