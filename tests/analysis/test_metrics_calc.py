@@ -7,6 +7,8 @@ from tomic.metrics import (
     calculate_ev,
     calculate_credit,
     calculate_margin,
+    calculate_payoff_at_spot,
+    estimate_scenario_profit,
 )
 
 
@@ -80,3 +82,42 @@ def test_calculate_credit_and_margin_condor():
     assert math.isclose(credit, 224.0)
     margin = calculate_margin("iron_condor", legs, net_cashflow=credit / 100)
     assert math.isclose(margin, 500.0)
+
+
+def test_calculate_payoff_at_spot_naked_put():
+    legs = [{"strike": 100, "type": "P", "position": -1, "mid": 1.5}]
+    assert math.isclose(calculate_payoff_at_spot(legs, 105), 150.0)
+    assert math.isclose(calculate_payoff_at_spot(legs, 90), -850.0)
+
+
+def test_calculate_payoff_at_spot_vertical_call():
+    legs = [
+        {"strike": 100, "type": "CALL", "position": 1, "mid": 2.5},
+        {"strike": 105, "type": "C", "position": -1, "mid": 1.0},
+    ]
+    assert math.isclose(calculate_payoff_at_spot(legs, 95), -150.0)
+    assert math.isclose(calculate_payoff_at_spot(legs, 108), 350.0)
+
+
+def test_estimate_scenario_profit():
+    legs = [
+        {"strike": 105, "type": "C", "action": "SELL", "mid": 2.07, "position": -1},
+        {"strike": 110, "type": "C", "action": "BUY", "mid": 0.95, "position": 1},
+        {"strike": 95, "type": "P", "action": "SELL", "mid": 2.07, "position": -1},
+        {"strike": 90, "type": "P", "action": "BUY", "mid": 0.95, "position": 1},
+    ]
+    results, msg = estimate_scenario_profit(legs, 100, "iron_condor")
+    assert msg is None
+    assert results and len(results) == 1
+    scen = results[0]
+    assert scen["scenario_label"] == "Spot blijft tussen spreads"
+    assert math.isclose(scen["scenario_spot"], 100.0)
+    expected = calculate_payoff_at_spot(legs, 100)
+    assert math.isclose(scen["pnl"], expected)
+    assert scen["preferred_move"] == "flat"
+
+
+def test_estimate_scenario_profit_missing():
+    results, msg = estimate_scenario_profit([], 100, "unknown_strategy")
+    assert results is None
+    assert msg == "no scenario defined"

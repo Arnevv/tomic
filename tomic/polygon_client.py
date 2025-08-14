@@ -127,14 +127,28 @@ class PolygonClient(MarketDataProvider):
         spot = results[0].get("c") if results else None
         return {"spot_price": spot}
 
-    def fetch_spot_price(self, symbol: str) -> float | None:
-        """Return the delayed last trade price for ``symbol``."""
+def fetch_spot_price(self, symbol: str) -> float | None:
+    """Return the latest trade price for ``symbol``."""
+    # Probeer eerst de snapshot‑endpoint
+    data = self._request(
+        f"v2/snapshot/locale/us/markets/stocks/tickers/{symbol.upper()}"
+    )
+    ticker = data.get("ticker") or {}
+    price = None
+    last_trade = ticker.get("lastTrade") or ticker.get("last") or {}
+    if last_trade:
+        price = last_trade.get("p") or last_trade.get("price")
+    if price is None:
+        price = ticker.get("day", {}).get("c") or ticker.get("min", {}).get("c")
+
+    # Valt terug op de last‑trade‑endpoint wanneer snapshot niets oplevert
+    if price is None:
         data = self._request(f"v2/last/trade/{symbol.upper()}")
-        # Polygon sometimes uses "results" with key "p" for price or
-        # "last" with key "price" – handle both formats.
         result = data.get("results") or data.get("last") or {}
         price = result.get("p") or result.get("price")
-        try:
-            return float(price) if price is not None else None
-        except Exception:
-            return None
+
+    try:
+        return float(price) if price is not None else None
+    except Exception:
+        return None
+

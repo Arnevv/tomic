@@ -30,6 +30,59 @@ def make_chain_csv(path: Path) -> None:
             f.write(",".join(row) + "\n")
 
 
+def make_calendar_chain_csv(path: Path) -> None:
+    rows = [
+        [
+            "Expiry",
+            "Type",
+            "Strike",
+            "Bid",
+            "Ask",
+            "IV",
+            "Delta",
+            "Gamma",
+            "Vega",
+            "Theta",
+            "Volume",
+            "OpenInterest",
+            "ParityDeviation",
+        ],
+        [
+            "20991231",
+            "call",
+            "100",
+            "1",
+            "1.2",
+            "0.2",
+            "0.4",
+            "0.1",
+            "0.2",
+            "-0.05",
+            "10",
+            "100",
+            "",
+        ],
+        [
+            "21000115",
+            "call",
+            "100",
+            "1.5",
+            "1.7",
+            "0.22",
+            "0.35",
+            "0.09",
+            "0.18",
+            "-0.04",
+            "5",
+            "50",
+            "",
+        ],
+    ]
+    with open(path, "w", newline="") as f:
+        for row in rows:
+            f.write(",".join(row) + "\n")
+
+
 def test_load_chain_csv(tmp_path: Path) -> None:
     path = tmp_path / "chain.csv"
     make_chain_csv(path)
@@ -44,7 +97,7 @@ def test_suggest_vertical(tmp_path: Path) -> None:
     make_chain_csv(path)
     chain = load_chain_csv(str(path))
     exposure = {"Delta": 40, "Theta": 0, "Vega": 0, "Gamma": 0}
-    props = suggest_strategies("XYZ", chain, exposure)
+    props = suggest_strategies("XYZ", chain, exposure, spot_price=100.0)
     assert any(p["strategy"] == "Vertical" for p in props)
 
 
@@ -53,7 +106,7 @@ def test_suggest_condor(tmp_path: Path) -> None:
     make_chain_csv(path)
     chain = load_chain_csv(str(path))
     exposure = {"Delta": 0, "Theta": 0, "Vega": 80, "Gamma": 0}
-    props = suggest_strategies("XYZ", chain, exposure)
+    props = suggest_strategies("XYZ", chain, exposure, spot_price=100.0)
     assert any(p["strategy"] == "iron_condor" for p in props)
 
 
@@ -62,9 +115,22 @@ def test_condor_margin(tmp_path: Path) -> None:
     make_chain_csv(path)
     chain = load_chain_csv(str(path))
     exposure = {"Delta": 0, "Theta": 0, "Vega": 80, "Gamma": 0}
-    props = suggest_strategies("XYZ", chain, exposure)
+    props = suggest_strategies("XYZ", chain, exposure, spot_price=100.0)
     condor = next(p for p in props if p["strategy"] == "iron_condor")
     assert math.isclose(condor["margin"], 500.0)
     assert math.isclose(
         condor["ROM"], condor["max_profit"] / condor["margin"] * 100
     )
+
+
+def test_calendar_profit_estimation(tmp_path: Path) -> None:
+    path = tmp_path / "chain.csv"
+    make_calendar_chain_csv(path)
+    chain = load_chain_csv(str(path))
+    exposure = {"Delta": 0, "Theta": 0, "Vega": -80, "Gamma": 0}
+    props = suggest_strategies("XYZ", chain, exposure, spot_price=100.0)
+    cal = next(p for p in props if p["strategy"] == "calendar")
+    assert cal["profit_estimated"] is True
+    assert cal["scenario_info"]["preferred_move"] == "flat"
+    assert isinstance(cal["max_profit"], float)
+    assert cal["ROM"] is not None

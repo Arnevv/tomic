@@ -17,6 +17,7 @@ from .metrics import (
     calculate_pos,
     calculate_rom,
     calculate_ev,
+    estimate_scenario_profit,
 )
 from .analysis.strategy import heuristic_risk_metrics, parse_date
 from .utils import (
@@ -46,6 +47,7 @@ class StrategyProposal:
     legs: List[Dict[str, Any]] = field(default_factory=list)
     pos: Optional[float] = None
     ev: Optional[float] = None
+    ev_pct: Optional[float] = None
     rom: Optional[float] = None
     edge: Optional[float] = None
     credit: Optional[float] = None
@@ -54,6 +56,9 @@ class StrategyProposal:
     max_loss: Optional[float] = None
     breakevens: Optional[List[float]] = None
     score: Optional[float] = None
+    fallback: Optional[str] = None
+    profit_estimated: bool = False
+    scenario_info: Optional[Dict[str, Any]] = None
 
 
 @dataclass
@@ -310,7 +315,7 @@ def _bs_estimate_missing(legs: List[Dict[str, Any]]) -> None:
 
 
 def _metrics(
-    strategy: str, legs: List[Dict[str, Any]]
+    strategy: str, legs: List[Dict[str, Any]], spot: float | None = None
 ) -> tuple[Optional[Dict[str, Any]], list[str]]:
     _bs_estimate_missing(legs)
     missing_fields = False
@@ -448,15 +453,29 @@ def _metrics(
 
     max_profit = risk.get("max_profit")
     max_loss = risk.get("max_loss")
+    profit_estimated = False
+    scenario_info: Optional[Dict[str, Any]] = None
     if strategy == "naked_put":
         max_profit = net_credit * 100
         max_loss = -margin
-    elif strategy in {"ratio_spread", "backspread_put"}:
-        max_profit = None
+    elif strategy in {"ratio_spread", "backspread_put", "calendar"}:
         max_loss = -margin
-    elif strategy == "calendar":
-        max_profit = None
-        max_loss = -margin
+    if ((max_profit is None or max_profit <= 0) or strategy == "ratio_spread") and spot is not None:
+        scenarios, err = estimate_scenario_profit(legs, spot, strategy)
+        if scenarios:
+            preferred = next(
+                (s for s in scenarios if s.get("preferred_move")), scenarios[0]
+            )
+            pnl = preferred.get("pnl")
+            max_profit = abs(pnl) if pnl is not None else None
+            scenario_info = preferred
+            profit_estimated = True
+            label = preferred.get("scenario_label")
+            logger.info(
+                f"[SCENARIO] {strategy}: profit estimate at {label} {max_profit}"
+            )
+        else:
+            scenario_info = {"error": err or "no scenario defined"}
     rom = (
         calculate_rom(max_profit, margin) if max_profit is not None and margin else None
     )
@@ -467,6 +486,7 @@ def _metrics(
         if pos_val is not None and max_profit is not None and max_loss is not None
         else None
     )
+    ev_pct = (ev / margin) * 100 if ev is not None and margin else None
     rom_w = float(cfg_get("SCORE_WEIGHT_ROM", 0.5))
     pos_w = float(cfg_get("SCORE_WEIGHT_POS", 0.3))
     ev_w = float(cfg_get("SCORE_WEIGHT_EV", 0.2))
@@ -476,12 +496,12 @@ def _metrics(
         score += rom * rom_w
     if pos_val is not None:
         score += pos_val * pos_w
-    if ev is not None:
-        score += ev * ev_w
+    if ev_pct is not None:
+        score += ev_pct * ev_w
 
     breakevens = _breakevens(strategy, legs, net_credit * 100)
 
-    if (ev is not None and ev <= 0) or score < 0:
+    if (ev_pct is not None and ev_pct <= 0 and not profit_estimated) or score < 0:
         reasons.append("negatieve EV of score")
         logger.info(
             f"[❌ voorstel afgewezen] {strategy} — reason: EV/score te laag"
@@ -491,6 +511,7 @@ def _metrics(
     result = {
         "pos": pos_val,
         "ev": ev,
+        "ev_pct": ev_pct,
         "rom": rom,
         "edge": edge_avg,
         "credit": net_credit * 100,
@@ -499,6 +520,8 @@ def _metrics(
         "max_loss": max_loss,
         "breakevens": breakevens,
         "score": round(score, 2),
+        "profit_estimated": profit_estimated,
+        "scenario_info": scenario_info,
     }
     if any(leg.get("mid_fallback") == "close" for leg in legs):
         result["fallback"] = "close"

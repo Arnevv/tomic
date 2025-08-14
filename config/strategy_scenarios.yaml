@@ -1,0 +1,39 @@
+atm_iron_butterfly:
+  - scenario_move_pct: 0.00
+    scenario_label: "Spot blijft exact op midden-strike"
+    preferred_move: "flat"
+
+backspread_put:
+  - scenario_move_pct: -0.15
+    scenario_label: "Explosieve daling (spot -15%)"
+    preferred_move: "down"
+
+calendar:
+  - scenario_move_pct: 0.02
+    scenario_label: "Spot blijft ±2%"
+    preferred_move: "flat"
+
+iron_condor:
+  - scenario_move_pct: 0.00
+    scenario_label: "Spot blijft tussen spreads"
+    preferred_move: "flat"
+
+naked_put:
+  - scenario_move_pct: 0.05
+    scenario_label: "Spot stijgt 5%"
+    preferred_move: "up"
+
+ratio_spread:
+  - scenario_move_pct: 0.10
+    scenario_label: "Spot beweegt richting short strike"
+    preferred_move: "up"
+
+short_call_spread:
+  - scenario_move_pct: -0.03
+    scenario_label: "Spot daalt 3%"
+    preferred_move: "down"
+
+short_put_spread:
+  - scenario_move_pct: 0.03
+    scenario_label: "Spot stijgt 3%"
+    preferred_move: "up"

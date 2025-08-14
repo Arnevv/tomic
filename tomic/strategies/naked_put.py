@@ -102,7 +102,7 @@ def generate(symbol: str, option_chain: List[Dict[str, Any]], config: Dict[str, 
                 leg = make_leg(opt, -1)
                 if leg is None:
                     continue
-                metrics, _ = _metrics("naked_put", [leg])
+                metrics, _ = _metrics("naked_put", [leg], spot)
                 if metrics and passes_risk(metrics):
                     proposals.append(StrategyProposal(legs=[leg], **metrics))
                 if len(proposals) >= 5:

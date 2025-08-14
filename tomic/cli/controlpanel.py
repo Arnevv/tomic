@@ -1065,6 +1065,12 @@ def run_portfolio_menu() -> None:
                 if spot_for_strats is None:
                     spot_for_strats, _ = _load_latest_close(symbol)
                 SESSION_STATE["spot_price"] = spot_for_strats
+
+                if spot_for_strats is not None:
+                    print(f"Spotprice: {spot_for_strats:.2f}")
+                else:
+                    print("Spotprice: n/a")
+
                 proposals, reason = generate_strategy_candidates(
                     symbol,
                     strat,
@@ -1083,6 +1089,7 @@ def run_portfolio_menu() -> None:
                     )
                     rows2 = []
                     warn_edge = False
+                    no_scenario = False
                     for prop in proposals:
                         legs_desc = "; ".join(
                             f"{'S' if leg.get('position',0)<0 else 'L'}{leg.get('type')}{leg.get('strike')} {leg.get('expiry', '?')}"
@@ -1112,12 +1119,33 @@ def run_portfolio_menu() -> None:
                                 )
                         else:
                             edge_display = f"{sum(edge_vals)/len(edge_vals):.2f}"
+
+                        label = None
+                        if getattr(prop, "scenario_info", None):
+                            label = prop.scenario_info.get("scenario_label")
+                            if prop.scenario_info.get("error") == "no scenario defined":
+                                no_scenario = True
+                        suffix = ""
+                        if prop.profit_estimated:
+                            suffix = f" {label} (geschat)" if label else " (geschat)"
+
+                        ev_display = (
+                            f"{prop.ev:.2f}{suffix}"
+                            if prop.ev is not None
+                            else "—"
+                        )
+                        rom_display = (
+                            f"{prop.rom:.2f}{suffix}"
+                            if prop.rom is not None
+                            else "—"
+                        )
+
                         rows2.append(
                             [
                                 f"{prop.score:.2f}" if prop.score is not None else "—",
                                 f"{prop.pos:.1f}" if prop.pos is not None else "—",
-                                f"{prop.ev:.2f}" if prop.ev is not None else "—",
-                                f"{prop.rom:.2f}" if prop.rom is not None else "—",
+                                ev_display,
+                                rom_display,
                                 edge_display,
                                 legs_desc,
                             ]
@@ -1129,6 +1157,8 @@ def run_portfolio_menu() -> None:
                             tablefmt="github",
                         )
                     )
+                    if no_scenario:
+                        print("no scenario defined")
                     if warn_edge:
                         print("⚠️ Eén of meerdere edges niet beschikbaar")
                     while True:
@@ -1258,10 +1288,21 @@ def run_portfolio_menu() -> None:
             print(f"Breakevens: {be}")
         pos_str = f"{proposal.pos:.2f}" if proposal.pos is not None else "—"
         print(f"PoS: {pos_str}")
+
+        label = None
+        if getattr(proposal, "scenario_info", None):
+            label = proposal.scenario_info.get("scenario_label")
+            if proposal.scenario_info.get("error") == "no scenario defined":
+                print("no scenario defined")
+
+        suffix = ""
+        if proposal.profit_estimated:
+            suffix = f" {label} (geschat)" if label else " (geschat)"
+
         rom_str = f"{proposal.rom:.2f}" if proposal.rom is not None else "—"
-        print(f"ROM: {rom_str}")
+        print(f"ROM: {rom_str}{suffix}")
         ev_str = f"{proposal.ev:.2f}" if proposal.ev is not None else "—"
-        print(f"EV: {ev_str}")
+        print(f"EV: {ev_str}{suffix}")
         if prompt_yes_no("Voorstel opslaan naar CSV?", False):
             _export_proposal_csv(proposal)
         if prompt_yes_no("Voorstel opslaan naar JSON?", False):
@@ -1354,6 +1395,13 @@ def run_portfolio_menu() -> None:
             writer.writerow([])
             writer.writerow(["credit", proposal.credit])
             writer.writerow(["max_loss", proposal.max_loss])
+            writer.writerow(["profit_estimated", proposal.profit_estimated])
+            writer.writerow([
+                "scenario_info",
+                json.dumps(proposal.scenario_info)
+                if proposal.scenario_info is not None
+                else None,
+            ])
             if proposal.breakevens:
                 writer.writerow(["breakevens", *proposal.breakevens])
         print(f"✅ Voorstel opgeslagen in: {path.resolve()}")
@@ -1462,6 +1510,8 @@ def run_portfolio_menu() -> None:
                 else "unlimited",
                 "breakevens": proposal.breakevens or [],
                 "score": proposal.score,
+                "profit_estimated": proposal.profit_estimated,
+                "scenario_info": proposal.scenario_info,
                 "missing_data": {
                     "missing_bidask": any(
                         (

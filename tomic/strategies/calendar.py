@@ -95,7 +95,7 @@ def generate(symbol: str, option_chain: List[Dict[str, Any]], config: Dict[str, 
                 ):
                     leg["edge"] = leg["model"] - leg["mid"]
             legs = [normalize_leg(l) for l in legs]
-            metrics, _ = _metrics("calendar", legs)
+            metrics, _ = _metrics("calendar", legs, spot)
             if not metrics:
                 continue
             if min_rr > 0:

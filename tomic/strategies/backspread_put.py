@@ -126,7 +126,7 @@ def generate(symbol: str, option_chain: List[Dict[str, Any]], config: Dict[str, 
                 legs = [make_leg(short_opt, -1), make_leg(long_opt, 2)]
                 if any(l is None for l in legs):
                     continue
-                metrics, _ = _metrics("backspread_put", legs)
+                metrics, _ = _metrics("backspread_put", legs, spot)
                 if metrics and passes_risk(metrics):
                     if _validate_ratio("backspread_put", legs, metrics.get("credit", 0.0)):
                         proposals.append(StrategyProposal(legs=legs, **metrics))

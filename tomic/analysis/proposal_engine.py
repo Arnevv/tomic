@@ -13,7 +13,7 @@ from tomic.analysis.strategy import heuristic_risk_metrics
 from tomic.journal.utils import load_json
 from tomic.utils import get_option_mid_price, normalize_right
 from tomic.helpers.csv_utils import parse_euro_float
-from tomic.metrics import calculate_margin
+from tomic.metrics import calculate_margin, estimate_scenario_profit
 from tomic.logutils import logger
 
 
@@ -99,12 +99,17 @@ def _cost_basis(legs: Iterable[Leg]) -> float:
     return cost * 100
 
 
-def _calc_metrics(strategy: str, legs: List[Leg]) -> Dict[str, Optional[float]]:
+def _calc_metrics(strategy: str, legs: List[Leg], spot_price: float) -> Dict[str, Any]:
     """Return margin and risk metrics for ``strategy`` with ``legs``."""
 
     cb = _cost_basis(legs)
     legs_dict = [
-        {"strike": leg.strike, "type": leg.type, "position": leg.position}
+        {
+            "strike": leg.strike,
+            "type": leg.type,
+            "position": leg.position,
+            "mid": _mid_price(leg),
+        }
         for leg in legs
     ]
 
@@ -125,6 +130,26 @@ def _calc_metrics(strategy: str, legs: List[Leg]) -> Dict[str, Optional[float]]:
     max_profit = risk.get("max_profit")
     max_loss = risk.get("max_loss")
     rr = risk.get("risk_reward")
+    profit_estimated = False
+    scenario_info: Optional[Dict[str, Any]] = None
+
+    if max_profit is None or max_profit <= 0:
+        scenarios, err = estimate_scenario_profit(legs_dict, spot_price, strategy)
+        if scenarios:
+            preferred = next(
+                (s for s in scenarios if s.get("preferred_move")), scenarios[0]
+            )
+            pnl = preferred.get("pnl")
+            max_profit = abs(pnl) if pnl is not None else None
+            scenario_info = preferred
+            profit_estimated = True
+            label = preferred.get("scenario_label")
+            logger.info(
+                f"[SCENARIO] {strategy}: profit estimate at {label} {max_profit}"
+            )
+        else:
+            scenario_info = {"error": err or "no scenario defined"}
+
     rom = None
     if max_profit is not None and margin:
         rom = (max_profit / margin) * 100
@@ -135,6 +160,8 @@ def _calc_metrics(strategy: str, legs: List[Leg]) -> Dict[str, Optional[float]]:
         "max_profit": max_profit,
         "max_loss": max_loss,
         "margin": margin,
+        "profit_estimated": profit_estimated,
+        "scenario_info": scenario_info,
     }
 
 
@@ -221,6 +248,7 @@ def suggest_strategies(
     chain: List[Leg],
     exposure: Dict[str, float],
     *,
+    spot_price: float,
     metrics: Optional[Any] = None,
     vix: Optional[float] = None,
 ) -> List[Dict[str, Any]]:
@@ -238,7 +266,7 @@ def suggest_strategies(
         if legs:
             impact = _sum_greeks(legs)
             after = {k: exposure.get(k, 0.0) + impact[k] for k in impact}
-            risk = _calc_metrics("vertical spread", legs)
+            risk = _calc_metrics("vertical spread", legs, spot_price)
             suggestions.append(
                 {
                     "strategy": "Vertical",
@@ -251,6 +279,8 @@ def suggest_strategies(
                     "margin": risk.get("margin"),
                     "max_profit": risk.get("max_profit"),
                     "max_loss": risk.get("max_loss"),
+                    "profit_estimated": risk.get("profit_estimated"),
+                    "scenario_info": risk.get("scenario_info"),
                 }
             )
     if exposure.get("Vega", 0.0) > 50:
@@ -262,7 +292,7 @@ def suggest_strategies(
         ):
             impact = _sum_greeks(legs)
             after = {k: exposure.get(k, 0.0) + impact[k] for k in impact}
-            risk = _calc_metrics("iron_condor", legs)
+            risk = _calc_metrics("iron_condor", legs, spot_price)
             rom = risk.get("ROM")
             rr = risk.get("RR")
             if metrics or vix is not None:
@@ -287,6 +317,8 @@ def suggest_strategies(
                         "margin": risk.get("margin"),
                         "max_profit": risk.get("max_profit"),
                         "max_loss": risk.get("max_loss"),
+                        "profit_estimated": risk.get("profit_estimated"),
+                        "scenario_info": risk.get("scenario_info"),
                     }
                 )
     if exposure.get("Vega", 0.0) < -50:
@@ -299,7 +331,7 @@ def suggest_strategies(
         ):
             impact = _sum_greeks(legs)
             after = {k: exposure.get(k, 0.0) + impact[k] for k in impact}
-            risk = _calc_metrics("calendar", legs)
+            risk = _calc_metrics("calendar", legs, spot_price)
             rom = risk.get("ROM")
             if metrics or vix is not None:
                 risk_ok = rom is None or rom >= 10
@@ -318,6 +350,8 @@ def suggest_strategies(
                         "margin": risk.get("margin"),
                         "max_profit": risk.get("max_profit"),
                         "max_loss": risk.get("max_loss"),
+                        "profit_estimated": risk.get("profit_estimated"),
+                        "scenario_info": risk.get("scenario_info"),
                     }
                 )
     return suggestions
@@ -343,11 +377,18 @@ def generate_proposals(
         if not chain_path:
             continue
         chain = load_chain_csv(str(chain_path))
+        m = metrics.get(sym) if metrics else None
+        spot = None
+        if m is not None:
+            spot = getattr(m, "spot_price", None)
+            if spot is None and isinstance(m, dict):
+                spot = m.get("spot_price")
         props = suggest_strategies(
             sym,
             chain,
             greeks,
-            metrics=metrics.get(sym) if metrics else None,
+            spot_price=spot if spot is not None else 0.0,
+            metrics=m,
             vix=vix,
         )
         if props:

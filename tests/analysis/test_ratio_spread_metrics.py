@@ -23,9 +23,13 @@ def test_ratio_spread_metrics_quantities():
             "delta": 0.3,
         },
     ]
-    metrics, reasons = _metrics("ratio_spread", legs)
+    metrics, reasons = _metrics("ratio_spread", legs, 66.0)
     assert metrics is not None
-    assert "ROM kon niet worden berekend" in reasons[0]
+    assert reasons == []
     assert math.isclose(metrics["credit"], 0.0)
     assert math.isclose(metrics["margin"], 200.0)
     assert math.isclose(metrics["max_loss"], -200.0)
+    assert metrics["rom"] is not None
+    assert metrics["ev_pct"] is not None
+    assert metrics["profit_estimated"] is True
+    assert metrics["scenario_info"]["preferred_move"] == "up"

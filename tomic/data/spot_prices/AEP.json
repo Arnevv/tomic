@@ -3687,5 +3687,12 @@
     "close": 111.99,
     "volume": 2577028.0,
     "atr": null
+  },
+  {
+    "symbol": "AEP",
+    "date": "2025-08-13",
+    "close": 113.11,
+    "volume": 4601245.0,
+    "atr": null
   }
 ]
