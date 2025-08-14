@@ -23,8 +23,12 @@ def test_calendar_metrics_allows_negative_credit():
             "delta": 0.25,
         },
     ]
-    metrics, reasons = _metrics("calendar", legs)
+    metrics, reasons = _metrics("calendar", legs, 55.0)
     assert metrics is not None
-    assert "ROM kon niet worden berekend" in reasons[0]
+    assert reasons == []
     assert math.isclose(metrics["credit"], -20.0)
     assert metrics["margin"] is not None
+    assert metrics["rom"] is not None
+    assert metrics["ev_pct"] is not None
+    assert metrics["profit_estimated"] is True
+    assert metrics["scenario_info"]["preferred_move"] == "flat"

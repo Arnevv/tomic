@@ -241,7 +241,9 @@ def test_export_proposal_json_includes_earnings(monkeypatch, tmp_path):
     mod.SESSION_STATE["strategy"] = "test_strategy"
     mod.SESSION_STATE["spot_price"] = 100.0
 
-    proposal = StrategyProposal(legs=[], credit=0.0)
+    proposal = StrategyProposal(
+        legs=[], credit=0.0, profit_estimated=True, scenario_info={"foo": "bar"}
+    )
 
     def _cell(value):
         return (lambda x: lambda: x)(value).__closure__[0]
@@ -274,3 +276,5 @@ def test_export_proposal_json_includes_earnings(monkeypatch, tmp_path):
     assert files, "export file not created"
     data = json.loads(files[0].read_text())
     assert data["next_earnings_date"] == "2030-01-01"
+    assert data["metrics"]["profit_estimated"] is True
+    assert data["metrics"]["scenario_info"] == {"foo": "bar"}

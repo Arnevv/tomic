@@ -133,3 +133,4 @@ def test_calendar_profit_estimation(tmp_path: Path) -> None:
     assert cal["profit_estimated"] is True
     assert cal["scenario_info"]["preferred_move"] == "flat"
     assert isinstance(cal["max_profit"], float)
+    assert cal["ROM"] is not None
