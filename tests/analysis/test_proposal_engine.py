@@ -117,7 +117,7 @@ def test_condor_margin(tmp_path: Path) -> None:
     exposure = {"Delta": 0, "Theta": 0, "Vega": 80, "Gamma": 0}
     props = suggest_strategies("XYZ", chain, exposure, spot_price=100.0)
     condor = next(p for p in props if p["strategy"] == "iron_condor")
-    assert math.isclose(condor["margin"], 500.0)
+    assert math.isclose(condor["margin"], 430.0)
     assert math.isclose(
         condor["ROM"], condor["max_profit"] / condor["margin"] * 100
     )

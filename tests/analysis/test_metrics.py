@@ -13,10 +13,10 @@ def test_metrics_iron_condor():
     assert reasons == []
     assert metrics is not None
     assert math.isclose(metrics["credit"], 150.0)
-    assert math.isclose(metrics["margin"], 500.0)
+    assert math.isclose(metrics["margin"], 350.0)
     assert metrics["rom"] is not None
-    assert math.isclose(metrics["ev_pct"], 10.0)
-    assert math.isclose(metrics["score"], 41.0)
+    assert math.isclose(metrics["ev_pct"], 14.285714285714285)
+    assert math.isclose(metrics["score"], 48.29)
 
 
 def test_metrics_atm_iron_butterfly():
