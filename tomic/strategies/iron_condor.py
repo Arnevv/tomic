@@ -124,7 +124,7 @@ def generate(symbol: str, option_chain: List[Dict[str, Any]], config: Dict[str, 
         ]
         if any(l is None for l in legs):
             continue
-            metrics, _ = _metrics("iron_condor", legs, spot)
+        metrics, _ = _metrics("iron_condor", legs, spot)
         if metrics and passes_risk(metrics):
             proposals.append(StrategyProposal(legs=legs, **metrics))
     proposals.sort(key=lambda p: p.score or 0, reverse=True)

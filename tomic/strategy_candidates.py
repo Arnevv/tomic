@@ -460,15 +460,20 @@ def _metrics(
         max_loss = -margin
     elif strategy in {"ratio_spread", "backspread_put", "calendar"}:
         max_loss = -margin
-    if max_profit is None and spot is not None:
+    if ((max_profit is None or max_profit <= 0) or strategy == "ratio_spread") and spot is not None:
         scenarios, err = estimate_scenario_profit(legs, spot, strategy)
         if scenarios:
             preferred = next(
                 (s for s in scenarios if s.get("preferred_move")), scenarios[0]
             )
-            max_profit = preferred.get("pnl")
+            pnl = preferred.get("pnl")
+            max_profit = abs(pnl) if pnl is not None else None
             scenario_info = preferred
             profit_estimated = True
+            label = preferred.get("scenario_label")
+            logger.info(
+                f"[SCENARIO] {strategy}: profit estimate at {label} {max_profit}"
+            )
         else:
             scenario_info = {"error": err or "no scenario defined"}
     rom = (
@@ -496,7 +501,7 @@ def _metrics(
 
     breakevens = _breakevens(strategy, legs, net_credit * 100)
 
-    if (ev_pct is not None and ev_pct <= 0) or score < 0:
+    if (ev_pct is not None and ev_pct <= 0 and not profit_estimated) or score < 0:
         reasons.append("negatieve EV of score")
         logger.info(
             f"[❌ voorstel afgewezen] {strategy} — reason: EV/score te laag"

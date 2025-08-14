@@ -133,15 +133,20 @@ def _calc_metrics(strategy: str, legs: List[Leg], spot_price: float) -> Dict[str
     profit_estimated = False
     scenario_info: Optional[Dict[str, Any]] = None
 
-    if max_profit is None:
+    if max_profit is None or max_profit <= 0:
         scenarios, err = estimate_scenario_profit(legs_dict, spot_price, strategy)
         if scenarios:
             preferred = next(
                 (s for s in scenarios if s.get("preferred_move")), scenarios[0]
             )
-            max_profit = preferred.get("pnl")
+            pnl = preferred.get("pnl")
+            max_profit = abs(pnl) if pnl is not None else None
             scenario_info = preferred
             profit_estimated = True
+            label = preferred.get("scenario_label")
+            logger.info(
+                f"[SCENARIO] {strategy}: profit estimate at {label} {max_profit}"
+            )
         else:
             scenario_info = {"error": err or "no scenario defined"}
 
