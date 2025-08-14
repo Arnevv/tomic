@@ -278,3 +278,63 @@ def test_export_proposal_json_includes_earnings(monkeypatch, tmp_path):
     assert data["next_earnings_date"] == "2030-01-01"
     assert data["metrics"]["profit_estimated"] is True
     assert data["metrics"]["scenario_info"] == {"foo": "bar"}
+
+
+def _extract_show_details(mod):
+    """Return the nested _show_proposal_details function."""
+    def _cell(value):
+        return (lambda x: lambda: x)(value).__closure__[0]
+
+    for const in mod.run_portfolio_menu.__code__.co_consts:
+        if isinstance(const, types.CodeType) and const.co_name == "_show_proposal_details":
+            cells = []
+            for name in const.co_freevars:
+                if name == "_export_proposal_csv":
+                    cells.append(_cell(lambda *_a, **_k: None))
+                elif name == "_export_proposal_json":
+                    cells.append(_cell(lambda *_a, **_k: None))
+                else:  # _proposal_journal_text
+                    cells.append(_cell(lambda *_a, **_k: ""))
+            return types.FunctionType(
+                const,
+                mod.run_portfolio_menu.__globals__,
+                None,
+                None,
+                tuple(cells),
+            )
+    return None
+
+
+def test_show_proposal_details_suffix(monkeypatch, capsys):
+    mod = importlib.import_module("tomic.cli.controlpanel")
+    show = _extract_show_details(mod)
+    assert show is not None
+    monkeypatch.setattr(mod, "prompt_yes_no", lambda *a, **k: False)
+    proposal = StrategyProposal(
+        legs=[],
+        rom=10.0,
+        ev=5.0,
+        profit_estimated=True,
+        scenario_info={"scenario_label": "Foo"},
+    )
+    show(proposal)
+    out = capsys.readouterr().out
+    assert "ROM: 10.00 Foo (geschat)" in out
+    assert "EV: 5.00 Foo (geschat)" in out
+
+
+def test_show_proposal_details_no_scenario(monkeypatch, capsys):
+    mod = importlib.import_module("tomic.cli.controlpanel")
+    show = _extract_show_details(mod)
+    assert show is not None
+    monkeypatch.setattr(mod, "prompt_yes_no", lambda *a, **k: False)
+    proposal = StrategyProposal(
+        legs=[],
+        rom=1.0,
+        ev=2.0,
+        profit_estimated=False,
+        scenario_info={"error": "no scenario defined"},
+    )
+    show(proposal)
+    out = capsys.readouterr().out
+    assert "no scenario defined" in out
