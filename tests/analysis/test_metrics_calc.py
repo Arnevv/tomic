@@ -81,7 +81,7 @@ def test_calculate_credit_and_margin_condor():
     credit = calculate_credit(legs)
     assert math.isclose(credit, 224.0)
     margin = calculate_margin("iron_condor", legs, net_cashflow=credit / 100)
-    assert math.isclose(margin, 500.0)
+    assert math.isclose(margin, 276.0)
 
 
 def test_calculate_payoff_at_spot_naked_put():

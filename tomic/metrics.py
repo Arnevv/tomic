@@ -244,7 +244,7 @@ def calculate_margin(
         if width <= 0:
             logger.warning("iron_condor wing width is non-positive")
             return None
-        return width * 100
+        return max(width * 100 - net_cashflow * 100, 0.0)
 
     if strat in {"calendar"}:
         if len(legs) != 2:
