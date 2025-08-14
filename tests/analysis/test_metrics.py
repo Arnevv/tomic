@@ -74,3 +74,95 @@ def test_metrics_backspread_put():
     assert metrics["rom"] is not None
     assert metrics["ev_pct"] is not None
     assert metrics["profit_estimated"] is True
+
+
+def test_metrics_reports_close_fallback():
+    legs = [
+        {
+            "type": "C",
+            "strike": 60,
+            "expiry": "2025-08-01",
+            "position": -1,
+            "mid": 1.2,
+            "model": 1.2,
+            "delta": 0.2,
+            "mid_fallback": "close",
+        },
+        {
+            "type": "C",
+            "strike": 65,
+            "expiry": "2025-08-01",
+            "position": 1,
+            "mid": 0.4,
+            "model": 0.4,
+            "delta": 0.1,
+        },
+        {
+            "type": "P",
+            "strike": 50,
+            "expiry": "2025-08-01",
+            "position": -1,
+            "mid": 1.0,
+            "model": 1.0,
+            "delta": -0.2,
+        },
+        {
+            "type": "P",
+            "strike": 45,
+            "expiry": "2025-08-01",
+            "position": 1,
+            "mid": 0.3,
+            "model": 0.3,
+            "delta": -0.1,
+        },
+    ]
+    metrics, reasons = _metrics("iron_condor", legs)
+    assert metrics is not None
+    assert metrics.get("fallback") == "close"
+    assert "fallback naar close gebruikt voor midprijs" in reasons
+
+
+def test_metrics_reports_parity_fallback():
+    legs = [
+        {
+            "type": "C",
+            "strike": 60,
+            "expiry": "2025-08-01",
+            "position": -1,
+            "mid": 1.2,
+            "model": 1.2,
+            "delta": 0.2,
+            "mid_fallback": "parity",
+        },
+        {
+            "type": "C",
+            "strike": 65,
+            "expiry": "2025-08-01",
+            "position": 1,
+            "mid": 0.4,
+            "model": 0.4,
+            "delta": 0.1,
+        },
+        {
+            "type": "P",
+            "strike": 50,
+            "expiry": "2025-08-01",
+            "position": -1,
+            "mid": 1.0,
+            "model": 1.0,
+            "delta": -0.2,
+        },
+        {
+            "type": "P",
+            "strike": 45,
+            "expiry": "2025-08-01",
+            "position": 1,
+            "mid": 0.3,
+            "model": 0.3,
+            "delta": -0.1,
+        },
+    ]
+    metrics, reasons = _metrics("iron_condor", legs)
+    assert metrics is not None
+    assert metrics.get("fallback") == "parity"
+    assert "fallback naar close gebruikt voor midprijs" not in reasons

@@ -426,7 +426,8 @@ def _metrics(
             f"[{strategy}] Ontbrekende bid/ask-data voor strikes {','.join(missing_mid)}"
         )
         reasons.append("ontbrekende bid/ask-data")
-    if any(leg.get("mid_fallback") == "close" for leg in legs):
+    fallbacks = {leg.get("mid_fallback") for leg in legs if leg.get("mid_fallback")}
+    if "close" in fallbacks:
         reasons.append("fallback naar close gebruikt voor midprijs")
     net_credit = credit_short - debit_long
     strikes = "/".join(str(l.get("strike")) for l in legs)
@@ -523,8 +524,8 @@ def _metrics(
         "profit_estimated": profit_estimated,
         "scenario_info": scenario_info,
     }
-    if any(leg.get("mid_fallback") == "close" for leg in legs):
-        result["fallback"] = "close"
+    if fallbacks:
+        result["fallback"] = ",".join(sorted(fallbacks))
     return result, reasons
 
 
