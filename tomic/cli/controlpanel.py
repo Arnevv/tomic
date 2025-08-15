@@ -1836,12 +1836,41 @@ def run_settings_menu() -> None:
         sub.add("Markt dicht – reqHistoricalData", run_closed_menu)
         sub.run()
 
+    def run_rules_menu() -> None:
+        path = prompt("Pad naar criteria.yaml (optioneel): ")
+        sub = Menu("\U0001F4DC Criteria beheren")
+
+        sub.add("Toon criteria", lambda: run_module("tomic.cli.rules", "show"))
+
+        def _validate() -> None:
+            if path:
+                run_module("tomic.cli.rules", "validate", path)
+            else:
+                run_module("tomic.cli.rules", "validate")
+
+        def _validate_reload() -> None:
+            if path:
+                run_module("tomic.cli.rules", "validate", path, "--reload")
+            else:
+                run_module("tomic.cli.rules", "validate", "--reload")
+
+        sub.add("Valideer criteria.yaml", _validate)
+        sub.add("Valideer & reload", _validate_reload)
+        sub.add("Reload zonder validatie", lambda: run_module("tomic.cli.rules", "reload"))
+        sub.run()
+
+    def run_strategy_criteria_menu() -> None:
+        sub = Menu("\U0001F3AF Strategie & Criteria")
+        sub.add("Optie-strategie parameters", run_option_menu)
+        sub.add("Criteria beheren", run_rules_menu)
+        sub.run()
+
     menu = Menu("\u2699\ufe0f INSTELLINGEN & CONFIGURATIE")
     menu.add("Portfolio & Analyse", run_general_menu)
     menu.add("Verbinding & API", run_connection_menu)
     menu.add("Netwerk & Snelheid", run_network_menu)
     menu.add("Bestandslocaties", run_paths_menu)
-    menu.add("Optie-strategie parameters", run_option_menu)
+    menu.add("Strategie & Criteria", run_strategy_criteria_menu)
     menu.add("Logging & Gedrag", run_logging_menu)
     menu.add("Toon volledige configuratie", show_config)
     menu.run()

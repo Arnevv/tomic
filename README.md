@@ -318,7 +318,28 @@ pytest tests/
 Om de volledige Polygon API-sleutel te loggen, zet je de omgevingsvariabele `TOMIC_SHOW_POLYGON_KEY=1` voordat je scripts start. De sleutel wordt dan niet gemaskeerd.
 
 📐 Rules configuratie beheren
-Met de ingebouwde CLI kun je de regels in `criteria.yaml` veilig aanpassen:
+Met de ingebouwde CLI kun je de regels in `criteria.yaml` veilig aanpassen. Via het configuratiemenu
+van het control panel is hiervoor het submenu **Strategie & Criteria** toegevoegd:
+
+```
+=== Strategie & Criteria ===
+1. Optie-strategie parameters
+2. Criteria beheren
+3. Terug
+```
+
+Kies **Criteria beheren** om de regels te bekijken, valideren of te herladen:
+
+```
+=== Criteria beheren ===
+1. Toon criteria
+2. Valideer criteria.yaml
+3. Valideer & reload
+4. Reload zonder validatie
+5. Terug
+```
+
+Vanuit het menu kun je tevens de regels valideren en desgewenst services herladen.
 
 ```bash
 # Toon de actuele configuratie
