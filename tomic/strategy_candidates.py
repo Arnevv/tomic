@@ -27,7 +27,7 @@ from .utils import (
     prompt_user_for_price,
 )
 from .logutils import logger, log_combo_evaluation
-from .config import get as cfg_get
+from .criteria import CriteriaConfig, load_criteria
 from .strategies import StrategyName
 
 
@@ -186,6 +186,7 @@ def _nearest_strike(
     target: float,
     *,
     tolerance_percent: float | None = None,
+    criteria: CriteriaConfig | None = None,
 ) -> StrikeMatch:
     """Return closest strike information for ``target``.
 
@@ -202,7 +203,8 @@ def _nearest_strike(
         return StrikeMatch(target)
 
     if tolerance_percent is None:
-        tolerance_percent = float(cfg_get("NEAREST_STRIKE_TOLERANCE_PERCENT", 2.0))
+        crit = criteria or load_criteria()
+        tolerance_percent = crit.alerts.nearest_strike_tolerance_percent
 
     nearest = min(strikes, key=lambda s: abs(s - target))
     diff = abs(nearest - target)
@@ -318,7 +320,11 @@ def _bs_estimate_missing(legs: List[Dict[str, Any]]) -> None:
 
 
 def _metrics(
-    strategy: StrategyName | str, legs: List[Dict[str, Any]], spot: float | None = None
+    strategy: StrategyName | str,
+    legs: List[Dict[str, Any]],
+    spot: float | None = None,
+    *,
+    criteria: CriteriaConfig | None = None,
 ) -> tuple[Optional[Dict[str, Any]], list[str]]:
     strategy = getattr(strategy, "value", strategy)
     _bs_estimate_missing(legs)
@@ -367,8 +373,9 @@ def _metrics(
 
     reasons: list[str] = []
 
-    min_vol = float(cfg_get("MIN_OPTION_VOLUME", 0))
-    min_oi = float(cfg_get("MIN_OPTION_OPEN_INTEREST", 0))
+    crit = criteria or load_criteria()
+    min_vol = float(crit.market_data.min_option_volume)
+    min_oi = float(crit.market_data.min_option_open_interest)
     if min_vol > 0 or min_oi > 0:
         low_liq: List[str] = []
         for leg in legs:
@@ -492,9 +499,9 @@ def _metrics(
         else None
     )
     ev_pct = (ev / margin) * 100 if ev is not None and margin else None
-    rom_w = float(cfg_get("SCORE_WEIGHT_ROM", 0.5))
-    pos_w = float(cfg_get("SCORE_WEIGHT_POS", 0.3))
-    ev_w = float(cfg_get("SCORE_WEIGHT_EV", 0.2))
+    rom_w = float(crit.strategy.score_weight_rom)
+    pos_w = float(crit.strategy.score_weight_pos)
+    ev_w = float(crit.strategy.score_weight_ev)
 
     score = 0.0
     if rom is not None:

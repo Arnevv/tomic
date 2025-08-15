@@ -1,6 +1,7 @@
 import pytest
 from tomic.strategy_candidates import _metrics
 from tomic.logutils import logger
+from tomic.criteria import load_criteria
 
 
 SCENARIOS = [
@@ -97,7 +98,7 @@ def test_scenario_metrics(strategy, legs, spot, label):
 
     buf = StringIO()
     handler_id = logger.add(buf, level="INFO")
-    metrics, reasons = _metrics(strategy, legs, spot)
+    metrics, reasons = _metrics(strategy, legs, spot, criteria=load_criteria())
     logger.remove(handler_id)
     assert metrics is not None
     assert reasons == []
@@ -115,7 +116,6 @@ def test_missing_scenario(monkeypatch):
             return {}
         return default
 
-    monkeypatch.setattr("tomic.strategy_candidates.cfg_get", fake_cfg_get)
     monkeypatch.setattr("tomic.metrics.cfg_get", fake_cfg_get)
 
     legs = [
@@ -139,7 +139,7 @@ def test_missing_scenario(monkeypatch):
         },
     ]
 
-    metrics, reasons = _metrics("calendar", legs, 55.0)
+    metrics, reasons = _metrics("calendar", legs, 55.0, criteria=load_criteria())
     assert metrics is not None
     assert metrics.get("ev") is None
     assert metrics.get("rom") is None

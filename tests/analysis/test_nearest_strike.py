@@ -1,4 +1,5 @@
 from tomic.strategy_candidates import _build_strike_map, _nearest_strike
+from tomic.criteria import AlertCriteria, CriteriaConfig, load_criteria
 
 
 def test_nearest_strike_simple():
@@ -23,15 +24,15 @@ def test_nearest_strike_tolerance():
     assert res.matched is None
 
 
-def test_nearest_strike_uses_config(monkeypatch):
+def test_nearest_strike_uses_config():
     chain = [{"expiry": "20250101", "strike": 100, "type": "c"}]
     m = _build_strike_map(chain)
-
-    def fake_cfg_get(key, default=None):
-        if key == "NEAREST_STRIKE_TOLERANCE_PERCENT":
-            return 5.0
-        return default
-
-    monkeypatch.setattr("tomic.strategy_candidates.cfg_get", fake_cfg_get)
-    res = _nearest_strike(m, "20250101", "c", 104)
+    base = load_criteria()
+    criteria = CriteriaConfig(
+        strike=base.strike,
+        strategy=base.strategy,
+        market_data=base.market_data,
+        alerts=AlertCriteria(nearest_strike_tolerance_percent=5.0),
+    )
+    res = _nearest_strike(m, "20250101", "c", 104, criteria=criteria)
     assert res.matched == 100
