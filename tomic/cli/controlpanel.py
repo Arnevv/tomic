@@ -1272,7 +1272,10 @@ def run_portfolio_menu() -> None:
                 False,
             ):
                 return
-        print(f"Credit: {proposal.credit:.2f}")
+        if proposal.credit is not None:
+            print(f"Credit: {proposal.credit:.2f}")
+        else:
+            print("Credit: —")
         if proposal.margin is not None:
             print(f"Margin: {proposal.margin:.2f}")
         else:

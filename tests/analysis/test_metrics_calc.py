@@ -10,6 +10,7 @@ from tomic.metrics import (
     calculate_payoff_at_spot,
     estimate_scenario_profit,
 )
+from tomic.strategies import StrategyName
 
 
 def test_historical_volatility_constant():
@@ -48,7 +49,9 @@ def test_calculate_margin_credit_spread():
         {"strike": 105, "type": "p", "action": "SELL"},
         {"strike": 100, "type": "Put", "action": "BUY"},
     ]
-    assert math.isclose(calculate_margin("bull put spread", legs, net_cashflow=1.2), 380.0)
+    assert math.isclose(
+        calculate_margin(StrategyName.SHORT_PUT_SPREAD, legs, net_cashflow=1.2), 380.0
+    )
 
 
 def test_calculate_margin_calendar():
@@ -57,7 +60,7 @@ def test_calculate_margin_calendar():
         {"strike": 100, "type": "CALL", "action": "SELL"},
     ]
     assert math.isclose(
-        calculate_margin("calendar", legs, net_cashflow=-2.5), 250.0
+        calculate_margin(StrategyName.CALENDAR, legs, net_cashflow=-2.5), 250.0
     )
 
 
@@ -67,7 +70,7 @@ def test_calculate_margin_ratio_backspread():
         {"strike": 100, "type": "p", "action": "BUY", "qty": 2},
     ]
     assert math.isclose(
-        calculate_margin("backspread_put", legs, net_cashflow=0.2), 480.0
+        calculate_margin(StrategyName.BACKSPREAD_PUT, legs, net_cashflow=0.2), 480.0
     )
 
 
@@ -80,7 +83,7 @@ def test_calculate_credit_and_margin_condor():
     ]
     credit = calculate_credit(legs)
     assert math.isclose(credit, 224.0)
-    margin = calculate_margin("iron_condor", legs, net_cashflow=credit / 100)
+    margin = calculate_margin(StrategyName.IRON_CONDOR, legs, net_cashflow=credit / 100)
     assert math.isclose(margin, 276.0)
 
 
@@ -106,7 +109,7 @@ def test_estimate_scenario_profit():
         {"strike": 95, "type": "P", "action": "SELL", "mid": 2.07, "position": -1},
         {"strike": 90, "type": "P", "action": "BUY", "mid": 0.95, "position": 1},
     ]
-    results, msg = estimate_scenario_profit(legs, 100, "iron_condor")
+    results, msg = estimate_scenario_profit(legs, 100, StrategyName.IRON_CONDOR)
     assert msg is None
     assert results and len(results) == 1
     scen = results[0]

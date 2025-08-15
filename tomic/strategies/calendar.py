@@ -5,6 +5,7 @@ from tomic.bs_calculator import black_scholes
 from tomic.helpers.dateutils import dte_between_dates
 from tomic.helpers.timeutils import today
 from tomic.helpers.put_call_parity import fill_missing_mid_with_parity
+from . import StrategyName
 from ..utils import get_option_mid_price, normalize_leg
 from ..strategy_candidates import (
     StrategyProposal,
@@ -95,7 +96,7 @@ def generate(symbol: str, option_chain: List[Dict[str, Any]], config: Dict[str, 
                 ):
                     leg["edge"] = leg["model"] - leg["mid"]
             legs = [normalize_leg(l) for l in legs]
-            metrics, _ = _metrics("calendar", legs, spot)
+            metrics, _ = _metrics(StrategyName.CALENDAR, legs, spot)
             if not metrics:
                 continue
             if min_rr > 0:

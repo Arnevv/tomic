@@ -28,16 +28,17 @@ from .utils import (
 )
 from .logutils import logger, log_combo_evaluation
 from .config import get as cfg_get
+from .strategies import StrategyName
 
 
 # Strategies that must yield a positive net credit. Calendar spreads are
 # intentionally omitted because they are debit strategies.
 STRATEGIES_THAT_REQUIRE_POSITIVE_CREDIT = {
-    "bull put spread",
-    "short_call_spread",
-    "iron_condor",
-    "atm_iron_butterfly",
-    "naked_put",
+    StrategyName.SHORT_PUT_SPREAD,
+    StrategyName.SHORT_CALL_SPREAD,
+    StrategyName.IRON_CONDOR,
+    StrategyName.ATM_IRON_BUTTERFLY,
+    StrategyName.NAKED_PUT,
 }
 
 
@@ -88,7 +89,7 @@ def select_expiry_pairs(expiries: List[str], min_gap: int) -> List[tuple[str, st
 
 
 def _breakevens(
-    strategy: str, legs: List[Dict[str, Any]], credit: float
+    strategy: StrategyName | str, legs: List[Dict[str, Any]], credit: float
 ) -> Optional[List[float]]:
     """Return simple breakeven estimates for supported strategies.
 
@@ -97,14 +98,15 @@ def _breakevens(
     """
     if not legs:
         return None
+    strategy = getattr(strategy, "value", strategy)
     credit_ps = credit / 100.0
-    if strategy in {"bull put spread", "short_call_spread"}:
+    if strategy in {StrategyName.SHORT_PUT_SPREAD, StrategyName.SHORT_CALL_SPREAD}:
         short = [l for l in legs if l.get("position") < 0][0]
         strike = float(short.get("strike"))
-        if strategy == "bull put spread":
+        if strategy == StrategyName.SHORT_PUT_SPREAD:
             return [strike - credit_ps]
         return [strike + credit_ps]
-    if strategy in {"iron_condor", "atm_iron_butterfly"}:
+    if strategy in {StrategyName.IRON_CONDOR, StrategyName.ATM_IRON_BUTTERFLY}:
         short_put = [
             l
             for l in legs
@@ -316,8 +318,9 @@ def _bs_estimate_missing(legs: List[Dict[str, Any]]) -> None:
 
 
 def _metrics(
-    strategy: str, legs: List[Dict[str, Any]], spot: float | None = None
+    strategy: StrategyName | str, legs: List[Dict[str, Any]], spot: float | None = None
 ) -> tuple[Optional[Dict[str, Any]], list[str]]:
+    strategy = getattr(strategy, "value", strategy)
     _bs_estimate_missing(legs)
     missing_fields = False
     for leg in legs:
