@@ -29,6 +29,7 @@ from .utils import (
 from .logutils import logger, log_combo_evaluation
 from .criteria import CriteriaConfig, load_criteria
 from .strategies import StrategyName
+from .config import get as cfg_get
 
 
 # Strategies that must yield a positive net credit. Calendar spreads are
@@ -576,8 +577,8 @@ def generate_strategy_candidates(
     strategy_type: str,
     option_chain: List[Dict[str, Any]],
     atr: float,
-    config: Dict[str, Any],
-    spot: float | None,
+    config: Dict[str, Any] | None = None,
+    spot: float | None = None,
     *,
     interactive_mode: bool = False,
 ) -> tuple[List[StrategyProposal], str | None]:
@@ -588,7 +589,8 @@ def generate_strategy_candidates(
         mod = __import__(f"tomic.strategies.{strategy_type}", fromlist=["generate"])
     except Exception as e:
         raise ValueError(f"Unknown strategy {strategy_type}") from e
-    return mod.generate(symbol, option_chain, config, spot, atr), None
+    cfg_data = config if config and config.get("strategies") else cfg_get("STRATEGY_CONFIG", {})
+    return mod.generate(symbol, option_chain, cfg_data, spot, atr), None
 
 
 __all__ = [

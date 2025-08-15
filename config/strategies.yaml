@@ -1,0 +1,8 @@
+strategies:
+  iron_condor:
+    min_risk_reward: 1.0
+    strike_to_strategy_config:
+      short_call_multiplier: [1.5, 2.0, 2.5, 3.0, 3.5]
+      short_put_multiplier: [1.5, 2.0, 2.5, 3.0, 3.5]
+      wing_width: 5
+      use_ATR: true

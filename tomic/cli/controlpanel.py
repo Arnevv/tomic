@@ -835,13 +835,7 @@ def run_portfolio_menu() -> None:
             logger.info(f"- {exp}: {cnt} options in CSV")
 
         strat = str(SESSION_STATE.get("strategy", "")).lower().replace(" ", "_")
-        rules_path = Path(
-            cfg.get("STRIKE_RULES_FILE", "tomic/strike_selection_rules.yaml")
-        )
-        try:
-            config_data = cfg._load_yaml(rules_path)
-        except Exception:
-            config_data = {}
+        config_data = cfg.get("STRATEGY_CONFIG") or {}
         rules = load_strike_config(strat, config_data) if config_data else {}
         dte_range = rules.get("dte_range") or [0, 365]
         try:
@@ -1410,13 +1404,7 @@ def run_portfolio_menu() -> None:
         print(f"✅ Voorstel opgeslagen in: {path.resolve()}")
     def _load_acceptance_criteria(strategy: str) -> dict[str, Any]:
         """Return current acceptance criteria for ``strategy``."""
-        rules_path = Path(
-            cfg.get("STRIKE_RULES_FILE", "tomic/strike_selection_rules.yaml")
-        )
-        try:
-            config_data = cfg._load_yaml(rules_path)
-        except Exception:
-            config_data = {}
+        config_data = cfg.get("STRATEGY_CONFIG") or {}
         rules = load_strike_config(strategy, config_data) if config_data else {}
         try:
             min_rom = float(rules.get("min_rom")) if rules.get("min_rom") is not None else None

@@ -278,6 +278,23 @@ def _load_strategy_scenarios() -> Dict[str, List[StrategyScenario]]:
     return scenarios
 
 
+def _load_strategy_config() -> Dict[str, Any]:
+    """Load per-strategy configuration from YAML file.
+
+    The file contains a ``strategies`` section where each strategy name maps
+    to its individual settings such as ``strike_to_strategy_config`` and
+    ``min_risk_reward``. Returning an empty dict if the file is missing keeps
+    the rest of the application functional even when no strategy overrides
+    are provided.
+    """
+
+    path = _BASE_DIR / "config" / "strategies.yaml"
+    if not path.exists():
+        return {}
+    data = _load_yaml(path)
+    return data if isinstance(data, dict) else {}
+
+
 def load_config() -> AppConfig:
     """Load configuration from .env or YAML file."""
     config_path = os.environ.get("TOMIC_CONFIG")
@@ -330,6 +347,7 @@ def save_config(config: AppConfig, path: Path | None = None) -> None:
 CONFIG = load_config()
 LOCK = threading.Lock()
 STRATEGY_SCENARIOS = _load_strategy_scenarios()
+STRATEGY_CONFIG = _load_strategy_config()
 
 
 def get(name: str, default: Any | None = None) -> Any:
@@ -341,15 +359,18 @@ def get(name: str, default: Any | None = None) -> Any:
     with LOCK:
         if name == "STRATEGY_SCENARIOS":
             return STRATEGY_SCENARIOS
+        if name == "STRATEGY_CONFIG":
+            return STRATEGY_CONFIG
         return getattr(CONFIG, name, default)
 
 
 def reload() -> None:
     """Reload configuration from disk into the global CONFIG object."""
-    global CONFIG, STRATEGY_SCENARIOS
+    global CONFIG, STRATEGY_SCENARIOS, STRATEGY_CONFIG
     with LOCK:
         CONFIG = load_config()
         STRATEGY_SCENARIOS = _load_strategy_scenarios()
+        STRATEGY_CONFIG = _load_strategy_config()
 
 
 def update(values: Dict[str, Any]) -> None:
