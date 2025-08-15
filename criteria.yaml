@@ -21,3 +21,14 @@ market_data:
   min_option_open_interest: 0
 alerts:
   nearest_strike_tolerance_percent: 2.0
+  entry_checks:
+    - condition: "avg_iv is not None and HV30 is not None and (avg_iv - HV30) < 0"
+      message: "⏬ IV onder HV ({diff:.2%}) – liever niet instappen"
+    - condition: "avg_iv is not None and HV30 is not None and 0 <= (avg_iv - HV30) < iv_hv_min_spread"
+      message: "⚠️ IV ligt slechts {diff:.2%} boven HV30"
+    - condition: "avg_iv is not None and HV30 is not None and (avg_iv - HV30) >= iv_hv_min_spread"
+      message: "✅ IV significant boven HV30"
+    - condition: "skew is not None and abs(skew) > skew_threshold"
+      message: "⚠️ Skew buiten range ({skew:+.2%})"
+    - condition: "IV_Rank is not None and IV_Rank < iv_rank_threshold"
+      message: "⚠️ IV Rank {IV_Rank:.1f} lager dan {iv_rank_threshold}"
