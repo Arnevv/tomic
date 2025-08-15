@@ -117,14 +117,10 @@ def recommend_strategies(
     if rules is None:
         rules = _RULES
     matched: List[Dict[str, Any]] = []
-    seen: set[str] = set()
     for rule in rules:
         crit = rule.get("criteria", [])
         if all(_check_expr(c, metrics) for c in crit):
-            strategy = str(rule.get("strategy"))
-            if strategy not in seen:
-                seen.add(strategy)
-                matched.append(rule)
+            matched.append(rule)
     return matched
 
 

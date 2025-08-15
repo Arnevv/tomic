@@ -1,4 +1,5 @@
 import tomic.strategy_candidates as sc
+from tomic.strategies import StrategyName
 
 
 def test_metrics_rejects_low_liquidity(monkeypatch):
@@ -48,9 +49,9 @@ def test_metrics_rejects_low_liquidity(monkeypatch):
 
     monkeypatch.setattr(sc, "logger", DummyLogger())
     monkeypatch.setattr(sc, "cfg_get", fake_cfg_get)
-    metrics, reasons = sc._metrics("bull put spread", legs)
+    metrics, reasons = sc._metrics(StrategyName.SHORT_PUT_SPREAD, legs)
     assert metrics is None
     assert any("volume" in r for r in reasons)
     assert logged == [
-        "[bull put spread] Onvoldoende volume/open interest voor strikes 100 [0, 0, 20250101], 90 [0, 0, 20250101]"
+        "[short_put_spread] Onvoldoende volume/open interest voor strikes 100 [0, 0, 20250101], 90 [0, 0, 20250101]"
     ]

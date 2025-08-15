@@ -192,13 +192,13 @@ def calculate_margin(
 
     strat = strategy.lower()
 
-    if strat == "bull put spread":
+    if strat == "short_put_spread":
         if len(legs) != 2:
             raise ValueError("Spread requires two legs")
         shorts = [l for l in legs if _option_direction(l) < 0]
         longs = [l for l in legs if _option_direction(l) > 0]
         if not shorts or not longs:
-            raise ValueError("Invalid bull put spread structure")
+            raise ValueError("Invalid short_put_spread structure")
         short_strike = float(shorts[0].get("strike"))
         long_strike = float(longs[0].get("strike"))
         width = short_strike - long_strike

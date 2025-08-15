@@ -7,6 +7,7 @@ from tomic.bs_calculator import black_scholes
 from tomic.helpers.dateutils import dte_between_dates
 from tomic.helpers.timeutils import today
 from tomic.helpers.put_call_parity import fill_missing_mid_with_parity
+from . import StrategyName
 from ..utils import get_option_mid_price, normalize_leg, normalize_right
 from ..logutils import logger
 from ..config import get as cfg_get
@@ -146,7 +147,7 @@ def generate(symbol: str, option_chain: List[Dict[str, Any]], config: Dict[str, 
         ]
         if any(l is None for l in legs):
             continue
-        metrics, _ = _metrics("iron_condor", legs, spot)
+        metrics, _ = _metrics(StrategyName.IRON_CONDOR, legs, spot)
         if metrics and passes_risk(metrics):
             proposals.append(StrategyProposal(legs=legs, **metrics))
     proposals.sort(key=lambda p: p.score or 0, reverse=True)

@@ -5,6 +5,7 @@ from tomic.bs_calculator import black_scholes
 from tomic.helpers.dateutils import dte_between_dates
 from tomic.helpers.timeutils import today
 from tomic.helpers.put_call_parity import fill_missing_mid_with_parity
+from . import StrategyName
 from ..utils import get_option_mid_price, normalize_leg
 from ..strategy_candidates import (
     StrategyProposal,
@@ -124,7 +125,7 @@ def generate(symbol: str, option_chain: List[Dict[str, Any]], config: Dict[str, 
                 leg = make_leg(opt, -1)
                 if leg is None:
                     continue
-                metrics, _ = _metrics("naked_put", [leg], spot)
+                metrics, _ = _metrics(StrategyName.NAKED_PUT, [leg], spot)
                 if metrics and passes_risk(metrics):
                     proposals.append(StrategyProposal(legs=[leg], **metrics))
                 if len(proposals) >= 5:
