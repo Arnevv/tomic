@@ -8,6 +8,7 @@ from . import csv_quality_check
 from . import option_lookup
 from . import portfolio_scenario
 from . import generate_proposals
+from . import rules
 
 
 def main(argv: list[str] | None = None) -> None:
@@ -53,6 +54,32 @@ def main(argv: list[str] | None = None) -> None:
         func=lambda a: generate_proposals.main(
             [p for p in [a.positions, a.export_dir] if p]
         )
+    )
+
+    sub_rules = sub.add_parser("rules", help="Inspect and reload rule config")
+    rules_sub = sub_rules.add_subparsers(dest="rules_cmd")
+
+    show = rules_sub.add_parser("show", help="Toon huidige configuratie")
+    show.add_argument("path", nargs="?", help="Pad naar criteria.yaml")
+    show.set_defaults(
+        func=lambda a: rules.main(["show"] + ([a.path] if a.path else []))
+    )
+
+    validate = rules_sub.add_parser("validate", help="Valideer configuratie")
+    validate.add_argument("path", nargs="?", help="Pad naar criteria.yaml")
+    validate.add_argument("--reload", action="store_true", help="Herlaad na validatie")
+    validate.set_defaults(
+        func=lambda a: rules.main(
+            ["validate"]
+            + ([a.path] if a.path else [])
+            + (["--reload"] if a.reload else [])
+        )
+    )
+
+    reload_cfg = rules_sub.add_parser("reload", help="Herlaad configuratie")
+    reload_cfg.add_argument("path", nargs="?", help="Pad naar criteria.yaml")
+    reload_cfg.set_defaults(
+        func=lambda a: rules.main(["reload"] + ([a.path] if a.path else []))
     )
 
     args = parser.parse_args(argv)
