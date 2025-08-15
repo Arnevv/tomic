@@ -1,24 +1,28 @@
 from importlib import reload
 
 from tomic import strike_selector as ss
+from tomic.criteria import StrikeCriteria, load_criteria
 
 
 def test_selector_filters(monkeypatch):
-    conf = {
-        "DELTA_MIN": -0.5,
-        "DELTA_MAX": 0.5,
-        "STRIKE_MIN_ROM": 10,
-        "STRIKE_MIN_EDGE": 0.2,
-        "STRIKE_MIN_POS": 60,
-        "STRIKE_MIN_EV": 0,
-        "STRIKE_SKEW_MIN": -0.1,
-        "STRIKE_SKEW_MAX": 0.1,
-        "STRIKE_TERM_MIN": -0.2,
-        "STRIKE_TERM_MAX": 0.2,
-    }
-    monkeypatch.setattr(ss, "cfg_get", lambda name, default=None: conf.get(name, default))
-    reload(ss)
-    selector = ss.StrikeSelector()
+    base = load_criteria()
+    criteria = base.model_copy(
+        update={
+            "strike": StrikeCriteria(
+                delta_min=-0.5,
+                delta_max=0.5,
+                min_rom=10,
+                min_edge=0.2,
+                min_pos=60,
+                min_ev=0,
+                skew_min=-0.1,
+                skew_max=0.1,
+                term_min=-0.2,
+                term_max=0.2,
+            )
+        }
+    )
+    selector = ss.StrikeSelector(criteria=criteria)
     opts = [
         {
             "expiry": "20250101",

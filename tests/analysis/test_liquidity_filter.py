@@ -1,5 +1,6 @@
 import tomic.strategy_candidates as sc
 from tomic.strategies import StrategyName
+from tomic.criteria import CriteriaConfig, MarketDataCriteria, load_criteria
 
 
 def test_metrics_rejects_low_liquidity(monkeypatch):
@@ -34,13 +35,6 @@ def test_metrics_rejects_low_liquidity(monkeypatch):
         },
     ]
 
-    def fake_cfg_get(key, default=None):
-        if key == "MIN_OPTION_VOLUME":
-            return 10
-        if key == "MIN_OPTION_OPEN_INTEREST":
-            return 10
-        return default
-
     logged: list[str] = []
 
     class DummyLogger:
@@ -48,8 +42,16 @@ def test_metrics_rejects_low_liquidity(monkeypatch):
             logged.append(msg)
 
     monkeypatch.setattr(sc, "logger", DummyLogger())
-    monkeypatch.setattr(sc, "cfg_get", fake_cfg_get)
-    metrics, reasons = sc._metrics(StrategyName.SHORT_PUT_SPREAD, legs)
+    base = load_criteria()
+    criteria = CriteriaConfig(
+        strike=base.strike,
+        strategy=base.strategy,
+        market_data=MarketDataCriteria(
+            min_option_volume=10, min_option_open_interest=10
+        ),
+        alerts=base.alerts,
+    )
+    metrics, reasons = sc._metrics(StrategyName.SHORT_PUT_SPREAD, legs, criteria=criteria)
     assert metrics is None
     assert any("volume" in r for r in reasons)
     assert logged == [

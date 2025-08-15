@@ -2,17 +2,21 @@ import importlib
 from unittest.mock import Mock
 
 from tomic import strike_selector as ss
+from tomic.criteria import StrikeCriteria, load_criteria
 
 
 # Helper to reload module with provided config
 
 def _reload_with(monkeypatch, conf=None):
     importlib.reload(ss)
+    base = load_criteria()
     if conf is None:
-        monkeypatch.setattr(ss, "cfg_get", lambda name, default=None: default)
+        criteria = base
     else:
-        monkeypatch.setattr(ss, "cfg_get", lambda name, default=None: conf.get(name, default))
-    return ss.StrikeSelector()
+        criteria = base.model_copy(
+            update={"strike": base.strike.model_copy(update=conf)}
+        )
+    return ss.StrikeSelector(criteria=criteria)
 
 
 def _make_option(**attrs):
@@ -32,11 +36,11 @@ def _make_option(**attrs):
 
 def test_default_config_used_if_strategy_missing(monkeypatch):
     selector = _reload_with(monkeypatch)
-    assert selector.config == ss.FilterConfig()
+    assert selector.config == ss.load_filter_config(load_criteria())
 
 
 def test_filter_by_delta_range(monkeypatch):
-    conf = {"DELTA_MIN": -0.4, "DELTA_MAX": 0.4}
+    conf = {"delta_min": -0.4, "delta_max": 0.4}
     selector = _reload_with(monkeypatch, conf)
     opts = [
         _make_option(delta=-0.5, strike=90),
@@ -50,7 +54,7 @@ def test_filter_by_delta_range(monkeypatch):
 
 
 def test_filter_on_rom_and_edge(monkeypatch):
-    conf = {"STRIKE_MIN_ROM": 5, "STRIKE_MIN_EDGE": 0.2}
+    conf = {"min_rom": 5, "min_edge": 0.2}
     selector = _reload_with(monkeypatch, conf)
     opts = [
         _make_option(delta=0, strike=100, rom=10, edge=0.3),
@@ -65,16 +69,16 @@ def test_filter_on_rom_and_edge(monkeypatch):
 
 def test_rejects_outside_qualified_strikes(monkeypatch):
     conf = {
-        "DELTA_MIN": -0.3,
-        "DELTA_MAX": 0.3,
-        "STRIKE_MIN_ROM": 10,
-        "STRIKE_MIN_EDGE": 0.2,
-        "STRIKE_MIN_POS": 60,
-        "STRIKE_MIN_EV": 1,
-        "STRIKE_SKEW_MIN": -0.1,
-        "STRIKE_SKEW_MAX": 0.1,
-        "STRIKE_TERM_MIN": -0.2,
-        "STRIKE_TERM_MAX": 0.2,
+        "delta_min": -0.3,
+        "delta_max": 0.3,
+        "min_rom": 10,
+        "min_edge": 0.2,
+        "min_pos": 60,
+        "min_ev": 1,
+        "skew_min": -0.1,
+        "skew_max": 0.1,
+        "term_min": -0.2,
+        "term_max": 0.2,
     }
     selector = _reload_with(monkeypatch, conf)
     base = {
@@ -101,7 +105,7 @@ def test_rejects_outside_qualified_strikes(monkeypatch):
 
 
 def test_ev_and_pos_thresholds(monkeypatch):
-    conf = {"STRIKE_MIN_EV": 1, "STRIKE_MIN_POS": 70}
+    conf = {"min_ev": 1, "min_pos": 70}
     selector = _reload_with(monkeypatch, conf)
     opts = [
         _make_option(delta=0, strike=100, ev=2, pos=75),

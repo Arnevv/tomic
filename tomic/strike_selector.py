@@ -9,8 +9,8 @@ from datetime import datetime
 
 from .utils import today
 
-from .config import get as cfg_get
 from .logutils import logger
+from .criteria import CriteriaConfig, load_criteria
 
 
 def _as_float(value: Any) -> Optional[float]:
@@ -29,16 +29,16 @@ def _as_float(value: Any) -> Optional[float]:
 class FilterConfig:
     """Configuration for :class:`StrikeSelector`."""
 
-    delta_min: float = -0.8
-    delta_max: float = 0.8
-    min_rom: float = 0.0
-    min_edge: float = 0.0
-    min_pos: float = 0.0
-    min_ev: float = 0.0
-    skew_min: float = -0.1
-    skew_max: float = 0.1
-    term_min: float = -0.2
-    term_max: float = 0.2
+    delta_min: float
+    delta_max: float
+    min_rom: float
+    min_edge: float
+    min_pos: float
+    min_ev: float
+    skew_min: float
+    skew_max: float
+    term_min: float
+    term_max: float
     max_gamma: Optional[float] = None
     max_vega: Optional[float] = None
     min_theta: Optional[float] = None
@@ -62,23 +62,25 @@ class FilterConfig:
         return " ".join(parts)
 
 
-def load_filter_config() -> FilterConfig:
-    """Return filter config from YAML or defaults."""
+def load_filter_config(criteria: CriteriaConfig | None = None) -> FilterConfig:
+    """Return filter config derived from :class:`CriteriaConfig`."""
 
+    crit = criteria or load_criteria()
+    s = crit.strike
     return FilterConfig(
-        delta_min=_as_float(cfg_get("DELTA_MIN", -0.8)) or -0.8,
-        delta_max=_as_float(cfg_get("DELTA_MAX", 0.8)) or 0.8,
-        min_rom=_as_float(cfg_get("STRIKE_MIN_ROM", 0.0)) or 0.0,
-        min_edge=_as_float(cfg_get("STRIKE_MIN_EDGE", 0.0)) or 0.0,
-        min_pos=_as_float(cfg_get("STRIKE_MIN_POS", 0.0)) or 0.0,
-        min_ev=_as_float(cfg_get("STRIKE_MIN_EV", 0.0)) or 0.0,
-        skew_min=_as_float(cfg_get("STRIKE_SKEW_MIN", -0.1)) or -0.1,
-        skew_max=_as_float(cfg_get("STRIKE_SKEW_MAX", 0.1)) or 0.1,
-        term_min=_as_float(cfg_get("STRIKE_TERM_MIN", -0.2)) or -0.2,
-        term_max=_as_float(cfg_get("STRIKE_TERM_MAX", 0.2)) or 0.2,
-        max_gamma=_as_float(cfg_get("STRIKE_MAX_GAMMA", None)),
-        max_vega=_as_float(cfg_get("STRIKE_MAX_VEGA", None)),
-        min_theta=_as_float(cfg_get("STRIKE_MIN_THETA", None)),
+        delta_min=s.delta_min,
+        delta_max=s.delta_max,
+        min_rom=s.min_rom,
+        min_edge=s.min_edge,
+        min_pos=s.min_pos,
+        min_ev=s.min_ev,
+        skew_min=s.skew_min,
+        skew_max=s.skew_max,
+        term_min=s.term_min,
+        term_max=s.term_max,
+        max_gamma=_as_float(s.max_gamma),
+        max_vega=_as_float(s.max_vega),
+        min_theta=_as_float(s.min_theta),
     )
 
 
@@ -140,8 +142,11 @@ def filter_by_expiry(
 class StrikeSelector:
     """Filter option strikes based on configurable criteria."""
 
-    def __init__(self, config: FilterConfig | None = None) -> None:
-        self.config = config or load_filter_config()
+    def __init__(
+        self, config: FilterConfig | None = None, criteria: CriteriaConfig | None = None
+    ) -> None:
+        self._criteria = criteria or load_criteria()
+        self.config = config or load_filter_config(self._criteria)
         self._filters: List[Tuple[str, Callable[[Dict[str, Any]], Tuple[bool, str]]]] = [
             ("delta", self._delta_filter),
             ("rom", self._rom_filter),
