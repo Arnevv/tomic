@@ -3694,5 +3694,12 @@
     "close": 82.71,
     "volume": 11050972.0,
     "atr": null
+  },
+  {
+    "symbol": "MRK",
+    "date": "2025-08-14",
+    "close": 82.76,
+    "volume": 10216968.0,
+    "atr": null
   }
 ]
