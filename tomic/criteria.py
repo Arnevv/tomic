@@ -13,6 +13,7 @@ from functools import lru_cache
 from pathlib import Path
 
 from pydantic import BaseModel
+from typing import List
 
 from .config import _load_yaml  # reuse YAML loader
 
@@ -50,10 +51,18 @@ class MarketDataRules(BaseModel):
     min_option_open_interest: int
 
 
+class Rule(BaseModel):
+    """Declarative rule definition for alerts/proposals."""
+
+    condition: str
+    message: str
+
+
 class AlertRules(BaseModel):
     """Settings for user facing alerts."""
 
     nearest_strike_tolerance_percent: float
+    entry_checks: List[Rule] = []
 
 
 class RulesConfig(BaseModel):
@@ -109,6 +118,7 @@ __all__ = [
     "StrikeRules",
     "StrategyRules",
     "MarketDataRules",
+    "Rule",
     "AlertRules",
     "RulesConfig",
     "RULES",

@@ -4,6 +4,9 @@ from __future__ import annotations
 
 from typing import Any, Dict, List
 
+from ..criteria import RULES
+from .rules import evaluate_rules
+
 
 def check_entry_conditions(
     strategy: Dict[str, Any],
@@ -11,30 +14,18 @@ def check_entry_conditions(
     iv_hv_min_spread: float = 0.03,
     iv_rank_threshold: float = 30,
 ) -> List[str]:
-    """Return a list of entry warnings for ``strategy``."""
-    alerts: List[str] = []
-    iv = strategy.get("avg_iv")
-    hv = strategy.get("HV30")
-    ivr = strategy.get("IV_Rank")
-    skew = strategy.get("skew")
+    """Return a list of entry warnings for ``strategy`` using declarative rules."""
 
-    if iv is not None and hv is not None:
-        hv_decimal = hv / 100 if hv > 1 else hv
-        diff = iv - hv_decimal
-        if diff < 0:
-            alerts.append(f"⏬ IV onder HV ({diff:.2%}) – liever niet instappen")
-        elif diff < iv_hv_min_spread:
-            alerts.append(f"⚠️ IV ligt slechts {diff:.2%} boven HV30")
-        else:
-            alerts.append("✅ IV significant boven HV30")
-
-    if skew is not None and abs(skew) > skew_threshold:
-        alerts.append(f"⚠️ Skew buiten range ({skew:+.2%})")
-
-    if ivr is not None and ivr < iv_rank_threshold:
-        alerts.append(f"⚠️ IV Rank {ivr:.1f} lager dan {iv_rank_threshold}")
-
-    return alerts
+    context: Dict[str, Any] = {
+        **strategy,
+        "skew_threshold": skew_threshold,
+        "iv_hv_min_spread": iv_hv_min_spread,
+        "iv_rank_threshold": iv_rank_threshold,
+    }
+    if context.get("avg_iv") is not None and context.get("HV30") is not None:
+        context["diff"] = context["avg_iv"] - context["HV30"]
+    rules = [getattr(r, "model_dump", r.dict)() for r in RULES.alerts.entry_checks]
+    return evaluate_rules(rules, context)
 
 
 def generate_risk_alerts(strategy: Dict[str, Any]) -> List[str]:
