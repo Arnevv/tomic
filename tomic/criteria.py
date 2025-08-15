@@ -1,15 +1,25 @@
 from __future__ import annotations
 
+"""Structured criteria and rules configuration.
+
+This module defines a small collection of :class:`pydantic.BaseModel`
+classes which mirror the sections in ``criteria.yaml``.  The models are
+loaded once at import time and exposed through :data:`RULES` so other
+modules can simply import the ready-to-use configuration without worrying
+about file parsing or validation.
+"""
+
 from functools import lru_cache
 from pathlib import Path
-from typing import Optional
 
 from pydantic import BaseModel
 
 from .config import _load_yaml  # reuse YAML loader
 
 
-class StrikeCriteria(BaseModel):
+class StrikeRules(BaseModel):
+    """Strike selection thresholds."""
+
     delta_min: float
     delta_max: float
     min_rom: float
@@ -25,32 +35,89 @@ class StrikeCriteria(BaseModel):
     min_theta: float | None = None
 
 
-class StrategyCriteria(BaseModel):
+class StrategyRules(BaseModel):
+    """Weights for evaluating strategy attractiveness."""
+
     score_weight_rom: float
     score_weight_pos: float
     score_weight_ev: float
 
 
-class MarketDataCriteria(BaseModel):
+class MarketDataRules(BaseModel):
+    """Minimum liquidity requirements for option data."""
+
     min_option_volume: int
     min_option_open_interest: int
 
 
-class AlertCriteria(BaseModel):
+class AlertRules(BaseModel):
+    """Settings for user facing alerts."""
+
     nearest_strike_tolerance_percent: float
 
 
-class CriteriaConfig(BaseModel):
-    strike: StrikeCriteria
-    strategy: StrategyCriteria
-    market_data: MarketDataCriteria
-    alerts: AlertCriteria
+class RulesConfig(BaseModel):
+    """Root configuration object combining all rule sections."""
 
+    strike: StrikeRules
+    strategy: StrategyRules
+    market_data: MarketDataRules
+    alerts: AlertRules
+
+
+# ---------------------------------------------------------------------------
+# Loading helpers
+# ---------------------------------------------------------------------------
 
 @lru_cache(maxsize=1)
-def load_criteria(path: str | Path | None = None) -> CriteriaConfig:
-    """Load criteria configuration from YAML file once."""
+def load_rules(path: str | Path | None = None) -> RulesConfig:
+    """Load rules configuration from the YAML file once.
+
+    Parameters
+    ----------
+    path:
+        Optional path to the YAML file.  When omitted the default
+        ``criteria.yaml`` located in the project root is used.
+    """
+
     base = Path(__file__).resolve().parent.parent
     cfg_path = Path(path) if path else base / "criteria.yaml"
     data = _load_yaml(cfg_path) if cfg_path.exists() else {}
-    return CriteriaConfig(**data)
+    return RulesConfig(**data)
+
+
+# Load the configuration immediately so consuming modules can simply import
+# :data:`RULES` from this module.
+RULES: RulesConfig = load_rules()
+
+
+# ---------------------------------------------------------------------------
+# Backwards compatibility aliases
+# ---------------------------------------------------------------------------
+
+# Older code referenced the "Criteria" terminology.  Provide aliases so both
+# the legacy and the new naming continue to work.
+StrikeCriteria = StrikeRules
+StrategyCriteria = StrategyRules
+MarketDataCriteria = MarketDataRules
+AlertCriteria = AlertRules
+CriteriaConfig = RulesConfig
+load_criteria = load_rules
+
+
+__all__ = [
+    "StrikeRules",
+    "StrategyRules",
+    "MarketDataRules",
+    "AlertRules",
+    "RulesConfig",
+    "RULES",
+    # Backwards compatibility
+    "StrikeCriteria",
+    "StrategyCriteria",
+    "MarketDataCriteria",
+    "AlertCriteria",
+    "CriteriaConfig",
+    "load_rules",
+    "load_criteria",
+]
