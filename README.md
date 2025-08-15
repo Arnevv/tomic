@@ -316,3 +316,16 @@ pytest tests/
 
 🔍 Debugging
 Om de volledige Polygon API-sleutel te loggen, zet je de omgevingsvariabele `TOMIC_SHOW_POLYGON_KEY=1` voordat je scripts start. De sleutel wordt dan niet gemaskeerd.
+
+📐 Rules configuratie beheren
+Met de ingebouwde CLI kun je de regels in `criteria.yaml` veilig aanpassen:
+
+```bash
+# Toon de actuele configuratie
+tomic rules show
+
+# Valideer wijzigingen en herlaad services
+tomic rules validate path/naar/criteria.yaml --reload
+```
+
+Meer voorbeelden en uitleg staan in `docs/rules_cli.md`.
