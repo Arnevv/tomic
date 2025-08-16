@@ -37,14 +37,15 @@ def test_load_exported_chain_normalizes_open_interest(tmp_path, monkeypatch):
     leg = rows[0]
     leg.update({"position": -1})
 
-    def fake_cfg_get(key, default=None):
-        if key == "MIN_OPTION_OPEN_INTEREST":
-            return 10
-        if key == "MIN_OPTION_VOLUME":
-            return 0
-        return default
+    orig_load = sc.load_criteria
 
-    monkeypatch.setattr(sc, "cfg_get", fake_cfg_get)
+    def fake_load():
+        cfg = orig_load()
+        cfg.market_data.min_option_open_interest = 10
+        cfg.market_data.min_option_volume = 0
+        return cfg
+
+    monkeypatch.setattr(sc, "load_criteria", fake_load)
     monkeypatch.setattr(sc, "calculate_margin", lambda *a, **k: 1)
     metrics, reasons = sc._metrics("test", [leg])
     assert metrics is not None

@@ -8,6 +8,7 @@ from tomic.helpers.put_call_parity import fill_missing_mid_with_parity
 from . import StrategyName
 from ..utils import get_option_mid_price, normalize_leg
 from ..logutils import logger
+from ..config import get as cfg_get
 from ..strategy_candidates import (
     StrategyProposal,
     _build_strike_map,
@@ -92,7 +93,9 @@ def generate(symbol: str, option_chain: List[Dict[str, Any]], config: Dict[str, 
             exp = str(opt.get("expiry"))
             if spot and iv > 0.0 and exp:
                 dte = dte_between_dates(today(), exp)
-                leg["model"] = black_scholes(opt_type, spot, strike, dte, iv, r=0.045, q=0.0)
+                r = float(cfg_get("INTEREST_RATE", 0.05))
+                q = 0.0  # evt. later per-symbool
+                leg["model"] = black_scholes(opt_type, spot, strike, dte, iv, r=r, q=q)
         except Exception:
             pass
         if (

@@ -139,17 +139,9 @@ class AppConfig(BaseModel):
     AMOUNT_REGULARS: int = 3
     AMOUNT_WEEKLIES: int = 4
     FIRST_EXPIRY_MIN_DTE: int = 15
-    DELTA_MIN: float = -0.8
-    DELTA_MAX: float = 0.8
     USE_HISTORICAL_IV_WHEN_CLOSED: bool = True
     INCLUDE_GREEKS_ONLY_IF_MARKET_OPEN: bool = True
-    NEAREST_STRIKE_TOLERANCE_PERCENT: float = 2.0
-    SCORE_WEIGHT_ROM: float = 0.5
-    SCORE_WEIGHT_POS: float = 0.3
-    SCORE_WEIGHT_EV: float = 0.2
     ALLOW_INCOMPLETE_METRICS: bool = False
-    MIN_OPTION_VOLUME: int = 50
-    MIN_OPTION_OPEN_INTEREST: int = 500
 
     # Parameters for IV history snapshots -------------------------------
     IV_TRACKING_DELTAS: List[float] = [0.25, 0.5]

@@ -87,17 +87,17 @@ def test_rejects_outside_qualified_strikes(monkeypatch):
         "pos": 70,
         "ev": 2,
         "skew": 0,
-        "term_slope": 0,
+        "term_m1_m3": 0,
     }
     opts = [
         _make_option(delta=0.1, strike=100, **base),
         _make_option(delta=0.4, strike=101, **base),
-        _make_option(delta=0.1, strike=102, rom=5, edge=0.3, pos=70, ev=2, skew=0, term_slope=0),
-        _make_option(delta=0.1, strike=103, rom=15, edge=0.1, pos=70, ev=2, skew=0, term_slope=0),
-        _make_option(delta=0.1, strike=104, rom=15, edge=0.3, pos=50, ev=2, skew=0, term_slope=0),
-        _make_option(delta=0.1, strike=105, rom=15, edge=0.3, pos=70, ev=0, skew=0, term_slope=0),
-        _make_option(delta=0.1, strike=106, rom=15, edge=0.3, pos=70, ev=2, skew=0.2, term_slope=0),
-        _make_option(delta=0.1, strike=107, rom=15, edge=0.3, pos=70, ev=2, skew=0, term_slope=0.3),
+        _make_option(delta=0.1, strike=102, rom=5, edge=0.3, pos=70, ev=2, skew=0, term_m1_m3=0),
+        _make_option(delta=0.1, strike=103, rom=15, edge=0.1, pos=70, ev=2, skew=0, term_m1_m3=0),
+        _make_option(delta=0.1, strike=104, rom=15, edge=0.3, pos=50, ev=2, skew=0, term_m1_m3=0),
+        _make_option(delta=0.1, strike=105, rom=15, edge=0.3, pos=70, ev=0, skew=0, term_m1_m3=0),
+        _make_option(delta=0.1, strike=106, rom=15, edge=0.3, pos=70, ev=2, skew=0.2, term_m1_m3=0),
+        _make_option(delta=0.1, strike=107, rom=15, edge=0.3, pos=70, ev=2, skew=0, term_m1_m3=0.3),
     ]
     res = selector.select(opts)
     strikes = [o["strike"] for o in res]
