@@ -3701,5 +3701,12 @@
     "close": 975.39,
     "volume": 1808674.0,
     "atr": null
+  },
+  {
+    "symbol": "COST",
+    "date": "2025-08-15",
+    "close": 972.04,
+    "volume": 1638230.0,
+    "atr": null
   }
 ]

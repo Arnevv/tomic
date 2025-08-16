@@ -3701,5 +3701,12 @@
     "close": 119.02,
     "volume": 5461731.0,
     "atr": null
+  },
+  {
+    "symbol": "GILD",
+    "date": "2025-08-15",
+    "close": 118.37,
+    "volume": 8859740.0,
+    "atr": null
   }
 ]

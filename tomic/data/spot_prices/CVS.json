@@ -3701,5 +3701,12 @@
     "close": 66.73,
     "volume": 5872714.0,
     "atr": null
+  },
+  {
+    "symbol": "CVS",
+    "date": "2025-08-15",
+    "close": 68.6,
+    "volume": 8254410.0,
+    "atr": null
   }
 ]
