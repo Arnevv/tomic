@@ -57,6 +57,7 @@ from tomic.logutils import setup_logging, logger
 from tomic.analysis.greeks import compute_portfolio_greeks
 from tomic.journal.utils import load_json, save_json
 from tomic.utils import today
+from tomic.analysis.volatility_fetcher import fetch_volatility_metrics
 from tomic.cli.volatility_recommender import recommend_strategy, recommend_strategies
 from tomic.api.market_export import load_exported_chain
 from tomic.cli import services
@@ -509,6 +510,15 @@ def run_portfolio_menu() -> None:
 
         symbols = [s.upper() for s in cfg.get("DEFAULT_SYMBOLS", [])]
         rows: list[list] = []
+
+        vix_value = None
+        try:
+            metrics = fetch_volatility_metrics(symbols[0] if symbols else "SPY")
+            vix_value = metrics.get("vix")
+        except Exception:
+            vix_value = None
+        if isinstance(vix_value, (int, float)):
+            print(f"VIX {vix_value:.2f}")
 
         for symbol in symbols:
             try:
