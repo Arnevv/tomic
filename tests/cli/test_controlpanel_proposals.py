@@ -73,6 +73,12 @@ def test_show_market_info(monkeypatch, tmp_path):
         ),
     )
 
+    monkeypatch.setattr(
+        mod,
+        "fetch_volatility_metrics",
+        lambda *a, **k: {"vix": 19.5},
+    )
+
     prints = []
     monkeypatch.setattr(builtins, "print", lambda *a, **k: prints.append(" ".join(str(x) for x in a)))
 
@@ -82,6 +88,7 @@ def test_show_market_info(monkeypatch, tmp_path):
 
     assert any("2030-01-01" in line for line in prints)
     assert any("short_put_spread" in line for line in prints)
+    assert any("VIX" in line for line in prints)
 
 
 def test_process_chain_refreshes_spot_price(monkeypatch, tmp_path):
