@@ -9,6 +9,9 @@ def test_recommend_strategy_match():
         "term_m1_m3": 1.2,
         "IV": 0.4,
         "HV20": 0.2,
+        "HV90": 0.3,
+        "iv_vs_hv20": 0.2,
+        "iv_vs_hv90": 0.1,
     }
     rec = recommend_strategy(metrics)
     assert rec and rec["strategy"] == "short_put_spread"
@@ -24,6 +27,9 @@ def test_recommend_strategy_none():
         "term_m1_m3": 0,
         "IV": 0.3,
         "HV20": 0.4,
+        "HV90": 0.5,
+        "iv_vs_hv20": -0.1,
+        "iv_vs_hv90": -0.2,
     }
     rec = recommend_strategy(metrics)
     assert rec is None
@@ -37,6 +43,9 @@ def test_recommend_strategies_multiple():
         "term_m1_m3": 1.2,
         "IV": 0.4,
         "HV20": 0.2,
+        "HV90": 0.3,
+        "iv_vs_hv20": 0.2,
+        "iv_vs_hv90": 0.1,
     }
     recs = recommend_strategies(metrics)
     names = {r["strategy"] for r in recs}
@@ -52,6 +61,9 @@ def test_recommend_strategies_none():
         "term_m1_m3": 0,
         "IV": 0.2,
         "HV20": 0.3,
+        "HV90": 0.25,
+        "iv_vs_hv20": -0.1,
+        "iv_vs_hv90": -0.05,
     }
     recs = recommend_strategies(metrics)
     assert recs == []

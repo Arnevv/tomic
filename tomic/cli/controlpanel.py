@@ -93,8 +93,6 @@ STRATEGY_DASHBOARD_MODULE = "tomic.cli.strategy_dashboard"
 SESSION_STATE: dict[str, object] = {"evaluated_trades": []}
 
 
-
-
 def _load_spot_from_metrics(directory: Path, symbol: str) -> float | None:
     """Return spot price from a metrics CSV in ``directory`` if available."""
     pattern = f"other_data_{symbol.upper()}_*.csv"
@@ -328,7 +326,9 @@ def run_dataexporter() -> None:
         if path:
             print(f"✅ Option chain opgeslagen in: {path.resolve()}")
         else:
-            date_dir = Path(cfg.get("EXPORT_DIR", "exports")) / datetime.now().strftime("%Y%m%d")
+            date_dir = Path(cfg.get("EXPORT_DIR", "exports")) / datetime.now().strftime(
+                "%Y%m%d"
+            )
             print(f"⚠️ Geen exportbestand gevonden in {date_dir.resolve()}")
 
     def polygon_metrics() -> None:
@@ -676,6 +676,12 @@ def run_portfolio_menu() -> None:
                 "HV252": r[6],
                 "iv_rank": r[7],
                 "iv_percentile": r[8],
+                "iv_vs_hv20": (
+                    (r[2] - r[3]) if r[2] is not None and r[3] is not None else None
+                ),
+                "iv_vs_hv90": (
+                    (r[2] - r[5]) if r[2] is not None and r[5] is not None else None
+                ),
                 "term_m1_m3": r[10],
                 "skew": r[11],
             }
@@ -711,9 +717,7 @@ def run_portfolio_menu() -> None:
             for idx, rec in enumerate(recs, 1):
                 vega, theta, delta = parse_greeks(rec["greeks"])
                 ivr = rec.get("iv_rank")
-                iv_val = (
-                    f"{ivr * 100:.0f}" if isinstance(ivr, (int, float)) else ""
-                )
+                iv_val = f"{ivr * 100:.0f}" if isinstance(ivr, (int, float)) else ""
                 skew_val = rec.get("skew")
                 skew_str = (
                     f"{skew_val:.2f}" if isinstance(skew_val, (int, float)) else ""
@@ -833,10 +837,7 @@ def run_portfolio_menu() -> None:
             df.to_csv(new_path, index=False)
             logger.info(f"Interpolated CSV saved to {new_path}")
             path = new_path
-        data = [
-            normalize_leg(rec)
-            for rec in df.to_dict(orient="records")
-        ]
+        data = [normalize_leg(rec) for rec in df.to_dict(orient="records")]
         symbol = str(SESSION_STATE.get("symbol", ""))
         spot_price = refresh_spot_price(symbol)
         if spot_price is None:
@@ -1142,14 +1143,10 @@ def run_portfolio_menu() -> None:
                             suffix = f" {label} (geschat)" if label else " (geschat)"
 
                         ev_display = (
-                            f"{prop.ev:.2f}{suffix}"
-                            if prop.ev is not None
-                            else "—"
+                            f"{prop.ev:.2f}{suffix}" if prop.ev is not None else "—"
                         )
                         rom_display = (
-                            f"{prop.rom:.2f}{suffix}"
-                            if prop.rom is not None
-                            else "—"
+                            f"{prop.rom:.2f}{suffix}" if prop.rom is not None else "—"
                         )
 
                         rows2.append(
@@ -1411,21 +1408,30 @@ def run_portfolio_menu() -> None:
             writer.writerow(["credit", proposal.credit])
             writer.writerow(["max_loss", proposal.max_loss])
             writer.writerow(["profit_estimated", proposal.profit_estimated])
-            writer.writerow([
-                "scenario_info",
-                json.dumps(proposal.scenario_info)
-                if proposal.scenario_info is not None
-                else None,
-            ])
+            writer.writerow(
+                [
+                    "scenario_info",
+                    (
+                        json.dumps(proposal.scenario_info)
+                        if proposal.scenario_info is not None
+                        else None
+                    ),
+                ]
+            )
             if proposal.breakevens:
                 writer.writerow(["breakevens", *proposal.breakevens])
         print(f"✅ Voorstel opgeslagen in: {path.resolve()}")
+
     def _load_acceptance_criteria(strategy: str) -> dict[str, Any]:
         """Return current acceptance criteria for ``strategy``."""
         config_data = cfg.get("STRATEGY_CONFIG") or {}
         rules = load_strike_config(strategy, config_data) if config_data else {}
         try:
-            min_rom = float(rules.get("min_rom")) if rules.get("min_rom") is not None else None
+            min_rom = (
+                float(rules.get("min_rom"))
+                if rules.get("min_rom") is not None
+                else None
+            )
         except Exception:
             min_rom = None
         return {
@@ -1456,9 +1462,11 @@ def run_portfolio_menu() -> None:
                     "net_theta": greeks.get("Theta"),
                     "net_vega": greeks.get("Vega"),
                     "positions_open": len(positions),
-                    "margin_used": float(account.get("FullInitMarginReq"))
-                    if account.get("FullInitMarginReq") is not None
-                    else None,
+                    "margin_used": (
+                        float(account.get("FullInitMarginReq"))
+                        if account.get("FullInitMarginReq") is not None
+                        else None
+                    ),
                 }
             )
         except Exception:
@@ -1511,12 +1519,14 @@ def run_portfolio_menu() -> None:
                 "rom": proposal.rom,
                 "ev": proposal.ev,
                 "average_edge": proposal.edge,
-                "max_profit": proposal.max_profit
-                if proposal.max_profit is not None
-                else "unlimited",
-                "max_loss": proposal.max_loss
-                if proposal.max_loss is not None
-                else "unlimited",
+                "max_profit": (
+                    proposal.max_profit
+                    if proposal.max_profit is not None
+                    else "unlimited"
+                ),
+                "max_loss": (
+                    proposal.max_loss if proposal.max_loss is not None else "unlimited"
+                ),
                 "breakevens": proposal.breakevens or [],
                 "score": proposal.score,
                 "profit_estimated": proposal.profit_estimated,
@@ -1525,11 +1535,17 @@ def run_portfolio_menu() -> None:
                     "missing_bidask": any(
                         (
                             (b := l.get("bid")) is None
-                            or (isinstance(b, (int, float)) and (math.isnan(b) or b <= 0))
+                            or (
+                                isinstance(b, (int, float))
+                                and (math.isnan(b) or b <= 0)
+                            )
                         )
                         or (
                             (a := l.get("ask")) is None
-                            or (isinstance(a, (int, float)) and (math.isnan(a) or a <= 0))
+                            or (
+                                isinstance(a, (int, float))
+                                and (math.isnan(a) or a <= 0)
+                            )
                         )
                         for l in proposal.legs
                     ),
@@ -1856,7 +1872,7 @@ def run_settings_menu() -> None:
 
     def run_rules_menu() -> None:
         path = prompt("Pad naar criteria.yaml (optioneel): ")
-        sub = Menu("\U0001F4DC Criteria beheren")
+        sub = Menu("\U0001f4dc Criteria beheren")
 
         sub.add("Toon criteria", lambda: run_module("tomic.cli.rules", "show"))
 
@@ -1874,11 +1890,13 @@ def run_settings_menu() -> None:
 
         sub.add("Valideer criteria.yaml", _validate)
         sub.add("Valideer & reload", _validate_reload)
-        sub.add("Reload zonder validatie", lambda: run_module("tomic.cli.rules", "reload"))
+        sub.add(
+            "Reload zonder validatie", lambda: run_module("tomic.cli.rules", "reload")
+        )
         sub.run()
 
     def run_strategy_criteria_menu() -> None:
-        sub = Menu("\U0001F3AF Strategie & Criteria")
+        sub = Menu("\U0001f3af Strategie & Criteria")
         sub.add("Optie-strategie parameters", run_option_menu)
         sub.add("Criteria beheren", run_rules_menu)
         sub.run()
