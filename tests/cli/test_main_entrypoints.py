@@ -11,9 +11,9 @@ def test_get_iv_rank_main(monkeypatch):
         mod,
         "fetch_iv_metrics",
         lambda symbol="SPY": {
-            "iv_rank": 50.0,
+            "iv_rank": 0.50,
             "implied_volatility": 0.2,
-            "iv_percentile": 80.0,
+            "iv_percentile": 0.80,
         },
     )
     messages = []

@@ -83,13 +83,13 @@ def main(argv: List[str] | None = None) -> None:
         hi = max(series)
         if hi == lo:
             return None
-        return (iv - lo) / (hi - lo) * 100
+        return (iv - lo) / (hi - lo)
 
     def iv_percentile(iv: float, series: list[float]) -> float | None:
         if not series:
             return None
         count = sum(1 for hv in series if hv < iv)
-        return count / len(series) * 100
+        return count / len(series)
 
     for sym in symbols:
         closes = _get_closes(sym)

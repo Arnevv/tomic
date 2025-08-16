@@ -12,7 +12,11 @@ from tomic.logutils import setup_logging
 async def fetch_iv_metrics_async(symbol: str = "SPY") -> Dict[str, Optional[float]]:
     """Async helper to fetch IV metrics for the symbol."""
     html = await download_html_async(symbol)
-    return parse_patterns(IV_PATTERNS, html)
+    data = parse_patterns(IV_PATTERNS, html)
+    for key in ("iv_rank", "iv_percentile"):
+        if data.get(key) is not None:
+            data[key] /= 100
+    return data
 
 
 def fetch_iv_metrics(symbol: str = "SPY") -> Dict[str, Optional[float]]:

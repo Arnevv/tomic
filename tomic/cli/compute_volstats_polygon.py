@@ -184,13 +184,13 @@ def main(argv: List[str] | None = None) -> None:
         hi = max(series)
         if hi == lo:
             return None
-        return (value - lo) / (hi - lo) * 100
+        return (value - lo) / (hi - lo)
 
     def iv_percentile(value: float, series: list[float]) -> float | None:
         if not series:
             return None
         count = sum(1 for hv in series if hv < value)
-        return count / len(series) * 100
+        return count / len(series)
 
     for idx, sym in enumerate(symbols):
         if max_syms is not None and idx >= max_syms:

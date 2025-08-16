@@ -12,8 +12,8 @@ def test_earnings_info(monkeypatch, tmp_path, capsys):
 
     save_json(
         [
-            {"date": "2025-07-02", "atm_iv": 0.5, "iv_rank (HV)": 40.0},
-            {"date": "2025-07-05", "atm_iv": 0.6, "iv_rank (HV)": 50.0},
+            {"date": "2025-07-02", "atm_iv": 0.5, "iv_rank (HV)": 0.40},
+            {"date": "2025-07-05", "atm_iv": 0.6, "iv_rank (HV)": 0.50},
         ],
         sum_dir / "AAA.json",
     )
@@ -51,8 +51,8 @@ def test_earnings_info_fallback(monkeypatch, tmp_path, capsys):
 
     save_json(
         [
-            {"date": "2025-07-02", "atm_iv": 0.4, "iv_rank (HV)": 30.0},
-            {"date": "2025-07-03", "atm_iv": 0.45, "iv_rank (HV)": 35.0},
+            {"date": "2025-07-02", "atm_iv": 0.4, "iv_rank (HV)": 0.30},
+            {"date": "2025-07-03", "atm_iv": 0.45, "iv_rank (HV)": 0.35},
         ],
         sum_dir / "BBB.json",
     )
@@ -90,7 +90,7 @@ def test_earnings_info_skip_when_no_iv(monkeypatch, tmp_path, capsys):
 
     save_json(
         [
-            {"date": "2025-07-06", "atm_iv": 0.55, "iv_rank (HV)": 60.0},
+            {"date": "2025-07-06", "atm_iv": 0.55, "iv_rank (HV)": 0.60},
         ],
         sum_dir / "CCC.json",
     )

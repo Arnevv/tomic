@@ -574,7 +574,7 @@ def run_portfolio_menu() -> None:
             return f"{val:.4f}" if val is not None else ""
 
         def fmt0(val: float | None) -> str:
-            return f"{val:.0f}" if val is not None else ""
+            return f"{val * 100:.0f}" if val is not None else ""
 
         formatted_rows = [
             [
@@ -695,7 +695,9 @@ def run_portfolio_menu() -> None:
             for idx, rec in enumerate(recs, 1):
                 vega, theta, delta = parse_greeks(rec["greeks"])
                 ivr = rec.get("iv_rank")
-                iv_val = f"{ivr:.0f}" if isinstance(ivr, (int, float)) else ""
+                iv_val = (
+                    f"{ivr * 100:.0f}" if isinstance(ivr, (int, float)) else ""
+                )
                 skew_val = rec.get("skew")
                 skew_str = (
                     f"{skew_val:.2f}" if isinstance(skew_val, (int, float)) else ""

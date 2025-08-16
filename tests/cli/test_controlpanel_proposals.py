@@ -32,8 +32,8 @@ def test_show_market_info(monkeypatch, tmp_path):
             {
                 "date": "2025-06-27",
                 "atm_iv": 0.4,
-                "iv_rank (HV)": 55.0,
-                "iv_percentile (HV)": 70.0,
+                "iv_rank (HV)": 0.55,
+                "iv_percentile (HV)": 0.70,
                 "term_m1_m2": 1.2,
                 "term_m1_m3": 1.2,
                 "skew": 4.0,

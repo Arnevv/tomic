@@ -8,10 +8,10 @@ def test_show_volsnapshot_table_output(monkeypatch, capsys, tmp_path):
     hv_dir = tmp_path / "hv"
     sum_dir.mkdir(); hv_dir.mkdir()
     save_json([
-        {"date": "2024-01-01", "atm_iv": 0.5, "iv_rank": 10.0, "iv_percentile": 20.0}
+        {"date": "2024-01-01", "atm_iv": 0.5, "iv_rank": 0.10, "iv_percentile": 0.20}
     ], sum_dir / "AAA.json")
     save_json([
-        {"date": "2024-01-01", "atm_iv": 0.6, "iv_rank": 11.0, "iv_percentile": 21.0}
+        {"date": "2024-01-01", "atm_iv": 0.6, "iv_rank": 0.11, "iv_percentile": 0.21}
     ], sum_dir / "BBB.json")
     save_json([
         {"date": "2024-01-01", "hv20": 0.4, "hv30": 0.3, "hv90": 0.2}

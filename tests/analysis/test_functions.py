@@ -53,7 +53,7 @@ class TestCheckEntryConditions:
     def test_iv_just_above_hv(self):
         strat = {"avg_iv": 0.52, "HV30": 0.5}
         alerts = check_entry_conditions(strat)
-        assert any(alert.startswith("⚠️ IV ligt slechts") for alert in alerts)
+        assert any(alert.startswith("⚠️ IV slechts") for alert in alerts)
 
     def test_iv_below_hv(self):
         strat = {"avg_iv": 0.45, "HV30": 0.5}
@@ -63,12 +63,12 @@ class TestCheckEntryConditions:
     def test_skew_warning(self):
         strat = {"avg_iv": 0.6, "HV30": 0.4, "skew": 0.1}
         alerts = check_entry_conditions(strat)
-        assert "⚠️ Skew buiten range (+10.00%)" in alerts
+        assert "⚠️ Skew buiten range" in alerts
 
     def test_iv_rank_warning(self):
-        strat = {"avg_iv": 0.6, "HV30": 0.4, "IV_Rank": 20}
+        strat = {"avg_iv": 0.6, "HV30": 0.4, "IV_Rank": 0.2}
         alerts = check_entry_conditions(strat)
-        assert any(alert.startswith("⚠️ IV Rank 20.0 lager dan") for alert in alerts)
+        assert "⚠️ IV Rank onder minimum" in alerts
 
 
 class TestCollapseLegs:
