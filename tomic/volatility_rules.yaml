@@ -5,6 +5,7 @@
 
 - key: iron_condor
   strategy: Iron Condor
+  greeks: "delta neutraal, theta positief, vega short, gamma short"
   criteria:
     - iv_rank >= 0.5
     - iv_percentile >= 0.6
@@ -14,6 +15,7 @@
 
 - key: atm_iron_butterfly
   strategy: ATM Iron Butterfly
+  greeks: "delta neutraal, theta sterk positief, vega short, gamma short"
   criteria:
     - iv_rank <= 0.3
     - term_m1_m3 <= 0.0
@@ -23,6 +25,7 @@
 
 - key: short_put_spread
   strategy: Short Put Spread
+  greeks: "delta long (bullish), theta positief, vega short, gamma short"
   criteria:
     - iv_rank >= 0.5
     - iv_percentile >= 0.6
@@ -32,6 +35,7 @@
 
 - key: short_call_spread
   strategy: Short Call Spread
+  greeks: "delta short (bearish), theta positief, vega short, gamma short"
   criteria:
     - iv_rank >= 0.5
     - iv_percentile >= 0.6
@@ -41,6 +45,7 @@
 
 - key: naked_put
   strategy: Naked Put
+  greeks: "delta long (bullish), theta positief, vega short, gamma short"
   criteria:
     - iv_rank >= 0.5
     - iv_percentile >= 0.6
@@ -50,6 +55,7 @@
 
 - key: calendar
   strategy: Calendar
+  greeks: "delta neutraal, theta positief rond ATM, vega long, gamma vlak tot licht long"
   criteria:
     - iv_rank <= 0.4
     - iv_percentile <= 0.4
@@ -58,6 +64,7 @@
 
 - key: ratio_spread
   strategy: Ratio Spread
+  greeks: "delta directioneel, theta meestal positief, vega eerder short, gamma short"
   criteria:
     - iv_rank >= 0.3
     - iv_rank <= 0.6
@@ -67,6 +74,7 @@
 
 - key: backspread_put
   strategy: Backspread Put
+  greeks: "delta short (bearish), theta negatief, vega long, gamma long"
   criteria:
     - iv_rank <= 0.4
     - iv_percentile <= 0.2

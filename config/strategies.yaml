@@ -1,8 +1,77 @@
+default:
+  # Fallbackwaarden voor alle strategieën
+  # (mag door iedere strategie overschreven worden)
+  min_risk_reward: 1.0
+  strike_to_strategy_config:
+    short_call_multiplier: [1.5, 2.0, 2.5, 3.0, 3.5]
+    short_put_multiplier:  [1.5, 2.0, 2.5, 3.0, 3.5]
+    wing_width: 5
+    use_ATR: true
+
 strategies:
   iron_condor:
-    min_risk_reward: 1.0
+    # TOMIC-beleid: minimaal 1.5
+    min_risk_reward: 1.5
     strike_to_strategy_config:
       short_call_multiplier: [1.5, 2.0, 2.5, 3.0, 3.5]
-      short_put_multiplier: [1.5, 2.0, 2.5, 3.0, 3.5]
+      short_put_multiplier:  [1.5, 2.0, 2.5, 3.0, 3.5]
+      wing_width: 5
+      use_ATR: true
+
+  atm_iron_butterfly:
+    # RR optioneel; spread is gedefinieerd risico
+    min_risk_reward: 1.0
+    strike_to_strategy_config:
+      # ATM short straddle + wings
+      short_call_multiplier: [1.0, 1.5, 2.0]
+      short_put_multiplier:  [1.0, 1.5, 2.0]
+      wing_width: 10
+      use_ATR: true
+
+  short_put_spread:
+    min_risk_reward: 1.0
+    strike_to_strategy_config:
+      short_call_multiplier: [1.5, 2.0, 2.5]   # aanwezig voor uniformiteit (niet gebruikt)
+      short_put_multiplier:  [1.5, 2.0, 2.5, 3.0]
+      wing_width: 5
+      use_ATR: true
+
+  short_call_spread:
+    min_risk_reward: 1.0
+    strike_to_strategy_config:
+      short_call_multiplier: [1.5, 2.0, 2.5, 3.0]
+      short_put_multiplier:  [1.5, 2.0, 2.5]   # aanwezig voor uniformiteit (niet gebruikt)
+      wing_width: 5
+      use_ATR: true
+
+  naked_put:
+    # RR niet hard afdwingen; risico is theoretisch groot
+    strike_to_strategy_config:
+      short_call_multiplier: [1.5, 2.0]        # aanwezig voor uniformiteit (niet gebruikt)
+      short_put_multiplier:  [1.0, 1.5, 2.0, 2.5]
+      wing_width: 0                             # geen long wing
+      use_ATR: true
+
+  calendar:
+    # Calendar focust minder op ATR-wings; wing_width speelt niet
+    strike_to_strategy_config:
+      short_call_multiplier: [1.0]              # niet van toepassing maar verplicht aanwezig
+      short_put_multiplier:  [1.0]
+      wing_width: 0
+      use_ATR: false
+
+  ratio_spread:
+    # Vaak 1x2; RR afhankelijk van strikes, dus niet verplicht
+    strike_to_strategy_config:
+      short_call_multiplier: [1.5, 2.0, 2.5]    # voor call-variant
+      short_put_multiplier:  [1.5, 2.0, 2.5]    # voor put-variant
+      wing_width: 5
+      use_ATR: true
+
+  backspread_put:
+    # Long vol; RR niet geforceerd
+    strike_to_strategy_config:
+      short_call_multiplier: [1.5]              # aanwezig voor uniformiteit (niet gebruikt)
+      short_put_multiplier:  [1.5, 2.0, 2.5]
       wing_width: 5
       use_ATR: true
