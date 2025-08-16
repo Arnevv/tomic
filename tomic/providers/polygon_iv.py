@@ -862,6 +862,10 @@ def fetch_polygon_iv30d(symbol: str) -> Dict[str, float | None] | None:
         scaled_iv = atm_iv * 100
         iv_rank = _iv_rank(scaled_iv, hv_series)
         iv_percentile = _iv_percentile(scaled_iv, hv_series)
+        if isinstance(iv_rank, (int, float)) and iv_rank > 1:
+            iv_rank /= 100
+        if isinstance(iv_percentile, (int, float)) and iv_percentile > 1:
+            iv_percentile /= 100
     else:
         logger.debug("Cannot compute IV rank without ATM IV")
 
