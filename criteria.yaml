@@ -89,8 +89,8 @@ alerts:
 # 5) PORTFOLIO-GATES (→ proposal_engine: strategy routing & gating)
 portfolio:
   # routing op vega-bias
-  vega_to_condor_threshold:    50
-  vega_to_calendar_threshold: -50
+  vega_to_condor:    50
+  vega_to_calendar: -50
 
   # condor-gating (align met volatility_rules; geen strengere drempels)
   condor_gates:

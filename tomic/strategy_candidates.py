@@ -299,9 +299,10 @@ def _bs_estimate_missing(legs: List[Dict[str, Any]]) -> None:
         try:
             price = black_scholes(opt_type, spot, strike, dte, iv)
             T = dte / 365.0
+            r = float(cfg_get("INTEREST_RATE", 0.05))
             d1 = (
                 math.log(spot / strike)
-                + (0.045 - 0.0 + 0.5 * iv * iv) * T
+                + (r - 0.0 + 0.5 * iv * iv) * T
             ) / (iv * math.sqrt(T))
             nd1 = 0.5 * (1.0 + math.erf(d1 / math.sqrt(2.0)))
             if opt_type == "C":

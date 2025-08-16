@@ -16,6 +16,15 @@ from tomic.helpers.csv_utils import parse_euro_float
 from tomic.metrics import calculate_margin, estimate_scenario_profit
 from tomic.logutils import logger
 from ..criteria import RULES
+from ..config import _load_yaml
+from ..loader import load_strike_config
+
+_BASE = Path(__file__).resolve().parent.parent
+_STRIKE_RULES = (
+    _load_yaml(_BASE / "strike_selection_rules.yaml")
+    if (_BASE / "strike_selection_rules.yaml").exists()
+    else {}
+)
 
 
 @dataclass
@@ -166,6 +175,25 @@ def _calc_metrics(strategy: str, legs: List[Leg], spot_price: float) -> Dict[str
     }
 
 
+def _filter_chain_by_dte(chain: List[Leg], strategy: str) -> List[Leg]:
+    """Return ``chain`` filtered to the strategy's DTE range."""
+
+    try:
+        rules = load_strike_config(strategy, _STRIKE_RULES)
+    except Exception:
+        rules = {}
+    dte_range = rules.get("dte_range")
+    if not dte_range:
+        return chain
+    min_dte, max_dte = dte_range
+    filtered = [
+        leg
+        for leg in chain
+        if (d := _dte(leg.expiry)) is not None and min_dte <= d <= max_dte
+    ]
+    return filtered or chain
+
+
 def _make_vertical(chain: List[Leg], bullish: bool) -> Optional[List[Leg]]:
     calls = [c for c in chain if c.type == "call"]
     puts = [p for p in chain if p.type == "put"]
@@ -197,9 +225,6 @@ def _make_condor(chain: List[Leg]) -> Optional[List[Leg]]:
         Leg(**{**puts[-1].__dict__, "position": -1}),
         Leg(**{**puts[-2].__dict__, "position": 1}),
     ]
-    dte = _dte(legs[0].expiry)
-    if dte is not None and 0 < dte < 365 and (dte < 30 or dte > 45):
-        return None
     return legs
 
 
@@ -222,15 +247,6 @@ def _make_calendar(chain: List[Leg]) -> Optional[List[Leg]]:
         Leg(**{**first.__dict__, "position": -1}),
         Leg(**{**other.__dict__, "position": 1}),
     ]
-    front_dte = _dte(legs[0].expiry)
-    back_dte = _dte(legs[1].expiry)
-    if front_dte is not None and back_dte is not None:
-        if (
-            0 < front_dte < 365
-            and 0 < back_dte < 365
-            and (front_dte < 20 or front_dte > 30 or back_dte < 45 or back_dte > 60)
-        ):
-            return None
     return legs
 
 
@@ -287,7 +303,7 @@ def suggest_strategies(
                 }
             )
     if exposure.get("Vega", 0.0) > port.vega_to_condor:
-        legs = _make_condor(chain)
+        legs = _make_condor(_filter_chain_by_dte(chain, "iron_condor"))
         if legs and not (
             (condor_gate.iv_rank_min is not None and iv_rank is not None and iv_rank < condor_gate.iv_rank_min)
             or (condor_gate.iv_percentile_min is not None and iv_pct is not None and iv_pct < condor_gate.iv_percentile_min)
@@ -325,7 +341,7 @@ def suggest_strategies(
                     }
                 )
     if exposure.get("Vega", 0.0) < port.vega_to_calendar:
-        legs = _make_calendar(chain)
+        legs = _make_calendar(_filter_chain_by_dte(chain, "calendar"))
         if legs and not (
             (calendar_gate.iv_rank_max is not None and iv_rank is not None and iv_rank > calendar_gate.iv_rank_max)
             or (calendar_gate.iv_percentile_max is not None and iv_pct is not None and iv_pct > calendar_gate.iv_percentile_max)
