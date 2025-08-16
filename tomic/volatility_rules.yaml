@@ -1,101 +1,67 @@
-- feature: "Hoge IV Rank + Vlakke Skew"
-  strategy: "iron_condor"
-  greeks: "delta neutral, vega short, theta long"
-  indication: "Zijwaartse markt met hoge premie"
-  criteria:
-    - "iv_rank > 50"
-    - "iv_percentile > 60"
-    - "skew < 1.5"
-    - "term_m1_m3 > 1"
-    - "IV > HV20"
+# =========================
+# TOMIC volatility_rules.yaml
+# Mapping van vol-omgeving → strategie
+# =========================
 
-- feature: "Expansie in Term Structure"
-  strategy: "iron_condor"
-  greeks: "theta long, vega short"
-  indication: "Premie afromen bij volatiele maar begrensde markt"
-  criteria:
-    - "term_m1_m3 > 1"
-    - "iv_rank > 50"
-    - "IV > HV20"
-    - "iv_percentile > 60"
-    - "skew < 2.5"
+iron_condor:
+  conditions:
+    iv_rank:        { min: 0.50 }
+    iv_percentile:  { min: 0.60 }
+    skew:           { max: 2.0 }
+    term_m1_m3:     { min: 0.0 }
+    iv_vs_hv20:     { relation: ">" }
 
-- feature: "Hoge IV Rank + Positieve Skew"
-  strategy: "short_put_spread"
-  greeks: "delta neutral, vega short, theta long"
-  indication: "Premie innen bij overgeprijsde puts"
-  criteria:
-    - "iv_rank > 50"
-    - "iv_percentile > 60"
-    - "skew > 3"
-    - "term_m1_m3 > 1"
-    - "IV > HV20"
-  export_heatmap: true
-  heatmap_columns:
-    - strike
-    - delta
-    - iv
+short_put_spread:
+  conditions:
+    iv_rank:        { min: 0.50 }
+    iv_percentile:  { min: 0.60 }
+    skew:           { min: 2.0 }
+    term_m1_m3:     { min: 0.0 }
+    iv_vs_hv20:     { relation: ">" }
 
-- feature: "Hoge IV Rank + Negatieve Skew"
-  strategy: "short_call_spread"
-  greeks: "delta neutral, vega short, theta long"
-  indication: "Premie innen bij overgeprijsde calls"
-  criteria:
-    - "iv_rank > 50"
-    - "iv_percentile > 60"
-    - "skew < -3"
-    - "term_m1_m3 > 1"
-    - "IV > HV20"
+short_call_spread:
+  conditions:
+    iv_rank:        { min: 0.50 }
+    iv_percentile:  { min: 0.60 }
+    skew:           { max: -2.0 }
+    term_m1_m3:     { min: 0.0 }
+    iv_vs_hv20:     { relation: ">" }
 
-- feature: "Hoge IV Rank + BullishSkew"
-  strategy: "naked_put"
-  greeks: "delta positive, vega short, theta long"
-  indication: "Premie innen bij overgeprijsde puts met bullish verwachting"
-  criteria:
-    - "iv_rank > 50"
-    - "iv_percentile > 60"
-    - "skew > 2"
-    - "term_m1_m3 > 1"
-    - "IV > HV20"
+naked_put:
+  conditions:
+    iv_rank:        { min: 0.50 }
+    iv_percentile:  { min: 0.60 }
+    skew:           { min: 1.5 }
+    term_m1_m3:     { min: 0.0 }
+    iv_vs_hv20:     { relation: ">" }
 
-# Nu de long vega plays, lagere TOMIC-prioriteit
-- feature: "Compressie in Term Structure"
-  strategy: "calendar"
-  greeks: "vega long, theta short"
-  indication: "Mean reversion in IV-structuur, rustige spot"
-  criteria:
-    - "term_m1_m3 < 0"
-    - "iv_rank < 40"
-    - "IV < HV20"
+calendar:
+  conditions:
+    iv_rank:        { max: 0.40 }
+    iv_percentile:  { max: 0.40 }
+    term_m1_m3:     { max: 0.0 }
+    iv_vs_hv20:     { relation: "<" }
 
-- feature: "Lage IV Rank + Compressie TS"
-  strategy: "atm_iron_butterfly"
-  greeks: "delta neutral, vega long, gamma long, theta short"
-  indication: "Grote beweging of IV-explosie verwacht"
-  criteria:
-    - "iv_rank < 30"
-    - "term_m1_m3 < 0"
-    - "IV < HV20"
-    - "IV > HV90"
-    - "skew < 1"
+atm_iron_butterfly:
+  conditions:
+    iv_rank:        { max: 0.30 }
+    term_m1_m3:     { max: 0.0 }
+    skew:           { max: 1.0 }
+    iv_vs_hv20:     { relation: "<" }
+    iv_vs_hv90:     { relation: ">" }
 
-- feature: "Zeer hoge skew (> 5)"
-  strategy: "ratio_spread"
-  greeks: "delta directional, vega neutral, gamma long"
-  indication: "Overgeprijsde OTM-leg benutten, directional bias"
-  criteria:
-    - "skew > 5"
-    - "iv_rank 30-60"
-    - "IV > HV20"
-    - "term_m1_m3 > 0"
+ratio_spread:
+  conditions:
+    iv_rank:        { min: 0.30, max: 0.60 }
+    skew:           { min: 5.0 }
+    term_m1_m3:     { min: 0.0 }
+    iv_vs_hv20:     { relation: ">" }
 
-- feature: "Negatieve skew (<-2) bij lage IV"
-  strategy: "backspread_put"
-  greeks: "vega long, gamma long, theta short"
-  indication: "Mogelijke herprijzing in IV op downside"
-  criteria:
-    - "skew < -2"
-    - "iv_rank < 40"
-    - "term_m1_m3 < 0"
-    - "IV < HV20"
-    - "IV > HV90"
+backspread_put:
+  conditions:
+    iv_rank:        { max: 0.40 }
+    iv_percentile:  { max: 0.40 }
+    skew:           { max: -2.0 }
+    term_m1_m3:     { max: 0.0 }
+    iv_vs_hv20:     { relation: "<" }
+    iv_vs_hv90:     { relation: ">" }

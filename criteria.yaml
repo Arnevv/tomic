@@ -1,98 +1,85 @@
 # =========================
-# TOMIC criteria.yaml — single source of truth
+# TOMIC criteria.yaml
+# Centrale bron voor alle kwantitatieve parameters
 # =========================
 
-# 1) GENERIC STRIKE FILTERS (→ StrikeSelector.select/_passes)
+# 1) GENERIC STRIKE FILTERS
 strike:
   delta_min: -0.80
   delta_max:  0.80
-  min_rom:    0.00
+  min_rom:    0.10      # minimaal 10% ROM
   min_edge:   0.00
-  min_pos:    0.00
+  min_pos:    0.50      # Probability of Success ≥ 50%
   min_ev:     0.00
   skew_min:  -0.10
   skew_max:   0.10
-  # NB: optiedata levert 'term_m1_m3', de filters gebruiken term_min/term_max hiertegen
   term_min:  -0.20
   term_max:   0.20
-  max_gamma:  null     # optioneel: stel alleen in als je ze echt wilt forceren
+  max_gamma:  null
   max_vega:   null
   min_theta:  null
 
-# 2) SCORING & ACCEPTANCE (→ strategy_candidates)
+# 2) STRATEGY SCORING & ACCEPTANCE
 strategy:
   score_weight_rom: 0.50
   score_weight_pos: 0.30
   score_weight_ev:  0.20
   acceptance:
-    # credit verplicht voor short/credit-constructies; code leest deze lijst uit YAML
     require_positive_credit_for:
       - iron_condor
       - atm_iron_butterfly
       - short_put_spread
       - short_call_spread
       - naked_put
+    min_risk_reward: 1.0    # default min R/R voor alle creditstrategieën
 
-# 3) LIQUIDITY MINIMA (→ candidate-validatie)
+# 3) MARKET DATA FILTERS
 market_data:
   min_option_volume:        50
   min_option_open_interest: 500
 
 # 4) ALERTS
 alerts:
-  # wordt hergebruikt door calendar/nearest-strike & candidates (fallback match)
   nearest_strike_tolerance_percent: 2.0
-
-  # 4a) ENTRY-CHECKS (declaratief; gebruikt door alerts.check_entry_conditions)
   skew_threshold: 0.05
-  iv_hv_min_spread: 0.05     # 5% boven HV30 = “significant”
-  iv_rank_threshold: 0.30    # 30% als basisdrempel (pas aan naar wens)
+  iv_hv_min_spread: 0.05
+  iv_rank_threshold: 0.30
 
   entry_checks:
     - condition: "avg_iv - HV30 < 0"
       message:  "⏬ IV onder HV – liever niet instappen"
     - condition: "0 <= avg_iv - HV30 < iv_hv_min_spread"
-      message:  "⚠️ IV ligt slechts beperkt boven HV30"
+      message:  "⚠️ IV slechts beperkt boven HV30"
     - condition: "avg_iv - HV30 >= iv_hv_min_spread"
       message:  "✅ IV significant boven HV30"
     - condition: "abs(skew) > skew_threshold"
       message:  "⚠️ Skew buiten range"
     - condition: "IV_Rank < iv_rank_threshold"
-      message:  "⚠️ IV Rank lager dan threshold"
+      message:  "⚠️ IV Rank onder minimum"
 
-  # 4b) RISK / PORTFOLIO ALERT THRESHOLDS (parametriseert generate_risk_alerts)
   risk_thresholds:
     delta_dollar_max_abs: 15000
     delta_dollar_min_abs: 3000
     vega_abs_alert: 50
-    vega_short_high_ivr:
-      vega: -30
-      iv_rank_min: 0.60
-      message: "⚠️ Short vega bij hoge IVR — squeeze-risico"
-    vega_long_low_ivr:
-      vega:  30
-      iv_rank_max: 0.30
-      message: "ℹ️ Long vega bij lage IVR — mean reversion kans"
     iv_hv_bands:
-      high:  0.05   # > +5% → premie hoog
-      low:  -0.05   # < -5% → premie laag
+      high:  0.05
+      low:  -0.05
     rom_bands:
       high_min: 0.20
       mid_min:  0.10
       low_max:  0.05
-    theta_efficiency_bands: [0.5, 1.5, 2.5]   # %/dag
+    theta_efficiency_bands: [0.5, 1.5, 2.5]
     dte_close_threshold: 10
     pnl_theta:
       take_profit_pct_of_premium: 0.70
       reconsider_loss_abs:         100
 
-# 5) PORTFOLIO-GATES (→ proposal_engine: strategy routing & gating)
+# 5) PORTFOLIO GATES
 portfolio:
   # routing op vega-bias
   vega_to_condor:    50
   vega_to_calendar: -50
 
-  # condor-gating (align met volatility_rules; geen strengere drempels)
   condor_gates:
     iv_rank_min:        0.50
     iv_percentile_min:  0.60
@@ -100,10 +87,9 @@ portfolio:
     rom_min:            0.10
     rr_min:             1.00
 
-  # calendar-gating (compressie/lagere IV)
   calendar_gates:
     iv_rank_max:        0.40
-    term_m1_m3_min:    -9.99   # “<0” in numerieke vorm (engine vergelijkt op <)
+    iv_percentile_max:  0.40
     term_m1_m3_max:     0.00
     vix_min:            14
     rom_min:            0.10
