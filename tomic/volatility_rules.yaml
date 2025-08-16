@@ -5,11 +5,20 @@
 
 iron_condor:
   conditions:
-    iv_rank:        { min: 50 }
-    iv_percentile:  { min: 60 }
+    iv_rank:        { min: 0.5 }
+    iv_percentile:  { min: 0.6 }
     skew:           { max: 2.0 }
     term_m1_m3:     { min: 0.0 }
     iv_vs_hv20:     { relation: ">" }
+
+atm_iron_butterfly:
+  conditions:
+    iv_rank:        { max: 0.3 }
+    term_m1_m3:     { max: 0.0 }
+    skew:           { max: 2.0 }
+    iv_vs_hv20:     { relation: "<" }
+    iv_vs_hv90:     { relation: ">" }
+
 
 short_put_spread:
   conditions:
@@ -39,16 +48,8 @@ calendar:
   conditions:
     iv_rank:        { max: 0.4 }
     iv_percentile:  { max: 0.4 }
-    term_m1_m3:     { max: 0.0 }
+    term_m1_m3:     { max: 5.0 }
     iv_vs_hv20:     { relation: "<" }
-
-atm_iron_butterfly:
-  conditions:
-    iv_rank:        { max: 0.3 }
-    term_m1_m3:     { max: 0.0 }
-    skew:           { max: 1.0 }
-    iv_vs_hv20:     { relation: "<" }
-    iv_vs_hv90:     { relation: ">" }
 
 ratio_spread:
   conditions:

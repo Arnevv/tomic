@@ -11,10 +11,10 @@ strike:
   min_edge:   0.00
   min_pos:    0.50      # Probability of Success ≥ 50%
   min_ev:     0.00
-  skew_min:  -0.10
-  skew_max:   0.10
-  term_min:  -0.20
-  term_max:   0.20
+  skew_min:  -10.0
+  skew_max:   10.0
+  term_min:  -10.0
+  term_max:   10.0
   max_gamma:  null
   max_vega:   null
   min_theta:  null
