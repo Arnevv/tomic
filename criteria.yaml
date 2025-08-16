@@ -97,7 +97,7 @@ portfolio:
   condor_gates:
     iv_rank_min:        0.50
     iv_percentile_min:  0.60
-    vix_max:            25
+    #vix_max:            25
     rom_min:            0.10
     rr_min:             1.00
 
@@ -105,5 +105,5 @@ portfolio:
     iv_rank_max:        0.40
     iv_percentile_max:  0.40
     term_m1_m3_max:     0.00
-    vix_min:            14
+    #vix_min:            14
     rom_min:            0.10
