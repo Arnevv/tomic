@@ -5,46 +5,46 @@
 
 iron_condor:
   conditions:
-    iv_rank:        { min: 0.50 }
-    iv_percentile:  { min: 0.60 }
+    iv_rank:        { min: 50 }
+    iv_percentile:  { min: 60 }
     skew:           { max: 2.0 }
     term_m1_m3:     { min: 0.0 }
     iv_vs_hv20:     { relation: ">" }
 
 short_put_spread:
   conditions:
-    iv_rank:        { min: 0.50 }
-    iv_percentile:  { min: 0.60 }
+    iv_rank:        { min: 50 }
+    iv_percentile:  { min: 60 }
     skew:           { min: 2.0 }
     term_m1_m3:     { min: 0.0 }
     iv_vs_hv20:     { relation: ">" }
 
 short_call_spread:
   conditions:
-    iv_rank:        { min: 0.50 }
-    iv_percentile:  { min: 0.60 }
+    iv_rank:        { min: 50 }
+    iv_percentile:  { min: 60 }
     skew:           { max: -2.0 }
     term_m1_m3:     { min: 0.0 }
     iv_vs_hv20:     { relation: ">" }
 
 naked_put:
   conditions:
-    iv_rank:        { min: 0.50 }
-    iv_percentile:  { min: 0.60 }
+    iv_rank:        { min: 50 }
+    iv_percentile:  { min: 60 }
     skew:           { min: 1.5 }
     term_m1_m3:     { min: 0.0 }
     iv_vs_hv20:     { relation: ">" }
 
 calendar:
   conditions:
-    iv_rank:        { max: 0.40 }
-    iv_percentile:  { max: 0.40 }
+    iv_rank:        { max: 40 }
+    iv_percentile:  { max: 40 }
     term_m1_m3:     { max: 0.0 }
     iv_vs_hv20:     { relation: "<" }
 
 atm_iron_butterfly:
   conditions:
-    iv_rank:        { max: 0.30 }
+    iv_rank:        { max: 30 }
     term_m1_m3:     { max: 0.0 }
     skew:           { max: 1.0 }
     iv_vs_hv20:     { relation: "<" }
@@ -52,15 +52,15 @@ atm_iron_butterfly:
 
 ratio_spread:
   conditions:
-    iv_rank:        { min: 0.30, max: 0.60 }
+    iv_rank:        { min: 30, max: 60 }
     skew:           { min: 5.0 }
     term_m1_m3:     { min: 0.0 }
     iv_vs_hv20:     { relation: ">" }
 
 backspread_put:
   conditions:
-    iv_rank:        { max: 0.40 }
-    iv_percentile:  { max: 0.40 }
+    iv_rank:        { max: 40 }
+    iv_percentile:  { max: 20 }
     skew:           { max: -2.0 }
     term_m1_m3:     { max: 0.0 }
     iv_vs_hv20:     { relation: "<" }

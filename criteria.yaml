@@ -61,15 +61,29 @@ alerts:
     delta_dollar_max_abs: 15000
     delta_dollar_min_abs: 3000
     vega_abs_alert: 50
+
+    vega_short_high_ivr:
+      vega: -30
+      iv_rank_min: 0.60
+      message: "⚠️ Short vega bij hoge IVR — squeeze-risico"
+
+    vega_long_low_ivr:
+      vega: 30
+      iv_rank_max: 0.30
+      message: "ℹ️ Long vega bij lage IVR — mean reversion kans"
+
     iv_hv_bands:
       high:  0.05
       low:  -0.05
+
     rom_bands:
       high_min: 0.20
       mid_min:  0.10
       low_max:  0.05
+
     theta_efficiency_bands: [0.5, 1.5, 2.5]
     dte_close_threshold: 10
+
     pnl_theta:
       take_profit_pct_of_premium: 0.70
       reconsider_loss_abs:         100
