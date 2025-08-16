@@ -1,134 +1,83 @@
+# =========================
+# TOMIC strike_selection_rules.yaml
+# Per strategie selectie- en bouwregels
+# =========================
+
 default:
   method: spot_distance
-  delta_range: [-1, 1]
+  delta_range: [-1.0, 1.0]
   max_strikes: 50
 
-strategies:
+iron_condor:
+  method: stddev_range
+  stddev_range: 2.5
+  dte_range: [20, 50]
+  min_rom: 0.10
+  iv_rank_min: 0.40
+  max_skew: 0.10
+  min_risk_reward: 1.0
+  wing_width: [5, 15]
 
-  iron_condor:
-    method: stddev_range
-    stddevs: 2.5
-    delta_range: [-1, 1] #todo, nog support leveren van delta range van short en long legs
-    #min_edge: -0.1 #dit was 0.04
-    min_rom: 0.10
-    direction: neutral
-    iv_rank_min: 0.40
-    min_risk_reward: 1.0
-    dte_range: [20, 50]
-    max_skew: 0.1
-    strike_to_strategy_config:
-      short_call_multiplier: [ 1.5, 2.0, 2.5, 3.0, 3.5 ]
-      short_put_multiplier: [ 1.5, 2.0, 2.5, 3.0, 3.5 ]
-      wing_width: 5
-      use_ATR: true
+atm_iron_butterfly:
+  method: spot_distance
+  dte_range: [20, 35]
+  min_rom: 0.10
+  iv_rank_min: 0.25
+  max_skew: 0.10
+  wing_width: [3, 7]
 
-  short_put_spread:
-    method: delta
-    delta_range: [-0.40, -0.18]
-    #min_edge: 0.04
-    min_rom: 0.12
-    direction: bullish
-    iv_rank_min: 0.25
-    dte_range: [28, 45]
-    max_skew: 0.1
-    min_risk_reward: 0.4
-    strike_to_strategy_config:
-      short_put_delta_range: [ -0.35, -0.20 ]
-      long_put_distance_points: [ 3, 4, 5, 6, 7 ]
-      use_ATR: false
+short_put_spread:
+  method: delta
+  short_delta_range: [-0.40, -0.18]
+  dte_range: [28, 45]
+  min_rom: 0.12
+  iv_rank_min: 0.25
+  max_skew: 0.10
+  min_risk_reward: 0.4
+  long_leg_distance: [3, 7]
 
-  short_call_spread:
-    method: delta
-    delta_range: [0.20, 0.35]
-    #min_edge: 0.04
-    min_rom: 0.12
-    direction: bearish
-    iv_rank_min: 0.25
-    dte_range: [28, 45]
-    max_skew: 0.1
-    min_risk_reward: 0.6
-    strike_to_strategy_config:
-      short_call_delta_range: [ 0.20, 0.35 ]
-      long_call_distance_points: [ 3, 4, 5, 6, 7 ]
-      use_ATR: false
+short_call_spread:
+  method: delta
+  short_delta_range: [0.20, 0.35]
+  dte_range: [28, 45]
+  min_rom: 0.12
+  iv_rank_min: 0.25
+  max_skew: 0.10
+  min_risk_reward: 0.6
+  long_leg_distance: [3, 7]
 
-  naked_put:
-    method: delta
-    delta_range: [-0.30, -0.25]
-    #min_edge: 0.05
-    min_rom: 0.10
-    direction: bullish
-    iv_rank_min: 0.30
-    dte_range: [28, 42]
-    min_risk_reward: 0.25
-    strike_to_strategy_config:
-      short_put_delta_range: [ -0.30, -0.25 ]
-      delta_step: [ 0.005, 0.01, 0.015, 0.02, 0.025 ]
-      use_ATR: false
+naked_put:
+  method: delta
+  short_delta_range: [-0.30, -0.25]
+  dte_range: [28, 42]
+  min_rom: 0.10
+  iv_rank_min: 0.30
+  min_risk_reward: 0.25
 
-  calendar:
-    method: spot_distance
-    distance_points: 5
-    include_around_atm: true
-    iv_rank_min: 0.40
-    iv_percentile_min: 0.40
-    term_structure_required: contango
-    #min_edge: 0.04
-    direction: volatility_play
-    dte_range: [19, 75]
-    min_expiry_gap: 13
-    max_skew: 0.1
-    strike_to_strategy_config:
-      base_strikes_relative_to_spot: [ -5, -2.5, 0, 2.5, 5 ]
-      same_strike_required: true
-      expiry_gap_min_days: 15
-      use_ATR: false
+calendar:
+  method: spot_distance
+  strike_distance: 5
+  dte_range: [19, 75]
+  expiry_gap_min: 13
+  iv_rank_min: 0.40
+  iv_percentile_min: 0.40
+  max_skew: 0.10
 
-  atm_iron_butterfly:
-    method: spot_distance
-    include_around_atm: true
-    distance_points: 0
-    #min_edge: 0.06
-    min_rom: 0.10
-    iv_rank_min: 0.25
-    max_skew: 0.10  # indicatief, skew ≈ vlak
-    direction: neutral
-    dte_range: [20, 35]
-    strike_to_strategy_config:
-      center_strike_relative_to_spot: [ 0 ]  # altijd exact ATM
-      wing_width_points: [ 3, 4, 5, 6, 7 ]   # variaties voor long legs
-      use_ATR: false
+ratio_spread:
+  method: delta
+  short_delta_range: [0.30, 0.45]
+  dte_range: [20, 35]
+  iv_rank_min: 0.20
+  require_skew: true
+  allow_extra_wings: true
 
-  ratio_spread:
-    method: delta
-    delta_range: [0.30, 0.45]
-    #min_edge: 0.08
-    iv_rank_min: 0.20
-    require_skew: true
-    allow_extra_wings: true
-    direction: bullish_or_bearish
-    dte_range: [20, 35]
-    strike_to_strategy_config:
-      short_leg_delta_range: [ 0.30, 0.45 ]
-      long_leg_distance_points: [ 3, 4, 5, 6, 7 ]
-      ratio: 1x short / 2x long
-      use_ATR: false
-
-  backspread_put:
-    method: delta
-    delta_range: [ 0.15, 0.30 ]  # short leg ATM, long legsOTM
-    allow_extra_wings: true
-    #min_edge: 0.05
-    iv_rank_max: 40
-    iv_percentile_max: 40
-    direction: bearish
-    skew_max: -2.0
-    dte_range: [ 25, 45 ]
-    min_risk_reward: 0.8
-    require_term_compression: true
-    strike_to_strategy_config:
-      short_put_delta_range: [ 0.15, 0.30 ]
-      long_put_distance_points: [ 5, 6, 7, 8, 9 ]
-      ratio: 1x short / 2x long
-      use_ATR: false
-
+backspread_put:
+  method: delta
+  short_delta_range: [0.15, 0.30]
+  dte_range: [25, 45]
+  iv_rank_max: 0.40
+  iv_percentile_max: 0.40
+  skew_max: -2.0
+  min_risk_reward: 0.8
+  require_term_compression: true
+  ratio: "1x short / 2x long"
