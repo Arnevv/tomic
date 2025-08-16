@@ -87,6 +87,52 @@ class Rule(BaseModel):
     message: str
 
 
+class VegaIVRRule(BaseModel):
+    """Parameters for combined vega/IV rank alerts."""
+
+    vega: float
+    iv_rank_min: float | None = None
+    iv_rank_max: float | None = None
+    message: str
+
+
+class IVHVBands(BaseModel):
+    """Thresholds for IV vs HV spread alerts."""
+
+    high: float
+    low: float
+
+
+class ROMBands(BaseModel):
+    """Bands for return-on-margin alerts."""
+
+    high_min: float
+    mid_min: float
+    low_max: float
+
+
+class PnLThetaRules(BaseModel):
+    """PnL driven alerts based on theta and premium."""
+
+    take_profit_pct_of_premium: float
+    reconsider_loss_abs: float
+
+
+class RiskThresholds(BaseModel):
+    """Collection of configurable risk alert thresholds."""
+
+    delta_dollar_max_abs: float
+    delta_dollar_min_abs: float
+    vega_abs_alert: float
+    vega_short_high_ivr: VegaIVRRule
+    vega_long_low_ivr: VegaIVRRule
+    iv_hv_bands: IVHVBands
+    rom_bands: ROMBands
+    theta_efficiency_bands: List[float]
+    dte_close_threshold: int
+    pnl_theta: PnLThetaRules
+
+
 class AlertRules(BaseModel):
     """Settings for user facing alerts."""
 
@@ -95,6 +141,20 @@ class AlertRules(BaseModel):
     iv_hv_min_spread: float
     iv_rank_threshold: float
     entry_checks: List[Rule] = []
+    risk_thresholds: RiskThresholds = RiskThresholds(
+        delta_dollar_max_abs=0.0,
+        delta_dollar_min_abs=0.0,
+        vega_abs_alert=0.0,
+        vega_short_high_ivr=VegaIVRRule(vega=0.0, message=""),
+        vega_long_low_ivr=VegaIVRRule(vega=0.0, message=""),
+        iv_hv_bands=IVHVBands(high=0.0, low=0.0),
+        rom_bands=ROMBands(high_min=0.0, mid_min=0.0, low_max=0.0),
+        theta_efficiency_bands=[0.0, 0.0, 0.0],
+        dte_close_threshold=0,
+        pnl_theta=PnLThetaRules(
+            take_profit_pct_of_premium=0.0, reconsider_loss_abs=0.0
+        ),
+    )
 
 
 class RulesConfig(BaseModel):
@@ -156,6 +216,11 @@ __all__ = [
     "GateRules",
     "PortfolioRules",
     "Rule",
+    "VegaIVRRule",
+    "IVHVBands",
+    "ROMBands",
+    "PnLThetaRules",
+    "RiskThresholds",
     "AlertRules",
     "RulesConfig",
     "RULES",

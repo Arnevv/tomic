@@ -76,8 +76,9 @@ alerts:
 
 # 5) PORTFOLIO GATES
 portfolio:
-  vega_to_condor_threshold:    50
-  vega_to_calendar_threshold: -50
+  # routing op vega-bias
+  vega_to_condor:    50
+  vega_to_calendar: -50
 
   condor_gates:
     iv_rank_min:        0.50
