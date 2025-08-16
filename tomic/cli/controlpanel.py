@@ -113,14 +113,15 @@ def refresh_spot_price(symbol: str) -> float | None:
     """Fetch and cache the current spot price for ``symbol``.
 
     Uses :class:`PolygonClient` to retrieve the delayed last trade price and
-    caches it under :data:`PRICE_HISTORY_DIR`. When existing data is newer
-    than roughly ten minutes the cached value is reused.
+    caches it under :data:`PRICE_HISTORY_DIR` as ``<SYMBOL>_spot.json``.
+    When existing data is newer than roughly ten minutes the cached value is
+    reused.
     """
 
     sym = symbol.upper()
     base = Path(cfg.get("PRICE_HISTORY_DIR", "tomic/data/spot_prices"))
     base.mkdir(parents=True, exist_ok=True)
-    spot_file = base / f"{sym}.json"
+    spot_file = base / f"{sym}_spot.json"
 
     meta = load_price_meta()
     now = datetime.now()

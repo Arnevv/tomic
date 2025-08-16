@@ -4,7 +4,7 @@ import json
 import types
 from datetime import datetime, timedelta
 from pathlib import Path
-from tomic.journal.utils import save_json
+from tomic.journal.utils import save_json, load_json
 from tomic.strategy_candidates import StrategyProposal
 
 
@@ -236,6 +236,11 @@ def test_process_chain_refreshes_spot_price(monkeypatch, tmp_path):
     assert mod.SESSION_STATE.get("spot_price") == 202.0
     assert any("• r1" in line for line in prints)
     assert any("• r2" in line for line in prints)
+
+    spot_path = tmp_path / "AAA_spot.json"
+    assert spot_path.exists(), "spot cache should use _spot.json suffix"
+    assert not (tmp_path / "AAA.json").exists(), "historical data file must remain untouched"
+    assert load_json(spot_path).get("price") == 202.0
 
 
 def test_export_proposal_json_includes_earnings(monkeypatch, tmp_path):
