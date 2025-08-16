@@ -36,12 +36,19 @@ class StrikeRules(BaseModel):
     min_theta: float | None = None
 
 
+class StrategyAcceptanceRules(BaseModel):
+    """Rules governing which strategies are acceptable."""
+
+    require_positive_credit_for: List[str] = []
+
+
 class StrategyRules(BaseModel):
     """Weights for evaluating strategy attractiveness."""
 
     score_weight_rom: float
     score_weight_pos: float
     score_weight_ev: float
+    acceptance: StrategyAcceptanceRules = StrategyAcceptanceRules()
 
 
 class MarketDataRules(BaseModel):
@@ -49,6 +56,28 @@ class MarketDataRules(BaseModel):
 
     min_option_volume: int
     min_option_open_interest: int
+
+
+class GateRules(BaseModel):
+    """Thresholds for portfolio strategy suggestions."""
+
+    iv_rank_min: float | None = None
+    iv_rank_max: float | None = None
+    iv_percentile_min: float | None = None
+    iv_percentile_max: float | None = None
+    vix_min: float | None = None
+    vix_max: float | None = None
+    term_m1_m3_min: float | None = None
+    term_m1_m3_max: float | None = None
+
+
+class PortfolioRules(BaseModel):
+    """Portfolio level gating parameters."""
+
+    vega_to_condor: float
+    vega_to_calendar: float
+    condor_gates: GateRules = GateRules()
+    calendar_gates: GateRules = GateRules()
 
 
 class Rule(BaseModel):
@@ -62,6 +91,9 @@ class AlertRules(BaseModel):
     """Settings for user facing alerts."""
 
     nearest_strike_tolerance_percent: float
+    skew_threshold: float
+    iv_hv_min_spread: float
+    iv_rank_threshold: float
     entry_checks: List[Rule] = []
 
 
@@ -72,6 +104,7 @@ class RulesConfig(BaseModel):
     strategy: StrategyRules
     market_data: MarketDataRules
     alerts: AlertRules
+    portfolio: PortfolioRules
 
 
 # ---------------------------------------------------------------------------
@@ -111,6 +144,7 @@ StrategyCriteria = StrategyRules
 MarketDataCriteria = MarketDataRules
 AlertCriteria = AlertRules
 CriteriaConfig = RulesConfig
+PortfolioCriteria = PortfolioRules
 load_criteria = load_rules
 
 
@@ -118,6 +152,9 @@ __all__ = [
     "StrikeRules",
     "StrategyRules",
     "MarketDataRules",
+    "StrategyAcceptanceRules",
+    "GateRules",
+    "PortfolioRules",
     "Rule",
     "AlertRules",
     "RulesConfig",
@@ -127,6 +164,7 @@ __all__ = [
     "StrategyCriteria",
     "MarketDataCriteria",
     "AlertCriteria",
+    "PortfolioCriteria",
     "CriteriaConfig",
     "load_rules",
     "load_criteria",

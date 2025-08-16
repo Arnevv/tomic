@@ -1,6 +1,7 @@
 import importlib
 
 from tomic import config
+from tomic.criteria import RULES
 
 
 def test_default_data_dirs():
@@ -12,8 +13,7 @@ def test_default_data_dirs():
 
 
 def test_default_strategy_settings():
-    cfg = importlib.reload(config)
-    assert cfg.get("NEAREST_STRIKE_TOLERANCE_PERCENT") == 2.0
-    assert cfg.get("SCORE_WEIGHT_ROM") == 0.5
-    assert cfg.get("SCORE_WEIGHT_POS") == 0.3
-    assert cfg.get("SCORE_WEIGHT_EV") == 0.2
+    assert RULES.alerts.nearest_strike_tolerance_percent == 2.0
+    assert RULES.strategy.score_weight_rom == 0.5
+    assert RULES.strategy.score_weight_pos == 0.3
+    assert RULES.strategy.score_weight_ev == 0.2

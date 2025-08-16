@@ -27,19 +27,15 @@ from .utils import (
     prompt_user_for_price,
 )
 from .logutils import logger, log_combo_evaluation
-from .criteria import CriteriaConfig, load_criteria
+from .criteria import CriteriaConfig, RULES, load_criteria
 from .strategies import StrategyName
 from .config import get as cfg_get
 
 
-# Strategies that must yield a positive net credit. Calendar spreads are
-# intentionally omitted because they are debit strategies.
-STRATEGIES_THAT_REQUIRE_POSITIVE_CREDIT = {
-    StrategyName.SHORT_PUT_SPREAD,
-    StrategyName.SHORT_CALL_SPREAD,
-    StrategyName.IRON_CONDOR,
-    StrategyName.ATM_IRON_BUTTERFLY,
-    StrategyName.NAKED_PUT,
+# Strategies that must yield a positive net credit are configured via RULES.
+POSITIVE_CREDIT_STRATS = {
+    StrategyName(s)
+    for s in RULES.strategy.acceptance.require_positive_credit_for
 }
 
 
@@ -443,7 +439,7 @@ def _metrics(
         reasons.append("fallback naar close gebruikt voor midprijs")
     net_credit = credit_short - debit_long
     strikes = "/".join(str(l.get("strike")) for l in legs)
-    if strategy in STRATEGIES_THAT_REQUIRE_POSITIVE_CREDIT and net_credit <= 0:
+    if strategy in POSITIVE_CREDIT_STRATS and net_credit <= 0:
         reasons.append("negatieve credit")
         return None, reasons
 

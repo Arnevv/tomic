@@ -16,11 +16,21 @@ strategy:
   score_weight_rom: 0.5
   score_weight_pos: 0.3
   score_weight_ev: 0.2
+  acceptance:
+    require_positive_credit_for:
+      - short_put_spread
+      - short_call_spread
+      - iron_condor
+      - atm_iron_butterfly
+      - naked_put
 market_data:
   min_option_volume: 0
   min_option_open_interest: 0
 alerts:
   nearest_strike_tolerance_percent: 2.0
+  skew_threshold: 0.05
+  iv_hv_min_spread: 0.03
+  iv_rank_threshold: 30
   entry_checks:
     - condition: "avg_iv is not None and HV30 is not None and (avg_iv - HV30) < 0"
       message: "⏬ IV onder HV ({diff:.2%}) – liever niet instappen"
@@ -32,3 +42,15 @@ alerts:
       message: "⚠️ Skew buiten range ({skew:+.2%})"
     - condition: "IV_Rank is not None and IV_Rank < iv_rank_threshold"
       message: "⚠️ IV Rank {IV_Rank:.1f} lager dan {iv_rank_threshold}"
+portfolio:
+  vega_to_condor: 50
+  vega_to_calendar: -50
+  condor_gates:
+    iv_rank_min: 60
+    iv_percentile_min: 60
+    vix_max: 25
+  calendar_gates:
+    iv_rank_max: 60
+    iv_percentile_max: 30
+    term_m1_m3_min: 1.0
+    vix_min: 14

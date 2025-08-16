@@ -8,19 +8,14 @@ from ..criteria import RULES
 from .rules import evaluate_rules
 
 
-def check_entry_conditions(
-    strategy: Dict[str, Any],
-    skew_threshold: float = 0.05,
-    iv_hv_min_spread: float = 0.03,
-    iv_rank_threshold: float = 30,
-) -> List[str]:
+def check_entry_conditions(strategy: Dict[str, Any]) -> List[str]:
     """Return a list of entry warnings for ``strategy`` using declarative rules."""
 
     context: Dict[str, Any] = {
         **strategy,
-        "skew_threshold": skew_threshold,
-        "iv_hv_min_spread": iv_hv_min_spread,
-        "iv_rank_threshold": iv_rank_threshold,
+        "skew_threshold": RULES.alerts.skew_threshold,
+        "iv_hv_min_spread": RULES.alerts.iv_hv_min_spread,
+        "iv_rank_threshold": RULES.alerts.iv_rank_threshold,
     }
     if context.get("avg_iv") is not None and context.get("HV30") is not None:
         context["diff"] = context["avg_iv"] - context["HV30"]

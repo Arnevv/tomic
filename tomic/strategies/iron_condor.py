@@ -95,7 +95,9 @@ def generate(symbol: str, option_chain: List[Dict[str, Any]], config: Dict[str, 
             expiry = str(opt.get("expiry"))
             if spot and iv > 0.0 and expiry:
                 dte = dte_between_dates(today(), expiry)
-                leg["model"] = black_scholes(opt_type, spot, strike, dte, iv, r=0.045, q=0.0)
+                r = float(cfg_get("INTEREST_RATE", 0.05))
+                q = 0.0  # evt. later per-symbool
+                leg["model"] = black_scholes(opt_type, spot, strike, dte, iv, r=r, q=q)
         except Exception:
             pass
         if (

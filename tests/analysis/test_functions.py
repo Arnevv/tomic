@@ -52,7 +52,7 @@ class TestCheckEntryConditions:
 
     def test_iv_just_above_hv(self):
         strat = {"avg_iv": 0.52, "HV30": 0.5}
-        alerts = check_entry_conditions(strat, iv_hv_min_spread=0.03)
+        alerts = check_entry_conditions(strat)
         assert any(alert.startswith("⚠️ IV ligt slechts") for alert in alerts)
 
     def test_iv_below_hv(self):
@@ -68,7 +68,7 @@ class TestCheckEntryConditions:
     def test_iv_rank_warning(self):
         strat = {"avg_iv": 0.6, "HV30": 0.4, "IV_Rank": 20}
         alerts = check_entry_conditions(strat)
-        assert "⚠️ IV Rank 20.0 lager dan 30" in alerts
+        assert any(alert.startswith("⚠️ IV Rank 20.0 lager dan") for alert in alerts)
 
 
 class TestCollapseLegs:

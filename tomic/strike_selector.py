@@ -303,7 +303,7 @@ class StrikeSelector:
         return True, ""
 
     def _term_filter(self, option: Dict[str, Any]) -> Tuple[bool, str]:
-        term = _as_float(option.get("term") or option.get("term_slope"))
+        term = _as_float(option.get("term_m1_m3"))
         if term is None:
             return True, ""
         if term < self.config.term_min or term > self.config.term_max:

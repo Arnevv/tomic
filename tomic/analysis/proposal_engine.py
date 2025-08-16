@@ -15,6 +15,7 @@ from tomic.utils import get_option_mid_price, normalize_right
 from tomic.helpers.csv_utils import parse_euro_float
 from tomic.metrics import calculate_margin, estimate_scenario_profit
 from tomic.logutils import logger
+from ..criteria import RULES
 
 
 @dataclass
@@ -256,9 +257,11 @@ def suggest_strategies(
     suggestions: List[Dict[str, Any]] = []
     iv_rank = getattr(metrics, "iv_rank", None) if metrics else None
     iv_pct = getattr(metrics, "iv_percentile", None) if metrics else None
-    term_slope = getattr(metrics, "term_m1_m2", None)
-    if term_slope is None:
-        term_slope = getattr(metrics, "term_m1_m3", None)
+    term_m1_m3 = getattr(metrics, "term_m1_m3", None)
+
+    port = RULES.portfolio
+    condor_gate = port.condor_gates
+    calendar_gate = port.calendar_gates
 
     if abs(exposure.get("Delta", 0.0)) > 25:
         bullish = exposure["Delta"] < 0
@@ -283,12 +286,12 @@ def suggest_strategies(
                     "scenario_info": risk.get("scenario_info"),
                 }
             )
-    if exposure.get("Vega", 0.0) > 50:
+    if exposure.get("Vega", 0.0) > port.vega_to_condor:
         legs = _make_condor(chain)
         if legs and not (
-            (iv_rank is not None and iv_rank < 60)
-            or (iv_pct is not None and iv_pct < 60)
-            or (vix is not None and vix > 25)
+            (condor_gate.iv_rank_min is not None and iv_rank is not None and iv_rank < condor_gate.iv_rank_min)
+            or (condor_gate.iv_percentile_min is not None and iv_pct is not None and iv_pct < condor_gate.iv_percentile_min)
+            or (condor_gate.vix_max is not None and vix is not None and vix > condor_gate.vix_max)
         ):
             impact = _sum_greeks(legs)
             after = {k: exposure.get(k, 0.0) + impact[k] for k in impact}
@@ -321,13 +324,13 @@ def suggest_strategies(
                         "scenario_info": risk.get("scenario_info"),
                     }
                 )
-    if exposure.get("Vega", 0.0) < -50:
+    if exposure.get("Vega", 0.0) < port.vega_to_calendar:
         legs = _make_calendar(chain)
         if legs and not (
-            (iv_rank is not None and iv_rank > 60)
-            or (iv_pct is not None and iv_pct > 30)
-            or (term_slope is not None and term_slope <= 1.0)
-            or (vix is not None and vix < 14)
+            (calendar_gate.iv_rank_max is not None and iv_rank is not None and iv_rank > calendar_gate.iv_rank_max)
+            or (calendar_gate.iv_percentile_max is not None and iv_pct is not None and iv_pct > calendar_gate.iv_percentile_max)
+            or (calendar_gate.term_m1_m3_min is not None and term_m1_m3 is not None and term_m1_m3 <= calendar_gate.term_m1_m3_min)
+            or (calendar_gate.vix_min is not None and vix is not None and vix < calendar_gate.vix_min)
         ):
             impact = _sum_greeks(legs)
             after = {k: exposure.get(k, 0.0) + impact[k] for k in impact}

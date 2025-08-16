@@ -50,6 +50,7 @@ def test_metrics_rejects_low_liquidity(monkeypatch):
             min_option_volume=10, min_option_open_interest=10
         ),
         alerts=base.alerts,
+        portfolio=base.portfolio,
     )
     metrics, reasons = sc._metrics(StrategyName.SHORT_PUT_SPREAD, legs, criteria=criteria)
     assert metrics is None

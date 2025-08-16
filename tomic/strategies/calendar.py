@@ -7,6 +7,7 @@ from tomic.helpers.timeutils import today
 from tomic.helpers.put_call_parity import fill_missing_mid_with_parity
 from . import StrategyName
 from ..utils import get_option_mid_price, normalize_leg
+from ..criteria import RULES
 from ..strategy_candidates import (
     StrategyProposal,
     _build_strike_map,
@@ -49,7 +50,8 @@ def generate(symbol: str, option_chain: List[Dict[str, Any]], config: Dict[str, 
         nearest = min(avail, key=lambda s: abs(s - strike_target))
         diff = abs(nearest - strike_target)
         pct = (diff / strike_target * 100) if strike_target else 0.0
-        if pct > 1.0:
+        tol = float(RULES.alerts.nearest_strike_tolerance_percent)
+        if pct > tol:
             continue
         valid_exp = sorted(by_strike[nearest])
         pairs = select_expiry_pairs(valid_exp, min_gap)
