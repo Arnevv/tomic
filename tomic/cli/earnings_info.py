@@ -154,6 +154,8 @@ def main(argv: List[str] | None = None) -> None:
             continue
         iv_today_val = iv_today_rec.get("atm_iv")
         iv_rank_val = iv_today_rec.get("iv_rank (HV)")
+        if isinstance(iv_rank_val, (int, float)) and iv_rank_val > 1:
+            iv_rank_val /= 100
         hv_delta = historical_hv_delta(sym, dte, earnings_data, hv_data)
         proj_iv = None
         if hv_delta is not None and iv_today_val is not None:

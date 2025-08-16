@@ -247,6 +247,10 @@ def main(argv: List[str] | None = None) -> None:
         scaled_iv = iv * 100 if iv is not None else None
         rank = iv_rank(scaled_iv or 0.0, hv_series) if scaled_iv is not None else None
         pct = iv_percentile(scaled_iv or 0.0, hv_series) if scaled_iv is not None else None
+        if isinstance(rank, (int, float)) and rank > 1:
+            rank /= 100
+        if isinstance(pct, (int, float)) and pct > 1:
+            pct /= 100
 
         summary_record = {
             "date": date_str,

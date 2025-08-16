@@ -550,6 +550,12 @@ def run_portfolio_menu() -> None:
                 if upcoming:
                     next_earn = min(upcoming).strftime("%Y-%m-%d")
 
+            rank = summary.get("iv_rank (HV)")
+            pct = summary.get("iv_percentile (HV)")
+            if isinstance(rank, (int, float)) and rank > 1:
+                rank /= 100
+            if isinstance(pct, (int, float)) and pct > 1:
+                pct /= 100
             rows.append(
                 [
                     symbol,
@@ -559,8 +565,8 @@ def run_portfolio_menu() -> None:
                     hv.get("hv30"),
                     hv.get("hv90"),
                     hv.get("hv252"),
-                    summary.get("iv_rank (HV)"),
-                    summary.get("iv_percentile (HV)"),
+                    rank,
+                    pct,
                     summary.get("term_m1_m2"),
                     summary.get("term_m1_m3"),
                     summary.get("skew"),
@@ -573,8 +579,8 @@ def run_portfolio_menu() -> None:
         def fmt4(val: float | None) -> str:
             return f"{val:.4f}" if val is not None else ""
 
-        def fmt0(val: float | None) -> str:
-            return f"{val * 100:.0f}" if val is not None else ""
+        def fmt2(val: float | None) -> str:
+            return f"{val:.2f}" if val is not None else ""
 
         formatted_rows = [
             [
@@ -585,8 +591,8 @@ def run_portfolio_menu() -> None:
                 fmt4(r[4]),
                 fmt4(r[5]),
                 fmt4(r[6]),
-                fmt0(r[7]),
-                fmt0(r[8]),
+                fmt2(r[7]),
+                fmt2(r[8]),
                 r[9],
                 r[10],
                 r[11],
