@@ -19,13 +19,19 @@ from ..strategy_candidates import (
 )
 
 
-def generate(symbol: str, option_chain: List[Dict[str, Any]], config: Dict[str, Any], spot: float, atr: float) -> List[StrategyProposal]:
+def generate(
+    symbol: str,
+    option_chain: List[Dict[str, Any]],
+    config: Dict[str, Any],
+    spot: float,
+    atr: float,
+) -> tuple[List[StrategyProposal], list[str]]:
     strat_cfg = config.get("strategies", {}).get("calendar", {})
     rules = strat_cfg.get("strike_to_strategy_config", {})
     use_atr = bool(rules.get("use_ATR"))
     expiries = sorted({str(o.get("expiry")) for o in option_chain})
     if not expiries:
-        return []
+        return [], []
     if spot is None:
         raise ValueError("spot price is required")
     expiry = expiries[0]
@@ -38,6 +44,7 @@ def generate(symbol: str, option_chain: List[Dict[str, Any]], config: Dict[str, 
             df_chain = fill_missing_mid_with_parity(df_chain, spot=spot)
             option_chain = df_chain.to_dict(orient="records")
     proposals: List[StrategyProposal] = []
+    rejected_reasons: list[str] = []
     min_rr = float(strat_cfg.get("min_risk_reward", 0.0))
     min_gap = int(rules.get("expiry_gap_min_days", 0))
     base_strikes = rules.get("base_strikes_relative_to_spot", [])
@@ -98,8 +105,10 @@ def generate(symbol: str, option_chain: List[Dict[str, Any]], config: Dict[str, 
                 ):
                     leg["edge"] = leg["model"] - leg["mid"]
             legs = [normalize_leg(l) for l in legs]
-            metrics, _ = _metrics(StrategyName.CALENDAR, legs, spot)
+            metrics, reasons = _metrics(StrategyName.CALENDAR, legs, spot)
             if not metrics:
+                if reasons:
+                    rejected_reasons.extend(reasons)
                 continue
             if min_rr > 0:
                 mp = metrics.get("max_profit")
@@ -115,4 +124,4 @@ def generate(symbol: str, option_chain: List[Dict[str, Any]], config: Dict[str, 
             if len(proposals) >= 5:
                 break
     proposals.sort(key=lambda p: p.score or 0, reverse=True)
-    return proposals[:5]
+    return proposals[:5], sorted(set(rejected_reasons))

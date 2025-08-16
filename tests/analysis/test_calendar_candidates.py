@@ -18,7 +18,7 @@ def test_calendar_candidates_with_valid_pair(monkeypatch):
             }
         }
     }
-    props = calendar.generate("AAA", chain, cfg, 100.0, 1.0)
+    props, _ = calendar.generate("AAA", chain, cfg, 100.0, 1.0)
     assert isinstance(props, list)
 
 
@@ -40,5 +40,5 @@ def test_calendar_candidates_no_pairs(monkeypatch):
             }
         }
     }
-    props = calendar.generate("AAA", chain, cfg, 100.0, 1.0)
+    props, _ = calendar.generate("AAA", chain, cfg, 100.0, 1.0)
     assert not props

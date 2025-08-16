@@ -68,7 +68,7 @@ def test_generate_strategy_candidates_with_strings():
             }
         }
     }
-    props = iron_condor.generate("AAA", chain, cfg, 100.0, 1.0)
+    props, _ = iron_condor.generate("AAA", chain, cfg, 100.0, 1.0)
     assert isinstance(props, list)
     if props:
         for leg in props[0].legs:
@@ -98,8 +98,9 @@ def test_generate_strategy_candidates_missing_metrics_reason():
             }
         }
     }
-    props = iron_condor.generate("AAA", chain, cfg, 100.0, 1.0)
+    props, reasons = iron_condor.generate("AAA", chain, cfg, 100.0, 1.0)
     assert not props
+    assert reasons
 
 
 def test_parity_mid_used_for_missing_bidask(monkeypatch):
@@ -167,7 +168,7 @@ def test_parity_mid_used_for_missing_bidask(monkeypatch):
             }
         }
     }
-    props = iron_condor.generate("AAA", chain, cfg, 100.0, 1.0)
+    props, _ = iron_condor.generate("AAA", chain, cfg, 100.0, 1.0)
     assert props
     sc_leg = next(
         (
