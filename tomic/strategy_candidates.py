@@ -578,7 +578,7 @@ def generate_strategy_candidates(
     spot: float | None = None,
     *,
     interactive_mode: bool = False,
-) -> tuple[List[StrategyProposal], str | None]:
+) -> tuple[List[StrategyProposal], list[str] | None]:
     """Load strategy module and generate candidates."""
     if spot is None:
         raise ValueError("spot price is required")
@@ -586,8 +586,15 @@ def generate_strategy_candidates(
         mod = __import__(f"tomic.strategies.{strategy_type}", fromlist=["generate"])
     except Exception as e:
         raise ValueError(f"Unknown strategy {strategy_type}") from e
-    cfg_data = config if config and config.get("strategies") else cfg_get("STRATEGY_CONFIG", {})
-    return mod.generate(symbol, option_chain, cfg_data, spot, atr), None
+    cfg_data = (
+        config if config and config.get("strategies") else cfg_get("STRATEGY_CONFIG", {})
+    )
+    result = mod.generate(symbol, option_chain, cfg_data, spot, atr)
+    if isinstance(result, tuple):
+        proposals, reasons = result
+    else:  # backward compatibility
+        proposals, reasons = result, None
+    return proposals, (sorted(set(reasons)) if reasons else None)
 
 
 __all__ = [

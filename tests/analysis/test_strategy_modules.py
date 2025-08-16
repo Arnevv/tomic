@@ -43,5 +43,5 @@ chain = [
 @pytest.mark.parametrize("name,cfg", strategies)
 def test_strategy_modules_smoke(name, cfg):
     mod = importlib.import_module(f"tomic.strategies.{name.value}")
-    props = mod.generate("AAA", chain, cfg, 100.0, 1.0)
+    props, _ = mod.generate("AAA", chain, cfg, 100.0, 1.0)
     assert isinstance(props, list)

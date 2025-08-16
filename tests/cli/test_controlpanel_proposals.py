@@ -170,7 +170,9 @@ def test_process_chain_refreshes_spot_price(monkeypatch, tmp_path):
         "StrikeSelector",
         lambda config: type("S", (), {"select": lambda self, data, debug_csv=None: [dummy_option]})(),
     )
-    monkeypatch.setattr(mod, "generate_strategy_candidates", lambda *a, **k: ([], None))
+    monkeypatch.setattr(
+        mod, "generate_strategy_candidates", lambda *a, **k: ([], ["r1", "r2"])
+    )
     monkeypatch.setattr(mod, "latest_atr", lambda s: 0.0)
     monkeypatch.setattr(mod, "_load_spot_from_metrics", lambda d, s: None)
     monkeypatch.setattr(mod, "_load_latest_close", lambda s: (111.0, "2024-01-01"))
@@ -221,12 +223,19 @@ def test_process_chain_refreshes_spot_price(monkeypatch, tmp_path):
     prompts = iter([True, False, False, True])
     monkeypatch.setattr(mod, "prompt_yes_no", lambda *a, **k: next(prompts))
 
+    prints: list[str] = []
+    monkeypatch.setattr(
+        builtins, "print", lambda *a, **k: prints.append(" ".join(str(x) for x in a))
+    )
+
     mod.SESSION_STATE.clear()
     mod.SESSION_STATE.update({"evaluated_trades": [], "symbol": "AAA"})
 
     mod._process_chain(csv_path)
 
     assert mod.SESSION_STATE.get("spot_price") == 202.0
+    assert any("• r1" in line for line in prints)
+    assert any("• r2" in line for line in prints)
 
 
 def test_export_proposal_json_includes_earnings(monkeypatch, tmp_path):

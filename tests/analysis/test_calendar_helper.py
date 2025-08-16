@@ -32,7 +32,7 @@ def test_calendar_generates_from_valid_pairs(monkeypatch):
             }
         }
     }
-    props = calendar.generate("AAA", chain, cfg, 100.0, 1.0)
+    props, _ = calendar.generate("AAA", chain, cfg, 100.0, 1.0)
     assert isinstance(props, list)
     if props:
         assert props[0].legs[0]["strike"] == 100.0
@@ -59,5 +59,5 @@ def test_calendar_logs_skip_on_missing_mid(monkeypatch):
     monkeypatch.setattr(
         sc.logger, "info", lambda msg, *a, **k: infos.append(msg.format(*a))
     )
-    props = calendar.generate("AAA", chain, cfg, 100.0, 1.0)
+    props, _ = calendar.generate("AAA", chain, cfg, 100.0, 1.0)
     assert not props
