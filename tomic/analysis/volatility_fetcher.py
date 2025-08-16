@@ -15,6 +15,9 @@ async def fetch_volatility_metrics_async(symbol: str) -> Dict[str, float]:
     html = await download_html_async(symbol)
     iv_data = parse_patterns(IV_PATTERNS, html)
     extra_data = parse_patterns(EXTRA_PATTERNS, html)
+    for key in ("iv_rank", "iv_percentile"):
+        if iv_data.get(key) is not None:
+            iv_data[key] /= 100
     return {**iv_data, **extra_data}
 
 

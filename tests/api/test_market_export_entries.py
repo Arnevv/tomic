@@ -81,9 +81,9 @@ def test_export_market_data_creates_csvs(monkeypatch, tmp_path):
             "skew": 0.0,
             "term_m1_m2": None,
             "term_m1_m3": None,
-            "iv_rank": 5.0,
+            "iv_rank": 0.05,
             "implied_volatility": 0.2,
-            "iv_percentile": 50.0,
+            "iv_percentile": 0.50,
         },
     )
 

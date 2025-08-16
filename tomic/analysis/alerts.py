@@ -78,11 +78,11 @@ def generate_risk_alerts(strategy: Dict[str, Any]) -> List[str]:
             alerts.append(rt.vega_long_low_ivr.message)
 
     if delta is not None and vega is not None and ivr is not None:
-        if delta >= 0.15 and vega > 30 and ivr < 30:
+        if delta >= 0.15 and vega > 30 and ivr < 0.30:
             alerts.append(
                 "📈 Bullish + Long Vega in lage IV - time spread overwegen i.p.v. long call"
             )
-        if delta <= -0.15 and vega < -30 and ivr > 60:
+        if delta <= -0.15 and vega < -30 and ivr > 0.60:
             alerts.append(
                 "📉 Bearish + Short Vega in hoog vol klimaat - oppassen voor squeeze"
             )

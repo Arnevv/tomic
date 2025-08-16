@@ -118,8 +118,12 @@ def toon_details(trade: Dict[str, Any]) -> None:
         elif k == "Snapshots":
             print("\n🧾 Snapshots:")
             for snap in v:
+                ivr = snap.get("iv_rank")
+                ivr_disp = (
+                    f"{ivr * 100:.1f}" if isinstance(ivr, (int, float)) else ivr
+                )
                 print(
-                    f"📆 {snap.get('date', '-')}: Spot {snap.get('spot')} | IV30 {snap.get('iv30')} | IV Rank {snap.get('iv_rank')} | Skew {snap.get('skew')}"
+                    f"📆 {snap.get('date', '-')}: Spot {snap.get('spot')} | IV30 {snap.get('iv30')} | IV Rank {ivr_disp} | Skew {snap.get('skew')}"
                 )
                 g = snap.get("Greeks", {})
                 print(
@@ -215,7 +219,10 @@ def snapshot_input(trade: Dict[str, Any]) -> None:
 
     snapshot["spot"] = float_input("Spotprijs: ")
     snapshot["iv30"] = float_input("IV30: ")
-    snapshot["iv_rank"] = float_input("IV Rank: ")
+    ivr_val = float_input("IV Rank: ")
+    if isinstance(ivr_val, (int, float)) and ivr_val > 1:
+        ivr_val /= 100
+    snapshot["iv_rank"] = ivr_val
     snapshot["hv30"] = float_input("HV30: ")
     snapshot["vix"] = float_input("VIX: ")
     snapshot["atr14"] = float_input("ATR(14): ")

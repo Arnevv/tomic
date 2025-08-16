@@ -64,7 +64,7 @@ def _iv_rank(value: float, series: list[float]) -> float | None:
     hi = max(nums)
     if hi == lo:
         return None
-    return (value - lo) / (hi - lo) * 100
+    return (value - lo) / (hi - lo)
 
 
 def _iv_percentile(value: float, series: list[float]) -> float | None:
@@ -72,7 +72,7 @@ def _iv_percentile(value: float, series: list[float]) -> float | None:
     if not nums:
         return None
     count = sum(1 for hv in nums if hv < value)
-    return count / len(nums) * 100
+    return count / len(nums)
 
 
 # ---------------------------------------------------------------------------

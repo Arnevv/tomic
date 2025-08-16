@@ -212,9 +212,9 @@ def test_fetch_market_metrics_includes_new_fields(monkeypatch):
             "atr14": 5.5,
             "vix": 17.2,
             "skew": -1.0,
-            "iv_rank": 30.0,
+            "iv_rank": 0.30,
             "implied_volatility": 25.0,
-            "iv_percentile": 70.0,
+            "iv_percentile": 0.70,
         },
     )
 
@@ -257,9 +257,9 @@ def test_fetch_market_metrics_computes_term_structure(monkeypatch):
             "atr14": 5.5,
             "vix": 17.2,
             "skew": -1.0,
-            "iv_rank": 30.0,
+            "iv_rank": 0.30,
             "implied_volatility": 25.0,
-            "iv_percentile": 70.0,
+            "iv_percentile": 0.70,
         },
     )
 

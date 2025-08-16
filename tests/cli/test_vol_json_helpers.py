@@ -12,11 +12,11 @@ def test_get_and_load_latest_summaries(tmp_path):
 
     base = tmp_path
     save_json([
-        {"date": "2024-01-01", "atm_iv": 0.2, "iv_rank": 10.0, "iv_percentile": 20.0},
-        {"date": "2024-01-02", "atm_iv": 0.3, "iv_rank": 11.0, "iv_percentile": 21.0},
+        {"date": "2024-01-01", "atm_iv": 0.2, "iv_rank": 0.10, "iv_percentile": 0.20},
+        {"date": "2024-01-02", "atm_iv": 0.3, "iv_rank": 0.11, "iv_percentile": 0.21},
     ], base / "AAA.json")
     save_json([
-        {"date": "2024-01-01", "atm_iv": 0.4, "iv_rank": 12.0, "iv_percentile": 22.0}
+        {"date": "2024-01-01", "atm_iv": 0.4, "iv_rank": 0.12, "iv_percentile": 0.22}
     ], base / "BBB.json")
 
     latest = get_latest_summary("AAA", base)
@@ -24,7 +24,7 @@ def test_get_and_load_latest_summaries(tmp_path):
     assert latest.date == "2024-01-02"
     stats = load_latest_summaries(["AAA", "BBB", "CCC"], base)
     assert set(stats.keys()) == {"AAA", "BBB"}
-    assert stats["BBB"].iv_rank == 12.0
+    assert stats["BBB"].iv_rank == 0.12
 
 
 def test_append_to_iv_summary(tmp_path, monkeypatch):

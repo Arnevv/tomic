@@ -3,8 +3,8 @@ from tomic.cli.volatility_recommender import recommend_strategy, recommend_strat
 
 def test_recommend_strategy_match():
     metrics = {
-        "iv_rank": 55,
-        "iv_percentile": 70,
+        "iv_rank": 0.55,
+        "iv_percentile": 0.70,
         "skew": 4,
         "term_m1_m3": 1.2,
         "IV": 0.4,
@@ -18,8 +18,8 @@ def test_recommend_strategy_match():
 
 def test_recommend_strategy_none():
     metrics = {
-        "iv_rank": 10,
-        "iv_percentile": 20,
+        "iv_rank": 0.10,
+        "iv_percentile": 0.20,
         "skew": 0,
         "term_m1_m3": 0,
         "IV": 0.3,
@@ -31,8 +31,8 @@ def test_recommend_strategy_none():
 
 def test_recommend_strategies_multiple():
     metrics = {
-        "iv_rank": 60,
-        "iv_percentile": 70,
+        "iv_rank": 0.60,
+        "iv_percentile": 0.70,
         "skew": 1.0,
         "term_m1_m3": 1.2,
         "IV": 0.4,
@@ -46,8 +46,8 @@ def test_recommend_strategies_multiple():
 
 def test_recommend_strategies_none():
     metrics = {
-        "iv_rank": 5,
-        "iv_percentile": 10,
+        "iv_rank": 0.05,
+        "iv_percentile": 0.10,
         "skew": 0,
         "term_m1_m3": 0,
         "IV": 0.2,

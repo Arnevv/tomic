@@ -228,9 +228,9 @@ def print_strategy_full(strategy, rule=None, *, details: bool = False):
     if hv is not None:
         parts_main.append(f"HV {hv:.2f}%")
     if ivr is not None:
-        parts_main.append(f"IV Rank: {ivr:.1f}")
+        parts_main.append(f"IV Rank: {ivr * 100:.1f}")
     if ivp is not None:
-        parts_main.append(f"IV Pctl: {ivp:.1f}")
+        parts_main.append(f"IV Pctl: {ivp * 100:.1f}")
     if vix is not None:
         parts_extra.append(f"VIX {vix:.2f}")
     if skew is not None:
@@ -338,9 +338,9 @@ def print_strategy_full(strategy, rule=None, *, details: bool = False):
     if hv is not None:
         parts.append(f"HV {hv:.2f}%")
     if ivr is not None:
-        parts.append(f"IV Rank: {ivr:.1f}")
+        parts.append(f"IV Rank: {ivr * 100:.1f}")
     if ivp is not None:
-        parts.append(f"IV Pctl: {ivp:.1f}")
+        parts.append(f"IV Pctl: {ivp * 100:.1f}")
     if ivhv is not None:
         parts.append(f"IV-HV {ivhv:.2%}")
     if skew is not None:

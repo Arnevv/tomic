@@ -25,7 +25,7 @@ alerts:
   nearest_strike_tolerance_percent: 1
   skew_threshold: 0.05
   iv_hv_min_spread: 0.03
-  iv_rank_threshold: 30
+  iv_rank_threshold: 0.30
   entry_checks: []
 portfolio:
   vega_to_condor: 50

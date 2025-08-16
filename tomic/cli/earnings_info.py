@@ -199,7 +199,9 @@ def main(argv: List[str] | None = None) -> None:
     for idx, r in enumerate(rows, 1):
         dte_str = f"{r['dte']:+d}" if isinstance(r.get("dte"), int) else ""
         iv_rank = r.get("iv_rank")
-        iv_rank_str = f"{iv_rank:.0f}%" if isinstance(iv_rank, (int, float)) else ""
+        iv_rank_str = (
+            f"{iv_rank * 100:.0f}%" if isinstance(iv_rank, (int, float)) else ""
+        )
         iv_today = r.get("iv_today")
         iv_today_str = f"{iv_today:.3f}" if isinstance(iv_today, (int, float)) else ""
         iv_date_used = r.get("iv_date_used")
@@ -261,7 +263,7 @@ def main(argv: List[str] | None = None) -> None:
     iv_date_str = f"{iv_date_used[5:]}" if iv_date_used else ""
     print(f"Huidige IV       : {iv_str} ({iv_date_str})")
     ivr = chosen.get("iv_rank")
-    ivr_str = f"{ivr:.0f}%" if isinstance(ivr, (int, float)) else "—"
+    ivr_str = f"{ivr * 100:.0f}%" if isinstance(ivr, (int, float)) else "—"
     print(f"IV Rank          : {ivr_str}")
     hvd = chosen.get("hv_delta")
     hvd_str = f"{hvd*100:+.1f}%" if isinstance(hvd, (int, float)) else "—"
