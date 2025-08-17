@@ -1087,7 +1087,7 @@ def run_portfolio_menu() -> None:
                 else:
                     print("Spotprice: n/a")
 
-                proposals, reason = generate_strategy_candidates(
+                proposals, reasons = generate_strategy_candidates(
                     symbol,
                     strat,
                     selected,
@@ -1187,14 +1187,11 @@ def run_portfolio_menu() -> None:
                         break
                 else:
                     msg = "⚠️ Geen voorstellen gevonden"
-                    if reason is not None:
-                        if not reason:
-                            msg += "\n• geen detailreden ontvangen"
-                        elif isinstance(reason, list):
-                            for r in reason:
-                                msg += f"\n• {r}"
-                        else:
-                            msg += f"\n• {reason}"
+                    if not reasons:
+                        msg += "\n• geen detailreden ontvangen"
+                    else:
+                        for r in reasons:
+                            msg += f"\n• {r}"
                     print(msg)
         else:
             print("⚠️ Geen geschikte strikes gevonden.")

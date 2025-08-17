@@ -578,7 +578,7 @@ def generate_strategy_candidates(
     spot: float | None = None,
     *,
     interactive_mode: bool = False,
-) -> tuple[List[StrategyProposal], list[str] | None]:
+) -> tuple[List[StrategyProposal], list[str]]:
     """Load strategy module and generate candidates."""
     if spot is None:
         raise ValueError("spot price is required")
@@ -594,7 +594,7 @@ def generate_strategy_candidates(
         proposals, reasons = result
     else:  # backward compatibility
         proposals, reasons = result, None
-    return proposals, (sorted(set(reasons)) if reasons else None)
+    return proposals, sorted(set(reasons)) if reasons is not None else []
 
 
 __all__ = [
