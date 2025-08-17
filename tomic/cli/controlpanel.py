@@ -1666,20 +1666,23 @@ def run_settings_menu() -> None:
             print(f"{key}: {value}")
 
     def change_host() -> None:
-        host = prompt(f"Host ({cfg.CONFIG.IB_HOST}): ", cfg.CONFIG.IB_HOST)
-        port_str = prompt(f"Poort ({cfg.CONFIG.IB_PORT}): ")
-        port = int(port_str) if port_str else cfg.CONFIG.IB_PORT
+        host_default = cfg.get("IB_HOST")
+        port_default = cfg.get("IB_PORT")
+        host = prompt(f"Host ({host_default}): ", host_default)
+        port_str = prompt(f"Poort ({port_default}): ")
+        port = int(port_str) if port_str else port_default
         cfg.update({"IB_HOST": host, "IB_PORT": port})
 
     def change_symbols() -> None:
-        print("Huidige symbols:", ", ".join(cfg.CONFIG.DEFAULT_SYMBOLS))
+        print("Huidige symbols:", ", ".join(cfg.get("DEFAULT_SYMBOLS", [])))
         raw = prompt("Nieuw lijst (comma-sep): ")
         if raw:
             symbols = [s.strip().upper() for s in raw.split(",") if s.strip()]
             save_symbols(symbols)
 
     def change_rate() -> None:
-        rate_str = prompt(f"Rente ({cfg.CONFIG.INTEREST_RATE}): ")
+        rate_default = cfg.get("INTEREST_RATE")
+        rate_str = prompt(f"Rente ({rate_default}): ")
         if rate_str:
             try:
                 rate = float(rate_str)
@@ -1689,13 +1692,13 @@ def run_settings_menu() -> None:
             cfg.update({"INTEREST_RATE": rate})
 
     def change_path(key: str) -> None:
-        current = getattr(cfg.CONFIG, key)
+        current = cfg.get(key)
         value = prompt(f"{key} ({current}): ")
         if value:
             cfg.update({key: value})
 
     def change_int(key: str) -> None:
-        current = getattr(cfg.CONFIG, key)
+        current = cfg.get(key)
         val = prompt(f"{key} ({current}): ")
         if val:
             try:
@@ -1704,7 +1707,7 @@ def run_settings_menu() -> None:
                 print("❌ Ongeldige waarde")
 
     def change_float(key: str) -> None:
-        current = getattr(cfg.CONFIG, key)
+        current = cfg.get(key)
         val = prompt(f"{key} ({current}): ")
         if val:
             try:
@@ -1713,13 +1716,13 @@ def run_settings_menu() -> None:
                 print("❌ Ongeldige waarde")
 
     def change_str(key: str) -> None:
-        current = getattr(cfg.CONFIG, key)
+        current = cfg.get(key)
         val = prompt(f"{key} ({current}): ", current)
         if val:
             cfg.update({key: val})
 
     def change_bool(key: str) -> None:
-        current = getattr(cfg.CONFIG, key)
+        current = cfg.get(key)
         val = prompt_yes_no(f"{key}?", current)
         cfg.update({key: val})
 
