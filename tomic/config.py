@@ -18,95 +18,7 @@ def _asdict(model: BaseModel) -> Dict[str, Any]:
 class AppConfig(BaseModel):
     """Typed configuration loaded from YAML or environment."""
 
-    DEFAULT_SYMBOLS: List[str] = [
-        "AAPL",
-        "ABBV",
-        "AEP",
-        "AMD",
-        "AMGN",
-        "AMT",
-        "AMZN",
-        "AXP",
-        "BA",
-        "BAC",
-        "BMY",
-        "C",
-        "CAT",
-        "CL",
-        "COST",
-        "CRM",
-        "CVS",
-        "CVX",
-        "D",
-        "DE",
-        "DIA",
-        "DLR",
-        "ED",
-        "EEM",
-        "EOG",
-        "ESS",
-        "EXC",
-        "GE",
-        "GILD",
-        "GLD",
-        "GOOGL",
-        "GS",
-        "HAL",
-        "HD",
-        "HON",
-        "INTC",
-        "IWM",
-        "JPM",
-        "KMB",
-        "KO",
-        "KR",
-        "LMT",
-        "LOW",
-        "LULU",
-        "MA",
-        "MCD",
-        "META",
-        "MMM",
-        "MO",
-        "MRK",
-        "MS",
-        "MSFT",
-        "MU",
-        "NEE",
-        "NFLX",
-        "NKE",
-        "NOC",
-        "NVDA",
-        "ORCL",
-        "OXY",
-        "PEP",
-        "PFE",
-        "PG",
-        "PM",
-        "PXD",
-        "QQQ",
-        "ROST",
-        "SBUX",
-        "SCHW",
-        "SLB",
-        "SLV",
-        "SO",
-        "SPG",
-        "SPY",
-        "TGT",
-        "TLT",
-        "TSLA",
-        "UNH",
-        "UNP",
-        "UPS",
-        "USO",
-        "V",
-        "VLO",
-        "WFC",
-        "WMT",
-        "XEL",
-        "XOM"
-    ]
+    DEFAULT_SYMBOLS: List[str] = []
 
     POSITIONS_FILE: str = "positions.json"
     ACCOUNT_INFO_FILE: str = "account_info.json"
@@ -256,6 +168,22 @@ def _load_yaml(path: Path) -> Dict[str, Any]:
     return content or {}
 
 
+def _load_symbols() -> List[str]:
+    """Load default symbols from ``config/symbols.yaml``.
+
+    Returns an empty list if the file does not exist and raises a
+    ``ValueError`` if the YAML content is not a simple list of symbols.
+    """
+
+    path = _BASE_DIR / "config" / "symbols.yaml"
+    if not path.exists():
+        return []
+    data = _load_yaml(path)
+    if isinstance(data, list):
+        return [str(s) for s in data]
+    raise ValueError("symbols.yaml must contain a YAML list of symbols")
+
+
 def _load_strategy_scenarios() -> Dict[str, List[StrategyScenario]]:
     """Load strategy scenarios from the default YAML configuration file."""
 
@@ -311,6 +239,7 @@ def load_config() -> AppConfig:
             data = _load_env(path)
 
     cfg = {**_asdict(AppConfig()), **data}
+    cfg["DEFAULT_SYMBOLS"] = _load_symbols()
 
     # Environment variables override file values
     env_keys = {k: v for k, v in os.environ.items() if k in cfg}
