@@ -265,6 +265,20 @@ def save_config(config: AppConfig, path: Path | None = None) -> None:
         yaml.safe_dump(_asdict(config), f)
 
 
+def save_symbols(symbols: List[str], path: Path | None = None) -> None:
+    """Persist default symbols to a YAML file and update CONFIG."""
+    if path is None:
+        path = _BASE_DIR / "config" / "symbols.yaml"
+    try:
+        import yaml  # type: ignore
+    except Exception as exc:  # pragma: no cover - optional dependency
+        raise RuntimeError("PyYAML required for YAML config") from exc
+    with open(path, "w", encoding="utf-8") as f:
+        yaml.safe_dump([str(s) for s in symbols], f)
+    with LOCK:
+        CONFIG.DEFAULT_SYMBOLS = [str(s) for s in symbols]
+
+
 CONFIG = load_config()
 LOCK = threading.Lock()
 STRATEGY_SCENARIOS = _load_strategy_scenarios()
