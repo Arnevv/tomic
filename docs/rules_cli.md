@@ -64,3 +64,19 @@ tomic rules reload
 - Maak altijd een back-up voordat je het bestand wijzigt.
 - Gebruik `tomic rules validate` om fouten te voorkomen voordat je
   applicaties start.
+
+## Filterstatistieken tonen
+
+Wil je begrijpen waarom een strategie geen resultaten oplevert? Start je
+analysetool met `--show-filter-stats` of stel `EXPLAIN_FILTERS=true` in je
+omgeving. Je ziet dan hoeveel kandidaten per regel zijn afgevallen:
+
+```
+$ tomic analysis --show-filter-stats
+min_rom            : 12
+delta_range        : 8
+market_data.volume : 3
+```
+
+Pas daarna de waarden in `criteria.yaml` of `tomic/strike_selection_rules.yaml`
+aan en valideer de wijzigingen met `tomic rules validate criteria.yaml --reload`.

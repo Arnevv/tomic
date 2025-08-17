@@ -3,6 +3,9 @@
 # Per strategie selectie- en bouwregels (gealigneerd met criteria/vol-rules)
 # =========================
 
+# Debug: gebruik `--show-filter-stats` of `EXPLAIN_FILTERS=true` om te zien
+# hoeveel strikes per regel afvallen.
+
 default:
   method: spot_distance
   delta_range: [-1.0, 1.0]
