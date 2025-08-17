@@ -913,7 +913,9 @@ def run_portfolio_menu() -> None:
 
         selector = StrikeSelector(config=fc)
         debug_csv = Path(cfg.get("EXPORT_DIR", "exports")) / "PEP_debugfilter.csv"
-        selected = selector.select(filtered, debug_csv=debug_csv)
+        selected, reject_reasons, reject_by_filter = selector.select(
+            filtered, debug_csv=debug_csv, return_info=True
+        )
 
         evaluated: list[dict[str, object]] = []
         for opt in selected:
@@ -1195,6 +1197,12 @@ def run_portfolio_menu() -> None:
                     print(msg)
         else:
             print("⚠️ Geen geschikte strikes gevonden.")
+            if reject_by_filter:
+                print("Afwijzingen per filter:")
+                for flt, cnt in sorted(
+                    reject_by_filter.items(), key=lambda x: x[1], reverse=True
+                ):
+                    print(f"• {flt}: {cnt}")
             print("➤ Controleer of de juiste expiraties beschikbaar zijn in de chain.")
             print("➤ Of pas je selectiecriteria aan in strike_selection_rules.yaml.")
 
