@@ -28,7 +28,7 @@ def generate(
         raise ValueError("spot price is required")
     expiries = sorted({str(o.get("expiry")) for o in option_chain})
     if not expiries:
-        return [], []
+        return [], ["geen expiraties beschikbaar"]
     expiry = expiries[0]
     strike_map = _build_strike_map(option_chain)
     if hasattr(pd, "DataFrame") and not isinstance(pd.DataFrame, type(object)):
