@@ -145,6 +145,7 @@ def generate(
                         short_opt = opt
                         break
                 if not short_opt:
+                    rejected_reasons.append("short optie ontbreekt")
                     continue
                 long_strike_target = float(short_opt.get("strike")) - width
                 long_strike = _nearest_strike(strike_map, far, "P", long_strike_target)
@@ -152,12 +153,15 @@ def generate(
                     f"[backspread_put] probeer near {near} far {far} short {short_opt.get('strike')} long {long_strike.matched}"
                 )
                 if not long_strike.matched:
+                    rejected_reasons.append("long strike niet gevonden")
                     continue
                 long_opt = _find_option(option_chain, far, long_strike.matched, "P")
                 if not long_opt:
+                    rejected_reasons.append("long optie ontbreekt")
                     continue
                 legs = [make_leg(short_opt, -1), make_leg(long_opt, 2)]
                 if any(l is None for l in legs):
+                    rejected_reasons.append("leg data ontbreekt")
                     continue
                 metrics, reasons = _metrics(StrategyName.BACKSPREAD_PUT, legs, spot)
                 if metrics and passes_risk(metrics):
@@ -167,5 +171,9 @@ def generate(
                     rejected_reasons.extend(reasons)
                 if len(proposals) >= 5:
                     break
+    else:
+        rejected_reasons.append("ongeldige delta range")
     proposals.sort(key=lambda p: p.score or 0, reverse=True)
+    if not proposals:
+        return [], sorted(set(rejected_reasons))
     return proposals[:5], sorted(set(rejected_reasons))

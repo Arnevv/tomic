@@ -52,6 +52,7 @@ def generate(
     for off in base_strikes:
         strike_target = spot + (off * atr if use_atr else off)
         if not by_strike:
+            rejected_reasons.append("geen strikes beschikbaar")
             continue
         avail = sorted(by_strike)
         nearest = min(avail, key=lambda s: abs(s - strike_target))
@@ -59,6 +60,7 @@ def generate(
         pct = (diff / strike_target * 100) if strike_target else 0.0
         tol = float(RULES.alerts.nearest_strike_tolerance_percent)
         if pct > tol:
+            rejected_reasons.append("strike te ver van target")
             continue
         valid_exp = sorted(by_strike[nearest])
         pairs = select_expiry_pairs(valid_exp, min_gap)
@@ -66,6 +68,7 @@ def generate(
             short_opt = by_strike[nearest].get(near)
             long_opt = by_strike[nearest].get(far)
             if not short_opt or not long_opt:
+                rejected_reasons.append("opties niet gevonden")
                 continue
             legs = [
                 {
@@ -119,9 +122,12 @@ def generate(
                     except Exception:
                         rr = None
                     if rr is not None and rr < min_rr:
+                        rejected_reasons.append("risk reward te laag")
                         continue
             proposals.append(StrategyProposal(legs=legs, **metrics))
             if len(proposals) >= 5:
                 break
     proposals.sort(key=lambda p: p.score or 0, reverse=True)
+    if not proposals:
+        return [], sorted(set(rejected_reasons))
     return proposals[:5], sorted(set(rejected_reasons))

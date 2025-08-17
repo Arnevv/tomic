@@ -132,6 +132,7 @@ def generate(
         center = spot + (c_off * atr if use_atr else c_off)
         center = _nearest_strike(strike_map, expiry, "C", center).matched
         if center is None:
+            rejected_reasons.append("center strike niet gevonden")
             continue
         for width in widths:
             sc_strike = _nearest_strike(strike_map, expiry, "C", center).matched
@@ -142,12 +143,14 @@ def generate(
                 f"[atm_iron_butterfly] probeer center {center} width {width}"
             )
             if not all([sc_strike, sp_strike, lc_strike, lp_strike]):
+                rejected_reasons.append("ontbrekende strikes")
                 continue
             sc_opt = _find_option(option_chain, expiry, sc_strike, "C")
             sp_opt = _find_option(option_chain, expiry, sp_strike, "P")
             lc_opt = _find_option(option_chain, expiry, lc_strike, "C")
             lp_opt = _find_option(option_chain, expiry, lp_strike, "P")
             if not all([sc_opt, sp_opt, lc_opt, lp_opt]):
+                rejected_reasons.append("opties niet gevonden")
                 continue
             legs = [
                 make_leg(sc_opt, -1),
@@ -156,6 +159,7 @@ def generate(
                 make_leg(lp_opt, 1),
             ]
             if any(l is None for l in legs):
+                rejected_reasons.append("leg data ontbreekt")
                 continue
             metrics, reasons = _metrics(StrategyName.ATM_IRON_BUTTERFLY, legs, spot)
             if metrics and passes_risk(metrics):
@@ -165,4 +169,6 @@ def generate(
             if len(proposals) >= 5:
                 break
     proposals.sort(key=lambda p: p.score or 0, reverse=True)
+    if not proposals:
+        return [], sorted(set(rejected_reasons))
     return proposals[:5], sorted(set(rejected_reasons))
