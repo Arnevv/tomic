@@ -236,6 +236,7 @@ def test_process_chain_refreshes_spot_price(monkeypatch, tmp_path):
     assert mod.SESSION_STATE.get("spot_price") == 202.0
     assert any("• r1" in line for line in prints)
     assert any("• r2" in line for line in prints)
+    assert "spot_AAA" in meta_store
 
     spot_path = tmp_path / "AAA_spot.json"
     assert spot_path.exists(), "spot cache should use _spot.json suffix"

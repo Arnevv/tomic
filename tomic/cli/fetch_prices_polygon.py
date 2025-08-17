@@ -77,7 +77,7 @@ def _request_bars(client: PolygonClient, symbol: str) -> tuple[list[dict], bool]
     end_dt = latest_trading_day()
     _, last_date = _load_latest_close(symbol)
     meta = load_price_meta()
-    ts_str = meta.get(symbol)
+    ts_str = meta.get(f"day_{symbol}")
     if last_date and ts_str:
         try:
             tz = ZoneInfo("America/New_York")
@@ -235,7 +235,9 @@ def main(argv: List[str] | None = None) -> None:
                     stored += 1
                     sleep(10)
                 meta = load_price_meta()
-                meta[sym] = datetime.now(ZoneInfo("America/New_York")).isoformat()
+                meta[f"day_{sym}"] = datetime.now(
+                    ZoneInfo("America/New_York")
+                ).isoformat()
                 save_price_meta(meta)
             processed.append(sym)
             if requested:

@@ -73,7 +73,9 @@ def main(argv: List[str] | None = None) -> None:
             _store_record(file, record)
             stored += 1
             meta = load_price_meta()
-            meta[sym] = datetime.now(ZoneInfo("America/New_York")).isoformat()
+            meta[f"intraday_{sym}"] = datetime.now(
+                ZoneInfo("America/New_York")
+            ).isoformat()
             save_price_meta(meta)
             sleep(0.1)
     finally:

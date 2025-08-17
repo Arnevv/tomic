@@ -78,7 +78,7 @@ def test_intraday_overwrite(monkeypatch, tmp_path):
     assert len(data) == 2
     assert data[-1]["close"] == 10.0
     meta1 = json.loads(meta_file.read_text())
-    ts1 = meta1.get("ABC")
+    ts1 = meta1.get("intraday_ABC")
     assert ts1
 
     # second fetch should overwrite today's record
@@ -87,4 +87,4 @@ def test_intraday_overwrite(monkeypatch, tmp_path):
     assert len(data2) == 2
     assert data2[-1]["close"] == 11.0
     meta2 = json.loads(meta_file.read_text())
-    assert meta2.get("ABC") != ts1
+    assert meta2.get("intraday_ABC") != ts1
