@@ -31,7 +31,7 @@ def generate(
     use_atr = bool(rules.get("use_ATR"))
     expiries = sorted({str(o.get("expiry")) for o in option_chain})
     if not expiries:
-        return [], []
+        return [], ["geen expiraties beschikbaar"]
     if spot is None:
         raise ValueError("spot price is required")
     expiry = expiries[0]
