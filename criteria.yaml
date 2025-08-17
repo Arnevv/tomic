@@ -35,8 +35,8 @@ strategy:
 
 # 3) MARKET DATA FILTERS
 market_data:
-  min_option_volume:        50
-  min_option_open_interest: 500
+  min_option_volume:        30 #normaal is dit 50
+  min_option_open_interest: 300 #normaal is dit 500
 
 # 4) ALERTS
 alerts:
