@@ -53,6 +53,7 @@ from tomic.cli.common import Menu, prompt, prompt_yes_no
 from tomic.api.ib_connection import connect_ib
 
 from tomic import config as cfg
+from tomic.config import save_symbols
 from tomic.logutils import setup_logging, logger
 from tomic.analysis.greeks import compute_portfolio_greeks
 from tomic.journal.utils import load_json, save_json
@@ -1673,7 +1674,7 @@ def run_settings_menu() -> None:
         raw = prompt("Nieuw lijst (comma-sep): ")
         if raw:
             symbols = [s.strip().upper() for s in raw.split(",") if s.strip()]
-            cfg.update({"DEFAULT_SYMBOLS": symbols})
+            save_symbols(symbols)
 
     def change_rate() -> None:
         rate_str = prompt(f"Rente ({cfg.CONFIG.INTEREST_RATE}): ")
