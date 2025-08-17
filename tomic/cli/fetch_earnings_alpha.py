@@ -99,6 +99,11 @@ def main(argv: List[str] | None = None) -> None:
     if not isinstance(meta, dict):
         meta = {}
 
+    # Ensure newly added symbols are present in stored data
+    for sym in symbols:
+        data.setdefault(sym, [])
+        meta.setdefault(sym, "")
+
     def _last_seen(sym: str) -> datetime:
         ts = meta.get(sym)
         if isinstance(ts, str):
