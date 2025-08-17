@@ -143,12 +143,14 @@ def generate(
         lc = _nearest_strike(strike_map, expiry, "C", lc_target)
         lp = _nearest_strike(strike_map, expiry, "P", lp_target)
         if not all([sc.matched, sp.matched, lc.matched, lp.matched]):
+            rejected_reasons.append("ontbrekende strikes")
             continue
         sc_opt = _find_option(option_chain, expiry, sc.matched, "C")
         sp_opt = _find_option(option_chain, expiry, sp.matched, "P")
         lc_opt = _find_option(option_chain, expiry, lc.matched, "C")
         lp_opt = _find_option(option_chain, expiry, lp.matched, "P")
         if not all([sc_opt, sp_opt, lc_opt, lp_opt]):
+            rejected_reasons.append("opties niet gevonden")
             continue
         sc_leg, sc_reason = make_leg(sc_opt, -1)
         lc_leg, lc_reason = make_leg(lc_opt, 1)
@@ -157,6 +159,7 @@ def generate(
         legs = [sc_leg, lc_leg, sp_leg, lp_leg]
         leg_reasons = [sc_reason, lc_reason, sp_reason, lp_reason]
         if any(l is None for l in legs):
+            rejected_reasons.append("leg data ontbreekt")
             rejected_reasons.extend(r for r in leg_reasons if r)
             continue
         metrics, reasons = _metrics(StrategyName.IRON_CONDOR, legs, spot)
@@ -165,4 +168,6 @@ def generate(
         elif reasons:
             rejected_reasons.extend(reasons)
     proposals.sort(key=lambda p: p.score or 0, reverse=True)
+    if not proposals:
+        return [], sorted(set(rejected_reasons))
     return proposals[:5], sorted(set(rejected_reasons))

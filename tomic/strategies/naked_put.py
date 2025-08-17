@@ -131,6 +131,7 @@ def generate(
             ):
                 leg = make_leg(opt, -1)
                 if leg is None:
+                    rejected_reasons.append("leg data ontbreekt")
                     continue
                 metrics, reasons = _metrics(StrategyName.NAKED_PUT, [leg], spot)
                 if metrics and passes_risk(metrics):
@@ -139,5 +140,9 @@ def generate(
                     rejected_reasons.extend(reasons)
                 if len(proposals) >= 5:
                     break
+    else:
+        rejected_reasons.append("ongeldige delta range")
     proposals.sort(key=lambda p: p.score or 0, reverse=True)
+    if not proposals:
+        return [], sorted(set(rejected_reasons))
     return proposals[:5], sorted(set(rejected_reasons))
