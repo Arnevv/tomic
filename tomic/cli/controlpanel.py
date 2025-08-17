@@ -1,5 +1,6 @@
 """Interactive command line interface for TOMIC utilities."""
 
+import argparse
 import subprocess
 import sys
 from datetime import datetime
@@ -9,6 +10,7 @@ import os
 import csv
 from collections import defaultdict
 import math
+from dataclasses import dataclass, field
 from typing import Any
 
 try:
@@ -92,6 +94,41 @@ STRATEGY_DASHBOARD_MODULE = "tomic.cli.strategy_dashboard"
 
 # Runtime session data shared between menu steps
 SESSION_STATE: dict[str, object] = {"evaluated_trades": []}
+
+
+@dataclass
+class ReasonAggregator:
+    """Collect counts and reasons for rejected candidates."""
+
+    by_filter: defaultdict[str, int] = field(
+        default_factory=lambda: defaultdict(int)
+    )
+    by_strategy: dict[str, list[str]] = field(default_factory=dict)
+
+    def add_filters(self, data: dict[str, int]) -> None:
+        for key, count in data.items():
+            self.by_filter[key] += count
+
+    def add_strategy(self, name: str, reasons: list[str]) -> None:
+        if reasons:
+            self.by_strategy[name] = sorted(set(reasons))
+
+
+def _print_reason_summary(agg: ReasonAggregator) -> None:
+    """Display aggregated rejection information."""
+    if agg.by_filter:
+        rows = sorted(agg.by_filter.items(), key=lambda x: x[1], reverse=True)
+        print("Afwijzingen per filter:")
+        print(tabulate(rows, headers=["Filter", "Aantal"], tablefmt="github"))
+    if agg.by_strategy:
+        print("Redenen per strategie:")
+        for strat, reasons in agg.by_strategy.items():
+            print(f"{strat}:")
+            for r in reasons:
+                print(f"• {r}")
+
+
+SHOW_REASONS = False
 
 
 def _load_spot_from_metrics(directory: Path, symbol: str) -> float | None:
@@ -917,6 +954,9 @@ def run_portfolio_menu() -> None:
             filtered, debug_csv=debug_csv, return_info=True
         )
 
+        reason_agg = ReasonAggregator()
+        reason_agg.add_filters(reject_by_filter)
+
         evaluated: list[dict[str, object]] = []
         for opt in selected:
             mid = get_option_mid_price(opt)
@@ -1098,6 +1138,7 @@ def run_portfolio_menu() -> None:
                     spot_for_strats,
                     interactive_mode=True,
                 )
+                reason_agg.add_strategy(strat, reasons)
                 if proposals:
                     rom_w = cfg.get("SCORE_WEIGHT_ROM", 0.5)
                     pos_w = cfg.get("SCORE_WEIGHT_POS", 0.3)
@@ -1175,6 +1216,8 @@ def run_portfolio_menu() -> None:
                         print("no scenario defined")
                     if warn_edge:
                         print("⚠️ Eén of meerdere edges niet beschikbaar")
+                    if SHOW_REASONS:
+                        _print_reason_summary(reason_agg)
                     while True:
                         sel = prompt("Kies voorstel (0 om terug): ")
                         if sel in {"", "0"}:
@@ -1188,21 +1231,11 @@ def run_portfolio_menu() -> None:
                         _show_proposal_details(chosen_prop)
                         break
                 else:
-                    msg = "⚠️ Geen voorstellen gevonden"
-                    if not reasons:
-                        msg += "\n• geen detailreden ontvangen"
-                    else:
-                        for r in reasons:
-                            msg += f"\n• {r}"
-                    print(msg)
+                    print("⚠️ Geen voorstellen gevonden")
+                    _print_reason_summary(reason_agg)
         else:
             print("⚠️ Geen geschikte strikes gevonden.")
-            if reject_by_filter:
-                print("Afwijzingen per filter:")
-                for flt, cnt in sorted(
-                    reject_by_filter.items(), key=lambda x: x[1], reverse=True
-                ):
-                    print(f"• {flt}: {cnt}")
+            _print_reason_summary(reason_agg)
             print("➤ Controleer of de juiste expiraties beschikbaar zijn in de chain.")
             print("➤ Of pas je selectiecriteria aan in strike_selection_rules.yaml.")
 
@@ -1925,8 +1958,19 @@ def run_settings_menu() -> None:
     menu.run()
 
 
-def main() -> None:
+def main(argv: list[str] | None = None) -> None:
     """Start the interactive control panel."""
+
+    parser = argparse.ArgumentParser(description="TOMIC control panel")
+    parser.add_argument(
+        "--show-reasons",
+        action="store_true",
+        help="Toon selectie- en strategie-redenen",
+    )
+    args = parser.parse_args(argv or [])
+
+    global SHOW_REASONS
+    SHOW_REASONS = args.show_reasons
 
     menu = Menu("TOMIC CONTROL PANEL", exit_text="Stoppen")
     menu.add("Analyse & Strategie", run_portfolio_menu)
@@ -1939,4 +1983,4 @@ def main() -> None:
 
 
 if __name__ == "__main__":
-    main()
+    main(sys.argv[1:])
