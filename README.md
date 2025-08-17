@@ -83,6 +83,21 @@ Krijg je geen voorstellen, dan toont TOMIC nu ook hoeveel combinaties zijn
 afgewezen door een ratioscheck of risicocriteria. Zo weet je direct waarom er
 geen strategie werd gevonden.
 
+Wil je exact zien welke regels kandidaten uitsloten? Start de analyse met
+`--show-filter-stats` of zet de omgevingsvariabele `EXPLAIN_FILTERS=true`.
+TOMIC meldt dan per filter hoeveel combinaties zijn afgevallen:
+
+```
+$ tomic analysis --show-filter-stats
+min_rom            : 12
+delta_range        : 8
+market_data.volume : 3
+```
+
+Blijkt een regel te streng, pas dan de waarden in `criteria.yaml` of
+`tomic/strike_selection_rules.yaml` aan en valideer ze via `tomic rules
+validate <pad/naar/criteria.yaml> --reload`.
+
 Bij onvoldoende volume of open interest toont de log nu per strike ook volume,
 open interest en expiratie in de vorm `strike [volume, open interest, expiry]`.
 
