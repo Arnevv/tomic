@@ -50,6 +50,7 @@ def test_fetch_prices_polygon_main(monkeypatch):
     assert captured
     assert captured[0]["close"] == 1.23
     assert called and called[0] == ["ABC"]
+    assert "day_ABC" in meta_store
 
 
 def test_fetch_prices_polygon_no_data(monkeypatch):
@@ -80,6 +81,7 @@ def test_fetch_prices_polygon_no_data(monkeypatch):
 
     mod.main(["XYZ"])
     assert not captured
+    assert meta_store == {}
 
 
 def test_latest_trading_day_before_close(monkeypatch):
@@ -137,7 +139,7 @@ def test_incomplete_day_triggers_refetch(monkeypatch, tmp_path):
     (price_dir / "ABC.json").write_text(json.dumps([{"date": "2024-01-02", "close": 1.0}]))
 
     meta_file = tmp_path / "meta.json"
-    meta_file.write_text(json.dumps({"ABC": "2024-01-02T15:00:00-05:00"}))
+    meta_file.write_text(json.dumps({"day_ABC": "2024-01-02T15:00:00-05:00"}))
 
     cfg_lambda = lambda name, default=None: (
         str(price_dir)
@@ -197,3 +199,4 @@ def test_no_new_workday_skips_sleep(monkeypatch):
 
     mod.main(["AAA", "BBB"])
     assert sleep_calls == []
+    assert meta_store == {}

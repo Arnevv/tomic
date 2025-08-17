@@ -125,7 +125,8 @@ def refresh_spot_price(symbol: str) -> float | None:
 
     meta = load_price_meta()
     now = datetime.now()
-    ts_str = meta.get(sym)
+    meta_key = f"spot_{sym}"
+    ts_str = meta.get(meta_key)
     if spot_file.exists() and ts_str:
         try:
             ts = datetime.fromisoformat(ts_str)
@@ -159,7 +160,7 @@ def refresh_spot_price(symbol: str) -> float | None:
         return None
 
     save_json({"price": float(price), "timestamp": now.isoformat()}, spot_file)
-    meta[sym] = now.isoformat()
+    meta[meta_key] = now.isoformat()
     save_price_meta(meta)
     return float(price)
 
