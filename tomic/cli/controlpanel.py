@@ -1186,8 +1186,10 @@ def run_portfolio_menu() -> None:
                         break
                 else:
                     msg = "⚠️ Geen voorstellen gevonden"
-                    if reason:
-                        if isinstance(reason, list):
+                    if reason is not None:
+                        if not reason:
+                            msg += "\n• geen detailreden ontvangen"
+                        elif isinstance(reason, list):
                             for r in reason:
                                 msg += f"\n• {r}"
                         else:
