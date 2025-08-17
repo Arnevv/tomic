@@ -48,7 +48,9 @@ def generate(
     rejected_reasons: list[str] = []
     min_rr = float(strat_cfg.get("min_risk_reward", 0.0))
 
-    def make_leg(opt: Dict[str, Any], position: int) -> Dict[str, Any] | None:
+    def make_leg(
+        opt: Dict[str, Any], position: int
+    ) -> tuple[Dict[str, Any] | None, str | None]:
         bid = opt.get("bid")
         ask = opt.get("ask")
         mid = get_option_mid_price(opt)
@@ -69,7 +71,7 @@ def generate(
             except Exception:
                 pass
         if mid is None:
-            return None
+            return None, "mid ontbreekt"
         leg = {
             "expiry": opt.get("expiry"),
             "type": opt.get("type") or opt.get("right"),
@@ -113,7 +115,7 @@ def generate(
             and leg.get("model") is not None
         ):
             leg["edge"] = leg["model"] - leg["mid"]
-        return normalize_leg(leg)
+        return normalize_leg(leg), None
 
     def passes_risk(metrics: Dict[str, Any]) -> bool:
         if not metrics or min_rr <= 0:
@@ -148,13 +150,14 @@ def generate(
         lp_opt = _find_option(option_chain, expiry, lp.matched, "P")
         if not all([sc_opt, sp_opt, lc_opt, lp_opt]):
             continue
-        legs = [
-            make_leg(sc_opt, -1),
-            make_leg(lc_opt, 1),
-            make_leg(sp_opt, -1),
-            make_leg(lp_opt, 1),
-        ]
+        sc_leg, sc_reason = make_leg(sc_opt, -1)
+        lc_leg, lc_reason = make_leg(lc_opt, 1)
+        sp_leg, sp_reason = make_leg(sp_opt, -1)
+        lp_leg, lp_reason = make_leg(lp_opt, 1)
+        legs = [sc_leg, lc_leg, sp_leg, lp_leg]
+        leg_reasons = [sc_reason, lc_reason, sp_reason, lp_reason]
         if any(l is None for l in legs):
+            rejected_reasons.extend(r for r in leg_reasons if r)
             continue
         metrics, reasons = _metrics(StrategyName.IRON_CONDOR, legs, spot)
         if metrics and passes_risk(metrics):
