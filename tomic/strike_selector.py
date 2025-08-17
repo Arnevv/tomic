@@ -167,8 +167,18 @@ class StrikeSelector:
         *,
         dte_range: Tuple[int, int] | None = None,
         debug_csv: str | os.PathLike[str] | None = None,
-    ) -> List[Dict[str, Any]]:
-        """Return ``options`` filtered by expiry and configured criteria."""
+        return_info: bool = False,
+    ) -> (
+        List[Dict[str, Any]]
+        | Tuple[List[Dict[str, Any]], Dict[str, int], Dict[str, int]]
+    ):
+        """Return ``options`` filtered by expiry and configured criteria.
+
+        When ``return_info`` is :data:`True`, a tuple of ``(selected,
+        reasons, by_filter)`` is returned where ``reasons`` contains counts of
+        individual rejection reasons and ``by_filter`` aggregates these counts
+        per filter category.
+        """
 
         logger.info(
             f"StrikeSelector start: {len(options)} options, dte_range={dte_range}, config={self.config}"
@@ -231,7 +241,8 @@ class StrikeSelector:
             logger.info(
                 f"[FILTER] Geen opties over na filtering — config: delta={self.config.delta_min}..{self.config.delta_max}, rom={self.config.min_rom}, dte={dte_range}, edge={self.config.min_edge}"
             )
-
+        if return_info:
+            return selected, reasons, by_filter
         return selected
 
     # ------------------------------------------------------------------
