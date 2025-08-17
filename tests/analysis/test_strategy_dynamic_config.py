@@ -49,7 +49,9 @@ def test_generate_candidates_uses_global_config(monkeypatch):
             [],
         ),
     )
-    proposals, reason = generate_strategy_candidates("AAA", "iron_condor", chain, 1.0, None, 100.0)
-    assert reason is None
+    proposals, reasons = generate_strategy_candidates(
+        "AAA", "iron_condor", chain, 1.0, None, 100.0
+    )
+    assert reasons == []
     assert isinstance(proposals, list)
     assert proposals
