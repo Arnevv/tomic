@@ -112,6 +112,20 @@ Belangrijke mappen in `config.yaml`:
 - `HISTORICAL_VOLATILITY_DIR`
 - `EARNINGS_DATES_FILE`
 
+🔣 Symbolenbeheer
+De standaard symbolen voor scripts en tests staan in `config/symbols.yaml`. Dit
+bestand bevat een eenvoudige YAML-lijst met tickers:
+
+```yaml
+- AAPL
+- MSFT
+- SPY
+```
+
+Functies die `cfg_get("DEFAULT_SYMBOLS")` aanroepen vallen terug op deze lijst.
+Pas het bestand handmatig aan of gebruik `tomic.config.save_symbols()` om de
+inhoud programmatic te wijzigen.
+
 Het bestand `earnings_dates.json` bevat verwachte earnings per symbool. De optie "Toon marktinformatie" gebruikt dit om de eerstvolgende datum te tonen.
 Het bestand `tomic/data/earnings_data.json` bevat enkel metadata (bijv. laatste fetch-tijdstempel per symbool) en is niet nodig voor runtime-functies.
 

@@ -166,19 +166,17 @@ def test_run_all_passes_flags(monkeypatch, tmp_path):
 
 
 def test_run_all_uses_defaults(monkeypatch, tmp_path):
+    config_mod = importlib.import_module("tomic.config")
+    (tmp_path / "config").mkdir()
+    (tmp_path / "config" / "symbols.yaml").write_text("- A\n- B\n")
+    monkeypatch.setattr(config_mod, "_BASE_DIR", tmp_path)
+    config_mod.reload()
+    config_mod.CONFIG.EXPORT_DIR = str(tmp_path)
+
     mod = importlib.reload(importlib.import_module("tomic.api.getallmarkets"))
 
     monkeypatch.setattr(mod, "connect_ib", lambda *a, **k: types.SimpleNamespace(disconnect=lambda: None))
     monkeypatch.setattr(mod, "export_combined_csv", lambda *a, **k: None)
-
-    def fake_cfg_get(key, default=None):
-        if key == "DEFAULT_SYMBOLS":
-            return ["A", "B"]
-        if key == "EXPORT_DIR":
-            return str(tmp_path)
-        return default
-
-    monkeypatch.setattr(mod, "cfg_get", fake_cfg_get)
 
     called = []
 
@@ -192,3 +190,6 @@ def test_run_all_uses_defaults(monkeypatch, tmp_path):
 
     assert called == ["A", "B"]
     assert [f.symbol for f in frames] == ["A", "B"]
+
+    monkeypatch.undo()
+    config_mod.reload()
