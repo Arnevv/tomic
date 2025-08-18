@@ -168,7 +168,15 @@ def test_process_chain_refreshes_spot_price(monkeypatch, tmp_path):
     monkeypatch.setattr(
         mod,
         "StrikeSelector",
-        lambda config: type("S", (), {"select": lambda self, data, debug_csv=None: [dummy_option]})(),
+        lambda config: type(
+            "S",
+            (),
+            {
+                "select": lambda self, data, debug_csv=None, return_info=False: (
+                    ([dummy_option], {}, {}) if return_info else [dummy_option]
+                )
+            },
+        )(),
     )
     monkeypatch.setattr(
         mod, "generate_strategy_candidates", lambda *a, **k: ([], ["r1", "r2"])
@@ -234,6 +242,9 @@ def test_process_chain_refreshes_spot_price(monkeypatch, tmp_path):
     mod._process_chain(csv_path)
 
     assert mod.SESSION_STATE.get("spot_price") == 202.0
+    assert any(
+        "Geen opties door filters afgewezen" in line for line in prints
+    )
     assert any("• r1" in line for line in prints)
     assert any("• r2" in line for line in prints)
     assert "spot_AAA" in meta_store
@@ -360,3 +371,11 @@ def test_show_proposal_details_no_scenario(monkeypatch, capsys):
     show(proposal)
     out = capsys.readouterr().out
     assert "no scenario defined" in out
+
+
+def test_print_reason_summary_no_rejections(capsys):
+    mod = importlib.import_module("tomic.cli.controlpanel")
+    agg = mod.ReasonAggregator()
+    mod._print_reason_summary(agg)
+    out = capsys.readouterr().out
+    assert "Geen opties door filters afgewezen" in out
