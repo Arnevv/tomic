@@ -125,7 +125,11 @@ def generate(
             return True
         return rr >= min_rr
 
-    delta_range = rules.get("short_leg_delta_range", [])
+    delta_range = (
+        rules.get("short_leg_delta_range")
+        or rules.get("short_delta_range")
+        or []
+    )
     widths = rules.get("long_leg_distance_points", [])
     if len(delta_range) == 2:
         calls_pre = []

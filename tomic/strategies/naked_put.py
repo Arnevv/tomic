@@ -120,7 +120,11 @@ def generate(
             return True
         return rr >= min_rr
 
-    delta_range = rules.get("short_put_delta_range", [])
+    delta_range = (
+        rules.get("short_put_delta_range")
+        or rules.get("short_delta_range")
+        or []
+    )
     if len(delta_range) == 2:
         for opt in option_chain:
             if (

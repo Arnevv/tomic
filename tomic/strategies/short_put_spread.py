@@ -126,7 +126,11 @@ def generate(
             return True
         return rr >= min_rr
 
-    delta_range = rules.get("short_put_delta_range", [])
+    delta_range = (
+        rules.get("short_put_delta_range")
+        or rules.get("short_delta_range")
+        or []
+    )
     widths = rules.get("long_put_distance_points", [])
     if len(delta_range) == 2:
         for width in widths[:5]:

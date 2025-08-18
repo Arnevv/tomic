@@ -922,7 +922,11 @@ def run_portfolio_menu() -> None:
             except Exception:
                 return default
 
-        d_range = rules.get("delta_range", [-1.0, 1.0])
+        d_range = (
+            rules.get("delta_range")
+            or rules.get("short_delta_range")
+            or [-1.0, 1.0]
+        )
         delta_min = (
             _val(d_range[0], -1.0) if isinstance(d_range, (list, tuple)) else -1.0
         )
