@@ -48,6 +48,9 @@ def generate(
     min_rr = float(strat_cfg.get("min_risk_reward", 0.0))
     min_gap = int(rules.get("expiry_gap_min_days", 0))
     base_strikes = rules.get("base_strikes_relative_to_spot", [])
+    if not base_strikes:
+        rejected_reasons.append("base_strikes_relative_to_spot ontbreekt")
+        return [], rejected_reasons
     by_strike = _options_by_strike(option_chain, "C")
     for off in base_strikes:
         strike_target = spot + (off * atr if use_atr else off)
