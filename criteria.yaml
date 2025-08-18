@@ -8,16 +8,16 @@
 
 # 1) GENERIC STRIKE FILTERS
 strike:
-  delta_min: -0.80
-  delta_max:  0.80
+  delta_min: -0.99
+  delta_max:  0.99
   min_rom:    0.10      # minimaal 10% ROM
   min_edge:   0.00
-  min_pos:    0.50      # Probability of Success ≥ 50%
+  min_pos:    0.00
   min_ev:     0.00
-  skew_min:  -10.0
-  skew_max:   10.0
-  term_min:  -10.0
-  term_max:   10.0
+  skew_min:  -20.0
+  skew_max:   20.0
+  term_min:  -20.0
+  term_max:   20.0
   max_gamma:  null
   max_vega:   null
   min_theta:  null
