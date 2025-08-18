@@ -116,6 +116,9 @@ class ReasonAggregator:
 
 def _print_reason_summary(agg: ReasonAggregator) -> None:
     """Display aggregated rejection information."""
+    if not agg.by_filter and not agg.by_strategy:
+        print("Geen opties door filters afgewezen")
+        return
     if agg.by_filter:
         rows = sorted(agg.by_filter.items(), key=lambda x: x[1], reverse=True)
         print("Afwijzingen per filter:")
@@ -956,6 +959,7 @@ def run_portfolio_menu() -> None:
 
         reason_agg = ReasonAggregator()
         reason_agg.add_filters(reject_by_filter)
+        _print_reason_summary(reason_agg)
 
         evaluated: list[dict[str, object]] = []
         for opt in selected:
