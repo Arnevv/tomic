@@ -7,23 +7,23 @@ from tomic.strategies import StrategyName
 strategies = [
     (
         StrategyName.NAKED_PUT,
-        {"strategies": {"naked_put": {"strike_to_strategy_config": {"short_put_delta_range": [-0.3, -0.25], "use_ATR": False}}}},
+        {"strategies": {"naked_put": {"strike_to_strategy_config": {"short_delta_range": [-0.3, -0.25], "use_ATR": False}}}},
     ),
     (
         StrategyName.SHORT_PUT_SPREAD,
-        {"strategies": {"short_put_spread": {"strike_to_strategy_config": {"short_put_delta_range": [-0.35, -0.2], "long_put_distance_points": [5], "use_ATR": False}}}},
+        {"strategies": {"short_put_spread": {"strike_to_strategy_config": {"short_delta_range": [-0.35, -0.2], "long_put_distance_points": [5], "use_ATR": False}}}},
     ),
     (
         StrategyName.SHORT_CALL_SPREAD,
-        {"strategies": {"short_call_spread": {"strike_to_strategy_config": {"short_call_delta_range": [0.2, 0.35], "long_call_distance_points": [5], "use_ATR": False}}}},
+        {"strategies": {"short_call_spread": {"strike_to_strategy_config": {"short_delta_range": [0.2, 0.35], "long_call_distance_points": [5], "use_ATR": False}}}},
     ),
     (
         StrategyName.RATIO_SPREAD,
-        {"strategies": {"ratio_spread": {"strike_to_strategy_config": {"short_leg_delta_range": [0.3, 0.45], "long_leg_distance_points": [5], "use_ATR": False}}}},
+        {"strategies": {"ratio_spread": {"strike_to_strategy_config": {"short_delta_range": [0.3, 0.45], "long_leg_distance_points": [5], "use_ATR": False}}}},
     ),
     (
         StrategyName.BACKSPREAD_PUT,
-        {"strategies": {"backspread_put": {"strike_to_strategy_config": {"short_put_delta_range": [0.15, 0.3], "long_put_distance_points": [5], "use_ATR": False}}}},
+        {"strategies": {"backspread_put": {"strike_to_strategy_config": {"short_delta_range": [0.15, 0.3], "long_put_distance_points": [5], "use_ATR": False}}}},
     ),
     (
         StrategyName.ATM_IRON_BUTTERFLY,
