@@ -1116,6 +1116,9 @@ def run_portfolio_menu() -> None:
             if prompt_yes_no("Opslaan naar CSV?", False):
                 _save_trades(evaluated)
             if prompt_yes_no("Doorgaan naar strategie voorstellen?", False):
+                global SHOW_REASONS
+                SHOW_REASONS = True
+
                 atr_val = latest_atr(symbol) or 0.0
                 spot_for_strats = refresh_spot_price(symbol)
                 if spot_for_strats is None:
