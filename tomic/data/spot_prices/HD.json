@@ -3708,5 +3708,12 @@
     "close": 399.38,
     "volume": 3841035.0,
     "atr": null
+  },
+  {
+    "symbol": "HD",
+    "date": "2025-08-18",
+    "close": 394.7,
+    "volume": 4407046.0,
+    "atr": null
   }
 ]

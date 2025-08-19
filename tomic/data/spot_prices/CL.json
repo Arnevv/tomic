@@ -3708,5 +3708,12 @@
     "close": 85.07,
     "volume": 4150418.0,
     "atr": null
+  },
+  {
+    "symbol": "CL",
+    "date": "2025-08-18",
+    "close": 84.26,
+    "volume": 3906605.0,
+    "atr": null
   }
 ]
