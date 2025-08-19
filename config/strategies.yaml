@@ -59,7 +59,7 @@ strategies:
       short_put_multiplier:  [1.0]
       wing_width: 0
       use_ATR: false
-      base_strikes_relative_to_spot: [0]       # basis-strike op spot (0 ATR); kan worden uitgebreid
+      base_strikes_relative_to_spot: [1]       # basis-strike op spot (0 ATR); kan worden uitgebreid
 
   ratio_spread:
     # Vaak 1x2; RR afhankelijk van strikes, dus niet verplicht
