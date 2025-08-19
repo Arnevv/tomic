@@ -58,15 +58,27 @@ def generate(
             rejected_reasons.append("geen strikes beschikbaar")
             continue
         avail = sorted(by_strike)
-        nearest = min(avail, key=lambda s: abs(s - strike_target))
-        diff = abs(nearest - strike_target)
-        pct = (diff / strike_target * 100) if strike_target else 0.0
-        tol = float(RULES.alerts.nearest_strike_tolerance_percent)
-        if pct > tol:
-            rejected_reasons.append("strike te ver van target")
+        candidate_strikes = sorted(avail, key=lambda s: abs(s - strike_target))
+        nearest = None
+        pairs: list = []
+        for cand in candidate_strikes:
+            valid_exp = sorted(by_strike[cand])
+            pairs = select_expiry_pairs(valid_exp, min_gap)
+            if not pairs:
+                rejected_reasons.append(
+                    f"geen expiries beschikbaar voor strike {cand}"
+                )
+                continue
+            diff = abs(cand - strike_target)
+            pct = (diff / strike_target * 100) if strike_target else 0.0
+            tol = float(RULES.alerts.nearest_strike_tolerance_percent)
+            if pct > tol:
+                rejected_reasons.append("strike te ver van target")
+                continue
+            nearest = cand
+            break
+        if not pairs or nearest is None:
             continue
-        valid_exp = sorted(by_strike[nearest])
-        pairs = select_expiry_pairs(valid_exp, min_gap)
         for near, far in pairs[:3]:
             short_opt = by_strike[nearest].get(near)
             long_opt = by_strike[nearest].get(far)
