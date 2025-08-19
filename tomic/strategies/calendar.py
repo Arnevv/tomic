@@ -89,7 +89,10 @@ def generate(
                 break
             if not pairs or nearest is None:
                 continue
-            for near, far in pairs[:3]:
+            invalid_nears: set[str] = set()
+            for near, far in pairs:
+                if near in invalid_nears:
+                    continue
                 short_opt = by_strike[nearest].get(near)
                 long_opt = by_strike[nearest].get(far)
                 if not short_opt or not long_opt:
@@ -137,6 +140,8 @@ def generate(
                 if not metrics:
                     if reasons:
                         local_reasons.extend(reasons)
+                        if "onvoldoende volume/open interest" in reasons:
+                            invalid_nears.add(near)
                     continue
                 if min_rr > 0:
                     mp = metrics.get("max_profit")
