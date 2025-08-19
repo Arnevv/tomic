@@ -7,6 +7,7 @@ from tomic.helpers.timeutils import today
 from tomic.helpers.put_call_parity import fill_missing_mid_with_parity
 from . import StrategyName
 from ..utils import get_option_mid_price, normalize_leg
+from ..logutils import log_combo_evaluation
 from ..strategy_candidates import (
     StrategyProposal,
     _build_strike_map,
@@ -133,15 +134,42 @@ def generate(
                 and opt.get("delta") is not None
                 and delta_range[0] <= float(opt.get("delta")) <= delta_range[1]
             ):
+                desc = f"short {opt.get('strike')}"
                 leg = make_leg(opt, -1)
                 if leg is None:
-                    rejected_reasons.append("leg data ontbreekt")
+                    reason = "leg data ontbreekt"
+                    log_combo_evaluation(
+                        StrategyName.NAKED_PUT,
+                        desc,
+                        None,
+                        "reject",
+                        reason,
+                    )
+                    rejected_reasons.append(reason)
                     continue
                 metrics, reasons = _metrics(StrategyName.NAKED_PUT, [leg], spot)
                 if metrics and passes_risk(metrics):
                     proposals.append(StrategyProposal(legs=[leg], **metrics))
-                elif reasons:
-                    rejected_reasons.extend(reasons)
+                    log_combo_evaluation(
+                        StrategyName.NAKED_PUT,
+                        desc,
+                        metrics,
+                        "pass",
+                        "criteria",
+                    )
+                else:
+                    reason = "; ".join(reasons) if reasons else "risk/reward onvoldoende"
+                    log_combo_evaluation(
+                        StrategyName.NAKED_PUT,
+                        desc,
+                        metrics,
+                        "reject",
+                        reason,
+                    )
+                    if reasons:
+                        rejected_reasons.extend(reasons)
+                    else:
+                        rejected_reasons.append("risk/reward onvoldoende")
                 if len(proposals) >= 5:
                     break
     else:

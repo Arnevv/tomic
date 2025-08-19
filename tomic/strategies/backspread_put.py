@@ -7,7 +7,7 @@ from tomic.helpers.timeutils import today
 from tomic.helpers.put_call_parity import fill_missing_mid_with_parity
 from . import StrategyName
 from ..utils import get_option_mid_price, normalize_leg
-from ..logutils import logger
+from ..logutils import log_combo_evaluation
 from ..config import get as cfg_get
 from ..strategy_candidates import (
     StrategyProposal,
@@ -149,30 +149,90 @@ def generate(
                         short_opt = opt
                         break
                 if not short_opt:
-                    rejected_reasons.append("short optie ontbreekt")
+                    reason = "short optie ontbreekt"
+                    log_combo_evaluation(
+                        StrategyName.BACKSPREAD_PUT,
+                        f"near {near} far {far} width {width}",
+                        None,
+                        "reject",
+                        reason,
+                    )
+                    rejected_reasons.append(reason)
                     continue
                 long_strike_target = float(short_opt.get("strike")) - width
                 long_strike = _nearest_strike(strike_map, far, "P", long_strike_target)
-                logger.info(
-                    f"[backspread_put] probeer near {near} far {far} short {short_opt.get('strike')} long {long_strike.matched}"
+                desc = (
+                    f"near {near} far {far} short {short_opt.get('strike')} long {long_strike.matched}"
                 )
                 if not long_strike.matched:
-                    rejected_reasons.append("long strike niet gevonden")
+                    reason = "long strike niet gevonden"
+                    log_combo_evaluation(
+                        StrategyName.BACKSPREAD_PUT,
+                        desc,
+                        None,
+                        "reject",
+                        reason,
+                    )
+                    rejected_reasons.append(reason)
                     continue
                 long_opt = _find_option(option_chain, far, long_strike.matched, "P")
                 if not long_opt:
-                    rejected_reasons.append("long optie ontbreekt")
+                    reason = "long optie ontbreekt"
+                    log_combo_evaluation(
+                        StrategyName.BACKSPREAD_PUT,
+                        desc,
+                        None,
+                        "reject",
+                        reason,
+                    )
+                    rejected_reasons.append(reason)
                     continue
                 legs = [make_leg(short_opt, -1), make_leg(long_opt, 2)]
                 if any(l is None for l in legs):
-                    rejected_reasons.append("leg data ontbreekt")
+                    reason = "leg data ontbreekt"
+                    log_combo_evaluation(
+                        StrategyName.BACKSPREAD_PUT,
+                        desc,
+                        None,
+                        "reject",
+                        reason,
+                    )
+                    rejected_reasons.append(reason)
                     continue
                 metrics, reasons = _metrics(StrategyName.BACKSPREAD_PUT, legs, spot)
                 if metrics and passes_risk(metrics):
                     if _validate_ratio("backspread_put", legs, metrics.get("credit", 0.0)):
                         proposals.append(StrategyProposal(legs=legs, **metrics))
-                elif reasons:
-                    rejected_reasons.extend(reasons)
+                        log_combo_evaluation(
+                            StrategyName.BACKSPREAD_PUT,
+                            desc,
+                            metrics,
+                            "pass",
+                            "criteria",
+                        )
+                    else:
+                        reason = "verkeerde ratio"
+                        log_combo_evaluation(
+                            StrategyName.BACKSPREAD_PUT,
+                            desc,
+                            metrics,
+                            "reject",
+                            reason,
+                        )
+                        rejected_reasons.append(reason)
+                else:
+                    reason = "; ".join(reasons) if reasons else "risk/reward onvoldoende"
+                    log_combo_evaluation(
+                        StrategyName.BACKSPREAD_PUT,
+                        desc,
+                        metrics,
+                        "reject",
+                        reason,
+                    )
+                    if reasons:
+                        rejected_reasons.extend(reasons)
+                    else:
+                        rejected_reasons.append("risk/reward onvoldoende")
                 if len(proposals) >= 5:
                     break
     else:

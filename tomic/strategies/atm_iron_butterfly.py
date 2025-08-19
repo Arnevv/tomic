@@ -7,7 +7,7 @@ from tomic.helpers.timeutils import today
 from tomic.helpers.put_call_parity import fill_missing_mid_with_parity
 from . import StrategyName
 from ..utils import get_option_mid_price, normalize_leg
-from ..logutils import logger
+from ..logutils import log_combo_evaluation
 from ..config import get as cfg_get
 from ..strategy_candidates import (
     StrategyProposal,
@@ -131,26 +131,49 @@ def generate(
     for c_off in centers:
         center = spot + (c_off * atr if use_atr else c_off)
         center = _nearest_strike(strike_map, expiry, "C", center).matched
+        desc_base = f"center {center}"  # even if None
         if center is None:
-            rejected_reasons.append("center strike niet gevonden")
+            reason = "center strike niet gevonden"
+            log_combo_evaluation(
+                StrategyName.ATM_IRON_BUTTERFLY,
+                desc_base,
+                None,
+                "reject",
+                reason,
+            )
+            rejected_reasons.append(reason)
             continue
         for width in widths:
             sc_strike = _nearest_strike(strike_map, expiry, "C", center).matched
             sp_strike = _nearest_strike(strike_map, expiry, "P", center).matched
             lc_strike = _nearest_strike(strike_map, expiry, "C", center + width).matched
             lp_strike = _nearest_strike(strike_map, expiry, "P", center - width).matched
-            logger.info(
-                f"[atm_iron_butterfly] probeer center {center} width {width}"
-            )
+            desc = f"center {center} width {width}"
             if not all([sc_strike, sp_strike, lc_strike, lp_strike]):
-                rejected_reasons.append("ontbrekende strikes")
+                reason = "ontbrekende strikes"
+                log_combo_evaluation(
+                    StrategyName.ATM_IRON_BUTTERFLY,
+                    desc,
+                    None,
+                    "reject",
+                    reason,
+                )
+                rejected_reasons.append(reason)
                 continue
             sc_opt = _find_option(option_chain, expiry, sc_strike, "C")
             sp_opt = _find_option(option_chain, expiry, sp_strike, "P")
             lc_opt = _find_option(option_chain, expiry, lc_strike, "C")
             lp_opt = _find_option(option_chain, expiry, lp_strike, "P")
             if not all([sc_opt, sp_opt, lc_opt, lp_opt]):
-                rejected_reasons.append("opties niet gevonden")
+                reason = "opties niet gevonden"
+                log_combo_evaluation(
+                    StrategyName.ATM_IRON_BUTTERFLY,
+                    desc,
+                    None,
+                    "reject",
+                    reason,
+                )
+                rejected_reasons.append(reason)
                 continue
             legs = [
                 make_leg(sc_opt, -1),
@@ -159,13 +182,39 @@ def generate(
                 make_leg(lp_opt, 1),
             ]
             if any(l is None for l in legs):
-                rejected_reasons.append("leg data ontbreekt")
+                reason = "leg data ontbreekt"
+                log_combo_evaluation(
+                    StrategyName.ATM_IRON_BUTTERFLY,
+                    desc,
+                    None,
+                    "reject",
+                    reason,
+                )
+                rejected_reasons.append(reason)
                 continue
             metrics, reasons = _metrics(StrategyName.ATM_IRON_BUTTERFLY, legs, spot)
             if metrics and passes_risk(metrics):
                 proposals.append(StrategyProposal(legs=legs, **metrics))
-            elif reasons:
-                rejected_reasons.extend(reasons)
+                log_combo_evaluation(
+                    StrategyName.ATM_IRON_BUTTERFLY,
+                    desc,
+                    metrics,
+                    "pass",
+                    "criteria",
+                )
+            else:
+                reason = "; ".join(reasons) if reasons else "risk/reward onvoldoende"
+                log_combo_evaluation(
+                    StrategyName.ATM_IRON_BUTTERFLY,
+                    desc,
+                    metrics,
+                    "reject",
+                    reason,
+                )
+                if reasons:
+                    rejected_reasons.extend(reasons)
+                else:
+                    rejected_reasons.append("risk/reward onvoldoende")
             if len(proposals) >= 5:
                 break
     proposals.sort(key=lambda p: p.score or 0, reverse=True)
