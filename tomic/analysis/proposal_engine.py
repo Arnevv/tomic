@@ -228,26 +228,45 @@ def _make_condor(chain: List[Leg]) -> Optional[List[Leg]]:
     return legs
 
 
-def _make_calendar(chain: List[Leg]) -> Optional[List[Leg]]:
+def _make_calendar(chain: List[Leg], spot: Optional[float] = None) -> Optional[List[Leg]]:
+    """Return a simple calendar spread if possible.
+
+    Iterate over all available strikes (optionally ordered by distance to the
+    underlying spot price) and look for the first strike that is listed in at
+    least two different expiries.  Build legs based on that strike so that a
+    calendar is suggested whenever such a strike exists anywhere in the chain.
+    """
+
     if len(chain) < 2:
         return None
-    chain.sort(key=lambda x: (x.strike, x.expiry))
-    first = chain[0]
-    other = next(
-        (
-            leg
-            for leg in chain[1:]
-            if leg.strike == first.strike and leg.expiry != first.expiry
-        ),
-        None,
-    )
-    if other is None:
-        return None
-    legs = [
-        Leg(**{**first.__dict__, "position": -1}),
-        Leg(**{**other.__dict__, "position": 1}),
-    ]
-    return legs
+
+    # Group legs by strike and type while keeping only one leg per expiry
+    grouped: Dict[tuple[float, str], Dict[str, Leg]] = {}
+    for leg in chain:
+        key = (leg.strike, leg.type)
+        grouped.setdefault(key, {})
+        grouped[key].setdefault(leg.expiry, leg)
+
+    def sort_key(key: tuple[float, str]) -> float:
+        strike, _ = key
+        return abs(strike - spot) if spot is not None else strike
+
+    # Iterate over strikes (closest to spot if provided) and build first
+    # calendar we encounter.
+    for key in sorted(grouped.keys(), key=sort_key):
+        legs_by_expiry = grouped[key]
+        if len(legs_by_expiry) < 2:
+            continue
+        # Sort by expiry and take the first two expiries for the spread
+        candidates = sorted(legs_by_expiry.values(), key=lambda l: l.expiry)[:2]
+        short_leg, long_leg = candidates[0], candidates[1]
+        return [
+            Leg(**{**short_leg.__dict__, "position": -1}),
+            Leg(**{**long_leg.__dict__, "position": 1}),
+        ]
+
+    # No strike exists with multiple expiries
+    return None
 
 
 def _tomic_score(after: Dict[str, float]) -> float:
@@ -341,7 +360,7 @@ def suggest_strategies(
                     }
                 )
     if exposure.get("Vega", 0.0) < port.vega_to_calendar:
-        legs = _make_calendar(_filter_chain_by_dte(chain, "calendar"))
+        legs = _make_calendar(_filter_chain_by_dte(chain, "calendar"), spot_price)
         if legs and not (
             (calendar_gate.iv_rank_max is not None and iv_rank is not None and iv_rank > calendar_gate.iv_rank_max)
             or (calendar_gate.iv_percentile_max is not None and iv_pct is not None and iv_pct > calendar_gate.iv_percentile_max)
