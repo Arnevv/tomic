@@ -150,6 +150,27 @@ def _load_spot_from_metrics(directory: Path, symbol: str) -> float | None:
         return None
 
 
+def _spot_from_chain(chain: list[dict]) -> float | None:
+    """Return first positive spot-like value from option ``chain``.
+
+    The option chain may include fields such as ``spot``, ``underlying_price`` or
+    ``underlying`` that reflect the underlying price at the time the chain was
+    generated. This helper scans known keys and returns the first valid value.
+    If no suitable value is found, ``None`` is returned.
+    """
+
+    keys = ("spot", "underlying_price", "underlying", "underlying_close", "close")
+    for rec in chain:
+        for key in keys:
+            val = rec.get(key)
+            try:
+                num = float(val)
+            except Exception:
+                continue
+            if num > 0:
+                return num
+    return None
+
 def refresh_spot_price(symbol: str) -> float | None:
     """Fetch and cache the current spot price for ``symbol``.
 
@@ -883,10 +904,12 @@ def run_portfolio_menu() -> None:
         data = [normalize_leg(rec) for rec in df.to_dict(orient="records")]
         symbol = str(SESSION_STATE.get("symbol", ""))
         spot_price = refresh_spot_price(symbol)
-        if spot_price is None:
+        if spot_price is None or spot_price <= 0:
             spot_price = _load_spot_from_metrics(path.parent, symbol)
-        if spot_price is None:
+        if spot_price is None or spot_price <= 0:
             spot_price, _ = _load_latest_close(symbol)
+        if spot_price is None or spot_price <= 0:
+            spot_price = _spot_from_chain(data)
         SESSION_STATE["spot_price"] = spot_price
         exp_counts: dict[str, int] = {}
         for row in data:
@@ -1129,16 +1152,20 @@ def run_portfolio_menu() -> None:
 
                 atr_val = latest_atr(symbol) or 0.0
                 spot_for_strats = refresh_spot_price(symbol)
-                if spot_for_strats is None:
+                if spot_for_strats is None or spot_for_strats <= 0:
                     spot_for_strats = _load_spot_from_metrics(path.parent, symbol)
-                if spot_for_strats is None:
+                if spot_for_strats is None or spot_for_strats <= 0:
                     spot_for_strats, _ = _load_latest_close(symbol)
+                if spot_for_strats is None or spot_for_strats <= 0:
+                    spot_for_strats = _spot_from_chain(data)
+                if spot_for_strats is None or spot_for_strats <= 0:
+                    print(
+                        "❌ Geen geldige spotprijs beschikbaar; strategievoorstellen overgeslagen."
+                    )
+                    return
                 SESSION_STATE["spot_price"] = spot_for_strats
 
-                if spot_for_strats is not None:
-                    print(f"Spotprice: {spot_for_strats:.2f}")
-                else:
-                    print("Spotprice: n/a")
+                print(f"Spotprice: {spot_for_strats:.2f}")
 
                 proposals, reasons = generate_strategy_candidates(
                     symbol,

@@ -19,6 +19,11 @@ def _load_latest_close(symbol: str) -> tuple[float | None, str | None]:
         try:
             price = float(rec.get("close"))
             date_str = str(rec.get("date"))
+            if price <= 0:
+                logger.debug(
+                    f"Ignoring non-positive close for {symbol} on {date_str}: {price}"
+                )
+                return None, date_str
             logger.debug(f"Using last close for {symbol} on {date_str}: {price}")
             return price, date_str
         except Exception:
