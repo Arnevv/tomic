@@ -3722,5 +3722,12 @@
     "close": 95.76,
     "volume": 6777839.0,
     "atr": null
+  },
+  {
+    "symbol": "SCHW",
+    "date": "2025-08-20",
+    "close": 95.51,
+    "volume": 9433848.0,
+    "atr": null
   }
 ]

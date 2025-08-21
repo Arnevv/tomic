@@ -3722,5 +3722,12 @@
     "close": 342.45,
     "volume": 4457228.0,
     "atr": null
+  },
+  {
+    "symbol": "V",
+    "date": "2025-08-20",
+    "close": 343.93,
+    "volume": 5833600.0,
+    "atr": null
   }
 ]
