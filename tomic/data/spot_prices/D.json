@@ -3729,5 +3729,12 @@
     "close": 61.52,
     "volume": 3051765.0,
     "atr": null
+  },
+  {
+    "symbol": "D",
+    "date": "2025-08-21",
+    "close": 61.25,
+    "volume": 2557689.0,
+    "atr": null
   }
 ]
