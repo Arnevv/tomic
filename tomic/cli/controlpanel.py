@@ -3,7 +3,7 @@
 import argparse
 import subprocess
 import sys
-from datetime import datetime
+from datetime import datetime, date
 import json
 from pathlib import Path
 import os
@@ -93,7 +93,17 @@ META_FILE = Path(cfg.get("PORTFOLIO_META_FILE", "portfolio_meta.json"))
 STRATEGY_DASHBOARD_MODULE = "tomic.cli.strategy_dashboard"
 
 # Runtime session data shared between menu steps
-SESSION_STATE: dict[str, object] = {"evaluated_trades": []}
+SESSION_STATE: dict[str, object] = {
+    "evaluated_trades": [],
+    "iv": None,
+    "hv20": None,
+    "hv30": None,
+    "hv90": None,
+    "hv252": None,
+    "term_m1_m2": None,
+    "term_m1_m3": None,
+    "criteria": None,
+}
 
 
 @dataclass
@@ -641,6 +651,55 @@ def run_portfolio_menu() -> None:
         rows.sort(key=lambda r: r[8] if r[8] is not None else -1, reverse=True)
         return rows
 
+    def print_factsheet(chosen: dict[str, object]) -> None:
+        """Print key metrics for the selected recommendation."""
+
+        def fmt(val: object, digits: int = 4) -> str:
+            return f"{val:.{digits}f}" if isinstance(val, (int, float)) else ""
+
+        def fmt_pct(val: object) -> str:
+            return f"{val * 100:.0f}" if isinstance(val, (int, float)) else ""
+
+        earn_date = chosen.get("next_earnings")
+        days: int | None = None
+        if isinstance(earn_date, str):
+            try:
+                earn_dt = date.fromisoformat(earn_date)
+                days = (earn_dt - date.today()).days
+            except Exception:
+                earn_dt = None
+        elif isinstance(earn_date, date):
+            earn_dt = earn_date
+            days = (earn_dt - date.today()).days
+        else:
+            earn_dt = None
+
+        earn_str = ""
+        if earn_dt:
+            earn_str = earn_dt.isoformat()
+            if days is not None:
+                earn_str += f" ({days}d)"
+
+        rows = [
+            ["Symbool", chosen.get("symbol", "")],
+            ["Strategie", chosen.get("strategy", "")],
+            ["Spot", fmt(chosen.get("spot"))],
+            ["IV", fmt(chosen.get("iv"))],
+            ["HV20", fmt(chosen.get("hv20"))],
+            ["HV30", fmt(chosen.get("hv30"))],
+            ["HV90", fmt(chosen.get("hv90"))],
+            ["HV252", fmt(chosen.get("hv252"))],
+            ["Term m1/m2", fmt(chosen.get("term_m1_m2"), 2)],
+            ["Term m1/m3", fmt(chosen.get("term_m1_m3"), 2)],
+            ["IV Rank", fmt_pct(chosen.get("iv_rank"))],
+            ["IV Perc", fmt_pct(chosen.get("iv_percentile"))],
+            ["Skew", fmt(chosen.get("skew"), 2)],
+            ["Earnings", earn_str],
+            ["Criteria", chosen.get("criteria", "")],
+        ]
+
+        print(tabulate(rows, headers=["Veld", "Waarde"], tablefmt="github"))
+
     def show_market_info() -> None:
         symbols = [s.upper() for s in cfg.get("DEFAULT_SYMBOLS", [])]
 
@@ -813,17 +872,11 @@ def run_portfolio_menu() -> None:
                 except (ValueError, IndexError):
                     print("❌ Ongeldige keuze")
                     continue
-                SESSION_STATE.update(
-                    {
-                        "symbol": chosen.get("symbol"),
-                        "strategy": chosen.get("strategy"),
-                        "greeks": chosen.get("greeks"),
-                        "iv_rank": chosen.get("iv_rank"),
-                    }
-                )
+                SESSION_STATE.update(chosen)
                 print(
                     f"\n🎯 Gekozen strategie: {SESSION_STATE.get('symbol')} – {SESSION_STATE.get('strategy')}\n"
                 )
+                print_factsheet(chosen)
                 choose_chain_source()
                 return
 
