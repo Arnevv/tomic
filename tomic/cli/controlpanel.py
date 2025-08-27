@@ -685,9 +685,9 @@ def run_portfolio_menu() -> None:
             elif "theta short" in low:
                 theta = "Short"
             if "delta positive" in low or "delta directional" in low:
-                delta = "Richting ↑"
+                delta = "Long"
             elif "delta negative" in low:
-                delta = "Richting ↓"
+                delta = "Short"
             elif "delta neutral" in low:
                 delta = "Neutraal"
             return vega, theta, delta
@@ -716,10 +716,19 @@ def run_portfolio_menu() -> None:
                 recs.append(
                     {
                         "symbol": r[0],
+                        "spot": r[1],
+                        "iv": r[2],
+                        "hv20": r[3],
+                        "hv30": r[4],
+                        "hv90": r[5],
+                        "hv252": r[6],
                         "strategy": rec["strategy"],
                         "greeks": rec["greeks"],
                         "indication": rec.get("indication"),
                         "criteria": crit,
+                        "term_m1_m2": r[9],
+                        "term_m1_m3": r[10],
+                        "next_earnings": r[12],
                         "iv_rank": r[7],
                         "iv_percentile": r[8],
                         "skew": r[11],
@@ -741,22 +750,37 @@ def run_portfolio_menu() -> None:
             table_rows: list[list[str]] = []
             for idx, rec in enumerate(recs, 1):
                 vega, theta, delta = parse_greeks(rec["greeks"])
+                sym = rec["symbol"]
+                link = (
+                    f"\x1b]8;;https://marketchameleon.com/Overview/{sym}/\x1b\\"
+                    f"{sym}\x1b]8;;\x1b\\"
+                )
+                iv_val = (
+                    f"{rec['iv']:.4f}"
+                    if isinstance(rec.get("iv"), (int, float))
+                    else ""
+                )
                 ivr = rec.get("iv_rank")
-                iv_val = f"{ivr * 100:.0f}" if isinstance(ivr, (int, float)) else ""
+                iv_rank_val = (
+                    f"{ivr * 100:.0f}" if isinstance(ivr, (int, float)) else ""
+                )
                 skew_val = rec.get("skew")
                 skew_str = (
                     f"{skew_val:.2f}" if isinstance(skew_val, (int, float)) else ""
                 )
+                earnings = rec.get("next_earnings", "")
                 table_rows.append(
                     [
                         idx,
-                        rec["symbol"],
+                        link,
                         rec["strategy"],
+                        iv_val,
+                        delta,
                         vega,
                         theta,
-                        delta,
-                        iv_val,
+                        iv_rank_val,
                         skew_str,
+                        earnings,
                     ]
                 )
 
@@ -767,11 +791,13 @@ def run_portfolio_menu() -> None:
                         "Nr",
                         "Symbool",
                         "Strategie",
+                        "IV",
+                        "Delta",
                         "Vega",
                         "Theta",
-                        "Delta",
-                        "IV Rank",
+                        "IV Rank (HV)",
                         "Skew",
+                        "Earnings",
                     ],
                     tablefmt="github",
                 )
