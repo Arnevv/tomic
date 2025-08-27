@@ -3750,5 +3750,12 @@
     "close": 266.61,
     "volume": 4301091.0,
     "atr": null
+  },
+  {
+    "symbol": "GE",
+    "date": "2025-08-26",
+    "close": 273.94,
+    "volume": 4693128.0,
+    "atr": null
   }
 ]
