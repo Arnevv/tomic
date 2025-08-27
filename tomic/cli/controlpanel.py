@@ -810,10 +810,7 @@ def run_portfolio_menu() -> None:
             for idx, rec in enumerate(recs, 1):
                 vega, theta, delta = parse_greeks(rec["greeks"])
                 sym = rec["symbol"]
-                link = (
-                    f"\x1b]8;;https://marketchameleon.com/Overview/{sym}/\x1b\\"
-                    f"{sym}\x1b]8;;\x1b\\"
-                )
+                link = f"[{sym}](https://marketchameleon.com/Overview/{sym}/)"
                 iv_val = (
                     f"{rec['iv']:.4f}"
                     if isinstance(rec.get("iv"), (int, float))
@@ -859,6 +856,18 @@ def run_portfolio_menu() -> None:
                         "Earnings",
                     ],
                     tablefmt="github",
+                    colalign=(
+                        "right",
+                        "left",
+                        "left",
+                        "right",
+                        "left",
+                        "left",
+                        "left",
+                        "right",
+                        "right",
+                        "left",
+                    ),
                 )
             )
 
