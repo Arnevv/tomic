@@ -557,8 +557,7 @@ def run_portfolio_menu() -> None:
             run_module("tomic.cli.portfolio_greeks", str(POSITIONS_FILE))
         except subprocess.CalledProcessError:
             print("❌ Greeks-overzicht kon niet worden getoond")
-
-    def show_market_info() -> None:
+    def _load_market_rows() -> list[list]:
         summary_dir = Path(
             cfg.get("IV_DAILY_SUMMARY_DIR", "tomic/data/iv_daily_summary")
         )
@@ -574,15 +573,6 @@ def run_portfolio_menu() -> None:
 
         symbols = [s.upper() for s in cfg.get("DEFAULT_SYMBOLS", [])]
         rows: list[list] = []
-
-        vix_value = None
-        try:
-            metrics = fetch_volatility_metrics(symbols[0] if symbols else "SPY")
-            vix_value = metrics.get("vix")
-        except Exception:
-            vix_value = None
-        if isinstance(vix_value, (int, float)):
-            print(f"VIX {vix_value:.2f}")
 
         for symbol in symbols:
             try:
@@ -649,49 +639,21 @@ def run_portfolio_menu() -> None:
             )
 
         rows.sort(key=lambda r: r[8] if r[8] is not None else -1, reverse=True)
+        return rows
 
-        def fmt4(val: float | None) -> str:
-            return f"{val:.4f}" if val is not None else ""
+    def show_market_info() -> None:
+        symbols = [s.upper() for s in cfg.get("DEFAULT_SYMBOLS", [])]
 
-        def fmt2(val: float | None) -> str:
-            return f"{val:.2f}" if val is not None else ""
+        vix_value = None
+        try:
+            metrics = fetch_volatility_metrics(symbols[0] if symbols else "SPY")
+            vix_value = metrics.get("vix")
+        except Exception:
+            vix_value = None
+        if isinstance(vix_value, (int, float)):
+            print(f"VIX {vix_value:.2f}")
 
-        formatted_rows = [
-            [
-                r[0],
-                r[1],
-                fmt4(r[2]),
-                fmt4(r[3]),
-                fmt4(r[4]),
-                fmt4(r[5]),
-                fmt4(r[6]),
-                fmt2(r[7]),
-                fmt2(r[8]),
-                r[9],
-                r[10],
-                r[11],
-                r[12],
-            ]
-            for r in rows
-        ]
-
-        headers = [
-            "symbol",
-            "spotprice",
-            "IV",
-            "hv20",
-            "hv30",
-            "hv90",
-            "hv252",
-            "iv_rank (HV)",
-            "iv_percentile (HV)",
-            "term_m1_m2",
-            "term_m1_m3",
-            "skew",
-            "next_earnings",
-        ]
-
-        print(tabulate(formatted_rows, headers=headers, tablefmt="github"))
+        rows = _load_market_rows()
 
         # Strategy recommendation table per symbol
         def categorize(exposure: str) -> str:
@@ -729,7 +691,6 @@ def run_portfolio_menu() -> None:
             elif "delta neutral" in low:
                 delta = "Neutraal"
             return vega, theta, delta
-
         recs: list[dict[str, object]] = []
         for r in rows:
             metrics = {
@@ -839,6 +800,63 @@ def run_portfolio_menu() -> None:
                 )
                 choose_chain_source()
                 return
+
+    def show_informative_market_info() -> None:
+        symbols = [s.upper() for s in cfg.get("DEFAULT_SYMBOLS", [])]
+
+        vix_value = None
+        try:
+            metrics = fetch_volatility_metrics(symbols[0] if symbols else "SPY")
+            vix_value = metrics.get("vix")
+        except Exception:
+            vix_value = None
+        if isinstance(vix_value, (int, float)):
+            print(f"VIX {vix_value:.2f}")
+
+        rows = _load_market_rows()
+
+        def fmt4(val: float | None) -> str:
+            return f"{val:.4f}" if val is not None else ""
+
+        def fmt2(val: float | None) -> str:
+            return f"{val:.2f}" if val is not None else ""
+
+        formatted_rows = [
+            [
+                r[0],
+                r[1],
+                fmt4(r[2]),
+                fmt4(r[3]),
+                fmt4(r[4]),
+                fmt4(r[5]),
+                fmt4(r[6]),
+                fmt2(r[7]),
+                fmt2(r[8]),
+                r[9],
+                r[10],
+                r[11],
+                r[12],
+            ]
+            for r in rows
+        ]
+
+        headers = [
+            "symbol",
+            "spotprice",
+            "IV",
+            "hv20",
+            "hv30",
+            "hv90",
+            "hv252",
+            "iv_rank (HV)",
+            "iv_percentile (HV)",
+            "term_m1_m2",
+            "term_m1_m3",
+            "skew",
+            "next_earnings",
+        ]
+
+        print(tabulate(formatted_rows, headers=headers, tablefmt="github"))
 
     def _process_chain(path: Path) -> None:
         if not path.exists():
@@ -1726,6 +1744,7 @@ def run_portfolio_menu() -> None:
     menu.add("Toon portfolio greeks", show_greeks)
     menu.add("Toon marktinformatie", show_market_info)
     menu.add("Earnings-informatie", lambda: run_module("tomic.cli.earnings_info"))
+    menu.add("Toon informatieve markt informatie", show_informative_market_info)
     menu.run()
 
 
