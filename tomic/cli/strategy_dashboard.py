@@ -201,7 +201,42 @@ def alert_severity(alert: str) -> int:
     return 0
 
 
-def print_strategy_full(strategy, rule=None, *, details: bool = False):
+def generate_exit_alerts(strategy: dict, rule: dict | None) -> None:
+    """Enrich ``strategy['alerts']`` with entry- and exit-alerts."""
+    alerts = list(strategy.get("entry_alerts", [])) + list(
+        strategy.get("alerts", [])
+    )
+    if rule:
+        spot = strategy.get("spot")
+        pnl_val = strategy.get("unrealizedPnL")
+        if spot is not None:
+            if rule.get("spot_below") is not None and spot < rule["spot_below"]:
+                alerts.append(
+                    f"🚨 Spot {spot:.2f} onder exitniveau {rule['spot_below']}"
+                )
+            if rule.get("spot_above") is not None and spot > rule["spot_above"]:
+                alerts.append(
+                    f"🚨 Spot {spot:.2f} boven exitniveau {rule['spot_above']}"
+                )
+        if (
+            pnl_val is not None
+            and rule.get("target_profit_pct") is not None
+            and rule.get("premium_entry")
+        ):
+            profit_pct = (pnl_val / (rule["premium_entry"] * 100)) * 100
+            if profit_pct >= rule["target_profit_pct"]:
+                alerts.append(
+                    f"🚨 PnL {profit_pct:.1f}% >= target {rule['target_profit_pct']:.1f}%"
+                )
+    profile = ALERT_PROFILE.get(strategy.get("type"))
+    if profile is not None:
+        alerts = [a for a in alerts if alert_category(a) in profile]
+    alerts = list(dict.fromkeys(alerts))
+    alerts.sort(key=alert_severity, reverse=True)
+    strategy["alerts"] = alerts
+
+
+def print_strategy_full(strategy, *, details: bool = False):
     """Print a strategy with entry info, current status, KPI box and alerts."""
     pnl = strategy.get("unrealizedPnL")
     color = "🟩" if pnl is not None and pnl >= 0 else "🟥"
@@ -420,36 +455,7 @@ def print_strategy_full(strategy, rule=None, *, details: bool = False):
         for line in str(exit_text).strip().splitlines():
             print(f"  {line}")
 
-    alerts = list(strategy.get("entry_alerts", [])) + list(strategy.get("alerts", []))
-    if rule:
-        spot = strategy.get("spot")
-        pnl_val = strategy.get("unrealizedPnL")
-        if spot is not None:
-            if rule.get("spot_below") is not None and spot < rule["spot_below"]:
-                alerts.append(
-                    f"🚨 Spot {spot:.2f} onder exitniveau {rule['spot_below']}"
-                )
-            if rule.get("spot_above") is not None and spot > rule["spot_above"]:
-                alerts.append(
-                    f"🚨 Spot {spot:.2f} boven exitniveau {rule['spot_above']}"
-                )
-        if (
-            pnl_val is not None
-            and rule.get("target_profit_pct") is not None
-            and rule.get("premium_entry")
-        ):
-            profit_pct = (pnl_val / (rule["premium_entry"] * 100)) * 100
-            if profit_pct >= rule["target_profit_pct"]:
-                alerts.append(
-                    f"🚨 PnL {profit_pct:.1f}% >= target {rule['target_profit_pct']:.1f}%"
-                )
-
-    profile = ALERT_PROFILE.get(strategy.get("type"))
-    if profile is not None:
-        alerts = [a for a in alerts if alert_category(a) in profile]
-    alerts = list(dict.fromkeys(alerts))  # dedupe while preserving order
-    alerts.sort(key=alert_severity, reverse=True)
-
+    alerts = strategy.get("alerts", [])
     print("🚨 ALERTS")
     if alerts:
         for alert in alerts[:3]:
@@ -517,14 +523,14 @@ def print_strategy_alerts(strategy: dict) -> None:
     if trade_id:
         header += f" – TradeId {trade_id}"
     print(header)
-    for alert in sorted(alerts, key=alert_severity, reverse=True)[:3]:
+    for alert in alerts[:3]:
         print(f"- {alert}")
     print()
 
 
-def print_strategy(strategy, rule=None, *, details: bool = False):
+def print_strategy(strategy, *, details: bool = False):
     """Deprecated wrapper for :func:`print_strategy_full`."""
-    return print_strategy_full(strategy, rule=rule, details=details)
+    return print_strategy_full(strategy, details=details)
 
 
 def main(argv=None):
@@ -672,16 +678,17 @@ def main(argv=None):
         global_alerts.sort(key=alert_severity, reverse=True)
         for alert in global_alerts[:3]:
             print(alert)
-    
+
     print("=== Open posities ===")
     for s in strategies:
         rule = exit_rules.get((s["symbol"], s["expiry"]))
+        generate_exit_alerts(s, rule)
         if view_mode == "compact":
             print_strategy_compact(s)
         elif view_mode == "alerts":
             print_strategy_alerts(s)
         else:
-            print_strategy_full(s, rule=rule, details=details)
+            print_strategy_full(s, details=details)
 
     if json_output:
         strategies.sort(key=lambda s: (s["symbol"], s.get("expiry")))
