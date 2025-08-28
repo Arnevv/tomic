@@ -1,4 +1,4 @@
-from tomic.cli.strategy_dashboard import print_strategy_full
+from tomic.cli.strategy_dashboard import generate_exit_alerts, print_strategy_full
 
 
 def test_print_strategy_spot_diff(capsys):
@@ -45,3 +45,12 @@ def test_print_strategy_exit_criteria(capsys):
     assert "🚪 EXITCRITERIA" in out
     assert "Stop" in out
     assert "Profit" in out
+
+
+def test_print_strategy_expiry_alert(capsys):
+    strat = {"symbol": "XYZ", "type": "Test", "days_to_expiry": 5}
+    rule = {"days_before_expiry": 10}
+    generate_exit_alerts(strat, rule)
+    print_strategy_full(strat)
+    out = capsys.readouterr().out
+    assert "⚠️ 5 DTE ≤ exitdrempel 10" in out
