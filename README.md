@@ -4,7 +4,7 @@ TOMIC is jouw persoonlijke handelsassistent voor het vinden van de beste optietr
 📈 Marketdata (spot, IV, skew, HV, ATR)
 💼 Portfolio-fit (Greeks, margin)
 🧠 TOMIC-strategie (PoS, EV, diversificatie)
-📓 Journaling (entry, exit, risk)
+📓 Journaling (entry, structured exit rules, risk)
 
 Geen automatische trading – TOMIC ondersteunt, jij beslist.
 

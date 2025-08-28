@@ -147,3 +147,32 @@ class OptionMetrics:
             open_interest=int(data.get("open_interest", 0) or 0),
         )
 
+
+@dataclass
+class ExitRules:
+    """Structured exit criteria for journal trades."""
+
+    spot_below: Optional[float] = None
+    spot_above: Optional[float] = None
+    target_profit_pct: Optional[float] = None
+    days_before_expiry: Optional[int] = None
+
+    @classmethod
+    def from_dict(cls, data: Mapping[str, Any]) -> "ExitRules":
+        """Create ``ExitRules`` from a mapping."""
+        return cls(
+            spot_below=data.get("spot_below"),
+            spot_above=data.get("spot_above"),
+            target_profit_pct=data.get("target_profit_pct"),
+            days_before_expiry=data.get("days_before_expiry"),
+        )
+
+    def to_dict(self) -> dict[str, Any]:
+        """Return this record as a plain dictionary."""
+        return {
+            "spot_below": self.spot_below,
+            "spot_above": self.spot_above,
+            "target_profit_pct": self.target_profit_pct,
+            "days_before_expiry": self.days_before_expiry,
+        }
+

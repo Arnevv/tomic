@@ -5,6 +5,7 @@ from __future__ import annotations
 from datetime import date
 
 from tomic.journal.service import add_trade, next_trade_id
+from tomic.models import ExitRules
 
 
 def float_prompt(prompt_tekst, default=None):
@@ -118,6 +119,19 @@ def interactieve_trade_invoer():
         lijnen.append(regel)
     exitstrategie = "\n".join(lijnen)
 
+    print("\nOptionele exit rules (leeg laten om over te slaan):")
+    spot_below = float_prompt("  Spot onder: ", default=None)
+    spot_above = float_prompt("  Spot boven: ", default=None)
+    target_profit_pct = float_prompt("  Target profit %: ", default=None)
+    dbe_input = input("  Dagen voor expiry: ").strip()
+    days_before_expiry = int(dbe_input) if dbe_input else None
+    exit_rules = ExitRules(
+        spot_below=spot_below,
+        spot_above=spot_above,
+        target_profit_pct=target_profit_pct,
+        days_before_expiry=days_before_expiry,
+    )
+
     # Skip automatic market data retrieval to avoid TWS calls
     metrics = {
         "spot_price": None,
@@ -177,6 +191,7 @@ def interactieve_trade_invoer():
         "Plan": plan,
         "Reden": reden,
         "Exitstrategie": exitstrategie,
+        "ExitRules": exit_rules.to_dict(),
         "Evaluatie": None,
         "Resultaat": None,
         "Opmerkingen": "",

@@ -6,7 +6,6 @@ import sys
 from collections import defaultdict
 from datetime import datetime
 from pathlib import Path
-import re
 
 from tomic.config import get as cfg_get
 from tomic.utils import today
@@ -15,6 +14,7 @@ from tomic.helpers.account import _fmt_money, print_account_overview
 from tomic.analysis.strategy import group_strategies
 from tomic.analysis.metrics import compute_term_structure, render_kpi_box
 from tomic.journal.utils import load_journal, load_json, save_json
+from tomic.models import ExitRules
 from .strategy_data import ALERT_PROFILE, get_strategy_description
 from tomic.analysis.greeks import compute_portfolio_greeks
 
@@ -89,37 +89,23 @@ def print_account_summary(values: dict, portfolio: dict) -> None:
 
 
 def extract_exit_rules(path: str):
-    """Parse journal.json and return exit thresholds per trade."""
+    """Return exit rule thresholds per trade from ``journal.json``.
+
+    The journal records are expected to contain an ``ExitRules`` object with
+    structured exit criteria.
+    """
+
     journal = load_journal(path)
     rules = {}
     for trade in journal:
         sym = trade.get("Symbool")
         expiry = trade.get("Expiry")
-        text = trade.get("Exitstrategie", "")
-        if not sym or not expiry or not text:
+        raw_rules = trade.get("ExitRules")
+        if not sym or not expiry or not isinstance(raw_rules, dict):
             continue
+        er = ExitRules.from_dict(raw_rules)
         rule = {"premium_entry": trade.get("Premium")}
-        txt = text.replace(",", ".")
-        m = re.search(r"onder\s*~?([0-9]+(?:\.[0-9]+)?)", txt, re.I)
-        if m:
-            rule["spot_below"] = float(m.group(1))
-        m = re.search(r"boven\s*~?([0-9]+(?:\.[0-9]+)?)", txt, re.I)
-        if m:
-            rule["spot_above"] = float(m.group(1))
-        m = re.search(r"\$([0-9]+(?:\.[0-9]+)?)", txt)
-        if m:
-            rule["premium_target"] = float(m.group(1))
-            if (
-                isinstance(rule.get("premium_entry"), (int, float))
-                and rule["premium_entry"]
-            ):
-                rule["target_profit_pct"] = (
-                    (rule["premium_entry"] - rule["premium_target"])
-                    / rule["premium_entry"]
-                ) * 100
-        m = re.search(r"(\d+)\s*dagen", txt, re.I)
-        if m:
-            rule["days_before_expiry"] = int(m.group(1))
+        rule.update(er.to_dict())
         rules[(sym, expiry)] = rule
     return rules
 
