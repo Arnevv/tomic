@@ -228,6 +228,12 @@ def generate_exit_alerts(strategy: dict, rule: dict | None) -> None:
                 alerts.append(
                     f"🚨 PnL {profit_pct:.1f}% >= target {rule['target_profit_pct']:.1f}%"
                 )
+        dte = strategy.get("days_to_expiry")
+        dte_limit = rule.get("days_before_expiry")
+        if dte_limit and dte is not None and dte <= dte_limit:
+            alerts.append(
+                f"⚠️ {dte} DTE ≤ exitdrempel {dte_limit}"
+            )
     profile = ALERT_PROFILE.get(strategy.get("type"))
     if profile is not None:
         alerts = [a for a in alerts if alert_category(a) in profile]
