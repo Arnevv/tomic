@@ -3561,5 +3561,12 @@
     "close": 289.58,
     "volume": 1750424.0,
     "atr": null
+  },
+  {
+    "symbol": "AMGN",
+    "date": "2025-08-27",
+    "close": 287.97,
+    "volume": 1400902.0,
+    "atr": null
   }
 ]
