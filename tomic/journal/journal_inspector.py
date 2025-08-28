@@ -103,6 +103,10 @@ def toon_details(trade: Dict[str, Any]) -> None:
             print("\n🚪 Exitstrategie:")
             for line in v.strip().splitlines():
                 print(f"  {line}")
+        elif k == "ExitRules":
+            print("\n🚪 ExitRules:")
+            for rk, rv in v.items():
+                print(f"  {rk}: {rv}")
         elif k == "Opmerkingen":
             print("\n🗒️ Opmerkingen:")
             for line in v.strip().splitlines():

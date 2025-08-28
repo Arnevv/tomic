@@ -395,6 +395,10 @@ def group_strategies(
 
             strat.update(parse_plan_metrics(trade_data.get("Plan", "")))
 
+            exit_rules = trade_data.get("ExitRules")
+            if isinstance(exit_rules, dict):
+                strat["exit_rules"] = exit_rules
+
             exit_text = trade_data.get("Exitstrategie")
             if exit_text:
                 strat["exit_strategy"] = exit_text
