@@ -160,7 +160,15 @@ SYMBOL_MAP = {
 }
 
 # Severity scoring based on emoji markers
-SEVERITY_MAP = {"🚨": 3, "⚠️": 2, "🔻": 2, "🟡": 1, "✅": 1, "🟢": 1}
+SEVERITY_MAP = {
+    "🚨": 3,
+    "⚠️": 2,
+    "🔻": 2,
+    "⏳": 2,
+    "🟡": 1,
+    "✅": 1,
+    "🟢": 1,
+}
 
 
 def alert_category(alert: str) -> str:
