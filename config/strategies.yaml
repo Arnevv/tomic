@@ -5,7 +5,9 @@ default:
   strike_to_strategy_config:
     short_call_multiplier: [1.5, 2.0, 2.5, 3.0, 3.5]
     short_put_multiplier:  [1.5, 2.0, 2.5, 3.0, 3.5]
-    wing_width: 5
+    long_call_distance_points: [5]
+    long_put_distance_points: [5]
+    long_leg_distance_points: [5]
     use_ATR: true
 
 strategies:
@@ -15,7 +17,8 @@ strategies:
     strike_to_strategy_config:
       short_call_multiplier: [1.5, 2.0, 2.5, 3.0, 3.5]
       short_put_multiplier:  [1.5, 2.0, 2.5, 3.0, 3.5]
-      wing_width: 5
+      long_call_distance_points: [5]
+      long_put_distance_points: [5]
       use_ATR: true
 
   atm_iron_butterfly:
@@ -33,7 +36,7 @@ strategies:
     strike_to_strategy_config:
       short_call_multiplier: [1.5, 2.0, 2.5]   # aanwezig voor uniformiteit (niet gebruikt)
       short_put_multiplier:  [1.5, 2.0, 2.5, 3.0]
-      wing_width: 5
+      long_put_distance_points: [5]
       use_ATR: true
 
   short_call_spread:
@@ -41,7 +44,7 @@ strategies:
     strike_to_strategy_config:
       short_call_multiplier: [1.5, 2.0, 2.5, 3.0]
       short_put_multiplier:  [1.5, 2.0, 2.5]   # aanwezig voor uniformiteit (niet gebruikt)
-      wing_width: 5
+      long_call_distance_points: [5]
       use_ATR: true
 
   naked_put:
@@ -49,15 +52,13 @@ strategies:
     strike_to_strategy_config:
       short_call_multiplier: [1.5, 2.0]        # aanwezig voor uniformiteit (niet gebruikt)
       short_put_multiplier:  [1.0, 1.5, 2.0, 2.5]
-      wing_width: 0                             # geen long wing
       use_ATR: true
 
   calendar:
-    # Calendar focust minder op ATR-wings; wing_width speelt niet
+    # Calendar focust minder op ATR-wings; long wings spelen niet
     strike_to_strategy_config:
       short_call_multiplier: [1.0]              # niet van toepassing maar verplicht aanwezig
       short_put_multiplier:  [1.0]
-      wing_width: 0
       use_ATR: false
       base_strikes_relative_to_spot: [5]       # basis-strike op spot (0 ATR); kan worden uitgebreid
       expiry_gap_min_days: 14
@@ -67,7 +68,7 @@ strategies:
     strike_to_strategy_config:
       short_call_multiplier: [1.5, 2.0, 2.5]    # voor call-variant
       short_put_multiplier:  [1.5, 2.0, 2.5]    # voor put-variant
-      wing_width: 5
+      long_leg_distance_points: [5]
       use_ATR: true
 
   backspread_put:
@@ -75,5 +76,5 @@ strategies:
     strike_to_strategy_config:
       short_call_multiplier: [1.5]              # aanwezig voor uniformiteit (niet gebruikt)
       short_put_multiplier:  [1.5, 2.0, 2.5]
-      wing_width: 5
+      long_put_distance_points: [5]
       use_ATR: true
