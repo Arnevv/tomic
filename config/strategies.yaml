@@ -25,7 +25,7 @@ strategies:
       # ATM short straddle + wings
       short_call_multiplier: [1.0, 1.5, 2.0]
       short_put_multiplier:  [1.0, 1.5, 2.0]
-      wing_width: 10
+      wing_width_points: [10]
       use_ATR: true
 
   short_put_spread:
