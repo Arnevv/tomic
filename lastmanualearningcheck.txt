@@ -12,38 +12,38 @@
 - C: 13/7/25
 - CAT: 13/7/25
 - CL: 4 aug 2025
-- COST
-- CRM
-- CVS
-- CVX
-- D
-- DE
-- DLR
-- DIA
-- EEM
-- ED
-- EOG
-- ESS
-- EXC
-- GE
-- GLD
-- GILD
-- GOOGL
+- COST: 29/8/2025
+- CRM: 29/8/2025
+- CVS: 29/8/2025
+- CVX: 29/8/2025
+- D: 29/8/2025
+- DE: 29/8/2025
+- DLR: 29/8/2025
+- DIA: NVT
+- EEM: NVT
+- ED: : 29/8/2025
+- EOG: 29/8/2025
+- ESS: 29/8/2025
+- EXC: 29/8/2025
+- GE: 29/8/2025
+- GLD: NVT
+- GILD: 29/8/2025
+- GOOGL: 29/8/2025
 - GS: 13/7/25
-- HAL
-- HD
-- HON
-- IWM
-- INTC
+- HAL: 29/8/2025
+- HD: 29/8/2025
+- HON: 29/8/2025
+- IWM NVT
+- INTC: : 29/8/2025
 - JNJ: 13/7/25
 - JPM: 13/7/25
-- KMB
-- KO
-- KR
-- LOW
-- LMT
-- LULU
-- MA
+- KMB: 29/8/2025
+- KO: 29/8/2025
+- KR: 29/8/2025
+- LOW: 29/8/2025
+- LMT: 29/8/2025
+- LULU: 29/8/2025
+- MA: 29/8/2025
 - MCD
 - META
 - MMM
