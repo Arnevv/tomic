@@ -20,7 +20,8 @@ def test_generate_candidates_uses_global_config(monkeypatch):
                     "strike_to_strategy_config": {
                         "short_call_multiplier": [10],
                         "short_put_multiplier": [10],
-                        "wing_width": 10,
+                        "long_call_distance_points": [10],
+                        "long_put_distance_points": [10],
                         "use_ATR": False,
                     }
                 }

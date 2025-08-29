@@ -132,12 +132,24 @@ def generate(
 
     calls = rules.get("short_call_multiplier", [])
     puts = rules.get("short_put_multiplier", [])
-    width = float(rules.get("wing_width", 0))
-    for c_mult, p_mult in islice(zip(calls, puts), 5):
+    call_widths = rules.get("long_call_distance_points")
+    put_widths = rules.get("long_put_distance_points")
+    if call_widths is None or put_widths is None:
+        legacy = rules.get("wing_width")
+        if legacy is not None:
+            if isinstance(legacy, list):
+                call_widths = put_widths = legacy
+            else:
+                call_widths = put_widths = [legacy]
+        else:
+            call_widths = put_widths = []
+    for c_mult, p_mult, c_w, p_w in islice(
+        zip(calls, puts, call_widths, put_widths), 5
+    ):
         sc_target = spot + (c_mult * atr if use_atr else c_mult)
         sp_target = spot - (p_mult * atr if use_atr else p_mult)
-        lc_target = sc_target + width
-        lp_target = sp_target - width
+        lc_target = sc_target + float(c_w)
+        lp_target = sp_target - float(p_w)
         sc = _nearest_strike(strike_map, expiry, "C", sc_target)
         sp = _nearest_strike(strike_map, expiry, "P", sp_target)
         lc = _nearest_strike(strike_map, expiry, "C", lc_target)
