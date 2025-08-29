@@ -1,5 +1,6 @@
 from __future__ import annotations
 from typing import Any, Dict, List
+import warnings
 import pandas as pd
 from tomic.bs_calculator import black_scholes
 from tomic.helpers.dateutils import dte_between_dates
@@ -127,7 +128,18 @@ def generate(
         return rr >= min_rr
 
     centers = rules.get("center_strike_relative_to_spot", [0])
-    widths = rules.get("wing_width_points", [])
+    widths = rules.get("wing_width_points")
+    if widths is None:
+        legacy = rules.get("wing_width")
+        if legacy is not None:
+            warnings.warn(
+                "'wing_width' is deprecated; use 'wing_width_points' instead",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+            widths = [legacy]
+        else:
+            widths = []
     for c_off in centers:
         center = spot + (c_off * atr if use_atr else c_off)
         center = _nearest_strike(strike_map, expiry, "C", center).matched
