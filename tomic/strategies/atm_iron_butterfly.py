@@ -7,6 +7,7 @@ from tomic.helpers.dateutils import dte_between_dates
 from tomic.helpers.timeutils import today
 from tomic.helpers.put_call_parity import fill_missing_mid_with_parity
 from . import StrategyName
+from .utils import validate_width_list
 from ..utils import get_option_mid_price, normalize_leg
 from ..logutils import log_combo_evaluation
 from ..config import get as cfg_get
@@ -140,6 +141,7 @@ def generate(
             widths = [legacy]
         else:
             widths = []
+    widths = list(validate_width_list(widths, "wing_width_points"))
     for c_off in centers:
         center = spot + (c_off * atr if use_atr else c_off)
         center = _nearest_strike(strike_map, expiry, "C", center).matched

@@ -6,6 +6,7 @@ from tomic.helpers.dateutils import dte_between_dates
 from tomic.helpers.timeutils import today
 from tomic.helpers.put_call_parity import fill_missing_mid_with_parity
 from . import StrategyName
+from .utils import validate_width_list
 from ..utils import get_option_mid_price, normalize_leg
 from ..logutils import log_combo_evaluation
 from ..config import get as cfg_get
@@ -131,7 +132,11 @@ def generate(
         or rules.get("short_delta_range")
         or []
     )
-    widths = rules.get("long_call_distance_points", [])
+    widths = list(
+        validate_width_list(
+            rules.get("long_call_distance_points"), "long_call_distance_points"
+        )
+    )
     if len(delta_range) == 2:
         for width in widths[:5]:
             short_opt = None
