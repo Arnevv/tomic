@@ -9,6 +9,8 @@ from __future__ import annotations
 
 from typing import Iterable, List
 
+from tabulate import tabulate
+
 from tomic.analysis.strategy import group_strategies
 from tomic.cli.strategy_dashboard import extract_exit_rules, generate_exit_alerts
 from tomic.config import get as cfg_get
@@ -39,7 +41,8 @@ def main() -> None:
     strategies = group_strategies(positions, journal)
     exit_rules = extract_exit_rules(journal_file)
 
-    for strat in strategies:
+    rows: list[list[object]] = []
+    for idx, strat in enumerate(strategies, start=1):
         key = (strat.get("symbol"), strat.get("expiry"))
         rule = exit_rules.get(key)
         generate_exit_alerts(strat, rule)
@@ -48,16 +51,32 @@ def main() -> None:
         status = "⚠️ Beheer nodig" if alerts else "✅ Houden"
         exit_trigger = " | ".join(alerts) if alerts else "geen trigger"
 
-        pnl = strat.get("unrealizedPnL")
-        dte = strat.get("days_to_expiry")
-        symbol = strat.get("symbol")
-        expiry = strat.get("expiry")
-        stype = strat.get("type")
-
-        print(
-            f"{symbol} {stype} {expiry} – PnL: {pnl} DTE: {dte} – "
-            f"{status} – {exit_trigger}"
+        rows.append(
+            [
+                idx,
+                strat.get("symbol"),
+                strat.get("type"),
+                strat.get("spot"),
+                strat.get("unrealizedPnL"),
+                strat.get("days_to_expiry"),
+                exit_trigger,
+                status,
+            ]
         )
+
+    print("=== 📊 TRADE MANAGEMENT ===")
+    if rows:
+        headers = [
+            "#",
+            "symbol",
+            "strategy",
+            "spot",
+            "unrealizedPnL",
+            "days_to_expiry",
+            "exit_trigger",
+            "status",
+        ]
+        print(tabulate(rows, headers=headers, tablefmt="plain"))
 
 
 if __name__ == "__main__":
