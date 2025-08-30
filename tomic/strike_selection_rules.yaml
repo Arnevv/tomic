@@ -20,7 +20,7 @@ iron_condor:
   #iv_rank_min: 0.50              # align met portfolio.condor_gates & vol-rules
   #max_skew: 0.25                 # cap op extreme skew (units afhankelijk van jouw metriek)
   min_risk_reward: 1.5           # TOMIC-beleid al in selectie
-  wing_width: [5, 15]
+  wing_width_points: [5, 15]
 
 atm_iron_butterfly:
   method: spot_distance
@@ -28,7 +28,7 @@ atm_iron_butterfly:
   min_rom: 0.10
   #iv_rank_min: 0.25              # vol-rules laten tot 0.30 toe → 0.25–0.30 is sweet spot
   #max_skew: 0.25
-  wing_width: [3, 10]
+  wing_width_points: [3, 10]
 
 short_put_spread:
   method: delta

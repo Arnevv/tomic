@@ -1,6 +1,7 @@
 from __future__ import annotations
 from typing import Any, Dict, List
 import math
+import warnings
 import pandas as pd
 from itertools import islice
 from tomic.bs_calculator import black_scholes
@@ -135,7 +136,15 @@ def generate(
     call_widths = rules.get("long_call_distance_points")
     put_widths = rules.get("long_put_distance_points")
     if call_widths is None or put_widths is None:
-        legacy = rules.get("wing_width")
+        legacy = rules.get("wing_width_points")
+        if legacy is None:
+            legacy = rules.get("wing_width")
+            if legacy is not None:
+                warnings.warn(
+                    "'wing_width' is deprecated; use 'wing_width_points' instead",
+                    DeprecationWarning,
+                    stacklevel=2,
+                )
         if legacy is not None:
             if isinstance(legacy, list):
                 call_widths = put_widths = legacy
