@@ -9,6 +9,7 @@ from tomic.helpers.dateutils import dte_between_dates
 from tomic.helpers.timeutils import today
 from tomic.helpers.put_call_parity import fill_missing_mid_with_parity
 from . import StrategyName
+from .utils import validate_width_list
 from ..utils import get_option_mid_price, normalize_leg, normalize_right
 from ..logutils import logger
 from ..config import get as cfg_get
@@ -146,12 +147,15 @@ def generate(
                     stacklevel=2,
                 )
         if legacy is not None:
-            if isinstance(legacy, list):
-                call_widths = put_widths = legacy
-            else:
-                call_widths = put_widths = [legacy]
-        else:
-            call_widths = put_widths = []
+            if not isinstance(legacy, list):
+                legacy = [legacy]
+            if call_widths is None:
+                call_widths = legacy
+            if put_widths is None:
+                put_widths = legacy
+
+    call_widths = list(validate_width_list(call_widths, "long_call_distance_points"))
+    put_widths = list(validate_width_list(put_widths, "long_put_distance_points"))
     for c_mult, p_mult, c_w, p_w in islice(
         zip(calls, puts, call_widths, put_widths), 5
     ):
