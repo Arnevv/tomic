@@ -1829,6 +1829,10 @@ def run_portfolio_menu() -> None:
     menu.add("Trading Plan", lambda: run_module("tomic.cli.trading_plan"))
     menu.add("Portfolio ophalen en tonen", fetch_and_show)
     menu.add("Laatst opgehaalde portfolio tonen", show_saved)
+    menu.add(
+        "Trademanagement (controleer exitcriteria)",
+        lambda: run_module("tomic.cli.trade_management"),
+    )
     menu.add("Toon portfolio greeks", show_greeks)
     menu.add("Toon marktinformatie", show_market_info)
     menu.add("Earnings-informatie", lambda: run_module("tomic.cli.earnings_info"))
