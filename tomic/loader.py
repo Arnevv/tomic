@@ -26,6 +26,8 @@ def normalize_strike_rule_fields(
         "expiry_gap_min": "expiry_gap_min_days",
         "wing_width": "wing_width_points",
         "wing_width_points": "wing_width_sigma",
+        "short_call_multiplier": "short_call_delta_range",
+        "short_put_multiplier": "short_put_delta_range",
     }
     per_strategy: dict[str, dict[str, str]] = {
         "backspread_put": {"short_delta_range": "short_put_delta_range"},
