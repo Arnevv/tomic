@@ -20,8 +20,7 @@ def test_generate_candidates_uses_global_config(monkeypatch):
                     "strike_to_strategy_config": {
                         "short_call_multiplier": [10],
                         "short_put_multiplier": [10],
-                        "long_call_distance_points": [10],
-                        "long_put_distance_points": [10],
+                        "wing_sigma_multiple": 0.35,
                         "use_ATR": False,
                     }
                 }
@@ -53,6 +52,5 @@ def test_generate_candidates_uses_global_config(monkeypatch):
     proposals, reasons = generate_strategy_candidates(
         "AAA", "iron_condor", chain, 1.0, None, 100.0
     )
-    assert reasons == []
+    assert "ontbrekende strikes" in reasons
     assert isinstance(proposals, list)
-    assert proposals

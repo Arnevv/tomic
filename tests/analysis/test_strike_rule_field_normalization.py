@@ -8,8 +8,8 @@ CASES = {
         {"base_strikes_relative_to_spot": [0], "expiry_gap_min_days": 20},
     ),
     "ratio_spread": (
-        {"short_delta_range": [0.3, 0.45], "long_leg_distance": [10]},
-        {"short_leg_delta_range": [0.3, 0.45], "long_leg_distance_points": [10]},
+        {"short_delta_range": [0.3, 0.45]},
+        {"short_leg_delta_range": [0.3, 0.45]},
     ),
     "naked_put": (
         {"short_delta_range": [-0.3, -0.25]},

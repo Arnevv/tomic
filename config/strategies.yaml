@@ -5,9 +5,8 @@ default:
   strike_to_strategy_config:
     short_call_multiplier: [1.5, 2.0, 2.5, 3.0, 3.5]
     short_put_multiplier:  [1.5, 2.0, 2.5, 3.0, 3.5]
-    long_call_distance_points: [5]
-    long_put_distance_points: [5]
-    long_leg_distance_points: [5]
+    wing_sigma_multiple: 1.0
+    long_leg_target_delta: 0.1
     use_ATR: true
 
 strategies:
@@ -17,8 +16,7 @@ strategies:
     strike_to_strategy_config:
       short_call_multiplier: [1.5, 2.0, 2.5, 3.0, 3.5]
       short_put_multiplier:  [1.5, 2.0, 2.5, 3.0, 3.5]
-      long_call_distance_points: [5]
-      long_put_distance_points: [5]
+      wing_sigma_multiple: 1.0
       use_ATR: true
 
   atm_iron_butterfly:
@@ -28,7 +26,7 @@ strategies:
       # ATM short straddle + wings
       short_call_multiplier: [1.0, 1.5, 2.0]
       short_put_multiplier:  [1.0, 1.5, 2.0]
-      wing_width_points: [10]
+      wing_sigma_multiple: 1.0
       use_ATR: true
 
   short_put_spread:
@@ -36,7 +34,7 @@ strategies:
     strike_to_strategy_config:
       short_call_multiplier: [1.5, 2.0, 2.5]   # aanwezig voor uniformiteit (niet gebruikt)
       short_put_multiplier:  [1.5, 2.0, 2.5, 3.0]
-      long_put_distance_points: [5]
+      long_leg_target_delta: 0.1
       use_ATR: true
 
   short_call_spread:
@@ -44,7 +42,7 @@ strategies:
     strike_to_strategy_config:
       short_call_multiplier: [1.5, 2.0, 2.5, 3.0]
       short_put_multiplier:  [1.5, 2.0, 2.5]   # aanwezig voor uniformiteit (niet gebruikt)
-      long_call_distance_points: [5]
+      long_leg_target_delta: 0.1
       use_ATR: true
 
   naked_put:
@@ -68,7 +66,7 @@ strategies:
     strike_to_strategy_config:
       short_call_multiplier: [1.5, 2.0, 2.5]    # voor call-variant
       short_put_multiplier:  [1.5, 2.0, 2.5]    # voor put-variant
-      long_leg_distance_points: [5]
+      long_leg_target_delta: 0.1
       use_ATR: true
 
   backspread_put:
@@ -76,5 +74,5 @@ strategies:
     strike_to_strategy_config:
       short_call_multiplier: [1.5]              # aanwezig voor uniformiteit (niet gebruikt)
       short_put_multiplier:  [1.5, 2.0, 2.5]
-      long_put_distance_points: [5]
+      long_leg_target_delta: 0.1
       use_ATR: true
