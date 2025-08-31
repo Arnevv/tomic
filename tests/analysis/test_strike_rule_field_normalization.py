@@ -16,24 +16,24 @@ CASES = {
         {"short_put_delta_range": [-0.3, -0.25]},
     ),
     "short_put_spread": (
-        {"short_delta_range": [-0.35, -0.2]},
-        {"short_put_delta_range": [-0.35, -0.2]},
+        {"short_delta_range": [-0.35, -0.2], "long_leg_distance_points": 5},
+        {"short_put_delta_range": [-0.35, -0.2], "long_leg_target_delta": 5},
     ),
     "backspread_put": (
-        {"short_delta_range": [0.15, 0.3]},
-        {"short_put_delta_range": [0.15, 0.3]},
+        {"short_delta_range": [0.15, 0.3], "long_leg_distance_points": 5},
+        {"short_put_delta_range": [0.15, 0.3], "long_leg_target_delta": 5},
     ),
     "short_call_spread": (
-        {"short_delta_range": [0.2, 0.35]},
-        {"short_call_delta_range": [0.2, 0.35]},
+        {"short_delta_range": [0.2, 0.35], "long_leg_distance_points": 5},
+        {"short_call_delta_range": [0.2, 0.35], "long_leg_target_delta": 5},
     ),
     "atm_iron_butterfly": (
         {"wing_width": 5},
-        {"wing_width_points": [5]},
+        {"wing_sigma_multiple": 5},
     ),
     "iron_condor": (
-        {"wing_width": [5]},
         {"wing_width_points": [5]},
+        {"wing_sigma_multiple": 5},
     ),
 }
 

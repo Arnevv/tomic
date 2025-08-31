@@ -15,7 +15,7 @@ chain = [
 def test_wing_width_deprecation():
     rules_cfg = {
         "center_strike_relative_to_spot": [0],
-        "wing_width": 5,
+        "wing_width_points": 5,
         "use_ATR": False,
     }
     with warnings.catch_warnings(record=True) as w:
@@ -25,4 +25,4 @@ def test_wing_width_deprecation():
             "AAA", chain, {"strike_to_strategy_config": rules}, 100.0, 1.0
         )
         assert isinstance(props, list)
-        assert any("wing_width" in str(warn.message) for warn in w)
+        assert any("wing_width_points" in str(warn.message) for warn in w)
