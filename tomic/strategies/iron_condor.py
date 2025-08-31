@@ -8,7 +8,7 @@ from tomic.helpers.dateutils import dte_between_dates
 from tomic.helpers.timeutils import today
 from tomic.helpers.put_call_parity import fill_missing_mid_with_parity
 from . import StrategyName
-from .utils import validate_width_list
+from .utils import compute_dynamic_width
 from ..utils import get_option_mid_price, normalize_leg, normalize_right
 from ..logutils import logger
 from ..config import get as cfg_get
@@ -132,37 +132,35 @@ def generate(
 
     calls = rules.get("short_call_multiplier", [])
     puts = rules.get("short_put_multiplier", [])
-    call_widths = rules.get("long_call_distance_points")
-    put_widths = rules.get("long_put_distance_points")
-    if call_widths is None or put_widths is None:
-        legacy = rules.get("wing_width_points")
-        if legacy is not None:
-            if call_widths is None:
-                call_widths = legacy
-            if put_widths is None:
-                put_widths = legacy
-
-    call_widths = list(validate_width_list(call_widths, "long_call_distance_points"))
-    put_widths = list(validate_width_list(put_widths, "long_put_distance_points"))
-    for c_mult, p_mult, c_w, p_w in islice(
-        zip(calls, puts, call_widths, put_widths), 5
-    ):
+    sigma_mult = float(rules.get("wing_sigma_multiple", 1.0))
+    for c_mult, p_mult in islice(zip(calls, puts), 5):
         sc_target = spot + (c_mult * atr if use_atr else c_mult)
         sp_target = spot - (p_mult * atr if use_atr else p_mult)
-        lc_target = sc_target + float(c_w)
-        lp_target = sp_target - float(p_w)
         sc = _nearest_strike(strike_map, expiry, "C", sc_target)
         sp = _nearest_strike(strike_map, expiry, "P", sp_target)
-        lc = _nearest_strike(strike_map, expiry, "C", lc_target)
-        lp = _nearest_strike(strike_map, expiry, "P", lp_target)
-        if not all([sc.matched, sp.matched, lc.matched, lp.matched]):
+        if not sc.matched or not sp.matched:
             rejected_reasons.append("ontbrekende strikes")
             continue
         sc_opt = _find_option(option_chain, expiry, sc.matched, "C")
         sp_opt = _find_option(option_chain, expiry, sp.matched, "P")
+        if not sc_opt or not sp_opt:
+            rejected_reasons.append("opties niet gevonden")
+            continue
+        c_w = compute_dynamic_width(sc_opt, spot=spot, sigma_multiple=sigma_mult)
+        p_w = compute_dynamic_width(sp_opt, spot=spot, sigma_multiple=sigma_mult)
+        if c_w is None or p_w is None:
+            rejected_reasons.append("breedte niet berekend")
+            continue
+        lc_target = sc_target + c_w
+        lp_target = sp_target - p_w
+        lc = _nearest_strike(strike_map, expiry, "C", lc_target)
+        lp = _nearest_strike(strike_map, expiry, "P", lp_target)
+        if not all([lc.matched, lp.matched]):
+            rejected_reasons.append("ontbrekende strikes")
+            continue
         lc_opt = _find_option(option_chain, expiry, lc.matched, "C")
         lp_opt = _find_option(option_chain, expiry, lp.matched, "P")
-        if not all([sc_opt, sp_opt, lc_opt, lp_opt]):
+        if not all([lc_opt, lp_opt]):
             rejected_reasons.append("opties niet gevonden")
             continue
         sc_leg, sc_reason = make_leg(sc_opt, -1)

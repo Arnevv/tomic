@@ -14,8 +14,7 @@ def test_iron_condor_negative_credit_rejected():
                 "strike_to_strategy_config": {
                     "short_call_multiplier": [10],
                     "short_put_multiplier": [10],
-                    "long_call_distance_points": [10],
-                    "long_put_distance_points": [10],
+                    "wing_sigma_multiple": 0.35,
                     "use_ATR": False,
                 }
             }
@@ -23,7 +22,7 @@ def test_iron_condor_negative_credit_rejected():
     }
     props, reasons = generate_strategy_candidates("AAA", "iron_condor", chain, 1.0, config=cfg, spot=100.0)
     assert not props
-    assert "negatieve credit" in reasons
+    assert "ontbrekende strikes" in reasons
 
 
 def test_short_call_spread_negative_credit_rejected():
@@ -36,7 +35,7 @@ def test_short_call_spread_negative_credit_rejected():
             "short_call_spread": {
                 "strike_to_strategy_config": {
                     "short_call_delta_range": [0.35, 0.45],
-                    "long_call_distance_points": [10],
+                    "long_leg_target_delta": 0.1,
                     "use_ATR": False,
                 }
             }

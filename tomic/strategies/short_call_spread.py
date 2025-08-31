@@ -6,7 +6,7 @@ from tomic.helpers.dateutils import dte_between_dates
 from tomic.helpers.timeutils import today
 from tomic.helpers.put_call_parity import fill_missing_mid_with_parity
 from . import StrategyName
-from .utils import validate_width_list
+from .utils import compute_dynamic_width
 from ..utils import get_option_mid_price, normalize_leg
 from ..logutils import log_combo_evaluation
 from ..config import get as cfg_get
@@ -127,97 +127,128 @@ def generate(
         return rr >= min_rr
 
     delta_range = rules.get("short_call_delta_range") or []
-    widths = list(
-        validate_width_list(
-            rules.get("long_call_distance_points"), "long_call_distance_points"
-        )
-    )
-    if len(delta_range) == 2:
-        for width in widths[:5]:
-            short_opt = None
-            for opt in option_chain:
-                if (
-                    str(opt.get("expiry")) == expiry
-                    and (opt.get("type") or opt.get("right")) == "C"
-                    and opt.get("delta") is not None
-                    and delta_range[0] <= float(opt.get("delta")) <= delta_range[1]
-                ):
-                    short_opt = opt
-                    break
-            if not short_opt:
-                reason = "short optie ontbreekt"
-                log_combo_evaluation(
-                    StrategyName.SHORT_CALL_SPREAD,
-                    f"width {width}",
-                    None,
-                    "reject",
-                    reason,
-                )
-                rejected_reasons.append(reason)
-                continue
-            long_strike_target = float(short_opt.get("strike")) + width
-            long_strike = _nearest_strike(strike_map, expiry, "C", long_strike_target)
-            desc = f"short {short_opt.get('strike')} long {long_strike.matched}"
-            if not long_strike.matched:
-                reason = "long strike niet gevonden"
-                log_combo_evaluation(
-                    StrategyName.SHORT_CALL_SPREAD,
-                    desc,
-                    None,
-                    "reject",
-                    reason,
-                )
-                rejected_reasons.append(reason)
-                continue
-            long_opt = _find_option(option_chain, expiry, long_strike.matched, "C")
-            if not long_opt:
-                reason = "long optie ontbreekt"
-                log_combo_evaluation(
-                    StrategyName.SHORT_CALL_SPREAD,
-                    desc,
-                    None,
-                    "reject",
-                    reason,
-                )
-                rejected_reasons.append(reason)
-                continue
-            legs = [make_leg(short_opt, -1), make_leg(long_opt, 1)]
-            if any(l is None for l in legs):
-                reason = "leg data ontbreekt"
-                log_combo_evaluation(
-                    StrategyName.SHORT_CALL_SPREAD,
-                    desc,
-                    None,
-                    "reject",
-                    reason,
-                )
-                rejected_reasons.append(reason)
-                continue
-            metrics, reasons = _metrics(StrategyName.SHORT_CALL_SPREAD, legs, spot)
-            if metrics and passes_risk(metrics):
-                proposals.append(StrategyProposal(legs=legs, **metrics))
-                log_combo_evaluation(
-                    StrategyName.SHORT_CALL_SPREAD,
-                    desc,
-                    metrics,
-                    "pass",
-                    "criteria",
-                )
-            else:
-                reason = "; ".join(reasons) if reasons else "risk/reward onvoldoende"
-                log_combo_evaluation(
-                    StrategyName.SHORT_CALL_SPREAD,
-                    desc,
-                    metrics,
-                    "reject",
-                    reason,
-                )
-                if reasons:
-                    rejected_reasons.extend(reasons)
-                else:
-                    rejected_reasons.append("risk/reward onvoldoende")
-            if len(proposals) >= 5:
+    target_delta = rules.get("long_leg_target_delta")
+    atr_mult = rules.get("long_leg_atr_multiple")
+    if len(delta_range) == 2 and (target_delta is not None or atr_mult is not None):
+        short_opt = None
+        for opt in option_chain:
+            if (
+                str(opt.get("expiry")) == expiry
+                and (opt.get("type") or opt.get("right")) == "C"
+                and opt.get("delta") is not None
+                and delta_range[0] <= float(opt.get("delta")) <= delta_range[1]
+            ):
+                short_opt = opt
                 break
+        if not short_opt:
+            reason = "short optie ontbreekt"
+            desc = (
+                f"target_delta {target_delta}" if target_delta is not None else f"atr_mult {atr_mult}"
+            )
+            log_combo_evaluation(
+                StrategyName.SHORT_CALL_SPREAD,
+                desc,
+                None,
+                "reject",
+                reason,
+            )
+            rejected_reasons.append(reason)
+        else:
+            width = compute_dynamic_width(
+                short_opt,
+                target_delta=target_delta,
+                atr_multiple=atr_mult,
+                atr=atr,
+                use_atr=use_atr,
+                option_chain=option_chain,
+                expiry=expiry,
+                option_type="C",
+            )
+            if width is None:
+                reason = "breedte niet berekend"
+                desc = (
+                    f"target_delta {target_delta}" if target_delta is not None else f"atr_mult {atr_mult}"
+                )
+                log_combo_evaluation(
+                    StrategyName.SHORT_CALL_SPREAD,
+                    desc,
+                    None,
+                    "reject",
+                    reason,
+                )
+                rejected_reasons.append(reason)
+            else:
+                long_strike_target = float(short_opt.get("strike")) + width
+                long_strike = _nearest_strike(strike_map, expiry, "C", long_strike_target)
+                desc = (
+                    f"short {short_opt.get('strike')} long {long_strike.matched}"
+                )
+                if not long_strike.matched:
+                    reason = "long strike niet gevonden"
+                    log_combo_evaluation(
+                        StrategyName.SHORT_CALL_SPREAD,
+                        desc,
+                        None,
+                        "reject",
+                        reason,
+                    )
+                    rejected_reasons.append(reason)
+                else:
+                    long_opt = _find_option(option_chain, expiry, long_strike.matched, "C")
+                    if not long_opt:
+                        reason = "long optie ontbreekt"
+                        log_combo_evaluation(
+                            StrategyName.SHORT_CALL_SPREAD,
+                            desc,
+                            None,
+                            "reject",
+                            reason,
+                        )
+                        rejected_reasons.append(reason)
+                    else:
+                        legs = [make_leg(short_opt, -1), make_leg(long_opt, 1)]
+                        if any(l is None for l in legs):
+                            reason = "leg data ontbreekt"
+                            log_combo_evaluation(
+                                StrategyName.SHORT_CALL_SPREAD,
+                                desc,
+                                None,
+                                "reject",
+                                reason,
+                            )
+                            rejected_reasons.append(reason)
+                        else:
+                            metrics, reasons = _metrics(
+                                StrategyName.SHORT_CALL_SPREAD, legs, spot
+                            )
+                            if metrics and passes_risk(metrics):
+                                proposals.append(StrategyProposal(legs=legs, **metrics))
+                                log_combo_evaluation(
+                                    StrategyName.SHORT_CALL_SPREAD,
+                                    desc,
+                                    metrics,
+                                    "pass",
+                                    "criteria",
+                                )
+                            else:
+                                reason = (
+                                    "; ".join(reasons)
+                                    if reasons
+                                    else "risk/reward onvoldoende"
+                                )
+                                log_combo_evaluation(
+                                    StrategyName.SHORT_CALL_SPREAD,
+                                    desc,
+                                    metrics,
+                                    "reject",
+                                    reason,
+                                )
+                                if reasons:
+                                    rejected_reasons.extend(reasons)
+                                else:
+                                    rejected_reasons.append(
+                                        "risk/reward onvoldoende"
+                                    )
     else:
         rejected_reasons.append("ongeldige delta range")
     proposals.sort(key=lambda p: p.score or 0, reverse=True)

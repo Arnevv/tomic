@@ -13,23 +13,23 @@ strategies = [
     ),
     (
         StrategyName.SHORT_PUT_SPREAD,
-        {"strike_to_strategy_config": {"short_put_delta_range": [-0.35, -0.2], "long_put_distance_points": [5], "use_ATR": False}},
+        {"strike_to_strategy_config": {"short_put_delta_range": [-0.35, -0.2], "long_leg_target_delta": 0.1, "use_ATR": False}},
     ),
     (
         StrategyName.SHORT_CALL_SPREAD,
-        {"strike_to_strategy_config": {"short_call_delta_range": [0.2, 0.35], "long_call_distance_points": [5], "use_ATR": False}},
+        {"strike_to_strategy_config": {"short_call_delta_range": [0.2, 0.35], "long_leg_target_delta": 0.1, "use_ATR": False}},
     ),
     (
         StrategyName.RATIO_SPREAD,
-        {"strike_to_strategy_config": {"short_leg_delta_range": [0.3, 0.45], "long_leg_distance_points": [5], "use_ATR": False}},
+        {"strike_to_strategy_config": {"short_leg_delta_range": [0.3, 0.45], "long_leg_target_delta": 0.1, "use_ATR": False}},
     ),
     (
         StrategyName.BACKSPREAD_PUT,
-        {"strike_to_strategy_config": {"short_put_delta_range": [0.15, 0.3], "long_put_distance_points": [5], "use_ATR": False}},
+        {"strike_to_strategy_config": {"short_put_delta_range": [0.15, 0.3], "long_leg_target_delta": 0.1, "use_ATR": False}},
     ),
     (
         StrategyName.ATM_IRON_BUTTERFLY,
-        {"strike_to_strategy_config": {"center_strike_relative_to_spot": [0], "wing_width_points": [5], "use_ATR": False}},
+        {"strike_to_strategy_config": {"center_strike_relative_to_spot": [0], "wing_width": 5, "use_ATR": False}},
     ),
 ]
 
@@ -40,19 +40,19 @@ legacy_strategies = [
     ),
     (
         StrategyName.SHORT_PUT_SPREAD,
-        {"short_delta_range": [-0.35, -0.2], "long_put_distance_points": [5], "use_ATR": False},
+        {"short_delta_range": [-0.35, -0.2], "long_leg_target_delta": 0.1, "use_ATR": False},
     ),
     (
         StrategyName.SHORT_CALL_SPREAD,
-        {"short_delta_range": [0.2, 0.35], "long_call_distance_points": [5], "use_ATR": False},
+        {"short_delta_range": [0.2, 0.35], "long_leg_target_delta": 0.1, "use_ATR": False},
     ),
     (
         StrategyName.RATIO_SPREAD,
-        {"short_delta_range": [0.3, 0.45], "long_leg_distance": [5], "use_ATR": False},
+        {"short_delta_range": [0.3, 0.45], "long_leg_target_delta": 0.1, "use_ATR": False},
     ),
     (
         StrategyName.BACKSPREAD_PUT,
-        {"short_delta_range": [0.15, 0.3], "long_put_distance_points": [5], "use_ATR": False},
+        {"short_delta_range": [0.15, 0.3], "long_leg_target_delta": 0.1, "use_ATR": False},
     ),
     (
         StrategyName.ATM_IRON_BUTTERFLY,

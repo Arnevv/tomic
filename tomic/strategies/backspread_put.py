@@ -6,7 +6,7 @@ from tomic.helpers.dateutils import dte_between_dates
 from tomic.helpers.timeutils import today
 from tomic.helpers.put_call_parity import fill_missing_mid_with_parity
 from . import StrategyName
-from .utils import validate_width_list
+from .utils import compute_dynamic_width
 from ..utils import get_option_mid_price, normalize_leg
 from ..logutils import log_combo_evaluation
 from ..config import get as cfg_get
@@ -128,100 +128,117 @@ def generate(
         return rr >= min_rr
 
     delta_range = rules.get("short_put_delta_range") or []
-    widths = list(
-        validate_width_list(
-            rules.get("long_put_distance_points"), "long_put_distance_points"
-        )
-    )
+    target_delta = rules.get("long_leg_target_delta")
+    atr_mult = rules.get("long_leg_atr_multiple")
     min_gap = int(rules.get("expiry_gap_min_days", 0))
     pairs = select_expiry_pairs(expiries, min_gap)
-    if len(delta_range) == 2:
+    if len(delta_range) == 2 and (target_delta is not None or atr_mult is not None):
         for near, far in pairs[:3]:
-            for width in widths:
-                short_opt = None
-                for opt in option_chain:
-                    if (
-                        str(opt.get("expiry")) == near
-                        and (opt.get("type") or opt.get("right")) == "P"
-                        and opt.get("delta") is not None
-                        and delta_range[0] <= float(opt.get("delta")) <= delta_range[1]
-                    ):
-                        short_opt = opt
-                        break
-                if not short_opt:
-                    reason = "short optie ontbreekt"
-                    log_combo_evaluation(
-                        StrategyName.BACKSPREAD_PUT,
-                        f"near {near} far {far} width {width}",
-                        None,
-                        "reject",
-                        reason,
-                    )
-                    rejected_reasons.append(reason)
-                    continue
-                long_strike_target = float(short_opt.get("strike")) - width
-                long_strike = _nearest_strike(strike_map, far, "P", long_strike_target)
+            short_opt = None
+            for opt in option_chain:
+                if (
+                    str(opt.get("expiry")) == near
+                    and (opt.get("type") or opt.get("right")) == "P"
+                    and opt.get("delta") is not None
+                    and delta_range[0] <= float(opt.get("delta")) <= delta_range[1]
+                ):
+                    short_opt = opt
+                    break
+            if not short_opt:
+                reason = "short optie ontbreekt"
                 desc = (
-                    f"near {near} far {far} short {short_opt.get('strike')} long {long_strike.matched}"
+                    f"near {near} far {far} target_delta {target_delta}"
+                    if target_delta is not None
+                    else f"near {near} far {far} atr_mult {atr_mult}"
                 )
-                if not long_strike.matched:
-                    reason = "long strike niet gevonden"
+                log_combo_evaluation(
+                    StrategyName.BACKSPREAD_PUT,
+                    desc,
+                    None,
+                    "reject",
+                    reason,
+                )
+                rejected_reasons.append(reason)
+                continue
+            width = compute_dynamic_width(
+                short_opt,
+                target_delta=target_delta,
+                atr_multiple=atr_mult,
+                atr=atr,
+                use_atr=use_atr,
+                option_chain=option_chain,
+                expiry=far,
+                option_type="P",
+            )
+            if width is None:
+                reason = "breedte niet berekend"
+                desc = (
+                    f"near {near} far {far} target_delta {target_delta}"
+                    if target_delta is not None
+                    else f"near {near} far {far} atr_mult {atr_mult}"
+                )
+                log_combo_evaluation(
+                    StrategyName.BACKSPREAD_PUT,
+                    desc,
+                    None,
+                    "reject",
+                    reason,
+                )
+                rejected_reasons.append(reason)
+                continue
+            long_strike_target = float(short_opt.get("strike")) - width
+            long_strike = _nearest_strike(strike_map, far, "P", long_strike_target)
+            desc = (
+                f"near {near} far {far} short {short_opt.get('strike')} long {long_strike.matched}"
+            )
+            if not long_strike.matched:
+                reason = "long strike niet gevonden"
+                log_combo_evaluation(
+                    StrategyName.BACKSPREAD_PUT,
+                    desc,
+                    None,
+                    "reject",
+                    reason,
+                )
+                rejected_reasons.append(reason)
+                continue
+            long_opt = _find_option(option_chain, far, long_strike.matched, "P")
+            if not long_opt:
+                reason = "long optie ontbreekt"
+                log_combo_evaluation(
+                    StrategyName.BACKSPREAD_PUT,
+                    desc,
+                    None,
+                    "reject",
+                    reason,
+                )
+                rejected_reasons.append(reason)
+                continue
+            legs = [make_leg(short_opt, -1), make_leg(long_opt, 2)]
+            if any(l is None for l in legs):
+                reason = "leg data ontbreekt"
+                log_combo_evaluation(
+                    StrategyName.BACKSPREAD_PUT,
+                    desc,
+                    None,
+                    "reject",
+                    reason,
+                )
+                rejected_reasons.append(reason)
+                continue
+            metrics, reasons = _metrics(StrategyName.BACKSPREAD_PUT, legs, spot)
+            if metrics and passes_risk(metrics):
+                if _validate_ratio("backspread_put", legs, metrics.get("credit", 0.0)):
+                    proposals.append(StrategyProposal(legs=legs, **metrics))
                     log_combo_evaluation(
                         StrategyName.BACKSPREAD_PUT,
                         desc,
-                        None,
-                        "reject",
-                        reason,
+                        metrics,
+                        "pass",
+                        "criteria",
                     )
-                    rejected_reasons.append(reason)
-                    continue
-                long_opt = _find_option(option_chain, far, long_strike.matched, "P")
-                if not long_opt:
-                    reason = "long optie ontbreekt"
-                    log_combo_evaluation(
-                        StrategyName.BACKSPREAD_PUT,
-                        desc,
-                        None,
-                        "reject",
-                        reason,
-                    )
-                    rejected_reasons.append(reason)
-                    continue
-                legs = [make_leg(short_opt, -1), make_leg(long_opt, 2)]
-                if any(l is None for l in legs):
-                    reason = "leg data ontbreekt"
-                    log_combo_evaluation(
-                        StrategyName.BACKSPREAD_PUT,
-                        desc,
-                        None,
-                        "reject",
-                        reason,
-                    )
-                    rejected_reasons.append(reason)
-                    continue
-                metrics, reasons = _metrics(StrategyName.BACKSPREAD_PUT, legs, spot)
-                if metrics and passes_risk(metrics):
-                    if _validate_ratio("backspread_put", legs, metrics.get("credit", 0.0)):
-                        proposals.append(StrategyProposal(legs=legs, **metrics))
-                        log_combo_evaluation(
-                            StrategyName.BACKSPREAD_PUT,
-                            desc,
-                            metrics,
-                            "pass",
-                            "criteria",
-                        )
-                    else:
-                        reason = "verkeerde ratio"
-                        log_combo_evaluation(
-                            StrategyName.BACKSPREAD_PUT,
-                            desc,
-                            metrics,
-                            "reject",
-                            reason,
-                        )
-                        rejected_reasons.append(reason)
                 else:
-                    reason = "; ".join(reasons) if reasons else "risk/reward onvoldoende"
+                    reason = "verkeerde ratio"
                     log_combo_evaluation(
                         StrategyName.BACKSPREAD_PUT,
                         desc,
@@ -229,12 +246,20 @@ def generate(
                         "reject",
                         reason,
                     )
-                    if reasons:
-                        rejected_reasons.extend(reasons)
-                    else:
-                        rejected_reasons.append("risk/reward onvoldoende")
-                if len(proposals) >= 5:
-                    break
+                    rejected_reasons.append(reason)
+            else:
+                reason = "; ".join(reasons) if reasons else "risk/reward onvoldoende"
+                log_combo_evaluation(
+                    StrategyName.BACKSPREAD_PUT,
+                    desc,
+                    metrics,
+                    "reject",
+                    reason,
+                )
+                if reasons:
+                    rejected_reasons.extend(reasons)
+                else:
+                    rejected_reasons.append("risk/reward onvoldoende")
     else:
         rejected_reasons.append("ongeldige delta range")
     proposals.sort(key=lambda p: p.score or 0, reverse=True)
