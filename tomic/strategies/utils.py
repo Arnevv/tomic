@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import math
-from typing import Sequence, Any, Dict, List
+from typing import Sequence, Any, Dict, List, Mapping
 
 from tomic.helpers.dateutils import dte_between_dates
 from tomic.helpers.timeutils import today
@@ -11,7 +11,7 @@ from tomic.helpers.timeutils import today
 from ..logutils import logger
 
 
-def validate_width_list(widths: Sequence[Any] | None, key: str) -> Sequence[Any]:
+def validate_width_list(widths: Sequence[Any] | Mapping[str, Any] | float | int | None, key: str) -> Sequence[Any]:
     """Return ``widths`` if valid or raise ``ValueError``.
 
     Parameters
@@ -28,11 +28,35 @@ def validate_width_list(widths: Sequence[Any] | None, key: str) -> Sequence[Any]
         If ``widths`` is ``None`` or empty.
     """
 
-    if not widths:
+    if widths is None:
         msg = f"'{key}' ontbreekt of is leeg in configuratie"
         logger.error(msg)
         raise ValueError(msg)
-    return widths
+
+    if isinstance(widths, (int, float)) or isinstance(widths, Mapping):
+        widths = [widths]
+
+    try:
+        seq = list(widths)
+    except TypeError:
+        msg = f"'{key}' heeft een ongeldig type"
+        logger.error(msg)
+        raise ValueError(msg)
+
+    if not seq:
+        msg = f"'{key}' ontbreekt of is leeg in configuratie"
+        logger.error(msg)
+        raise ValueError(msg)
+
+    allowed = {"points", "sigma", "delta"}
+    for w in seq:
+        if isinstance(w, Mapping):
+            if not any(k in w for k in allowed):
+                msg = f"'{key}' bevat onbekende width specificatie"
+                logger.error(msg)
+                raise ValueError(msg)
+
+    return seq
 
 
 def compute_dynamic_width(

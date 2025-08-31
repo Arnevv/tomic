@@ -21,9 +21,11 @@ def normalize_strike_rule_fields(
 
     mapping: dict[str, str] = {
         "long_leg_distance": "long_leg_distance_points",
+        "long_leg_distance_points": "long_leg_target_delta",
         "strike_distance": "base_strikes_relative_to_spot",
         "expiry_gap_min": "expiry_gap_min_days",
         "wing_width": "wing_width_points",
+        "wing_width_points": "wing_width_sigma",
     }
     per_strategy: dict[str, dict[str, str]] = {
         "backspread_put": {"short_delta_range": "short_put_delta_range"},
@@ -48,13 +50,17 @@ def normalize_strike_rule_fields(
         else:
             normalized.pop(old, None)
 
+    # promote new fields without deprecation warnings
+    if "wing_width_sigma" in normalized and "wing_sigma_multiple" not in normalized:
+        normalized["wing_sigma_multiple"] = normalized.pop("wing_width_sigma")
+
     b = normalized.get("base_strikes_relative_to_spot")
     if b is not None and not isinstance(b, (list, tuple)):
         normalized["base_strikes_relative_to_spot"] = [b]
 
-    w = normalized.get("wing_width_points")
-    if w is not None and not isinstance(w, (list, tuple)):
-        normalized["wing_width_points"] = [w]
+    w = normalized.get("wing_sigma_multiple")
+    if isinstance(w, (list, tuple)):
+        normalized["wing_sigma_multiple"] = w[0] if w else w
 
     return dict(normalized)
 
