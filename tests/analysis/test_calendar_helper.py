@@ -1,6 +1,7 @@
 import pytest
 import tomic.strategy_candidates as sc
 from tomic.strategies import calendar
+from tomic import loader
 
 
 def test_options_by_strike_filters_missing_mid():
@@ -53,3 +54,17 @@ def test_calendar_logs_skip_on_missing_mid(monkeypatch):
     )
     props, _ = calendar.generate("AAA", chain, cfg, 100.0, 1.0)
     assert not props
+
+
+def test_calendar_accepts_scalar_base_strike(monkeypatch):
+    """Regression: scalar base strike should be treated as a single-item list."""
+    monkeypatch.setenv("TOMIC_TODAY", "2024-06-01")
+    chain = [
+        {"expiry": "2025-01-01", "strike": 100, "type": "C", "bid": 1, "ask": 1.2, "delta": 0.4, "edge": 0.1, "iv": 0.2, "model": 1.5},
+        {"expiry": "2025-02-01", "strike": 100, "type": "C", "bid": 1, "ask": 1.1, "delta": 0.3, "edge": 0.1, "iv": 0.25, "model": 1.3},
+        {"expiry": "2025-03-01", "strike": 105, "type": "C", "bid": 1, "ask": 1.3, "delta": 0.2, "edge": 0.1, "iv": 0.3, "model": 1.4},
+    ]
+    cfg = {"calendar": {"base_strikes_relative_to_spot": 0, "expiry_gap_min_days": 20, "use_ATR": False}}
+    rules = loader.load_strike_config("calendar", cfg)
+    props, _ = calendar.generate("AAA", chain, {"strike_to_strategy_config": rules}, 100.0, 1.0)
+    assert props

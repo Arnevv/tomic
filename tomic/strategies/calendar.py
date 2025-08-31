@@ -50,9 +50,6 @@ def generate(
     min_rr = float(config.get("min_risk_reward", 0.0))
     min_gap = int(rules.get("expiry_gap_min_days", 0))
     base_strikes = rules.get("base_strikes_relative_to_spot", [])
-    if not base_strikes:
-        rejected_reasons.append("base_strikes_relative_to_spot ontbreekt")
-        return [], rejected_reasons
 
     preferred = str(config.get("preferred_option_type", "C")).upper()[0]
     order = [preferred] + (["P"] if preferred == "C" else ["C"])

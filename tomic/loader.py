@@ -17,6 +17,9 @@ def normalize_strike_rule_fields(rules: dict) -> dict:
             normalized[new] = normalized.pop(old)
         else:
             normalized.pop(old, None)
+    b = normalized.get("base_strikes_relative_to_spot")
+    if b is not None and not isinstance(b, (list, tuple)):
+        normalized["base_strikes_relative_to_spot"] = [b]
     return normalized
 
 
