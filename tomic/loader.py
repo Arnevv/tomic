@@ -4,6 +4,21 @@ from __future__ import annotations
 
 
 def load_strike_config(strategy_name: str, config: dict) -> dict:
-    """Return strike config for ``strategy_name`` with ``default`` fallback."""
+    """Return strike config for ``strategy_name`` with ``default`` fallback.
 
-    return config["strategies"].get(strategy_name, config["default"])
+    ``config`` can be structured in two ways:
+
+    1. ``{"default": {...}, "strategies": {"s1": {...}}}``
+    2. ``{"default": {...}, "s1": {...}}``
+
+    This helper detects the layout and returns the rule set for ``strategy_name``
+    or falls back to ``default`` when not found. Missing keys simply return an
+    empty dict so callers don't need defensive ``try`` blocks.
+    """
+
+    if "strategies" in config:
+        rules = config["strategies"].get(strategy_name, config.get("default", {}))
+    else:
+        rules = config.get(strategy_name, config.get("default", {}))
+
+    return rules or {}
