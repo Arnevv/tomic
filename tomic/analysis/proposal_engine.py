@@ -178,10 +178,7 @@ def _calc_metrics(strategy: str, legs: List[Leg], spot_price: float) -> Dict[str
 def _filter_chain_by_dte(chain: List[Leg], strategy: str) -> List[Leg]:
     """Return ``chain`` filtered to the strategy's DTE range."""
 
-    try:
-        rules = load_strike_config(strategy, _STRIKE_RULES)
-    except Exception:
-        rules = {}
+    rules = load_strike_config(strategy, _STRIKE_RULES)
     dte_range = rules.get("dte_range")
     if not dte_range:
         return chain
