@@ -24,6 +24,7 @@ strike:
 
 # 2) STRATEGY SCORING & ACCEPTANCE
 strategy:
+  # The following score weights must sum to 1.0
   score_weight_rom: 0.50
   score_weight_pos: 0.30
   score_weight_ev:  0.20

@@ -12,8 +12,10 @@ about file parsing or validation.
 from functools import lru_cache
 from pathlib import Path
 
-from pydantic import BaseModel
+import math
 from typing import List
+
+from pydantic import BaseModel, model_validator
 
 from .config import _load_yaml  # reuse YAML loader
 
@@ -49,6 +51,14 @@ class StrategyRules(BaseModel):
     score_weight_pos: float
     score_weight_ev: float
     acceptance: StrategyAcceptanceRules = StrategyAcceptanceRules()
+
+    @model_validator(mode="after")
+    def _validate_score_weights(self) -> "StrategyRules":
+        """Ensure score weights sum to 1.0 within a small tolerance."""
+        total = self.score_weight_rom + self.score_weight_pos + self.score_weight_ev
+        if not math.isclose(total, 1.0, abs_tol=1e-6):
+            raise ValueError("score weights must sum to 1.0")
+        return self
 
 
 class MarketDataRules(BaseModel):
