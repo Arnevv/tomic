@@ -38,7 +38,7 @@ short_put_spread:
   #iv_rank_min: 0.50                   # align met vol-rules (hogere IV vereist)
   #max_skew: 0.25
   min_risk_reward: 0.4
-  long_leg_distance: [2, 7]
+  long_leg_distance_points: [2, 7]
 
 short_call_spread:
   method: delta
@@ -48,7 +48,7 @@ short_call_spread:
   #iv_rank_min: 0.50                   # align met vol-rules
   #max_skew: 0.25
   min_risk_reward: 0.6
-  long_leg_distance: [2, 7]
+  long_leg_distance_points: [2, 7]
 
 naked_put:
   method: delta
@@ -60,9 +60,9 @@ naked_put:
 
 calendar:
   method: spot_distance
-  strike_distance: 0                  # ATM bias
+  base_strikes_relative_to_spot: 0    # ATM bias
   dte_range: [20, 80]
-  expiry_gap_min: 10
+  expiry_gap_min_days: 10
   #iv_rank_max: 0.40                   # align met portfolio.calendar_gates & vol-rules
   #iv_percentile_max: 0.40
   #max_skew: 0.25

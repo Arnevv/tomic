@@ -3,6 +3,23 @@
 from __future__ import annotations
 
 
+def normalize_strike_rule_fields(rules: dict) -> dict:
+    """Return ``rules`` with deprecated keys mapped to canonical names."""
+
+    mapping = {
+        "long_leg_distance": "long_leg_distance_points",
+        "strike_distance": "base_strikes_relative_to_spot",
+        "expiry_gap_min": "expiry_gap_min_days",
+    }
+    normalized = dict(rules)
+    for old, new in mapping.items():
+        if old in normalized and new not in normalized:
+            normalized[new] = normalized.pop(old)
+        else:
+            normalized.pop(old, None)
+    return normalized
+
+
 def load_strike_config(strategy_name: str, config: dict) -> dict:
     """Return strike config for ``strategy_name`` with ``default`` fallback.
 
@@ -21,4 +38,4 @@ def load_strike_config(strategy_name: str, config: dict) -> dict:
     else:
         rules = config.get(strategy_name, config.get("default", {}))
 
-    return rules or {}
+    return normalize_strike_rule_fields(rules or {})
