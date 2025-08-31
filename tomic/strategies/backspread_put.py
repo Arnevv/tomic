@@ -19,6 +19,7 @@ from ..strategy_candidates import (
     _validate_ratio,
     select_expiry_pairs,
 )
+from .config_normalizer import normalize_config
 
 
 def generate(
@@ -29,6 +30,7 @@ def generate(
     atr: float,
 ) -> tuple[List[StrategyProposal], list[str]]:
     rules = config.get("strike_to_strategy_config", {})
+    normalize_config(rules, {"short_delta_range": ("short_put_delta_range", None)})
     use_atr = bool(rules.get("use_ATR"))
     if spot is None:
         raise ValueError("spot price is required")
@@ -127,11 +129,7 @@ def generate(
             return True
         return rr >= min_rr
 
-    delta_range = (
-        rules.get("short_put_delta_range")
-        or rules.get("short_delta_range")
-        or []
-    )
+    delta_range = rules.get("short_put_delta_range") or []
     widths = list(
         validate_width_list(
             rules.get("long_put_distance_points"), "long_put_distance_points"

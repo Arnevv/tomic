@@ -1,7 +1,6 @@
 from __future__ import annotations
 from typing import Any, Dict, List
 import math
-import warnings
 import pandas as pd
 from itertools import islice
 from tomic.bs_calculator import black_scholes
@@ -20,6 +19,7 @@ from ..strategy_candidates import (
     _find_option,
     _metrics,
 )
+from .config_normalizer import normalize_config
 
 
 def generate(
@@ -30,6 +30,9 @@ def generate(
     atr: float,
 ) -> tuple[List[StrategyProposal], list[str]]:
     rules = config.get("strike_to_strategy_config", {})
+    normalize_config(
+        rules, {"wing_width": ("wing_width_points", lambda v: v if isinstance(v, list) else [v])}
+    )
     use_atr = bool(rules.get("use_ATR"))
     if spot is None:
         raise ValueError("spot price is required")
@@ -137,17 +140,7 @@ def generate(
     put_widths = rules.get("long_put_distance_points")
     if call_widths is None or put_widths is None:
         legacy = rules.get("wing_width_points")
-        if legacy is None:
-            legacy = rules.get("wing_width")
-            if legacy is not None:
-                warnings.warn(
-                    "'wing_width' is deprecated; use 'wing_width_points' instead",
-                    DeprecationWarning,
-                    stacklevel=2,
-                )
         if legacy is not None:
-            if not isinstance(legacy, list):
-                legacy = [legacy]
             if call_widths is None:
                 call_widths = legacy
             if put_widths is None:

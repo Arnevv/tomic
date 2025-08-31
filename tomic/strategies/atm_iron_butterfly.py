@@ -1,6 +1,5 @@
 from __future__ import annotations
 from typing import Any, Dict, List
-import warnings
 import pandas as pd
 from tomic.bs_calculator import black_scholes
 from tomic.helpers.dateutils import dte_between_dates
@@ -18,6 +17,7 @@ from ..strategy_candidates import (
     _find_option,
     _metrics,
 )
+from .config_normalizer import normalize_config
 
 
 def generate(
@@ -28,6 +28,9 @@ def generate(
     atr: float,
 ) -> tuple[List[StrategyProposal], list[str]]:
     rules = config.get("strike_to_strategy_config", {})
+    normalize_config(
+        rules, {"wing_width": ("wing_width_points", lambda v: v if isinstance(v, list) else [v])}
+    )
     use_atr = bool(rules.get("use_ATR"))
     if spot is None:
         raise ValueError("spot price is required")
@@ -128,19 +131,7 @@ def generate(
         return rr >= min_rr
 
     centers = rules.get("center_strike_relative_to_spot", [0])
-    widths = rules.get("wing_width_points")
-    if widths is None:
-        legacy = rules.get("wing_width")
-        if legacy is not None:
-            warnings.warn(
-                "'wing_width' is deprecated; use 'wing_width_points' instead",
-                DeprecationWarning,
-                stacklevel=2,
-            )
-            widths = [legacy]
-        else:
-            widths = []
-    widths = list(validate_width_list(widths, "wing_width_points"))
+    widths = list(validate_width_list(rules.get("wing_width_points"), "wing_width_points"))
     for c_off in centers:
         center = spot + (c_off * atr if use_atr else c_off)
         center = _nearest_strike(strike_map, expiry, "C", center).matched
