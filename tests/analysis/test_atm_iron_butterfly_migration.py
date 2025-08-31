@@ -1,5 +1,6 @@
 import warnings
 
+from tomic import loader
 from tomic.strategies import atm_iron_butterfly
 
 
@@ -12,15 +13,16 @@ chain = [
 
 
 def test_wing_width_deprecation():
-    cfg = {
-        "strike_to_strategy_config": {
-            "center_strike_relative_to_spot": [0],
-            "wing_width": 5,
-            "use_ATR": False,
-        }
+    rules_cfg = {
+        "center_strike_relative_to_spot": [0],
+        "wing_width": 5,
+        "use_ATR": False,
     }
     with warnings.catch_warnings(record=True) as w:
         warnings.simplefilter("always")
-        props, _ = atm_iron_butterfly.generate("AAA", chain, cfg, 100.0, 1.0)
+        rules = loader.load_strike_config("atm_iron_butterfly", {"atm_iron_butterfly": rules_cfg})
+        props, _ = atm_iron_butterfly.generate(
+            "AAA", chain, {"strike_to_strategy_config": rules}, 100.0, 1.0
+        )
         assert isinstance(props, list)
         assert any("wing_width" in str(warn.message) for warn in w)
