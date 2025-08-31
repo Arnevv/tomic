@@ -57,16 +57,12 @@ def test_generate_strategy_candidates_with_strings():
         },
     ]
     cfg = {
-        "strategies": {
-            "iron_condor": {
-                "strike_to_strategy_config": {
-                    "short_call_multiplier": [10],
-                    "short_put_multiplier": [10],
-                    "long_call_distance_points": [10],
-                    "long_put_distance_points": [10],
-                    "use_ATR": False,
-                }
-            }
+        "strike_to_strategy_config": {
+            "short_call_multiplier": [10],
+            "short_put_multiplier": [10],
+            "long_call_distance_points": [10],
+            "long_put_distance_points": [10],
+            "use_ATR": False,
         }
     }
     props, _ = iron_condor.generate("AAA", chain, cfg, 100.0, 1.0)
@@ -88,16 +84,12 @@ def test_generate_strategy_candidates_missing_metrics_reason():
         {"expiry": "20250101", "strike": 80, "type": "P", "bid": 1.5, "ask": 1.7},
     ]
     cfg = {
-        "strategies": {
-            "iron_condor": {
-                "strike_to_strategy_config": {
-                    "short_call_multiplier": [10],
-                    "short_put_multiplier": [10],
-                    "long_call_distance_points": [10],
-                    "long_put_distance_points": [10],
-                    "use_ATR": False,
-                }
-            }
+        "strike_to_strategy_config": {
+            "short_call_multiplier": [10],
+            "short_put_multiplier": [10],
+            "long_call_distance_points": [10],
+            "long_put_distance_points": [10],
+            "use_ATR": False,
         }
     }
     props, reasons = iron_condor.generate("AAA", chain, cfg, 100.0, 1.0)
@@ -159,16 +151,12 @@ def test_parity_mid_used_for_missing_bidask(monkeypatch):
         },
     ]
     cfg = {
-        "strategies": {
-            "iron_condor": {
-                "strike_to_strategy_config": {
-                    "short_call_multiplier": [10],
-                    "short_put_multiplier": [10],
-                    "long_call_distance_points": [10],
-                    "long_put_distance_points": [10],
-                    "use_ATR": False,
-                }
-            }
+        "strike_to_strategy_config": {
+            "short_call_multiplier": [10],
+            "short_put_multiplier": [10],
+            "long_call_distance_points": [10],
+            "long_put_distance_points": [10],
+            "use_ATR": False,
         }
     }
     props, _ = iron_condor.generate("AAA", chain, cfg, 100.0, 1.0)

@@ -586,10 +586,10 @@ def generate_strategy_candidates(
         mod = __import__(f"tomic.strategies.{strategy_type}", fromlist=["generate"])
     except Exception as e:
         raise ValueError(f"Unknown strategy {strategy_type}") from e
-    cfg_data = (
-        config if config and config.get("strategies") else cfg_get("STRATEGY_CONFIG", {})
-    )
-    result = mod.generate(symbol, option_chain, cfg_data, spot, atr)
+    cfg_data = config if config is not None else cfg_get("STRATEGY_CONFIG", {})
+    base = cfg_data.get("default", {})
+    strat_cfg = {**base, **cfg_data.get("strategies", {}).get(strategy_type, {})}
+    result = mod.generate(symbol, option_chain, strat_cfg, spot, atr)
     if isinstance(result, tuple):
         proposals, reasons = result
     else:  # backward compatibility

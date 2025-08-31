@@ -22,14 +22,10 @@ def test_calendar_generates_from_valid_pairs(monkeypatch):
         {"expiry": "2025-03-01", "strike": 105, "type": "C", "bid": 1, "ask": 1.3, "delta": 0.2, "edge": 0.1, "iv": 0.3},
     ]
     cfg = {
-        "strategies": {
-            "calendar": {
-                "strike_to_strategy_config": {
-                    "expiry_gap_min_days": 20,
-                    "base_strikes_relative_to_spot": [0],
-                    "use_ATR": False,
-                }
-            }
+        "strike_to_strategy_config": {
+            "expiry_gap_min_days": 20,
+            "base_strikes_relative_to_spot": [0],
+            "use_ATR": False,
         }
     }
     props, _ = calendar.generate("AAA", chain, cfg, 100.0, 1.0)
@@ -45,14 +41,10 @@ def test_calendar_logs_skip_on_missing_mid(monkeypatch):
         {"expiry": "2025-02-01", "strike": 100, "type": "C", "bid": 0, "ask": 0, "close": None, "delta": 0.3, "edge": 0.1, "iv": 0.25},
     ]
     cfg = {
-        "strategies": {
-            "calendar": {
-                "strike_to_strategy_config": {
-                    "expiry_gap_min_days": 20,
-                    "base_strikes_relative_to_spot": [0],
-                    "use_ATR": False,
-                }
-            }
+        "strike_to_strategy_config": {
+            "expiry_gap_min_days": 20,
+            "base_strikes_relative_to_spot": [0],
+            "use_ATR": False,
         }
     }
     infos: list[str] = []
