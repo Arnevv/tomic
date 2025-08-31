@@ -58,8 +58,8 @@ def test_generate_strategy_candidates_with_strings():
     ]
     cfg = {
         "strike_to_strategy_config": {
-            "short_call_multiplier": [10],
-            "short_put_multiplier": [10],
+            "short_call_delta_range": [0.35, 0.45],
+            "short_put_delta_range": [-0.35, -0.25],
             "wing_sigma_multiple": 1.0,
             "use_ATR": False,
         }
@@ -84,8 +84,8 @@ def test_generate_strategy_candidates_missing_metrics_reason():
     ]
     cfg = {
         "strike_to_strategy_config": {
-            "short_call_multiplier": [10],
-            "short_put_multiplier": [10],
+            "short_call_delta_range": [0.35, 0.45],
+            "short_put_delta_range": [-0.35, -0.25],
             "wing_sigma_multiple": 1.0,
             "use_ATR": False,
         }
@@ -150,8 +150,8 @@ def test_parity_mid_used_for_missing_bidask(monkeypatch):
     ]
     cfg = {
         "strike_to_strategy_config": {
-            "short_call_multiplier": [10],
-            "short_put_multiplier": [10],
+            "short_call_delta_range": [0.35, 0.45],
+            "short_put_delta_range": [-0.35, -0.25],
             "wing_sigma_multiple": 1.0,
             "use_ATR": False,
         }

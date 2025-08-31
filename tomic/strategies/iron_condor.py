@@ -130,54 +130,70 @@ def generate(
             return True
         return rr >= min_rr
 
-    calls = rules.get("short_call_multiplier", [])
-    puts = rules.get("short_put_multiplier", [])
+    call_range = rules.get("short_call_delta_range") or []
+    put_range = rules.get("short_put_delta_range") or []
     sigma_mult = float(rules.get("wing_sigma_multiple", 1.0))
-    for c_mult, p_mult in islice(zip(calls, puts), 5):
-        sc_target = spot + (c_mult * atr if use_atr else c_mult)
-        sp_target = spot - (p_mult * atr if use_atr else p_mult)
-        sc = _nearest_strike(strike_map, expiry, "C", sc_target)
-        sp = _nearest_strike(strike_map, expiry, "P", sp_target)
-        if not sc.matched or not sp.matched:
-            rejected_reasons.append("ontbrekende strikes")
-            continue
-        sc_opt = _find_option(option_chain, expiry, sc.matched, "C")
-        sp_opt = _find_option(option_chain, expiry, sp.matched, "P")
-        if not sc_opt or not sp_opt:
-            rejected_reasons.append("opties niet gevonden")
-            continue
-        c_w = compute_dynamic_width(sc_opt, spot=spot, sigma_multiple=sigma_mult)
-        p_w = compute_dynamic_width(sp_opt, spot=spot, sigma_multiple=sigma_mult)
-        if c_w is None or p_w is None:
-            rejected_reasons.append("breedte niet berekend")
-            continue
-        lc_target = sc_target + c_w
-        lp_target = sp_target - p_w
-        lc = _nearest_strike(strike_map, expiry, "C", lc_target)
-        lp = _nearest_strike(strike_map, expiry, "P", lp_target)
-        if not all([lc.matched, lp.matched]):
-            rejected_reasons.append("ontbrekende strikes")
-            continue
-        lc_opt = _find_option(option_chain, expiry, lc.matched, "C")
-        lp_opt = _find_option(option_chain, expiry, lp.matched, "P")
-        if not all([lc_opt, lp_opt]):
-            rejected_reasons.append("opties niet gevonden")
-            continue
-        sc_leg, sc_reason = make_leg(sc_opt, -1)
-        lc_leg, lc_reason = make_leg(lc_opt, 1)
-        sp_leg, sp_reason = make_leg(sp_opt, -1)
-        lp_leg, lp_reason = make_leg(lp_opt, 1)
-        legs = [sc_leg, lc_leg, sp_leg, lp_leg]
-        leg_reasons = [sc_reason, lc_reason, sp_reason, lp_reason]
-        if any(l is None for l in legs):
-            rejected_reasons.append("leg data ontbreekt")
-            rejected_reasons.extend(r for r in leg_reasons if r)
-            continue
-        metrics, reasons = _metrics(StrategyName.IRON_CONDOR, legs, spot)
-        if metrics and passes_risk(metrics):
-            proposals.append(StrategyProposal(legs=legs, **metrics))
-        elif reasons:
-            rejected_reasons.extend(reasons)
+    shorts_c = [
+        o
+        for o in option_chain
+        if str(o.get("expiry")) == expiry
+        and (o.get("type") or o.get("right")) == "C"
+        and o.get("delta") is not None
+        and len(call_range) == 2
+        and call_range[0] <= float(o["delta"]) <= call_range[1]
+    ]
+    shorts_p = [
+        o
+        for o in option_chain
+        if str(o.get("expiry")) == expiry
+        and (o.get("type") or o.get("right")) == "P"
+        and o.get("delta") is not None
+        and len(put_range) == 2
+        and put_range[0] <= float(o["delta"]) <= put_range[1]
+    ]
+    if not shorts_c or not shorts_p:
+        rejected_reasons.append("short optie ontbreekt")
+    else:
+        for sc_opt, sp_opt in islice(zip(shorts_c, shorts_p), 5):
+            sc_strike = float(sc_opt.get("strike"))
+            sp_strike = float(sp_opt.get("strike"))
+            sc = _nearest_strike(strike_map, expiry, "C", sc_strike)
+            sp = _nearest_strike(strike_map, expiry, "P", sp_strike)
+            if not sc.matched or not sp.matched:
+                rejected_reasons.append("ontbrekende strikes")
+                continue
+            c_w = compute_dynamic_width(sc_opt, spot=spot, sigma_multiple=sigma_mult)
+            p_w = compute_dynamic_width(sp_opt, spot=spot, sigma_multiple=sigma_mult)
+            if c_w is None or p_w is None:
+                rejected_reasons.append("breedte niet berekend")
+                continue
+            lc_target = sc_strike + c_w
+            lp_target = sp_strike - p_w
+            lc = _nearest_strike(strike_map, expiry, "C", lc_target)
+            lp = _nearest_strike(strike_map, expiry, "P", lp_target)
+            if not all([lc.matched, lp.matched]):
+                rejected_reasons.append("ontbrekende strikes")
+                continue
+            lc_opt = _find_option(option_chain, expiry, lc.matched, "C")
+            lp_opt = _find_option(option_chain, expiry, lp.matched, "P")
+            if not all([lc_opt, lp_opt]):
+                rejected_reasons.append("opties niet gevonden")
+                continue
+            sc_leg, sc_reason = make_leg(sc_opt, -1)
+            lc_leg, lc_reason = make_leg(lc_opt, 1)
+            sp_leg, sp_reason = make_leg(sp_opt, -1)
+            lp_leg, lp_reason = make_leg(lp_opt, 1)
+            legs = [sc_leg, lc_leg, sp_leg, lp_leg]
+            leg_reasons = [sc_reason, lc_reason, sp_reason, lp_reason]
+            if any(l is None for l in legs):
+                rejected_reasons.append("leg data ontbreekt")
+                rejected_reasons.extend(r for r in leg_reasons if r)
+                continue
+            metrics, reasons = _metrics(StrategyName.IRON_CONDOR, legs, spot)
+            if metrics and passes_risk(metrics):
+                proposals.append(StrategyProposal(legs=legs, **metrics))
+            elif reasons:
+                rejected_reasons.extend(reasons)
     proposals.sort(key=lambda p: p.score or 0, reverse=True)
     if not proposals:
         return [], sorted(set(rejected_reasons))

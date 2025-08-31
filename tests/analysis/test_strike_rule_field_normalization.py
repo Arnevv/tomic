@@ -32,8 +32,16 @@ CASES = {
         {"wing_sigma_multiple": 5},
     ),
     "iron_condor": (
-        {"wing_width_points": [5]},
-        {"wing_sigma_multiple": 5},
+        {
+            "wing_width_points": [5],
+            "short_call_multiplier": [10],
+            "short_put_multiplier": [12],
+        },
+        {
+            "wing_sigma_multiple": 5,
+            "short_call_delta_range": [10],
+            "short_put_delta_range": [12],
+        },
     ),
 }
 

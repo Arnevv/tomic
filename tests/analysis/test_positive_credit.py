@@ -12,8 +12,8 @@ def test_iron_condor_negative_credit_rejected():
         "strategies": {
             "iron_condor": {
                 "strike_to_strategy_config": {
-                    "short_call_multiplier": [10],
-                    "short_put_multiplier": [10],
+                    "short_call_delta_range": [0.35, 0.45],
+                    "short_put_delta_range": [-0.35, -0.25],
                     "wing_sigma_multiple": 0.35,
                     "use_ATR": False,
                 }
