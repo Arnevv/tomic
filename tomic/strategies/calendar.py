@@ -28,8 +28,7 @@ def generate(
     spot: float,
     atr: float,
 ) -> tuple[List[StrategyProposal], list[str]]:
-    strat_cfg = config.get("strategies", {}).get("calendar", {})
-    rules = strat_cfg.get("strike_to_strategy_config", {})
+    rules = config.get("strike_to_strategy_config", {})
     use_atr = bool(rules.get("use_ATR"))
     expiries = sorted({str(o.get("expiry")) for o in option_chain})
     if not expiries:
@@ -48,14 +47,14 @@ def generate(
 
     proposals: List[StrategyProposal] = []
     rejected_reasons: list[str] = []
-    min_rr = float(strat_cfg.get("min_risk_reward", 0.0))
+    min_rr = float(config.get("min_risk_reward", 0.0))
     min_gap = int(rules.get("expiry_gap_min_days", 0))
     base_strikes = rules.get("base_strikes_relative_to_spot", [])
     if not base_strikes:
         rejected_reasons.append("base_strikes_relative_to_spot ontbreekt")
         return [], rejected_reasons
 
-    preferred = str(strat_cfg.get("preferred_option_type", "C")).upper()[0]
+    preferred = str(config.get("preferred_option_type", "C")).upper()[0]
     order = [preferred] + (["P"] if preferred == "C" else ["C"])
 
     def _build_for(option_type: str) -> tuple[list[StrategyProposal], list[str]]:

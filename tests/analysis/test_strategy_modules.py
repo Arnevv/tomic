@@ -2,32 +2,33 @@ import importlib
 
 import pytest
 
+from tomic.strategy_candidates import generate_strategy_candidates
 from tomic.strategies import StrategyName
 
 strategies = [
     (
         StrategyName.NAKED_PUT,
-        {"strategies": {"naked_put": {"strike_to_strategy_config": {"short_delta_range": [-0.3, -0.25], "use_ATR": False}}}},
+        {"strike_to_strategy_config": {"short_delta_range": [-0.3, -0.25], "use_ATR": False}},
     ),
     (
         StrategyName.SHORT_PUT_SPREAD,
-        {"strategies": {"short_put_spread": {"strike_to_strategy_config": {"short_delta_range": [-0.35, -0.2], "long_put_distance_points": [5], "use_ATR": False}}}},
+        {"strike_to_strategy_config": {"short_delta_range": [-0.35, -0.2], "long_put_distance_points": [5], "use_ATR": False}},
     ),
     (
         StrategyName.SHORT_CALL_SPREAD,
-        {"strategies": {"short_call_spread": {"strike_to_strategy_config": {"short_delta_range": [0.2, 0.35], "long_call_distance_points": [5], "use_ATR": False}}}},
+        {"strike_to_strategy_config": {"short_delta_range": [0.2, 0.35], "long_call_distance_points": [5], "use_ATR": False}},
     ),
     (
         StrategyName.RATIO_SPREAD,
-        {"strategies": {"ratio_spread": {"strike_to_strategy_config": {"short_delta_range": [0.3, 0.45], "long_leg_distance_points": [5], "use_ATR": False}}}},
+        {"strike_to_strategy_config": {"short_delta_range": [0.3, 0.45], "long_leg_distance_points": [5], "use_ATR": False}},
     ),
     (
         StrategyName.BACKSPREAD_PUT,
-        {"strategies": {"backspread_put": {"strike_to_strategy_config": {"short_delta_range": [0.15, 0.3], "long_put_distance_points": [5], "use_ATR": False}}}},
+        {"strike_to_strategy_config": {"short_delta_range": [0.15, 0.3], "long_put_distance_points": [5], "use_ATR": False}},
     ),
     (
         StrategyName.ATM_IRON_BUTTERFLY,
-        {"strategies": {"atm_iron_butterfly": {"strike_to_strategy_config": {"center_strike_relative_to_spot": [0], "wing_width_points": [5], "use_ATR": False}}}},
+        {"strike_to_strategy_config": {"center_strike_relative_to_spot": [0], "wing_width_points": [5], "use_ATR": False}},
     ),
 ]
 
@@ -45,3 +46,27 @@ def test_strategy_modules_smoke(name, cfg):
     mod = importlib.import_module(f"tomic.strategies.{name.value}")
     props, _ = mod.generate("AAA", chain, cfg, 100.0, 1.0)
     assert isinstance(props, list)
+
+
+def test_strategy_uses_default_block(monkeypatch):
+    mod = importlib.import_module("tomic.strategies.naked_put")
+    captured: dict = {}
+
+    def fake_generate(symbol, option_chain, cfg, spot, atr):
+        captured["cfg"] = cfg
+        return [], []
+
+    monkeypatch.setattr(mod, "generate", fake_generate)
+    cfg = {
+        "default": {"min_risk_reward": 99},
+        "strategies": {
+            "naked_put": {
+                "strike_to_strategy_config": {
+                    "short_delta_range": [-0.3, -0.25],
+                    "use_ATR": False,
+                }
+            }
+        },
+    }
+    generate_strategy_candidates("AAA", "naked_put", chain, 1.0, config=cfg, spot=100.0)
+    assert captured["cfg"]["min_risk_reward"] == 99

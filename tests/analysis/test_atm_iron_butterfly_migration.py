@@ -13,14 +13,10 @@ chain = [
 
 def test_wing_width_deprecation():
     cfg = {
-        "strategies": {
-            "atm_iron_butterfly": {
-                "strike_to_strategy_config": {
-                    "center_strike_relative_to_spot": [0],
-                    "wing_width": 5,
-                    "use_ATR": False,
-                }
-            }
+        "strike_to_strategy_config": {
+            "center_strike_relative_to_spot": [0],
+            "wing_width": 5,
+            "use_ATR": False,
         }
     }
     with warnings.catch_warnings(record=True) as w:

@@ -27,8 +27,7 @@ def generate(
     spot: float,
     atr: float,
 ) -> tuple[List[StrategyProposal], list[str]]:
-    strat_cfg = config.get("strategies", {}).get("atm_iron_butterfly", {})
-    rules = strat_cfg.get("strike_to_strategy_config", {})
+    rules = config.get("strike_to_strategy_config", {})
     use_atr = bool(rules.get("use_ATR"))
     if spot is None:
         raise ValueError("spot price is required")
@@ -46,7 +45,7 @@ def generate(
             option_chain = df_chain.to_dict(orient="records")
     proposals: List[StrategyProposal] = []
     rejected_reasons: list[str] = []
-    min_rr = float(strat_cfg.get("min_risk_reward", 0.0))
+    min_rr = float(config.get("min_risk_reward", 0.0))
 
     def make_leg(opt: Dict[str, Any], position: int) -> Dict[str, Any] | None:
         bid = opt.get("bid")

@@ -26,8 +26,8 @@ def test_calendar_field_compat(monkeypatch):
     new_cfg = {"calendar": {"base_strikes_relative_to_spot": [0], "expiry_gap_min_days": 20, "dte_range": [20, 80]}}
     rules_old = loader.load_strike_config("calendar", old_cfg)
     rules_new = loader.load_strike_config("calendar", new_cfg)
-    cfg_old = {"strategies": {"calendar": {"strike_to_strategy_config": rules_old}}}
-    cfg_new = {"strategies": {"calendar": {"strike_to_strategy_config": rules_new}}}
+    cfg_old = {"strike_to_strategy_config": rules_old}
+    cfg_new = {"strike_to_strategy_config": rules_new}
     props_old, _ = calendar.generate("AAA", chain, cfg_old, 100.0, 1.0)
     props_new, _ = calendar.generate("AAA", chain, cfg_new, 100.0, 1.0)
     assert props_old == props_new
@@ -39,8 +39,8 @@ def test_ratio_spread_field_compat():
     new_cfg = {"ratio_spread": {"short_delta_range": [0.3, 0.45], "long_leg_distance_points": [10], "use_ATR": False}}
     rules_old = loader.load_strike_config("ratio_spread", old_cfg)
     rules_new = loader.load_strike_config("ratio_spread", new_cfg)
-    cfg_old = {"strategies": {"ratio_spread": {"strike_to_strategy_config": rules_old}}}
-    cfg_new = {"strategies": {"ratio_spread": {"strike_to_strategy_config": rules_new}}}
+    cfg_old = {"strike_to_strategy_config": rules_old}
+    cfg_new = {"strike_to_strategy_config": rules_new}
     props_old, _ = ratio_spread.generate("AAA", chain, cfg_old, 100.0, 1.0)
     props_new, _ = ratio_spread.generate("AAA", chain, cfg_new, 100.0, 1.0)
     assert props_old == props_new
