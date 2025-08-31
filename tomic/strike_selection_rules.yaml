@@ -5,15 +5,11 @@
 
 # Debug: gebruik `--show-filter-stats` of `EXPLAIN_FILTERS=true` om te zien
 # hoeveel strikes per regel afvallen.
-#
-# Parameters:
-# - `wing_width_sigma`: afstand tussen short en long wings uitgedrukt in σ-multiples
-# - `long_leg_target_delta`: gewenste delta voor de long leg bij spreads
 
 default:
   method: spot_distance
   delta_range: [-1.0, 1.0]
-  dte_range: [20, 60]
+  dte_range: [20, 120]
   max_strikes: 100
 
 iron_condor:
@@ -24,7 +20,7 @@ iron_condor:
   #iv_rank_min: 0.50              # align met portfolio.condor_gates & vol-rules
   #max_skew: 0.25                 # cap op extreme skew (units afhankelijk van jouw metriek)
   min_risk_reward: 1.5           # TOMIC-beleid al in selectie
-  wing_width_sigma: [0.5, 1.5]   # span van short naar long wings in σ-multiples
+  wing_width_points: [5, 15]
 
 atm_iron_butterfly:
   method: spot_distance
@@ -41,7 +37,7 @@ short_put_spread:
   min_rom: 0.10
   #iv_rank_min: 0.50                   # align met vol-rules (hogere IV vereist)
   #max_skew: 0.25
-  min_risk_reward: 0.4
+  min_risk_reward: 1.0
   long_leg_target_delta: -0.05      # mik op long leg rond -5Δ
 
 short_call_spread:

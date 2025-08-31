@@ -10,18 +10,16 @@
     - iv_rank >= 0.5
     - iv_percentile >= 0.6
     - skew <= 2.0
-    - term_m1_m3 >= 0.0
     - iv_vs_hv20 > 0
 
 - key: atm_iron_butterfly
   strategy: ATM Iron Butterfly
   greeks: "delta neutraal, theta sterk positief, vega short, gamma short"
   criteria:
-    - iv_rank <= 0.3
-    - term_m1_m3 <= 0.0
+    - iv_rank >= 0.6
+    - iv_percentile >= 0.7
     - skew <= 2.0
-    - iv_vs_hv20 < 0
-    - iv_vs_hv90 > 0
+    - iv_vs_hv20 > 0
 
 - key: short_put_spread
   strategy: Short Put Spread
@@ -59,8 +57,7 @@
   criteria:
     - iv_rank <= 0.4
     - iv_percentile <= 0.4
-    - term_m1_m3 <= 5.0
-    - iv_vs_hv20 < 0
+    - term_m1_m3 >= 0.0
 
 - key: ratio_spread
   strategy: Ratio Spread

@@ -105,9 +105,9 @@ portfolio:
     rom_min:            0.10
     rr_min:             1.00
 
-  calendar_gates:
-    iv_rank_max:        0.40
-    iv_percentile_max:  0.40
-    term_m1_m3_max:     0.00
+  calendar_gates: #ik gebruik deze gates nu niet, want ik snap ze niet echt
+    iv_rank_max:        1.00
+    #iv_percentile_max:  0.40
+    #term_m1_m3_max:     0.00
     #vix_min:            14
-    rom_min:            0.10
+    #rom_min:            0.10
