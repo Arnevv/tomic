@@ -73,9 +73,6 @@ ratio_spread:
   short_delta_range: [0.25, 0.45]
   dte_range: [20, 45]
   #iv_rank_min: 0.30                   # align met vol-rules (0.3–0.6)
-  require_skew: true
-  #min_skew: 5.0                       # align met vol-rules (units zoals in jouw skew-metriek)
-  allow_extra_wings: true
 
 backspread_put:
   method: delta
@@ -85,5 +82,4 @@ backspread_put:
   #iv_percentile_max: 0.40
   #skew_max: -2.0                      # vereis duidelijke put-skew (negatief)
   min_risk_reward: 0.6
-  require_term_compression: true
   ratio: "1x short / 2x long"
