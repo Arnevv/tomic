@@ -12,8 +12,8 @@ strategies:
     # TOMIC-beleid: minimaal 1.5
     min_risk_reward: 1.5
     strike_to_strategy_config:
-      short_call_delta_range: [0.15, 0.30]   # verkochte calls 15–30Δ
-      short_put_delta_range: [-0.30, -0.15]  # verkochte puts 15–30Δ
+      short_call_delta_range: [0.10, 0.40]   # verkochte calls 15–30Δ
+      short_put_delta_range: [-0.40, -0.10]  # verkochte puts 15–30Δ
       wing_width_sigma: 1.0                  # wings op ±1σ van shorts
       use_ATR: true
 

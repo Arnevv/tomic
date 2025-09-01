@@ -19,8 +19,8 @@ iron_condor:
   min_rom: 0.10                  # matcht criteria.strike.min_rom
   #iv_rank_min: 0.50              # align met portfolio.condor_gates & vol-rules
   #max_skew: 0.25                 # cap op extreme skew (units afhankelijk van jouw metriek)
-  min_risk_reward: 1.5           # TOMIC-beleid al in selectie
-  wing_width_points: [5, 15]
+  #min_risk_reward: 1.5           # TOMIC-beleid al in selectie
+  #wing_width_points: [5, 15]
 
 atm_iron_butterfly:
   method: spot_distance

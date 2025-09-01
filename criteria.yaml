@@ -10,7 +10,7 @@
 strike:
   delta_min: -0.99
   delta_max:  0.99
-  min_rom:    0.10      # minimaal 10% ROM
+  min_rom:    0.00      # minimaal 10% ROM
   min_edge:   0.00
   min_pos:    0.00
   min_ev:     0.00
@@ -98,12 +98,12 @@ portfolio:
   vega_to_condor:    50
   vega_to_calendar: -50
 
-  condor_gates:
-    iv_rank_min:        0.50
-    iv_percentile_min:  0.60
+  condor_gates: #ik gebruik deze gates nu niet, want ik snap ze niet echt
+    iv_rank_min:        0.01
+    #iv_percentile_min:  0.60
     #vix_max:            25
-    rom_min:            0.10
-    rr_min:             1.00
+    #rom_min:            0.10
+    #rr_min:             1.00
 
   calendar_gates: #ik gebruik deze gates nu niet, want ik snap ze niet echt
     iv_rank_max:        1.00
