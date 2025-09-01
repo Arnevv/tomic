@@ -1,9 +1,46 @@
+from contextlib import nullcontext
+
+import pytest
+
 from tomic.strategy_candidates import generate_strategy_candidates
 from tomic import config
 from tomic.strategies import iron_condor
-
-
-def test_generate_candidates_uses_global_config(monkeypatch):
+@pytest.mark.parametrize(
+    "cfg,expect_warn",
+    [
+        (
+            {
+                "strategies": {
+                    "iron_condor": {
+                        "strike_to_strategy_config": {
+                            "short_call_delta_range": [0.35, 0.45],
+                            "short_put_delta_range": [-0.35, -0.25],
+                            "wing_sigma_multiple": 0.35,
+                            "use_ATR": False,
+                        }
+                    }
+                }
+            },
+            False,
+        ),
+        (
+            {
+                "strategies": {
+                    "iron_condor": {
+                        "strike_config": {
+                            "short_call_multiplier": [0.35, 0.45],
+                            "short_put_multiplier": [-0.35, -0.25],
+                            "wing_width": 0.35,
+                            "use_ATR": False,
+                        }
+                    }
+                }
+            },
+            True,
+        ),
+    ],
+)
+def test_generate_candidates_uses_global_config(monkeypatch, cfg, expect_warn):
     monkeypatch.setenv("TOMIC_TODAY", "2024-06-01")
     chain = [
         {"expiry": "20250101", "strike": 110, "type": "C", "bid": 1.0, "ask": 1.2, "delta": 0.4, "edge": 0.1, "model": 0, "iv": 0.2},
@@ -11,22 +48,7 @@ def test_generate_candidates_uses_global_config(monkeypatch):
         {"expiry": "20250101", "strike": 90, "type": "P", "bid": 1.0, "ask": 1.1, "delta": -0.3, "edge": 0.1, "model": 0, "iv": 0.2},
         {"expiry": "20250101", "strike": 80, "type": "P", "bid": 0.4, "ask": 0.6, "delta": -0.1, "edge": 0.1, "model": 0, "iv": 0.2},
     ]
-    monkeypatch.setattr(
-        config,
-        "STRATEGY_CONFIG",
-        {
-            "strategies": {
-                "iron_condor": {
-                    "strike_to_strategy_config": {
-                        "short_call_delta_range": [0.35, 0.45],
-                        "short_put_delta_range": [-0.35, -0.25],
-                        "wing_sigma_multiple": 0.35,
-                        "use_ATR": False,
-                    }
-                }
-            }
-        },
-    )
+    monkeypatch.setattr(config, "STRATEGY_CONFIG", cfg)
     monkeypatch.setattr(
         iron_condor,
         "_metrics",
@@ -49,8 +71,10 @@ def test_generate_candidates_uses_global_config(monkeypatch):
             [],
         ),
     )
-    proposals, reasons = generate_strategy_candidates(
-        "AAA", "iron_condor", chain, 1.0, None, 100.0
-    )
+    ctx = pytest.warns(DeprecationWarning) if expect_warn else nullcontext()
+    with ctx:
+        proposals, reasons = generate_strategy_candidates(
+            "AAA", "iron_condor", chain, 1.0, None, 100.0
+        )
     assert "ontbrekende strikes" in reasons
     assert isinstance(proposals, list)
