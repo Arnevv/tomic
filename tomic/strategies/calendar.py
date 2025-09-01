@@ -6,6 +6,7 @@ import pandas as pd
 from tomic.helpers.put_call_parity import fill_missing_mid_with_parity
 from . import StrategyName
 from .utils import make_leg, passes_risk
+from ..logutils import log_combo_evaluation
 from ..criteria import RULES
 from ..strategy_candidates import (
     StrategyProposal,
@@ -55,8 +56,13 @@ def generate(
         by_strike = _options_by_strike(option_chain, option_type)
         for off in base_strikes:
             strike_target = spot + (off * atr if use_atr else off)
+            desc_base = f"{option_type} target {strike_target}"
             if not by_strike:
-                local_reasons.append("geen strikes beschikbaar")
+                reason = "geen strikes beschikbaar"
+                log_combo_evaluation(
+                    StrategyName.CALENDAR, desc_base, None, "reject", reason
+                )
+                local_reasons.append(reason)
                 continue
             avail = sorted(by_strike)
             candidate_strikes = sorted(avail, key=lambda s: abs(s - strike_target))
@@ -71,16 +77,23 @@ def generate(
                         if (d := _dte(e)) is not None and dte_range[0] <= d <= dte_range[1]
                     ]
                 pairs = select_expiry_pairs(valid_exp, min_gap)
+                desc_cand = f"{option_type} strike {cand}"
                 if not pairs:
-                    local_reasons.append(
-                        f"geen expiries beschikbaar voor strike {cand}"
+                    reason = f"geen expiries beschikbaar voor strike {cand}"
+                    log_combo_evaluation(
+                        StrategyName.CALENDAR, desc_cand, None, "reject", reason
                     )
+                    local_reasons.append(reason)
                     continue
                 diff = abs(cand - strike_target)
                 pct = (diff / strike_target * 100) if strike_target else 0.0
                 tol = float(RULES.alerts.nearest_strike_tolerance_percent)
                 if pct > tol:
-                    local_reasons.append("strike te ver van target")
+                    reason = "strike te ver van target"
+                    log_combo_evaluation(
+                        StrategyName.CALENDAR, desc_cand, None, "reject", reason
+                    )
+                    local_reasons.append(reason)
                     continue
                 nearest = cand
                 break
@@ -92,27 +105,49 @@ def generate(
                     continue
                 short_opt = by_strike[nearest].get(near)
                 long_opt = by_strike[nearest].get(far)
+                desc = f"{option_type} strike {nearest} near {near} far {far}"
                 if not short_opt or not long_opt:
-                    local_reasons.append("opties niet gevonden")
+                    reason = "opties niet gevonden"
+                    log_combo_evaluation(
+                        StrategyName.CALENDAR, desc, None, "reject", reason
+                    )
+                    local_reasons.append(reason)
                     continue
                 legs = [
                     make_leg(short_opt, -1, spot=spot),
                     make_leg(long_opt, 1, spot=spot),
                 ]
                 if any(l is None for l in legs):
-                    local_reasons.append("leg data ontbreekt")
+                    reason = "leg data ontbreekt"
+                    log_combo_evaluation(
+                        StrategyName.CALENDAR, desc, None, "reject", reason
+                    )
+                    local_reasons.append(reason)
                     continue
                 metrics, reasons = _metrics(StrategyName.CALENDAR, legs, spot)
                 if not metrics:
+                    reason = "; ".join(reasons) if reasons else "metrics niet berekend"
+                    log_combo_evaluation(
+                        StrategyName.CALENDAR, desc, metrics, "reject", reason
+                    )
                     if reasons:
                         local_reasons.extend(reasons)
                         if "onvoldoende volume/open interest" in reasons:
                             invalid_nears.add(near)
+                    else:
+                        local_reasons.append("metrics niet berekend")
                     continue
                 if not passes_risk(metrics, min_rr):
-                    local_reasons.append("risk/reward onvoldoende")
+                    reason = "risk/reward onvoldoende"
+                    log_combo_evaluation(
+                        StrategyName.CALENDAR, desc, metrics, "reject", reason
+                    )
+                    local_reasons.append(reason)
                     continue
                 local_props.append(StrategyProposal(legs=legs, **metrics))
+                log_combo_evaluation(
+                    StrategyName.CALENDAR, desc, metrics, "pass", "criteria"
+                )
                 if len(local_props) >= 5:
                     break
         local_props.sort(key=lambda p: p.score or 0, reverse=True)
