@@ -4,6 +4,7 @@ import pytest
 
 from tomic import loader
 from tomic.strategy_candidates import generate_strategy_candidates
+from tomic.criteria import RULES
 from tomic.strategies import StrategyName
 
 strategies = [
@@ -109,3 +110,29 @@ def test_strategy_uses_default_block(monkeypatch):
     }
     generate_strategy_candidates("AAA", "naked_put", chain, 1.0, config=cfg, spot=100.0)
     assert captured["cfg"]["min_risk_reward"] == 99
+
+
+def test_strategy_uses_rules_default(monkeypatch):
+    mod = importlib.import_module("tomic.strategies.naked_put")
+    captured: dict = {}
+
+    def fake_generate(symbol, option_chain, cfg, spot, atr):
+        captured["cfg"] = cfg
+        return [], []
+
+    monkeypatch.setattr(mod, "generate", fake_generate)
+    cfg = {
+        "strategies": {
+            "naked_put": {
+                "strike_to_strategy_config": {
+                    "short_put_delta_range": [-0.3, -0.25],
+                    "use_ATR": False,
+                }
+            }
+        }
+    }
+    generate_strategy_candidates("AAA", "naked_put", chain, 1.0, config=cfg, spot=100.0)
+    assert (
+        captured["cfg"]["min_risk_reward"]
+        == RULES.strategy.acceptance.min_risk_reward
+    )
