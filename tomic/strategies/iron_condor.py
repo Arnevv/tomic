@@ -78,6 +78,7 @@ def generate(
                 None,
                 "reject",
                 reason,
+                legs=[{"expiry": expiry}],
             )
             rejected_reasons.append(reason)
             continue
@@ -87,10 +88,14 @@ def generate(
             sc = _nearest_strike(strike_map, expiry, "C", sc_strike)
             sp = _nearest_strike(strike_map, expiry, "P", sp_strike)
             desc = f"SC {sc.matched} SP {sp.matched} σ {sigma_mult}"
+            base_legs = [
+                {"expiry": expiry, "strike": sc_strike, "type": "C", "position": -1},
+                {"expiry": expiry, "strike": sp_strike, "type": "P", "position": -1},
+            ]
             if not sc.matched or not sp.matched:
                 reason = "ontbrekende strikes"
                 log_combo_evaluation(
-                    StrategyName.IRON_CONDOR, desc, None, "reject", reason
+                    StrategyName.IRON_CONDOR, desc, None, "reject", reason, legs=base_legs
                 )
                 rejected_reasons.append(reason)
                 continue
@@ -99,7 +104,7 @@ def generate(
             if c_w is None or p_w is None:
                 reason = "breedte niet berekend"
                 log_combo_evaluation(
-                    StrategyName.IRON_CONDOR, desc, None, "reject", reason
+                    StrategyName.IRON_CONDOR, desc, None, "reject", reason, legs=base_legs
                 )
                 rejected_reasons.append(reason)
                 continue
@@ -107,10 +112,19 @@ def generate(
             lp_target = sp_strike - p_w
             lc = _nearest_strike(strike_map, expiry, "C", lc_target)
             lp = _nearest_strike(strike_map, expiry, "P", lp_target)
+            long_leg_info = [
+                {"expiry": expiry, "strike": lc.matched, "type": "C", "position": 1},
+                {"expiry": expiry, "strike": lp.matched, "type": "P", "position": 1},
+            ]
             if not all([lc.matched, lp.matched]):
                 reason = "ontbrekende strikes"
                 log_combo_evaluation(
-                    StrategyName.IRON_CONDOR, desc, None, "reject", reason
+                    StrategyName.IRON_CONDOR,
+                    desc,
+                    None,
+                    "reject",
+                    reason,
+                    legs=base_legs + long_leg_info,
                 )
                 rejected_reasons.append(reason)
                 continue
@@ -119,7 +133,12 @@ def generate(
             if not all([lc_opt, lp_opt]):
                 reason = "opties niet gevonden"
                 log_combo_evaluation(
-                    StrategyName.IRON_CONDOR, desc, None, "reject", reason
+                    StrategyName.IRON_CONDOR,
+                    desc,
+                    None,
+                    "reject",
+                    reason,
+                    legs=base_legs + long_leg_info,
                 )
                 rejected_reasons.append(reason)
                 continue
@@ -132,7 +151,12 @@ def generate(
             if any(l is None for l in legs):
                 reason = "leg data ontbreekt"
                 log_combo_evaluation(
-                    StrategyName.IRON_CONDOR, desc, None, "reject", reason
+                    StrategyName.IRON_CONDOR,
+                    desc,
+                    None,
+                    "reject",
+                    reason,
+                    legs=base_legs + long_leg_info,
                 )
                 rejected_reasons.append(reason)
                 rejected_reasons.extend(r for r in leg_reasons if r)
@@ -141,12 +165,22 @@ def generate(
             if metrics and passes_risk(metrics, min_rr):
                 proposals.append(StrategyProposal(legs=legs, **metrics))
                 log_combo_evaluation(
-                    StrategyName.IRON_CONDOR, desc, metrics, "pass", "criteria"
+                    StrategyName.IRON_CONDOR,
+                    desc,
+                    metrics,
+                    "pass",
+                    "criteria",
+                    legs=legs,
                 )
             else:
                 reason = "; ".join(reasons) if reasons else "risk/reward onvoldoende"
                 log_combo_evaluation(
-                    StrategyName.IRON_CONDOR, desc, metrics, "reject", reason
+                    StrategyName.IRON_CONDOR,
+                    desc,
+                    metrics,
+                    "reject",
+                    reason,
+                    legs=legs,
                 )
                 if reasons:
                     rejected_reasons.extend(reasons)

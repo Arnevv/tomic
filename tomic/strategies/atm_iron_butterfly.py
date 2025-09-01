@@ -61,6 +61,7 @@ def generate(
                     None,
                     "reject",
                     reason,
+                    legs=[{"expiry": expiry}],
                 )
                 rejected_reasons.append(reason)
                 continue
@@ -74,6 +75,8 @@ def generate(
                     None,
                     "reject",
                     reason,
+                    legs=[{"expiry": expiry, "strike": center, "type": "C", "position": -1},
+                          {"expiry": expiry, "strike": center, "type": "P", "position": -1}],
                 )
                 rejected_reasons.append(reason)
                 continue
@@ -86,6 +89,8 @@ def generate(
                     None,
                     "reject",
                     reason,
+                    legs=[{"expiry": expiry, "strike": center, "type": "C", "position": -1},
+                          {"expiry": expiry, "strike": center, "type": "P", "position": -1}],
                 )
                 rejected_reasons.append(reason)
                 continue
@@ -94,6 +99,12 @@ def generate(
             lc_strike = _nearest_strike(strike_map, expiry, "C", center + width).matched
             lp_strike = _nearest_strike(strike_map, expiry, "P", center - width).matched
             desc = f"center {center} sigma {sigma_mult}"  # width implied
+            base_legs = [
+                {"expiry": expiry, "strike": sc_strike, "type": "C", "position": -1},
+                {"expiry": expiry, "strike": sp_strike, "type": "P", "position": -1},
+                {"expiry": expiry, "strike": lc_strike, "type": "C", "position": 1},
+                {"expiry": expiry, "strike": lp_strike, "type": "P", "position": 1},
+            ]
             if not all([sc_strike, sp_strike, lc_strike, lp_strike]):
                 reason = "ontbrekende strikes"
                 log_combo_evaluation(
@@ -102,6 +113,7 @@ def generate(
                     None,
                     "reject",
                     reason,
+                    legs=base_legs,
                 )
                 rejected_reasons.append(reason)
                 continue
@@ -115,6 +127,7 @@ def generate(
                     None,
                     "reject",
                     reason,
+                    legs=base_legs,
                 )
                 rejected_reasons.append(reason)
                 continue
@@ -132,6 +145,7 @@ def generate(
                     None,
                     "reject",
                     reason,
+                    legs=base_legs,
                 )
                 rejected_reasons.append(reason)
                 continue
@@ -144,6 +158,7 @@ def generate(
                     metrics,
                     "pass",
                     "criteria",
+                    legs=legs,
                 )
             else:
                 reason = "; ".join(reasons) if reasons else "risk/reward onvoldoende"
@@ -153,6 +168,7 @@ def generate(
                     metrics,
                     "reject",
                     reason,
+                    legs=legs,
                 )
                 if reasons:
                     rejected_reasons.extend(reasons)

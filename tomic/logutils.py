@@ -150,6 +150,8 @@ def log_combo_evaluation(
     metrics: Optional[dict],
     result: str,
     reason: str,
+    *,
+    legs: list[dict] | None = None,
     extra: dict | None = None,
 ) -> None:
     """Log a strategy combination evaluation on INFO level."""
@@ -168,9 +170,24 @@ def log_combo_evaluation(
     rr_str = f"{round(rr, 2)}" if isinstance(rr, (float, int)) else "n/a"
     ev_str = f"{round(ev, 4)}" if isinstance(ev, (float, int)) else "n/a"
 
-    extra_str = ""
+    extra_parts: list[str] = []
     if extra:
-        extra_str = " | " + " | ".join(f"{k}={v}" for k, v in extra.items())
+        extra_parts.extend(f"{k}={v}" for k, v in extra.items())
+    if legs:
+        expiries = sorted({str(l.get("expiry")) for l in legs if l.get("expiry")})
+        if expiries:
+            extra_parts.append(f"expiry={','.join(expiries)}")
+        for leg in legs:
+            typ = str(leg.get("type") or "").upper()[:1]
+            strike = leg.get("strike")
+            pos = leg.get("position")
+            if strike is None or not typ:
+                continue
+            label = ("S" if pos is not None and float(pos) < 0 else "L") + (
+                "C" if typ == "C" else "P"
+            )
+            extra_parts.append(f"{label}={strike}{typ}")
+    extra_str = " | " + " | ".join(extra_parts) if extra_parts else ""
 
     logger.info(
         f"[{strategy}] {desc} — PoS {pos_str}, RR {rr_str}, EV {ev_str} — {result.upper()} ({reason}){extra_str}"

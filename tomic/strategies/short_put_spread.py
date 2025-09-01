@@ -72,6 +72,7 @@ def generate(
                     None,
                     "reject",
                     reason,
+                    legs=[{"expiry": expiry}],
                 )
                 rejected_reasons.append(reason)
                 continue
@@ -96,12 +97,19 @@ def generate(
                     None,
                     "reject",
                     reason,
+                    legs=[
+                        {"expiry": expiry, "strike": short_opt.get("strike"), "type": "P", "position": -1}
+                    ],
                 )
                 rejected_reasons.append(reason)
                 continue
             long_strike_target = float(short_opt.get("strike")) - width
             long_strike = _nearest_strike(strike_map, expiry, "P", long_strike_target)
             desc = f"short {short_opt.get('strike')} long {long_strike.matched}"
+            legs_info = [
+                {"expiry": expiry, "strike": short_opt.get("strike"), "type": "P", "position": -1},
+                {"expiry": expiry, "strike": long_strike.matched, "type": "P", "position": 1},
+            ]
             if not long_strike.matched:
                 reason = "long strike niet gevonden"
                 log_combo_evaluation(
@@ -110,6 +118,7 @@ def generate(
                     None,
                     "reject",
                     reason,
+                    legs=legs_info,
                 )
                 rejected_reasons.append(reason)
                 continue
@@ -122,6 +131,7 @@ def generate(
                     None,
                     "reject",
                     reason,
+                    legs=legs_info,
                 )
                 rejected_reasons.append(reason)
                 continue
@@ -137,6 +147,7 @@ def generate(
                     None,
                     "reject",
                     reason,
+                    legs=legs_info,
                 )
                 rejected_reasons.append(reason)
                 continue
@@ -151,6 +162,7 @@ def generate(
                     metrics,
                     "pass",
                     "criteria",
+                    legs=legs,
                 )
             else:
                 reason = "; ".join(reasons) if reasons else "risk/reward onvoldoende"
@@ -160,6 +172,7 @@ def generate(
                     metrics,
                     "reject",
                     reason,
+                    legs=legs,
                 )
                 if reasons:
                     rejected_reasons.extend(reasons)

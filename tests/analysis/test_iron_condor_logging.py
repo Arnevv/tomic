@@ -1,5 +1,6 @@
-import pytest
+from types import SimpleNamespace
 from tomic.strategies import iron_condor
+from tomic import logutils
 
 
 def _chain():
@@ -66,22 +67,17 @@ def test_iron_condor_logging(monkeypatch):
     def fake_metrics(strategy, legs, spot):
         return {"pos": 50, "max_profit": 100, "max_loss": -50, "ev": 0.1, "score": 1}, []
 
-    logs = []
-
-    def fake_log(strategy, desc, metrics, result, reason, extra=None):
-        logs.append((strategy, desc, result, reason))
-
+    messages: list[str] = []
     monkeypatch.setattr(iron_condor, "_metrics", fake_metrics)
-    monkeypatch.setattr(iron_condor, "log_combo_evaluation", fake_log)
+    monkeypatch.setattr(logutils, "logger", SimpleNamespace(info=lambda m: messages.append(m)))
 
     iron_condor.generate("AAA", chain, cfg, 100.0, 1.0)
-    assert any(
-        l[1] == "SC 110.0 SP 90.0 σ 0.6" and l[2] == "pass" for l in logs
-    )
+    joined = " ".join(messages)
+    assert "expiry=2025-01-01" in joined
+    assert "SC=110.0C" in joined and "LC=120.0C" in joined
+    assert "SP=90.0P" in joined and "LP=80.0P" in joined
 
+    messages.clear()
     chain_fail = [c for c in chain if c["type"] == "C"]
     iron_condor.generate("AAA", chain_fail, cfg, 100.0, 1.0)
-    assert any(
-        l[1] == "delta scan" and l[2] == "reject" and "short optie ontbreekt" in l[3]
-        for l in logs
-    )
+    assert any("short optie ontbreekt" in m and "expiry=2025-01-01" in m for m in messages)

@@ -62,6 +62,14 @@ def generate(
                             None,
                             "reject",
                             reason,
+                            legs=[
+                                {
+                                    "expiry": expiry,
+                                    "strike": opt.get("strike"),
+                                    "type": opt.get("type") or opt.get("right"),
+                                    "position": -1,
+                                }
+                            ],
                         )
                         rejected_reasons.append(reason)
                         continue
@@ -74,6 +82,7 @@ def generate(
                             metrics,
                             "pass",
                             "criteria",
+                            legs=[leg],
                         )
                     else:
                         reason = "; ".join(reasons) if reasons else "risk/reward onvoldoende"
@@ -83,6 +92,7 @@ def generate(
                             metrics,
                             "reject",
                             reason,
+                            legs=[leg],
                         )
                         if reasons:
                             rejected_reasons.extend(reasons)

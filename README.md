@@ -79,6 +79,13 @@ exporteren.
 Exports worden geplaatst onder `exports/tradecandidates/YYYYMMDD/` met de naam
 `trade_candidates_<symbol>_<strategy>_<expiry>_<HHMMSS>.csv`.
 
+Elke strategie-evaluatie logt nu ook de gebruikte legs. De logregel toont de
+expiratie en per leg het type en de strike, bijvoorbeeld
+`expiry=2025-01-01 | SC=110C | LC=120C | SP=90P | LP=80P`. Deze volgorde komt
+overeen met de rijen in het bijbehorende `trade_candidates_*.csv`-bestand,
+zodat je eenvoudig kunt terugvinden welke combinatie tot een bepaald logresultaat
+leidde.
+
 Krijg je geen voorstellen, dan toont TOMIC nu ook hoeveel combinaties zijn
 afgewezen door een ratioscheck of risicocriteria. Zo weet je direct waarom er
 geen strategie werd gevonden.
