@@ -12,7 +12,7 @@ Geen automatische trading – TOMIC ondersteunt, jij beslist.
 Feature	Beschrijving
 📡 Marktdata ophalen	Spotprijs, IV-metrics, skew en option chains per symbool
 📊 Portfolio-analyse	Gebaseerd op je huidige posities en Greeks
-🎯 Strategie-selectie	Maximaal 5 kansen volgens TOMIC-score
+🎯 Strategie-selectie	Maximaal 5 kansen volgens TOMIC-score over meerdere expiraties binnen DTE-bereik
 ✍️ Journal-integratie	Met exit-signalen, EV, PoS, risico en entrylogica
 📁 Exporteerbaar	CSV/JSON-export voor eigen dashboards of analyse
 📲 Theoretical value calculator  Bereken optiewaarde en edge t.o.v. midprice
