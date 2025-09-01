@@ -592,6 +592,8 @@ def generate_strategy_candidates(
     base = cfg_data.get("default", {})
     strat_cfg = {**base, **cfg_data.get("strategies", {}).get(strategy_type, {})}
     normalize_config(strat_cfg, {"strike_config": ("strike_to_strategy_config", None)})
+    if "min_risk_reward" not in strat_cfg or strat_cfg["min_risk_reward"] is None:
+        strat_cfg["min_risk_reward"] = RULES.strategy.acceptance.min_risk_reward
     strat_cfg["strike_to_strategy_config"] = normalize_strike_rule_fields(
         strat_cfg.get("strike_to_strategy_config", {}), strategy_type
     )

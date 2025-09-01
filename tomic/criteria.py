@@ -15,7 +15,9 @@ from pathlib import Path
 import math
 from typing import List
 
-from pydantic import BaseModel, model_validator
+from pydantic import BaseModel, model_validator, field_validator
+
+from .strategies import StrategyName
 
 from .config import _load_yaml  # reuse YAML loader
 
@@ -42,6 +44,18 @@ class StrategyAcceptanceRules(BaseModel):
     """Rules governing which strategies are acceptable."""
 
     require_positive_credit_for: List[str] = []
+    min_risk_reward: float | None = None
+
+    @field_validator("require_positive_credit_for")
+    @classmethod
+    def _validate_names(cls, v: List[str]) -> List[str]:
+        valid = {s.value for s in StrategyName}
+        invalid = [name for name in v if name not in valid]
+        if invalid:
+            raise ValueError(
+                "unknown strategy names: " + ", ".join(invalid)
+            )
+        return v
 
 
 class StrategyRules(BaseModel):
