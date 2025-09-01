@@ -7,9 +7,9 @@ from .utils import make_leg, passes_risk
 from ..logutils import log_combo_evaluation
 from ..strategy_candidates import (
     StrategyProposal,
-    _build_strike_map,
     _metrics,
 )
+from ..strike_selector import _dte
 
 
 def generate(
@@ -26,8 +26,6 @@ def generate(
     expiries = sorted({str(o.get("expiry")) for o in option_chain})
     if not expiries:
         return [], ["geen expiraties beschikbaar"]
-    expiry = expiries[0]
-    strike_map = _build_strike_map(option_chain)
     if hasattr(pd, "DataFrame") and not isinstance(pd.DataFrame, type(object)):
         df_chain = pd.DataFrame(option_chain)
         if spot > 0:
@@ -40,52 +38,60 @@ def generate(
     min_rr = float(config.get("min_risk_reward", 0.0))
 
     delta_range = rules.get("short_put_delta_range") or []
+    dte_range = rules.get("dte_range")
     if len(delta_range) == 2:
-        for opt in option_chain:
-            if (
-                str(opt.get("expiry")) == expiry
-                and (opt.get("type") or opt.get("right")) == "P"
-                and opt.get("delta") is not None
-                and delta_range[0] <= float(opt.get("delta")) <= delta_range[1]
-            ):
-                desc = f"short {opt.get('strike')}"
-                leg = make_leg(opt, -1, spot=spot)
-                if leg is None:
-                    reason = "leg data ontbreekt"
-                    log_combo_evaluation(
-                        StrategyName.NAKED_PUT,
-                        desc,
-                        None,
-                        "reject",
-                        reason,
-                    )
-                    rejected_reasons.append(reason)
+        for expiry in expiries:
+            if dte_range:
+                dte = _dte(expiry)
+                if dte is None or not (dte_range[0] <= dte <= dte_range[1]):
                     continue
-                metrics, reasons = _metrics(StrategyName.NAKED_PUT, [leg], spot)
-                if metrics and passes_risk(metrics, min_rr):
-                    proposals.append(StrategyProposal(legs=[leg], **metrics))
-                    log_combo_evaluation(
-                        StrategyName.NAKED_PUT,
-                        desc,
-                        metrics,
-                        "pass",
-                        "criteria",
-                    )
-                else:
-                    reason = "; ".join(reasons) if reasons else "risk/reward onvoldoende"
-                    log_combo_evaluation(
-                        StrategyName.NAKED_PUT,
-                        desc,
-                        metrics,
-                        "reject",
-                        reason,
-                    )
-                    if reasons:
-                        rejected_reasons.extend(reasons)
+            for opt in option_chain:
+                if (
+                    str(opt.get("expiry")) == expiry
+                    and (opt.get("type") or opt.get("right")) == "P"
+                    and opt.get("delta") is not None
+                    and delta_range[0] <= float(opt.get("delta")) <= delta_range[1]
+                ):
+                    desc = f"short {opt.get('strike')}"
+                    leg = make_leg(opt, -1, spot=spot)
+                    if leg is None:
+                        reason = "leg data ontbreekt"
+                        log_combo_evaluation(
+                            StrategyName.NAKED_PUT,
+                            desc,
+                            None,
+                            "reject",
+                            reason,
+                        )
+                        rejected_reasons.append(reason)
+                        continue
+                    metrics, reasons = _metrics(StrategyName.NAKED_PUT, [leg], spot)
+                    if metrics and passes_risk(metrics, min_rr):
+                        proposals.append(StrategyProposal(legs=[leg], **metrics))
+                        log_combo_evaluation(
+                            StrategyName.NAKED_PUT,
+                            desc,
+                            metrics,
+                            "pass",
+                            "criteria",
+                        )
                     else:
-                        rejected_reasons.append("risk/reward onvoldoende")
-                if len(proposals) >= 5:
-                    break
+                        reason = "; ".join(reasons) if reasons else "risk/reward onvoldoende"
+                        log_combo_evaluation(
+                            StrategyName.NAKED_PUT,
+                            desc,
+                            metrics,
+                            "reject",
+                            reason,
+                        )
+                        if reasons:
+                            rejected_reasons.extend(reasons)
+                        else:
+                            rejected_reasons.append("risk/reward onvoldoende")
+                    if len(proposals) >= 5:
+                        break
+            if len(proposals) >= 5:
+                break
     else:
         rejected_reasons.append("ongeldige delta range")
     proposals.sort(key=lambda p: p.score or 0, reverse=True)

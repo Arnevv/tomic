@@ -14,6 +14,7 @@ from ..strategy_candidates import (
     _validate_ratio,
     select_expiry_pairs,
 )
+from ..strike_selector import _dte
 
 
 def generate(
@@ -46,7 +47,15 @@ def generate(
     target_delta = rules.get("long_leg_distance_points")
     atr_mult = rules.get("long_leg_atr_multiple")
     min_gap = int(rules.get("expiry_gap_min_days", 0))
-    pairs = select_expiry_pairs(expiries, min_gap)
+    dte_range = rules.get("dte_range")
+    filtered_expiries = []
+    for exp in expiries:
+        if dte_range:
+            dte = _dte(exp)
+            if dte is None or not (dte_range[0] <= dte <= dte_range[1]):
+                continue
+        filtered_expiries.append(exp)
+    pairs = select_expiry_pairs(filtered_expiries, min_gap)
     if len(delta_range) == 2 and (target_delta is not None or atr_mult is not None):
         for near, far in pairs[:3]:
             short_opt = None
