@@ -126,7 +126,7 @@ def generate(
         return rr >= min_rr
 
     delta_range = rules.get("short_leg_delta_range") or []
-    target_delta = rules.get("long_leg_target_delta")
+    target_delta = rules.get("long_leg_distance_points")
     atr_mult = rules.get("long_leg_atr_multiple")
     if len(delta_range) == 2 and (target_delta is not None or atr_mult is not None):
         calls_pre = []

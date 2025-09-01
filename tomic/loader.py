@@ -21,7 +21,9 @@ def normalize_strike_rule_fields(
 
     mapping: dict[str, str] = {
         "long_leg_distance": "long_leg_distance_points",
-        "long_leg_distance_points": "long_leg_target_delta",
+        "long_leg_target_delta": "long_leg_distance_points",
+        "long_put_distance_points": "long_leg_distance_points",
+        "long_call_distance_points": "long_leg_distance_points",
         "strike_distance": "base_strikes_relative_to_spot",
         "expiry_gap_min": "expiry_gap_min_days",
         "wing_width": "wing_width_points",
