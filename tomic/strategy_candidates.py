@@ -32,6 +32,8 @@ from .strategies import StrategyName
 from .config import get as cfg_get
 from .loader import normalize_strike_rule_fields
 from .strategies.config_normalizer import normalize_config
+from .strategies.config_models import CONFIG_MODELS
+from .config import _asdict
 
 
 # Strategies that must yield a positive net credit are configured via RULES.
@@ -597,6 +599,9 @@ def generate_strategy_candidates(
     strat_cfg["strike_to_strategy_config"] = normalize_strike_rule_fields(
         strat_cfg.get("strike_to_strategy_config", {}), strategy_type
     )
+    model_cls = CONFIG_MODELS.get(strategy_type)
+    if model_cls is not None:
+        strat_cfg = _asdict(model_cls(**strat_cfg))
     result = mod.generate(symbol, option_chain, strat_cfg, spot, atr)
     if isinstance(result, tuple):
         proposals, reasons = result
