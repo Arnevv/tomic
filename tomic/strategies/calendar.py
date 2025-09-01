@@ -106,10 +106,14 @@ def generate(
                 short_opt = by_strike[nearest].get(near)
                 long_opt = by_strike[nearest].get(far)
                 desc = f"{option_type} strike {nearest} near {near} far {far}"
+                legs_info = [
+                    {"expiry": near, "strike": nearest, "type": option_type, "position": -1},
+                    {"expiry": far, "strike": nearest, "type": option_type, "position": 1},
+                ]
                 if not short_opt or not long_opt:
                     reason = "opties niet gevonden"
                     log_combo_evaluation(
-                        StrategyName.CALENDAR, desc, None, "reject", reason
+                        StrategyName.CALENDAR, desc, None, "reject", reason, legs=legs_info
                     )
                     local_reasons.append(reason)
                     continue
@@ -120,7 +124,7 @@ def generate(
                 if any(l is None for l in legs):
                     reason = "leg data ontbreekt"
                     log_combo_evaluation(
-                        StrategyName.CALENDAR, desc, None, "reject", reason
+                        StrategyName.CALENDAR, desc, None, "reject", reason, legs=legs_info
                     )
                     local_reasons.append(reason)
                     continue
@@ -128,7 +132,7 @@ def generate(
                 if not metrics:
                     reason = "; ".join(reasons) if reasons else "metrics niet berekend"
                     log_combo_evaluation(
-                        StrategyName.CALENDAR, desc, metrics, "reject", reason
+                        StrategyName.CALENDAR, desc, metrics, "reject", reason, legs=legs
                     )
                     if reasons:
                         local_reasons.extend(reasons)
@@ -140,13 +144,13 @@ def generate(
                 if not passes_risk(metrics, min_rr):
                     reason = "risk/reward onvoldoende"
                     log_combo_evaluation(
-                        StrategyName.CALENDAR, desc, metrics, "reject", reason
+                        StrategyName.CALENDAR, desc, metrics, "reject", reason, legs=legs
                     )
                     local_reasons.append(reason)
                     continue
                 local_props.append(StrategyProposal(legs=legs, **metrics))
                 log_combo_evaluation(
-                    StrategyName.CALENDAR, desc, metrics, "pass", "criteria"
+                    StrategyName.CALENDAR, desc, metrics, "pass", "criteria", legs=legs
                 )
                 if len(local_props) >= 5:
                     break

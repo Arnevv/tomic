@@ -81,6 +81,7 @@ def generate(
                     None,
                     "reject",
                     reason,
+                    legs=[{"expiry": near}],
                 )
                 rejected_reasons.append(reason)
                 continue
@@ -107,6 +108,9 @@ def generate(
                     None,
                     "reject",
                     reason,
+                    legs=[
+                        {"expiry": near, "strike": short_opt.get("strike"), "type": "P", "position": -1}
+                    ],
                 )
                 rejected_reasons.append(reason)
                 continue
@@ -115,6 +119,10 @@ def generate(
             desc = (
                 f"near {near} far {far} short {short_opt.get('strike')} long {long_strike.matched}"
             )
+            legs_info = [
+                {"expiry": near, "strike": short_opt.get("strike"), "type": "P", "position": -1},
+                {"expiry": far, "strike": long_strike.matched, "type": "P", "position": 2},
+            ]
             if not long_strike.matched:
                 reason = "long strike niet gevonden"
                 log_combo_evaluation(
@@ -123,6 +131,7 @@ def generate(
                     None,
                     "reject",
                     reason,
+                    legs=legs_info,
                 )
                 rejected_reasons.append(reason)
                 continue
@@ -135,6 +144,7 @@ def generate(
                     None,
                     "reject",
                     reason,
+                    legs=legs_info,
                 )
                 rejected_reasons.append(reason)
                 continue
@@ -150,6 +160,7 @@ def generate(
                     None,
                     "reject",
                     reason,
+                    legs=legs_info,
                 )
                 rejected_reasons.append(reason)
                 continue
@@ -163,6 +174,7 @@ def generate(
                         metrics,
                         "pass",
                         "criteria",
+                        legs=legs,
                     )
                 else:
                     reason = "verkeerde ratio"
@@ -172,6 +184,7 @@ def generate(
                         metrics,
                         "reject",
                         reason,
+                        legs=legs,
                     )
                     rejected_reasons.append(reason)
             else:
@@ -182,6 +195,7 @@ def generate(
                     metrics,
                     "reject",
                     reason,
+                    legs=legs,
                 )
                 if reasons:
                     rejected_reasons.extend(reasons)
