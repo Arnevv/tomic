@@ -5,7 +5,7 @@ from itertools import islice
 from tomic.helpers.put_call_parity import fill_missing_mid_with_parity
 from . import StrategyName
 from .utils import compute_dynamic_width, make_leg, passes_risk
-from ..logutils import logger
+from ..logutils import log_combo_evaluation
 from ..strategy_candidates import (
     StrategyProposal,
     _build_strike_map,
@@ -71,32 +71,57 @@ def generate(
             and put_range[0] <= float(o["delta"]) <= put_range[1]
         ]
         if not shorts_c or not shorts_p:
-            rejected_reasons.append("short optie ontbreekt")
+            reason = "short optie ontbreekt"
+            log_combo_evaluation(
+                StrategyName.IRON_CONDOR,
+                "delta scan",
+                None,
+                "reject",
+                reason,
+            )
+            rejected_reasons.append(reason)
             continue
         for sc_opt, sp_opt in islice(zip(shorts_c, shorts_p), 5):
             sc_strike = float(sc_opt.get("strike"))
             sp_strike = float(sp_opt.get("strike"))
             sc = _nearest_strike(strike_map, expiry, "C", sc_strike)
             sp = _nearest_strike(strike_map, expiry, "P", sp_strike)
+            desc = f"SC {sc.matched} SP {sp.matched} σ {sigma_mult}"
             if not sc.matched or not sp.matched:
-                rejected_reasons.append("ontbrekende strikes")
+                reason = "ontbrekende strikes"
+                log_combo_evaluation(
+                    StrategyName.IRON_CONDOR, desc, None, "reject", reason
+                )
+                rejected_reasons.append(reason)
                 continue
             c_w = compute_dynamic_width(sc_opt, spot=spot, sigma_multiple=sigma_mult)
             p_w = compute_dynamic_width(sp_opt, spot=spot, sigma_multiple=sigma_mult)
             if c_w is None or p_w is None:
-                rejected_reasons.append("breedte niet berekend")
+                reason = "breedte niet berekend"
+                log_combo_evaluation(
+                    StrategyName.IRON_CONDOR, desc, None, "reject", reason
+                )
+                rejected_reasons.append(reason)
                 continue
             lc_target = sc_strike + c_w
             lp_target = sp_strike - p_w
             lc = _nearest_strike(strike_map, expiry, "C", lc_target)
             lp = _nearest_strike(strike_map, expiry, "P", lp_target)
             if not all([lc.matched, lp.matched]):
-                rejected_reasons.append("ontbrekende strikes")
+                reason = "ontbrekende strikes"
+                log_combo_evaluation(
+                    StrategyName.IRON_CONDOR, desc, None, "reject", reason
+                )
+                rejected_reasons.append(reason)
                 continue
             lc_opt = _find_option(option_chain, expiry, lc.matched, "C")
             lp_opt = _find_option(option_chain, expiry, lp.matched, "P")
             if not all([lc_opt, lp_opt]):
-                rejected_reasons.append("opties niet gevonden")
+                reason = "opties niet gevonden"
+                log_combo_evaluation(
+                    StrategyName.IRON_CONDOR, desc, None, "reject", reason
+                )
+                rejected_reasons.append(reason)
                 continue
             sc_leg, sc_reason = make_leg(sc_opt, -1, spot=spot, return_reason=True)
             lc_leg, lc_reason = make_leg(lc_opt, 1, spot=spot, return_reason=True)
@@ -105,14 +130,28 @@ def generate(
             legs = [sc_leg, lc_leg, sp_leg, lp_leg]
             leg_reasons = [sc_reason, lc_reason, sp_reason, lp_reason]
             if any(l is None for l in legs):
-                rejected_reasons.append("leg data ontbreekt")
+                reason = "leg data ontbreekt"
+                log_combo_evaluation(
+                    StrategyName.IRON_CONDOR, desc, None, "reject", reason
+                )
+                rejected_reasons.append(reason)
                 rejected_reasons.extend(r for r in leg_reasons if r)
                 continue
             metrics, reasons = _metrics(StrategyName.IRON_CONDOR, legs, spot)
             if metrics and passes_risk(metrics, min_rr):
                 proposals.append(StrategyProposal(legs=legs, **metrics))
-            elif reasons:
-                rejected_reasons.extend(reasons)
+                log_combo_evaluation(
+                    StrategyName.IRON_CONDOR, desc, metrics, "pass", "criteria"
+                )
+            else:
+                reason = "; ".join(reasons) if reasons else "risk/reward onvoldoende"
+                log_combo_evaluation(
+                    StrategyName.IRON_CONDOR, desc, metrics, "reject", reason
+                )
+                if reasons:
+                    rejected_reasons.extend(reasons)
+                else:
+                    rejected_reasons.append("risk/reward onvoldoende")
     proposals.sort(key=lambda p: p.score or 0, reverse=True)
     if not proposals:
         return [], sorted(set(rejected_reasons))
