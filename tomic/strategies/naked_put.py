@@ -1,12 +1,9 @@
 from __future__ import annotations
 from typing import Any, Dict, List
 import pandas as pd
-from tomic.bs_calculator import black_scholes
-from tomic.helpers.dateutils import dte_between_dates
-from tomic.helpers.timeutils import today
 from tomic.helpers.put_call_parity import fill_missing_mid_with_parity
 from . import StrategyName
-from ..utils import get_option_mid_price, normalize_leg
+from .utils import make_leg, passes_risk
 from ..logutils import log_combo_evaluation
 from ..strategy_candidates import (
     StrategyProposal,
@@ -42,84 +39,6 @@ def generate(
     rejected_reasons: list[str] = []
     min_rr = float(config.get("min_risk_reward", 0.0))
 
-    def make_leg(opt: Dict[str, Any], position: int) -> Dict[str, Any] | None:
-        bid = opt.get("bid")
-        ask = opt.get("ask")
-        mid = get_option_mid_price(opt)
-        used_close = False
-        if mid is None:
-            try:
-                close_val = float(opt.get("close"))
-                if close_val > 0:
-                    mid = close_val
-                    used_close = True
-            except Exception:
-                pass
-        else:
-            try:
-                close_val = float(opt.get("close"))
-                if mid == close_val:
-                    used_close = True
-            except Exception:
-                pass
-        if mid is None:
-            return None
-        leg = {
-            "expiry": opt.get("expiry"),
-            "type": opt.get("type") or opt.get("right"),
-            "strike": opt.get("strike"),
-            "spot": spot,
-            "iv": opt.get("iv"),
-            "delta": opt.get("delta"),
-            "bid": bid,
-            "ask": ask,
-            "mid": mid,
-            "edge": opt.get("edge"),
-            "model": opt.get("model"),
-            "volume": opt.get("volume"),
-            "open_interest": opt.get("open_interest"),
-            "position": position,
-        }
-        def _missing(val: Any) -> bool:
-            try:
-                return float(val) <= 0
-            except Exception:
-                return True
-        if opt.get("mid_from_parity"):
-            leg["mid_fallback"] = "parity"
-        elif used_close and (_missing(bid) or _missing(ask)):
-            leg["mid_fallback"] = "close"
-        try:
-            opt_type = (opt.get("type") or opt.get("right") or "").upper()[0]
-            strike = float(opt["strike"])
-            iv = float(opt.get("iv"))
-            exp = str(opt.get("expiry"))
-            if spot and iv > 0.0 and exp:
-                dte = dte_between_dates(today(), exp)
-                leg["model"] = black_scholes(opt_type, spot, strike, dte, iv, r=0.045, q=0.0)
-        except Exception:
-            pass
-        if (
-            leg.get("edge") is None
-            and leg.get("mid") is not None
-            and leg.get("model") is not None
-        ):
-            leg["edge"] = leg["model"] - leg["mid"]
-        return normalize_leg(leg)
-
-    def passes_risk(metrics: Dict[str, Any]) -> bool:
-        if not metrics or min_rr <= 0:
-            return True
-        mp = metrics.get("max_profit")
-        ml = metrics.get("max_loss")
-        if mp is None or ml is None or not ml:
-            return True
-        try:
-            rr = mp / abs(ml)
-        except Exception:
-            return True
-        return rr >= min_rr
-
     delta_range = rules.get("short_put_delta_range") or []
     if len(delta_range) == 2:
         for opt in option_chain:
@@ -130,7 +49,7 @@ def generate(
                 and delta_range[0] <= float(opt.get("delta")) <= delta_range[1]
             ):
                 desc = f"short {opt.get('strike')}"
-                leg = make_leg(opt, -1)
+                leg = make_leg(opt, -1, spot=spot)
                 if leg is None:
                     reason = "leg data ontbreekt"
                     log_combo_evaluation(
@@ -143,7 +62,7 @@ def generate(
                     rejected_reasons.append(reason)
                     continue
                 metrics, reasons = _metrics(StrategyName.NAKED_PUT, [leg], spot)
-                if metrics and passes_risk(metrics):
+                if metrics and passes_risk(metrics, min_rr):
                     proposals.append(StrategyProposal(legs=[leg], **metrics))
                     log_combo_evaluation(
                         StrategyName.NAKED_PUT,
