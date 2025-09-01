@@ -1,6 +1,5 @@
 from __future__ import annotations
 from typing import Any, Dict, List
-import math
 import pandas as pd
 from itertools import islice
 from tomic.helpers.put_call_parity import fill_missing_mid_with_parity
@@ -14,6 +13,7 @@ from ..strategy_candidates import (
     _find_option,
     _metrics,
 )
+from ..strike_selector import _dte
 
 
 def generate(
@@ -30,7 +30,6 @@ def generate(
     expiries = sorted({str(o.get("expiry")) for o in option_chain})
     if not expiries:
         return [], ["geen expiraties beschikbaar"]
-    expiry = expiries[0]
     strike_map = _build_strike_map(option_chain)
     if hasattr(pd, "DataFrame") and not isinstance(pd.DataFrame, type(object)):
         df_chain = pd.DataFrame(option_chain)
@@ -46,27 +45,34 @@ def generate(
     call_range = rules.get("short_call_delta_range") or []
     put_range = rules.get("short_put_delta_range") or []
     sigma_mult = float(rules.get("wing_sigma_multiple", 1.0))
-    shorts_c = [
-        o
-        for o in option_chain
-        if str(o.get("expiry")) == expiry
-        and (o.get("type") or o.get("right")) == "C"
-        and o.get("delta") is not None
-        and len(call_range) == 2
-        and call_range[0] <= float(o["delta"]) <= call_range[1]
-    ]
-    shorts_p = [
-        o
-        for o in option_chain
-        if str(o.get("expiry")) == expiry
-        and (o.get("type") or o.get("right")) == "P"
-        and o.get("delta") is not None
-        and len(put_range) == 2
-        and put_range[0] <= float(o["delta"]) <= put_range[1]
-    ]
-    if not shorts_c or not shorts_p:
-        rejected_reasons.append("short optie ontbreekt")
-    else:
+    dte_range = rules.get("dte_range")
+
+    for expiry in expiries:
+        if dte_range:
+            dte = _dte(expiry)
+            if dte is None or not (dte_range[0] <= dte <= dte_range[1]):
+                continue
+        shorts_c = [
+            o
+            for o in option_chain
+            if str(o.get("expiry")) == expiry
+            and (o.get("type") or o.get("right")) == "C"
+            and o.get("delta") is not None
+            and len(call_range) == 2
+            and call_range[0] <= float(o["delta"]) <= call_range[1]
+        ]
+        shorts_p = [
+            o
+            for o in option_chain
+            if str(o.get("expiry")) == expiry
+            and (o.get("type") or o.get("right")) == "P"
+            and o.get("delta") is not None
+            and len(put_range) == 2
+            and put_range[0] <= float(o["delta"]) <= put_range[1]
+        ]
+        if not shorts_c or not shorts_p:
+            rejected_reasons.append("short optie ontbreekt")
+            continue
         for sc_opt, sp_opt in islice(zip(shorts_c, shorts_p), 5):
             sc_strike = float(sc_opt.get("strike"))
             sp_strike = float(sp_opt.get("strike"))

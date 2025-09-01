@@ -174,6 +174,60 @@ def test_parity_mid_used_for_missing_bidask(monkeypatch):
     assert sc_leg.get("mid_fallback") == "parity"
 
 
+def test_generate_multiple_expiries(monkeypatch):
+    monkeypatch.setenv("TOMIC_TODAY", "2024-06-01")
+    chain = [
+        {"expiry": "2025-01-01", "strike": 110, "type": "C", "bid": 1.0, "ask": 1.2, "delta": 0.4, "edge": 0.1, "model": 0, "iv": 0.2},
+        {"expiry": "2025-01-01", "strike": 120, "type": "C", "bid": 0.5, "ask": 0.7, "delta": 0.2, "edge": 0.1, "model": 0, "iv": 0.2},
+        {"expiry": "2025-01-01", "strike": 90, "type": "P", "bid": 1.0, "ask": 1.1, "delta": -0.3, "edge": 0.1, "model": 0, "iv": 0.2},
+        {"expiry": "2025-01-01", "strike": 80, "type": "P", "bid": 0.4, "ask": 0.6, "delta": -0.1, "edge": 0.1, "model": 0, "iv": 0.2},
+        {"expiry": "2025-02-01", "strike": 115, "type": "C", "bid": 1.1, "ask": 1.3, "delta": 0.4, "edge": 0.1, "model": 0, "iv": 0.2},
+        {"expiry": "2025-02-01", "strike": 125, "type": "C", "bid": 0.6, "ask": 0.8, "delta": 0.2, "edge": 0.1, "model": 0, "iv": 0.2},
+        {"expiry": "2025-02-01", "strike": 95, "type": "P", "bid": 1.2, "ask": 1.3, "delta": -0.3, "edge": 0.1, "model": 0, "iv": 0.2},
+        {"expiry": "2025-02-01", "strike": 85, "type": "P", "bid": 0.5, "ask": 0.7, "delta": -0.1, "edge": 0.1, "model": 0, "iv": 0.2},
+    ]
+    cfg = {
+        "strike_to_strategy_config": {
+            "short_call_delta_range": [0.35, 0.45],
+            "short_put_delta_range": [-0.35, -0.25],
+            "wing_sigma_multiple": 1.0,
+            "use_ATR": False,
+            "dte_range": [200, 300],
+        }
+    }
+
+    monkeypatch.setattr(iron_condor, "compute_dynamic_width", lambda *a, **k: 10)
+
+    def fake_metrics(*args, **kwargs):
+        legs = args[1]
+        exp = legs[0]["expiry"]
+        score = 1 if exp == "2025-01-01" else 2
+        return (
+            {
+                "pos": 1,
+                "ev": 1,
+                "ev_pct": 1,
+                "rom": 1,
+                "edge": 0.1,
+                "credit": 100,
+                "margin": 100,
+                "max_profit": 100,
+                "max_loss": -50,
+                "breakevens": [0],
+                "score": score,
+                "profit_estimated": False,
+                "scenario_info": None,
+            },
+            [],
+        )
+
+    monkeypatch.setattr(iron_condor, "_metrics", fake_metrics)
+
+    props, _ = iron_condor.generate("AAA", chain, cfg, 100.0, 1.0)
+    assert len(props) == 2
+    assert [p.score for p in props] == [2, 1]
+
+
 def test_metrics_black_scholes_fallback(monkeypatch):
     monkeypatch.setenv("TOMIC_TODAY", "2024-06-01")
     legs = [
