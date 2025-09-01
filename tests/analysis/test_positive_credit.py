@@ -65,7 +65,7 @@ def test_iron_condor_negative_credit_rejected(cfg, expect_warn):
                     "short_call_spread": {
                         "strike_to_strategy_config": {
                             "short_call_delta_range": [0.35, 0.45],
-                            "long_leg_target_delta": 0.1,
+                            "long_leg_distance_points": 0.1,
                             "use_ATR": False,
                         }
                     }
@@ -79,7 +79,7 @@ def test_iron_condor_negative_credit_rejected(cfg, expect_warn):
                     "short_call_spread": {
                         "strike_config": {
                             "short_delta_range": [0.35, 0.45],
-                            "long_leg_distance_points": 0.1,
+                            "long_call_distance_points": 0.1,
                             "use_ATR": False,
                         }
                     }
