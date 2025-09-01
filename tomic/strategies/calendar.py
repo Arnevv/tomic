@@ -9,13 +9,12 @@ from .utils import make_leg, passes_risk
 from ..criteria import RULES
 from ..strategy_candidates import (
     StrategyProposal,
-    _build_strike_map,
-    _nearest_strike,
     _find_option,
     _metrics,
     _options_by_strike,
     select_expiry_pairs,
 )
+from ..strike_selector import _dte
 
 
 def generate(
@@ -32,8 +31,6 @@ def generate(
         return [], ["geen expiraties beschikbaar"]
     if spot is None:
         raise ValueError("spot price is required")
-    expiry = expiries[0]
-    strike_map = _build_strike_map(option_chain)
     if hasattr(pd, "DataFrame") and not isinstance(pd.DataFrame, type(object)):
         df_chain = pd.DataFrame(option_chain)
         if spot > 0:
@@ -47,6 +44,7 @@ def generate(
     min_rr = float(config.get("min_risk_reward", 0.0))
     min_gap = int(rules.get("expiry_gap_min_days", 0))
     base_strikes = rules.get("base_strikes_relative_to_spot", [])
+    dte_range = rules.get("dte_range")
 
     preferred = str(config.get("preferred_option_type", "C")).upper()[0]
     order = [preferred] + (["P"] if preferred == "C" else ["C"])
@@ -66,6 +64,12 @@ def generate(
             pairs: list = []
             for cand in candidate_strikes:
                 valid_exp = sorted(by_strike[cand])
+                if dte_range:
+                    valid_exp = [
+                        e
+                        for e in valid_exp
+                        if (d := _dte(e)) is not None and dte_range[0] <= d <= dte_range[1]
+                    ]
                 pairs = select_expiry_pairs(valid_exp, min_gap)
                 if not pairs:
                     local_reasons.append(

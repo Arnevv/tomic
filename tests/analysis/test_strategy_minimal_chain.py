@@ -128,10 +128,9 @@ def test_min_risk_reward_enforced(strategy, monkeypatch):
 
 def _set_mid(chain, opt_type, strike, price):
     for opt in chain:
-        if opt["type"] == opt_type and opt["strike"] == strike and opt["expiry"] == "20250101":
+        if opt["type"] == opt_type and opt["strike"] == strike:
             opt["bid"] = price
             opt["ask"] = price
-            break
 
 
 NEGATIVE_CHAIN_ADJUSTERS = {

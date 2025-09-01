@@ -15,6 +15,7 @@ from ..strategy_candidates import (
     _metrics,
     _validate_ratio,
 )
+from ..strike_selector import _dte
 
 
 def generate(
@@ -31,7 +32,6 @@ def generate(
     expiries = sorted({str(o.get("expiry")) for o in option_chain})
     if not expiries:
         return [], ["geen expiraties beschikbaar"]
-    expiry = expiries[0]
     strike_map = _build_strike_map(option_chain)
     if hasattr(pd, "DataFrame") and not isinstance(pd.DataFrame, type(object)):
         df_chain = pd.DataFrame(option_chain)
@@ -48,53 +48,59 @@ def generate(
     delta_range = rules.get("short_leg_delta_range") or []
     target_delta = rules.get("long_leg_distance_points")
     atr_mult = rules.get("long_leg_atr_multiple")
+    dte_range = rules.get("dte_range")
     if len(delta_range) == 2 and (target_delta is not None or atr_mult is not None):
-        calls_pre = []
-        for opt in option_chain:
-            if str(opt.get("expiry")) != expiry:
-                rejected_reasons.append("verkeerde expiratie")
+        for expiry in expiries:
+            if dte_range:
+                dte = _dte(expiry)
+                if dte is None or not (dte_range[0] <= dte <= dte_range[1]):
+                    continue
+            calls_pre = []
+            for opt in option_chain:
+                if str(opt.get("expiry")) != expiry:
+                    rejected_reasons.append("verkeerde expiratie")
+                    continue
+                if normalize_right(opt.get("type") or opt.get("right")) != "call":
+                    rejected_reasons.append("geen call optie")
+                    continue
+                delta = opt.get("delta")
+                mid = get_option_mid_price(opt)
+                if delta is None or not (delta_range[0] <= float(delta) <= delta_range[1]):
+                    rejected_reasons.append("delta buiten range")
+                    continue
+                try:
+                    mid_val = float(mid) if mid is not None else math.nan
+                except Exception:
+                    mid_val = math.nan
+                if math.isnan(mid_val):
+                    rejected_reasons.append("mid ontbreekt")
+                    continue
+                calls_pre.append(opt)
+            call_strikes = {float(o.get("strike")) for o in calls_pre}
+            short_opt = None
+            for opt in option_chain:
+                if (
+                    str(opt.get("expiry")) == expiry
+                    and normalize_right(opt.get("type") or opt.get("right")) == "call"
+                    and opt.get("delta") is not None
+                    and delta_range[0] <= float(opt.get("delta")) <= delta_range[1]
+                ):
+                    short_opt = opt
+                    break
+            if not short_opt:
+                reason = "short optie ontbreekt"
+                desc = (
+                    f"target_delta {target_delta}" if target_delta is not None else f"atr_mult {atr_mult}"
+                )
+                log_combo_evaluation(
+                    StrategyName.RATIO_SPREAD,
+                    desc,
+                    None,
+                    "reject",
+                    reason,
+                )
+                rejected_reasons.append(reason)
                 continue
-            if normalize_right(opt.get("type") or opt.get("right")) != "call":
-                rejected_reasons.append("geen call optie")
-                continue
-            delta = opt.get("delta")
-            mid = get_option_mid_price(opt)
-            if delta is None or not (delta_range[0] <= float(delta) <= delta_range[1]):
-                rejected_reasons.append("delta buiten range")
-                continue
-            try:
-                mid_val = float(mid) if mid is not None else math.nan
-            except Exception:
-                mid_val = math.nan
-            if math.isnan(mid_val):
-                rejected_reasons.append("mid ontbreekt")
-                continue
-            calls_pre.append(opt)
-        call_strikes = {float(o.get("strike")) for o in calls_pre}
-        short_opt = None
-        for opt in option_chain:
-            if (
-                str(opt.get("expiry")) == expiry
-                and normalize_right(opt.get("type") or opt.get("right")) == "call"
-                and opt.get("delta") is not None
-                and delta_range[0] <= float(opt.get("delta")) <= delta_range[1]
-            ):
-                short_opt = opt
-                break
-        if not short_opt:
-            reason = "short optie ontbreekt"
-            desc = (
-                f"target_delta {target_delta}" if target_delta is not None else f"atr_mult {atr_mult}"
-            )
-            log_combo_evaluation(
-                StrategyName.RATIO_SPREAD,
-                desc,
-                None,
-                "reject",
-                reason,
-            )
-            rejected_reasons.append(reason)
-        else:
             width = compute_dynamic_width(
                 short_opt,
                 target_delta=target_delta,
@@ -118,90 +124,86 @@ def generate(
                     reason,
                 )
                 rejected_reasons.append(reason)
-            else:
-                long_strike_target = float(short_opt.get("strike")) + width
-                long_strike = _nearest_strike(strike_map, expiry, "C", long_strike_target)
-                desc = f"short {short_opt.get('strike')} long {long_strike.matched}"
-                if not long_strike.matched:
-                    reason = "long strike niet gevonden"
+                continue
+            long_strike_target = float(short_opt.get("strike")) + width
+            long_strike = _nearest_strike(strike_map, expiry, "C", long_strike_target)
+            desc = f"short {short_opt.get('strike')} long {long_strike.matched}"
+            if not long_strike.matched:
+                reason = "long strike niet gevonden"
+                log_combo_evaluation(
+                    StrategyName.RATIO_SPREAD,
+                    desc,
+                    None,
+                    "reject",
+                    reason,
+                )
+                rejected_reasons.append(reason)
+                continue
+            long_opt = _find_option(option_chain, expiry, long_strike.matched, "C")
+            if not long_opt:
+                reason = "long optie ontbreekt"
+                log_combo_evaluation(
+                    StrategyName.RATIO_SPREAD,
+                    desc,
+                    None,
+                    "reject",
+                    reason,
+                )
+                rejected_reasons.append(reason)
+                continue
+            legs = [
+                make_leg(short_opt, -1, spot=spot),
+                make_leg(long_opt, 2, spot=spot),
+            ]
+            if any(l is None for l in legs):
+                reason = "leg data ontbreekt"
+                log_combo_evaluation(
+                    StrategyName.RATIO_SPREAD,
+                    desc,
+                    None,
+                    "reject",
+                    reason,
+                )
+                rejected_reasons.append(reason)
+                continue
+            metrics, reasons = _metrics(
+                StrategyName.RATIO_SPREAD, legs, spot
+            )
+            if metrics and passes_risk(metrics, min_rr):
+                if _validate_ratio("ratio_spread", legs, metrics.get("credit", 0.0)):
+                    proposals.append(StrategyProposal(legs=legs, **metrics))
                     log_combo_evaluation(
                         StrategyName.RATIO_SPREAD,
                         desc,
-                        None,
+                        metrics,
+                        "pass",
+                        "criteria",
+                    )
+                else:
+                    reason = "verkeerde ratio"
+                    log_combo_evaluation(
+                        StrategyName.RATIO_SPREAD,
+                        desc,
+                        metrics,
                         "reject",
                         reason,
                     )
                     rejected_reasons.append(reason)
+            else:
+                reason = "; ".join(reasons) if reasons else "risk/reward onvoldoende"
+                log_combo_evaluation(
+                    StrategyName.RATIO_SPREAD,
+                    desc,
+                    metrics,
+                    "reject",
+                    reason,
+                )
+                if reasons:
+                    rejected_reasons.extend(reasons)
                 else:
-                    long_opt = _find_option(option_chain, expiry, long_strike.matched, "C")
-                    if not long_opt:
-                        reason = "long optie ontbreekt"
-                        log_combo_evaluation(
-                            StrategyName.RATIO_SPREAD,
-                            desc,
-                            None,
-                            "reject",
-                            reason,
-                        )
-                        rejected_reasons.append(reason)
-                    else:
-                        legs = [
-                            make_leg(short_opt, -1, spot=spot),
-                            make_leg(long_opt, 2, spot=spot),
-                        ]
-                        if any(l is None for l in legs):
-                            reason = "leg data ontbreekt"
-                            log_combo_evaluation(
-                                StrategyName.RATIO_SPREAD,
-                                desc,
-                                None,
-                                "reject",
-                                reason,
-                            )
-                            rejected_reasons.append(reason)
-                        else:
-                            metrics, reasons = _metrics(
-                                StrategyName.RATIO_SPREAD, legs, spot
-                            )
-                            if metrics and passes_risk(metrics, min_rr):
-                                if _validate_ratio(
-                                    "ratio_spread", legs, metrics.get("credit", 0.0)
-                                ):
-                                    proposals.append(StrategyProposal(legs=legs, **metrics))
-                                    log_combo_evaluation(
-                                        StrategyName.RATIO_SPREAD,
-                                        desc,
-                                        metrics,
-                                        "pass",
-                                        "criteria",
-                                    )
-                                else:
-                                    reason = "verkeerde ratio"
-                                    log_combo_evaluation(
-                                        StrategyName.RATIO_SPREAD,
-                                        desc,
-                                        metrics,
-                                        "reject",
-                                        reason,
-                                    )
-                                    rejected_reasons.append(reason)
-                            else:
-                                reason = (
-                                    "; ".join(reasons)
-                                    if reasons
-                                    else "risk/reward onvoldoende"
-                                )
-                                log_combo_evaluation(
-                                    StrategyName.RATIO_SPREAD,
-                                    desc,
-                                    metrics,
-                                    "reject",
-                                    reason,
-                                )
-                                if reasons:
-                                    rejected_reasons.extend(reasons)
-                                else:
-                                    rejected_reasons.append("risk/reward onvoldoende")
+                    rejected_reasons.append("risk/reward onvoldoende")
+            if len(proposals) >= 5:
+                break
     else:
         rejected_reasons.append("ongeldige delta range")
     proposals.sort(key=lambda p: p.score or 0, reverse=True)
