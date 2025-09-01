@@ -3,11 +3,14 @@
 from __future__ import annotations
 
 import math
-from typing import Sequence, Any, Dict, List, Mapping
+from typing import Sequence, Any, Dict, List, Mapping, Tuple
 
+from tomic.bs_calculator import black_scholes
 from tomic.helpers.dateutils import dte_between_dates
 from tomic.helpers.timeutils import today
 
+from ..config import get as cfg_get
+from ..utils import get_option_mid_price, normalize_leg
 from ..logutils import logger
 
 
@@ -142,5 +145,132 @@ def compute_dynamic_width(
     return None
 
 
-__all__ = ["validate_width_list", "compute_dynamic_width"]
+def make_leg(
+    opt: Mapping[str, Any],
+    position: int,
+    *,
+    spot: float | None = None,
+    return_reason: bool = False,
+) -> Dict[str, Any] | Tuple[Dict[str, Any] | None, str | None]:
+    """Construct a normalized leg dictionary from an option quote.
+
+    Parameters
+    ----------
+    opt:
+        Option data as provided by the option chain.
+    position:
+        Negative for short, positive for long.
+    spot:
+        Current underlying price used for model calculation.
+    return_reason:
+        When ``True`` a tuple of ``(leg, reason)`` is returned where ``reason``
+        is populated when the leg cannot be created.
+
+    Returns
+    -------
+    Dict[str, Any] | Tuple[Dict[str, Any] | None, str | None]
+        The normalized leg or ``None`` when insufficient data is available. If
+        ``return_reason`` is True, the failure reason is returned alongside the
+        leg.
+    """
+
+    bid = opt.get("bid")
+    ask = opt.get("ask")
+    mid = get_option_mid_price(opt)
+    used_close = False
+    if mid is None:
+        try:
+            close_val = float(opt.get("close"))
+            if close_val > 0:
+                mid = close_val
+                used_close = True
+        except Exception:
+            pass
+    else:
+        try:
+            close_val = float(opt.get("close"))
+            if mid == close_val:
+                used_close = True
+        except Exception:
+            pass
+    if mid is None:
+        if return_reason:
+            return None, "mid ontbreekt"
+    leg = {
+        "expiry": opt.get("expiry"),
+        "type": opt.get("type") or opt.get("right"),
+        "strike": opt.get("strike"),
+        "spot": spot,
+        "iv": opt.get("iv"),
+        "delta": opt.get("delta"),
+        "bid": bid,
+        "ask": ask,
+        "mid": mid,
+        "edge": opt.get("edge"),
+        "model": opt.get("model"),
+        "volume": opt.get("volume"),
+        "open_interest": opt.get("open_interest"),
+        "position": position,
+    }
+
+    def _missing(val: Any) -> bool:
+        try:
+            return float(val) <= 0
+        except Exception:
+            return True
+
+    if opt.get("mid_from_parity"):
+        leg["mid_fallback"] = "parity"
+    elif used_close and (_missing(bid) or _missing(ask)):
+        leg["mid_fallback"] = "close"
+
+    try:
+        opt_type = (opt.get("type") or opt.get("right") or "").upper()[0]
+        strike = float(opt["strike"])
+        iv = float(opt.get("iv"))
+        exp = str(opt.get("expiry"))
+        if spot and iv > 0.0 and exp:
+            dte = dte_between_dates(today(), exp)
+            r = float(cfg_get("INTEREST_RATE", 0.05))
+            q = 0.0
+            leg["model"] = black_scholes(opt_type, spot, strike, dte, iv, r=r, q=q)
+    except Exception:
+        pass
+
+    if (
+        leg.get("edge") is None
+        and leg.get("mid") is not None
+        and leg.get("model") is not None
+    ):
+        leg["edge"] = leg["model"] - leg["mid"]
+
+    leg = normalize_leg(leg)
+
+    if return_reason:
+        return leg, None
+    return leg
+
+
+def passes_risk(metrics: Mapping[str, Any], min_rr: float) -> bool:
+    """Return ``True`` if metrics satisfy the configured risk/reward."""
+
+    if not metrics or min_rr <= 0:
+        return True
+    mp = metrics.get("max_profit")
+    ml = metrics.get("max_loss")
+    if mp is None or ml is None or not ml:
+        return True
+    try:
+        rr = mp / abs(ml)
+    except Exception:
+        return True
+    return rr >= min_rr
+
+
+__all__ = [
+    "validate_width_list",
+    "compute_dynamic_width",
+    "make_leg",
+    "passes_risk",
+]
 

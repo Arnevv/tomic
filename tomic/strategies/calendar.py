@@ -3,12 +3,9 @@ from typing import Any, Dict, List
 
 # Calendar strategy generator supporting calls and puts.
 import pandas as pd
-from tomic.bs_calculator import black_scholes
-from tomic.helpers.dateutils import dte_between_dates
-from tomic.helpers.timeutils import today
 from tomic.helpers.put_call_parity import fill_missing_mid_with_parity
 from . import StrategyName
-from ..utils import get_option_mid_price, normalize_leg
+from .utils import make_leg, passes_risk
 from ..criteria import RULES
 from ..strategy_candidates import (
     StrategyProposal,
@@ -95,43 +92,12 @@ def generate(
                     local_reasons.append("opties niet gevonden")
                     continue
                 legs = [
-                    {
-                        "expiry": short_opt.get("expiry"),
-                        "type": short_opt.get("type"),
-                        "strike": short_opt.get("strike"),
-                        "delta": short_opt.get("delta"),
-                        "bid": short_opt.get("bid"),
-                        "ask": short_opt.get("ask"),
-                        "mid": get_option_mid_price(short_opt),
-                        "edge": short_opt.get("edge"),
-                        "model": short_opt.get("model"),
-                        "volume": short_opt.get("volume"),
-                        "open_interest": short_opt.get("open_interest"),
-                        "position": -1,
-                    },
-                    {
-                        "expiry": long_opt.get("expiry"),
-                        "type": long_opt.get("type"),
-                        "strike": long_opt.get("strike"),
-                        "delta": long_opt.get("delta"),
-                        "bid": long_opt.get("bid"),
-                        "ask": long_opt.get("ask"),
-                        "mid": get_option_mid_price(long_opt),
-                        "edge": long_opt.get("edge"),
-                        "model": long_opt.get("model"),
-                        "volume": long_opt.get("volume"),
-                        "open_interest": long_opt.get("open_interest"),
-                        "position": 1,
-                    },
+                    make_leg(short_opt, -1, spot=spot),
+                    make_leg(long_opt, 1, spot=spot),
                 ]
-                for leg in legs:
-                    if (
-                        leg.get("edge") is None
-                        and leg.get("mid") is not None
-                        and leg.get("model") is not None
-                    ):
-                        leg["edge"] = leg["model"] - leg["mid"]
-                legs = [normalize_leg(l) for l in legs]
+                if any(l is None for l in legs):
+                    local_reasons.append("leg data ontbreekt")
+                    continue
                 metrics, reasons = _metrics(StrategyName.CALENDAR, legs, spot)
                 if not metrics:
                     if reasons:
@@ -139,17 +105,9 @@ def generate(
                         if "onvoldoende volume/open interest" in reasons:
                             invalid_nears.add(near)
                     continue
-                if min_rr > 0:
-                    mp = metrics.get("max_profit")
-                    ml = metrics.get("max_loss")
-                    if mp is not None and ml is not None and ml:
-                        try:
-                            rr = mp / abs(ml)
-                        except Exception:
-                            rr = None
-                        if rr is not None and rr < min_rr:
-                            local_reasons.append("risk reward te laag")
-                            continue
+                if not passes_risk(metrics, min_rr):
+                    local_reasons.append("risk/reward onvoldoende")
+                    continue
                 local_props.append(StrategyProposal(legs=legs, **metrics))
                 if len(local_props) >= 5:
                     break
