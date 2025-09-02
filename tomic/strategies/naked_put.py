@@ -5,6 +5,7 @@ from tomic.helpers.put_call_parity import fill_missing_mid_with_parity
 from . import StrategyName
 from .utils import make_leg, passes_risk
 from ..logutils import log_combo_evaluation
+from ..utils import normalize_right
 from ..strategy_candidates import (
     StrategyProposal,
     _metrics,
@@ -48,7 +49,7 @@ def generate(
             for opt in option_chain:
                 if (
                     str(opt.get("expiry")) == expiry
-                    and (opt.get("type") or opt.get("right")) == "P"
+                    and normalize_right(opt.get("type") or opt.get("right")) == "put"
                     and opt.get("delta") is not None
                     and delta_range[0] <= float(opt.get("delta")) <= delta_range[1]
                 ):

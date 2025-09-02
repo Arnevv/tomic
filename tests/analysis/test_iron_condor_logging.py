@@ -8,7 +8,7 @@ def _chain():
         {
             "expiry": "2025-01-01",
             "strike": 110,
-            "type": "C",
+            "type": "call",
             "bid": 1.0,
             "ask": 1.2,
             "delta": 0.4,
@@ -19,7 +19,7 @@ def _chain():
         {
             "expiry": "2025-01-01",
             "strike": 120,
-            "type": "C",
+            "type": "call",
             "bid": 0.5,
             "ask": 0.7,
             "delta": 0.2,
@@ -30,7 +30,7 @@ def _chain():
         {
             "expiry": "2025-01-01",
             "strike": 90,
-            "type": "P",
+            "type": "put",
             "bid": 1.0,
             "ask": 1.1,
             "delta": -0.3,
@@ -41,7 +41,7 @@ def _chain():
         {
             "expiry": "2025-01-01",
             "strike": 80,
-            "type": "P",
+            "type": "put",
             "bid": 0.4,
             "ask": 0.6,
             "delta": -0.1,
@@ -78,6 +78,6 @@ def test_iron_condor_logging(monkeypatch):
     assert "SP=90.0P" in joined and "LP=80.0P" in joined
 
     messages.clear()
-    chain_fail = [c for c in chain if c["type"] == "C"]
+    chain_fail = [c for c in chain if c["type"] == "call"]
     iron_condor.generate("AAA", chain_fail, cfg, 100.0, 1.0)
     assert any("short optie ontbreekt" in m and "expiry=2025-01-01" in m for m in messages)
