@@ -4,20 +4,21 @@ from copy import deepcopy
 from tomic import strategy_candidates
 from tomic.strategy_candidates import generate_strategy_candidates
 from tomic.strategies.config_models import CONFIG_MODELS
+from tomic.utils import normalize_right
 
 # Base options chain with minimal coverage for all strategies
 BASE_CHAIN = [
-    {"expiry": "20250101", "strike": 100, "type": "C", "bid": 2.0, "ask": 2.2, "delta": 0.5, "edge": 0.5, "model": 0, "iv": 0.2, "volume": 100, "open_interest": 1000},
-    {"expiry": "20250101", "strike": 110, "type": "C", "bid": 5.0, "ask": 5.2, "delta": 0.4, "edge": 0.5, "model": 0, "iv": 0.2, "volume": 100, "open_interest": 1000},
-    {"expiry": "20250101", "strike": 120, "type": "C", "bid": 0.5, "ask": 0.6, "delta": 0.2, "edge": 0.5, "model": 0, "iv": 0.2, "volume": 100, "open_interest": 1000},
-    {"expiry": "20250101", "strike": 80, "type": "P", "bid": 0.5, "ask": 0.6, "delta": -0.1, "edge": 0.5, "model": 0, "iv": 0.2, "volume": 100, "open_interest": 1000},
-    {"expiry": "20250101", "strike": 90, "type": "P", "bid": 5.0, "ask": 5.2, "delta": -0.25, "edge": 5.0, "model": 0, "iv": 0.2, "volume": 100, "open_interest": 1000},
-    {"expiry": "20250101", "strike": 100, "type": "P", "bid": 2.0, "ask": 2.2, "delta": -0.5, "edge": 0.5, "model": 0, "iv": 0.2, "volume": 100, "open_interest": 1000},
-    {"expiry": "20250301", "strike": 100, "type": "C", "bid": 5.0, "ask": 5.2, "delta": 0.45, "edge": 0.5, "model": 0, "iv": 0.2, "volume": 100, "open_interest": 1000},
-    {"expiry": "20250301", "strike": 100, "type": "P", "bid": 5.0, "ask": 5.2, "delta": -0.45, "edge": 0.5, "model": 0, "iv": 0.2, "volume": 100, "open_interest": 1000},
-    {"expiry": "20250301", "strike": 90, "type": "P", "bid": 1.0, "ask": 1.1, "delta": -0.2, "edge": 0.5, "model": 0, "iv": 0.2, "volume": 100, "open_interest": 1000},
-    {"expiry": "20250301", "strike": 80, "type": "P", "bid": 1.0, "ask": 1.1, "delta": -0.15, "edge": 0.5, "model": 0, "iv": 0.2, "volume": 100, "open_interest": 1000},
-    {"expiry": "20250301", "strike": 110, "type": "C", "bid": 1.0, "ask": 1.1, "delta": 0.35, "edge": 0.5, "model": 0, "iv": 0.2, "volume": 100, "open_interest": 1000},
+    {"expiry": "20250101", "strike": 100, "type": "call", "bid": 2.0, "ask": 2.2, "delta": 0.5, "edge": 0.5, "model": 0, "iv": 0.2, "volume": 100, "open_interest": 1000},
+    {"expiry": "20250101", "strike": 110, "type": "call", "bid": 5.0, "ask": 5.2, "delta": 0.4, "edge": 0.5, "model": 0, "iv": 0.2, "volume": 100, "open_interest": 1000},
+    {"expiry": "20250101", "strike": 120, "type": "call", "bid": 0.5, "ask": 0.6, "delta": 0.2, "edge": 0.5, "model": 0, "iv": 0.2, "volume": 100, "open_interest": 1000},
+    {"expiry": "20250101", "strike": 80, "type": "put", "bid": 0.5, "ask": 0.6, "delta": -0.1, "edge": 0.5, "model": 0, "iv": 0.2, "volume": 100, "open_interest": 1000},
+    {"expiry": "20250101", "strike": 90, "type": "put", "bid": 5.0, "ask": 5.2, "delta": -0.25, "edge": 5.0, "model": 0, "iv": 0.2, "volume": 100, "open_interest": 1000},
+    {"expiry": "20250101", "strike": 100, "type": "put", "bid": 2.0, "ask": 2.2, "delta": -0.5, "edge": 0.5, "model": 0, "iv": 0.2, "volume": 100, "open_interest": 1000},
+    {"expiry": "20250301", "strike": 100, "type": "call", "bid": 5.0, "ask": 5.2, "delta": 0.45, "edge": 0.5, "model": 0, "iv": 0.2, "volume": 100, "open_interest": 1000},
+    {"expiry": "20250301", "strike": 100, "type": "put", "bid": 5.0, "ask": 5.2, "delta": -0.45, "edge": 0.5, "model": 0, "iv": 0.2, "volume": 100, "open_interest": 1000},
+    {"expiry": "20250301", "strike": 90, "type": "put", "bid": 1.0, "ask": 1.1, "delta": -0.2, "edge": 0.5, "model": 0, "iv": 0.2, "volume": 100, "open_interest": 1000},
+    {"expiry": "20250301", "strike": 80, "type": "put", "bid": 1.0, "ask": 1.1, "delta": -0.15, "edge": 0.5, "model": 0, "iv": 0.2, "volume": 100, "open_interest": 1000},
+    {"expiry": "20250301", "strike": 110, "type": "call", "bid": 1.0, "ask": 1.1, "delta": 0.35, "edge": 0.5, "model": 0, "iv": 0.2, "volume": 100, "open_interest": 1000},
 ]
 
 # Minimal valid configuration per strategy
@@ -128,18 +129,18 @@ def test_min_risk_reward_enforced(strategy, monkeypatch):
 
 def _set_mid(chain, opt_type, strike, price):
     for opt in chain:
-        if opt["type"] == opt_type and opt["strike"] == strike:
+        if normalize_right(opt["type"]) == normalize_right(opt_type) and opt["strike"] == strike:
             opt["bid"] = price
             opt["ask"] = price
 
 
 NEGATIVE_CHAIN_ADJUSTERS = {
-    "short_put_spread": lambda ch: _set_mid(ch, "P", 80, 20.0),
-    "short_call_spread": lambda ch: _set_mid(ch, "C", 120, 20.0),
-    "iron_condor": lambda ch: (_set_mid(ch, "C", 120, 20.0), _set_mid(ch, "P", 80, 20.0)),
+    "short_put_spread": lambda ch: _set_mid(ch, "put", 80, 20.0),
+    "short_call_spread": lambda ch: _set_mid(ch, "call", 120, 20.0),
+    "iron_condor": lambda ch: (_set_mid(ch, "call", 120, 20.0), _set_mid(ch, "put", 80, 20.0)),
     "atm_iron_butterfly": lambda ch: (
-        _set_mid(ch, "C", 110, 20.0),
-        _set_mid(ch, "P", 90, 20.0),
+        _set_mid(ch, "call", 110, 20.0),
+        _set_mid(ch, "put", 90, 20.0),
     ),
 }
 

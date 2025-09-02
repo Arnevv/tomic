@@ -8,7 +8,7 @@ def _chain():
         {
             "expiry": "2025-01-01",
             "strike": 90,
-            "type": "P",
+            "type": "put",
             "bid": 1.0,
             "ask": 1.1,
             "delta": -0.3,

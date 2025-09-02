@@ -10,7 +10,7 @@ from tomic.helpers.dateutils import dte_between_dates
 from tomic.helpers.timeutils import today
 
 from ..config import get as cfg_get
-from ..utils import get_option_mid_price, normalize_leg
+from ..utils import get_option_mid_price, normalize_leg, normalize_right
 from ..logutils import logger
 
 
@@ -120,11 +120,12 @@ def compute_dynamic_width(
             return None
 
     if target_delta is not None and option_chain and expiry and option_type:
+        opt_type = normalize_right(option_type)
         candidates = [
             o
             for o in option_chain
             if str(o.get("expiry")) == expiry
-            and (o.get("type") or o.get("right")) == option_type
+            and normalize_right(o.get("type") or o.get("right")) == opt_type
             and o.get("delta") is not None
         ]
         if not candidates:
