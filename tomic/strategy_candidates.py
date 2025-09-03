@@ -30,8 +30,7 @@ from .logutils import logger, log_combo_evaluation
 from .criteria import CriteriaConfig, RULES, load_criteria
 from .strategies import StrategyName
 from .config import get as cfg_get
-from .loader import normalize_strike_rule_fields
-from .strategies.config_normalizer import normalize_config
+from .helpers.normalize import normalize_config
 from .strategies.config_models import CONFIG_MODELS
 from .config import _asdict
 
@@ -593,11 +592,13 @@ def generate_strategy_candidates(
     cfg_data = config if config is not None else cfg_get("STRATEGY_CONFIG", {})
     base = cfg_data.get("default", {})
     strat_cfg = {**base, **cfg_data.get("strategies", {}).get(strategy_type, {})}
-    normalize_config(strat_cfg, {"strike_config": ("strike_to_strategy_config", None)})
+    strat_cfg = normalize_config(
+        strat_cfg, {"strike_config": ("strike_to_strategy_config", None)}
+    )
     if "min_risk_reward" not in strat_cfg or strat_cfg["min_risk_reward"] is None:
         strat_cfg["min_risk_reward"] = RULES.strategy.acceptance.min_risk_reward
-    strat_cfg["strike_to_strategy_config"] = normalize_strike_rule_fields(
-        strat_cfg.get("strike_to_strategy_config", {}), strategy_type
+    strat_cfg["strike_to_strategy_config"] = normalize_config(
+        strat_cfg.get("strike_to_strategy_config", {}), strategy=strategy_type
     )
     model_cls = CONFIG_MODELS.get(strategy_type)
     if model_cls is not None:
