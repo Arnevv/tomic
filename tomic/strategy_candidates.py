@@ -7,19 +7,10 @@ from datetime import date, datetime
 import math
 import pandas as pd
 
-from tomic.bs_calculator import black_scholes
-from tomic.helpers.dateutils import dte_between_dates
-from tomic.helpers.timeutils import today
 from tomic.helpers.put_call_parity import fill_missing_mid_with_parity
 
-from .metrics import (
-    calculate_margin,
-    calculate_pos,
-    calculate_rom,
-    calculate_ev,
-    estimate_scenario_profit,
-)
-from .analysis.strategy import heuristic_risk_metrics, parse_date
+from .analysis.scoring import calculate_score
+from .analysis.strategy import parse_date
 from .utils import (
     get_option_mid_price,
     normalize_leg,
@@ -274,49 +265,6 @@ def _find_option(
     return None
 
 
-def _bs_estimate_missing(legs: List[Dict[str, Any]]) -> None:
-    """Fill missing model price and delta using Black-Scholes."""
-    for leg in legs:
-        need_model = leg.get("model") in (None, 0, "0", "")
-        need_delta = leg.get("delta") in (None, 0, "0", "")
-        if not (need_model or need_delta):
-            continue
-        try:
-            opt_type = (leg.get("type") or leg.get("right") or "").upper()[0]
-            strike = float(leg.get("strike"))
-            spot = float(
-                leg.get("spot")
-                or leg.get("underlying_price")
-                or leg.get("underlying")
-            )
-            iv = float(leg.get("iv"))
-            exp = leg.get("expiry") or leg.get("expiration")
-            if not exp:
-                continue
-            dte = dte_between_dates(today(), exp)
-            if dte is None or dte <= 0 or iv <= 0 or spot <= 0:
-                continue
-        except Exception:
-            continue
-        try:
-            price = black_scholes(opt_type, spot, strike, dte, iv)
-            T = dte / 365.0
-            r = float(cfg_get("INTEREST_RATE", 0.05))
-            d1 = (
-                math.log(spot / strike)
-                + (r - 0.0 + 0.5 * iv * iv) * T
-            ) / (iv * math.sqrt(T))
-            nd1 = 0.5 * (1.0 + math.erf(d1 / math.sqrt(2.0)))
-            if opt_type == "C":
-                delta = nd1
-            else:
-                delta = nd1 - 1
-            if need_model:
-                leg["model"] = price
-            if need_delta:
-                leg["delta"] = delta
-        except Exception:
-            continue
 
 
 def _metrics(
@@ -326,217 +274,29 @@ def _metrics(
     *,
     criteria: CriteriaConfig | None = None,
 ) -> tuple[Optional[Dict[str, Any]], list[str]]:
-    strategy = getattr(strategy, "value", strategy)
-    _bs_estimate_missing(legs)
-    missing_fields = False
-    for leg in legs:
-        missing: List[str] = []
-        if not leg.get("mid"):
-            missing.append("mid")
-        if not leg.get("model"):
-            missing.append("model")
-        if not leg.get("delta"):
-            missing.append("delta")
-        if missing:
-            logger.info(
-                f"[leg-missing] {leg['type']} {leg['strike']} {leg['expiry']}: {', '.join(missing)}"
-            )
-            missing_fields = True
-    if missing_fields:
-        logger.info(
-            f"[❌ voorstel afgewezen] {strategy} — reason: ontbrekende metrics (details in debug)"
-        )
-        return None, [
-            "Edge, model of delta ontbreekt — metrics kunnen niet worden berekend"
-        ]
-    for leg in legs:
-        normalize_leg(leg)
-    short_deltas = [
-        abs(leg.get("delta", 0))
-        for leg in legs
-        if leg.get("position", 0) < 0 and leg.get("delta") is not None
-    ]
-    pos_val = (
-        calculate_pos(sum(short_deltas) / len(short_deltas)) if short_deltas else None
+    proposal = StrategyProposal(legs=legs)
+    score, reasons = calculate_score(
+        strategy, proposal, spot, criteria=criteria
     )
-
-    short_edges: List[float] = []
-    for leg in legs:
-        if leg.get("position", 0) < 0:
-            try:
-                edge_val = float(leg.get("edge"))
-            except Exception:
-                edge_val = math.nan
-            if not math.isnan(edge_val):
-                short_edges.append(edge_val)
-    edge_avg = round(sum(short_edges) / len(short_edges), 2) if short_edges else None
-
-    reasons: list[str] = []
-
-    crit = criteria or load_criteria()
-    min_vol = float(crit.market_data.min_option_volume)
-    min_oi = float(crit.market_data.min_option_open_interest)
-    if min_vol > 0 or min_oi > 0:
-        low_liq: List[str] = []
-        for leg in legs:
-            vol_raw = leg.get("volume")
-            try:
-                vol = float(vol_raw) if vol_raw not in (None, "") else None
-            except Exception:
-                vol = None
-            oi_raw = leg.get("open_interest")
-            try:
-                oi = float(oi_raw) if oi_raw not in (None, "") else None
-            except Exception:
-                oi = None
-            exp = leg.get("expiry") or leg.get("expiration")
-            strike = leg.get("strike")
-            if isinstance(strike, float) and strike.is_integer():
-                strike = int(strike)
-            if (
-                (min_vol > 0 and vol is not None and vol < min_vol)
-                or (min_oi > 0 and oi is not None and oi < min_oi)
-            ):
-                low_liq.append(f"{strike} [{vol or 0}, {oi or 0}, {exp}]")
-        if low_liq:
-            logger.info(
-                f"[{strategy}] Onvoldoende volume/open interest voor strikes {', '.join(low_liq)}"
-            )
-            reasons.append("onvoldoende volume/open interest")
-            return None, reasons
-
-    missing_mid: List[str] = []
-    credits: List[float] = []
-    debits: List[float] = []
-    for leg in legs:
-        mid = leg.get("mid")
-        try:
-            mid_val = float(mid) if mid is not None else math.nan
-        except Exception:
-            mid_val = math.nan
-        if math.isnan(mid_val):
-            missing_mid.append(str(leg.get("strike")))
-            continue
-        qty = abs(
-            float(
-                leg.get("qty")
-                or leg.get("quantity")
-                or leg.get("position")
-                or 1
-            )
-        )
-        pos = float(leg.get("position") or 0)
-        if pos < 0:
-            credits.append(mid_val * qty)
-        elif pos > 0:
-            debits.append(mid_val * qty)
-    credit_short = sum(credits)
-    debit_long = sum(debits)
-    if missing_mid:
-        logger.info(
-            f"[{strategy}] Ontbrekende bid/ask-data voor strikes {','.join(missing_mid)}"
-        )
-        reasons.append("ontbrekende bid/ask-data")
-    fallbacks = {leg.get("mid_fallback") for leg in legs if leg.get("mid_fallback")}
-    if "close" in fallbacks:
-        reasons.append("fallback naar close gebruikt voor midprijs")
-    net_credit = credit_short - debit_long
-    strikes = "/".join(str(l.get("strike")) for l in legs)
-    if strategy in POSITIVE_CREDIT_STRATS and net_credit <= 0:
-        reasons.append("negatieve credit")
+    if score is None:
         return None, reasons
-
-    cost_basis = -net_credit * 100
-    risk = heuristic_risk_metrics(legs, cost_basis)
-    margin = None
-    try:
-        margin = calculate_margin(
-            strategy,
-            legs,
-            net_cashflow=net_credit,
-        )
-    except Exception:
-        margin = None
-    if margin is None or (isinstance(margin, float) and math.isnan(margin)):
-        reasons.append("margin kon niet worden berekend")
-        return None, reasons
-    for leg in legs:
-        leg["margin"] = margin
-
-    max_profit = risk.get("max_profit")
-    max_loss = risk.get("max_loss")
-    profit_estimated = False
-    scenario_info: Optional[Dict[str, Any]] = None
-    if strategy == "naked_put":
-        max_profit = net_credit * 100
-        max_loss = -margin
-    elif strategy in {"ratio_spread", "backspread_put", "calendar"}:
-        max_loss = -margin
-    if ((max_profit is None or max_profit <= 0) or strategy == "ratio_spread") and spot is not None:
-        scenarios, err = estimate_scenario_profit(legs, spot, strategy)
-        if scenarios:
-            preferred = next(
-                (s for s in scenarios if s.get("preferred_move")), scenarios[0]
-            )
-            pnl = preferred.get("pnl")
-            max_profit = abs(pnl) if pnl is not None else None
-            scenario_info = preferred
-            profit_estimated = True
-            label = preferred.get("scenario_label")
-            logger.info(
-                f"[SCENARIO] {strategy}: profit estimate at {label} {max_profit}"
-            )
-        else:
-            scenario_info = {"error": err or "no scenario defined"}
-    rom = (
-        calculate_rom(max_profit, margin) if max_profit is not None and margin else None
-    )
-    if rom is None:
-        reasons.append("ROM kon niet worden berekend omdat margin ontbreekt")
-    ev = (
-        calculate_ev(pos_val or 0.0, max_profit or 0.0, max_loss or 0.0)
-        if pos_val is not None and max_profit is not None and max_loss is not None
-        else None
-    )
-    ev_pct = (ev / margin) * 100 if ev is not None and margin else None
-    rom_w = float(crit.strategy.score_weight_rom)
-    pos_w = float(crit.strategy.score_weight_pos)
-    ev_w = float(crit.strategy.score_weight_ev)
-
-    score = 0.0
-    if rom is not None:
-        score += rom * rom_w
-    if pos_val is not None:
-        score += pos_val * pos_w
-    if ev_pct is not None:
-        score += ev_pct * ev_w
-
-    breakevens = _breakevens(strategy, legs, net_credit * 100)
-
-    if (ev_pct is not None and ev_pct <= 0 and not profit_estimated) or score < 0:
-        reasons.append("negatieve EV of score")
-        logger.info(
-            f"[❌ voorstel afgewezen] {strategy} — reason: EV/score te laag"
-        )
-        return None, reasons
-
     result = {
-        "pos": pos_val,
-        "ev": ev,
-        "ev_pct": ev_pct,
-        "rom": rom,
-        "edge": edge_avg,
-        "credit": net_credit * 100,
-        "margin": margin,
-        "max_profit": max_profit,
-        "max_loss": max_loss,
-        "breakevens": breakevens,
-        "score": round(score, 2),
-        "profit_estimated": profit_estimated,
-        "scenario_info": scenario_info,
+        "pos": proposal.pos,
+        "ev": proposal.ev,
+        "ev_pct": proposal.ev_pct,
+        "rom": proposal.rom,
+        "edge": proposal.edge,
+        "credit": proposal.credit,
+        "margin": proposal.margin,
+        "max_profit": proposal.max_profit,
+        "max_loss": proposal.max_loss,
+        "breakevens": proposal.breakevens,
+        "score": proposal.score,
+        "profit_estimated": proposal.profit_estimated,
+        "scenario_info": proposal.scenario_info,
     }
-    if fallbacks:
-        result["fallback"] = ",".join(sorted(fallbacks))
+    if proposal.fallback:
+        result["fallback"] = proposal.fallback
     return result, reasons
 
 

@@ -3,13 +3,12 @@ from typing import Any, Dict, List
 import pandas as pd
 from tomic.helpers.put_call_parity import fill_missing_mid_with_parity
 from . import StrategyName
-from .utils import passes_risk
 from ..helpers.analysis.scoring import build_leg
+from ..analysis.scoring import calculate_score, passes_risk
 from ..logutils import log_combo_evaluation
 from ..utils import normalize_right
 from ..strategy_candidates import (
     StrategyProposal,
-    _metrics,
 )
 from ..strike_selector import _dte
 
@@ -56,13 +55,16 @@ def generate(
                 ):
                     desc = f"short {opt.get('strike')}"
                     leg = build_leg({**opt, "spot": spot}, "short")
-                    metrics, reasons = _metrics(StrategyName.NAKED_PUT, [leg], spot)
-                    if metrics and passes_risk(metrics, min_rr):
-                        proposals.append(StrategyProposal(legs=[leg], **metrics))
+                    proposal = StrategyProposal(legs=[leg])
+                    score, reasons = calculate_score(
+                        StrategyName.NAKED_PUT, proposal, spot
+                    )
+                    if score is not None and passes_risk(proposal, min_rr):
+                        proposals.append(proposal)
                         log_combo_evaluation(
                             StrategyName.NAKED_PUT,
                             desc,
-                            metrics,
+                            proposal.__dict__,
                             "pass",
                             "criteria",
                             legs=[leg],
@@ -72,7 +74,7 @@ def generate(
                         log_combo_evaluation(
                             StrategyName.NAKED_PUT,
                             desc,
-                            metrics,
+                            proposal.__dict__,
                             "reject",
                             reason,
                             legs=[leg],

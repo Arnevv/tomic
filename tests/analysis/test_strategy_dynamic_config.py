@@ -49,28 +49,23 @@ def test_generate_candidates_uses_global_config(monkeypatch, cfg, expect_warn):
         {"expiry": "20250101", "strike": 80, "type": "P", "bid": 0.4, "ask": 0.6, "delta": -0.1, "edge": 0.1, "model": 0, "iv": 0.2},
     ]
     monkeypatch.setattr(config, "STRATEGY_CONFIG", cfg)
-    monkeypatch.setattr(
-        iron_condor,
-        "_metrics",
-        lambda *a, **k: (
-            {
-                "pos": 1,
-                "ev": 1,
-                "ev_pct": 1,
-                "rom": 1,
-                "edge": 0.1,
-                "credit": 100,
-                "margin": 100,
-                "max_profit": 100,
-                "max_loss": -50,
-                "breakevens": [0],
-                "score": 1,
-                "profit_estimated": False,
-                "scenario_info": None,
-            },
-            [],
-        ),
-    )
+    def fake_score(strategy, proposal, spot):
+        proposal.pos = 1
+        proposal.ev = 1
+        proposal.ev_pct = 1
+        proposal.rom = 1
+        proposal.edge = 0.1
+        proposal.credit = 100
+        proposal.margin = 100
+        proposal.max_profit = 100
+        proposal.max_loss = -50
+        proposal.breakevens = [0]
+        proposal.score = 1
+        proposal.profit_estimated = False
+        proposal.scenario_info = None
+        return 1, []
+
+    monkeypatch.setattr(iron_condor, "calculate_score", fake_score)
     ctx = pytest.warns(DeprecationWarning) if expect_warn else nullcontext()
     with ctx:
         proposals, reasons = generate_strategy_candidates(

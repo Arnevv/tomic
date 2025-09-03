@@ -3,8 +3,9 @@ from typing import Any, Dict, List
 import pandas as pd
 from tomic.helpers.put_call_parity import fill_missing_mid_with_parity
 from . import StrategyName
-from .utils import compute_dynamic_width, passes_risk
+from .utils import compute_dynamic_width
 from ..helpers.analysis.scoring import build_leg
+from ..analysis.scoring import calculate_score, passes_risk
 from ..logutils import log_combo_evaluation
 from ..utils import normalize_right
 from ..strategy_candidates import (
@@ -12,7 +13,6 @@ from ..strategy_candidates import (
     _build_strike_map,
     _nearest_strike,
     _find_option,
-    _metrics,
     _validate_ratio,
     select_expiry_pairs,
 )
@@ -155,14 +155,19 @@ def generate(
                 build_leg({**long_opt, "spot": spot}, "long"),
             ]
             legs[1]["position"] = 2
-            metrics, reasons = _metrics(StrategyName.BACKSPREAD_PUT, legs, spot)
-            if metrics and passes_risk(metrics, min_rr):
-                if _validate_ratio("backspread_put", legs, metrics.get("credit", 0.0)):
-                    proposals.append(StrategyProposal(legs=legs, **metrics))
+            proposal = StrategyProposal(legs=legs)
+            score, reasons = calculate_score(
+                StrategyName.BACKSPREAD_PUT, proposal, spot
+            )
+            if score is not None and passes_risk(proposal, min_rr):
+                if _validate_ratio(
+                    "backspread_put", legs, proposal.credit or 0.0
+                ):
+                    proposals.append(proposal)
                     log_combo_evaluation(
                         StrategyName.BACKSPREAD_PUT,
                         desc,
-                        metrics,
+                        proposal.__dict__,
                         "pass",
                         "criteria",
                         legs=legs,
@@ -172,7 +177,7 @@ def generate(
                     log_combo_evaluation(
                         StrategyName.BACKSPREAD_PUT,
                         desc,
-                        metrics,
+                        proposal.__dict__,
                         "reject",
                         reason,
                         legs=legs,
@@ -183,7 +188,7 @@ def generate(
                 log_combo_evaluation(
                     StrategyName.BACKSPREAD_PUT,
                     desc,
-                    metrics,
+                    proposal.__dict__,
                     "reject",
                     reason,
                     legs=legs,

@@ -198,30 +198,24 @@ def test_generate_multiple_expiries(monkeypatch):
 
     monkeypatch.setattr(iron_condor, "compute_dynamic_width", lambda *a, **k: 10)
 
-    def fake_metrics(*args, **kwargs):
-        legs = args[1]
-        exp = legs[0]["expiry"]
-        score = 1 if exp == "2025-01-01" else 2
-        return (
-            {
-                "pos": 1,
-                "ev": 1,
-                "ev_pct": 1,
-                "rom": 1,
-                "edge": 0.1,
-                "credit": 100,
-                "margin": 100,
-                "max_profit": 100,
-                "max_loss": -50,
-                "breakevens": [0],
-                "score": score,
-                "profit_estimated": False,
-                "scenario_info": None,
-            },
-            [],
-        )
+    def fake_score(strategy, proposal, spot):
+        exp = proposal.legs[0]["expiry"]
+        proposal.pos = 1
+        proposal.ev = 1
+        proposal.ev_pct = 1
+        proposal.rom = 1
+        proposal.edge = 0.1
+        proposal.credit = 100
+        proposal.margin = 100
+        proposal.max_profit = 100
+        proposal.max_loss = -50
+        proposal.breakevens = [0]
+        proposal.score = 1 if exp == "2025-01-01" else 2
+        proposal.profit_estimated = False
+        proposal.scenario_info = None
+        return proposal.score, []
 
-    monkeypatch.setattr(iron_condor, "_metrics", fake_metrics)
+    monkeypatch.setattr(iron_condor, "calculate_score", fake_score)
 
     props, _ = iron_condor.generate("AAA", chain, cfg, 100.0, 1.0)
     assert len(props) == 2

@@ -64,11 +64,16 @@ def test_iron_condor_logging(monkeypatch):
     }
     chain = _chain()
 
-    def fake_metrics(strategy, legs, spot):
-        return {"pos": 50, "max_profit": 100, "max_loss": -50, "ev": 0.1, "score": 1}, []
+    def fake_score(strategy, proposal, spot):
+        proposal.pos = 50
+        proposal.max_profit = 100
+        proposal.max_loss = -50
+        proposal.ev = 0.1
+        proposal.score = 1
+        return 1, []
 
     messages: list[str] = []
-    monkeypatch.setattr(iron_condor, "_metrics", fake_metrics)
+    monkeypatch.setattr(iron_condor, "calculate_score", fake_score)
     monkeypatch.setattr(logutils, "logger", SimpleNamespace(info=lambda m: messages.append(m)))
 
     iron_condor.generate("AAA", chain, cfg, 100.0, 1.0)

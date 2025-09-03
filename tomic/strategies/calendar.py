@@ -5,14 +5,13 @@ from typing import Any, Dict, List
 import pandas as pd
 from tomic.helpers.put_call_parity import fill_missing_mid_with_parity
 from . import StrategyName
-from .utils import passes_risk
 from ..helpers.analysis.scoring import build_leg
+from ..analysis.scoring import calculate_score, passes_risk
 from ..logutils import log_combo_evaluation
 from ..criteria import RULES
 from ..strategy_candidates import (
     StrategyProposal,
     _find_option,
-    _metrics,
     _options_by_strike,
     select_expiry_pairs,
 )
@@ -122,11 +121,19 @@ def generate(
                     build_leg({**short_opt, "spot": spot}, "short"),
                     build_leg({**long_opt, "spot": spot}, "long"),
                 ]
-                metrics, reasons = _metrics(StrategyName.CALENDAR, legs, spot)
-                if not metrics:
+                proposal = StrategyProposal(legs=legs)
+                score, reasons = calculate_score(
+                    StrategyName.CALENDAR, proposal, spot
+                )
+                if score is None:
                     reason = "; ".join(reasons) if reasons else "metrics niet berekend"
                     log_combo_evaluation(
-                        StrategyName.CALENDAR, desc, metrics, "reject", reason, legs=legs
+                        StrategyName.CALENDAR,
+                        desc,
+                        proposal.__dict__,
+                        "reject",
+                        reason,
+                        legs=legs,
                     )
                     if reasons:
                         local_reasons.extend(reasons)
@@ -135,16 +142,26 @@ def generate(
                     else:
                         local_reasons.append("metrics niet berekend")
                     continue
-                if not passes_risk(metrics, min_rr):
+                if not passes_risk(proposal, min_rr):
                     reason = "risk/reward onvoldoende"
                     log_combo_evaluation(
-                        StrategyName.CALENDAR, desc, metrics, "reject", reason, legs=legs
+                        StrategyName.CALENDAR,
+                        desc,
+                        proposal.__dict__,
+                        "reject",
+                        reason,
+                        legs=legs,
                     )
                     local_reasons.append(reason)
                     continue
-                local_props.append(StrategyProposal(legs=legs, **metrics))
+                local_props.append(proposal)
                 log_combo_evaluation(
-                    StrategyName.CALENDAR, desc, metrics, "pass", "criteria", legs=legs
+                    StrategyName.CALENDAR,
+                    desc,
+                    proposal.__dict__,
+                    "pass",
+                    "criteria",
+                    legs=legs,
                 )
                 if len(local_props) >= 5:
                     break
