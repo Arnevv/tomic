@@ -1,6 +1,6 @@
 import pytest
 
-from tomic import loader
+from tomic.helpers.normalize import normalize_config
 
 CASES = {
     "calendar": (
@@ -50,5 +50,5 @@ CASES = {
     (name, cfg[0], cfg[1]) for name, cfg in CASES.items()
 ])
 def test_normalization(strategy, legacy, expected):
-    rules = loader.load_strike_config(strategy, {strategy: legacy})
+    rules = normalize_config(legacy, strategy=strategy)
     assert rules == expected
