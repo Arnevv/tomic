@@ -2,22 +2,18 @@ from __future__ import annotations
 
 """Helpers for storing a small IV history subset."""
 
-from datetime import datetime, date
+from datetime import date
 from pathlib import Path
 from typing import Iterable, Dict, Any, List
 
 from tomic.config import get as cfg_get
 from tomic.journal.utils import update_json_file
 from tomic.utils import normalize_right
+from tomic.helpers.dateutils import parse_date
 
 
 def _parse_expiry(raw: str) -> date | None:
-    try:
-        if "-" in raw:
-            return datetime.strptime(raw, "%Y-%m-%d").date()
-        return datetime.strptime(raw, "%Y%m%d").date()
-    except Exception:
-        return None
+    return parse_date(raw)
 
 
 def _nearest_strike_by_delta(

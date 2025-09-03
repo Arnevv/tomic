@@ -16,6 +16,7 @@ import requests
 from tomic.config import get as cfg_get
 from tomic.logutils import logger, setup_logging
 from tomic.journal.utils import load_json, save_json
+from tomic.helpers.dateutils import parse_date
 
 
 def _parse_dates(csv_text: str) -> List[str]:
@@ -41,11 +42,10 @@ def _fetch_symbol(symbol: str, api_key: str) -> List[str]:
     return _parse_dates(resp.text)
 
 def _safe_parse_date(d: str) -> date | None:
-    try:
-        return datetime.strptime(d, "%Y-%m-%d").date()
-    except ValueError:
+    parsed = parse_date(d)
+    if parsed is None:
         logger.warning(f"⚠️ Ongeldige datum overgeslagen: {d}")
-        return None
+    return parsed
 
 def _merge_dates(existing: List[str], new: List[str]) -> List[str]:
     """Return merged list with updated upcoming dates."""
