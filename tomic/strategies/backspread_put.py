@@ -3,7 +3,8 @@ from typing import Any, Dict, List
 import pandas as pd
 from tomic.helpers.put_call_parity import fill_missing_mid_with_parity
 from . import StrategyName
-from .utils import compute_dynamic_width, make_leg, passes_risk
+from .utils import compute_dynamic_width, passes_risk
+from ..helpers.analysis.scoring import build_leg
 from ..logutils import log_combo_evaluation
 from ..utils import normalize_right
 from ..strategy_candidates import (
@@ -150,21 +151,10 @@ def generate(
                 rejected_reasons.append(reason)
                 continue
             legs = [
-                make_leg(short_opt, -1, spot=spot),
-                make_leg(long_opt, 2, spot=spot),
+                build_leg({**short_opt, "spot": spot}, "short"),
+                build_leg({**long_opt, "spot": spot}, "long"),
             ]
-            if any(l is None for l in legs):
-                reason = "leg data ontbreekt"
-                log_combo_evaluation(
-                    StrategyName.BACKSPREAD_PUT,
-                    desc,
-                    None,
-                    "reject",
-                    reason,
-                    legs=legs_info,
-                )
-                rejected_reasons.append(reason)
-                continue
+            legs[1]["position"] = 2
             metrics, reasons = _metrics(StrategyName.BACKSPREAD_PUT, legs, spot)
             if metrics and passes_risk(metrics, min_rr):
                 if _validate_ratio("backspread_put", legs, metrics.get("credit", 0.0)):

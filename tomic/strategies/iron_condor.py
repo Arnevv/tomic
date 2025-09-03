@@ -4,7 +4,8 @@ import pandas as pd
 from itertools import islice
 from tomic.helpers.put_call_parity import fill_missing_mid_with_parity
 from . import StrategyName
-from .utils import compute_dynamic_width, make_leg, passes_risk
+from .utils import compute_dynamic_width, passes_risk
+from ..helpers.analysis.scoring import build_leg
 from ..logutils import log_combo_evaluation
 from ..utils import normalize_right
 from ..strategy_candidates import (
@@ -143,25 +144,12 @@ def generate(
                 )
                 rejected_reasons.append(reason)
                 continue
-            sc_leg, sc_reason = make_leg(sc_opt, -1, spot=spot, return_reason=True)
-            lc_leg, lc_reason = make_leg(lc_opt, 1, spot=spot, return_reason=True)
-            sp_leg, sp_reason = make_leg(sp_opt, -1, spot=spot, return_reason=True)
-            lp_leg, lp_reason = make_leg(lp_opt, 1, spot=spot, return_reason=True)
-            legs = [sc_leg, lc_leg, sp_leg, lp_leg]
-            leg_reasons = [sc_reason, lc_reason, sp_reason, lp_reason]
-            if any(l is None for l in legs):
-                reason = "leg data ontbreekt"
-                log_combo_evaluation(
-                    StrategyName.IRON_CONDOR,
-                    desc,
-                    None,
-                    "reject",
-                    reason,
-                    legs=base_legs + long_leg_info,
-                )
-                rejected_reasons.append(reason)
-                rejected_reasons.extend(r for r in leg_reasons if r)
-                continue
+            legs = [
+                build_leg({**sc_opt, "spot": spot}, "short"),
+                build_leg({**lc_opt, "spot": spot}, "long"),
+                build_leg({**sp_opt, "spot": spot}, "short"),
+                build_leg({**lp_opt, "spot": spot}, "long"),
+            ]
             metrics, reasons = _metrics(StrategyName.IRON_CONDOR, legs, spot)
             if metrics and passes_risk(metrics, min_rr):
                 proposals.append(StrategyProposal(legs=legs, **metrics))

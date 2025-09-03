@@ -3,7 +3,8 @@ from typing import Any, Dict, List
 import pandas as pd
 from tomic.helpers.put_call_parity import fill_missing_mid_with_parity
 from . import StrategyName
-from .utils import make_leg, passes_risk
+from .utils import passes_risk
+from ..helpers.analysis.scoring import build_leg
 from ..logutils import log_combo_evaluation
 from ..utils import normalize_right
 from ..strategy_candidates import (
@@ -54,26 +55,7 @@ def generate(
                     and delta_range[0] <= float(opt.get("delta")) <= delta_range[1]
                 ):
                     desc = f"short {opt.get('strike')}"
-                    leg = make_leg(opt, -1, spot=spot)
-                    if leg is None:
-                        reason = "leg data ontbreekt"
-                        log_combo_evaluation(
-                            StrategyName.NAKED_PUT,
-                            desc,
-                            None,
-                            "reject",
-                            reason,
-                            legs=[
-                                {
-                                    "expiry": expiry,
-                                    "strike": opt.get("strike"),
-                                    "type": opt.get("type") or opt.get("right"),
-                                    "position": -1,
-                                }
-                            ],
-                        )
-                        rejected_reasons.append(reason)
-                        continue
+                    leg = build_leg({**opt, "spot": spot}, "short")
                     metrics, reasons = _metrics(StrategyName.NAKED_PUT, [leg], spot)
                     if metrics and passes_risk(metrics, min_rr):
                         proposals.append(StrategyProposal(legs=[leg], **metrics))

@@ -5,7 +5,8 @@ from typing import Any, Dict, List
 import pandas as pd
 from tomic.helpers.put_call_parity import fill_missing_mid_with_parity
 from . import StrategyName
-from .utils import make_leg, passes_risk
+from .utils import passes_risk
+from ..helpers.analysis.scoring import build_leg
 from ..logutils import log_combo_evaluation
 from ..criteria import RULES
 from ..strategy_candidates import (
@@ -118,16 +119,9 @@ def generate(
                     local_reasons.append(reason)
                     continue
                 legs = [
-                    make_leg(short_opt, -1, spot=spot),
-                    make_leg(long_opt, 1, spot=spot),
+                    build_leg({**short_opt, "spot": spot}, "short"),
+                    build_leg({**long_opt, "spot": spot}, "long"),
                 ]
-                if any(l is None for l in legs):
-                    reason = "leg data ontbreekt"
-                    log_combo_evaluation(
-                        StrategyName.CALENDAR, desc, None, "reject", reason, legs=legs_info
-                    )
-                    local_reasons.append(reason)
-                    continue
                 metrics, reasons = _metrics(StrategyName.CALENDAR, legs, spot)
                 if not metrics:
                     reason = "; ".join(reasons) if reasons else "metrics niet berekend"
