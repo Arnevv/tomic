@@ -156,6 +156,7 @@ class ExitRules:
     spot_above: Optional[float] = None
     target_profit_pct: Optional[float] = None
     days_before_expiry: Optional[int] = None
+    max_days_in_trade: Optional[int] = None
 
     @classmethod
     def from_dict(cls, data: Mapping[str, Any]) -> "ExitRules":
@@ -165,6 +166,7 @@ class ExitRules:
             spot_above=data.get("spot_above"),
             target_profit_pct=data.get("target_profit_pct"),
             days_before_expiry=data.get("days_before_expiry"),
+            max_days_in_trade=data.get("max_days_in_trade"),
         )
 
     def to_dict(self) -> dict[str, Any]:
@@ -174,5 +176,6 @@ class ExitRules:
             "spot_above": self.spot_above,
             "target_profit_pct": self.target_profit_pct,
             "days_before_expiry": self.days_before_expiry,
+            "max_days_in_trade": self.max_days_in_trade,
         }
 

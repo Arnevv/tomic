@@ -125,11 +125,14 @@ def interactieve_trade_invoer():
     target_profit_pct = float_prompt("  Target profit %: ", default=None)
     dbe_input = input("  Dagen voor expiry: ").strip()
     days_before_expiry = int(dbe_input) if dbe_input else None
+    mdit_input = input("  Max dagen in trade: ").strip()
+    max_days_in_trade = int(mdit_input) if mdit_input else None
     exit_rules = ExitRules(
         spot_below=spot_below,
         spot_above=spot_above,
         target_profit_pct=target_profit_pct,
         days_before_expiry=days_before_expiry,
+        max_days_in_trade=max_days_in_trade,
     )
 
     # Skip automatic market data retrieval to avoid TWS calls

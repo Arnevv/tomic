@@ -90,6 +90,7 @@ alerts:
 
     theta_efficiency_bands: [0.5, 1.5, 2.5]
     dte_close_threshold: 10
+    days_in_trade_close_threshold: 40
 
     pnl_theta:
       take_profit_pct_of_premium: 0.70
