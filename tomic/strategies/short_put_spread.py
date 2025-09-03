@@ -7,7 +7,7 @@ from .utils import compute_dynamic_width
 from ..helpers.analysis.scoring import build_leg
 from ..analysis.scoring import calculate_score, passes_risk
 from ..logutils import log_combo_evaluation
-from ..utils import normalize_right
+from ..utils import get_leg_right
 from ..strategy_candidates import (
     StrategyProposal,
     _build_strike_map,
@@ -57,7 +57,7 @@ def generate(
             for opt in option_chain:
                 if (
                     str(opt.get("expiry")) == expiry
-                    and normalize_right(opt.get("type") or opt.get("right")) == "put"
+                    and get_leg_right(opt) == "put"
                     and opt.get("delta") is not None
                     and delta_range[0] <= float(opt.get("delta")) <= delta_range[1]
                 ):

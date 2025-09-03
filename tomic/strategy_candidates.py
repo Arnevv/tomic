@@ -15,6 +15,7 @@ from .utils import (
     get_option_mid_price,
     normalize_leg,
     normalize_right,
+    get_leg_right,
     prompt_user_for_price,
 )
 from .logutils import logger, log_combo_evaluation
@@ -101,13 +102,13 @@ def _breakevens(
             l
             for l in legs
             if l.get("position") < 0
-            and normalize_right(l.get("type") or l.get("right")) == "put"
+            and get_leg_right(l) == "put"
         ]
         short_call = [
             l
             for l in legs
             if l.get("position") < 0
-            and normalize_right(l.get("type") or l.get("right")) == "call"
+            and get_leg_right(l) == "call"
         ]
         if short_put and short_call:
             sp = float(short_put[0].get("strike"))
@@ -129,7 +130,7 @@ def _build_strike_map(chain: List[Dict[str, Any]]) -> Dict[str, Dict[str, List[f
     for opt in chain:
         try:
             expiry = str(opt.get("expiry"))
-            right = normalize_right(opt.get("type") or opt.get("right", ""))
+            right = get_leg_right(opt)
             strike = float(opt.get("strike"))
         except Exception:
             continue
@@ -151,7 +152,7 @@ def _options_by_strike(
     norm_right = normalize_right(right)
     for opt in chain:
         try:
-            opt_right = normalize_right(opt.get("type") or opt.get("right"))
+            opt_right = get_leg_right(opt)
             if opt_right != norm_right:
                 continue
             strike = float(opt.get("strike"))
@@ -238,7 +239,7 @@ def _find_option(
     for opt in chain:
         try:
             opt_exp = _norm_exp(opt.get("expiry"))
-            opt_right = _norm_right(opt.get("type") or opt.get("right"))
+            opt_right = get_leg_right(opt)
             opt_strike = float(opt.get("strike"))
             if (
                 opt_exp == target_exp

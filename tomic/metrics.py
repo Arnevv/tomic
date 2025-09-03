@@ -6,7 +6,7 @@ from __future__ import annotations
 from math import inf
 from typing import Optional, Iterable, Any, Dict, List
 
-from .utils import normalize_right
+from .utils import get_leg_right
 from .logutils import logger
 from .config import get as cfg_get
 
@@ -107,7 +107,7 @@ def calculate_payoff_at_spot(
             )
         )
         position = _option_direction(leg) * qty
-        right = normalize_right(leg.get("type") or leg.get("right"))
+        right = get_leg_right(leg)
         strike = float(leg.get("strike"))
         if right == "call":
             intrinsic = max(spot_price - strike, 0)
@@ -173,7 +173,7 @@ def _max_loss(
         _option_direction(leg)
         * abs(float(leg.get("qty") or leg.get("quantity") or leg.get("position") or 1))
         for leg in legs
-        if normalize_right(leg.get("type") or leg.get("right")) == "call"
+        if get_leg_right(leg) == "call"
     )
     if slope_high < 0:
         return inf
@@ -229,12 +229,12 @@ def calculate_margin(
         puts = [
             float(l.get("strike"))
             for l in legs
-            if normalize_right(l.get("type") or l.get("right")) == "put"
+            if get_leg_right(l) == "put"
         ]
         calls = [
             float(l.get("strike"))
             for l in legs
-            if normalize_right(l.get("type") or l.get("right")) == "call"
+            if get_leg_right(l) == "call"
         ]
         if len(puts) != 2 or len(calls) != 2:
             raise ValueError("Invalid iron_condor/atm_iron_butterfly structure")

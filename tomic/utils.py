@@ -176,6 +176,18 @@ def normalize_right(val: str) -> str:
     return ""
 
 
+def get_leg_right(leg: dict) -> str:
+    """Return normalized option right for ``leg``.
+
+    The ``leg`` dictionary may define the option right under either the
+    ``right`` or ``type`` key.  This helper fetches whichever is available and
+    returns it normalized as ``"call"`` or ``"put"`` using
+    :func:`normalize_right`.
+    """
+
+    return normalize_right(leg.get("right") or leg.get("type"))
+
+
 def latest_atr(symbol: str) -> float | None:
     """Return the most recent ATR value for ``symbol`` from price history."""
 

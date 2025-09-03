@@ -7,7 +7,7 @@ from typing import Sequence, Any, Dict, List, Mapping, Tuple
 
 from tomic.helpers.dateutils import dte_between_dates
 
-from ..utils import normalize_right, today
+from ..utils import normalize_right, get_leg_right, today
 from ..logutils import logger
 from ..helpers.analysis.scoring import build_leg
 
@@ -123,7 +123,7 @@ def compute_dynamic_width(
             o
             for o in option_chain
             if str(o.get("expiry")) == expiry
-            and normalize_right(o.get("type") or o.get("right")) == opt_type
+            and get_leg_right(o) == opt_type
             and o.get("delta") is not None
         ]
         if not candidates:

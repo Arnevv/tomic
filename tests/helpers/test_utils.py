@@ -31,6 +31,7 @@ def test_load_price_history(monkeypatch, tmp_path):
     path = tmp_path / "AAA.json"
     path.write_text(json.dumps(data))
 
+    importlib.reload(utils)
     monkeypatch.setattr(
         utils,
         "cfg_get",
@@ -38,7 +39,6 @@ def test_load_price_history(monkeypatch, tmp_path):
         if name == "PRICE_HISTORY_DIR"
         else default,
     )
-    importlib.reload(utils)
 
     records = utils.load_price_history("AAA")
     assert [r.get("date") for r in records] == ["2024-01-01", "2024-01-02"]
@@ -53,12 +53,12 @@ def test_latest_atr(monkeypatch, tmp_path):
     path = tmp_path / "AAA.json"
     path.write_text(json.dumps(data))
 
+    importlib.reload(utils)
     monkeypatch.setattr(
         utils, "cfg_get", lambda name, default=None: str(tmp_path)
         if name == "PRICE_HISTORY_DIR"
         else default,
     )
-    importlib.reload(utils)
 
     assert utils.latest_atr("AAA") == 1.5
 
@@ -67,12 +67,12 @@ def test_latest_atr_none(monkeypatch, tmp_path):
     path = tmp_path / "AAA.json"
     path.write_text("[]")
 
+    importlib.reload(utils)
     monkeypatch.setattr(
         utils, "cfg_get", lambda name, default=None: str(tmp_path)
         if name == "PRICE_HISTORY_DIR"
         else default,
     )
-    importlib.reload(utils)
 
     assert utils.latest_atr("AAA") is None
 
@@ -132,5 +132,15 @@ def test_get_option_mid_price_nan_bid_ask():
 def test_get_option_mid_price_nan_close():
     option = {"bid": None, "ask": None, "close": "NaN"}
     assert utils.get_option_mid_price(option) is None
+
+
+def test_get_leg_right_prefers_right():
+    leg = {"right": "P", "type": "C"}
+    assert utils.get_leg_right(leg) == "put"
+
+
+def test_get_leg_right_fallback_type():
+    leg = {"type": "C"}
+    assert utils.get_leg_right(leg) == "call"
 
 

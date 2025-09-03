@@ -8,7 +8,7 @@ from statistics import mean
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
-from tomic.utils import today, normalize_right
+from tomic.utils import today, get_leg_right
 from tomic.analysis.alerts import check_entry_conditions, generate_risk_alerts
 from tomic.logutils import logger
 
@@ -27,16 +27,8 @@ def parse_date(date_str: str) -> Optional[datetime.date]:
 
 def determine_strategy_type(legs: List[Dict[str, Any]]) -> str:
     """Return basic strategy type derived from legs."""
-    calls = [
-        leg
-        for leg in legs
-        if normalize_right(leg.get("right") or leg.get("type")) == "call"
-    ]
-    puts = [
-        leg
-        for leg in legs
-        if normalize_right(leg.get("right") or leg.get("type")) == "put"
-    ]
+    calls = [leg for leg in legs if get_leg_right(leg) == "call"]
+    puts = [leg for leg in legs if get_leg_right(leg) == "put"]
     n = len(legs)
 
     if (
@@ -79,7 +71,7 @@ def determine_strategy_type(legs: List[Dict[str, Any]]) -> str:
     if n == 1:
         leg = legs[0]
         qty = leg.get("position", 0)
-        right = normalize_right(leg.get("right") or leg.get("type"))
+        right = get_leg_right(leg)
         if right == "call":
             return "Long Call" if qty > 0 else "Short Call"
         if right == "put":
@@ -132,7 +124,7 @@ def aggregate_metrics(legs: List[Dict[str, Any]]) -> Dict[str, Any]:
         if leg.get("iv") is not None:
             iv = leg.get("iv")
             iv_values.append(iv)
-            right = normalize_right(leg.get("right") or leg.get("type"))
+            right = get_leg_right(leg)
             if right == "call":
                 call_iv.append(iv)
             elif right == "put":
@@ -190,9 +182,7 @@ def heuristic_risk_metrics(
     """Rough estimation of max win/loss for simple strategies."""
     strategy_id = determine_strategy_type(legs)
     if len(legs) == 2:
-        rights = {
-            normalize_right(leg.get("right") or leg.get("type")) for leg in legs
-        }
+        rights = {get_leg_right(leg) for leg in legs}
         if len(rights) == 1:
             strikes = [leg.get("strike", 0) for leg in legs]
             width = abs(strikes[0] - strikes[1]) * 100
@@ -228,30 +218,30 @@ def heuristic_risk_metrics(
                 "risk_reward": rr,
             }
     if len(legs) == 4:
-        rights = [normalize_right(leg.get("right") or leg.get("type")) for leg in legs]
+        rights = [get_leg_right(leg) for leg in legs]
         if rights.count("put") == 2 and rights.count("call") == 2:
             put_short = [
                 leg
                 for leg in legs
-                if normalize_right(leg.get("right") or leg.get("type")) == "put"
+                if get_leg_right(leg) == "put"
                 and leg.get("position", 0) < 0
             ][0]
             put_long = [
                 leg
                 for leg in legs
-                if normalize_right(leg.get("right") or leg.get("type")) == "put"
+                if get_leg_right(leg) == "put"
                 and leg.get("position", 0) > 0
             ][0]
             call_short = [
                 leg
                 for leg in legs
-                if normalize_right(leg.get("right") or leg.get("type")) == "call"
+                if get_leg_right(leg) == "call"
                 and leg.get("position", 0) < 0
             ][0]
             call_long = [
                 leg
                 for leg in legs
-                if normalize_right(leg.get("right") or leg.get("type")) == "call"
+                if get_leg_right(leg) == "call"
                 and leg.get("position", 0) > 0
             ][0]
             width_put = abs(put_short.get("strike", 0) - put_long.get("strike", 0))
@@ -286,7 +276,7 @@ def collapse_legs(legs: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
             )
             key = (
                 leg.get("strike"),
-                normalize_right(leg.get("right") or leg.get("type")),
+                get_leg_right(leg),
                 expiry,
             )
         else:
