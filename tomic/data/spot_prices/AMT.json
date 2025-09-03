@@ -3582,5 +3582,12 @@
     "close": 203.85,
     "volume": 2618105.0,
     "atr": null
+  },
+  {
+    "symbol": "AMT",
+    "date": "2025-09-02",
+    "close": 200.49,
+    "volume": 2600512.0,
+    "atr": null
   }
 ]
