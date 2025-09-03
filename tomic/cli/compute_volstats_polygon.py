@@ -9,22 +9,24 @@ from typing import List, Any
 
 from tomic.analysis.metrics import historical_volatility
 from tomic.config import get as cfg_get
-from tomic.journal.utils import load_json, update_json_file
+from tomic.journal.utils import update_json_file
 from tomic.logutils import logger, setup_logging
 from tomic.providers.polygon_iv import fetch_polygon_iv30d
 from tomic.polygon_client import PolygonClient
 from tomic.helpers.price_utils import _load_latest_close
+from tomic.utils import load_price_history
 
 
 def _get_closes(symbol: str) -> list[float]:
     """Return list of close prices for ``symbol`` sorted by date."""
-    base = Path(cfg_get("PRICE_HISTORY_DIR", "tomic/data/spot_prices"))
-    path = base / f"{symbol}.json"
-    data = load_json(path)
-    if not isinstance(data, list):
-        return []
-    data.sort(key=lambda r: r.get("date", ""))
-    return [float(rec.get("close", 0)) for rec in data]
+    data = load_price_history(symbol)
+    closes: list[float] = []
+    for rec in data:
+        try:
+            closes.append(float(rec.get("close", 0)))
+        except Exception:
+            continue
+    return closes
 
 
 

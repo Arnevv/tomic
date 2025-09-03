@@ -1,20 +1,15 @@
 from __future__ import annotations
 """Price-related helper utilities."""
 
-from pathlib import Path
-from tomic.config import get as cfg_get
 from tomic.logutils import logger
-from tomic.journal.utils import load_json
+from tomic.utils import load_price_history
 
 
 def _load_latest_close(symbol: str) -> tuple[float | None, str | None]:
     """Return the most recent close and its date for ``symbol``."""
-    base = Path(cfg_get("PRICE_HISTORY_DIR", "tomic/data/spot_prices"))
-    path = base / f"{symbol}.json"
-    logger.debug(f"Loading close price for {symbol} from {path}")
-    data = load_json(path)
-    if isinstance(data, list) and data:
-        data.sort(key=lambda r: r.get("date", ""))
+    logger.debug(f"Loading close price for {symbol}")
+    data = load_price_history(symbol)
+    if data:
         rec = data[-1]
         try:
             price = float(rec.get("close"))

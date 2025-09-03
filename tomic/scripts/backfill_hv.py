@@ -9,26 +9,21 @@ from typing import Iterable, List
 from tomic.config import get as cfg_get
 from tomic.journal.utils import load_json, save_json
 from tomic.logutils import logger, setup_logging
-from tomic.utils import today
+from tomic.utils import today, load_price_history
 
 
 def _load_price_data(symbol: str) -> list[tuple[str, float]]:
     """Return list of (date, close) tuples sorted by date."""
-    base = Path(cfg_get("PRICE_HISTORY_DIR", "tomic/data/spot_prices"))
-    path = base / f"{symbol}.json"
-    data = load_json(path)
     records: list[tuple[str, float]] = []
-    if isinstance(data, list):
-        for rec in data:
-            d = rec.get("date")
-            c = rec.get("close")
-            if d is None or c is None:
-                continue
-            try:
-                records.append((str(d), float(c)))
-            except Exception:
-                continue
-    records.sort(key=lambda r: r[0])
+    for rec in load_price_history(symbol):
+        d = rec.get("date")
+        c = rec.get("close")
+        if d is None or c is None:
+            continue
+        try:
+            records.append((str(d), float(c)))
+        except Exception:
+            continue
     return records
 
 

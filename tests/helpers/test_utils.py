@@ -23,6 +23,27 @@ def test_get_option_mid_price_fallback_close():
     assert utils.get_option_mid_price(option) == 0.8
 
 
+def test_load_price_history(monkeypatch, tmp_path):
+    data = [
+        {"date": "2024-01-02", "close": 101.0},
+        {"date": "2024-01-01", "close": 100.0},
+    ]
+    path = tmp_path / "AAA.json"
+    path.write_text(json.dumps(data))
+
+    monkeypatch.setattr(
+        utils,
+        "cfg_get",
+        lambda name, default=None: str(tmp_path)
+        if name == "PRICE_HISTORY_DIR"
+        else default,
+    )
+    importlib.reload(utils)
+
+    records = utils.load_price_history("AAA")
+    assert [r.get("date") for r in records] == ["2024-01-01", "2024-01-02"]
+
+
 def test_latest_atr(monkeypatch, tmp_path):
     data = [
         {"date": "2024-01-01", "close": 100.0, "atr": None},

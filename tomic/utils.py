@@ -90,14 +90,23 @@ def select_near_atm(
     return expiries[:count], sel_strikes
 
 
-def latest_close_date(symbol: str) -> str | None:
-    """Return the most recent close date for ``symbol`` from price history."""
+def load_price_history(symbol: str) -> list[dict]:
+    """Return price history records for ``symbol`` sorted by date."""
 
     base = Path(cfg_get("PRICE_HISTORY_DIR", "tomic/data/spot_prices"))
     path = base / f"{symbol}.json"
     data = load_json(path)
-    if isinstance(data, list) and data:
+    if isinstance(data, list):
         data.sort(key=lambda r: r.get("date", ""))
+        return data
+    return []
+
+
+def latest_close_date(symbol: str) -> str | None:
+    """Return the most recent close date for ``symbol`` from price history."""
+
+    data = load_price_history(symbol)
+    if data:
         return str(data[-1].get("date"))
     return None
 
@@ -170,18 +179,14 @@ def normalize_right(val: str) -> str:
 def latest_atr(symbol: str) -> float | None:
     """Return the most recent ATR value for ``symbol`` from price history."""
 
-    base = Path(cfg_get("PRICE_HISTORY_DIR", "tomic/data/spot_prices"))
-    path = base / f"{symbol}.json"
-    data = load_json(path)
-    if isinstance(data, list):
-        data.sort(key=lambda r: r.get("date", ""))
-        for rec in reversed(data):
-            atr = rec.get("atr")
-            try:
-                if atr is not None:
-                    return float(atr)
-            except Exception:
-                continue
+    data = load_price_history(symbol)
+    for rec in reversed(data):
+        atr = rec.get("atr")
+        try:
+            if atr is not None:
+                return float(atr)
+        except Exception:
+            continue
     return None
 
 

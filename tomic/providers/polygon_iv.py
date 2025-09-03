@@ -7,7 +7,7 @@ from zoneinfo import ZoneInfo
 from pathlib import Path
 from typing import Any, Dict, List
 from tomic.utils import today
-from tomic.utils import _is_third_friday, _is_weekly
+from tomic.utils import _is_third_friday, _is_weekly, load_price_history
 import json
 import time
 import csv
@@ -31,12 +31,7 @@ from tomic.helpers.price_utils import _load_latest_close
 
 def _get_closes(symbol: str) -> list[float]:
     """Return list of closing prices sorted by date for ``symbol``."""
-    base = Path(cfg_get("PRICE_HISTORY_DIR", "tomic/data/spot_prices"))
-    path = base / f"{symbol}.json"
-    data = load_json(path)
-    if not isinstance(data, list):
-        return []
-    data.sort(key=lambda r: r.get("date", ""))
+    data = load_price_history(symbol)
     closes: list[float] = []
     for rec in data:
         try:
