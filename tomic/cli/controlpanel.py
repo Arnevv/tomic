@@ -12,6 +12,7 @@ from collections import defaultdict
 import math
 from dataclasses import dataclass, field
 from typing import Any
+from tomic.helpers.dateutils import parse_date
 
 try:
     from tabulate import tabulate
@@ -1130,13 +1131,7 @@ def run_portfolio_menu() -> None:
                     and opt_type in {"C", "P"}
                 ):
                     try:
-                        exp = None
-                        for fmt in ("%Y%m%d", "%Y-%m-%d"):
-                            try:
-                                exp = datetime.strptime(expiry_str, fmt).date()
-                                break
-                            except Exception:
-                                continue
+                        exp = parse_date(expiry_str)
                         if exp is None:
                             raise ValueError("invalid expiry format")
                         dte_calc = max((exp - datetime.now().date()).days, 0)

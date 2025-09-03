@@ -5,10 +5,8 @@ from typing import Any, Callable, Dict, List, Optional, Tuple
 import os
 import csv
 
-from datetime import datetime
-
 from .utils import today
-
+from .helpers.dateutils import dte_between_dates
 from .logutils import logger
 from .criteria import CriteriaConfig, load_criteria
 
@@ -86,13 +84,7 @@ def load_filter_config(criteria: CriteriaConfig | None = None) -> FilterConfig:
 
 def _dte(expiry: str) -> Optional[int]:
     """Return days to expiry for ``expiry``."""
-    for fmt in ("%Y%m%d", "%Y-%m-%d"):
-        try:
-            exp_date = datetime.strptime(str(expiry), fmt).date()
-            return (exp_date - today()).days
-        except Exception:
-            continue
-    return None
+    return dte_between_dates(today(), expiry)
 
 
 def filter_by_expiry(

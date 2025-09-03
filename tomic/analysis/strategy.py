@@ -5,24 +5,18 @@ from __future__ import annotations
 import re
 from collections import defaultdict
 from statistics import mean
-from datetime import datetime
+from datetime import date
 from typing import Any, Dict, List, Optional
 
 from tomic.utils import today, get_leg_right
 from tomic.analysis.alerts import check_entry_conditions, generate_risk_alerts
 from tomic.logutils import logger
+from tomic.helpers.dateutils import parse_date as _parse_date
 
 
-def parse_date(date_str: str) -> Optional[datetime.date]:
-    """Parse ``date_str`` in ``YYYYMMDD`` or ``YYYY-MM-DD`` format."""
-    if not date_str:
-        return None
-    for fmt in ("%Y-%m-%d", "%Y%m%d"):
-        try:
-            return datetime.strptime(date_str, fmt).date()
-        except ValueError:
-            continue
-    return None
+def parse_date(date_str: str) -> Optional[date]:
+    """Parse ``date_str`` using :func:`tomic.helpers.dateutils.parse_date`."""
+    return _parse_date(date_str)
 
 
 def determine_strategy_type(legs: List[Dict[str, Any]]) -> str:
