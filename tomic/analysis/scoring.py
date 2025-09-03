@@ -25,7 +25,7 @@ def _bs_estimate_missing(legs: List[Dict[str, Any]]) -> None:
     """Fill missing model price and delta using Black-Scholes."""
     from ..bs_calculator import black_scholes
     from ..helpers.dateutils import dte_between_dates
-    from ..helpers.timeutils import today
+    from ..utils import today
     from ..config import get as cfg_get
 
     for leg in legs:

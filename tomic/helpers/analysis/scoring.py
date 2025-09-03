@@ -4,9 +4,8 @@ from typing import Any, Mapping, Literal, Optional, TypedDict
 
 from tomic.bs_calculator import black_scholes
 from tomic.helpers.dateutils import dte_between_dates
-from tomic.helpers.timeutils import today
 from tomic.config import get as cfg_get
-from tomic.utils import get_option_mid_price, normalize_leg
+from tomic.utils import get_option_mid_price, normalize_leg, today
 
 
 class OptionLeg(TypedDict, total=False):

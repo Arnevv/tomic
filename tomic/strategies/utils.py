@@ -6,9 +6,8 @@ import math
 from typing import Sequence, Any, Dict, List, Mapping, Tuple
 
 from tomic.helpers.dateutils import dte_between_dates
-from tomic.helpers.timeutils import today
 
-from ..utils import normalize_right
+from ..utils import normalize_right, today
 from ..logutils import logger
 from ..helpers.analysis.scoring import build_leg
 
