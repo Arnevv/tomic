@@ -10,7 +10,7 @@
 strike:
   delta_min: -0.99
   delta_max:  0.99
-  min_rom:    0.00      # minimaal 10% ROM
+  min_rom:    0.10      # minimaal 10% ROM
   min_edge:   0.00
   min_pos:    0.00
   min_ev:     0.00

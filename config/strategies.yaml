@@ -18,51 +18,45 @@ strategies:
       use_ATR: true
 
   atm_iron_butterfly:
-    # RR optioneel; spread is gedefinieerd risico
-    min_risk_reward: 1.0
     strike_to_strategy_config:
       # ATM short straddle + wings
       center_strike_relative_to_spot: [0]    # short straddle op spot
-      wing_width_sigma: 1.0                  # wings op ±1σ
+      wing_width_sigma: [0.3, 1.0]   # σ-gebaseerde wing width
       use_ATR: true
 
   short_put_spread:
-    min_risk_reward: 1.0
     strike_to_strategy_config:
       short_put_delta_range: [-0.35, -0.20]  # short puts 20–35Δ
       long_leg_distance_points: -0.05        # long leg mikken op -5Δ
       use_ATR: true
 
   short_call_spread:
-    min_risk_reward: 1.0
     strike_to_strategy_config:
       short_call_delta_range: [0.15, 0.35]   # short calls 15–35Δ
       long_leg_distance_points: 0.05         # long leg mikken op +5Δ
       use_ATR: true
+      min_risk_reward: 0.6
 
   naked_put:
-    # RR niet hard afdwingen; risico is theoretisch groot
     strike_to_strategy_config:
       short_put_delta_range: [-0.30, -0.20]  # short puts 20–30Δ
       use_ATR: true
 
   calendar:
-    # Calendar focust minder op ATR-wings; long wings spelen niet
     strike_to_strategy_config:
       use_ATR: false
-      base_strikes_relative_to_spot: [0]     # basis-strike op spot
-      expiry_gap_min_days: 14               # minimaal 14 dagen tussen legs
+      base_strikes_relative_to_spot: [1]     # basis-strike op spot
+      expiry_gap_min_days: 10               # minimaal 10 dagen tussen legs
 
   ratio_spread:
-    # Vaak 1x2; RR afhankelijk van strikes, dus niet verplicht
     strike_to_strategy_config:
       short_leg_delta_range: [0.25, 0.45]    # short leg 25–45Δ
       long_leg_distance_points: 0.10        # extra long rond 10Δ
       use_ATR: true
 
   backspread_put:
-    # Long vol; RR niet geforceerd
     strike_to_strategy_config:
       short_put_delta_range: [0.10, 0.25]    # short puts 10–25Δ
       long_leg_distance_points: -0.05        # long legs mikken op -5Δ
       use_ATR: true
+      min_risk_reward: 0.6
