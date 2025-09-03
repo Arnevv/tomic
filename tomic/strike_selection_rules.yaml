@@ -39,7 +39,7 @@ naked_put:
 calendar:
   method: spot_distance
   dte_range: [20, 80]
-  require_term_compression: true      # align met gate (term_m1_m3 ≤ 0)
+  #require_term_compression: false      # align met gate (term_m1_m3 > 0)
 
 ratio_spread:
   method: delta

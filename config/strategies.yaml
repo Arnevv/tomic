@@ -31,11 +31,11 @@ strategies:
       use_ATR: true
 
   short_call_spread:
+    min_risk_reward: 0.6
     strike_to_strategy_config:
       short_call_delta_range: [0.15, 0.35]   # short calls 15–35Δ
       long_leg_distance_points: 0.05         # long leg mikken op +5Δ
       use_ATR: true
-      min_risk_reward: 0.6
 
   naked_put:
     strike_to_strategy_config:
@@ -55,8 +55,9 @@ strategies:
       use_ATR: true
 
   backspread_put:
+    min_risk_reward: 0.6
     strike_to_strategy_config:
       short_put_delta_range: [0.10, 0.25]    # short puts 10–25Δ
       long_leg_distance_points: -0.05        # long legs mikken op -5Δ
       use_ATR: true
-      min_risk_reward: 0.6
+
