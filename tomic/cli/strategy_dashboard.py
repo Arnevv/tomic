@@ -220,6 +220,12 @@ def generate_exit_alerts(strategy: dict, rule: dict | None) -> None:
             alerts.append(
                 f"⚠️ {dte} DTE ≤ exitdrempel {dte_limit}"
             )
+        dit = strategy.get("days_in_trade")
+        dit_limit = rule.get("max_days_in_trade")
+        if dit_limit and dit is not None and dit >= dit_limit:
+            alerts.append(
+                f"⚠️ {dit} dagen in trade ≥ max {dit_limit}"
+            )
     profile = ALERT_PROFILE.get(strategy.get("type"))
     if profile is not None:
         alerts = [a for a in alerts if alert_category(a) in profile]

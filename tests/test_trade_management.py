@@ -85,3 +85,22 @@ def test_multiple_alerts(monkeypatch, tmp_path, capsys):
     out = capsys.readouterr().out
     assert out.count("⚠️ Beheer nodig") == 2
     assert "exitniveau | PnL" in out
+
+
+def test_days_in_trade_alert(monkeypatch, tmp_path, capsys):
+    strategies = [
+        {
+            "symbol": "CCC",
+            "type": "Strat",
+            "spot": 100,
+            "unrealizedPnL": 0,
+            "days_to_expiry": 15,
+            "alerts": ["10 dagen in trade ≥ max 10"],
+            "expiry": "",
+        }
+    ]
+    tm = _setup(monkeypatch, tmp_path, strategies)
+    tm.main()
+    out = capsys.readouterr().out
+    assert "10 dagen in trade" in out
+    assert "⚠️ Beheer nodig" in out

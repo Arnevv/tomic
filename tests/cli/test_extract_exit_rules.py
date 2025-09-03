@@ -15,6 +15,7 @@ def test_extract_exit_rules_reads_structured_object(tmp_path):
                     "spot_above": 110.0,
                     "target_profit_pct": 50.0,
                     "days_before_expiry": 7,
+                    "max_days_in_trade": 30,
                 },
             }
         ],
@@ -26,3 +27,4 @@ def test_extract_exit_rules_reads_structured_object(tmp_path):
     assert key in rules
     assert rules[key]["spot_below"] == 90.0
     assert rules[key]["target_profit_pct"] == 50.0
+    assert rules[key]["max_days_in_trade"] == 30

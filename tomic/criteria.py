@@ -144,6 +144,7 @@ class RiskThresholds(BaseModel):
     rom_bands: ROMBands
     theta_efficiency_bands: List[float]
     dte_close_threshold: int
+    days_in_trade_close_threshold: int
     pnl_theta: PnLThetaRules
 
 
@@ -165,6 +166,7 @@ class AlertRules(BaseModel):
         rom_bands=ROMBands(high_min=0.0, mid_min=0.0, low_max=0.0),
         theta_efficiency_bands=[0.0, 0.0, 0.0],
         dte_close_threshold=0,
+        days_in_trade_close_threshold=0,
         pnl_theta=PnLThetaRules(
             take_profit_pct_of_premium=0.0, reconsider_loss_abs=0.0
         ),

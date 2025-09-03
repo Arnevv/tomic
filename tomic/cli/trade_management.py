@@ -20,7 +20,7 @@ from tomic.journal.utils import load_json
 def _filter_exit_alerts(alerts: Iterable[str]) -> List[str]:
     """Return only alerts related to exit rule triggers."""
 
-    relevant = ["exitniveau", "PnL", "DTE ≤ exitdrempel"]
+    relevant = ["exitniveau", "PnL", "DTE ≤ exitdrempel", "dagen in trade"]
     return [a for a in alerts if any(key in a for key in relevant)]
 
 
