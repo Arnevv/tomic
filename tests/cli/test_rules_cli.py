@@ -1,6 +1,7 @@
 from tomic.cli import rules
 
 VALID = """
+version: 1
 strike:
   delta_min: -0.8
   delta_max: 0.8

@@ -29,13 +29,16 @@ def test_nearest_strike_uses_config():
     m = _build_strike_map(chain)
     base = load_criteria()
     criteria = CriteriaConfig(
+        version=base.version,
         strike=base.strike,
         strategy=base.strategy,
         market_data=base.market_data,
-        alerts=AlertCriteria(nearest_strike_tolerance_percent=5.0,
-                             skew_threshold=base.alerts.skew_threshold,
-                             iv_hv_min_spread=base.alerts.iv_hv_min_spread,
-                             iv_rank_threshold=base.alerts.iv_rank_threshold),
+        alerts=AlertCriteria(
+            nearest_strike_tolerance_percent=5.0,
+            skew_threshold=base.alerts.skew_threshold,
+            iv_hv_min_spread=base.alerts.iv_hv_min_spread,
+            iv_rank_threshold=base.alerts.iv_rank_threshold,
+        ),
         portfolio=base.portfolio,
     )
     res = _nearest_strike(m, "20250101", "c", 104, criteria=criteria)

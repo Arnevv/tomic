@@ -44,6 +44,7 @@ def test_metrics_rejects_low_liquidity(monkeypatch):
     monkeypatch.setattr(sc, "logger", DummyLogger())
     base = load_criteria()
     criteria = CriteriaConfig(
+        version=base.version,
         strike=base.strike,
         strategy=base.strategy,
         market_data=MarketDataCriteria(
