@@ -25,7 +25,7 @@ import pandas as pd
 from dataclasses import dataclass
 
 from tomic.logutils import logger, log_result
-from tomic.utils import normalize_leg
+from tomic.utils import get_option_mid_price, normalize_leg
 import asyncio
 import threading
 from tomic.api.market_client import (
@@ -172,14 +172,6 @@ def _write_option_chain(
         logger.warning(f"Geen optie data ontvangen voor {symbol}")
         return None
 
-    def _mid(bid: float | None, ask: float | None) -> float | None:
-        """Return midpoint price when bid/ask are valid and positive."""
-
-        if bid is None or ask is None or bid < 0 or ask < 0:
-            return None
-
-        return (bid + ask) / 2
-
     grouped: dict[tuple[str, float], dict[str, dict]] = {}
     parity_values: list[float] = []
     expiries = getattr(app, "expiries", [])
@@ -210,8 +202,12 @@ def _write_option_chain(
             and put.get("bid") is not None
             and put.get("ask") is not None
         ):
-            call_mid = _mid(call.get("bid"), call.get("ask"))
-            put_mid = _mid(put.get("bid"), put.get("ask"))
+            call_mid = get_option_mid_price(
+                {"bid": call.get("bid"), "ask": call.get("ask")}
+            )
+            put_mid = get_option_mid_price(
+                {"bid": put.get("bid"), "ask": put.get("ask")}
+            )
             try:
                 if call_mid is None or put_mid is None:
                     raise ValueError("invalid mid")
@@ -300,6 +296,10 @@ def _write_option_chain(
         f"Contracts verwerkt: ok={counts['ok']} fallback={counts['fallback']} timeout={counts['timeout']} invalid={counts['invalid']}"
     )
 
+    if parity_values:
+        return round(sum(parity_values) / len(parity_values), 4)
+    return None
+
 
 def _write_heatmap(
     records: list[dict],
@@ -326,10 +326,6 @@ def _write_heatmap(
             out_rows.append({col: lower.get(col.lower()) for col in columns})
         json.dump(out_rows, f_json, indent=2)
     logger.info(f"✅ [stap 10] Heatmap opgeslagen als: {csv_path}")
-
-    if parity_values:
-        return round(sum(parity_values) / len(parity_values), 4)
-    return None
 
 
 @log_result
