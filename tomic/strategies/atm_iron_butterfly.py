@@ -3,7 +3,8 @@ from typing import Any, Dict, List
 import pandas as pd
 from tomic.helpers.put_call_parity import fill_missing_mid_with_parity
 from . import StrategyName
-from .utils import compute_dynamic_width, make_leg, passes_risk
+from .utils import compute_dynamic_width, passes_risk
+from ..helpers.analysis.scoring import build_leg
 from ..logutils import log_combo_evaluation
 from ..strategy_candidates import (
     StrategyProposal,
@@ -132,23 +133,11 @@ def generate(
                 rejected_reasons.append(reason)
                 continue
             legs = [
-                make_leg(sc_opt, -1, spot=spot),
-                make_leg(lc_opt, 1, spot=spot),
-                make_leg(sp_opt, -1, spot=spot),
-                make_leg(lp_opt, 1, spot=spot),
+                build_leg({**sc_opt, "spot": spot}, "short"),
+                build_leg({**lc_opt, "spot": spot}, "long"),
+                build_leg({**sp_opt, "spot": spot}, "short"),
+                build_leg({**lp_opt, "spot": spot}, "long"),
             ]
-            if any(l is None for l in legs):
-                reason = "leg data ontbreekt"
-                log_combo_evaluation(
-                    StrategyName.ATM_IRON_BUTTERFLY,
-                    desc,
-                    None,
-                    "reject",
-                    reason,
-                    legs=base_legs,
-                )
-                rejected_reasons.append(reason)
-                continue
             metrics, reasons = _metrics(StrategyName.ATM_IRON_BUTTERFLY, legs, spot)
             if metrics and passes_risk(metrics, min_rr):
                 proposals.append(StrategyProposal(legs=legs, **metrics))
