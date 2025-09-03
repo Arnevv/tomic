@@ -12,7 +12,7 @@ def test_show_pricehistory(monkeypatch, capsys, tmp_path):
         {"date": "2024-01-01", "close": 1.23, "volume": 100, "atr": None},
         {"date": "2024-01-02", "close": 1.25, "volume": 120, "atr": None},
     ], file)
-    monkeypatch.setattr(mod, "cfg_get", lambda name, default=None: str(tmp) if name == "PRICE_HISTORY_DIR" else default)
+    monkeypatch.setattr("tomic.utils.cfg_get", lambda name, default=None: str(tmp) if name == "PRICE_HISTORY_DIR" else default)
     monkeypatch.setattr(mod, "setup_logging", lambda: None)
 
     mod.main(["AAA"])

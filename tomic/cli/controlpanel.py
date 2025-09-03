@@ -69,7 +69,7 @@ from tomic.helpers.price_meta import load_price_meta, save_price_meta
 from tomic.polygon_client import PolygonClient
 from tomic.strike_selector import StrikeSelector, filter_by_expiry, FilterConfig
 from tomic.loader import load_strike_config
-from tomic.utils import get_option_mid_price, latest_atr, normalize_leg
+from tomic.utils import get_option_mid_price, latest_atr, normalize_leg, load_price_history
 from tomic.helpers.csv_utils import normalize_european_number_format
 from tomic.helpers.interpolation import interpolate_missing_fields
 from tomic.helpers.quality_check import calculate_csv_quality
@@ -372,13 +372,8 @@ def run_dataexporter() -> None:
         if not symbol:
             print("Geen symbool opgegeven")
             return
-        base = Path(cfg.get("PRICE_HISTORY_DIR", "tomic/data/spot_prices"))
-        data = load_json(base / f"{symbol.upper()}.json")
-        rows = (
-            [[rec.get("date"), rec.get("close")] for rec in data[-10:]]
-            if isinstance(data, list)
-            else []
-        )
+        data = load_price_history(symbol.upper())
+        rows = [[rec.get("date"), rec.get("close")] for rec in data[-10:]] if data else []
         if not rows:
             print("⚠️ Geen data gevonden")
             return

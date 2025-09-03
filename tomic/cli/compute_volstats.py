@@ -9,20 +9,21 @@ from tomic.logutils import logger, setup_logging
 from tomic.config import get as cfg_get
 from pathlib import Path
 
-from tomic.journal.utils import update_json_file, load_json
+from tomic.journal.utils import update_json_file
 from tomic.analysis.metrics import historical_volatility
 from tomic.api.market_client import TermStructureClient, start_app, await_market_data
-from tomic.utils import latest_close_date
+from tomic.utils import latest_close_date, load_price_history
 
 
 def _get_closes(symbol: str) -> list[float]:
-    base = Path(cfg_get("PRICE_HISTORY_DIR", "tomic/data/spot_prices"))
-    path = base / f"{symbol}.json"
-    data = load_json(path)
-    if not isinstance(data, list):
-        return []
-    data.sort(key=lambda r: r.get("date", ""))
-    return [float(rec.get("close", 0)) for rec in data]
+    data = load_price_history(symbol)
+    closes: list[float] = []
+    for rec in data:
+        try:
+            closes.append(float(rec.get("close", 0)))
+        except Exception:
+            continue
+    return closes
 
 
 def fetch_iv30d(symbol: str) -> float | None:

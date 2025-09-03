@@ -4,9 +4,8 @@ from __future__ import annotations
 from typing import List
 
 from tomic.config import get as cfg_get
-from pathlib import Path
-from tomic.journal.utils import load_json
 from tomic.logutils import setup_logging
+from tomic.utils import load_price_history
 
 try:
     from tabulate import tabulate
@@ -40,13 +39,12 @@ def main(argv: List[str] | None = None) -> None:
         argv = []
     symbols = [s.upper() for s in argv] if argv else [s.upper() for s in cfg_get("DEFAULT_SYMBOLS", [])]
 
-    base = Path(cfg_get("PRICE_HISTORY_DIR", "tomic/data/spot_prices"))
     for sym in symbols:
-        data = load_json(base / f"{sym}.json")
+        data = load_price_history(sym)
         rows = [
             [rec.get("date"), rec.get("close"), rec.get("volume"), rec.get("atr")]
             for rec in data
-        ] if isinstance(data, list) else []
+        ]
         if rows:
             print(f"\n=== {sym} ===")
             headers = ["date", "close", "volume", "atr"]
