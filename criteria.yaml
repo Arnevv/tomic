@@ -6,6 +6,9 @@
 # Tip: zet `EXPLAIN_FILTERS=true` of start met `--show-filter-stats` om te
 # zien hoeveel combinaties elke regel wegfiltert.
 
+# Schema version
+version: 1
+
 # 1) GENERIC STRIKE FILTERS
 strike:
   delta_min: -0.99

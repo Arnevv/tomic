@@ -36,10 +36,9 @@ from .config import _asdict
 
 
 # Strategies that must yield a positive net credit are configured via RULES.
-POSITIVE_CREDIT_STRATS = {
-    StrategyName(s)
-    for s in RULES.strategy.acceptance.require_positive_credit_for
-}
+POSITIVE_CREDIT_STRATS = set(
+    RULES.strategy.acceptance.require_positive_credit_for
+)
 
 
 @dataclass

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import List, Tuple
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, model_validator
 
 
 class _BaseStrikeConfig(BaseModel):
@@ -13,6 +13,24 @@ class _BaseStrikeConfig(BaseModel):
     use_ATR: bool | None = None
 
     model_config = ConfigDict(extra="forbid")
+
+    @model_validator(mode="after")
+    def _validate_xor_fields(self):
+        """Ensure mutually exclusive strike parameters."""
+        lp = getattr(self, "long_leg_distance_points", None)
+        la = getattr(self, "long_leg_atr_multiple", None)
+        if lp is not None and la is not None:
+            raise ValueError(
+                "long_leg_distance_points and long_leg_atr_multiple are mutually exclusive"
+            )
+
+        sp = getattr(self, "short_leg_width_points", None)
+        sr = getattr(self, "short_leg_width_ratio", None)
+        if sp is not None and sr is not None:
+            raise ValueError(
+                "short_leg_width_points and short_leg_width_ratio are mutually exclusive"
+            )
+        return self
 
 
 class _BaseConfig(BaseModel):
@@ -64,6 +82,8 @@ class IronCondorStrikeConfig(_BaseStrikeConfig):
     short_call_delta_range: Tuple[float, float]
     short_put_delta_range: Tuple[float, float]
     wing_sigma_multiple: float | None = None
+    short_leg_width_points: float | None = None
+    short_leg_width_ratio: float | None = None
 
 
 class IronCondorConfig(_BaseConfig):
