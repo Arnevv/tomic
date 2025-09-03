@@ -1,7 +1,7 @@
 from datetime import datetime, date
 from typing import Optional, Union
 
-from .timeutils import today
+from tomic.utils import today
 
 
 DateLike = Union[str, date]

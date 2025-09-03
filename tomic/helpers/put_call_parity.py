@@ -5,7 +5,7 @@ from typing import Optional
 import pandas as pd
 
 from .dateutils import dte_between_dates
-from .timeutils import today
+from tomic.utils import today
 
 logger = logging.getLogger(__name__)
 
