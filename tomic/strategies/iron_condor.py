@@ -8,7 +8,7 @@ from .utils import compute_dynamic_width
 from ..helpers.analysis.scoring import build_leg
 from ..analysis.scoring import calculate_score, passes_risk
 from ..logutils import log_combo_evaluation
-from ..utils import normalize_right
+from ..utils import get_leg_right
 from ..strategy_candidates import (
     StrategyProposal,
     _build_strike_map,
@@ -58,7 +58,7 @@ def generate(
             o
             for o in option_chain
             if str(o.get("expiry")) == expiry
-            and normalize_right(o.get("type") or o.get("right")) == "call"
+            and get_leg_right(o) == "call"
             and o.get("delta") is not None
             and len(call_range) == 2
             and call_range[0] <= float(o["delta"]) <= call_range[1]
@@ -67,7 +67,7 @@ def generate(
             o
             for o in option_chain
             if str(o.get("expiry")) == expiry
-            and normalize_right(o.get("type") or o.get("right")) == "put"
+            and get_leg_right(o) == "put"
             and o.get("delta") is not None
             and len(put_range) == 2
             and put_range[0] <= float(o["delta"]) <= put_range[1]

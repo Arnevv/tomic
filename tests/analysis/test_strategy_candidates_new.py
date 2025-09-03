@@ -1,6 +1,7 @@
 import pytest
 from tomic.strategies import iron_condor
 from tomic.strategy_candidates import _metrics
+from tomic.utils import get_leg_right
 
 
 def test_generate_strategy_candidates_requires_spot():
@@ -163,7 +164,7 @@ def test_parity_mid_used_for_missing_bidask(monkeypatch):
             l
             for l in props[0].legs
             if l.get("position") < 0
-            and (l.get("type") or l.get("right")) == "C"
+            and get_leg_right(l) == "call"
             and float(l.get("strike")) == 110
         ),
         None,
