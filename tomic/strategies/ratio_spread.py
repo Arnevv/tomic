@@ -166,7 +166,7 @@ def generate(
                 build_leg({**short_opt, "spot": spot}, "short"),
                 build_leg({**long_opt, "spot": spot}, "long"),
             ]
-            legs[1]["position"] = 2
+            legs[1]["quantity"] = 2
             metrics, reasons = _metrics(
                 StrategyName.RATIO_SPREAD, legs, spot
             )

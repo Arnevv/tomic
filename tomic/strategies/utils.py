@@ -160,7 +160,8 @@ def make_leg(
 
     leg = build_leg({**opt, "spot": spot}, "long" if position > 0 else "short")
     if position not in {1, -1}:
-        leg["position"] = position
+        leg["quantity"] = abs(position)
+        leg["position"] = 1 if position > 0 else -1
     if return_reason and leg.get("mid") is None:
         return None, "mid ontbreekt"
     if return_reason:

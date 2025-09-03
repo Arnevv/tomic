@@ -25,6 +25,7 @@ class OptionLeg(TypedDict, total=False):
     edge: Optional[float]
     volume: Optional[float]
     open_interest: Optional[float]
+    quantity: int
     position: int
     mid_fallback: Optional[str]
 
@@ -79,6 +80,7 @@ def build_leg(quote: Mapping[str, Any], side: Literal["long", "short"]) -> Optio
         "mid": mid,
         "volume": quote.get("volume"),
         "open_interest": quote.get("open_interest"),
+        "quantity": int(quote.get("quantity") or quote.get("qty") or 1),
         "position": 1 if side == "long" else -1,
     }
 

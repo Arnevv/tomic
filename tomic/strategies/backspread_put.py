@@ -154,7 +154,7 @@ def generate(
                 build_leg({**short_opt, "spot": spot}, "short"),
                 build_leg({**long_opt, "spot": spot}, "long"),
             ]
-            legs[1]["position"] = 2
+            legs[1]["quantity"] = 2
             metrics, reasons = _metrics(StrategyName.BACKSPREAD_PUT, legs, spot)
             if metrics and passes_risk(metrics, min_rr):
                 if _validate_ratio("backspread_put", legs, metrics.get("credit", 0.0)):

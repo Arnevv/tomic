@@ -389,13 +389,20 @@ def _metrics(
                 oi = float(oi_raw) if oi_raw not in (None, "") else None
             except Exception:
                 oi = None
+            qty_raw = leg.get("quantity") or leg.get("qty") or leg.get("position") or 1
+            try:
+                qty = abs(float(qty_raw))
+            except Exception:
+                qty = 1.0
             exp = leg.get("expiry") or leg.get("expiration")
             strike = leg.get("strike")
             if isinstance(strike, float) and strike.is_integer():
                 strike = int(strike)
+            req_vol = min_vol * qty
+            req_oi = min_oi * qty
             if (
-                (min_vol > 0 and vol is not None and vol < min_vol)
-                or (min_oi > 0 and oi is not None and oi < min_oi)
+                (min_vol > 0 and vol is not None and vol < req_vol)
+                or (min_oi > 0 and oi is not None and oi < req_oi)
             ):
                 low_liq.append(f"{strike} [{vol or 0}, {oi or 0}, {exp}]")
         if low_liq:
@@ -544,8 +551,12 @@ def _validate_ratio(strategy: str, legs: List[Dict[str, Any]], credit: float) ->
     shorts = [l for l in legs if l.get("position", 0) < 0]
     longs = [l for l in legs if l.get("position", 0) > 0]
 
-    short_qty = sum(abs(float(l.get("position", 0))) for l in shorts)
-    long_qty = sum(float(l.get("position", 0)) for l in longs)
+    short_qty = sum(
+        abs(float(l.get("quantity") or l.get("position", 0))) for l in shorts
+    )
+    long_qty = sum(
+        float(l.get("quantity") or l.get("position", 0)) for l in longs
+    )
 
     if not (len(shorts) == 1 and short_qty == 1 and long_qty == 2):
         logger.info(
