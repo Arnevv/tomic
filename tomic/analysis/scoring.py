@@ -12,7 +12,7 @@ from ..metrics import (
 )
 from ..analysis.strategy import heuristic_risk_metrics
 from ..criteria import CriteriaConfig, RULES, load_criteria
-from ..utils import normalize_leg
+from ..utils import normalize_leg, get_leg_qty
 from ..logutils import logger
 
 if TYPE_CHECKING:
@@ -206,14 +206,7 @@ def calculate_score(
         if math.isnan(mid_val):
             missing_mid.append(str(leg.get("strike")))
             continue
-        qty = abs(
-            float(
-                leg.get("qty")
-                or leg.get("quantity")
-                or leg.get("position")
-                or 1
-            )
-        )
+        qty = get_leg_qty(leg)
         pos = float(leg.get("position") or 0)
         if pos < 0:
             credits.append(mid_val * qty)
