@@ -168,26 +168,9 @@ def make_leg(
     return leg
 
 
-def passes_risk(metrics: Mapping[str, Any], min_rr: float) -> bool:
-    """Return ``True`` if metrics satisfy the configured risk/reward."""
-
-    if not metrics or min_rr <= 0:
-        return True
-    mp = metrics.get("max_profit")
-    ml = metrics.get("max_loss")
-    if mp is None or ml is None or not ml:
-        return True
-    try:
-        rr = mp / abs(ml)
-    except Exception:
-        return True
-    return rr >= min_rr
-
-
 __all__ = [
     "validate_width_list",
     "compute_dynamic_width",
     "make_leg",
-    "passes_risk",
 ]
 

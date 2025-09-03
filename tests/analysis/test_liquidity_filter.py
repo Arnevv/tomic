@@ -41,7 +41,9 @@ def test_metrics_rejects_low_liquidity(monkeypatch):
         def info(self, msg: str) -> None:
             logged.append(msg)
 
-    monkeypatch.setattr(sc, "logger", DummyLogger())
+    import tomic.analysis.scoring as scoring
+
+    monkeypatch.setattr(scoring, "logger", DummyLogger())
     base = load_criteria()
     criteria = CriteriaConfig(
         version=base.version,
