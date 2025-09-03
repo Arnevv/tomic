@@ -188,6 +188,19 @@ def get_leg_right(leg: dict) -> str:
     return normalize_right(leg.get("right") or leg.get("type"))
 
 
+def get_leg_qty(leg: dict) -> float:
+    """Return absolute quantity for ``leg``.
+
+    The quantity may be specified under the ``"qty"``, ``"quantity"`` or
+    ``"position"`` keys. If none of these keys are present, a default quantity
+    of ``1`` is assumed.
+    """
+
+    return abs(
+        float(leg.get("qty") or leg.get("quantity") or leg.get("position") or 1)
+    )
+
+
 def latest_atr(symbol: str) -> float | None:
     """Return the most recent ATR value for ``symbol`` from price history."""
 

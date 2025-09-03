@@ -6,7 +6,7 @@ from __future__ import annotations
 from math import inf
 from typing import Optional, Iterable, Any, Dict, List
 
-from .utils import get_leg_right
+from .utils import get_leg_right, get_leg_qty
 from .logutils import logger
 from .config import get as cfg_get
 
@@ -32,14 +32,7 @@ def calculate_credit(legs: Iterable[dict]) -> float:
             price = float(leg.get("mid", 0) or 0)
         except Exception:
             continue
-        qty = abs(
-            float(
-                leg.get("qty")
-                or leg.get("quantity")
-                or leg.get("position")
-                or 1
-            )
-        )
+        qty = get_leg_qty(leg)
         direction = 1 if leg.get("position", 0) > 0 else -1
         credit -= direction * price * qty
     return credit * 100
@@ -86,26 +79,12 @@ def calculate_payoff_at_spot(
         net_cashflow = 0.0
         for leg in legs:
             price = float(leg.get("mid", 0) or 0)
-            qty = abs(
-                float(
-                    leg.get("qty")
-                    or leg.get("quantity")
-                    or leg.get("position")
-                    or 1
-                )
-            )
+            qty = get_leg_qty(leg)
             net_cashflow += price * _option_direction(leg) * qty
 
     total = -net_cashflow * 100
     for leg in legs:
-        qty = abs(
-            float(
-                leg.get("qty")
-                or leg.get("quantity")
-                or leg.get("position")
-                or 1
-            )
-        )
+        qty = get_leg_qty(leg)
         position = _option_direction(leg) * qty
         right = get_leg_right(leg)
         strike = float(leg.get("strike"))

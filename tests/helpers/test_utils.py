@@ -144,3 +144,22 @@ def test_get_leg_right_fallback_type():
     assert utils.get_leg_right(leg) == "call"
 
 
+def test_get_leg_qty_prefers_qty():
+    leg = {"qty": 2, "quantity": 4, "position": 5}
+    assert utils.get_leg_qty(leg) == 2.0
+
+
+def test_get_leg_qty_fallback_quantity():
+    leg = {"quantity": "3"}
+    assert utils.get_leg_qty(leg) == 3.0
+
+
+def test_get_leg_qty_fallback_position():
+    leg = {"position": -6}
+    assert utils.get_leg_qty(leg) == 6.0
+
+
+def test_get_leg_qty_default_one():
+    assert utils.get_leg_qty({}) == 1.0
+
+
