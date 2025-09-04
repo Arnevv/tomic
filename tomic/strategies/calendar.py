@@ -3,7 +3,7 @@ from typing import Any, Dict, List
 
 # Calendar strategy generator supporting calls and puts.
 from . import StrategyName
-from .utils import prepare_option_chain
+from .utils import prepare_option_chain, filter_expiries_by_dte
 from ..helpers.analysis.scoring import build_leg
 from ..analysis.scoring import calculate_score, passes_risk
 from ..logutils import log_combo_evaluation
@@ -14,7 +14,6 @@ from ..strategy_candidates import (
     _options_by_strike,
     select_expiry_pairs,
 )
-from ..strike_selector import _dte
 
 
 def generate(
@@ -64,11 +63,7 @@ def generate(
             for cand in candidate_strikes:
                 valid_exp = sorted(by_strike[cand])
                 if dte_range:
-                    valid_exp = [
-                        e
-                        for e in valid_exp
-                        if (d := _dte(e)) is not None and dte_range[0] <= d <= dte_range[1]
-                    ]
+                    valid_exp = filter_expiries_by_dte(valid_exp, dte_range)
                 pairs = select_expiry_pairs(valid_exp, min_gap)
                 desc_cand = f"{option_type} strike {cand}"
                 if not pairs:

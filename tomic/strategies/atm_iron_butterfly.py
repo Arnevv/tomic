@@ -1,7 +1,7 @@
 from __future__ import annotations
 from typing import Any, Dict, List
 from . import StrategyName
-from .utils import compute_dynamic_width, prepare_option_chain
+from .utils import compute_dynamic_width, prepare_option_chain, filter_expiries_by_dte
 from ..helpers.analysis.scoring import build_leg
 from ..analysis.scoring import calculate_score, passes_risk
 from ..logutils import log_combo_evaluation
@@ -11,7 +11,6 @@ from ..strategy_candidates import (
     _nearest_strike,
     _find_option,
 )
-from ..strike_selector import _dte
 
 
 def generate(
@@ -37,11 +36,8 @@ def generate(
     centers = rules.get("center_strike_relative_to_spot", [0])
     sigma_mult = float(rules.get("wing_sigma_multiple", 1.0))
     dte_range = rules.get("dte_range")
+    expiries = filter_expiries_by_dte(expiries, dte_range)
     for expiry in expiries:
-        if dte_range:
-            dte = _dte(expiry)
-            if dte is None or not (dte_range[0] <= dte <= dte_range[1]):
-                continue
         for c_off in centers:
             center = spot + (c_off * atr if use_atr else c_off)
             center = _nearest_strike(strike_map, expiry, "C", center).matched

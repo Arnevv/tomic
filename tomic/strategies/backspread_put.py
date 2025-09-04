@@ -1,7 +1,7 @@
 from __future__ import annotations
 from typing import Any, Dict, List
 from . import StrategyName
-from .utils import compute_dynamic_width, prepare_option_chain
+from .utils import compute_dynamic_width, prepare_option_chain, filter_expiries_by_dte
 from ..helpers.analysis.scoring import build_leg
 from ..analysis.scoring import calculate_score, passes_risk
 from ..logutils import log_combo_evaluation
@@ -14,7 +14,6 @@ from ..strategy_candidates import (
     _validate_ratio,
     select_expiry_pairs,
 )
-from ..strike_selector import _dte
 
 
 def generate(
@@ -42,13 +41,7 @@ def generate(
     atr_mult = rules.get("long_leg_atr_multiple")
     min_gap = int(rules.get("expiry_gap_min_days", 0))
     dte_range = rules.get("dte_range")
-    filtered_expiries = []
-    for exp in expiries:
-        if dte_range:
-            dte = _dte(exp)
-            if dte is None or not (dte_range[0] <= dte <= dte_range[1]):
-                continue
-        filtered_expiries.append(exp)
+    filtered_expiries = filter_expiries_by_dte(expiries, dte_range)
     pairs = select_expiry_pairs(filtered_expiries, min_gap)
     if len(delta_range) == 2 and (target_delta is not None or atr_mult is not None):
         for near, far in pairs[:3]:
