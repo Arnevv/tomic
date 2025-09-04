@@ -7,7 +7,7 @@ from zoneinfo import ZoneInfo
 from pathlib import Path
 from typing import Any, Dict, List
 from tomic.utils import today
-from tomic.utils import _is_third_friday, _is_weekly, load_price_history
+from tomic.utils import _is_third_friday, load_price_history
 import json
 import time
 import csv

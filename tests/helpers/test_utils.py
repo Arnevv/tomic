@@ -13,6 +13,31 @@ def test_filter_future_expiries_respects_today(monkeypatch):
     assert result == ["20250620", "20250627"]
 
 
+def test_extract_expiries_filters_and_limits(monkeypatch):
+    monkeypatch.setenv("TOMIC_TODAY", "2024-06-01")
+    importlib.reload(utils)
+
+    expiries = ["20240531", "20240607", "20240614", "20240621"]
+    result = utils.extract_expiries(expiries, 2, lambda dt: True)
+    assert result == ["20240607", "20240614"]
+
+
+def test_extract_weeklies(monkeypatch):
+    monkeypatch.setenv("TOMIC_TODAY", "2024-06-01")
+    importlib.reload(utils)
+
+    expiries = ["20240531", "20240607", "20240614", "20240621", "20240628"]
+    assert utils.extract_weeklies(expiries, count=2) == ["20240607", "20240614"]
+
+
+def test_extract_monthlies(monkeypatch):
+    monkeypatch.setenv("TOMIC_TODAY", "2024-06-01")
+    importlib.reload(utils)
+
+    expiries = ["20240607", "20240621", "20240719", "20240816"]
+    assert utils.extract_monthlies(expiries, count=2) == ["20240621", "20240719"]
+
+
 def test_get_option_mid_price_bid_ask():
     option = {"bid": 1.0, "ask": 1.2, "close": 0.5}
     assert utils.get_option_mid_price(option) == (1.1, False)
