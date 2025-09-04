@@ -1,10 +1,8 @@
 from __future__ import annotations
 from typing import Any, Dict, List
-import pandas as pd
 from itertools import islice
-from tomic.helpers.put_call_parity import fill_missing_mid_with_parity
 from . import StrategyName
-from .utils import compute_dynamic_width
+from .utils import compute_dynamic_width, prepare_option_chain
 from ..helpers.analysis.scoring import build_leg
 from ..analysis.scoring import calculate_score, passes_risk
 from ..logutils import log_combo_evaluation
@@ -32,14 +30,8 @@ def generate(
     expiries = sorted({str(o.get("expiry")) for o in option_chain})
     if not expiries:
         return [], ["geen expiraties beschikbaar"]
+    option_chain = prepare_option_chain(option_chain, spot)
     strike_map = _build_strike_map(option_chain)
-    if hasattr(pd, "DataFrame") and not isinstance(pd.DataFrame, type(object)):
-        df_chain = pd.DataFrame(option_chain)
-        if spot > 0:
-            if "expiration" not in df_chain.columns and "expiry" in df_chain.columns:
-                df_chain["expiration"] = df_chain["expiry"]
-            df_chain = fill_missing_mid_with_parity(df_chain, spot=spot)
-            option_chain = df_chain.to_dict(orient="records")
     proposals: List[StrategyProposal] = []
     rejected_reasons: list[str] = []
     min_rr = float(config.get("min_risk_reward", 0.0))
