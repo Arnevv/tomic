@@ -1,15 +1,14 @@
 from __future__ import annotations
-
-import math
-import statistics
-from datetime import timedelta
 from pathlib import Path
 from typing import Iterable, List
 
+from tomic.analysis.metrics import historical_volatility
 from tomic.config import get as cfg_get
 from tomic.journal.utils import load_json, save_json
 from tomic.logutils import logger, setup_logging
 from tomic.utils import today, load_price_history
+
+WINDOWS = (20, 30, 90, 252)
 
 
 def _load_price_data(symbol: str) -> list[tuple[str, float]]:
@@ -34,23 +33,6 @@ def _load_existing_hv(symbol: str) -> tuple[list[dict], Path]:
     records = list(data) if isinstance(data, list) else []
     records.sort(key=lambda r: r.get("date", ""))
     return records, path
-
-
-def _calculate_hv(closes: list[float]) -> list[dict]:
-    returns = [math.log(c2 / c1) for c1, c2 in zip(closes[:-1], closes[1:])]
-    results = []
-    for i in range(1, len(closes)):
-        rec: dict[str, float | None] = {}
-        if i >= 20:
-            rec["hv20"] = statistics.stdev(returns[i-20:i]) * math.sqrt(252)
-        if i >= 30:
-            rec["hv30"] = statistics.stdev(returns[i-30:i]) * math.sqrt(252)
-        if i >= 90:
-            rec["hv90"] = statistics.stdev(returns[i-90:i]) * math.sqrt(252)
-        if i >= 252:
-            rec["hv252"] = statistics.stdev(returns[i-252:i]) * math.sqrt(252)
-        results.append(rec)
-    return results
 
 
 def _save_hv(symbol: str, new_data: Iterable[dict]) -> None:
@@ -83,30 +65,29 @@ def run_backfill_hv(symbols: List[str] | None = None) -> None:
             logger.error(f"❌ {sym}: dubbele datums in spotprijsdata")
             continue
 
-        if len(dates) <= 252:
-            logger.warning(f"⚠️ {sym}: te weinig spotdata (<252 dagen)")
+        max_window = max(WINDOWS)
+        if len(dates) <= max_window:
+            logger.warning(f"⚠️ {sym}: te weinig spotdata (<{max_window} dagen)")
             continue
 
-        start_idx = 252
+        start_idx = max_window
         new_records: list[dict] = []
-        hv_values = _calculate_hv(list(closes))
+        end_str = end_date.strftime("%Y-%m-%d")
         for idx in range(start_idx, len(dates)):
             date_str = dates[idx]
-            if date_str > end_date.strftime("%Y-%m-%d"):
+            if date_str > end_str:
                 break
-            rec = hv_values[idx-1]
-            if "hv252" not in rec:
-                logger.warning(f"⚠️ {sym}: te weinig spotdata voor hv252 op {date_str}")
-                continue
             if date_str in existing_dates:
                 continue
-            new_records.append({
-                "date": date_str,
-                "hv20": round(rec["hv20"], 9),
-                "hv30": round(rec["hv30"], 9),
-                "hv90": round(rec["hv90"], 9),
-                "hv252": round(rec["hv252"], 9),
-            })
+            rec: dict[str, float | str] = {"date": date_str}
+            for window in WINDOWS:
+                hv = historical_volatility(closes[: idx + 1], window=window)
+                if hv is not None:
+                    rec[f"hv{window}"] = round(hv / 100, 9)
+            if rec.get("hv252") is None:
+                logger.warning(f"⚠️ {sym}: te weinig spotdata voor hv252 op {date_str}")
+                continue
+            new_records.append(rec)
         if new_records:
             _save_hv(sym, new_records)
             logger.success(

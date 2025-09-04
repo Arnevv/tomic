@@ -5,10 +5,12 @@ from pathlib import Path
 
 
 def test_calculate_hv_constant():
-    mod = importlib.import_module("tomic.scripts.backfill_hv")
+    from tomic.analysis.metrics import historical_volatility
+
     prices = [100 * 1.01 ** i for i in range(260)]
-    hv = mod._calculate_hv(prices)
-    assert math.isclose(hv[-1]["hv252"], 0.0, abs_tol=1e-12)
+    hv = historical_volatility(prices, window=252)
+    assert hv is not None
+    assert math.isclose(hv, 0.0, abs_tol=1e-12)
 
 
 def test_run_backfill_hv(monkeypatch):
