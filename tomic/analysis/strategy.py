@@ -6,7 +6,7 @@ import re
 from collections import defaultdict
 from statistics import mean
 from datetime import date
-from typing import Any, Dict, List, Optional
+from typing import Any, Callable, Dict, List, Optional
 
 from tomic.utils import today, get_leg_right
 from tomic.analysis.alerts import check_entry_conditions, generate_risk_alerts
@@ -19,14 +19,16 @@ def parse_date(date_str: str) -> Optional[date]:
     return _parse_date(date_str)
 
 
-def determine_strategy_type(legs: List[Dict[str, Any]]) -> str:
-    """Return basic strategy type derived from legs."""
+# Strategy detection helpers -------------------------------------------------
+
+StrategyChecker = Callable[[List[Dict[str, Any]]], Optional[str]]
+
+
+def _is_iron_condor(legs: List[Dict[str, Any]]) -> Optional[str]:
     calls = [leg for leg in legs if get_leg_right(leg) == "call"]
     puts = [leg for leg in legs if get_leg_right(leg) == "put"]
-    n = len(legs)
-
     if (
-        n == 4
+        len(legs) == 4
         and len(calls) == 2
         and len(puts) == 2
         and all(abs(leg.get("position", 0)) == 1 for leg in legs)
@@ -43,34 +45,70 @@ def determine_strategy_type(legs: List[Dict[str, Any]]) -> str:
             == 1
         ):
             return "iron_condor"
+    return None
 
-    if n == 3 and len(puts) == 3:
+
+def _is_ratio_spread(legs: List[Dict[str, Any]]) -> Optional[str]:
+    puts = [leg for leg in legs if get_leg_right(leg) == "put"]
+    if len(legs) == 3 and len(puts) == 3:
         long_puts = [leg for leg in puts if leg.get("position", 0) > 0]
         short_puts = [leg for leg in puts if leg.get("position", 0) < 0]
         if len(long_puts) == 1 and len(short_puts) == 2:
             return "ratio_spread"
+    return None
 
-    if n == 2 and len(calls) == 1 and len(puts) == 1:
+
+def _is_straddle(legs: List[Dict[str, Any]]) -> Optional[str]:
+    calls = [leg for leg in legs if get_leg_right(leg) == "call"]
+    puts = [leg for leg in legs if get_leg_right(leg) == "put"]
+    if len(legs) == 2 and len(calls) == 1 and len(puts) == 1:
         call = calls[0]
         put = puts[0]
         if call.get("strike") == put.get("strike"):
             return "Straddle"
+    return None
 
-    if n == 2 and (len(calls) == 2 or len(puts) == 2):
+
+def _is_vertical(legs: List[Dict[str, Any]]) -> Optional[str]:
+    calls = [leg for leg in legs if get_leg_right(leg) == "call"]
+    puts = [leg for leg in legs if get_leg_right(leg) == "put"]
+    if len(legs) == 2 and (len(calls) == 2 or len(puts) == 2):
         long_legs = [leg for leg in legs if leg.get("position", 0) > 0]
         short_legs = [leg for leg in legs if leg.get("position", 0) < 0]
         if len(long_legs) == 1 and len(short_legs) == 1:
             return "Vertical"
+    return None
 
-    if n == 1:
-        leg = legs[0]
-        qty = leg.get("position", 0)
-        right = get_leg_right(leg)
-        if right == "call":
-            return "Long Call" if qty > 0 else "Short Call"
-        if right == "put":
-            return "naked_put" if qty < 0 else "Long Put"
 
+def _single_leg_strategy(legs: List[Dict[str, Any]]) -> Optional[str]:
+    if len(legs) != 1:
+        return None
+    leg = legs[0]
+    qty = leg.get("position", 0)
+    right = get_leg_right(leg)
+    if right == "call":
+        return "Long Call" if qty > 0 else "Short Call"
+    if right == "put":
+        return "naked_put" if qty < 0 else "Long Put"
+    return None
+
+
+# Registry of strategy checks in evaluation order
+STRATEGY_REGISTRY: List[StrategyChecker] = [
+    _is_iron_condor,
+    _is_ratio_spread,
+    _is_straddle,
+    _is_vertical,
+    _single_leg_strategy,
+]
+
+
+def determine_strategy_type(legs: List[Dict[str, Any]]) -> str:
+    """Return basic strategy type derived from legs."""
+    for checker in STRATEGY_REGISTRY:
+        result = checker(legs)
+        if result is not None:
+            return result
     return "Other"
 
 
