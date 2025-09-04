@@ -6,7 +6,7 @@ from typing import Any, Dict, Iterable, Sequence
 import math
 import statistics
 
-from tomic.analysis.strategy import parse_date
+from tomic.helpers.dateutils import parse_date
 from tomic.helpers.account import _fmt_money
 
 

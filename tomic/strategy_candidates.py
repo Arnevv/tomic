@@ -6,7 +6,7 @@ from datetime import date, datetime
 import math
 
 from .analysis.scoring import calculate_score, calculate_breakevens
-from .analysis.strategy import parse_date
+from .helpers.dateutils import parse_date
 from .utils import (
     get_option_mid_price,
     normalize_right,
