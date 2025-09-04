@@ -3,13 +3,12 @@
 from __future__ import annotations
 
 import math
-from typing import Sequence, Any, Dict, List, Mapping, Tuple
+from typing import Sequence, Any, Dict, List, Mapping
 
 from tomic.helpers.dateutils import dte_between_dates
 
 from ..utils import normalize_right, get_leg_right, today
 from ..logutils import logger
-from ..helpers.analysis.scoring import build_leg
 
 
 def validate_width_list(widths: Sequence[Any] | Mapping[str, Any] | float | int | None, key: str) -> Sequence[Any]:
@@ -144,32 +143,8 @@ def compute_dynamic_width(
     return None
 
 
-def make_leg(
-    opt: Mapping[str, Any],
-    position: int,
-    *,
-    spot: float | None = None,
-    return_reason: bool = False,
-) -> Dict[str, Any] | Tuple[Dict[str, Any] | None, str | None]:
-    """Backward compatible wrapper around :func:`build_leg`.
-
-    This helper is retained for legacy imports. New code should call
-    :func:`build_leg` directly.
-    """
-
-    leg = build_leg({**opt, "spot": spot}, "long" if position > 0 else "short")
-    if position not in {1, -1}:
-        leg["position"] = position
-    if return_reason and leg.get("mid") is None:
-        return None, "mid ontbreekt"
-    if return_reason:
-        return leg, None
-    return leg
-
-
 __all__ = [
     "validate_width_list",
     "compute_dynamic_width",
-    "make_leg",
 ]
 
