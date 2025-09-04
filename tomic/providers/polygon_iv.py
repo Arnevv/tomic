@@ -51,9 +51,15 @@ def _rolling_hv(closes: list[float], window: int) -> list[float]:
     return series
 
 
-def _iv_rank(value: float, series: list[float]) -> float | None:
+def _valid_numbers(series: list[float]) -> list[float] | None:
+    """Return numeric values from ``series`` or ``None`` when absent."""
     nums = [s for s in series if isinstance(s, (int, float))]
-    if not nums:
+    return nums or None
+
+
+def _iv_rank(value: float, series: list[float]) -> float | None:
+    nums = _valid_numbers(series)
+    if nums is None:
         return None
     lo = min(nums)
     hi = max(nums)
@@ -63,8 +69,8 @@ def _iv_rank(value: float, series: list[float]) -> float | None:
 
 
 def _iv_percentile(value: float, series: list[float]) -> float | None:
-    nums = [s for s in series if isinstance(s, (int, float))]
-    if not nums:
+    nums = _valid_numbers(series)
+    if nums is None:
         return None
     count = sum(1 for hv in nums if hv < value)
     return count / len(nums)
