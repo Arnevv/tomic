@@ -3,6 +3,7 @@ from datetime import datetime, date
 from pathlib import Path
 import math
 import re
+from typing import Callable
 
 from tomic.config import get as cfg_get
 from tomic.journal.utils import load_json
@@ -35,30 +36,33 @@ def _is_weekly(dt: datetime) -> bool:
     return dt.weekday() == 4 and not _is_third_friday(dt)
 
 
+def extract_expiries(
+    expirations: list[str],
+    count: int,
+    predicate: Callable[[datetime], bool],
+) -> list[str]:
+    """Return the next ``count`` expiries matching ``predicate``."""
+
+    selected: list[str] = []
+    for exp in filter_future_expiries(expirations):
+        dt = datetime.strptime(exp, "%Y%m%d")
+        if predicate(dt):
+            selected.append(exp)
+            if len(selected) == count:
+                break
+    return selected
+
+
 def extract_weeklies(expirations: list[str], count: int = 4) -> list[str]:
     """Return the next ``count`` weekly expiries from ``expirations``."""
 
-    fridays = []
-    for exp in filter_future_expiries(expirations):
-        dt = datetime.strptime(exp, "%Y%m%d")
-        if _is_weekly(dt):
-            fridays.append(exp)
-        if len(fridays) == count:
-            break
-    return fridays
+    return extract_expiries(expirations, count, _is_weekly)
 
 
 def extract_monthlies(expirations: list[str], count: int = 3) -> list[str]:
     """Return the next ``count`` third-Friday expiries from ``expirations``."""
 
-    months = []
-    for exp in filter_future_expiries(expirations):
-        dt = datetime.strptime(exp, "%Y%m%d")
-        if _is_third_friday(dt):
-            months.append(exp)
-        if len(months) == count:
-            break
-    return months
+    return extract_expiries(expirations, count, _is_third_friday)
 
 
 def today() -> date:
