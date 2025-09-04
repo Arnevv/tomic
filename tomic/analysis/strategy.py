@@ -12,12 +12,7 @@ from tomic.utils import today, get_leg_right
 from tomic.analysis.alerts import check_entry_conditions, generate_risk_alerts
 from tomic.analysis.greeks import compute_portfolio_greeks
 from tomic.logutils import logger
-from tomic.helpers.dateutils import parse_date as _parse_date
-
-
-def parse_date(date_str: str) -> Optional[date]:
-    """Parse ``date_str`` using :func:`tomic.helpers.dateutils.parse_date`."""
-    return _parse_date(date_str)
+from tomic.helpers.dateutils import parse_date
 
 
 # Strategy detection helpers -------------------------------------------------
