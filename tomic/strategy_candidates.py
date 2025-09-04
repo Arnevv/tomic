@@ -9,7 +9,7 @@ import pandas as pd
 
 from tomic.helpers.put_call_parity import fill_missing_mid_with_parity
 
-from .analysis.scoring import calculate_score
+from .analysis.scoring import calculate_score, calculate_breakevens
 from .analysis.strategy import parse_date
 from .utils import (
     get_option_mid_price,
@@ -79,48 +79,6 @@ def select_expiry_pairs(expiries: List[str], min_gap: int) -> List[tuple[str, st
     return pairs
 
 
-def _breakevens(
-    strategy: StrategyName | str, legs: List[Dict[str, Any]], credit: float
-) -> Optional[List[float]]:
-    """Return simple breakeven estimates for supported strategies.
-
-    ``credit`` should be the net credit per contract. Breakevens are offset
-    using the per-share value (``credit / 100``).
-    """
-    if not legs:
-        return None
-    strategy = getattr(strategy, "value", strategy)
-    credit_ps = credit / 100.0
-    if strategy in {StrategyName.SHORT_PUT_SPREAD, StrategyName.SHORT_CALL_SPREAD}:
-        short = [l for l in legs if l.get("position") < 0][0]
-        strike = float(short.get("strike"))
-        if strategy == StrategyName.SHORT_PUT_SPREAD:
-            return [strike - credit_ps]
-        return [strike + credit_ps]
-    if strategy in {StrategyName.IRON_CONDOR, StrategyName.ATM_IRON_BUTTERFLY}:
-        short_put = [
-            l
-            for l in legs
-            if l.get("position") < 0
-            and get_leg_right(l) == "put"
-        ]
-        short_call = [
-            l
-            for l in legs
-            if l.get("position") < 0
-            and get_leg_right(l) == "call"
-        ]
-        if short_put and short_call:
-            sp = float(short_put[0].get("strike"))
-            sc = float(short_call[0].get("strike"))
-            return [sp - credit_ps, sc + credit_ps]
-    if strategy == "naked_put":
-        short = legs[0]
-        strike = float(short.get("strike"))
-        return [strike - credit_ps]
-    if strategy == "calendar":
-        return [float(legs[0].get("strike"))]
-    return None
 
 
 def _build_strike_map(chain: List[Dict[str, Any]]) -> Dict[str, Dict[str, List[float]]]:
@@ -375,4 +333,5 @@ __all__ = [
     "StrategyProposal",
     "select_expiry_pairs",
     "generate_strategy_candidates",
+    "calculate_breakevens",
 ]
