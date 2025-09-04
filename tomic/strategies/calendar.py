@@ -3,7 +3,12 @@ from typing import Any, Dict, List
 
 # Calendar strategy generator supporting calls and puts.
 from . import StrategyName
-from .utils import prepare_option_chain, filter_expiries_by_dte
+from .utils import (
+    prepare_option_chain,
+    filter_expiries_by_dte,
+    MAX_PROPOSALS,
+    reached_limit,
+)
 from ..helpers.analysis.scoring import build_leg
 from ..analysis.scoring import calculate_score, passes_risk
 from ..logutils import log_combo_evaluation
@@ -151,7 +156,7 @@ def generate(
                     "criteria",
                     legs=legs,
                 )
-                if len(local_props) >= 5:
+                if reached_limit(local_props):
                     break
         local_props.sort(key=lambda p: p.score or 0, reverse=True)
         return local_props, local_reasons
@@ -167,4 +172,4 @@ def generate(
 
     if not proposals:
         return [], sorted(set(rejected_reasons))
-    return proposals[:5], sorted(set(rejected_reasons))
+    return proposals[:MAX_PROPOSALS], sorted(set(rejected_reasons))
