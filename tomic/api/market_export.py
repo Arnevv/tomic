@@ -202,10 +202,10 @@ def _write_option_chain(
             and put.get("bid") is not None
             and put.get("ask") is not None
         ):
-            call_mid = get_option_mid_price(
+            call_mid, _ = get_option_mid_price(
                 {"bid": call.get("bid"), "ask": call.get("ask")}
             )
-            put_mid = get_option_mid_price(
+            put_mid, _ = get_option_mid_price(
                 {"bid": put.get("bid"), "ask": put.get("ask")}
             )
             try:

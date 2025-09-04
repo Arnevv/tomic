@@ -111,7 +111,7 @@ def _options_by_strike(
             expiry = str(opt.get("expiry"))
         except Exception:
             continue
-        mid = get_option_mid_price(opt)
+        mid, _ = get_option_mid_price(opt)
         try:
             mid_val = float(mid) if mid is not None else math.nan
         except Exception:

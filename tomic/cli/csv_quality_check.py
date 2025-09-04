@@ -71,7 +71,7 @@ def analyze_csv(path: str) -> Dict[str, Any]:
 
             # partial scoring per field
             price_source_valid = False
-            price = get_option_mid_price(
+            price, _ = get_option_mid_price(
                 {"bid": bid_val or None, "ask": ask_val or None, "close": close_val or None}
             )
             if price is not None:

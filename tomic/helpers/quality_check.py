@@ -23,7 +23,7 @@ def calculate_csv_quality(df: pd.DataFrame) -> float:
 
     def _score(row: pd.Series) -> int:
         score = 0
-        price = get_option_mid_price(row.to_dict())
+        price, _ = get_option_mid_price(row.to_dict())
         if price is not None:
             score += 2
         try:
