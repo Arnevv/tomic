@@ -25,31 +25,34 @@
   strategy: Short Put Spread
   greeks: "delta long (bullish), theta positief, vega short, gamma short"
   criteria:
-    - iv_rank >= 0.5
-    - iv_percentile >= 0.6
-    - skew >= 2.0
-    - term_m1_m3 >= 0.0
-    - iv_vs_hv20 > 0
+    - iv_rank >= 99 # omdat ik voorlopig even geen directionele plays wil
+    #- iv_rank >= 0.5
+    #- iv_percentile >= 0.6
+    #- skew >= 2.0
+    #- term_m1_m3 >= 0.0
+    #- iv_vs_hv20 > 0
 
 - key: short_call_spread
   strategy: Short Call Spread
   greeks: "delta short (bearish), theta positief, vega short, gamma short"
   criteria:
-    - iv_rank >= 0.5
-    - iv_percentile >= 0.6
-    - skew <= -2.0
-    - term_m1_m3 >= 0.0
-    - iv_vs_hv20 > 0
+    - iv_rank >= 99 # omdat ik voorlopig even geen directionele plays wil
+    #- iv_rank >= 0.5
+    #- iv_percentile >= 0.6
+    #- skew <= -2.0
+    #- term_m1_m3 >= 0.0
+    #- iv_vs_hv20 > 0
 
 - key: naked_put
   strategy: Naked Put
   greeks: "delta long (bullish), theta positief, vega short, gamma short"
   criteria:
-    - iv_rank >= 0.5
-    - iv_percentile >= 0.6
-    - skew >= 1.5
-    - term_m1_m3 >= 0.0
-    - iv_vs_hv20 > 0
+    - iv_rank >= 99 # omdat ik voorlopig even geen directionele plays wil
+    #- iv_rank >= 0.5
+    #- iv_percentile >= 0.6
+    #- skew >= 1.5
+    #- term_m1_m3 >= 0.0
+    #- iv_vs_hv20 > 0
 
 - key: calendar
   strategy: Calendar
@@ -63,19 +66,21 @@
   strategy: Ratio Spread
   greeks: "delta directioneel, theta meestal positief, vega eerder short, gamma short"
   criteria:
-    - iv_rank >= 0.3
-    - iv_rank <= 0.6
-    - skew >= 5.0
-    - term_m1_m3 >= 0.0
-    - iv_vs_hv20 > 0
+    - iv_rank >= 99 # omdat ik voorlopig even geen directionele plays wil
+    #- iv_rank >= 0.3
+    #- iv_rank <= 0.6
+    #- skew >= 5.0
+    #- term_m1_m3 >= 0.0
+    #- iv_vs_hv20 > 0
 
 - key: backspread_put
   strategy: Backspread Put
   greeks: "delta short (bearish), theta negatief, vega long, gamma long"
   criteria:
-    - iv_rank <= 0.4
-    - iv_percentile <= 0.2
-    - skew <= -2.0
-    - term_m1_m3 <= 0.0
-    - iv_vs_hv20 < 0
-    - iv_vs_hv90 > 0
+    - iv_rank >= 99 # omdat ik voorlopig even geen directionele plays wil
+    #- iv_rank <= 0.4
+    #- iv_percentile <= 0.2
+    #- skew <= -2.0
+    #- term_m1_m3 <= 0.0
+    #- iv_vs_hv20 < 0
+    #- iv_vs_hv90 > 0

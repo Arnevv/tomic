@@ -42,8 +42,8 @@ strategy:
 
 # 3) MARKET DATA FILTERS
 market_data:
-  min_option_volume:        30 #normaal is dit 50
-  min_option_open_interest: 300 #normaal is dit 500
+  min_option_volume:        10 #normaal is dit 50
+  min_option_open_interest: 100 #normaal is dit 500
 
 # 4) ALERTS
 alerts:
@@ -90,7 +90,7 @@ alerts:
 
     theta_efficiency_bands: [0.5, 1.5, 2.5]
     dte_close_threshold: 10
-    days_in_trade_close_threshold: 40
+    days_in_trade_close_threshold: 99
 
     pnl_theta:
       take_profit_pct_of_premium: 0.70
