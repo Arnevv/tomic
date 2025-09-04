@@ -11,7 +11,7 @@ from tomic.config import get as cfg_get
 from tomic.logutils import logger, setup_logging
 from tomic.journal.utils import load_json, update_json_file
 from tomic.providers.polygon_iv import fetch_polygon_iv30d
-from tomic.utils import latest_close_date
+from tomic.helpers.price_utils import _load_latest_close
 
 
 def main(argv: List[str] | None = None) -> None:
@@ -34,7 +34,9 @@ def main(argv: List[str] | None = None) -> None:
         if max_syms is not None and processed >= max_syms:
             break
         metrics = fetch_polygon_iv30d(sym)
-        date_str = latest_close_date(sym) or datetime.now().strftime("%Y-%m-%d")
+        date_str = _load_latest_close(sym, return_date_only=True) or datetime.now().strftime(
+            "%Y-%m-%d"
+        )
         if metrics is None:
             logger.warning(f"No contracts found for symbol {sym}")
             continue
