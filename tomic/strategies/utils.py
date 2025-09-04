@@ -70,6 +70,55 @@ def validate_width_list(widths: Sequence[Any] | Mapping[str, Any] | float | int 
     return seq
 
 
+def compute_sigma_width(short_opt: Dict[str, Any], *, spot: float, sigma_multiple: float) -> float | None:
+    """Return width based on a one-sigma move."""
+
+    try:
+        iv = float(short_opt.get("iv"))
+        exp = str(short_opt.get("expiry"))
+        dte = dte_between_dates(today(), exp)
+        return spot * sigma_multiple * iv * math.sqrt(max(dte, 0) / 365)
+    except Exception:
+        return None
+
+
+def compute_delta_width(
+    short_opt: Dict[str, Any],
+    *,
+    target_delta: float,
+    option_chain: List[Dict[str, Any]],
+    expiry: str,
+    option_type: str,
+) -> float | None:
+    """Return width based on the distance to a target delta option."""
+
+    opt_type = normalize_right(option_type)
+    candidates = [
+        o
+        for o in option_chain
+        if str(o.get("expiry")) == expiry
+        and get_leg_right(o) == opt_type
+        and o.get("delta") is not None
+    ]
+    if not candidates:
+        return None
+    try:
+        long_opt = min(candidates, key=lambda o: abs(float(o["delta"]) - target_delta))
+        return abs(float(short_opt.get("strike")) - float(long_opt.get("strike")))
+    except Exception:
+        return None
+
+
+def compute_atr_width(*, atr: float, atr_multiple: float, use_atr: bool) -> float | None:
+    """Return width based on an ATR multiple."""
+
+    try:
+        width = atr_multiple * (atr if use_atr else 1.0)
+        return abs(width)
+    except Exception:
+        return None
+
+
 def compute_dynamic_width(
     short_opt: Dict[str, Any],
     *,
@@ -117,39 +166,20 @@ def compute_dynamic_width(
         Calculated width in strike points or ``None`` when insufficient data is
         available.
     """
-
     if sigma_multiple is not None and spot is not None:
-        try:
-            iv = float(short_opt.get("iv"))
-            exp = str(short_opt.get("expiry"))
-            dte = dte_between_dates(today(), exp)
-            return spot * sigma_multiple * iv * math.sqrt(max(dte, 0) / 365)
-        except Exception:
-            return None
+        return compute_sigma_width(short_opt, spot=spot, sigma_multiple=sigma_multiple)
 
     if target_delta is not None and option_chain and expiry and option_type:
-        opt_type = normalize_right(option_type)
-        candidates = [
-            o
-            for o in option_chain
-            if str(o.get("expiry")) == expiry
-            and get_leg_right(o) == opt_type
-            and o.get("delta") is not None
-        ]
-        if not candidates:
-            return None
-        try:
-            long_opt = min(candidates, key=lambda o: abs(float(o["delta"]) - target_delta))
-            return abs(float(short_opt.get("strike")) - float(long_opt.get("strike")))
-        except Exception:
-            return None
+        return compute_delta_width(
+            short_opt,
+            target_delta=target_delta,
+            option_chain=option_chain,
+            expiry=expiry,
+            option_type=option_type,
+        )
 
     if atr_multiple is not None and atr is not None:
-        try:
-            width = atr_multiple * (atr if use_atr else 1.0)
-            return abs(width)
-        except Exception:
-            return None
+        return compute_atr_width(atr=atr, atr_multiple=atr_multiple, use_atr=use_atr)
 
     return None
 
@@ -379,6 +409,9 @@ __all__ = [
     "MAX_PROPOSALS",
     "reached_limit",
     "validate_width_list",
+    "compute_sigma_width",
+    "compute_delta_width",
+    "compute_atr_width",
     "compute_dynamic_width",
     "prepare_option_chain",
     "filter_expiries_by_dte",
