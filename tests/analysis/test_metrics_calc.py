@@ -1,4 +1,5 @@
 import math
+import pytest
 from tomic.analysis.metrics import historical_volatility, average_true_range
 from tomic.metrics import (
     calculate_edge,
@@ -52,6 +53,25 @@ def test_calculate_margin_credit_spread():
     assert math.isclose(
         calculate_margin(StrategyName.SHORT_PUT_SPREAD, legs, net_cashflow=1.2), 380.0
     )
+
+
+def test_calculate_margin_credit_call_spread():
+    legs = [
+        {"strike": 95, "type": "C", "action": "SELL"},
+        {"strike": 100, "type": "CALL", "action": "BUY"},
+    ]
+    assert math.isclose(
+        calculate_margin(StrategyName.SHORT_CALL_SPREAD, legs, net_cashflow=1.1), 390.0
+    )
+
+
+def test_vertical_spread_invalid_structure():
+    legs = [
+        {"strike": 100, "type": "C", "action": "SELL"},
+        {"strike": 95, "type": "P", "action": "BUY"},
+    ]
+    with pytest.raises(ValueError):
+        calculate_margin(StrategyName.SHORT_CALL_SPREAD, legs)
 
 
 def test_calculate_margin_calendar():

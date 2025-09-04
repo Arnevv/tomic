@@ -162,6 +162,33 @@ def _max_loss(
     return max(0.0, -min_pnl)
 
 
+def _vertical_spread_margin(
+    legs: list[dict], right: str, net_cashflow: float = 0.0
+) -> float:
+    """Return margin for a short vertical spread.
+
+    ``right`` specifies the option type (``"put"`` or ``"call"``). The
+    function expects exactly two legs: one short and one long with the
+    specified right. The strikes must be ordered such that the spread
+    width is positive, otherwise a :class:`ValueError` is raised.
+    """
+    if len(legs) != 2:
+        raise ValueError("Spread requires two legs")
+    shorts = [l for l in legs if _option_direction(l) < 0]
+    longs = [l for l in legs if _option_direction(l) > 0]
+    if len(shorts) != 1 or len(longs) != 1:
+        raise ValueError(f"Invalid short_{right}_spread structure")
+    if any(get_leg_right(l) != right for l in legs):
+        raise ValueError(f"Invalid short_{right}_spread structure")
+
+    short_strike = float(shorts[0].get("strike"))
+    long_strike = float(longs[0].get("strike"))
+    width = short_strike - long_strike if right == "put" else long_strike - short_strike
+    if width <= 0:
+        raise ValueError(f"Invalid short_{right}_spread structure")
+    return max(width * 100 - net_cashflow * 100, 0.0)
+
+
 def calculate_margin(
     strategy: str,
     legs: list[dict],
@@ -172,28 +199,10 @@ def calculate_margin(
     strat = strategy.lower()
 
     if strat == "short_put_spread":
-        if len(legs) != 2:
-            raise ValueError("Spread requires two legs")
-        shorts = [l for l in legs if _option_direction(l) < 0]
-        longs = [l for l in legs if _option_direction(l) > 0]
-        if not shorts or not longs:
-            raise ValueError("Invalid short_put_spread structure")
-        short_strike = float(shorts[0].get("strike"))
-        long_strike = float(longs[0].get("strike"))
-        width = short_strike - long_strike
-        return max(width * 100 - net_cashflow * 100, 0.0)
+        return _vertical_spread_margin(legs, "put", net_cashflow)
 
     if strat == "short_call_spread":
-        if len(legs) != 2:
-            raise ValueError("Spread requires two legs")
-        shorts = [l for l in legs if _option_direction(l) < 0]
-        longs = [l for l in legs if _option_direction(l) > 0]
-        if not shorts or not longs:
-            raise ValueError("Invalid short_call_spread structure")
-        short_strike = float(shorts[0].get("strike"))
-        long_strike = float(longs[0].get("strike"))
-        width = long_strike - short_strike
-        return max(width * 100 - net_cashflow * 100, 0.0)
+        return _vertical_spread_margin(legs, "call", net_cashflow)
 
     if strat == "naked_put":
         if len(legs) != 1:
