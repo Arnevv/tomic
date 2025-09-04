@@ -1,10 +1,12 @@
 from __future__ import annotations
 from typing import Any, Dict, List
 import math
-import pandas as pd
-from tomic.helpers.put_call_parity import fill_missing_mid_with_parity
 from . import StrategyName
-from .utils import compute_dynamic_width
+from .utils import (
+    compute_dynamic_width,
+    prepare_option_chain,
+    filter_expiries_by_dte,
+)
 from ..helpers.analysis.scoring import build_leg
 from ..analysis.scoring import calculate_score, passes_risk
 from ..utils import get_option_mid_price, get_leg_right
@@ -16,7 +18,6 @@ from ..strategy_candidates import (
     _find_option,
     _validate_ratio,
 )
-from ..strike_selector import _dte
 
 
 def generate(
@@ -30,32 +31,22 @@ def generate(
     use_atr = bool(rules.get("use_ATR"))
     if spot is None:
         raise ValueError("spot price is required")
+    option_chain = prepare_option_chain(option_chain, spot)
     expiries = sorted({str(o.get("expiry")) for o in option_chain})
     if not expiries:
         return [], ["geen expiraties beschikbaar"]
     strike_map = _build_strike_map(option_chain)
-    if hasattr(pd, "DataFrame") and not isinstance(pd.DataFrame, type(object)):
-        df_chain = pd.DataFrame(option_chain)
-        if spot > 0:
-            if "expiration" not in df_chain.columns and "expiry" in df_chain.columns:
-                df_chain["expiration"] = df_chain["expiry"]
-            df_chain = fill_missing_mid_with_parity(df_chain, spot=spot)
-            option_chain = df_chain.to_dict(orient="records")
     proposals: List[StrategyProposal] = []
     rejected_reasons: list[str] = []
     min_rr = float(config.get("min_risk_reward", 0.0))
-
 
     delta_range = rules.get("short_leg_delta_range") or []
     target_delta = rules.get("long_leg_distance_points")
     atr_mult = rules.get("long_leg_atr_multiple")
     dte_range = rules.get("dte_range")
+    expiries = filter_expiries_by_dte(expiries, dte_range)
     if len(delta_range) == 2 and (target_delta is not None or atr_mult is not None):
         for expiry in expiries:
-            if dte_range:
-                dte = _dte(expiry)
-                if dte is None or not (dte_range[0] <= dte <= dte_range[1]):
-                    continue
             calls_pre = []
             for opt in option_chain:
                 if str(opt.get("expiry")) != expiry:
