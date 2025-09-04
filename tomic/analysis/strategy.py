@@ -10,6 +10,7 @@ from typing import Any, Callable, Dict, List, Optional
 
 from tomic.utils import today, get_leg_right
 from tomic.analysis.alerts import check_entry_conditions, generate_risk_alerts
+from tomic.analysis.greeks import compute_portfolio_greeks
 from tomic.logutils import logger
 from tomic.helpers.dateutils import parse_date as _parse_date
 
@@ -114,11 +115,12 @@ def determine_strategy_type(legs: List[Dict[str, Any]]) -> str:
 
 def aggregate_metrics(legs: List[Dict[str, Any]]) -> Dict[str, Any]:
     """Aggregate Greeks and volatility metrics for ``legs``."""
+    greeks = compute_portfolio_greeks(legs)
     metrics: Dict[str, Any] = {
-        "delta": 0.0,
-        "gamma": 0.0,
-        "vega": 0.0,
-        "theta": 0.0,
+        "delta": greeks.get("Delta", 0.0),
+        "gamma": greeks.get("Gamma", 0.0),
+        "vega": greeks.get("Vega", 0.0),
+        "theta": greeks.get("Theta", 0.0),
         "unrealizedPnL": 0.0,
         "cost_basis": 0.0,
     }
@@ -132,15 +134,6 @@ def aggregate_metrics(legs: List[Dict[str, Any]]) -> Dict[str, Any]:
     iv_hv_spread_vals: List[float] = []
     for leg in legs:
         qty = float(leg.get("position", 0) or 0)
-        mult = float(leg.get("multiplier") or 1)
-        for g in ["delta", "gamma", "vega", "theta"]:
-            val = leg.get(g)
-            if val is not None:
-                val_f = float(val)
-                if g == "delta":
-                    metrics["delta"] += val_f * qty
-                else:
-                    metrics[g] += val_f * qty * mult
         if leg.get("unrealizedPnL") is not None:
             metrics["unrealizedPnL"] += leg["unrealizedPnL"]
         if leg.get("avgCost") is not None:
