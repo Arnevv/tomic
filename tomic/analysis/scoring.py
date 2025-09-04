@@ -110,19 +110,8 @@ def calculate_breakevens(
     return None
 
 
-def calculate_score(
-    strategy: str | Any,
-    proposal: "StrategyProposal",
-    spot: float | None = None,
-    *,
-    criteria: CriteriaConfig | None = None,
-) -> Tuple[Optional[float], List[str]]:
-    """Populate proposal metrics and return the computed score."""
-
-    legs = proposal.legs
-    strategy_name = getattr(strategy, "value", strategy)
-    _bs_estimate_missing(legs)
-
+def validate_leg_metrics(strategy_name: str, legs: List[Dict[str, Any]]) -> Tuple[bool, List[str]]:
+    """Ensure required leg metrics are present."""
     missing_fields = False
     for leg in legs:
         missing: List[str] = []
@@ -141,8 +130,57 @@ def calculate_score(
         logger.info(
             f"[❌ voorstel afgewezen] {strategy_name} — reason: ontbrekende metrics (details in debug)"
         )
-        return None, ["Edge, model of delta ontbreekt — metrics kunnen niet worden berekend"]
+        return False, ["Edge, model of delta ontbreekt — metrics kunnen niet worden berekend"]
+    return True, []
 
+
+def check_liquidity(
+    strategy_name: str, legs: List[Dict[str, Any]], crit: CriteriaConfig
+) -> Tuple[bool, List[str]]:
+    """Validate option volume and open interest against minimum thresholds."""
+    min_vol = float(crit.market_data.min_option_volume)
+    min_oi = float(crit.market_data.min_option_open_interest)
+    if min_vol <= 0 and min_oi <= 0:
+        return True, []
+
+    low_liq: List[str] = []
+    for leg in legs:
+        vol_raw = leg.get("volume")
+        try:
+            vol = float(vol_raw) if vol_raw not in (None, "") else None
+        except Exception:
+            vol = None
+        oi_raw = leg.get("open_interest")
+        try:
+            oi = float(oi_raw) if oi_raw not in (None, "") else None
+        except Exception:
+            oi = None
+        exp = leg.get("expiry") or leg.get("expiration")
+        strike = leg.get("strike")
+        if isinstance(strike, float) and strike.is_integer():
+            strike = int(strike)
+        if (
+            (min_vol > 0 and vol is not None and vol < min_vol)
+            or (min_oi > 0 and oi is not None and oi < min_oi)
+        ):
+            low_liq.append(f"{strike} [{vol or 0}, {oi or 0}, {exp}]")
+    if low_liq:
+        logger.info(
+            f"[{strategy_name}] Onvoldoende volume/open interest voor strikes {', '.join(low_liq)}"
+        )
+        return False, ["onvoldoende volume/open interest"]
+    return True, []
+
+
+def compute_proposal_metrics(
+    strategy_name: str,
+    proposal: "StrategyProposal",
+    legs: List[Dict[str, Any]],
+    crit: CriteriaConfig,
+    spot: float | None = None,
+) -> Tuple[Optional[float], List[str]]:
+    """Compute proposal metrics and return score with reasons."""
+    reasons: List[str] = []
     for leg in legs:
         normalize_leg(leg)
 
@@ -163,40 +201,6 @@ def calculate_score(
             if not math.isnan(edge_val):
                 short_edges.append(edge_val)
     proposal.edge = round(sum(short_edges) / len(short_edges), 2) if short_edges else None
-
-    reasons: List[str] = []
-
-    crit = criteria or load_criteria()
-    min_vol = float(crit.market_data.min_option_volume)
-    min_oi = float(crit.market_data.min_option_open_interest)
-    if min_vol > 0 or min_oi > 0:
-        low_liq: List[str] = []
-        for leg in legs:
-            vol_raw = leg.get("volume")
-            try:
-                vol = float(vol_raw) if vol_raw not in (None, "") else None
-            except Exception:
-                vol = None
-            oi_raw = leg.get("open_interest")
-            try:
-                oi = float(oi_raw) if oi_raw not in (None, "") else None
-            except Exception:
-                oi = None
-            exp = leg.get("expiry") or leg.get("expiration")
-            strike = leg.get("strike")
-            if isinstance(strike, float) and strike.is_integer():
-                strike = int(strike)
-            if (
-                (min_vol > 0 and vol is not None and vol < min_vol)
-                or (min_oi > 0 and oi is not None and oi < min_oi)
-            ):
-                low_liq.append(f"{strike} [{vol or 0}, {oi or 0}, {exp}]")
-        if low_liq:
-            logger.info(
-                f"[{strategy_name}] Onvoldoende volume/open interest voor strikes {', '.join(low_liq)}"
-            )
-            reasons.append("onvoldoende volume/open interest")
-            return None, reasons
 
     missing_mid: List[str] = []
     credits: List[float] = []
@@ -304,6 +308,31 @@ def calculate_score(
     if fallbacks:
         proposal.fallback = ",".join(sorted(fallbacks))
     return proposal.score, reasons
+
+
+def calculate_score(
+    strategy: str | Any,
+    proposal: "StrategyProposal",
+    spot: float | None = None,
+    *,
+    criteria: CriteriaConfig | None = None,
+) -> Tuple[Optional[float], List[str]]:
+    """Populate proposal metrics and return the computed score."""
+
+    legs = proposal.legs
+    strategy_name = getattr(strategy, "value", strategy)
+    _bs_estimate_missing(legs)
+
+    valid, reasons = validate_leg_metrics(strategy_name, legs)
+    if not valid:
+        return None, reasons
+
+    crit = criteria or load_criteria()
+    ok, reasons = check_liquidity(strategy_name, legs, crit)
+    if not ok:
+        return None, reasons
+
+    return compute_proposal_metrics(strategy_name, proposal, legs, crit, spot)
 
 
 def passes_risk(proposal: "StrategyProposal" | Mapping[str, Any], min_rr: float) -> bool:
