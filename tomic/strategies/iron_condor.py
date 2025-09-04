@@ -2,7 +2,12 @@ from __future__ import annotations
 from typing import Any, Dict, List
 from itertools import islice
 from . import StrategyName
-from .utils import compute_dynamic_width, prepare_option_chain, filter_expiries_by_dte
+from .utils import (
+    compute_dynamic_width,
+    prepare_option_chain,
+    filter_expiries_by_dte,
+    MAX_PROPOSALS,
+)
 from ..helpers.analysis.scoring import build_leg
 from ..analysis.scoring import calculate_score, passes_risk
 from ..logutils import log_combo_evaluation
@@ -72,7 +77,7 @@ def generate(
             )
             rejected_reasons.append(reason)
             continue
-        for sc_opt, sp_opt in islice(zip(shorts_c, shorts_p), 5):
+        for sc_opt, sp_opt in islice(zip(shorts_c, shorts_p), MAX_PROPOSALS):
             sc_strike = float(sc_opt.get("strike"))
             sp_strike = float(sp_opt.get("strike"))
             sc = _nearest_strike(strike_map, expiry, "C", sc_strike)
@@ -169,4 +174,4 @@ def generate(
     proposals.sort(key=lambda p: p.score or 0, reverse=True)
     if not proposals:
         return [], sorted(set(rejected_reasons))
-    return proposals[:5], sorted(set(rejected_reasons))
+    return proposals[:MAX_PROPOSALS], sorted(set(rejected_reasons))

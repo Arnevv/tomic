@@ -14,6 +14,14 @@ from ..logutils import logger
 from ..strike_selector import _dte
 
 
+MAX_PROPOSALS = 5
+
+
+def reached_limit(proposals: Sequence[Any]) -> bool:
+    """Return True if the proposal count reached :data:`MAX_PROPOSALS`."""
+    return len(proposals) >= MAX_PROPOSALS
+
+
 def validate_width_list(widths: Sequence[Any] | Mapping[str, Any] | float | int | None, key: str) -> Sequence[Any]:
     """Return ``widths`` if valid or raise ``ValueError``.
 
@@ -356,7 +364,7 @@ def generate_short_vertical(
                     rejected_reasons.extend(reasons)
                 else:
                     rejected_reasons.append("risk/reward onvoldoende")
-            if len(proposals) >= 5:
+            if reached_limit(proposals):
                 break
     else:
         rejected_reasons.append("ongeldige delta range")
@@ -364,10 +372,12 @@ def generate_short_vertical(
     proposals.sort(key=lambda p: p.score or 0, reverse=True)
     if not proposals:
         return [], sorted(set(rejected_reasons))
-    return proposals[:5], sorted(set(rejected_reasons))
+    return proposals[:MAX_PROPOSALS], sorted(set(rejected_reasons))
 
 
 __all__ = [
+    "MAX_PROPOSALS",
+    "reached_limit",
     "validate_width_list",
     "compute_dynamic_width",
     "prepare_option_chain",

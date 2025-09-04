@@ -6,6 +6,8 @@ from .utils import (
     compute_dynamic_width,
     prepare_option_chain,
     filter_expiries_by_dte,
+    MAX_PROPOSALS,
+    reached_limit,
 )
 from ..helpers.analysis.scoring import build_leg
 from ..analysis.scoring import calculate_score, passes_risk
@@ -198,11 +200,11 @@ def generate(
                     rejected_reasons.extend(reasons)
                 else:
                     rejected_reasons.append("risk/reward onvoldoende")
-            if len(proposals) >= 5:
+            if reached_limit(proposals):
                 break
     else:
         rejected_reasons.append("ongeldige delta range")
     proposals.sort(key=lambda p: p.score or 0, reverse=True)
     if not proposals:
         return [], sorted(set(rejected_reasons))
-    return proposals[:5], sorted(set(rejected_reasons))
+    return proposals[:MAX_PROPOSALS], sorted(set(rejected_reasons))

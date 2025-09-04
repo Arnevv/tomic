@@ -1,7 +1,13 @@
 from __future__ import annotations
 from typing import Any, Dict, List
 from . import StrategyName
-from .utils import compute_dynamic_width, prepare_option_chain, filter_expiries_by_dte
+from .utils import (
+    compute_dynamic_width,
+    prepare_option_chain,
+    filter_expiries_by_dte,
+    MAX_PROPOSALS,
+    reached_limit,
+)
 from ..helpers.analysis.scoring import build_leg
 from ..analysis.scoring import calculate_score, passes_risk
 from ..logutils import log_combo_evaluation
@@ -154,11 +160,11 @@ def generate(
                     rejected_reasons.extend(reasons)
                 else:
                     rejected_reasons.append("risk/reward onvoldoende")
-            if len(proposals) >= 5:
+            if reached_limit(proposals):
                 break
-        if len(proposals) >= 5:
+        if reached_limit(proposals):
             break
     proposals.sort(key=lambda p: p.score or 0, reverse=True)
     if not proposals:
         return [], sorted(set(rejected_reasons))
-    return proposals[:5], sorted(set(rejected_reasons))
+    return proposals[:MAX_PROPOSALS], sorted(set(rejected_reasons))
