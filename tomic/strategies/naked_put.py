@@ -1,7 +1,7 @@
 from __future__ import annotations
 from typing import Any, Dict, List
 from . import StrategyName
-from .utils import prepare_option_chain
+from .utils import prepare_option_chain, filter_expiries_by_dte
 from ..helpers.analysis.scoring import build_leg
 from ..analysis.scoring import calculate_score, passes_risk
 from ..logutils import log_combo_evaluation
@@ -9,7 +9,6 @@ from ..utils import get_leg_right
 from ..strategy_candidates import (
     StrategyProposal,
 )
-from ..strike_selector import _dte
 
 
 def generate(
@@ -33,12 +32,9 @@ def generate(
 
     delta_range = rules.get("short_put_delta_range") or []
     dte_range = rules.get("dte_range")
+    expiries = filter_expiries_by_dte(expiries, dte_range)
     if len(delta_range) == 2:
         for expiry in expiries:
-            if dte_range:
-                dte = _dte(expiry)
-                if dte is None or not (dte_range[0] <= dte <= dte_range[1]):
-                    continue
             for opt in option_chain:
                 if (
                     str(opt.get("expiry")) == expiry
