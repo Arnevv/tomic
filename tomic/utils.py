@@ -109,10 +109,9 @@ def load_price_history(symbol: str) -> list[dict]:
 def latest_close_date(symbol: str) -> str | None:
     """Return the most recent close date for ``symbol`` from price history."""
 
-    data = load_price_history(symbol)
-    if data:
-        return str(data[-1].get("date"))
-    return None
+    from tomic.helpers.price_utils import _load_latest_close
+
+    return _load_latest_close(symbol, return_date_only=True)
 
 
 def get_option_mid_price(option: dict) -> tuple[float | None, bool]:

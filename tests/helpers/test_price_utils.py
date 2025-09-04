@@ -17,3 +17,6 @@ def test_load_latest_close_non_positive(monkeypatch, tmp_path):
     assert price is None
     assert date == "2024-01-01"
 
+    date_only = price_utils._load_latest_close("AAA", return_date_only=True)
+    assert date_only == "2024-01-01"
+

@@ -12,7 +12,8 @@ from pathlib import Path
 from tomic.journal.utils import update_json_file
 from tomic.analysis.metrics import historical_volatility
 from tomic.api.market_client import TermStructureClient, start_app, await_market_data
-from tomic.utils import latest_close_date, load_price_history
+from tomic.utils import load_price_history
+from tomic.helpers.price_utils import _load_latest_close
 
 
 def _get_closes(symbol: str) -> list[float]:
@@ -102,7 +103,9 @@ def main(argv: List[str] | None = None) -> None:
         hv90 = historical_volatility(closes, window=90)
         hv252 = historical_volatility(closes, window=252)
         iv = fetch_iv30d(sym)
-        date_str = latest_close_date(sym) or datetime.now().strftime("%Y-%m-%d")
+        date_str = _load_latest_close(sym, return_date_only=True) or datetime.now().strftime(
+            "%Y-%m-%d"
+        )
         hv_series = rolling_hv(closes, 30)
         scaled_iv = iv * 100 if iv is not None else None
         rank = iv_rank(scaled_iv or 0.0, hv_series) if scaled_iv is not None else None
