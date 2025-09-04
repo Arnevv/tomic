@@ -4,17 +4,17 @@ from __future__ import annotations
 
 import csv
 from dataclasses import dataclass
-from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Optional
 
 from tomic.analysis.greeks import compute_greeks_by_symbol
 from tomic.analysis.strategy import heuristic_risk_metrics
-from tomic.journal.utils import load_json
-from tomic.utils import get_option_mid_price, normalize_right
 from tomic.helpers.csv_utils import parse_euro_float
-from tomic.metrics import calculate_margin, estimate_scenario_profit
+from tomic.helpers.dateutils import dte_between_dates
+from tomic.journal.utils import load_json
 from tomic.logutils import logger
+from tomic.metrics import calculate_margin, estimate_scenario_profit
+from tomic.utils import get_option_mid_price, normalize_right, today
 from ..criteria import RULES
 from ..config import _load_yaml
 from ..loader import load_strike_config
@@ -86,15 +86,6 @@ def _find_chain_file(directory: Path, symbol: str) -> Optional[Path]:
     pattern = f"option_chain_{symbol}_"
     candidates = sorted(directory.glob(f"*{pattern}*.csv"))
     return candidates[-1] if candidates else None
-
-
-def _dte(expiry: str) -> Optional[int]:
-    """Return days to expiry for ``expiry`` in YYYYMMDD format."""
-    try:
-        exp = datetime.strptime(expiry, "%Y%m%d").date()
-    except Exception:
-        return None
-    return (exp - datetime.now(timezone.utc).date()).days
 
 
 def _mid_price(leg: Leg) -> float:
@@ -183,10 +174,12 @@ def _filter_chain_by_dte(chain: List[Leg], strategy: str) -> List[Leg]:
     if not dte_range:
         return chain
     min_dte, max_dte = dte_range
+    today_date = today()
     filtered = [
         leg
         for leg in chain
-        if (d := _dte(leg.expiry)) is not None and min_dte <= d <= max_dte
+        if (d := dte_between_dates(today_date, leg.expiry)) is not None
+        and min_dte <= d <= max_dte
     ]
     return filtered or chain
 
