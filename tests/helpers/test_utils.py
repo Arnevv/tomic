@@ -15,12 +15,12 @@ def test_filter_future_expiries_respects_today(monkeypatch):
 
 def test_get_option_mid_price_bid_ask():
     option = {"bid": 1.0, "ask": 1.2, "close": 0.5}
-    assert utils.get_option_mid_price(option) == 1.1
+    assert utils.get_option_mid_price(option) == (1.1, False)
 
 
 def test_get_option_mid_price_fallback_close():
     option = {"bid": None, "ask": None, "close": 0.8}
-    assert utils.get_option_mid_price(option) == 0.8
+    assert utils.get_option_mid_price(option) == (0.8, True)
 
 
 def test_load_price_history(monkeypatch, tmp_path):
@@ -126,12 +126,12 @@ def test_prompt_user_for_price_decline(monkeypatch):
 
 def test_get_option_mid_price_nan_bid_ask():
     option = {"bid": "NaN", "ask": "nan", "close": None}
-    assert utils.get_option_mid_price(option) is None
+    assert utils.get_option_mid_price(option) == (None, False)
 
 
 def test_get_option_mid_price_nan_close():
     option = {"bid": None, "ask": None, "close": "NaN"}
-    assert utils.get_option_mid_price(option) is None
+    assert utils.get_option_mid_price(option) == (None, False)
 
 
 def test_get_leg_right_prefers_right():

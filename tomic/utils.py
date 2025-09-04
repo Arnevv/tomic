@@ -111,24 +111,24 @@ def latest_close_date(symbol: str) -> str | None:
     return None
 
 
-def get_option_mid_price(option: dict) -> float | None:
-    """Return midpoint price for ``option`` or close price as fallback."""
+def get_option_mid_price(option: dict) -> tuple[float | None, bool]:
+    """Return midpoint price for ``option`` and whether close was used."""
 
     try:
         bid = float(option.get("bid"))
         ask = float(option.get("ask"))
         if not math.isnan(bid) and not math.isnan(ask) and bid > 0 and ask > 0:
-            return (bid + ask) / 2
+            return (bid + ask) / 2, False
     except Exception:
         pass
     close = option.get("close")
     try:
         val = float(close) if close is not None else None
         if val is None or math.isnan(val):
-            return None
-        return val
+            return None, False
+        return val, True
     except Exception:
-        return None
+        return None, False
 
 
 def prompt_user_for_price(

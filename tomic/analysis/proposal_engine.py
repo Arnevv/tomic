@@ -89,7 +89,8 @@ def _find_chain_file(directory: Path, symbol: str) -> Optional[Path]:
 
 
 def _mid_price(leg: Leg) -> float:
-    return get_option_mid_price({"bid": leg.bid, "ask": leg.ask, "close": None}) or 0.0
+    price, _ = get_option_mid_price({"bid": leg.bid, "ask": leg.ask, "close": None})
+    return price or 0.0
 
 
 def _cost_basis(legs: Iterable[Leg]) -> float:

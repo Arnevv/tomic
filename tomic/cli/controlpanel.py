@@ -1092,18 +1092,7 @@ def run_portfolio_menu() -> None:
 
         evaluated: list[dict[str, object]] = []
         for opt in selected:
-            mid = get_option_mid_price(opt)
-            if mid is None:
-                close_val = opt.get("close")
-                try:
-                    close_f = float(close_val)
-                except Exception:
-                    close_f = 0.0
-                if close_f > 0:
-                    mid = close_f
-                    logger.debug(
-                        f"Using close as mid for {opt.get('strike')} {opt.get('type')}"
-                    )
+            mid, _ = get_option_mid_price(opt)
             try:
                 model = (
                     float(opt.get("modelprice"))

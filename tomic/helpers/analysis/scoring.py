@@ -44,23 +44,7 @@ def build_leg(quote: Mapping[str, Any], side: Literal["long", "short"]) -> Optio
 
     bid = quote.get("bid")
     ask = quote.get("ask")
-    mid = get_option_mid_price(quote)
-    used_close = False
-    if mid is None:
-        try:
-            close_val = float(quote.get("close"))
-            if close_val > 0:
-                mid = close_val
-                used_close = True
-        except Exception:
-            pass
-    else:
-        try:
-            close_val = float(quote.get("close"))
-            if mid == close_val:
-                used_close = True
-        except Exception:
-            pass
+    mid, used_close = get_option_mid_price(quote)
 
     leg: OptionLeg = {
         "expiry": quote.get("expiry") or quote.get("expiration"),

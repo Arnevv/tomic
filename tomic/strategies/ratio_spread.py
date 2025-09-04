@@ -58,7 +58,7 @@ def generate(
                     rejected_reasons.append("geen call optie")
                     continue
                 delta = opt.get("delta")
-                mid = get_option_mid_price(opt)
+                mid, _ = get_option_mid_price(opt)
                 if delta is None or not (delta_range[0] <= float(delta) <= delta_range[1]):
                     rejected_reasons.append("delta buiten range")
                     continue
