@@ -23,10 +23,7 @@ POSITIVE_CREDIT_STRATS = set(RULES.strategy.acceptance.require_positive_credit_f
 
 def _bs_estimate_missing(legs: List[Dict[str, Any]]) -> None:
     """Fill missing model price and delta using Black-Scholes."""
-    from ..bs_calculator import black_scholes
-    from ..helpers.dateutils import dte_between_dates
-    from ..utils import today
-    from ..config import get as cfg_get
+    from ..helpers.bs_utils import estimate_price_delta
 
     for leg in legs:
         need_model = leg.get("model") in (None, 0, "0", "")
@@ -34,38 +31,13 @@ def _bs_estimate_missing(legs: List[Dict[str, Any]]) -> None:
         if not (need_model or need_delta):
             continue
         try:
-            opt_type = (leg.get("type") or leg.get("right") or "").upper()[0]
-            strike = float(leg.get("strike"))
-            spot = float(
-                leg.get("spot")
-                or leg.get("underlying_price")
-                or leg.get("underlying")
-            )
-            iv = float(leg.get("iv"))
-            exp = leg.get("expiry") or leg.get("expiration")
-            if not exp:
-                continue
-            dte = dte_between_dates(today(), exp)
-            if dte is None or dte <= 0 or iv <= 0 or spot <= 0:
-                continue
+            price, delta = estimate_price_delta(leg)
         except Exception:
             continue
-        try:
-            price = black_scholes(opt_type, spot, strike, dte, iv)
-            T = dte / 365.0
-            r = float(cfg_get("INTEREST_RATE", 0.05))
-            d1 = (
-                math.log(spot / strike)
-                + (r - 0.0 + 0.5 * iv * iv) * T
-            ) / (iv * math.sqrt(T))
-            nd1 = 0.5 * (1.0 + math.erf(d1 / math.sqrt(2.0)))
-            delta = nd1 if opt_type == "C" else nd1 - 1
-            if need_model:
-                leg["model"] = price
-            if need_delta:
-                leg["delta"] = delta
-        except Exception:
-            continue
+        if need_model:
+            leg["model"] = price
+        if need_delta:
+            leg["delta"] = delta
 
 
 def calculate_breakevens(
