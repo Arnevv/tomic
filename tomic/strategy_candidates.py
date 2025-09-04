@@ -1,24 +1,18 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from itertools import islice
 from typing import Any, Dict, List, Optional
 from datetime import date, datetime
 import math
-import pandas as pd
-
-from tomic.helpers.put_call_parity import fill_missing_mid_with_parity
 
 from .analysis.scoring import calculate_score, calculate_breakevens
 from .analysis.strategy import parse_date
 from .utils import (
     get_option_mid_price,
-    normalize_leg,
     normalize_right,
     get_leg_right,
-    prompt_user_for_price,
 )
-from .logutils import logger, log_combo_evaluation
+from .logutils import logger
 from .criteria import CriteriaConfig, RULES, load_criteria
 from .strategies import StrategyName
 from .config import get as cfg_get
