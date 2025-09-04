@@ -12,7 +12,7 @@ from ..metrics import (
 )
 from ..analysis.strategy import heuristic_risk_metrics
 from ..criteria import CriteriaConfig, RULES, load_criteria
-from ..utils import normalize_leg, get_leg_qty
+from ..utils import normalize_leg, get_leg_qty, get_leg_right
 from ..logutils import logger
 
 if TYPE_CHECKING:
@@ -68,8 +68,14 @@ def _bs_estimate_missing(legs: List[Dict[str, Any]]) -> None:
             continue
 
 
-def _breakevens(strategy: str, legs: List[Dict[str, Any]], credit: float) -> Optional[List[float]]:
-    """Return simple breakeven estimates for supported strategies."""
+def calculate_breakevens(
+    strategy: str | Any, legs: List[Dict[str, Any]], credit: float
+) -> Optional[List[float]]:
+    """Return simple breakeven estimates for supported strategies.
+
+    ``credit`` should be the net credit per contract. Breakevens are offset
+    using the per-share value (``credit / 100``).
+    """
     if not legs:
         return None
     strategy = getattr(strategy, "value", strategy)
@@ -84,14 +90,12 @@ def _breakevens(strategy: str, legs: List[Dict[str, Any]], credit: float) -> Opt
         short_put = [
             l
             for l in legs
-            if l.get("position") < 0
-            and normalize_leg(l).get("type") == "put"
+            if l.get("position") < 0 and get_leg_right(l) == "put"
         ]
         short_call = [
             l
             for l in legs
-            if l.get("position") < 0
-            and normalize_leg(l).get("type") == "call"
+            if l.get("position") < 0 and get_leg_right(l) == "call"
         ]
         if short_put and short_call:
             sp = float(short_put[0].get("strike"))
@@ -287,7 +291,7 @@ def calculate_score(
     if proposal.ev_pct is not None:
         score_val += proposal.ev_pct * ev_w
 
-    proposal.breakevens = _breakevens(strategy_name, legs, net_credit * 100)
+    proposal.breakevens = calculate_breakevens(strategy_name, legs, net_credit * 100)
 
     if (proposal.ev_pct is not None and proposal.ev_pct <= 0 and not proposal.profit_estimated) or score_val < 0:
         reasons.append("negatieve EV of score")
@@ -317,4 +321,4 @@ def passes_risk(proposal: "StrategyProposal" | Mapping[str, Any], min_rr: float)
     return rr >= min_rr
 
 
-__all__ = ["calculate_score", "passes_risk"]
+__all__ = ["calculate_score", "calculate_breakevens", "passes_risk"]

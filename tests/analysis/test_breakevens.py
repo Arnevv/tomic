@@ -7,7 +7,7 @@ def test_breakevens_short_put_spread():
         {"type": "P", "strike": 50, "position": -1},
         {"type": "P", "strike": 45, "position": 1},
     ]
-    assert sc._breakevens(StrategyName.SHORT_PUT_SPREAD, legs, 100) == [49.0]
+    assert sc.calculate_breakevens(StrategyName.SHORT_PUT_SPREAD, legs, 100) == [49.0]
 
 
 def test_breakevens_short_call_spread():
@@ -15,7 +15,7 @@ def test_breakevens_short_call_spread():
         {"type": "C", "strike": 50, "position": -1},
         {"type": "C", "strike": 55, "position": 1},
     ]
-    assert sc._breakevens(StrategyName.SHORT_CALL_SPREAD, legs, 150) == [51.5]
+    assert sc.calculate_breakevens(StrategyName.SHORT_CALL_SPREAD, legs, 150) == [51.5]
 
 
 def test_breakevens_iron_condor():
@@ -25,5 +25,5 @@ def test_breakevens_iron_condor():
         {"type": "C", "strike": 105, "position": -1},
         {"type": "C", "strike": 110, "position": 1},
     ]
-    assert sc._breakevens(StrategyName.IRON_CONDOR, legs, 200) == [93.0, 107.0]
+    assert sc.calculate_breakevens(StrategyName.IRON_CONDOR, legs, 200) == [93.0, 107.0]
 
