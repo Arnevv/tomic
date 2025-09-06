@@ -399,6 +399,237 @@ def generate_short_vertical(
     return proposals[:MAX_PROPOSALS], sorted(set(rejected_reasons))
 
 
+def generate_ratio_like(
+    symbol: str,
+    option_chain: List[Dict[str, Any]],
+    config: Dict[str, Any],
+    spot: float,
+    atr: float,
+    *,
+    strategy_name: "StrategyName",
+    option_type: str,
+    delta_range_key: str,
+    use_expiry_pairs: bool,
+    max_pairs: int | None = None,
+) -> tuple[List["StrategyProposal"], list[str]]:
+    """Generator shared by ratio-like strategies.
+
+    Parameters
+    ----------
+    strategy_name:
+        Name of the calling strategy.
+    option_type:
+        ``"C"`` for call based strategies or ``"P"`` for put based.
+    delta_range_key:
+        Configuration key locating the short leg delta range.
+    use_expiry_pairs:
+        When ``True`` the long leg is placed in a later expiry.
+    max_pairs:
+        Optional limit of expiry pairs to evaluate.
+    """
+
+    from ..helpers.analysis.scoring import build_leg
+    from ..analysis.scoring import calculate_score, passes_risk
+    from ..logutils import log_combo_evaluation
+    from ..strategy_candidates import (
+        StrategyProposal,
+        _build_strike_map,
+        _nearest_strike,
+        _find_option,
+        _validate_ratio,
+        select_expiry_pairs,
+    )
+
+    rules = config.get("strike_to_strategy_config", {})
+    use_atr = bool(rules.get("use_ATR"))
+    if spot is None:
+        raise ValueError("spot price is required")
+
+    option_chain = prepare_option_chain(option_chain, spot)
+    expiries = sorted({str(o.get("expiry")) for o in option_chain})
+    if not expiries:
+        return [], ["geen expiraties beschikbaar"]
+    strike_map = _build_strike_map(option_chain)
+
+    proposals: List[StrategyProposal] = []
+    rejected_reasons: list[str] = []
+    min_rr = float(config.get("min_risk_reward", 0.0))
+
+    delta_range = rules.get(delta_range_key) or []
+    target_delta = rules.get("long_leg_distance_points")
+    atr_mult = rules.get("long_leg_atr_multiple")
+    dte_range = rules.get("dte_range")
+    expiries = filter_expiries_by_dte(expiries, dte_range)
+
+    if use_expiry_pairs:
+        min_gap = int(rules.get("expiry_gap_min_days", 0))
+        pairs = select_expiry_pairs(expiries, min_gap)
+        if max_pairs is not None:
+            pairs = pairs[:max_pairs]
+    else:
+        pairs = [(exp, exp) for exp in expiries]
+
+    leg_right = "call" if option_type == "C" else "put"
+
+    if len(delta_range) == 2 and (target_delta is not None or atr_mult is not None):
+        for short_exp, long_exp in pairs:
+            short_opt = None
+            for opt in option_chain:
+                if (
+                    str(opt.get("expiry")) == short_exp
+                    and get_leg_right(opt) == leg_right
+                    and opt.get("delta") is not None
+                    and delta_range[0] <= float(opt.get("delta")) <= delta_range[1]
+                ):
+                    short_opt = opt
+                    break
+            if not short_opt:
+                reason = "short optie ontbreekt"
+                desc = (
+                    f"near {short_exp} far {long_exp}" if short_exp != long_exp else f"expiry {short_exp}"
+                )
+                log_combo_evaluation(
+                    strategy_name,
+                    desc,
+                    None,
+                    "reject",
+                    reason,
+                    legs=[{"expiry": short_exp}],
+                )
+                rejected_reasons.append(reason)
+                continue
+
+            width = compute_dynamic_width(
+                short_opt,
+                target_delta=target_delta,
+                atr_multiple=atr_mult,
+                atr=atr,
+                use_atr=use_atr,
+                option_chain=option_chain,
+                expiry=long_exp,
+                option_type=option_type,
+            )
+            if width is None:
+                reason = "breedte niet berekend"
+                desc = (
+                    f"near {short_exp} far {long_exp}"
+                    if short_exp != long_exp
+                    else f"expiry {short_exp}"
+                )
+                log_combo_evaluation(
+                    strategy_name,
+                    desc,
+                    None,
+                    "reject",
+                    reason,
+                    legs=[
+                        {
+                            "expiry": short_exp,
+                            "strike": short_opt.get("strike"),
+                            "type": option_type,
+                            "position": -1,
+                        }
+                    ],
+                )
+                rejected_reasons.append(reason)
+                continue
+
+            if option_type == "C":
+                long_strike_target = float(short_opt.get("strike")) + width
+            else:
+                long_strike_target = float(short_opt.get("strike")) - width
+            long_strike = _nearest_strike(
+                strike_map, long_exp, option_type, long_strike_target
+            )
+            desc_base = (
+                f"near {short_exp} far {long_exp} " if short_exp != long_exp else ""
+            )
+            desc = f"{desc_base}short {short_opt.get('strike')} long {long_strike.matched}"
+            legs_info = [
+                {
+                    "expiry": short_exp,
+                    "strike": short_opt.get("strike"),
+                    "type": option_type,
+                    "position": -1,
+                },
+                {
+                    "expiry": long_exp,
+                    "strike": long_strike.matched,
+                    "type": option_type,
+                    "position": 2,
+                },
+            ]
+            if not long_strike.matched:
+                reason = "long strike niet gevonden"
+                log_combo_evaluation(
+                    strategy_name, desc, None, "reject", reason, legs=legs_info
+                )
+                rejected_reasons.append(reason)
+                continue
+
+            long_opt = _find_option(option_chain, long_exp, long_strike.matched, option_type)
+            if not long_opt:
+                reason = "long optie ontbreekt"
+                log_combo_evaluation(
+                    strategy_name, desc, None, "reject", reason, legs=legs_info
+                )
+                rejected_reasons.append(reason)
+                continue
+
+            legs = [
+                build_leg({**short_opt, "spot": spot}, "short"),
+                build_leg({**long_opt, "spot": spot}, "long"),
+            ]
+            legs[1]["position"] = 2
+            proposal = StrategyProposal(legs=legs)
+            score, reasons = calculate_score(strategy_name, proposal, spot)
+            if score is not None and passes_risk(proposal, min_rr):
+                if _validate_ratio(strategy_name.value, legs, proposal.credit or 0.0):
+                    proposals.append(proposal)
+                    log_combo_evaluation(
+                        strategy_name,
+                        desc,
+                        proposal.__dict__,
+                        "pass",
+                        "criteria",
+                        legs=legs,
+                    )
+                else:
+                    reason = "verkeerde ratio"
+                    log_combo_evaluation(
+                        strategy_name,
+                        desc,
+                        proposal.__dict__,
+                        "reject",
+                        reason,
+                        legs=legs,
+                    )
+                    rejected_reasons.append(reason)
+            else:
+                reason = "; ".join(reasons) if reasons else "risk/reward onvoldoende"
+                log_combo_evaluation(
+                    strategy_name,
+                    desc,
+                    proposal.__dict__,
+                    "reject",
+                    reason,
+                    legs=legs,
+                )
+                if reasons:
+                    rejected_reasons.extend(reasons)
+                else:
+                    rejected_reasons.append("risk/reward onvoldoende")
+            if reached_limit(proposals):
+                break
+    else:
+        rejected_reasons.append("ongeldige delta range")
+
+    proposals.sort(key=lambda p: p.score or 0, reverse=True)
+    if not proposals:
+        return [], sorted(set(rejected_reasons))
+    return proposals[:MAX_PROPOSALS], sorted(set(rejected_reasons))
+
+
 __all__ = [
     "MAX_PROPOSALS",
     "reached_limit",
@@ -410,5 +641,6 @@ __all__ = [
     "prepare_option_chain",
     "filter_expiries_by_dte",
     "generate_short_vertical",
+    "generate_ratio_like",
 ]
 
