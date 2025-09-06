@@ -3,13 +3,32 @@ from datetime import datetime, date
 from pathlib import Path
 import math
 import re
-from typing import Callable
+from typing import Any, Callable, Mapping, Literal, Optional, TypedDict
 
 from tomic.config import get as cfg_get
 from tomic.journal.utils import load_json
 from tomic.logutils import logger
 from tomic.helpers.csv_utils import parse_euro_float
 
+
+class OptionLeg(TypedDict, total=False):
+    """Normalized representation of an option leg used for strategy scoring."""
+
+    expiry: Optional[str]
+    type: Optional[str]
+    strike: Optional[float]
+    spot: Optional[float]
+    iv: Optional[float]
+    delta: Optional[float]
+    bid: Optional[float]
+    ask: Optional[float]
+    mid: Optional[float]
+    model: Optional[float]
+    edge: Optional[float]
+    volume: Optional[float]
+    open_interest: Optional[float]
+    position: int
+    mid_fallback: Optional[str]
 
 def today() -> date:
     """Return ``TOMIC_TODAY`` or today's date."""
@@ -257,4 +276,37 @@ def normalize_leg(leg: dict) -> dict:
             leg[canonical] = val
             del leg[key]
     return leg
+
+
+def build_leg(quote: Mapping[str, Any], side: Literal["long", "short"]) -> OptionLeg:
+    """Construct a normalized leg dictionary from an option quote.
+
+    ``quote`` may contain various option fields with differing naming
+    conventions. The quote is first normalized via :func:`normalize_leg` after
+    which only missing metrics (``mid``, ``model``, ``delta`` and ``edge``) are
+    populated.
+    """
+
+    leg = normalize_leg(dict(quote))
+    leg["position"] = 1 if side == "long" else -1
+
+    if leg.get("mid") in (None, "", 0, "0"):
+        mid, used_close = get_option_mid_price(leg)
+        leg["mid"] = mid
+        if leg.get("mid_from_parity"):
+            leg["mid_fallback"] = "parity"
+        elif used_close:
+            leg["mid_fallback"] = "close"
+
+    from .helpers.bs_utils import populate_model_delta
+
+    populate_model_delta(leg)
+
+    if leg.get("edge") in (None, "", 0, "0"):
+        mid = leg.get("mid")
+        model = leg.get("model")
+        if mid is not None and model is not None:
+            leg["edge"] = model - mid
+
+    return leg  # type: ignore[return-value]
 

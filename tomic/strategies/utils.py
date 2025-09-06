@@ -219,7 +219,7 @@ def generate_short_vertical(
 ) -> tuple[List["StrategyProposal"], list[str]]:
     """Shared generator for short vertical call and put spreads."""
 
-    from ..helpers.analysis.scoring import build_leg
+    from ..utils import build_leg
     from ..analysis.scoring import calculate_score, passes_risk
     from ..logutils import log_combo_evaluation
     from ..utils import get_leg_right
@@ -428,7 +428,7 @@ def generate_wing_spread(
     """
 
     from itertools import islice
-    from ..helpers.analysis.scoring import build_leg
+    from ..utils import build_leg
     from ..analysis.scoring import calculate_score as _calculate_score, passes_risk
     from ..logutils import log_combo_evaluation
     from ..strategy_candidates import (
@@ -744,7 +744,7 @@ def generate_ratio_like(
         Optional limit of expiry pairs to evaluate.
     """
 
-    from ..helpers.analysis.scoring import build_leg
+    from ..utils import build_leg
     from ..analysis.scoring import calculate_score, passes_risk
     from ..logutils import log_combo_evaluation
     from ..strategy_candidates import (
