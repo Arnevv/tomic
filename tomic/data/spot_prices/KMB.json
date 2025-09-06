@@ -3799,5 +3799,12 @@
     "close": 129.17,
     "volume": 2049242.0,
     "atr": null
+  },
+  {
+    "symbol": "KMB",
+    "date": "2025-09-05",
+    "close": 129.89,
+    "volume": 2186986.0,
+    "atr": null
   }
 ]
