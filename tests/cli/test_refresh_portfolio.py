@@ -3,6 +3,7 @@ import sys
 from types import SimpleNamespace
 
 from tomic.cli import strategy_dashboard as dash
+from tomic.cli import portfolio_utils
 
 
 def test_refresh_portfolio_updates_meta(tmp_path, monkeypatch):
@@ -20,7 +21,7 @@ def test_refresh_portfolio_updates_meta(tmp_path, monkeypatch):
     import tomic.api as api
     monkeypatch.setattr(api, "getaccountinfo", SimpleNamespace(main=fake_main), raising=False)
     monkeypatch.setattr(
-        dash,
+        portfolio_utils,
         "cfg_get",
         lambda key, default=None: (
             str(meta) if key == "PORTFOLIO_META_FILE" else default
