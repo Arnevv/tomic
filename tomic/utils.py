@@ -20,11 +20,12 @@ def today() -> date:
     return date.today()
 
 
-from tomic.helpers.dateutils import parse_date
 
 
 def filter_future_expiries(expirations: list[str]) -> list[str]:
     """Return expiries after :func:`today` sorted chronologically."""
+
+    from tomic.helpers.dateutils import parse_date
 
     future_dates: list[date] = []
     today_date = today()
@@ -51,6 +52,8 @@ def extract_expiries(
     predicate: Callable[[date], bool],
 ) -> list[str]:
     """Return the next ``count`` expiries matching ``predicate``."""
+
+    from tomic.helpers.dateutils import parse_date
 
     selected: list[str] = []
     for exp in filter_future_expiries(expirations):
