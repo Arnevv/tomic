@@ -4,7 +4,7 @@ from typing import Any, Dict, List
 
 from tomic.analysis.strategy import group_strategies
 from tomic.config import get as cfg_get
-from tomic.journal.utils import load_json
+from .portfolio_utils import load_positions
 from .common import prompt
 
 
@@ -53,11 +53,6 @@ def simulate_portfolio_response(
         "rom_before": rom_before,
         "rom_after": rom_after,
     }
-
-
-def load_positions(path: str) -> List[Dict[str, Any]]:
-    """Load positions from ``path``."""
-    return load_json(path)
 
 
 def main(argv: List[str] | None = None) -> None:

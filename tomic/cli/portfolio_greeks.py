@@ -5,7 +5,7 @@ from typing import Any, Dict, List
 
 from tomic.analysis.greeks import compute_greeks_by_symbol
 from tomic.config import get as cfg_get
-from tomic.journal.utils import load_json
+from .portfolio_utils import load_positions
 from tomic.logutils import setup_logging
 
 
@@ -35,12 +35,6 @@ BENCHMARK_TABLE = [
         "Te laag kan wijzen op weinig responsiviteit bij beweging",
     ),
 ]
-
-
-def load_positions(path: str) -> List[Dict[str, Any]]:
-    """Load positions from ``path``."""
-    data = load_json(path)
-    return [p for p in data if p.get("position")]
 
 
 def format_val(val: float) -> str:

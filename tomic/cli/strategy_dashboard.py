@@ -1,10 +1,7 @@
 """Portfolio dashboard that groups legs into strategies."""
 
-import json
-import os
 import sys
 from collections import defaultdict
-from datetime import datetime
 from pathlib import Path
 
 from tomic.config import get as cfg_get
@@ -13,30 +10,18 @@ from tomic.logutils import setup_logging, logger
 from tomic.helpers.account import _fmt_money, print_account_overview
 from tomic.analysis.strategy import group_strategies
 from tomic.analysis.metrics import compute_term_structure, render_kpi_box
-from tomic.journal.utils import load_journal, load_json, save_json
+from tomic.journal.utils import load_journal, save_json
 from tomic.models import ExitRules
 from .strategy_data import ALERT_PROFILE, get_strategy_description
 from tomic.analysis.greeks import compute_portfolio_greeks
+from .portfolio_utils import (
+    load_positions,
+    load_account_info,
+    refresh_portfolio_data,
+    print_account_summary,
+)
 
 setup_logging()
-
-
-def refresh_portfolio_data() -> None:
-    """Fetch latest portfolio data via the IB API and update timestamp."""
-    from tomic.api import getaccountinfo
-
-    logger.info("🔄 Vernieuw portfolio data via getaccountinfo")
-    try:
-        getaccountinfo.main()
-    except Exception as exc:  # pragma: no cover - network/IB errors
-        logger.error(f"❌ Fout bij ophalen portfolio: {exc}")
-        return
-
-    meta_path = Path(cfg_get("PORTFOLIO_META_FILE", "portfolio_meta.json"))
-    try:
-        meta_path.write_text(json.dumps({"last_update": datetime.now().isoformat()}))
-    except OSError as exc:  # pragma: no cover - I/O errors
-        logger.error(f"⚠️ Kan meta file niet schrijven: {exc}")
 
 
 def maybe_refresh_portfolio(refresh: bool) -> None:
@@ -46,46 +31,6 @@ def maybe_refresh_portfolio(refresh: bool) -> None:
     account_path = Path(cfg_get("ACCOUNT_INFO_FILE", "account_info.json"))
     if refresh or not (positions_path.exists() and account_path.exists()):
         refresh_portfolio_data()
-
-
-def load_positions(path: str):
-    """Load positions JSON file and return list of open positions."""
-    data = load_json(path)
-    return [p for p in data if p.get("position")]
-
-
-def load_account_info(path: str) -> dict:
-    """Load account info JSON file and return as dict."""
-    if not os.path.exists(path):
-        return {}
-    try:
-        return load_json(path)
-    except json.JSONDecodeError as e:
-        print(f"⚠️ Kan accountinfo niet laden uit {path}: {e}")
-        return {}
-
-
-def print_account_summary(values: dict, portfolio: dict) -> None:
-    """Print concise one-line account overview with icons."""
-    net_liq = values.get("NetLiquidation")
-    margin = values.get("InitMarginReq")
-    used_pct = None
-    try:
-        used_pct = (float(margin) / float(net_liq)) * 100
-    except (TypeError, ValueError, ZeroDivisionError):
-        used_pct = None
-    delta = portfolio.get("Delta")
-    vega = portfolio.get("Vega")
-    parts = [
-        f"💰 Netliq: {_fmt_money(net_liq)}",
-        f"🏦 Margin used: {_fmt_money(margin)}",
-    ]
-    parts.append(f"📉 Δ: {delta:+.2f}" if delta is not None else "📉 Δ: n.v.t.")
-    parts.append(f"📈 Vega: {vega:+.0f}" if vega is not None else "📈 Vega: n.v.t.")
-    if used_pct is not None:
-        parts.append(f"📦 Used: {used_pct:.0f}%")
-    print("=== ACCOUNT ===")
-    print(" | ".join(parts))
 
 
 def extract_exit_rules(path: str):
