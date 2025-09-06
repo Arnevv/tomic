@@ -23,21 +23,10 @@ POSITIVE_CREDIT_STRATS = set(RULES.strategy.acceptance.require_positive_credit_f
 
 def _bs_estimate_missing(legs: List[Dict[str, Any]]) -> None:
     """Fill missing model price and delta using Black-Scholes."""
-    from ..helpers.bs_utils import estimate_price_delta
+    from ..helpers.bs_utils import populate_model_delta
 
     for leg in legs:
-        need_model = leg.get("model") in (None, 0, "0", "")
-        need_delta = leg.get("delta") in (None, 0, "0", "")
-        if not (need_model or need_delta):
-            continue
-        try:
-            price, delta = estimate_price_delta(leg)
-        except Exception:
-            continue
-        if need_model:
-            leg["model"] = price
-        if need_delta:
-            leg["delta"] = delta
+        populate_model_delta(leg)
 
 
 def calculate_breakevens(

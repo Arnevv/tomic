@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Any, Mapping, Literal, Optional, TypedDict
 
-from tomic.helpers.bs_utils import estimate_price_delta
+from tomic.helpers.bs_utils import populate_model_delta
 from tomic.utils import get_option_mid_price, normalize_leg
 
 
@@ -69,14 +69,7 @@ def build_leg(quote: Mapping[str, Any], side: Literal["long", "short"]) -> Optio
         leg["mid_fallback"] = "close"
 
     # Estimate model price and delta when possible
-    try:
-        price, delta = estimate_price_delta(leg)
-        if leg.get("model") in (None, 0, "0", ""):
-            leg["model"] = price
-        if leg.get("delta") in (None, 0, "0", ""):
-            leg["delta"] = delta
-    except Exception:
-        pass
+    populate_model_delta(leg)
 
     if leg.get("edge") is None and leg.get("mid") is not None and leg.get("model") is not None:
         leg["edge"] = leg["model"] - leg["mid"]

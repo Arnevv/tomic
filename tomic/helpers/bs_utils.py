@@ -48,4 +48,37 @@ def estimate_price_delta(leg: dict) -> tuple[float, float]:
     return price, delta
 
 
-__all__ = ["estimate_price_delta"]
+def populate_model_delta(leg: dict) -> dict:
+    """Populate missing ``model`` price and ``delta`` using Black-Scholes.
+
+    This mutates ``leg`` in-place, estimating a theoretical price and delta
+    via :func:`estimate_price_delta` when either field is missing or has a
+    false-y value (``0``, ``"0"`` or ``""``).
+
+    Parameters
+    ----------
+    leg: dict
+        Option leg information containing required fields for Black-Scholes.
+
+    Returns
+    -------
+    dict
+        The updated ``leg`` dictionary.
+    """
+
+    need_model = leg.get("model") in (None, 0, "0", "")
+    need_delta = leg.get("delta") in (None, 0, "0", "")
+    if not (need_model or need_delta):
+        return leg
+    try:
+        price, delta = estimate_price_delta(leg)
+    except Exception:
+        return leg
+    if need_model:
+        leg["model"] = price
+    if need_delta:
+        leg["delta"] = delta
+    return leg
+
+
+__all__ = ["estimate_price_delta", "populate_model_delta"]
