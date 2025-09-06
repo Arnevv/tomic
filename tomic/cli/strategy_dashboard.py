@@ -11,8 +11,12 @@ from tomic.helpers.account import _fmt_money, print_account_overview
 from tomic.analysis.strategy import group_strategies
 from tomic.analysis.metrics import compute_term_structure, render_kpi_box
 from tomic.journal.utils import load_journal, save_json
-from tomic.models import ExitRules
-from .strategy_data import ALERT_PROFILE, get_strategy_description
+from tomic.analysis.exit_rules import (
+    extract_exit_rules,
+    generate_exit_alerts,
+    alert_severity,
+)
+from .strategy_data import get_strategy_description
 from tomic.analysis.greeks import compute_portfolio_greeks
 from .portfolio_utils import (
     load_positions,
@@ -31,30 +35,6 @@ def maybe_refresh_portfolio(refresh: bool) -> None:
     account_path = Path(cfg_get("ACCOUNT_INFO_FILE", "account_info.json"))
     if refresh or not (positions_path.exists() and account_path.exists()):
         refresh_portfolio_data()
-
-
-def extract_exit_rules(path: str):
-    """Return exit rule thresholds per trade from ``journal.json``.
-
-    The journal records are expected to contain an ``ExitRules`` object with
-    structured exit criteria.
-    """
-
-    journal = load_journal(path)
-    rules = {}
-    for trade in journal:
-        sym = trade.get("Symbool")
-        expiry = trade.get("Expiry")
-        raw_rules = trade.get("ExitRules")
-        if not sym or not expiry or not isinstance(raw_rules, dict):
-            continue
-        er = ExitRules.from_dict(raw_rules)
-        rule = {"premium_entry": trade.get("Premium")}
-        rule.update(er.to_dict())
-        rules[(sym, expiry)] = rule
-    return rules
-
-
 def sort_legs(legs):
     """Return legs sorted by option type and position."""
     type_order = {"P": 0, "C": 1}
@@ -89,94 +69,6 @@ SYMBOL_MAP = {
     ("C", -1): "🟡",  # short call
     ("C", 1): "🟢",  # long call
 }
-
-# Severity scoring based on emoji markers
-SEVERITY_MAP = {
-    "🚨": 3,
-    "⚠️": 2,
-    "🔻": 2,
-    "⏳": 2,
-    "🟡": 1,
-    "✅": 1,
-    "🟢": 1,
-}
-
-
-def alert_category(alert: str) -> str:
-    """Return rough category tag for an alert string."""
-    lower = alert.lower()
-    if "delta" in lower:
-        return "delta"
-    if "vega" in lower:
-        return "vega"
-    if "theta" in lower:
-        return "theta"
-    if "iv" in lower:
-        return "iv"
-    if "skew" in lower:
-        return "skew"
-    if "rom" in lower:
-        return "rom"
-    if "pnl" in lower or "winst" in lower or "verlies" in lower:
-        return "pnl"
-    if "dagen" in lower or "exp" in lower:
-        return "dte"
-    return "other"
-
-
-def alert_severity(alert: str) -> int:
-    """Return numeric severity for sorting."""
-    for key, val in SEVERITY_MAP.items():
-        if key in alert:
-            return val
-    return 0
-
-
-def generate_exit_alerts(strategy: dict, rule: dict | None) -> None:
-    """Enrich ``strategy['alerts']`` with entry- and exit-alerts."""
-    alerts = list(strategy.get("entry_alerts", [])) + list(
-        strategy.get("alerts", [])
-    )
-    if rule:
-        spot = strategy.get("spot")
-        pnl_val = strategy.get("unrealizedPnL")
-        if spot is not None:
-            if rule.get("spot_below") is not None and spot < rule["spot_below"]:
-                alerts.append(
-                    f"🚨 Spot {spot:.2f} onder exitniveau {rule['spot_below']}"
-                )
-            if rule.get("spot_above") is not None and spot > rule["spot_above"]:
-                alerts.append(
-                    f"🚨 Spot {spot:.2f} boven exitniveau {rule['spot_above']}"
-                )
-        if (
-            pnl_val is not None
-            and rule.get("target_profit_pct") is not None
-            and rule.get("premium_entry")
-        ):
-            profit_pct = (pnl_val / (rule["premium_entry"] * 100)) * 100
-            if profit_pct >= rule["target_profit_pct"]:
-                alerts.append(
-                    f"🚨 PnL {profit_pct:.1f}% >= target {rule['target_profit_pct']:.1f}%"
-                )
-        dte = strategy.get("days_to_expiry")
-        dte_limit = rule.get("days_before_expiry")
-        if dte_limit and dte is not None and dte <= dte_limit:
-            alerts.append(
-                f"⚠️ {dte} DTE ≤ exitdrempel {dte_limit}"
-            )
-        dit = strategy.get("days_in_trade")
-        dit_limit = rule.get("max_days_in_trade")
-        if dit_limit and dit is not None and dit >= dit_limit:
-            alerts.append(
-                f"⚠️ {dit} dagen in trade ≥ max {dit_limit}"
-            )
-    profile = ALERT_PROFILE.get(strategy.get("type"))
-    if profile is not None:
-        alerts = [a for a in alerts if alert_category(a) in profile]
-    alerts = list(dict.fromkeys(alerts))
-    alerts.sort(key=alert_severity, reverse=True)
-    strategy["alerts"] = alerts
 
 
 def print_strategy_full(strategy, *, details: bool = False):

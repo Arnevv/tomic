@@ -12,7 +12,7 @@ from typing import Iterable, List
 from tabulate import tabulate
 
 from tomic.analysis.strategy import group_strategies
-from tomic.cli.strategy_dashboard import extract_exit_rules, generate_exit_alerts
+from tomic.analysis.exit_rules import extract_exit_rules, generate_exit_alerts
 from tomic.config import get as cfg_get
 from tomic.journal.utils import load_json
 
