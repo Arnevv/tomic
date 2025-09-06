@@ -7,7 +7,7 @@ from .utils import (
     MAX_PROPOSALS,
     reached_limit,
 )
-from ..helpers.analysis.scoring import build_leg
+from ..utils import build_leg
 from ..analysis.scoring import calculate_score, passes_risk
 from ..logutils import log_combo_evaluation
 from ..utils import get_leg_right
