@@ -10,7 +10,7 @@ from typing import Any, Dict, Iterable, List, Optional
 from tomic.analysis.greeks import compute_greeks_by_symbol
 from tomic.analysis.strategy import heuristic_risk_metrics
 from tomic.helpers.csv_utils import parse_euro_float
-from tomic.helpers.dateutils import dte_between_dates
+from tomic.helpers.dateutils import filter_by_dte
 from tomic.journal.utils import load_json
 from tomic.logutils import logger
 from tomic.metrics import calculate_margin, estimate_scenario_profit
@@ -174,14 +174,7 @@ def _filter_chain_by_dte(chain: List[Leg], strategy: str) -> List[Leg]:
     dte_range = rules.get("dte_range")
     if not dte_range:
         return chain
-    min_dte, max_dte = dte_range
-    today_date = today()
-    filtered = [
-        leg
-        for leg in chain
-        if (d := dte_between_dates(today_date, leg.expiry)) is not None
-        and min_dte <= d <= max_dte
-    ]
+    filtered = filter_by_dte(chain, lambda leg: leg.expiry, dte_range)
     return filtered or chain
 
 

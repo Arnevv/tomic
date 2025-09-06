@@ -1,6 +1,11 @@
 from pathlib import Path
 import math
-from tomic.analysis.proposal_engine import load_chain_csv, suggest_strategies
+from tomic.analysis.proposal_engine import (
+    Leg,
+    load_chain_csv,
+    suggest_strategies,
+)
+from tomic.helpers.dateutils import filter_by_dte
 
 
 def make_chain_csv(path: Path) -> None:
@@ -134,3 +139,14 @@ def test_calendar_profit_estimation(tmp_path: Path) -> None:
     assert cal["scenario_info"]["preferred_move"] == "flat"
     assert isinstance(cal["max_profit"], float)
     assert cal["ROM"] is not None
+
+
+def test_filter_by_dte_with_leg(monkeypatch):
+    monkeypatch.setenv("TOMIC_TODAY", "2024-06-01")
+    legs = [
+        Leg(expiry="20240614", type="call", strike=100, delta=0, gamma=0, vega=0, theta=0),
+        Leg(expiry="20240621", type="put", strike=90, delta=0, gamma=0, vega=0, theta=0),
+        Leg(expiry="20240719", type="call", strike=110, delta=0, gamma=0, vega=0, theta=0),
+    ]
+    res = filter_by_dte(legs, lambda l: l.expiry, (10, 20))
+    assert {l.expiry for l in res} == {"20240614", "20240621"}
