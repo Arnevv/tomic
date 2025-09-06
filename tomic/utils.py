@@ -11,60 +11,6 @@ from tomic.logutils import logger
 from tomic.helpers.csv_utils import parse_euro_float
 
 
-def filter_future_expiries(expirations: list[str]) -> list[str]:
-    """Return expiries after :func:`today` sorted chronologically."""
-
-    future_dates: list[date] = []
-    today_date = today()
-    for exp in expirations:
-        try:
-            dt = datetime.strptime(exp, "%Y%m%d").date()
-        except Exception:
-            continue
-        if dt > today_date:
-            future_dates.append(dt)
-
-    future_dates.sort()
-    return [d.strftime("%Y%m%d") for d in future_dates]
-
-
-def _is_third_friday(dt: datetime) -> bool:
-    return dt.weekday() == 4 and 15 <= dt.day <= 21
-
-
-def _is_weekly(dt: datetime) -> bool:
-    return dt.weekday() == 4 and not _is_third_friday(dt)
-
-
-def extract_expiries(
-    expirations: list[str],
-    count: int,
-    predicate: Callable[[datetime], bool],
-) -> list[str]:
-    """Return the next ``count`` expiries matching ``predicate``."""
-
-    selected: list[str] = []
-    for exp in filter_future_expiries(expirations):
-        dt = datetime.strptime(exp, "%Y%m%d")
-        if predicate(dt):
-            selected.append(exp)
-            if len(selected) == count:
-                break
-    return selected
-
-
-def extract_weeklies(expirations: list[str], count: int = 4) -> list[str]:
-    """Return the next ``count`` weekly expiries from ``expirations``."""
-
-    return extract_expiries(expirations, count, _is_weekly)
-
-
-def extract_monthlies(expirations: list[str], count: int = 3) -> list[str]:
-    """Return the next ``count`` third-Friday expiries from ``expirations``."""
-
-    return extract_expiries(expirations, count, _is_third_friday)
-
-
 def today() -> date:
     """Return ``TOMIC_TODAY`` or today's date."""
 
@@ -72,6 +18,48 @@ def today() -> date:
     if env:
         return datetime.strptime(env, "%Y-%m-%d").date()
     return date.today()
+
+
+from tomic.helpers.dateutils import parse_date
+
+
+def filter_future_expiries(expirations: list[str]) -> list[str]:
+    """Return expiries after :func:`today` sorted chronologically."""
+
+    future_dates: list[date] = []
+    today_date = today()
+    for exp in expirations:
+        dt = parse_date(exp)
+        if dt and dt > today_date:
+            future_dates.append(dt)
+
+    future_dates.sort()
+    return [d.strftime("%Y%m%d") for d in future_dates]
+
+
+def _is_third_friday(dt: date) -> bool:
+    return dt.weekday() == 4 and 15 <= dt.day <= 21
+
+
+def _is_weekly(dt: date) -> bool:
+    return dt.weekday() == 4 and not _is_third_friday(dt)
+
+
+def extract_expiries(
+    expirations: list[str],
+    count: int,
+    predicate: Callable[[date], bool],
+) -> list[str]:
+    """Return the next ``count`` expiries matching ``predicate``."""
+
+    selected: list[str] = []
+    for exp in filter_future_expiries(expirations):
+        dt = parse_date(exp)
+        if dt and predicate(dt):
+            selected.append(exp)
+            if len(selected) == count:
+                break
+    return selected
 
 
 def select_near_atm(
