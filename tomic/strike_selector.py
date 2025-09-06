@@ -6,7 +6,7 @@ import os
 import csv
 
 from .utils import today
-from .helpers.dateutils import dte_between_dates
+from .helpers.dateutils import filter_by_dte
 from .logutils import logger
 from .criteria import CriteriaConfig, load_criteria
 
@@ -80,55 +80,13 @@ def load_filter_config(criteria: CriteriaConfig | None = None) -> FilterConfig:
         max_vega=_as_float(s.max_vega),
         min_theta=_as_float(s.min_theta),
     )
-
-
-def _dte(expiry: str) -> Optional[int]:
-    """Return days to expiry for ``expiry``."""
-    return dte_between_dates(today(), expiry)
-
-
 def filter_by_expiry(
     options: List[Dict[str, Any]],
     dte_range: Tuple[int, int],
 ) -> List[Dict[str, Any]]:
-    """Return ``options`` for all expiries whose DTE lies within ``dte_range``.
+    """Return ``options`` filtered by DTE within ``dte_range``."""
 
-    All options belonging to an expiry with a days-to-expiry (DTE) between
-    ``min_dte`` and ``max_dte`` (inclusive) are returned. Expiries outside the
-    range are ignored.
-    """
-
-    min_dte, max_dte = dte_range
-
-    exp_map: Dict[str, List[Dict[str, Any]]] = {}
-    for opt in options:
-        exp = opt.get("expiry")
-        if exp:
-            exp_map.setdefault(str(exp), []).append(opt)
-
-    included: List[tuple[str, int]] = []
-    for exp, opts in exp_map.items():
-        dte = _dte(exp)
-        if dte is not None and min_dte <= dte <= max_dte:
-            included.append((exp, dte))
-
-    if not included:
-        logger.info(
-            f"filter_by_expiry: no expiries within range {min_dte}-{max_dte} DTE"
-        )
-        return []
-
-    included.sort(key=lambda t: t[1])
-
-    selected: List[Dict[str, Any]] = []
-    for exp, dte in included:
-        logger.info(f"Including expiry {exp} (DTE {dte})")
-        selected.extend(exp_map[exp])
-
-    logger.info(
-        f"filter_by_expiry selected {len(selected)} options across {len(included)} expiries"
-    )
-    return selected
+    return filter_by_dte(options, lambda opt: opt.get("expiry"), dte_range)
 
 
 class StrikeSelector:

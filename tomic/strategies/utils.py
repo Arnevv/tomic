@@ -7,11 +7,10 @@ from typing import Sequence, Any, Dict, List, Mapping
 
 import pandas as pd
 from tomic.helpers.put_call_parity import fill_missing_mid_with_parity
-from tomic.helpers.dateutils import dte_between_dates
+from tomic.helpers.dateutils import dte_between_dates, filter_by_dte
 
 from ..utils import normalize_right, get_leg_right, today
 from ..logutils import logger
-from ..strike_selector import _dte
 
 
 MAX_PROPOSALS = 5
@@ -204,12 +203,7 @@ def filter_expiries_by_dte(
 
     if not dte_range:
         return list(expiries)
-    filtered: List[str] = []
-    for exp in expiries:
-        dte = _dte(exp)
-        if dte is not None and dte_range[0] <= dte <= dte_range[1]:
-            filtered.append(exp)
-    return filtered
+    return filter_by_dte(expiries, lambda exp: exp, (dte_range[0], dte_range[1]))
 
 
 def generate_short_vertical(

@@ -2,6 +2,7 @@ from importlib import reload
 
 from tomic import strike_selector as ss
 from tomic.criteria import StrikeCriteria, load_criteria
+from tomic.helpers.dateutils import filter_by_dte
 
 
 def test_selector_filters(monkeypatch):
@@ -99,3 +100,15 @@ def test_filter_by_expiry_none(monkeypatch):
     ]
     res = selector.select(opts, dte_range=(20, 40))
     assert res == []
+
+
+def test_filter_by_dte_helper(monkeypatch):
+    monkeypatch.setenv("TOMIC_TODAY", "2024-06-01")
+    opts = [
+        {"expiry": "20240614"},
+        {"expiry": "20240621"},
+        {"expiry": "20240719"},
+    ]
+    res = filter_by_dte(opts, lambda o: o["expiry"], (10, 20))
+    expiries = {o["expiry"] for o in res}
+    assert expiries == {"20240614", "20240621"}
