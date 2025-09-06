@@ -27,7 +27,9 @@ def test_extract_weeklies(monkeypatch):
     importlib.reload(utils)
 
     expiries = ["20240531", "20240607", "20240614", "20240621", "20240628"]
-    assert utils.extract_weeklies(expiries, count=2) == ["20240607", "20240614"]
+    assert utils.extract_expiries(
+        expiries, count=2, predicate=utils._is_weekly
+    ) == ["20240607", "20240614"]
 
 
 def test_extract_monthlies(monkeypatch):
@@ -35,7 +37,9 @@ def test_extract_monthlies(monkeypatch):
     importlib.reload(utils)
 
     expiries = ["20240607", "20240621", "20240719", "20240816"]
-    assert utils.extract_monthlies(expiries, count=2) == ["20240621", "20240719"]
+    assert utils.extract_expiries(
+        expiries, count=2, predicate=utils._is_third_friday
+    ) == ["20240621", "20240719"]
 
 
 def test_get_option_mid_price_bid_ask():

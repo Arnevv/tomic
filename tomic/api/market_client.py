@@ -32,7 +32,7 @@ from tomic.config import get as cfg_get
 from .client_registry import ACTIVE_CLIENT_IDS
 from tomic.logutils import log_result, logger
 from tomic.models import OptionContract
-from tomic.utils import extract_monthlies, extract_weeklies, today
+from tomic.utils import extract_expiries, _is_weekly, _is_third_friday, today
 from .historical_iv import fetch_historical_option_data
 
 try:  # pragma: no cover - optional dependency during tests
@@ -900,8 +900,12 @@ class OptionChainClient(MarketClient):
 
         reg_count = int(cfg_get("AMOUNT_REGULARS", 3))
         week_count = int(cfg_get("AMOUNT_WEEKLIES", 4))
-        monthlies = extract_monthlies(exp_list, count=reg_count)
-        weeklies = extract_weeklies(exp_list, count=week_count)
+        monthlies = extract_expiries(
+            exp_list, count=reg_count, predicate=_is_third_friday
+        )
+        weeklies = extract_expiries(
+            exp_list, count=week_count, predicate=_is_weekly
+        )
 
         self.monthlies = monthlies
         self.weeklies = weeklies
