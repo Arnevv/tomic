@@ -73,25 +73,26 @@ def calculate_breakevens(
 
 def validate_leg_metrics(strategy_name: str, legs: List[Dict[str, Any]]) -> Tuple[bool, List[str]]:
     """Ensure required leg metrics are present."""
-    missing_fields = False
+    missing_fields: set[str] = set()
     for leg in legs:
         missing: List[str] = []
-        if not leg.get("mid"):
+        if leg.get("mid") is None:
             missing.append("mid")
-        if not leg.get("model"):
+        if leg.get("model") is None:
             missing.append("model")
-        if not leg.get("delta"):
+        if leg.get("delta") is None:
             missing.append("delta")
         if missing:
             logger.info(
                 f"[leg-missing] {leg['type']} {leg['strike']} {leg['expiry']}: {', '.join(missing)}"
             )
-            missing_fields = True
+            missing_fields.update(missing)
     if missing_fields:
         logger.info(
             f"[❌ voorstel afgewezen] {strategy_name} — reason: ontbrekende metrics (details in debug)"
         )
-        return False, ["Edge, model of delta ontbreekt — metrics kunnen niet worden berekend"]
+        missing_str = ", ".join(sorted(missing_fields))
+        return False, [f"{missing_str} ontbreken — metrics kunnen niet worden berekend"]
     return True, []
 
 
