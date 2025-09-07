@@ -186,7 +186,7 @@ def compute_dynamic_width(
 def prepare_option_chain(option_chain: List[Dict[str, Any]], spot: float) -> List[Dict[str, Any]]:
     """Return ``option_chain`` as list of dicts with parity-filled mids."""
 
-    if hasattr(pd, "DataFrame") and not isinstance(pd.DataFrame, type(object)):
+    if hasattr(pd, "DataFrame") and isinstance(pd.DataFrame, type):
         df_chain = pd.DataFrame(option_chain)
         if spot > 0:
             if "expiration" not in df_chain.columns and "expiry" in df_chain.columns:
