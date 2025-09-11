@@ -12,6 +12,29 @@ def test_validate_leg_metrics_missing():
     assert reasons
 
 
+def test_validate_leg_metrics_long_missing_rejected(monkeypatch):
+    legs = [
+        {"type": "P", "strike": 100, "expiry": "20250101", "mid": 1.0, "model": 1.0, "delta": -0.2, "position": -1},
+        {"type": "P", "strike": 95, "expiry": "20250101", "position": 1},
+    ]
+    monkeypatch.setattr(scoring, "cfg_get", lambda name, default=None: {})
+    ok, reasons = scoring.validate_leg_metrics("short_put_spread", legs)
+    assert not ok
+    assert reasons
+
+
+def test_validate_leg_metrics_long_missing_allowed(monkeypatch):
+    legs = [
+        {"type": "P", "strike": 100, "expiry": "20250101", "mid": 1.0, "model": 1.0, "delta": -0.2, "position": -1},
+        {"type": "P", "strike": 95, "expiry": "20250101", "position": 1},
+    ]
+    cfg = {"default": {}, "strategies": {"short_put_spread": {"allow_unpriced_wings": True}}}
+    monkeypatch.setattr(scoring, "cfg_get", lambda name, default=None: cfg if name == "STRATEGY_CONFIG" else {})
+    ok, reasons = scoring.validate_leg_metrics("short_put_spread", legs)
+    assert ok
+    assert reasons == []
+
+
 def test_check_liquidity_failure():
     crit = load_criteria().model_copy()
     crit.market_data.min_option_volume = 10

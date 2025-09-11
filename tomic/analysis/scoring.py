@@ -14,6 +14,7 @@ from ..analysis.strategy import heuristic_risk_metrics
 from ..criteria import CriteriaConfig, RULES, load_criteria
 from ..utils import normalize_leg, get_leg_qty, get_leg_right
 from ..logutils import logger
+from ..config import get as cfg_get
 
 if TYPE_CHECKING:
     from tomic.strategy_candidates import StrategyProposal
@@ -73,6 +74,16 @@ def calculate_breakevens(
 
 def validate_leg_metrics(strategy_name: str, legs: List[Dict[str, Any]]) -> Tuple[bool, List[str]]:
     """Ensure required leg metrics are present."""
+    cfg = cfg_get("STRATEGY_CONFIG") or {}
+    strat_cfg = cfg.get("strategies", {}).get(strategy_name, {})
+    default_cfg = cfg.get("default", {})
+    allow_unpriced_wings = bool(
+        strat_cfg.get(
+            "allow_unpriced_wings",
+            default_cfg.get("allow_unpriced_wings", False),
+        )
+    )
+
     missing_fields: set[str] = set()
     for leg in legs:
         missing: List[str] = []
@@ -83,6 +94,11 @@ def validate_leg_metrics(strategy_name: str, legs: List[Dict[str, Any]]) -> Tupl
         if leg.get("delta") is None:
             missing.append("delta")
         if missing:
+            if allow_unpriced_wings and (leg.get("position", 0) > 0):
+                logger.info(
+                    f"[leg-missing-allowed] {leg['type']} {leg['strike']} {leg['expiry']}: {', '.join(missing)}"
+                )
+                continue
             logger.info(
                 f"[leg-missing] {leg['type']} {leg['strike']} {leg['expiry']}: {', '.join(missing)}"
             )
