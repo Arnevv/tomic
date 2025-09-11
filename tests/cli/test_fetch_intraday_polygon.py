@@ -2,6 +2,8 @@ import importlib
 import json
 from datetime import date, datetime
 
+import tomic.polygon_prices as pp
+
 
 def _setup_paths(monkeypatch, tmp_path, mod):
     price_dir = tmp_path / "prices"
@@ -51,8 +53,8 @@ def test_intraday_overwrite(monkeypatch, tmp_path):
                 return dt.replace(tzinfo=tz)
             return dt
 
-    monkeypatch.setattr(mod, "date", FakeDate)
-    monkeypatch.setattr(mod, "datetime", FakeDT)
+    monkeypatch.setattr(pp, "date", FakeDate)
+    monkeypatch.setattr(pp, "datetime", FakeDT)
 
     responses = [
         {"results": [{"t": 1704198000000, "c": 10.0, "v": 100}]},
@@ -88,3 +90,4 @@ def test_intraday_overwrite(monkeypatch, tmp_path):
     assert data2[-1]["close"] == 11.0
     meta2 = json.loads(meta_file.read_text())
     assert meta2.get("intraday_ABC") != ts1
+
