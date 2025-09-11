@@ -29,6 +29,8 @@ class OptionLeg(TypedDict, total=False):
     open_interest: Optional[float]
     position: int
     mid_fallback: Optional[str]
+    missing_metrics: list[str] | None
+    metrics_ignored: bool | None
 
 def today() -> date:
     """Return ``TOMIC_TODAY`` or today's date."""

@@ -93,8 +93,10 @@ def validate_leg_metrics(strategy_name: str, legs: List[Dict[str, Any]]) -> Tupl
             missing.append("model")
         if leg.get("delta") is None:
             missing.append("delta")
+        leg["missing_metrics"] = missing
         if missing:
             if allow_unpriced_wings and (leg.get("position", 0) > 0):
+                leg["metrics_ignored"] = True
                 logger.info(
                     f"[leg-missing-allowed] {leg['type']} {leg['strike']} {leg['expiry']}: {', '.join(missing)}"
                 )
