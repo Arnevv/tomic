@@ -35,7 +35,13 @@ def interpolate_missing_fields(df: pd.DataFrame) -> pd.DataFrame:
     if "type" in df.columns:
         group_cols.append("type")
 
-    for (exp, opt_type), group in df.groupby(group_cols):
+    for key, group in df.groupby(group_cols):
+        if isinstance(key, tuple):
+            exp = key[0]
+            opt_type = key[1] if len(key) > 1 else None
+        else:
+            exp = key
+            opt_type = None
         g = group.copy()
 
         # Ensure numeric strikes for interpolation
@@ -77,6 +83,8 @@ def _interpolate_column(group: pd.DataFrame, column: str, method: str) -> pd.Ser
 
     if method == 'linear':
         valid = y.notnull()
+        if valid.sum() < 2:
+            return y  # onvoldoende punten voor lineaire interpolatie
         return pd.Series(np.interp(x, x[valid], y[valid]), index=group.index)
 
     elif method == 'spline':
