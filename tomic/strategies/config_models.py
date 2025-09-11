@@ -37,6 +37,7 @@ class _BaseConfig(BaseModel):
     """Top-level strategy config wrapper."""
 
     min_risk_reward: float | None = None
+    allow_unpriced_wings: bool = False
 
     model_config = ConfigDict(extra="allow")
 

@@ -189,6 +189,8 @@ Extra opties in `config.yaml`:
 - `IV_TRACKING_DELTAS`: lijst van deltawaarden voor IV-historie (default `[0.25, 0.5]`).
 - `IV_EXPIRY_LOOKAHEAD_DAYS`: doelen voor expiries in dagen (default `[0, 30, 60]`).
 
+Voor strategie-specifieke instellingen gebruik je `config/strategies.yaml`. Hier kun je per strategie of voor alle strategieën via `default` extra opties zetten. `allow_unpriced_wings: true` zorgt er bijvoorbeeld voor dat long-legs zonder `mid`, `model` of `delta` toch geaccepteerd worden.
+
 
 Stappenplan Data Ophalen – Technische Documentatie
 1. Invoer van symbool
