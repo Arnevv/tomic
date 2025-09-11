@@ -1,0 +1,195 @@
+from __future__ import annotations
+
+"""Utility functions for retrieving and storing price history via Polygon."""
+
+from datetime import datetime, timedelta, date, time as dt_time
+from pathlib import Path
+from zoneinfo import ZoneInfo
+from types import SimpleNamespace
+
+try:  # pragma: no cover - optional dependency
+    import holidays  # type: ignore
+except Exception:  # pragma: no cover - fallback when package is missing
+    class _NoHolidays:
+        def __contains__(self, _date: date) -> bool:
+            return False
+
+    holidays = SimpleNamespace(US=lambda: _NoHolidays())  # type: ignore
+
+from tomic.analysis.metrics import average_true_range
+from tomic.config import get as cfg_get
+from tomic.logutils import logger
+from tomic.journal.utils import load_json, save_json
+from tomic.helpers.price_utils import _load_latest_close
+from tomic.helpers.price_meta import load_price_meta
+from tomic.polygon_client import PolygonClient
+
+
+def _is_weekday(d: date) -> bool:
+    """Return ``True`` when ``d`` falls on a weekday."""
+    return d.weekday() < 5
+
+
+def _next_trading_day(d: date) -> date:
+    """Return the next weekday after ``d``."""
+    d += timedelta(days=1)
+    while not _is_weekday(d):
+        d += timedelta(days=1)
+    return d
+
+
+def latest_trading_day() -> date:
+    """Return the most recent US trading day."""
+    tz = ZoneInfo("America/New_York")
+    now = datetime.now(tz)
+    d = now.date() - timedelta(days=1)
+    us_holidays = holidays.US()
+    while d.weekday() >= 5 or d in us_holidays:
+        d -= timedelta(days=1)
+    return d
+
+
+def request_bars(client: PolygonClient, symbol: str) -> tuple[list[dict], bool]:
+    """Return daily bar records for ``symbol`` and whether a request was made."""
+    end_dt = latest_trading_day()
+    _, last_date = _load_latest_close(symbol)
+    meta = load_price_meta()
+    ts_str = meta.get(f"day_{symbol}")
+    if last_date and ts_str:
+        try:
+            tz = ZoneInfo("America/New_York")
+            ts = datetime.fromisoformat(ts_str)
+            if ts.tzinfo is None:
+                ts = ts.replace(tzinfo=tz)
+            else:
+                ts = ts.astimezone(tz)
+            if (
+                ts.date() == datetime.strptime(last_date, "%Y-%m-%d").date()
+                and ts.time() < dt_time(16, 0)
+            ):
+                base = Path(cfg_get("PRICE_HISTORY_DIR", "tomic/data/spot_prices"))
+                file = base / f"{symbol}.json"
+                data = load_json(file)
+                if isinstance(data, list):
+                    data = [r for r in data if r.get("date") != last_date]
+                    save_json(data, file)
+                _, last_date = _load_latest_close(symbol)
+        except Exception:
+            pass
+    params = {"adjusted": "true"}
+    base_path = f"v2/aggs/ticker/{symbol}/range/1/day"
+    path = base_path
+    requested = False
+
+    if last_date:
+        try:
+            last_dt = datetime.strptime(last_date, "%Y-%m-%d").date()
+        except Exception:
+            last_dt = end_dt - timedelta(days=730)
+        next_expected = _next_trading_day(last_dt)
+        if next_expected > end_dt:
+            logger.info(
+                f"⏭️ {symbol}: laatste data is van {last_date}, geen nieuwe werkdag beschikbaar."
+            )
+            return [], requested
+        from_date = next_expected.strftime("%Y-%m-%d")
+        to_date = end_dt.strftime("%Y-%m-%d")
+        path = f"{base_path}/{from_date}/{to_date}"
+    else:
+        to_date = end_dt.strftime("%Y-%m-%d")
+        from_date = (end_dt - timedelta(days=730)).strftime("%Y-%m-%d")
+        path = f"{base_path}/{from_date}/{to_date}"
+        params.update({"limit": 504})
+
+    requested = True
+    logger.info(f"Fetching bars for {symbol}")
+    try:
+        data = client._request(path, params)
+    except Exception as exc:
+        status = getattr(getattr(exc, "response", None), "status_code", None)
+        if status == 403:
+            logger.warning(f"⚠️ Skipping {symbol} — all keys rejected with 403")
+            return [], requested
+        raise
+    bars = data.get("results") or []
+    records: list[dict] = []
+    for bar in bars:
+        try:
+            ts = int(bar.get("t")) / 1000
+            dt = datetime.utcfromtimestamp(ts).strftime("%Y-%m-%d")
+            records.append(
+                {
+                    "symbol": symbol,
+                    "date": dt,
+                    "open": bar.get("o"),
+                    "high": bar.get("h"),
+                    "low": bar.get("l"),
+                    "close": bar.get("c"),
+                    "volume": bar.get("v"),
+                    "atr": None,
+                }
+            )
+        except Exception as exc:  # pragma: no cover - malformed data
+            logger.debug(f"Skipping malformed bar for {symbol}: {exc}")
+
+    highs: list[float] = []
+    lows: list[float] = []
+    closes: list[float] = []
+    for rec in records:
+        highs.append(rec.get("high"))
+        lows.append(rec.get("low"))
+        closes.append(rec.get("close"))
+        rec["atr"] = average_true_range(highs, lows, closes, period=14)
+        rec.pop("open", None)
+        rec.pop("high", None)
+        rec.pop("low", None)
+    return records, requested
+
+
+def merge_price_data(file: Path, records: list[dict]) -> int:
+    """Merge ``records`` into ``file`` keeping existing entries intact."""
+    data = load_json(file)
+    if not isinstance(data, list):
+        data = []
+    existing_dates = {rec.get("date") for rec in data if isinstance(rec, dict)}
+    new = [r for r in records if r.get("date") not in existing_dates]
+    if not new:
+        return 0
+    data.extend(new)
+    data.sort(key=lambda r: r.get("date", ""))
+    save_json(data, file)
+    return len(new)
+
+
+def request_intraday(client: PolygonClient, symbol: str) -> dict | None:
+    """Return the latest intraday bar for ``symbol`` from Polygon."""
+    today = date.today().strftime("%Y-%m-%d")
+    path = f"v2/aggs/ticker/{symbol}/range/1/minute/{today}/{today}"
+    params = {"adjusted": "true", "sort": "desc", "limit": 1}
+    data = client._request(path, params)
+    results = data.get("results") or []
+    if not results:
+        return None
+    bar = results[0]
+    ts = int(bar.get("t")) / 1000
+    dt = datetime.utcfromtimestamp(ts)
+    return {
+        "symbol": symbol,
+        "date": dt.strftime("%Y-%m-%d"),
+        "close": bar.get("c"),
+        "volume": bar.get("v"),
+        "atr": None,
+        "intraday": True,
+    }
+
+
+def store_record(file: Path, record: dict) -> None:
+    """Overwrite today's entry in ``file`` with ``record``."""
+    data = load_json(file)
+    if not isinstance(data, list):
+        data = []
+    data = [r for r in data if r.get("date") != record.get("date")]
+    data.append(record)
+    data.sort(key=lambda r: r.get("date", ""))
+    save_json(data, file)
+

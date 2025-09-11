@@ -2,7 +2,7 @@ from __future__ import annotations
 
 """Fetch today's intraday price using the Polygon API."""
 
-from datetime import datetime, date
+from datetime import datetime
 from pathlib import Path
 from time import sleep
 from typing import List
@@ -10,44 +10,9 @@ from zoneinfo import ZoneInfo
 
 from tomic.config import get as cfg_get
 from tomic.logutils import logger, setup_logging
-from tomic.journal.utils import load_json, save_json
 from tomic.polygon_client import PolygonClient
 from tomic.helpers.price_meta import load_price_meta, save_price_meta
-
-
-def _request_intraday(client: PolygonClient, symbol: str) -> dict | None:
-    """Return the latest intraday bar for ``symbol`` from Polygon."""
-
-    today = date.today().strftime("%Y-%m-%d")
-    path = f"v2/aggs/ticker/{symbol}/range/1/minute/{today}/{today}"
-    params = {"adjusted": "true", "sort": "desc", "limit": 1}
-    data = client._request(path, params)
-    results = data.get("results") or []
-    if not results:
-        return None
-    bar = results[0]
-    ts = int(bar.get("t")) / 1000
-    dt = datetime.utcfromtimestamp(ts)
-    return {
-        "symbol": symbol,
-        "date": dt.strftime("%Y-%m-%d"),
-        "close": bar.get("c"),
-        "volume": bar.get("v"),
-        "atr": None,
-        "intraday": True,
-    }
-
-
-def _store_record(file: Path, record: dict) -> None:
-    """Overwrite today's entry in ``file`` with ``record``."""
-
-    data = load_json(file)
-    if not isinstance(data, list):
-        data = []
-    data = [r for r in data if r.get("date") != record.get("date")]
-    data.append(record)
-    data.sort(key=lambda r: r.get("date", ""))
-    save_json(data, file)
+from tomic.polygon_prices import request_intraday, store_record
 
 
 def main(argv: List[str] | None = None) -> None:
@@ -65,12 +30,12 @@ def main(argv: List[str] | None = None) -> None:
     stored = 0
     try:
         for sym in symbols:
-            record = _request_intraday(client, sym)
+            record = request_intraday(client, sym)
             if not record:
                 logger.warning(f"No intraday data for {sym}")
                 continue
             file = base_dir / f"{sym}.json"
-            _store_record(file, record)
+            store_record(file, record)
             stored += 1
             meta = load_price_meta()
             meta[f"intraday_{sym}"] = datetime.now(
