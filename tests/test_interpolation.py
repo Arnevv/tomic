@@ -94,3 +94,15 @@ def test_no_interpolation_with_insufficient_points():
     result = interpolate_missing_fields(df)
     assert result['delta'].isnull().sum() == 2
     assert result['iv'].isnull().sum() == 2
+
+
+def test_no_interpolation_with_all_missing_values():
+    df = pd.DataFrame({
+        'expiry': ['2025-08-16'] * 3,
+        'strike': [100, 105, 110],
+        'delta': [np.nan, np.nan, np.nan],
+        'iv': [np.nan, np.nan, np.nan],
+    })
+    result = interpolate_missing_fields(df)
+    assert result['delta'].isnull().all()
+    assert result['iv'].isnull().all()
