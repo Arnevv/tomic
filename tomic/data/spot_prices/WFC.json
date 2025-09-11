@@ -3820,5 +3820,12 @@
     "close": 80.76,
     "volume": 17345584.0,
     "atr": null
+  },
+  {
+    "symbol": "WFC",
+    "date": "2025-09-10",
+    "close": 80.3,
+    "volume": 16458316.0,
+    "atr": null
   }
 ]

@@ -3624,5 +3624,12 @@
     "close": 418.09,
     "volume": 1710319.0,
     "atr": null
+  },
+  {
+    "symbol": "CAT",
+    "date": "2025-09-10",
+    "close": 422.91,
+    "volume": 2220940.0,
+    "atr": null
   }
 ]
