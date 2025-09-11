@@ -1393,6 +1393,15 @@ def run_portfolio_menu() -> None:
                 except Exception:
                     pass
 
+            missing_metrics = leg.get("missing_metrics") or []
+            if missing_metrics:
+                msg = (
+                    f"⚠️ Ontbrekende metrics voor strike {leg.get('strike')}: {', '.join(missing_metrics)}"
+                )
+                if leg.get("metrics_ignored"):
+                    msg += " (toegestaan)"
+                warns.append(msg)
+
             rows.append(
                 [
                     leg.get("expiry"),
@@ -1551,6 +1560,8 @@ def run_portfolio_menu() -> None:
                     "vega",
                     "edge",
                     "manual_override",
+                    "missing_metrics",
+                    "metrics_ignored",
                 ]
             )
             for leg in proposal.legs:
@@ -1568,6 +1579,8 @@ def run_portfolio_menu() -> None:
                         leg.get("vega"),
                         leg.get("edge"),
                         leg.get("manual_override"),
+                        ",".join(leg.get("missing_metrics") or []),
+                        leg.get("metrics_ignored"),
                     ]
                 )
             writer.writerow([])

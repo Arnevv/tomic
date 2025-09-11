@@ -10,6 +10,7 @@ def test_validate_leg_metrics_missing():
     ok, reasons = scoring.validate_leg_metrics("naked_put", legs)
     assert not ok
     assert reasons
+    assert legs[0]["missing_metrics"] == ["mid", "model", "delta"]
 
 
 def test_validate_leg_metrics_long_missing_rejected(monkeypatch):
@@ -21,6 +22,9 @@ def test_validate_leg_metrics_long_missing_rejected(monkeypatch):
     ok, reasons = scoring.validate_leg_metrics("short_put_spread", legs)
     assert not ok
     assert reasons
+    assert legs[0]["missing_metrics"] == []
+    assert legs[1]["missing_metrics"] == ["mid", "model", "delta"]
+    assert "metrics_ignored" not in legs[1]
 
 
 def test_validate_leg_metrics_long_missing_allowed(monkeypatch):
@@ -33,6 +37,21 @@ def test_validate_leg_metrics_long_missing_allowed(monkeypatch):
     ok, reasons = scoring.validate_leg_metrics("short_put_spread", legs)
     assert ok
     assert reasons == []
+    assert legs[0]["missing_metrics"] == []
+    assert legs[1]["missing_metrics"] == ["mid", "model", "delta"]
+    assert legs[1]["metrics_ignored"] is True
+
+    proposal = StrategyProposal(legs=legs)
+    monkeypatch.setattr(scoring, "check_liquidity", lambda *a, **k: (True, []))
+    monkeypatch.setattr(scoring, "heuristic_risk_metrics", lambda l, cb: {"max_profit": 200.0, "max_loss": -50.0})
+    monkeypatch.setattr(scoring, "calculate_margin", lambda *a, **k: 100.0)
+    monkeypatch.setattr(scoring, "calculate_rom", lambda mp, margin: 10.0)
+    monkeypatch.setattr(scoring, "calculate_ev", lambda pos, mp, ml: 5.0)
+    monkeypatch.setattr(scoring, "_bs_estimate_missing", lambda _l: None)
+    monkeypatch.setattr(scoring, "load_criteria", lambda: load_criteria().model_copy())
+    score, _ = scoring.calculate_score("short_put_spread", proposal, spot=100)
+    assert proposal.legs[1]["missing_metrics"] == ["mid", "model", "delta"]
+    assert proposal.legs[1]["metrics_ignored"] is True
 
 
 def test_check_liquidity_failure():
