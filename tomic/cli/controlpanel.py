@@ -62,7 +62,7 @@ from tomic.analysis.greeks import compute_portfolio_greeks
 from tomic.journal.utils import load_json, save_json
 from tomic.utils import today
 from tomic.analysis.volatility_fetcher import fetch_volatility_metrics
-from tomic.cli.volatility_recommender import recommend_strategy, recommend_strategies
+from tomic.analysis.market_overview import build_market_overview
 from tomic.api.market_export import load_exported_chain
 from tomic.cli import services
 from tomic.helpers.price_utils import _load_latest_close
@@ -710,132 +710,9 @@ def run_portfolio_menu() -> None:
 
         rows = _load_market_rows()
 
-        # Strategy recommendation table per symbol
-        def categorize(exposure: str) -> str:
-            if "vega long" in exposure:
-                return "Vega Long"
-            if "vega short" in exposure:
-                return "Vega Short"
-            if (
-                "delta directional" in exposure
-                or "delta positive" in exposure
-                or "delta negative" in exposure
-            ):
-                return "Delta Directioneel"
-            if "delta neutral" in exposure:
-                return "Delta Neutraal"
-            return "Overig"
-
-        def parse_greeks(expr: str) -> tuple[str, str, str]:
-            low = expr.lower()
-            vega = "Neutraal"
-            theta = "Neutraal"
-            delta = "Neutraal"
-            if "vega long" in low:
-                vega = "Long"
-            elif "vega short" in low:
-                vega = "Short"
-            if "theta long" in low:
-                theta = "Long"
-            elif "theta short" in low:
-                theta = "Short"
-            if "delta positive" in low or "delta directional" in low:
-                delta = "Long"
-            elif "delta negative" in low:
-                delta = "Short"
-            elif "delta neutral" in low:
-                delta = "Neutraal"
-            return vega, theta, delta
-        recs: list[dict[str, object]] = []
-        for r in rows:
-            metrics = {
-                "IV": r[2],
-                "HV20": r[3],
-                "HV30": r[4],
-                "HV90": r[5],
-                "HV252": r[6],
-                "iv_rank": r[7],
-                "iv_percentile": r[8],
-                "iv_vs_hv20": (
-                    (r[2] - r[3]) if r[2] is not None and r[3] is not None else None
-                ),
-                "iv_vs_hv90": (
-                    (r[2] - r[5]) if r[2] is not None and r[5] is not None else None
-                ),
-                "term_m1_m3": r[10],
-                "skew": r[11],
-            }
-            matches = recommend_strategies(metrics)
-            for rec in matches:
-                crit = ", ".join(rec.get("criteria", []))
-                recs.append(
-                    {
-                        "symbol": r[0],
-                        "spot": r[1],
-                        "iv": r[2],
-                        "hv20": r[3],
-                        "hv30": r[4],
-                        "hv90": r[5],
-                        "hv252": r[6],
-                        "strategy": rec["strategy"],
-                        "greeks": rec["greeks"],
-                        "indication": rec.get("indication"),
-                        "criteria": crit,
-                        "term_m1_m2": r[9],
-                        "term_m1_m3": r[10],
-                        "next_earnings": r[12],
-                        "iv_rank": r[7],
-                        "iv_percentile": r[8],
-                        "skew": r[11],
-                        "category": categorize(rec["greeks"].lower()),
-                    }
-                )
+        recs, table_rows = build_market_overview(rows)
 
         if recs:
-            order = [
-                "Vega Short",
-                "Delta Directioneel",
-                "Vega Long",
-                "Delta Neutraal",
-                "Overig",
-            ]
-            order_idx = {cat: i for i, cat in enumerate(order)}
-            recs.sort(key=lambda r: (r["symbol"], order_idx.get(r["category"], 99)))
-
-            table_rows: list[list[str]] = []
-            for idx, rec in enumerate(recs, 1):
-                vega, theta, delta = parse_greeks(rec["greeks"])
-                sym = rec["symbol"]
-                link = f"[{sym}](https://marketchameleon.com/Overview/{sym}/)"
-                iv_val = (
-                    f"{rec['iv']:.4f}"
-                    if isinstance(rec.get("iv"), (int, float))
-                    else ""
-                )
-                ivr = rec.get("iv_rank")
-                iv_rank_val = (
-                    f"{ivr * 100:.0f}" if isinstance(ivr, (int, float)) else ""
-                )
-                skew_val = rec.get("skew")
-                skew_str = (
-                    f"{skew_val:.2f}" if isinstance(skew_val, (int, float)) else ""
-                )
-                earnings = rec.get("next_earnings", "")
-                table_rows.append(
-                    [
-                        idx,
-                        link,
-                        rec["strategy"],
-                        iv_val,
-                        delta,
-                        vega,
-                        theta,
-                        iv_rank_val,
-                        skew_str,
-                        earnings,
-                    ]
-                )
-
             print(
                 tabulate(
                     table_rows,
@@ -1825,10 +1702,15 @@ def run_portfolio_menu() -> None:
         "Trademanagement (controleer exitcriteria)",
         lambda: run_module("tomic.cli.trade_management"),
     )
-    menu.add("Toon portfolio greeks", show_greeks)
     menu.add("Toon marktinformatie", show_market_info)
-    menu.add("Earnings-informatie", lambda: run_module("tomic.cli.earnings_info"))
-    menu.add("Toon informatieve markt informatie", show_informative_market_info)
+
+    def _show_earnings_info() -> None:
+        try:
+            run_module("tomic.cli.earnings_info")
+        except subprocess.CalledProcessError:
+            print("❌ Earnings-informatie kon niet worden getoond")
+
+    menu.add("Earnings-informatie", _show_earnings_info)
     menu.run()
 
 

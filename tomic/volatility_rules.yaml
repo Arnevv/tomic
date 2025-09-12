@@ -4,7 +4,7 @@
 # =========================
 
 - key: iron_condor
-  strategy: Iron Condor
+  strategy: iron_condor
   greeks: "delta neutraal, theta positief, vega short, gamma short"
   criteria:
     - iv_rank >= 0.5
@@ -13,7 +13,7 @@
     - iv_vs_hv20 > 0
 
 - key: atm_iron_butterfly
-  strategy: ATM Iron Butterfly
+  strategy: atm_iron_butterfly
   greeks: "delta neutraal, theta sterk positief, vega short, gamma short"
   criteria:
     - iv_rank >= 0.6
@@ -22,15 +22,16 @@
     - iv_vs_hv20 > 0
 
 - key: short_put_spread
-  strategy: Short Put Spread
+  strategy: short_put_spread
   greeks: "delta long (bullish), theta positief, vega short, gamma short"
   criteria:
-    - iv_rank >= 99 # omdat ik voorlopig even geen directionele plays wil
-    #- iv_rank >= 0.5
-    #- iv_percentile >= 0.6
-    #- skew >= 2.0
-    #- term_m1_m3 >= 0.0
-    #- iv_vs_hv20 > 0
+    - iv_rank >= 0.5
+    - iv_percentile >= 0.6
+    - skew >= 2.0
+    - term_m1_m3 >= 0.0
+    - iv_vs_hv20 > 0
+  export_heatmap: true
+  heatmap_columns: ["strike", "delta", "iv"]
 
 - key: short_call_spread
   strategy: Short Call Spread
@@ -54,13 +55,6 @@
     #- term_m1_m3 >= 0.0
     #- iv_vs_hv20 > 0
 
-- key: calendar
-  strategy: Calendar
-  greeks: "delta neutraal, theta positief rond ATM, vega long, gamma vlak tot licht long"
-  criteria:
-    - iv_rank <= 0.4
-    - iv_percentile <= 0.4
-    - term_m1_m3 >= 0.0
 
 - key: ratio_spread
   strategy: Ratio Spread
