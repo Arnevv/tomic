@@ -3827,5 +3827,12 @@
     "close": 112.5,
     "volume": 15836462.0,
     "atr": null
+  },
+  {
+    "symbol": "XOM",
+    "date": "2025-09-11",
+    "close": 112.14,
+    "volume": 11534444.0,
+    "atr": null
   }
 ]
