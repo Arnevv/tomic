@@ -3834,5 +3834,12 @@
     "close": 72.85,
     "volume": 7890947.0,
     "atr": null
+  },
+  {
+    "symbol": "XEL",
+    "date": "2025-09-12",
+    "close": 73.35,
+    "volume": 7080466.0,
+    "atr": null
   }
 ]
