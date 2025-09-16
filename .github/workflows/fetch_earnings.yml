@@ -41,7 +41,7 @@ jobs:
         run: |
           git status --short
           if [ -n "$(git status --porcelain)" ]; then
-            git add tomic/data/earnings_data.json
+            git add tomic/data/earnings_dates.json tomic/data/earnings_data.json
             git commit -m "Update earnings dates"
             git push
           else
