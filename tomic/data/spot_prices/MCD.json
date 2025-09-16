@@ -3841,5 +3841,12 @@
     "close": 305.4,
     "volume": 2072850.0,
     "atr": null
+  },
+  {
+    "symbol": "MCD",
+    "date": "2025-09-15",
+    "close": 302.07,
+    "volume": 3584449.0,
+    "atr": null
   }
 ]
