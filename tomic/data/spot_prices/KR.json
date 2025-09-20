@@ -3869,5 +3869,12 @@
     "close": 65.99,
     "volume": 10663355.0,
     "atr": null
+  },
+  {
+    "symbol": "KR",
+    "date": "2025-09-19",
+    "close": 65.58,
+    "volume": 16411007.0,
+    "atr": null
   }
 ]

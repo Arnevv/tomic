@@ -3869,5 +3869,12 @@
     "close": 157.32,
     "volume": 7650321.0,
     "atr": null
+  },
+  {
+    "symbol": "PG",
+    "date": "2025-09-19",
+    "close": 156.04,
+    "volume": 17224548.0,
+    "atr": null
   }
 ]
