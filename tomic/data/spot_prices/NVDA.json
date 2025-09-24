@@ -3883,5 +3883,12 @@
     "close": 183.61,
     "volume": 269643410.0,
     "atr": null
+  },
+  {
+    "symbol": "NVDA",
+    "date": "2025-09-23",
+    "close": 178.43,
+    "volume": 192546989.0,
+    "atr": null
   }
 ]

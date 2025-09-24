@@ -3883,5 +3883,12 @@
     "close": 144.67,
     "volume": 3294650.0,
     "atr": null
+  },
+  {
+    "symbol": "ROST",
+    "date": "2025-09-23",
+    "close": 145.68,
+    "volume": 2704217.0,
+    "atr": null
   }
 ]
