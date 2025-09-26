@@ -3897,5 +3897,12 @@
     "close": 247.14,
     "volume": 28197242.0,
     "atr": null
+  },
+  {
+    "symbol": "GOOGL",
+    "date": "2025-09-25",
+    "close": 245.79,
+    "volume": 31014825.0,
+    "atr": null
   }
 ]
