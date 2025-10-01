@@ -3918,5 +3918,12 @@
     "close": 161.16,
     "volume": 4274885.0,
     "atr": null
+  },
+  {
+    "symbol": "MS",
+    "date": "2025-09-30",
+    "close": 158.96,
+    "volume": 5545111.0,
+    "atr": null
   }
 ]

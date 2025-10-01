@@ -3918,5 +3918,12 @@
     "close": 66.04,
     "volume": 14815742.0,
     "atr": null
+  },
+  {
+    "symbol": "KO",
+    "date": "2025-09-30",
+    "close": 66.32,
+    "volume": 13812296.0,
+    "atr": null
   }
 ]
