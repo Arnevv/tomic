@@ -3925,5 +3925,12 @@
     "close": 241.96,
     "volume": 33454917.0,
     "atr": null
+  },
+  {
+    "symbol": "IWM",
+    "date": "2025-10-01",
+    "close": 242.49,
+    "volume": 28508223.0,
+    "atr": null
   }
 ]

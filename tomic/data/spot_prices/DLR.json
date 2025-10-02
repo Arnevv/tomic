@@ -3925,5 +3925,12 @@
     "close": 172.88,
     "volume": 1516253.0,
     "atr": null
+  },
+  {
+    "symbol": "DLR",
+    "date": "2025-10-01",
+    "close": 171.45,
+    "volume": 1345931.0,
+    "atr": null
   }
 ]
