@@ -3932,5 +3932,12 @@
     "close": 47.72,
     "volume": 9793159.0,
     "atr": null
+  },
+  {
+    "symbol": "OXY",
+    "date": "2025-10-02",
+    "close": 44.23,
+    "volume": 44032771.0,
+    "atr": null
   }
 ]
