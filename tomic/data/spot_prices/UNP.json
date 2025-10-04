@@ -3939,5 +3939,12 @@
     "close": 234.52,
     "volume": 3873076.0,
     "atr": null
+  },
+  {
+    "symbol": "UNP",
+    "date": "2025-10-03",
+    "close": 236.8,
+    "volume": 3176544.0,
+    "atr": null
   }
 ]
