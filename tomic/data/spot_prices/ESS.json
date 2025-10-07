@@ -3946,5 +3946,12 @@
     "close": 264.47,
     "volume": 311271,
     "atr": null
+  },
+  {
+    "symbol": "ESS",
+    "date": "2025-10-06",
+    "close": 261.34,
+    "volume": 357421,
+    "atr": null
   }
 ]
