@@ -3967,5 +3967,12 @@
     "close": 369.92,
     "volume": 9437900.0,
     "atr": null
+  },
+  {
+    "symbol": "UNH",
+    "date": "2025-10-09",
+    "close": 367.69,
+    "volume": 8759516.0,
+    "atr": null
   }
 ]

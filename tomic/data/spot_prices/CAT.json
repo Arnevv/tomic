@@ -3771,5 +3771,12 @@
     "close": 502.12,
     "volume": 3959297.0,
     "atr": null
+  },
+  {
+    "symbol": "CAT",
+    "date": "2025-10-09",
+    "close": 500.36,
+    "volume": 3113528.0,
+    "atr": null
   }
 ]

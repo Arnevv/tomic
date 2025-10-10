@@ -3967,5 +3967,12 @@
     "close": 514.02,
     "volume": 798252,
     "atr": null
+  },
+  {
+    "symbol": "LMT",
+    "date": "2025-10-09",
+    "close": 507.76,
+    "volume": 1185978.0,
+    "atr": null
   }
 ]
