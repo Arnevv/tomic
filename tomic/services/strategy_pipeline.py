@@ -13,6 +13,7 @@ from ..strategy_candidates import generate_strategy_candidates
 from ..strike_selector import FilterConfig, StrikeSelector
 from ..loader import load_strike_config
 from ..logutils import logger
+from ..mid_resolver import MidResolver, build_mid_resolver
 from ..utils import get_option_mid_price, normalize_leg
 from ..helpers.dateutils import parse_date
 
@@ -57,6 +58,8 @@ class StrategyProposal:
     fallback: str | None = None
     profit_estimated: bool = False
     scenario_info: dict[str, Any] | None = None
+    fallback_summary: dict[str, int] | None = None
+    spread_rejects_n: int = 0
 
 
 @dataclass
@@ -79,7 +82,7 @@ class StrategyPipeline:
         strike_selector_factory: Callable[..., StrikeSelector] = StrikeSelector,
         strategy_generator: Callable[..., tuple[Sequence[Any], list[str]]] = generate_strategy_candidates,
         strike_config_loader: Callable[[str, Mapping[str, Any]], Mapping[str, Any]] = load_strike_config,
-        price_getter: Callable[[Mapping[str, Any]], tuple[float | None, str | None]] = get_option_mid_price,
+        price_getter: Callable[[Mapping[str, Any]], tuple[float | None, str | None]] | None = None,
     ) -> None:
         self._config_getter = self._resolve_config_getter(config)
         self._market_provider = market_provider
@@ -87,6 +90,7 @@ class StrategyPipeline:
         self._strategy_generator = strategy_generator
         self._load_strike_config = strike_config_loader
         self._price_getter = price_getter
+        self._mid_resolver: MidResolver | None = None
 
         self.last_context: StrategyContext | None = None
         self.last_selected: list[MutableMapping[str, Any]] = []
@@ -112,8 +116,17 @@ class StrategyPipeline:
             config=self._build_filter_config(rules),
             criteria=context.criteria,
         )
+        resolver_cfg = self._config_getter("MID_RESOLVER", {})
+        self._mid_resolver = build_mid_resolver(
+            context.option_chain,
+            spot_price=context.spot_price,
+            interest_rate=context.interest_rate,
+            config=resolver_cfg,
+        )
+        resolved_chain = self._mid_resolver.enrich_chain()
+
         selected, by_reason, by_filter = selector.select(
-            list(context.option_chain),
+            list(resolved_chain),
             dte_range=dte_range,
             debug_csv=context.debug_path,
             return_info=True,
@@ -242,7 +255,16 @@ class StrategyPipeline:
         self, option: MutableMapping[str, Any], spot_price: float, interest_rate: float
     ) -> dict[str, Any]:
         option = dict(option)
-        mid, _ = self._price_getter(option)
+        resolution = self._mid_resolver.resolution_for(option) if self._mid_resolver else None
+        if resolution and resolution.mid is not None:
+            mid = resolution.mid
+        elif self._price_getter is not None:
+            mid, _ = self._price_getter(option)
+        else:
+            mid = option.get("mid")
+            if mid is None:
+                mid, _ = get_option_mid_price(option)
+        mid = self._safe_float(mid)
         model = self._extract_model_price(option, spot_price, interest_rate)
         margin = self._extract_margin(option, spot_price)
         delta = self._safe_float(option.get("delta"))
@@ -273,6 +295,8 @@ class StrategyPipeline:
             "edge": edge,
             "ev": ev,
         }
+        if resolution:
+            result.update(resolution.as_dict())
         normalize_leg(result)
         return result
 
@@ -327,7 +351,7 @@ class StrategyPipeline:
         return round(base * 100 * 0.2, 2)
 
     def _convert_proposal(self, strategy: str, proposal: Any) -> StrategyProposal:
-        return StrategyProposal(
+        converted = StrategyProposal(
             strategy=strategy,
             legs=[dict(leg) for leg in getattr(proposal, "legs", [])],
             score=getattr(proposal, "score", None),
@@ -345,3 +369,20 @@ class StrategyPipeline:
             profit_estimated=bool(getattr(proposal, "profit_estimated", False)),
             scenario_info=dict(getattr(proposal, "scenario_info", {}) or {}),
         )
+        if converted.legs:
+            fallback_summary: dict[str, int] = {source: 0 for source in ("true", "parity", "model", "close")}
+            spread_rejects = 0
+            for leg in converted.legs:
+                source = str(leg.get("mid_source") or "")
+                if not source:
+                    source = str(leg.get("mid_fallback") or "")
+                if not source:
+                    source = "true"
+                if source not in fallback_summary:
+                    fallback_summary[source] = 0
+                fallback_summary[source] += 1
+                if str(leg.get("spread_flag")) == "too_wide":
+                    spread_rejects += 1
+            converted.fallback_summary = fallback_summary
+            converted.spread_rejects_n = spread_rejects
+        return converted

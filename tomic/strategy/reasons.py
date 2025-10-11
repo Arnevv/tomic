@@ -34,6 +34,8 @@ _EXACT_REASON_MAP: Final[dict[str, ReasonCategory]] = {
     "liquiditeit onvoldoende": ReasonCategory.LOW_LIQUIDITY,
     "liquiditeit te laag": ReasonCategory.LOW_LIQUIDITY,
     "fallback naar close gebruikt voor midprijs": ReasonCategory.MISSING_MID,
+    "model-mid gebruikt": ReasonCategory.MISSING_MID,
+    "parity-mid gebruikt": ReasonCategory.MISSING_MID,
     "midprijs niet gevonden": ReasonCategory.MISSING_MID,
     "geen midprijs beschikbaar": ReasonCategory.MISSING_MID,
     "ontbrekende strikes": ReasonCategory.MISSING_STRIKES,

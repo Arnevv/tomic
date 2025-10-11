@@ -72,6 +72,13 @@ class AppConfig(BaseModel):
     OPTION_PARAMS_TIMEOUT: int = 20
     OPTION_MAX_MARKETDATA_TIME: int = 30
     CSV_MIN_QUALITY: int = 70
+    MID_SPREAD_RELATIVE: float = 0.12
+    MID_SPREAD_ABSOLUTE: List[Dict[str, Any]] = [
+        {"max_underlying": 50.0, "threshold": 0.10},
+        {"max_underlying": 200.0, "threshold": 0.20},
+        {"max_underlying": None, "threshold": 0.50},
+    ]
+    MID_FALLBACK_MAX_PER_4: int = 2
 
     # Historical and market data settings ---------------------------------
     HIST_DURATION: str = "1 D"
