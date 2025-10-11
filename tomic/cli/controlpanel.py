@@ -671,8 +671,9 @@ def _print_reason_summary(summary: RejectionSummary | None) -> None:
         print("Geen opties door filters afgewezen")
         return
 
-    if has_summary_data and prompt_yes_no(
-        "Wil je een samenvatting van rejection reasons (y/n)?", False
+    if has_summary_data and (
+        SHOW_REASONS
+        or prompt_yes_no("Wil je een samenvatting van rejection reasons (y/n)?", False)
     ):
         if summary.by_filter:
             rows_filter = sorted(summary.by_filter.items(), key=lambda x: x[1], reverse=True)
@@ -692,11 +693,7 @@ def _print_reason_summary(summary: RejectionSummary | None) -> None:
     if not rejects:
         return
 
-    if not prompt_yes_no("Wil je meer details opvraagbaar per rij (y/n)?", False):
-        return
-
-    if not SHOW_REASONS:
-        print("Details zijn beschikbaar via --show-reasons.")
+    if not (SHOW_REASONS or prompt_yes_no("Wil je meer details opvraagbaar per rij (y/n)?", False)):
         return
 
     if not headers or not rows:
