@@ -1,0 +1,347 @@
+from __future__ import annotations
+
+"""Strategy generation pipeline used by CLI and services."""
+
+from dataclasses import dataclass, field
+from datetime import datetime
+from pathlib import Path
+from typing import Any, Callable, Mapping, MutableMapping, Sequence
+
+from ..bs_calculator import black_scholes
+from ..metrics import calculate_edge, calculate_ev, calculate_pos, calculate_rom
+from ..strategy_candidates import generate_strategy_candidates
+from ..strike_selector import FilterConfig, StrikeSelector
+from ..loader import load_strike_config
+from ..logutils import logger
+from ..utils import get_option_mid_price, normalize_leg
+from ..helpers.dateutils import parse_date
+
+
+ConfigGetter = Callable[[str, Any | None], Any]
+
+
+@dataclass
+class StrategyContext:
+    """Input parameters for :class:`StrategyPipeline`."""
+
+    symbol: str
+    strategy: str
+    option_chain: Sequence[MutableMapping[str, Any]]
+    spot_price: float
+    atr: float = 0.0
+    config: Mapping[str, Any] | None = None
+    interest_rate: float = 0.05
+    dte_range: tuple[int, int] | None = None
+    interactive_mode: bool = False
+    criteria: Any | None = None
+    debug_path: Path | None = None
+
+
+@dataclass
+class StrategyProposal:
+    """Resulting proposal exposed to the CLI layer."""
+
+    strategy: str
+    legs: list[dict[str, Any]] = field(default_factory=list)
+    score: float | None = None
+    pos: float | None = None
+    ev: float | None = None
+    ev_pct: float | None = None
+    rom: float | None = None
+    edge: float | None = None
+    credit: float | None = None
+    margin: float | None = None
+    max_profit: float | None = None
+    max_loss: float | None = None
+    breakevens: list[float] | None = None
+    fallback: str | None = None
+    profit_estimated: bool = False
+    scenario_info: dict[str, Any] | None = None
+
+
+@dataclass
+class RejectionSummary:
+    """Aggregated rejection information."""
+
+    by_filter: dict[str, int] = field(default_factory=dict)
+    by_reason: dict[str, int] = field(default_factory=dict)
+    by_strategy: dict[str, list[str]] = field(default_factory=dict)
+
+
+class StrategyPipeline:
+    """Encapsulate strike filtering and strategy generation logic."""
+
+    def __init__(
+        self,
+        config: Mapping[str, Any] | ConfigGetter | None,
+        market_provider: Any | None = None,
+        *,
+        strike_selector_factory: Callable[..., StrikeSelector] = StrikeSelector,
+        strategy_generator: Callable[..., tuple[Sequence[Any], list[str]]] = generate_strategy_candidates,
+        strike_config_loader: Callable[[str, Mapping[str, Any]], Mapping[str, Any]] = load_strike_config,
+        price_getter: Callable[[Mapping[str, Any]], tuple[float | None, str | None]] = get_option_mid_price,
+    ) -> None:
+        self._config_getter = self._resolve_config_getter(config)
+        self._market_provider = market_provider
+        self._selector_factory = strike_selector_factory
+        self._strategy_generator = strategy_generator
+        self._load_strike_config = strike_config_loader
+        self._price_getter = price_getter
+
+        self.last_context: StrategyContext | None = None
+        self.last_selected: list[MutableMapping[str, Any]] = []
+        self.last_evaluated: list[dict[str, Any]] = []
+        self.last_rejections: dict[str, Any] = {}
+
+    # ------------------------------------------------------------------
+    # Public API
+    # ------------------------------------------------------------------
+    def build_proposals(
+        self, context: StrategyContext
+    ) -> tuple[list[StrategyProposal], RejectionSummary]:
+        """Return generated proposals and rejection summary for ``context``."""
+
+        logger.info(
+            "StrategyPipeline.build_proposals symbol=%s strategy=%s", context.symbol, context.strategy
+        )
+        self.last_context = context
+        canonical_strategy = self._canonical_strategy(context.strategy)
+        rules = self._load_rules(canonical_strategy, context.config)
+        dte_range = self._determine_dte_range(context, rules)
+        selector = self._selector_factory(
+            config=self._build_filter_config(rules),
+            criteria=context.criteria,
+        )
+        selected, by_reason, by_filter = selector.select(
+            list(context.option_chain),
+            dte_range=dte_range,
+            debug_csv=context.debug_path,
+            return_info=True,
+        )
+        self.last_selected = list(selected)
+        evaluated = [
+            self._evaluate_leg(opt, context.spot_price, context.interest_rate)
+            for opt in self.last_selected
+        ]
+        self.last_evaluated = evaluated
+        self.last_rejections = {
+            "by_filter": dict(by_filter),
+            "by_reason": dict(by_reason),
+            "by_strategy": {},
+        }
+
+        proposals: list[StrategyProposal] = []
+        reasons: list[str] = []
+        if context.spot_price and self.last_selected:
+            try:
+                raw_props, reasons = self._strategy_generator(
+                    context.symbol,
+                    canonical_strategy,
+                    self.last_selected,
+                    context.atr,
+                    context.config or self._config_getter("STRATEGY_CONFIG", {}) or {},
+                    context.spot_price,
+                    interactive_mode=context.interactive_mode,
+                )
+            except Exception as exc:  # pragma: no cover - defensive logging
+                logger.exception("Strategy generation failed: %s", exc)
+                raw_props, reasons = [], []
+            proposals = [
+                self._convert_proposal(canonical_strategy, proposal)
+                for proposal in raw_props
+            ]
+        if reasons:
+            self.last_rejections["by_strategy"] = {canonical_strategy: sorted(set(reasons))}
+        summary = self.summarize_rejections(self.last_rejections)
+        return proposals, summary
+
+    def summarize_rejections(self, results: dict[str, Any] | None = None) -> RejectionSummary:
+        """Return :class:`RejectionSummary` from ``results`` or last run."""
+
+        data = results or self.last_rejections or {}
+        by_filter = dict(sorted((data.get("by_filter") or {}).items(), key=lambda item: item[1], reverse=True))
+        by_reason = dict(sorted((data.get("by_reason") or {}).items(), key=lambda item: item[1], reverse=True))
+        by_strategy = {
+            name: sorted(set(reasons))
+            for name, reasons in (data.get("by_strategy") or {}).items()
+        }
+        return RejectionSummary(by_filter=by_filter, by_reason=by_reason, by_strategy=by_strategy)
+
+    # ------------------------------------------------------------------
+    # Internal helpers
+    # ------------------------------------------------------------------
+    def _resolve_config_getter(
+        self, config: Mapping[str, Any] | ConfigGetter | None
+    ) -> ConfigGetter:
+        if callable(config):
+            return config  # type: ignore[return-value]
+        if hasattr(config, "get"):
+            return lambda key, default=None: config.get(key, default)  # type: ignore[arg-type]
+        if isinstance(config, Mapping):
+            return lambda key, default=None: config.get(key, default)
+        return lambda _key, default=None: default
+
+    def _canonical_strategy(self, strategy: str) -> str:
+        return strategy.lower().replace(" ", "_")
+
+    def _load_rules(
+        self, strategy: str, config: Mapping[str, Any] | None
+    ) -> Mapping[str, Any]:
+        config_data = config or self._config_getter("STRATEGY_CONFIG", {}) or {}
+        try:
+            return self._load_strike_config(strategy, config_data)
+        except Exception:
+            return {}
+
+    def _determine_dte_range(
+        self, context: StrategyContext, rules: Mapping[str, Any]
+    ) -> tuple[int, int]:
+        if context.dte_range is not None:
+            return context.dte_range
+        dte_range = rules.get("dte_range") or [0, 365]
+        try:
+            return int(dte_range[0]), int(dte_range[1])
+        except Exception:
+            return 0, 365
+
+    def _build_filter_config(self, rules: Mapping[str, Any]) -> FilterConfig:
+        def _float(val: Any, default: float | None = None) -> float | None:
+            try:
+                return float(val)
+            except Exception:
+                return default
+
+        delta_range = (
+            rules.get("delta_range")
+            or rules.get("short_delta_range")
+            or [-1.0, 1.0]
+        )
+        delta_min = _float(delta_range[0], -1.0) if isinstance(delta_range, (list, tuple)) else -1.0
+        delta_max = (
+            _float(delta_range[1], 1.0)
+            if isinstance(delta_range, (list, tuple)) and len(delta_range) > 1
+            else 1.0
+        )
+        return FilterConfig(
+            delta_min=delta_min,
+            delta_max=delta_max,
+            min_rom=_float(rules.get("min_rom"), 0.0) or 0.0,
+            min_edge=_float(rules.get("min_edge"), 0.0) or 0.0,
+            min_pos=_float(rules.get("min_pos"), 0.0) or 0.0,
+            min_ev=_float(rules.get("min_ev"), 0.0) or 0.0,
+            skew_min=_float(rules.get("skew_min"), float("-inf")) or float("-inf"),
+            skew_max=_float(rules.get("skew_max"), float("inf")) or float("inf"),
+            term_min=_float(rules.get("term_min"), float("-inf")) or float("-inf"),
+            term_max=_float(rules.get("term_max"), float("inf")) or float("inf"),
+            max_gamma=_float(rules.get("max_gamma")),
+            max_vega=_float(rules.get("max_vega")),
+            min_theta=_float(rules.get("min_theta")),
+        )
+
+    def _evaluate_leg(
+        self, option: MutableMapping[str, Any], spot_price: float, interest_rate: float
+    ) -> dict[str, Any]:
+        option = dict(option)
+        mid, _ = self._price_getter(option)
+        model = self._extract_model_price(option, spot_price, interest_rate)
+        margin = self._extract_margin(option, spot_price)
+        delta = self._safe_float(option.get("delta"))
+
+        pos = calculate_pos(delta) if delta is not None else None
+        rom = calculate_rom(mid * 100, margin) if mid is not None and margin is not None else None
+        edge = (
+            calculate_edge(model, mid)
+            if model is not None and mid is not None
+            else None
+        )
+        ev = (
+            calculate_ev(pos, mid * 100, -margin)
+            if None not in (pos, mid, margin)
+            else None
+        )
+        result = {
+            "symbol": option.get("symbol"),
+            "expiry": option.get("expiry"),
+            "strike": option.get("strike"),
+            "type": option.get("type"),
+            "delta": delta,
+            "mid": mid,
+            "model": model,
+            "margin": margin,
+            "pos": pos,
+            "rom": rom,
+            "edge": edge,
+            "ev": ev,
+        }
+        normalize_leg(result)
+        return result
+
+    def _safe_float(self, value: Any) -> float | None:
+        try:
+            return float(value)
+        except Exception:
+            return None
+
+    def _extract_model_price(
+        self, option: Mapping[str, Any], spot_price: float, interest_rate: float
+    ) -> float | None:
+        model = self._safe_float(option.get("modelprice"))
+        if model is not None:
+            return model
+        iv = self._safe_float(option.get("iv"))
+        strike = self._safe_float(option.get("strike"))
+        expiry = option.get("expiry")
+        opt_type = str(option.get("type") or option.get("right", "")).upper()[:1]
+        if None in (iv, strike) or not expiry or opt_type not in {"C", "P"}:
+            return None
+        try:
+            exp_date = parse_date(str(expiry))
+            if exp_date is None:
+                return None
+            dte = max((exp_date - datetime.now().date()).days, 0)
+            return round(
+                black_scholes(
+                    opt_type,
+                    float(spot_price),
+                    float(strike),
+                    dte,
+                    float(iv),
+                    interest_rate,
+                    0.0,
+                ),
+                2,
+            )
+        except Exception:
+            return None
+
+    def _extract_margin(
+        self, option: Mapping[str, Any], spot_price: float
+    ) -> float | None:
+        margin = self._safe_float(option.get("marginreq"))
+        if margin is not None:
+            return margin
+        strike = self._safe_float(option.get("strike"))
+        base = float(spot_price) if spot_price else strike
+        if base is None:
+            return 350.0
+        return round(base * 100 * 0.2, 2)
+
+    def _convert_proposal(self, strategy: str, proposal: Any) -> StrategyProposal:
+        return StrategyProposal(
+            strategy=strategy,
+            legs=[dict(leg) for leg in getattr(proposal, "legs", [])],
+            score=getattr(proposal, "score", None),
+            pos=getattr(proposal, "pos", None),
+            ev=getattr(proposal, "ev", None),
+            ev_pct=getattr(proposal, "ev_pct", None),
+            rom=getattr(proposal, "rom", None),
+            edge=getattr(proposal, "edge", None),
+            credit=getattr(proposal, "credit", None),
+            margin=getattr(proposal, "margin", None),
+            max_profit=getattr(proposal, "max_profit", None),
+            max_loss=getattr(proposal, "max_loss", None),
+            breakevens=list(getattr(proposal, "breakevens", []) or []),
+            fallback=getattr(proposal, "fallback", None),
+            profit_estimated=bool(getattr(proposal, "profit_estimated", False)),
+            scenario_info=dict(getattr(proposal, "scenario_info", {}) or {}),
+        )
