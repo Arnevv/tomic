@@ -30,22 +30,50 @@ def _bs_estimate_missing(legs: List[Dict[str, Any]]) -> None:
         populate_model_delta(leg)
 
 
-def _fallback_limit_ok(legs: List[Dict[str, Any]]) -> tuple[bool, int, int]:
+def _fallback_limit_ok(
+    strategy_name: str, legs: List[Dict[str, Any]]
+) -> tuple[bool, int, int, str | None]:
     limit_per_four = int(cfg_get("MID_FALLBACK_MAX_PER_4", 2) or 0)
     leg_count = len(legs)
     if leg_count == 0:
-        return True, 0, 0
+        return True, 0, 0, None
     if limit_per_four <= 0:
         allowed = 0
     else:
         allowed = math.ceil(limit_per_four * leg_count / 4)
+
+    strat_label = getattr(strategy_name, "value", strategy_name)
+    if strat_label == "iron_condor":
+        allowed = min(allowed, 2) if allowed else 0
+        real_sources = {"model", "close"}
+
+        def _source(leg: Mapping[str, Any]) -> str:
+            return str(leg.get("mid_source") or leg.get("mid_fallback") or "")
+
+        long_fallbacks = sum(
+            1
+            for leg in legs
+            if float(leg.get("position") or 0) > 0 and _source(leg) in real_sources
+        )
+        short_with_fallback = [
+            leg
+            for leg in legs
+            if float(leg.get("position") or 0) < 0 and _source(leg) in real_sources
+        ]
+        if short_with_fallback:
+            return False, long_fallbacks, allowed, "short legs vereisen true mid of parity"
+        if long_fallbacks > allowed:
+            reason = "te veel fallback-legs op long wings"
+            return False, long_fallbacks, allowed, reason
+        return True, long_fallbacks, allowed, None
+
     fallback_sources = {"parity", "model", "close"}
     fallback_count = sum(
         1
         for leg in legs
         if str(leg.get("mid_source") or leg.get("mid_fallback") or "") in fallback_sources
     )
-    return fallback_count <= allowed, fallback_count, allowed
+    return fallback_count <= allowed, fallback_count, allowed, None
 
 
 def calculate_breakevens(
@@ -230,7 +258,7 @@ def compute_proposal_metrics(
         reasons.append("fallback naar close gebruikt voor midprijs")
     if "model" in fallbacks:
         reasons.append("model-mid gebruikt")
-    if "parity" in fallbacks:
+    if "parity" in fallbacks and strategy_name != "iron_condor":
         reasons.append("parity-mid gebruikt")
     net_credit = credit_short - debit_long
     if strategy_name in POSITIVE_CREDIT_STRATS and net_credit <= 0:
@@ -325,9 +353,17 @@ def calculate_score(
     strategy_name = getattr(strategy, "value", strategy)
     _bs_estimate_missing(legs)
 
-    fallback_ok, fallback_count, fallback_allowed = _fallback_limit_ok(legs)
+    fallback_ok, fallback_count, fallback_allowed, fallback_reason = _fallback_limit_ok(
+        strategy_name, legs
+    )
     if not fallback_ok:
-        reason = f"te veel fallback-legs ({fallback_count}/{fallback_allowed} toegestaan)"
+        if fallback_reason:
+            if fallback_allowed:
+                reason = f"{fallback_reason} ({fallback_count}/{fallback_allowed} toegestaan)"
+            else:
+                reason = fallback_reason
+        else:
+            reason = f"te veel fallback-legs ({fallback_count}/{fallback_allowed} toegestaan)"
         logger.info(f"[{strategy_name}] {reason}")
         return None, [reason]
 

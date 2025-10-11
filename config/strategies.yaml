@@ -18,6 +18,7 @@ strategies:
       short_put_delta_range: [-0.40, -0.10]  # verkochte puts 15–30Δ
       wing_width_sigma: 1.0                  # wings op ±1σ van shorts
       use_ATR: true
+      long_wing_strike_tolerance_percent: 5.0
 
   atm_iron_butterfly:
     allow_unpriced_wings: false

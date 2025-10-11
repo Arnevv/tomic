@@ -9,6 +9,7 @@ import pandas as pd
 from tomic.helpers.put_call_parity import fill_missing_mid_with_parity
 from tomic.helpers.dateutils import dte_between_dates, filter_by_dte
 
+from . import StrategyName
 from ..utils import normalize_right, get_leg_right, today
 from ..logutils import logger
 
@@ -187,7 +188,10 @@ def prepare_option_chain(option_chain: List[Dict[str, Any]], spot: float) -> Lis
     """Return ``option_chain`` as list of dicts with parity-filled mids."""
 
     if hasattr(pd, "DataFrame") and isinstance(pd.DataFrame, type):
-        df_chain = pd.DataFrame(option_chain)
+        try:
+            df_chain = pd.DataFrame(option_chain)
+        except TypeError:
+            return option_chain
         if spot > 0:
             if "expiration" not in df_chain.columns and "expiry" in df_chain.columns:
                 df_chain["expiration"] = df_chain["expiry"]
@@ -457,6 +461,14 @@ def generate_wing_spread(
     dte_range = rules.get("dte_range")
     expiries = filter_expiries_by_dte(expiries, dte_range)
 
+    strat_label = getattr(strategy_name, "value", strategy_name)
+    long_wing_tolerance = None
+    if strat_label == StrategyName.IRON_CONDOR.value:
+        long_wing_tolerance = float(rules.get("long_wing_strike_tolerance_percent", 5.0))
+        logger.info(
+            "[iron_condor] short legs: parity ok; long legs: fallback permitted (max 2)"
+        )
+
     # Butterfly mode when centers are provided
     if centers is not None:
         for expiry in expiries:
@@ -642,8 +654,20 @@ def generate_wing_spread(
                     continue
                 lc_target = sc_strike + c_w
                 lp_target = sp_strike - p_w
-                lc = _nearest_strike(strike_map, expiry, "C", lc_target)
-                lp = _nearest_strike(strike_map, expiry, "P", lp_target)
+                lc = _nearest_strike(
+                    strike_map,
+                    expiry,
+                    "C",
+                    lc_target,
+                    tolerance_percent=long_wing_tolerance,
+                )
+                lp = _nearest_strike(
+                    strike_map,
+                    expiry,
+                    "P",
+                    lp_target,
+                    tolerance_percent=long_wing_tolerance,
+                )
                 long_leg_info = [
                     {"expiry": expiry, "strike": lc.matched, "type": "C", "position": 1},
                     {"expiry": expiry, "strike": lp.matched, "type": "P", "position": 1},

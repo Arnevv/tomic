@@ -96,7 +96,6 @@ def test_metrics_reports_close_fallback():
             "mid": 1.2,
             "model": 1.2,
             "delta": 0.2,
-            "mid_fallback": "close",
         },
         {
             "type": "C",
@@ -106,6 +105,7 @@ def test_metrics_reports_close_fallback():
             "mid": 0.4,
             "model": 0.4,
             "delta": 0.1,
+            "mid_fallback": "close",
         },
         {
             "type": "P",
@@ -176,7 +176,7 @@ def test_metrics_reports_parity_fallback():
     assert metrics is not None
     assert metrics.get("fallback") == "parity"
     assert "fallback naar close gebruikt voor midprijs" not in reasons
-    assert "parity-mid gebruikt" in reasons
+    assert "parity-mid gebruikt" not in reasons
 
 
 def test_metrics_reports_model_fallback():
@@ -189,7 +189,6 @@ def test_metrics_reports_model_fallback():
             "mid": 1.2,
             "model": 1.2,
             "delta": 0.2,
-            "mid_fallback": "model",
         },
         {
             "type": "C",
@@ -199,6 +198,7 @@ def test_metrics_reports_model_fallback():
             "mid": 0.4,
             "model": 0.4,
             "delta": 0.1,
+            "mid_fallback": "model",
         },
         {
             "type": "P",
@@ -269,4 +269,4 @@ def test_metrics_rejects_excessive_fallbacks():
     ]
     metrics, reasons = _metrics(StrategyName.IRON_CONDOR, legs)
     assert metrics is None
-    assert any("te veel fallback-legs" in reason for reason in reasons)
+    assert any("short legs vereisen true mid of parity" in reason for reason in reasons)
