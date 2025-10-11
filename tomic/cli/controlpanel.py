@@ -68,21 +68,19 @@ from tomic.cli import services
 from tomic.helpers.price_utils import _load_latest_close
 from tomic.helpers.price_meta import load_price_meta, save_price_meta
 from tomic.polygon_client import PolygonClient
-from tomic.strike_selector import StrikeSelector, filter_by_expiry, FilterConfig
+from tomic.strike_selector import filter_by_expiry
 from tomic.loader import load_strike_config
-from tomic.utils import get_option_mid_price, latest_atr, normalize_leg, load_price_history
+from tomic.utils import latest_atr, normalize_leg, load_price_history
 from tomic.helpers.csv_utils import normalize_european_number_format
 from tomic.helpers.interpolation import interpolate_missing_fields
 from tomic.helpers.quality_check import calculate_csv_quality
 import pandas as pd
-from tomic.metrics import (
-    calculate_pos,
-    calculate_rom,
-    calculate_edge,
-    calculate_ev,
+from tomic.services.strategy_pipeline import (
+    StrategyPipeline,
+    StrategyContext,
+    StrategyProposal,
+    RejectionSummary,
 )
-from tomic.strategy_candidates import generate_strategy_candidates, StrategyProposal
-from tomic.bs_calculator import black_scholes
 from tomic.scripts.backfill_hv import run_backfill_hv
 
 setup_logging(stdout=True)
@@ -107,42 +105,46 @@ SESSION_STATE: dict[str, object] = {
 }
 
 
-@dataclass
-class ReasonAggregator:
-    """Collect counts and reasons for rejected candidates."""
-
-    by_filter: defaultdict[str, int] = field(
-        default_factory=lambda: defaultdict(int)
-    )
-    by_strategy: dict[str, list[str]] = field(default_factory=dict)
-
-    def add_filters(self, data: dict[str, int]) -> None:
-        for key, count in data.items():
-            self.by_filter[key] += count
-
-    def add_strategy(self, name: str, reasons: list[str]) -> None:
-        if reasons:
-            self.by_strategy[name] = sorted(set(reasons))
-
-
-def _print_reason_summary(agg: ReasonAggregator) -> None:
+def _print_reason_summary(summary: RejectionSummary | None) -> None:
     """Display aggregated rejection information."""
-    if not agg.by_filter and not agg.by_strategy:
+
+    if summary is None:
         print("Geen opties door filters afgewezen")
         return
-    if agg.by_filter:
-        rows = sorted(agg.by_filter.items(), key=lambda x: x[1], reverse=True)
+
+    has_data = False
+    if summary.by_filter:
+        has_data = True
+        rows = sorted(summary.by_filter.items(), key=lambda x: x[1], reverse=True)
         print("Afwijzingen per filter:")
         print(tabulate(rows, headers=["Filter", "Aantal"], tablefmt="github"))
-    if agg.by_strategy:
+    if summary.by_reason:
+        has_data = True
+        rows = sorted(summary.by_reason.items(), key=lambda x: x[1], reverse=True)
+        print("Redenen:")
+        print(tabulate(rows, headers=["Reden", "Aantal"], tablefmt="github"))
+    if summary.by_strategy:
+        has_data = True
         print("Redenen per strategie:")
-        for strat, reasons in agg.by_strategy.items():
+        for strat, reasons in summary.by_strategy.items():
             print(f"{strat}:")
             for r in reasons:
                 print(f"• {r}")
+    if not has_data:
+        print("Geen opties door filters afgewezen")
 
 
 SHOW_REASONS = False
+
+
+PIPELINE: StrategyPipeline | None = None
+
+
+def _get_strategy_pipeline() -> StrategyPipeline:
+    global PIPELINE
+    if PIPELINE is None:
+        PIPELINE = StrategyPipeline(cfg, None)
+    return PIPELINE
 
 
 def _load_spot_from_metrics(directory: Path, symbol: str) -> float | None:
@@ -921,157 +923,39 @@ def run_portfolio_menu() -> None:
             if exp not in kept_expiries:
                 logger.info(f"- {exp}: skipped (outside DTE range)")
 
-        def _val(item, default=None):
-            try:
-                return float(item)
-            except Exception:
-                return default
-
-        d_range = (
-            rules.get("delta_range")
-            or rules.get("short_delta_range")
-            or [-1.0, 1.0]
+        pipeline = _get_strategy_pipeline()
+        atr_val = latest_atr(symbol) or 0.0
+        spot_for_pipeline = SESSION_STATE.get("spot_price")
+        if spot_for_pipeline is None or spot_for_pipeline <= 0:
+            spot_for_pipeline = _spot_from_chain(data)
+        context = StrategyContext(
+            symbol=symbol,
+            strategy=strat,
+            option_chain=filtered,
+            spot_price=float(spot_for_pipeline or 0.0),
+            atr=atr_val,
+            config=config_data or {},
+            interest_rate=float(cfg.get("INTEREST_RATE", 0.05)),
+            dte_range=dte_tuple,
+            interactive_mode=True,
+            debug_path=Path(cfg.get("EXPORT_DIR", "exports")) / "PEP_debugfilter.csv",
         )
-        delta_min = (
-            _val(d_range[0], -1.0) if isinstance(d_range, (list, tuple)) else -1.0
+        proposals, summary = pipeline.build_proposals(context)
+        filter_preview = RejectionSummary(
+            by_filter=dict(summary.by_filter), by_reason=dict(summary.by_reason)
         )
-        delta_max = (
-            _val(d_range[1], 1.0)
-            if isinstance(d_range, (list, tuple)) and len(d_range) > 1
-            else 1.0
-        )
+        if filter_preview.by_filter or filter_preview.by_reason:
+            _print_reason_summary(filter_preview)
 
-        fc = FilterConfig(
-            delta_min=delta_min,
-            delta_max=delta_max,
-            min_rom=_val(rules.get("min_rom"), 0.0),
-            min_edge=_val(rules.get("min_edge"), 0.0),
-            min_pos=_val(rules.get("min_pos"), 0.0),
-            min_ev=_val(rules.get("min_ev"), 0.0),
-            skew_min=_val(rules.get("skew_min"), float("-inf")),
-            skew_max=_val(rules.get("skew_max"), float("inf")),
-            term_min=_val(rules.get("term_min"), float("-inf")),
-            term_max=_val(rules.get("term_max"), float("inf")),
-            max_gamma=_val(rules.get("max_gamma"), None),
-            max_vega=_val(rules.get("max_vega"), None),
-            min_theta=_val(rules.get("min_theta"), None),
-        )
+        evaluated = pipeline.last_evaluated
+        SESSION_STATE["evaluated_trades"] = evaluated
+        SESSION_STATE["spot_price"] = context.spot_price
 
-        selector = StrikeSelector(config=fc)
-        debug_csv = Path(cfg.get("EXPORT_DIR", "exports")) / "PEP_debugfilter.csv"
-        selected, reject_reasons, reject_by_filter = selector.select(
-            filtered, debug_csv=debug_csv, return_info=True
-        )
-
-        reason_agg = ReasonAggregator()
-        reason_agg.add_filters(reject_by_filter)
-        _print_reason_summary(reason_agg)
-
-        evaluated: list[dict[str, object]] = []
-        for opt in selected:
-            mid, _ = get_option_mid_price(opt)
-            try:
-                model = (
-                    float(opt.get("modelprice"))
-                    if opt.get("modelprice") is not None
-                    else None
-                )
-            except Exception:
-                model = None
-            if model is None:
-                try:
-                    iv = float(opt.get("iv")) if float(opt.get("iv", 0)) > 0 else None
-                except Exception:
-                    iv = None
-                try:
-                    strike_val = float(opt.get("strike"))
-                except Exception:
-                    strike_val = None
-                expiry_str = str(opt.get("expiry")) if opt.get("expiry") else None
-                opt_type = str(opt.get("type") or opt.get("right", "")).upper()[:1]
-                if (
-                    spot_price is not None
-                    and iv is not None
-                    and strike_val is not None
-                    and expiry_str
-                    and opt_type in {"C", "P"}
-                ):
-                    try:
-                        exp = parse_date(expiry_str)
-                        if exp is None:
-                            raise ValueError("invalid expiry format")
-                        dte_calc = max((exp - datetime.now().date()).days, 0)
-                        model = round(
-                            black_scholes(
-                                opt_type,
-                                float(spot_price),
-                                strike_val,
-                                dte_calc,
-                                iv,
-                                cfg.get("INTEREST_RATE", 0.05),
-                                0.0,
-                            ),
-                            2,
-                        )
-                    except Exception:
-                        model = None
-            try:
-                margin = (
-                    float(opt.get("marginreq"))
-                    if opt.get("marginreq") is not None
-                    else None
-                )
-            except Exception:
-                margin = None
-            if margin is None:
-                try:
-                    strike_val = float(opt.get("strike"))
-                except Exception:
-                    strike_val = None
-                base = float(spot_price) if spot_price is not None else strike_val
-                margin = round(base * 100 * 0.2, 2) if base else 350.0
-            try:
-                delta = float(opt.get("delta"))
-            except Exception:
-                delta = None
-
-            pos = calculate_pos(delta) if delta is not None else None
-            rom = None
-            ev = None
-            edge = None
-            if mid is not None and margin is not None:
-                rom = calculate_rom(mid * 100, margin)
-            if model is not None and mid is not None:
-                edge = calculate_edge(model, mid)
-            if model is not None:
-                opt["model"] = model
-            if None not in (pos, mid, margin):
-                ev = calculate_ev(pos, mid * 100, -margin)
-
-            res = {
-                "symbol": SESSION_STATE.get("symbol"),
-                "expiry": opt.get("expiry"),
-                "strike": opt.get("strike"),
-                "type": opt.get("type"),
-                "delta": delta,
-                "mid": mid,
-                "model": model,
-                "margin": margin,
-                "pos": pos,
-                "rom": rom,
-                "edge": edge,
-                "ev": ev,
-            }
-            normalize_leg(res)
-            evaluated.append(res)
-
-        SESSION_STATE.setdefault("evaluated_trades", []).extend(evaluated)
         if evaluated:
             close_price, close_date = _load_latest_close(symbol)
             if close_price is not None and close_date:
                 print(f"Close {close_date}: {close_price}")
-            atr_val = latest_atr(symbol)
-            if atr_val is not None:
+            if atr_val:
                 print(f"ATR: {atr_val:.2f}")
             else:
                 print("ATR: n.v.t.")
@@ -1112,33 +996,11 @@ def run_portfolio_menu() -> None:
                 global SHOW_REASONS
                 SHOW_REASONS = True
 
-                atr_val = latest_atr(symbol) or 0.0
-                spot_for_strats = refresh_spot_price(symbol)
-                if spot_for_strats is None or spot_for_strats <= 0:
-                    spot_for_strats = _load_spot_from_metrics(path.parent, symbol)
-                if spot_for_strats is None or spot_for_strats <= 0:
-                    spot_for_strats, _ = _load_latest_close(symbol)
-                if spot_for_strats is None or spot_for_strats <= 0:
-                    spot_for_strats = _spot_from_chain(data)
-                if spot_for_strats is None or spot_for_strats <= 0:
-                    print(
-                        "❌ Geen geldige spotprijs beschikbaar; strategievoorstellen overgeslagen."
-                    )
-                    return
-                SESSION_STATE["spot_price"] = spot_for_strats
+                if context.spot_price > 0:
+                    print(f"Spotprice: {context.spot_price:.2f}")
+                else:
+                    print("Spotprice: onbekend")
 
-                print(f"Spotprice: {spot_for_strats:.2f}")
-
-                proposals, reasons = generate_strategy_candidates(
-                    symbol,
-                    strat,
-                    selected,
-                    atr_val,
-                    config_data or {},
-                    spot_for_strats,
-                    interactive_mode=True,
-                )
-                reason_agg.add_strategy(strat, reasons)
                 if proposals:
                     rom_w = cfg.get("SCORE_WEIGHT_ROM", 0.5)
                     pos_w = cfg.get("SCORE_WEIGHT_POS", 0.3)
@@ -1217,7 +1079,7 @@ def run_portfolio_menu() -> None:
                     if warn_edge:
                         print("⚠️ Eén of meerdere edges niet beschikbaar")
                     if SHOW_REASONS:
-                        _print_reason_summary(reason_agg)
+                        _print_reason_summary(summary)
                     while True:
                         sel = prompt("Kies voorstel (0 om terug): ")
                         if sel in {"", "0"}:
@@ -1232,10 +1094,10 @@ def run_portfolio_menu() -> None:
                         break
                 else:
                     print("⚠️ Geen voorstellen gevonden")
-                    _print_reason_summary(reason_agg)
+                    _print_reason_summary(summary)
         else:
             print("⚠️ Geen geschikte strikes gevonden.")
-            _print_reason_summary(reason_agg)
+            _print_reason_summary(summary)
             print("➤ Controleer of de juiste expiraties beschikbaar zijn in de chain.")
             print("➤ Of pas je selectiecriteria aan in strike_selection_rules.yaml.")
 
