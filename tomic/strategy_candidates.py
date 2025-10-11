@@ -46,6 +46,8 @@ class StrategyProposal:
     fallback: Optional[str] = None
     profit_estimated: bool = False
     scenario_info: Optional[Dict[str, Any]] = None
+    fallback_summary: Optional[Dict[str, int]] = None
+    spread_rejects_n: int = 0
 
 
 @dataclass

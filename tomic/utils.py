@@ -292,6 +292,7 @@ def build_leg(quote: Mapping[str, Any], side: Literal["long", "short"]) -> Optio
     leg = normalize_leg(dict(quote))
     leg["position"] = 1 if side == "long" else -1
 
+    mid_source = leg.get("mid_source")
     if leg.get("mid") in (None, "", 0, "0"):
         mid, used_close = get_option_mid_price(leg)
         leg["mid"] = mid
@@ -299,6 +300,22 @@ def build_leg(quote: Mapping[str, Any], side: Literal["long", "short"]) -> Optio
             leg["mid_fallback"] = "parity"
         elif used_close:
             leg["mid_fallback"] = "close"
+        elif mid_source in {"parity", "model", "close"}:
+            leg["mid_fallback"] = mid_source
+    else:
+        if mid_source in {"parity", "model", "close"}:
+            leg["mid_fallback"] = mid_source
+
+    if mid_source:
+        leg["mid_source"] = mid_source
+    if "mid_reason" in leg:
+        leg["mid_reason"] = leg.get("mid_reason")
+    if "spread_flag" in leg:
+        leg["spread_flag"] = leg.get("spread_flag")
+    if "quote_age_sec" in leg:
+        leg["quote_age_sec"] = leg.get("quote_age_sec")
+    if "one_sided" in leg:
+        leg["one_sided"] = bool(leg.get("one_sided"))
 
     from .helpers.bs_utils import populate_model_delta
 

@@ -30,6 +30,24 @@ def _bs_estimate_missing(legs: List[Dict[str, Any]]) -> None:
         populate_model_delta(leg)
 
 
+def _fallback_limit_ok(legs: List[Dict[str, Any]]) -> tuple[bool, int, int]:
+    limit_per_four = int(cfg_get("MID_FALLBACK_MAX_PER_4", 2) or 0)
+    leg_count = len(legs)
+    if leg_count == 0:
+        return True, 0, 0
+    if limit_per_four <= 0:
+        allowed = 0
+    else:
+        allowed = math.ceil(limit_per_four * leg_count / 4)
+    fallback_sources = {"parity", "model", "close"}
+    fallback_count = sum(
+        1
+        for leg in legs
+        if str(leg.get("mid_source") or leg.get("mid_fallback") or "") in fallback_sources
+    )
+    return fallback_count <= allowed, fallback_count, allowed
+
+
 def calculate_breakevens(
     strategy: str | Any, legs: List[Dict[str, Any]], credit: float
 ) -> Optional[List[float]]:
@@ -210,6 +228,10 @@ def compute_proposal_metrics(
     fallbacks = {leg.get("mid_fallback") for leg in legs if leg.get("mid_fallback")}
     if "close" in fallbacks:
         reasons.append("fallback naar close gebruikt voor midprijs")
+    if "model" in fallbacks:
+        reasons.append("model-mid gebruikt")
+    if "parity" in fallbacks:
+        reasons.append("parity-mid gebruikt")
     net_credit = credit_short - debit_long
     if strategy_name in POSITIVE_CREDIT_STRATS and net_credit <= 0:
         reasons.append("negatieve credit")
@@ -302,6 +324,12 @@ def calculate_score(
     legs = proposal.legs
     strategy_name = getattr(strategy, "value", strategy)
     _bs_estimate_missing(legs)
+
+    fallback_ok, fallback_count, fallback_allowed = _fallback_limit_ok(legs)
+    if not fallback_ok:
+        reason = f"te veel fallback-legs ({fallback_count}/{fallback_allowed} toegestaan)"
+        logger.info(f"[{strategy_name}] {reason}")
+        return None, [reason]
 
     valid, reasons = validate_leg_metrics(strategy_name, legs)
     if not valid:

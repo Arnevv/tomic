@@ -40,7 +40,7 @@ def sample_option() -> dict:
 
 
 def test_build_proposals_generates_results(sample_option):
-    selector = DummySelector(selected=[sample_option])
+    selector = DummySelector()
 
     def selector_factory(**kwargs):
         return selector
@@ -66,7 +66,10 @@ def test_build_proposals_generates_results(sample_option):
     def generator(symbol, strategy, option_chain, atr, config, spot, interactive_mode=False):
         assert symbol == "XYZ"
         assert strategy == "iron_condor"
-        assert option_chain == [sample_option]
+        assert len(option_chain) == 1
+        enriched = option_chain[0]
+        assert enriched.get("mid_source") == "true"
+        assert isclose(enriched.get("mid"), 1.1, rel_tol=1e-3)
         assert isclose(atr, 1.5)
         assert isclose(spot, 102.0)
         assert interactive_mode is True
@@ -98,6 +101,8 @@ def test_build_proposals_generates_results(sample_option):
     assert prop.strategy == "iron_condor"
     assert isclose(prop.score or 0.0, 2.4)
     assert prop.legs[0]["strike"] == 100.0
+    assert prop.fallback_summary == {"true": 1, "parity": 0, "model": 0, "close": 0}
+    assert prop.spread_rejects_n == 0
     assert summary.by_strategy == {"iron_condor": ["edge:low"]}
     assert summary.by_filter == {}
     assert pipeline.last_evaluated
