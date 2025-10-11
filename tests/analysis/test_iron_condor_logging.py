@@ -74,13 +74,16 @@ def test_iron_condor_logging(monkeypatch):
 
     messages: list[str] = []
     monkeypatch.setattr(iron_condor, "calculate_score", fake_score)
-    monkeypatch.setattr(logutils, "logger", SimpleNamespace(info=lambda m: messages.append(m)))
+    capture_logger = SimpleNamespace(info=lambda m: messages.append(m))
+    monkeypatch.setattr(logutils, "logger", capture_logger)
+    monkeypatch.setattr("tomic.strategies.utils.logger", capture_logger)
 
     iron_condor.generate("AAA", chain, cfg, 100.0, 1.0)
     joined = " ".join(messages)
     assert "expiry=2025-01-01" in joined
     assert "SC=110.0C" in joined and "LC=120.0C" in joined
     assert "SP=90.0P" in joined and "LP=80.0P" in joined
+    assert any("short legs: parity ok; long legs: fallback permitted (max 2)" in m for m in messages)
 
     messages.clear()
     chain_fail = [c for c in chain if c["type"] == "call"]
