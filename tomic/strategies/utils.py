@@ -255,6 +255,7 @@ def generate_short_vertical(
     leg_right = "call" if option_type == "C" else "put"
 
     if len(delta_range) == 2 and (target_delta is not None or atr_mult is not None):
+        logger.info("short=market/parity, long=fallback ok")
         for expiry in expiries:
             short_opt = None
             for opt in option_chain:
@@ -317,7 +318,13 @@ def generate_short_vertical(
                 long_strike_target = float(short_opt.get("strike")) + width
             else:
                 long_strike_target = float(short_opt.get("strike")) - width
-            long_strike = _nearest_strike(strike_map, expiry, option_type, long_strike_target)
+            long_strike = _nearest_strike(
+                strike_map,
+                expiry,
+                option_type,
+                long_strike_target,
+                tolerance_percent=5.0,
+            )
             desc = f"short {short_opt.get('strike')} long {long_strike.matched}"
             legs_info = [
                 {
@@ -459,6 +466,7 @@ def generate_wing_spread(
 
     # Butterfly mode when centers are provided
     if centers is not None:
+        logger.info("short legs: parity ok; long legs: fallback permitted (max 2)")
         for expiry in expiries:
             if reached_limit(proposals):
                 break
@@ -513,10 +521,18 @@ def generate_wing_spread(
                     continue
                 sc_strike = sp_strike = center
                 lc_strike = _nearest_strike(
-                    strike_map, expiry, "C", center + width
+                    strike_map,
+                    expiry,
+                    "C",
+                    center + width,
+                    tolerance_percent=5.0,
                 ).matched
                 lp_strike = _nearest_strike(
-                    strike_map, expiry, "P", center - width
+                    strike_map,
+                    expiry,
+                    "P",
+                    center - width,
+                    tolerance_percent=5.0,
                 ).matched
                 desc = f"center {center} sigma {sigma_mult}"
                 base_legs = [
@@ -801,6 +817,7 @@ def generate_ratio_like(
     leg_right = "call" if option_type == "C" else "put"
 
     if len(delta_range) == 2 and (target_delta is not None or atr_mult is not None):
+        logger.info("ratio/backspread: short parity ok; long fallbacks permitted (max 2)")
         for short_exp, long_exp in pairs:
             short_opt = None
             for opt in option_chain:
@@ -868,7 +885,11 @@ def generate_ratio_like(
             else:
                 long_strike_target = float(short_opt.get("strike")) - width
             long_strike = _nearest_strike(
-                strike_map, long_exp, option_type, long_strike_target
+                strike_map,
+                long_exp,
+                option_type,
+                long_strike_target,
+                tolerance_percent=5.0,
             )
             desc_base = (
                 f"near {short_exp} far {long_exp} " if short_exp != long_exp else ""

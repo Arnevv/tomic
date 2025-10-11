@@ -334,31 +334,89 @@ def calculate_score(
         logger.info(f"[{strategy_name}] {reason}")
         return None, [reason]
 
-    if strategy_name == StrategyName.IRON_CONDOR.value:
-        long_fallback_sources = {"model", "close"}
-        short_with_fallback = [
-            leg
-            for leg in legs
-            if (leg.get("position", 0) or 0) < 0
-            and str(leg.get("mid_source") or leg.get("mid_fallback") or "")
-            in long_fallback_sources
-        ]
+    fallback_sources = {"model", "close"}
+
+    def _mid_source(leg: Dict[str, Any]) -> str:
+        return str(leg.get("mid_source") or leg.get("mid_fallback") or "")
+
+    def _uses_fallback(leg: Dict[str, Any]) -> bool:
+        return _mid_source(leg) in fallback_sources
+
+    def _is_short(leg: Dict[str, Any]) -> bool:
+        try:
+            return float(leg.get("position", 0) or 0) < 0
+        except Exception:
+            return False
+
+    def _is_long(leg: Dict[str, Any]) -> bool:
+        try:
+            return float(leg.get("position", 0) or 0) > 0
+        except Exception:
+            return False
+
+    condor_like = {
+        StrategyName.IRON_CONDOR.value,
+        StrategyName.ATM_IRON_BUTTERFLY.value,
+        StrategyName.RATIO_SPREAD.value,
+        StrategyName.BACKSPREAD_PUT.value,
+    }
+
+    if strategy_name in condor_like:
+        short_with_fallback = [leg for leg in legs if _is_short(leg) and _uses_fallback(leg)]
         if short_with_fallback:
             reason = "short legs vereisen true/parity mid"
             logger.info(f"[{strategy_name}] {reason}")
             return None, [reason]
 
-        long_fallbacks = [
-            leg
-            for leg in legs
-            if (leg.get("position", 0) or 0) > 0
-            and str(leg.get("mid_source") or leg.get("mid_fallback") or "")
-            in long_fallback_sources
-        ]
+        long_fallbacks = [leg for leg in legs if _is_long(leg) and _uses_fallback(leg)]
         if len(long_fallbacks) > 2:
             reason = "te veel fallbacks op long legs (max 2 toegestaan)"
             logger.info(f"[{strategy_name}] {reason}")
             return None, [reason]
+
+    elif strategy_name in {
+        StrategyName.SHORT_CALL_SPREAD.value,
+        StrategyName.SHORT_PUT_SPREAD.value,
+    }:
+        short_with_fallback = [leg for leg in legs if _is_short(leg) and _uses_fallback(leg)]
+        if short_with_fallback:
+            reason = "short legs vereisen true/parity mid"
+            logger.info(f"[{strategy_name}] {reason}")
+            return None, [reason]
+
+        long_fallbacks = [leg for leg in legs if _is_long(leg) and _uses_fallback(leg)]
+        if len(long_fallbacks) > 1:
+            reason = "te veel fallbacks op long legs (max 1 toegestaan)"
+            logger.info(f"[{strategy_name}] {reason}")
+            return None, [reason]
+
+    elif strategy_name == StrategyName.CALENDAR.value:
+        short_with_fallback = [leg for leg in legs if _is_short(leg) and _uses_fallback(leg)]
+        if short_with_fallback:
+            reason = "short legs vereisen true/parity mid"
+            logger.info(f"[{strategy_name}] {reason}")
+            return None, [reason]
+
+        long_fallbacks = [leg for leg in legs if _is_long(leg) and _uses_fallback(leg)]
+        if len(long_fallbacks) > 1:
+            reason = "te veel fallbacks op long legs (max 1 toegestaan)"
+            logger.info(f"[{strategy_name}] {reason}")
+            return None, [reason]
+
+        model_only = [leg for leg in long_fallbacks if _mid_source(leg) == "model"]
+        if model_only:
+            reason = "calendar long leg vereist parity of close mid"
+            logger.info(f"[{strategy_name}] {reason}")
+            return None, [reason]
+
+    elif strategy_name == StrategyName.NAKED_PUT.value:
+        for leg in legs:
+            if _is_short(leg) and _uses_fallback(leg):
+                logger.info(
+                    "[naked_put] short leg gebruikt %s fallback — parity niet beschikbaar",
+                    _mid_source(leg),
+                )
+                break
 
     valid, reasons = validate_leg_metrics(strategy_name, legs)
     if not valid:

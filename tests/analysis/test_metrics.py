@@ -277,3 +277,185 @@ def test_metrics_rejects_excessive_long_fallbacks():
     metrics, reasons = _metrics(StrategyName.IRON_CONDOR, legs)
     assert metrics is None
     assert reasons == ["te veel fallbacks op long legs (max 2 toegestaan)"]
+
+
+def test_metrics_atm_butterfly_rejects_short_fallback():
+    legs = [
+        {
+            "type": "C",
+            "strike": 55,
+            "expiry": "2025-08-01",
+            "position": -1,
+            "mid": 1.2,
+            "model": 1.2,
+            "delta": 0.25,
+            "mid_fallback": "model",
+        },
+        {
+            "type": "P",
+            "strike": 55,
+            "expiry": "2025-08-01",
+            "position": -1,
+            "mid": 1.1,
+            "model": 1.1,
+            "delta": -0.25,
+        },
+        {
+            "type": "C",
+            "strike": 60,
+            "expiry": "2025-08-01",
+            "position": 1,
+            "mid": 0.4,
+            "model": 0.4,
+            "delta": 0.1,
+        },
+        {
+            "type": "P",
+            "strike": 50,
+            "expiry": "2025-08-01",
+            "position": 1,
+            "mid": 0.4,
+            "model": 0.4,
+            "delta": -0.1,
+        },
+    ]
+    metrics, reasons = _metrics(StrategyName.ATM_IRON_BUTTERFLY, legs)
+    assert metrics is None
+    assert reasons == ["short legs vereisen true/parity mid"]
+
+
+def test_metrics_short_call_spread_rejects_short_fallback():
+    legs = [
+        {
+            "type": "C",
+            "strike": 60,
+            "expiry": "2025-08-01",
+            "position": -1,
+            "mid": 1.5,
+            "model": 1.5,
+            "delta": 0.35,
+            "mid_fallback": "close",
+        },
+        {
+            "type": "C",
+            "strike": 65,
+            "expiry": "2025-08-01",
+            "position": 1,
+            "mid": 0.5,
+            "model": 0.5,
+            "delta": 0.2,
+        },
+    ]
+    metrics, reasons = _metrics(StrategyName.SHORT_CALL_SPREAD, legs)
+    assert metrics is None
+    assert reasons == ["short legs vereisen true/parity mid"]
+
+
+def test_metrics_short_put_spread_rejects_short_fallback():
+    legs = [
+        {
+            "type": "P",
+            "strike": 50,
+            "expiry": "2025-08-01",
+            "position": -1,
+            "mid": 1.5,
+            "model": 1.5,
+            "delta": -0.35,
+            "mid_fallback": "close",
+        },
+        {
+            "type": "P",
+            "strike": 45,
+            "expiry": "2025-08-01",
+            "position": 1,
+            "mid": 0.5,
+            "model": 0.5,
+            "delta": -0.15,
+        },
+    ]
+    metrics, reasons = _metrics(StrategyName.SHORT_PUT_SPREAD, legs)
+    assert metrics is None
+    assert reasons == ["short legs vereisen true/parity mid"]
+
+
+def test_metrics_ratio_spread_rejects_short_fallback():
+    legs = [
+        {
+            "type": "C",
+            "strike": 60,
+            "expiry": "2025-08-01",
+            "position": -1,
+            "mid": 1.0,
+            "model": 1.0,
+            "delta": 0.3,
+            "mid_fallback": "model",
+        },
+        {
+            "type": "C",
+            "strike": 65,
+            "expiry": "2025-09-01",
+            "position": 2,
+            "mid": 0.6,
+            "model": 0.6,
+            "delta": 0.15,
+        },
+    ]
+    metrics, reasons = _metrics(StrategyName.RATIO_SPREAD, legs, 60.0)
+    assert metrics is None
+    assert reasons == ["short legs vereisen true/parity mid"]
+
+
+def test_metrics_ratio_spread_limits_long_fallbacks():
+    legs = [
+        {
+            "type": "C",
+            "strike": 60,
+            "expiry": "2025-08-01",
+            "position": -1,
+            "mid": 1.0,
+            "model": 1.0,
+            "delta": 0.3,
+        },
+        {
+            "type": "C",
+            "strike": 65,
+            "expiry": "2025-09-01",
+            "position": 1,
+            "mid": 0.6,
+            "model": 0.6,
+            "delta": 0.15,
+            "mid_fallback": "model",
+        },
+        {
+            "type": "C",
+            "strike": 65,
+            "expiry": "2025-09-01",
+            "position": 1,
+            "mid": 0.6,
+            "model": 0.6,
+            "delta": 0.15,
+            "mid_fallback": "close",
+        },
+        {
+            "type": "C",
+            "strike": 70,
+            "expiry": "2025-09-01",
+            "position": 1,
+            "mid": 0.4,
+            "model": 0.4,
+            "delta": 0.1,
+        },
+        {
+            "type": "C",
+            "strike": 70,
+            "expiry": "2025-09-01",
+            "position": 1,
+            "mid": 0.4,
+            "model": 0.4,
+            "delta": 0.1,
+            "mid_fallback": "close",
+        },
+    ]
+    metrics, reasons = _metrics(StrategyName.RATIO_SPREAD, legs, 60.0)
+    assert metrics is None
+    assert reasons == ["te veel fallbacks op long legs (max 2 toegestaan)"]
