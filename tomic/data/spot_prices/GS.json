@@ -3974,5 +3974,12 @@
     "close": 779.96,
     "volume": 1574347.0,
     "atr": null
+  },
+  {
+    "symbol": "GS",
+    "date": "2025-10-10",
+    "close": 764.36,
+    "volume": 2457097.0,
+    "atr": null
   }
 ]
