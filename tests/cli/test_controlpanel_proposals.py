@@ -73,6 +73,8 @@ def test_show_market_info(monkeypatch, tmp_path):
         ),
     )
 
+    mod.MARKET_SNAPSHOT_SERVICE = mod.MarketSnapshotService(mod.cfg)
+
     monkeypatch.setattr(
         mod,
         "fetch_volatility_metrics",

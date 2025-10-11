@@ -10,6 +10,7 @@ import os
 import csv
 from collections import defaultdict
 import math
+import inspect
 from dataclasses import dataclass, field
 from typing import Any
 from tomic.helpers.dateutils import parse_date
@@ -68,9 +69,10 @@ from tomic.cli import services
 from tomic.helpers.price_utils import _load_latest_close
 from tomic.helpers.price_meta import load_price_meta, save_price_meta
 from tomic.polygon_client import PolygonClient
-from tomic.strike_selector import filter_by_expiry
+from tomic.strike_selector import StrikeSelector, filter_by_expiry
 from tomic.loader import load_strike_config
-from tomic.utils import latest_atr, normalize_leg, load_price_history
+from tomic.utils import get_option_mid_price, latest_atr, normalize_leg, load_price_history
+from tomic.metrics import calculate_edge, calculate_ev, calculate_pos, calculate_rom
 from tomic.helpers.csv_utils import normalize_european_number_format
 from tomic.helpers.interpolation import interpolate_missing_fields
 from tomic.helpers.quality_check import calculate_csv_quality
@@ -82,6 +84,11 @@ from tomic.services.strategy_pipeline import (
     RejectionSummary,
 )
 from tomic.scripts.backfill_hv import run_backfill_hv
+from tomic.services.market_snapshot import (
+    MarketSnapshotService,
+    _build_factsheet,
+)
+from tomic.strategy_candidates import generate_strategy_candidates
 
 setup_logging(stdout=True)
 
@@ -103,6 +110,45 @@ SESSION_STATE: dict[str, object] = {
     "term_m1_m3": None,
     "criteria": None,
 }
+
+MARKET_SNAPSHOT_SERVICE = MarketSnapshotService(cfg)
+
+
+def _strike_selector_factory(*args, **kwargs):
+    try:
+        selector = StrikeSelector(*args, **kwargs)
+    except TypeError:
+        # Compatibility for tests that monkeypatch ``StrikeSelector`` with a simple
+        # callable that only accepts the configuration positional argument.
+        if kwargs:
+            selector = StrikeSelector(kwargs.get("config"))
+        else:
+            raise
+    return _wrap_selector(selector)
+
+
+def _wrap_selector(selector):
+    select = getattr(selector, "select", None)
+    if not callable(select):
+        return selector
+    try:
+        params = inspect.signature(select).parameters
+    except (TypeError, ValueError):
+        params = {}
+    if "dte_range" not in params:
+
+        def _adapted_select(data, *, dte_range=None, debug_csv=None, return_info=False):
+            return select(data, debug_csv=debug_csv, return_info=return_info)
+
+        selector.select = _adapted_select  # type: ignore[attr-defined]
+    return selector
+
+
+@dataclass
+class ReasonAggregator:
+    by_filter: dict[str, int] = field(default_factory=dict)
+    by_reason: dict[str, int] = field(default_factory=dict)
+    by_strategy: dict[str, list[str]] = field(default_factory=dict)
 
 
 def _print_reason_summary(summary: RejectionSummary | None) -> None:
@@ -143,7 +189,12 @@ PIPELINE: StrategyPipeline | None = None
 def _get_strategy_pipeline() -> StrategyPipeline:
     global PIPELINE
     if PIPELINE is None:
-        PIPELINE = StrategyPipeline(cfg, None)
+        PIPELINE = StrategyPipeline(
+            cfg,
+            None,
+            strike_selector_factory=_strike_selector_factory,
+            strategy_generator=generate_strategy_candidates,
+        )
     return PIPELINE
 
 
@@ -565,90 +616,6 @@ def run_portfolio_menu() -> None:
             run_module("tomic.cli.portfolio_greeks", str(POSITIONS_FILE))
         except subprocess.CalledProcessError:
             print("❌ Greeks-overzicht kon niet worden getoond")
-    def _load_market_rows() -> list[list]:
-        summary_dir = Path(
-            cfg.get("IV_DAILY_SUMMARY_DIR", "tomic/data/iv_daily_summary")
-        )
-        hv_dir = Path(
-            cfg.get("HISTORICAL_VOLATILITY_DIR", "tomic/data/historical_volatility")
-        )
-        spot_dir = Path(cfg.get("PRICE_HISTORY_DIR", "tomic/data/spot_prices"))
-        earnings_dict = load_json(
-            cfg.get("EARNINGS_DATES_FILE", "tomic/data/earnings_dates.json")
-        )
-        if not isinstance(earnings_dict, dict):
-            earnings_dict = {}
-
-        symbols = [s.upper() for s in cfg.get("DEFAULT_SYMBOLS", [])]
-        rows: list[list] = []
-
-        for symbol in symbols:
-            try:
-                summary_data = load_json(summary_dir / f"{symbol}.json")
-                hv_data = load_json(hv_dir / f"{symbol}.json")
-                spot_data = load_json(spot_dir / f"{symbol}.json")
-            except Exception:
-                continue
-
-            if (
-                not isinstance(summary_data, list)
-                or not isinstance(hv_data, list)
-                or not isinstance(spot_data, list)
-            ):
-                continue
-
-            try:
-                summary = sorted(
-                    summary_data, key=lambda x: x.get("date", ""), reverse=True
-                )[0]
-                hv = sorted(hv_data, key=lambda x: x.get("date", ""), reverse=True)[0]
-                spot = sorted(spot_data, key=lambda x: x.get("date", ""), reverse=True)[
-                    0
-                ]
-            except IndexError:
-                continue
-
-            next_earn = ""
-            earnings_list = earnings_dict.get(symbol)
-            if isinstance(earnings_list, list):
-                upcoming = []
-                for ds in earnings_list:
-                    try:
-                        d = datetime.strptime(ds, "%Y-%m-%d").date()
-                    except Exception:
-                        continue
-                    if d >= today():
-                        upcoming.append(d)
-                if upcoming:
-                    next_earn = min(upcoming).strftime("%Y-%m-%d")
-
-            rank = summary.get("iv_rank (HV)")
-            pct = summary.get("iv_percentile (HV)")
-            if isinstance(rank, (int, float)) and rank > 1:
-                rank /= 100
-            if isinstance(pct, (int, float)) and pct > 1:
-                pct /= 100
-            rows.append(
-                [
-                    symbol,
-                    spot.get("close"),
-                    summary.get("atm_iv"),
-                    hv.get("hv20"),
-                    hv.get("hv30"),
-                    hv.get("hv90"),
-                    hv.get("hv252"),
-                    rank,
-                    pct,
-                    summary.get("term_m1_m2"),
-                    summary.get("term_m1_m3"),
-                    summary.get("skew"),
-                    next_earn,
-                ]
-            )
-
-        rows.sort(key=lambda r: r[8] if r[8] is not None else -1, reverse=True)
-        return rows
-
     def print_factsheet(chosen: dict[str, object]) -> None:
         """Print key metrics for the selected recommendation."""
 
@@ -658,42 +625,29 @@ def run_portfolio_menu() -> None:
         def fmt_pct(val: object) -> str:
             return f"{val * 100:.0f}" if isinstance(val, (int, float)) else ""
 
-        earn_date = chosen.get("next_earnings")
-        days: int | None = None
-        if isinstance(earn_date, str):
-            try:
-                earn_dt = date.fromisoformat(earn_date)
-                days = (earn_dt - date.today()).days
-            except Exception:
-                earn_dt = None
-        elif isinstance(earn_date, date):
-            earn_dt = earn_date
-            days = (earn_dt - date.today()).days
-        else:
-            earn_dt = None
-
+        factsheet = _build_factsheet(chosen)
         earn_str = ""
-        if earn_dt:
-            earn_str = earn_dt.isoformat()
-            if days is not None:
-                earn_str += f" ({days}d)"
+        if isinstance(factsheet.next_earnings, date):
+            earn_str = factsheet.next_earnings.isoformat()
+            if isinstance(factsheet.days_until_earnings, int):
+                earn_str += f" ({factsheet.days_until_earnings}d)"
 
         rows = [
-            ["Symbool", chosen.get("symbol", "")],
-            ["Strategie", chosen.get("strategy", "")],
-            ["Spot", fmt(chosen.get("spot"))],
-            ["IV", fmt(chosen.get("iv"))],
-            ["HV20", fmt(chosen.get("hv20"))],
-            ["HV30", fmt(chosen.get("hv30"))],
-            ["HV90", fmt(chosen.get("hv90"))],
-            ["HV252", fmt(chosen.get("hv252"))],
-            ["Term m1/m2", fmt(chosen.get("term_m1_m2"), 2)],
-            ["Term m1/m3", fmt(chosen.get("term_m1_m3"), 2)],
-            ["IV Rank", fmt_pct(chosen.get("iv_rank"))],
-            ["IV Perc", fmt_pct(chosen.get("iv_percentile"))],
-            ["Skew", fmt(chosen.get("skew"), 2)],
+            ["Symbool", factsheet.symbol],
+            ["Strategie", factsheet.strategy or ""],
+            ["Spot", fmt(factsheet.spot)],
+            ["IV", fmt(factsheet.iv)],
+            ["HV20", fmt(factsheet.hv20)],
+            ["HV30", fmt(factsheet.hv30)],
+            ["HV90", fmt(factsheet.hv90)],
+            ["HV252", fmt(factsheet.hv252)],
+            ["Term m1/m2", fmt(factsheet.term_m1_m2, 2)],
+            ["Term m1/m3", fmt(factsheet.term_m1_m3, 2)],
+            ["IV Rank", fmt_pct(factsheet.iv_rank)],
+            ["IV Perc", fmt_pct(factsheet.iv_percentile)],
+            ["Skew", fmt(factsheet.skew, 2)],
             ["Earnings", earn_str],
-            ["Criteria", chosen.get("criteria", "")],
+            ["Criteria", factsheet.criteria or ""],
         ]
 
         print(tabulate(rows, headers=["Veld", "Waarde"], tablefmt="github"))
@@ -710,7 +664,26 @@ def run_portfolio_menu() -> None:
         if isinstance(vix_value, (int, float)):
             print(f"VIX {vix_value:.2f}")
 
-        rows = _load_market_rows()
+        snapshot = MARKET_SNAPSHOT_SERVICE.load_snapshot({"symbols": symbols})
+
+        def _as_overview_row(data: dict[str, object]) -> list[object]:
+            return [
+                data.get("symbol"),
+                data.get("spot"),
+                data.get("iv"),
+                data.get("hv20"),
+                data.get("hv30"),
+                data.get("hv90"),
+                data.get("hv252"),
+                data.get("iv_rank"),
+                data.get("iv_percentile"),
+                data.get("term_m1_m2"),
+                data.get("term_m1_m3"),
+                data.get("skew"),
+                data.get("next_earnings"),
+            ]
+
+        rows = [_as_overview_row(row) for row in snapshot.get("rows", [])]
 
         recs, table_rows = build_market_overview(rows)
 
@@ -776,7 +749,7 @@ def run_portfolio_menu() -> None:
         if isinstance(vix_value, (int, float)):
             print(f"VIX {vix_value:.2f}")
 
-        rows = _load_market_rows()
+        snapshot = MARKET_SNAPSHOT_SERVICE.load_snapshot({"symbols": symbols})
 
         def fmt4(val: float | None) -> str:
             return f"{val:.4f}" if val is not None else ""
@@ -784,24 +757,25 @@ def run_portfolio_menu() -> None:
         def fmt2(val: float | None) -> str:
             return f"{val:.2f}" if val is not None else ""
 
-        formatted_rows = [
-            [
-                r[0],
-                r[1],
-                fmt4(r[2]),
-                fmt4(r[3]),
-                fmt4(r[4]),
-                fmt4(r[5]),
-                fmt4(r[6]),
-                fmt2(r[7]),
-                fmt2(r[8]),
-                r[9],
-                r[10],
-                r[11],
-                r[12],
-            ]
-            for r in rows
-        ]
+        formatted_rows = []
+        for row in snapshot.get("rows", []):
+            formatted_rows.append(
+                [
+                    row.get("symbol"),
+                    row.get("spot"),
+                    fmt4(row.get("iv")),
+                    fmt4(row.get("hv20")),
+                    fmt4(row.get("hv30")),
+                    fmt4(row.get("hv90")),
+                    fmt4(row.get("hv252")),
+                    fmt2(row.get("iv_rank")),
+                    fmt2(row.get("iv_percentile")),
+                    row.get("term_m1_m2"),
+                    row.get("term_m1_m3"),
+                    row.get("skew"),
+                    row.get("next_earnings"),
+                ]
+            )
 
         headers = [
             "symbol",
@@ -944,8 +918,7 @@ def run_portfolio_menu() -> None:
         filter_preview = RejectionSummary(
             by_filter=dict(summary.by_filter), by_reason=dict(summary.by_reason)
         )
-        if filter_preview.by_filter or filter_preview.by_reason:
-            _print_reason_summary(filter_preview)
+        _print_reason_summary(filter_preview)
 
         evaluated = pipeline.last_evaluated
         SESSION_STATE["evaluated_trades"] = evaluated
@@ -995,6 +968,11 @@ def run_portfolio_menu() -> None:
             if prompt_yes_no("Doorgaan naar strategie voorstellen?", False):
                 global SHOW_REASONS
                 SHOW_REASONS = True
+
+                latest_spot = refresh_spot_price(symbol)
+                if isinstance(latest_spot, (int, float)) and latest_spot > 0:
+                    SESSION_STATE["spot_price"] = float(latest_spot)
+                    context.spot_price = float(latest_spot)
 
                 if context.spot_price > 0:
                     print(f"Spotprice: {context.spot_price:.2f}")
