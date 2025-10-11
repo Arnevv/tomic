@@ -1,9 +1,10 @@
-import importlib
 import builtins
 import json
+import importlib
 import types
 from datetime import datetime, timedelta
 from pathlib import Path
+from contextlib import contextmanager
 from tomic.journal.utils import save_json, load_json
 from tomic.strategy_candidates import StrategyProposal
 
@@ -233,8 +234,22 @@ def test_process_chain_refreshes_spot_price(monkeypatch, tmp_path):
         lambda self, sym: next(prices),
     )
 
-    prompts = iter([True, False, False, True])
-    monkeypatch.setattr(mod, "prompt_yes_no", lambda *a, **k: next(prompts))
+    responses = {
+        "Doorgaan?": [True],
+        "Wil je delta/iv interpoleren om de data te verbeteren?": [False],
+        "Opslaan naar CSV?": [False],
+        "Doorgaan naar strategie voorstellen?": [True],
+        "Wil je een samenvatting van rejection reasons (y/n)?": [False, True],
+        "Wil je meer details opvraagbaar per rij (y/n)?": [False, False],
+    }
+
+    def fake_prompt(question, default=False):
+        assert question in responses, f"Unexpected prompt: {question}"
+        queue = responses[question]
+        assert queue, f"No responses left for: {question}"
+        return queue.pop(0)
+
+    monkeypatch.setattr(mod, "prompt_yes_no", fake_prompt)
 
     prints: list[str] = []
     monkeypatch.setattr(
@@ -250,8 +265,9 @@ def test_process_chain_refreshes_spot_price(monkeypatch, tmp_path):
     assert any(
         "Geen opties door filters afgewezen" in line for line in prints
     )
-    assert any("• r1" in line for line in prints)
-    assert any("• r2" in line for line in prints)
+    by_strategy = getattr(mod.PIPELINE, "last_rejections", {}).get("by_strategy", {})
+    combined = {reason for reasons in by_strategy.values() for reason in reasons}
+    assert {"r1", "r2"}.issubset(combined)
     assert "spot_AAA" in meta_store
 
     spot_path = tmp_path / "AAA_spot.json"
@@ -386,6 +402,184 @@ def test_print_reason_summary_no_rejections(capsys):
     assert "Geen opties door filters afgewezen" in out
 
 
+def test_generate_with_capture_records_summary(monkeypatch):
+    mod = importlib.import_module("tomic.cli.controlpanel")
+
+    active: dict[str, list[dict] | None] = {"captured": None}
+
+    @contextmanager
+    def fake_capture():
+        captured: list[dict] = []
+        active["captured"] = captured
+        try:
+            yield captured
+        finally:
+            active["captured"] = None
+
+    def fake_generate(*args, **kwargs):
+        assert active["captured"] is not None, "capture context not active"
+        active["captured"].extend(
+            [
+                {
+                    "status": "reject",
+                    "legs": [{"expiry": "2024-01-19"}],
+                    "raw_reason": "fallback naar close gebruikt voor midprijs",
+                },
+                {
+                    "status": "reject",
+                    "legs": [{"expiry": "2024-01-26"}],
+                    "reason": mod.ReasonCategory.LOW_LIQUIDITY,
+                },
+                {
+                    "status": "pass",
+                    "legs": [{"expiry": "2024-01-19"}],
+                },
+            ]
+        )
+        return ([{"dummy": True}], ["Volume/OI"])
+
+    monkeypatch.setattr(mod, "capture_combo_evaluations", fake_capture)
+    monkeypatch.setattr(mod, "generate_strategy_candidates", fake_generate)
+
+    mod.SESSION_STATE["combo_evaluations"] = ["stale"]
+    mod.SESSION_STATE["combo_evaluation_summary"] = object()
+
+    proposals, reasons = mod._generate_with_capture("AAA", strategy="wheel")
+
+    assert proposals == [{"dummy": True}]
+    assert reasons == ["Volume/OI"]
+
+    captured = mod.SESSION_STATE["combo_evaluations"]
+    assert isinstance(captured, list)
+    assert len(captured) == 3
+
+    summary = mod.SESSION_STATE["combo_evaluation_summary"]
+    assert summary is not None
+    assert summary.total == 3
+
+    breakdown = summary.expiries.get("2024-01-19")
+    assert breakdown.ok == 1 and breakdown.reject == 1
+
+    other_breakdown = summary.expiries.get("2024-01-26")
+    assert other_breakdown.ok == 0 and other_breakdown.reject == 1
+
+    assert summary.reasons.by_category[mod.ReasonCategory.MISSING_MID] == 1
+    assert summary.reasons.by_category[mod.ReasonCategory.LOW_LIQUIDITY] == 1
+
+
+def test_print_reason_summary_declines_all(monkeypatch, capsys):
+    mod = importlib.import_module("tomic.cli.controlpanel")
+
+    responses = iter([False, False])
+    monkeypatch.setattr(mod, "prompt_yes_no", lambda *a, **k: next(responses))
+
+    entry = {
+        "status": "reject",
+        "strategy": "Wheel",
+        "description": "Anchor",
+        "legs": [{"type": "call", "strike": 100, "expiry": "2024-01-19", "position": -1}],
+        "reason": mod.ReasonCategory.LOW_LIQUIDITY,
+    }
+    mod.SESSION_STATE["combo_evaluations"] = [entry]
+
+    summary = mod.RejectionSummary(
+        by_filter={"delta": 2},
+        by_reason={"Volume/OI": 1},
+        by_strategy={"wheel": ["Volume/OI"]},
+    )
+
+    mod._print_reason_summary(summary)
+
+    out = capsys.readouterr().out
+    assert out.strip() == ""
+
+
+def test_print_reason_summary_summary_only(monkeypatch, capsys):
+    mod = importlib.import_module("tomic.cli.controlpanel")
+
+    responses = iter([True, False])
+    monkeypatch.setattr(mod, "prompt_yes_no", lambda *a, **k: next(responses))
+
+    entry = {
+        "status": "reject",
+        "strategy": "Wheel",
+        "description": "Anchor",
+        "legs": [{"type": "call", "strike": 100, "expiry": "2024-01-19", "position": -1}],
+        "reason": mod.ReasonCategory.LOW_LIQUIDITY,
+    }
+    mod.SESSION_STATE["combo_evaluations"] = [entry]
+
+    summary = mod.RejectionSummary(
+        by_filter={"delta": 2},
+        by_reason={"Volume/OI": 1, "Missing mid": 1},
+        by_strategy={"wheel": ["Volume/OI", "Missing mid"]},
+    )
+
+    mod._print_reason_summary(summary)
+
+    out = capsys.readouterr().out
+    assert "Afwijzingen per filter:" in out
+    assert "| Filter" in out and "delta" in out
+    assert "Redenen:" in out and "Missing mid" in out
+    assert "wheel:" in out
+    assert "Strat" not in out  # table with details should not be printed
+
+
+def test_print_reason_summary_show_details(monkeypatch, capsys):
+    mod = importlib.import_module("tomic.cli.controlpanel")
+
+    yes_no = iter([True, True])
+    monkeypatch.setattr(mod, "prompt_yes_no", lambda *a, **k: next(yes_no))
+
+    selections = iter(["2", "0"])
+    monkeypatch.setattr(mod, "prompt", lambda *a, **k: next(selections))
+    monkeypatch.setattr(mod, "SHOW_REASONS", True)
+
+    entries = [
+        {
+            "status": "reject",
+            "strategy": "Wheel",
+            "description": "Anchor A",
+            "legs": [
+                {"type": "call", "strike": 100, "expiry": "2024-01-19", "position": -1},
+                {"type": "put", "strike": 95, "expiry": "2024-01-19", "position": 1},
+            ],
+            "reason": mod.ReasonCategory.LOW_LIQUIDITY,
+            "metrics": {"credit": 1.5, "pos": 60, "max_profit": 120, "max_loss": -60},
+            "meta": {"note": "illiquid"},
+        },
+        {
+            "status": "reject",
+            "strategy": "Iron Condor",
+            "description": "Anchor B",
+            "legs": [
+                {"type": "call", "strike": 110, "expiry": "2024-01-26", "position": -1},
+                {"type": "put", "strike": 90, "expiry": "2024-01-26", "position": 1},
+            ],
+            "raw_reason": "fallback naar close gebruikt voor midprijs",
+            "metrics": {"net_credit": 0.85, "ev_pct": 12.345},
+        },
+    ]
+    mod.SESSION_STATE["combo_evaluations"] = entries
+
+    summary = mod.RejectionSummary(
+        by_filter={"delta": 2},
+        by_reason={"Volume/OI": 1, "Missing mid": 1},
+        by_strategy={"wheel": ["Volume/OI"]},
+    )
+
+    mod._print_reason_summary(summary)
+
+    out = capsys.readouterr().out
+    assert "Afwijzingen per filter:" in out
+    assert "| Strat" in out and "Anchor B" in out
+    assert "Strategie: Iron Condor" in out
+    assert "Anchor: Anchor B" in out
+    assert "Reden: Other" in out
+    assert "Detail: fallback naar close gebruikt voor midprijs" in out
+    assert "note=illiquid" in out or "Flags:" in out
+
+
 def test_summarize_evaluations_normalizes_reasons():
     mod = importlib.import_module("tomic.cli.controlpanel")
     evaluations = [
@@ -411,8 +605,19 @@ def test_summarize_evaluations_normalizes_reasons():
     assert breakdown["2024-01-19"] == (1, 1)
     assert breakdown["2024-01-26"] == (0, 1)
     top = mod._format_reject_reasons(summary)
-    assert "Volume/OI" in top
-    assert "Missing mid" in top
+    assert "Volume/OI" in top and "50%" in top
+    assert "Missing mid" in top and "50%" in top
+
+
+def test_format_leg_summary_positions():
+    mod = importlib.import_module("tomic.cli.controlpanel")
+    legs = [
+        {"type": "call", "strike": 100, "position": -1},
+        {"type": "put", "strike": "105", "position": 1},
+        {"type": "call", "strike": None, "position": 0},
+    ]
+    assert mod._format_leg_summary(legs) == "SC 100, LP 105, LC"
+    assert mod._format_leg_summary([]) == "—"
 
 
 def test_print_evaluation_overview_formats(capsys):
