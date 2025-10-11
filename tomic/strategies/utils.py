@@ -579,6 +579,7 @@ def generate_wing_spread(
                 break
     else:
         # Condor mode
+        logger.info("short legs: parity ok; long legs: fallback permitted (max 2)")
         for expiry in expiries:
             if reached_limit(proposals):
                 break
@@ -642,8 +643,20 @@ def generate_wing_spread(
                     continue
                 lc_target = sc_strike + c_w
                 lp_target = sp_strike - p_w
-                lc = _nearest_strike(strike_map, expiry, "C", lc_target)
-                lp = _nearest_strike(strike_map, expiry, "P", lp_target)
+                lc = _nearest_strike(
+                    strike_map,
+                    expiry,
+                    "C",
+                    lc_target,
+                    tolerance_percent=5.0,
+                )
+                lp = _nearest_strike(
+                    strike_map,
+                    expiry,
+                    "P",
+                    lp_target,
+                    tolerance_percent=5.0,
+                )
                 long_leg_info = [
                     {"expiry": expiry, "strike": lc.matched, "type": "C", "position": 1},
                     {"expiry": expiry, "strike": lp.matched, "type": "P", "position": 1},

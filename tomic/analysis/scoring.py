@@ -12,6 +12,7 @@ from ..metrics import (
 )
 from ..analysis.strategy import heuristic_risk_metrics
 from ..criteria import CriteriaConfig, RULES, load_criteria
+from ..strategies import StrategyName
 from ..utils import normalize_leg, get_leg_qty, get_leg_right
 from ..logutils import logger
 from ..config import get as cfg_get
@@ -39,7 +40,7 @@ def _fallback_limit_ok(legs: List[Dict[str, Any]]) -> tuple[bool, int, int]:
         allowed = 0
     else:
         allowed = math.ceil(limit_per_four * leg_count / 4)
-    fallback_sources = {"parity", "model", "close"}
+    fallback_sources = {"model", "close"}
     fallback_count = sum(
         1
         for leg in legs
@@ -225,13 +226,15 @@ def compute_proposal_metrics(
             f"[{strategy_name}] Ontbrekende bid/ask-data voor strikes {','.join(missing_mid)}"
         )
         reasons.append("ontbrekende bid/ask-data")
-    fallbacks = {leg.get("mid_fallback") for leg in legs if leg.get("mid_fallback")}
+    fallbacks = {
+        str(leg.get("mid_fallback"))
+        for leg in legs
+        if str(leg.get("mid_fallback")) not in ("", "None", "parity")
+    }
     if "close" in fallbacks:
         reasons.append("fallback naar close gebruikt voor midprijs")
     if "model" in fallbacks:
         reasons.append("model-mid gebruikt")
-    if "parity" in fallbacks:
-        reasons.append("parity-mid gebruikt")
     net_credit = credit_short - debit_long
     if strategy_name in POSITIVE_CREDIT_STRATS and net_credit <= 0:
         reasons.append("negatieve credit")
@@ -330,6 +333,32 @@ def calculate_score(
         reason = f"te veel fallback-legs ({fallback_count}/{fallback_allowed} toegestaan)"
         logger.info(f"[{strategy_name}] {reason}")
         return None, [reason]
+
+    if strategy_name == StrategyName.IRON_CONDOR.value:
+        long_fallback_sources = {"model", "close"}
+        short_with_fallback = [
+            leg
+            for leg in legs
+            if (leg.get("position", 0) or 0) < 0
+            and str(leg.get("mid_source") or leg.get("mid_fallback") or "")
+            in long_fallback_sources
+        ]
+        if short_with_fallback:
+            reason = "short legs vereisen true/parity mid"
+            logger.info(f"[{strategy_name}] {reason}")
+            return None, [reason]
+
+        long_fallbacks = [
+            leg
+            for leg in legs
+            if (leg.get("position", 0) or 0) > 0
+            and str(leg.get("mid_source") or leg.get("mid_fallback") or "")
+            in long_fallback_sources
+        ]
+        if len(long_fallbacks) > 2:
+            reason = "te veel fallbacks op long legs (max 2 toegestaan)"
+            logger.info(f"[{strategy_name}] {reason}")
+            return None, [reason]
 
     valid, reasons = validate_leg_metrics(strategy_name, legs)
     if not valid:

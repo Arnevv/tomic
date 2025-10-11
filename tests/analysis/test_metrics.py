@@ -86,7 +86,7 @@ def test_metrics_backspread_put():
     assert metrics["profit_estimated"] is True
 
 
-def test_metrics_reports_close_fallback():
+def test_metrics_rejects_short_leg_close_fallback():
     legs = [
         {
             "type": "C",
@@ -115,147 +115,6 @@ def test_metrics_reports_close_fallback():
             "mid": 1.0,
             "model": 1.0,
             "delta": -0.2,
-        },
-        {
-            "type": "P",
-            "strike": 45,
-            "expiry": "2025-08-01",
-            "position": 1,
-            "mid": 0.3,
-            "model": 0.3,
-            "delta": -0.1,
-        },
-    ]
-    metrics, reasons = _metrics(StrategyName.IRON_CONDOR, legs)
-    assert metrics is not None
-    assert metrics.get("fallback") == "close"
-    assert "fallback naar close gebruikt voor midprijs" in reasons
-
-
-def test_metrics_reports_parity_fallback():
-    legs = [
-        {
-            "type": "C",
-            "strike": 60,
-            "expiry": "2025-08-01",
-            "position": -1,
-            "mid": 1.2,
-            "model": 1.2,
-            "delta": 0.2,
-            "mid_fallback": "parity",
-        },
-        {
-            "type": "C",
-            "strike": 65,
-            "expiry": "2025-08-01",
-            "position": 1,
-            "mid": 0.4,
-            "model": 0.4,
-            "delta": 0.1,
-        },
-        {
-            "type": "P",
-            "strike": 50,
-            "expiry": "2025-08-01",
-            "position": -1,
-            "mid": 1.0,
-            "model": 1.0,
-            "delta": -0.2,
-        },
-        {
-            "type": "P",
-            "strike": 45,
-            "expiry": "2025-08-01",
-            "position": 1,
-            "mid": 0.3,
-            "model": 0.3,
-            "delta": -0.1,
-        },
-    ]
-    metrics, reasons = _metrics(StrategyName.IRON_CONDOR, legs)
-    assert metrics is not None
-    assert metrics.get("fallback") == "parity"
-    assert "fallback naar close gebruikt voor midprijs" not in reasons
-    assert "parity-mid gebruikt" in reasons
-
-
-def test_metrics_reports_model_fallback():
-    legs = [
-        {
-            "type": "C",
-            "strike": 60,
-            "expiry": "2025-08-01",
-            "position": -1,
-            "mid": 1.2,
-            "model": 1.2,
-            "delta": 0.2,
-            "mid_fallback": "model",
-        },
-        {
-            "type": "C",
-            "strike": 65,
-            "expiry": "2025-08-01",
-            "position": 1,
-            "mid": 0.4,
-            "model": 0.4,
-            "delta": 0.1,
-        },
-        {
-            "type": "P",
-            "strike": 50,
-            "expiry": "2025-08-01",
-            "position": -1,
-            "mid": 1.0,
-            "model": 1.0,
-            "delta": -0.2,
-        },
-        {
-            "type": "P",
-            "strike": 45,
-            "expiry": "2025-08-01",
-            "position": 1,
-            "mid": 0.3,
-            "model": 0.3,
-            "delta": -0.1,
-        },
-    ]
-    metrics, reasons = _metrics(StrategyName.IRON_CONDOR, legs)
-    assert metrics is not None
-    assert metrics.get("fallback") == "model"
-    assert "model-mid gebruikt" in reasons
-
-
-def test_metrics_rejects_excessive_fallbacks():
-    legs = [
-        {
-            "type": "C",
-            "strike": 60,
-            "expiry": "2025-08-01",
-            "position": -1,
-            "mid": 1.2,
-            "model": 1.2,
-            "delta": 0.2,
-            "mid_fallback": "close",
-        },
-        {
-            "type": "C",
-            "strike": 65,
-            "expiry": "2025-08-01",
-            "position": 1,
-            "mid": 0.4,
-            "model": 0.4,
-            "delta": 0.1,
-            "mid_fallback": "model",
-        },
-        {
-            "type": "P",
-            "strike": 50,
-            "expiry": "2025-08-01",
-            "position": -1,
-            "mid": 1.0,
-            "model": 1.0,
-            "delta": -0.2,
-            "mid_fallback": "parity",
         },
         {
             "type": "P",
@@ -269,4 +128,152 @@ def test_metrics_rejects_excessive_fallbacks():
     ]
     metrics, reasons = _metrics(StrategyName.IRON_CONDOR, legs)
     assert metrics is None
-    assert any("te veel fallback-legs" in reason for reason in reasons)
+    assert reasons == ["short legs vereisen true/parity mid"]
+
+
+def test_metrics_parity_mid_treated_as_real_mid():
+    legs = [
+        {
+            "type": "C",
+            "strike": 60,
+            "expiry": "2025-08-01",
+            "position": -1,
+            "mid": 1.2,
+            "model": 1.2,
+            "delta": 0.2,
+            "mid_fallback": "parity",
+        },
+        {
+            "type": "C",
+            "strike": 65,
+            "expiry": "2025-08-01",
+            "position": 1,
+            "mid": 0.4,
+            "model": 0.4,
+            "delta": 0.1,
+        },
+        {
+            "type": "P",
+            "strike": 50,
+            "expiry": "2025-08-01",
+            "position": -1,
+            "mid": 1.0,
+            "model": 1.0,
+            "delta": -0.2,
+        },
+        {
+            "type": "P",
+            "strike": 45,
+            "expiry": "2025-08-01",
+            "position": 1,
+            "mid": 0.3,
+            "model": 0.3,
+            "delta": -0.1,
+        },
+    ]
+    metrics, reasons = _metrics(StrategyName.IRON_CONDOR, legs)
+    assert metrics is not None
+    assert metrics.get("fallback") is None
+    assert "fallback naar close gebruikt voor midprijs" not in reasons
+    assert all("parity" not in reason for reason in reasons)
+
+
+def test_metrics_rejects_short_leg_model_fallback():
+    legs = [
+        {
+            "type": "C",
+            "strike": 60,
+            "expiry": "2025-08-01",
+            "position": -1,
+            "mid": 1.2,
+            "model": 1.2,
+            "delta": 0.2,
+            "mid_fallback": "model",
+        },
+        {
+            "type": "C",
+            "strike": 65,
+            "expiry": "2025-08-01",
+            "position": 1,
+            "mid": 0.4,
+            "model": 0.4,
+            "delta": 0.1,
+        },
+        {
+            "type": "P",
+            "strike": 50,
+            "expiry": "2025-08-01",
+            "position": -1,
+            "mid": 1.0,
+            "model": 1.0,
+            "delta": -0.2,
+        },
+        {
+            "type": "P",
+            "strike": 45,
+            "expiry": "2025-08-01",
+            "position": 1,
+            "mid": 0.3,
+            "model": 0.3,
+            "delta": -0.1,
+        },
+    ]
+    metrics, reasons = _metrics(StrategyName.IRON_CONDOR, legs)
+    assert metrics is None
+    assert reasons == ["short legs vereisen true/parity mid"]
+
+
+def test_metrics_rejects_excessive_long_fallbacks():
+    legs = [
+        {
+            "type": "C",
+            "strike": 60,
+            "expiry": "2025-08-01",
+            "position": -1,
+            "mid": 1.2,
+            "model": 1.2,
+            "delta": 0.2,
+        },
+        {
+            "type": "C",
+            "strike": 65,
+            "expiry": "2025-08-01",
+            "position": 1,
+            "mid": 0.4,
+            "model": 0.4,
+            "delta": 0.1,
+            "mid_fallback": "model",
+        },
+        {
+            "type": "P",
+            "strike": 50,
+            "expiry": "2025-08-01",
+            "position": -1,
+            "mid": 1.0,
+            "model": 1.0,
+            "delta": -0.2,
+        },
+        {
+            "type": "P",
+            "strike": 45,
+            "expiry": "2025-08-01",
+            "position": 1,
+            "mid": 0.3,
+            "model": 0.3,
+            "delta": -0.1,
+            "mid_fallback": "close",
+        },
+        {
+            "type": "P",
+            "strike": 40,
+            "expiry": "2025-08-01",
+            "position": 1,
+            "mid": 0.2,
+            "model": 0.2,
+            "delta": -0.05,
+            "mid_fallback": "close",
+        },
+    ]
+    metrics, reasons = _metrics(StrategyName.IRON_CONDOR, legs)
+    assert metrics is None
+    assert reasons == ["te veel fallbacks op long legs (max 2 toegestaan)"]
