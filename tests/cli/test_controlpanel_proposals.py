@@ -386,6 +386,54 @@ def test_print_reason_summary_no_rejections(capsys):
     assert "Geen opties door filters afgewezen" in out
 
 
+def test_summarize_evaluations_normalizes_reasons():
+    mod = importlib.import_module("tomic.cli.controlpanel")
+    evaluations = [
+        {
+            "status": "reject",
+            "legs": [{"expiry": "2024-01-19"}],
+            "reason": mod.ReasonCategory.LOW_LIQUIDITY,
+        },
+        {
+            "status": "pass",
+            "legs": [{"expiry": "2024-01-19"}],
+        },
+        {
+            "status": "reject",
+            "legs": [{"expiry": "2024-01-26"}],
+            "raw_reason": "fallback naar close gebruikt voor midprijs",
+        },
+    ]
+    summary = mod.summarize_evaluations(evaluations)
+    assert summary is not None
+    assert summary.total == 3
+    breakdown = {item.label: (item.ok, item.reject) for item in summary.sorted_expiries()}
+    assert breakdown["2024-01-19"] == (1, 1)
+    assert breakdown["2024-01-26"] == (0, 1)
+    top = mod._format_reject_reasons(summary)
+    assert "Volume/OI" in top
+    assert "Missing mid" in top
+
+
+def test_print_evaluation_overview_formats(capsys):
+    mod = importlib.import_module("tomic.cli.controlpanel")
+    summary = mod.EvaluationSummary(total=2)
+    summary.expiries["2024-01-19"] = mod.ExpiryBreakdown(
+        label="2024-01-19",
+        sort_key=datetime(2024, 1, 19).date(),
+        ok=1,
+        reject=1,
+    )
+    summary.reasons.by_category = {mod.ReasonCategory.LOW_LIQUIDITY: 2}
+    mod._print_evaluation_overview("AAA", 123.456, summary)
+    out = capsys.readouterr().out
+    assert "Evaluatieoverzicht" in out
+    assert "AAA" in out
+    assert "123.46" in out
+    assert "OK 1" in out
+    assert "Volume/OI" in out
+
+
 def _extract_process_chain(mod):
     proc = None
     for const in mod.run_portfolio_menu.__code__.co_consts:

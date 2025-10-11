@@ -12,7 +12,7 @@ from collections import defaultdict
 import math
 import inspect
 from dataclasses import dataclass, field
-from typing import Any
+from typing import Any, ClassVar, Iterable, Mapping, Sequence
 from tomic.helpers.dateutils import parse_date
 
 try:
@@ -58,7 +58,7 @@ from tomic.api.ib_connection import connect_ib
 
 from tomic import config as cfg
 from tomic.config import save_symbols
-from tomic.logutils import setup_logging, logger
+from tomic.logutils import capture_combo_evaluations, normalize_reason, setup_logging, logger
 from tomic.analysis.greeks import compute_portfolio_greeks
 from tomic.journal.utils import load_json, save_json
 from tomic.utils import today
@@ -88,6 +88,7 @@ from tomic.services.market_snapshot import (
     MarketSnapshotService,
     _build_factsheet,
 )
+from tomic.strategy.reasons import ReasonCategory
 from tomic.strategy_candidates import generate_strategy_candidates
 
 setup_logging(stdout=True)
@@ -109,6 +110,8 @@ SESSION_STATE: dict[str, object] = {
     "term_m1_m2": None,
     "term_m1_m3": None,
     "criteria": None,
+    "combo_evaluations": [],
+    "combo_evaluation_summary": None,
 }
 
 MARKET_SNAPSHOT_SERVICE = MarketSnapshotService(cfg)
@@ -149,6 +152,216 @@ class ReasonAggregator:
     by_filter: dict[str, int] = field(default_factory=dict)
     by_reason: dict[str, int] = field(default_factory=dict)
     by_strategy: dict[str, list[str]] = field(default_factory=dict)
+    by_category: dict[ReasonCategory, int] = field(default_factory=dict)
+
+    _REASON_LABELS: ClassVar[dict[ReasonCategory, str]] = {
+        ReasonCategory.LOW_LIQUIDITY: "Volume/OI",
+        ReasonCategory.MISSING_MID: "Missing mid",
+        ReasonCategory.MISSING_STRIKES: "Missing strikes",
+        ReasonCategory.WIDE_SPREAD: "Wide spread",
+        ReasonCategory.RULES_FILTER: "Rules/criteria",
+        ReasonCategory.OTHER: "Other",
+    }
+
+    @classmethod
+    def label_for(cls, category: ReasonCategory) -> str:
+        return cls._REASON_LABELS.get(category, category.value.replace("_", " ").title())
+
+    def _register_reason(self, category: ReasonCategory) -> str:
+        label = self.label_for(category)
+        self.by_reason[label] = self.by_reason.get(label, 0) + 1
+        self.by_category[category] = self.by_category.get(category, 0) + 1
+        return label
+
+    def add_reason(
+        self, reason: ReasonCategory | str | None, *, strategy: str | None = None
+    ) -> ReasonCategory:
+        if isinstance(reason, ReasonCategory):
+            category = reason
+        elif reason is None:
+            category = normalize_reason(None)
+        else:
+            category = normalize_reason(str(reason))
+        label = self._register_reason(category)
+        if strategy:
+            self.by_strategy.setdefault(strategy, []).append(label)
+        return category
+
+    def extend_reasons(self, reasons: Iterable[ReasonCategory | str]) -> None:
+        for reason in reasons:
+            self.add_reason(reason)
+
+    def add_filter(self, name: str) -> None:
+        if not name:
+            return
+        self.by_filter[name] = self.by_filter.get(name, 0) + 1
+
+
+@dataclass
+class ExpiryBreakdown:
+    label: str
+    sort_key: date | None = None
+    ok: int = 0
+    reject: int = 0
+    other: dict[str, int] = field(default_factory=dict)
+
+    def add(self, status: str) -> None:
+        normalized = (status or "").strip().lower()
+        if normalized == "pass":
+            self.ok += 1
+        elif normalized == "reject":
+            self.reject += 1
+        else:
+            key = (status or "OTHER").strip().upper() or "OTHER"
+            self.other[key] = self.other.get(key, 0) + 1
+
+    def format_counts(self) -> str:
+        parts = [f"OK {self.ok}", f"Reject {self.reject}"]
+        if self.other:
+            extras = " · ".join(f"{name} {count}" for name, count in sorted(self.other.items()))
+            parts.append(extras)
+        return " | ".join(parts)
+
+
+@dataclass
+class EvaluationSummary:
+    total: int = 0
+    expiries: dict[str, ExpiryBreakdown] = field(default_factory=dict)
+    reasons: ReasonAggregator = field(default_factory=ReasonAggregator)
+
+    @property
+    def reject_total(self) -> int:
+        return sum(self.reasons.by_category.values())
+
+    def sorted_expiries(self) -> list[ExpiryBreakdown]:
+        return sorted(
+            self.expiries.values(),
+            key=lambda item: ((item.sort_key or date.max), item.label),
+        )
+
+
+def _normalize_expiry_value(value: Any) -> tuple[str | None, date | None]:
+    if value is None:
+        return None, None
+    if isinstance(value, datetime):
+        value = value.date()
+    if isinstance(value, date):
+        return value.isoformat(), value
+    text = str(value).strip()
+    if not text:
+        return None, None
+    parsed = parse_date(text)
+    if parsed:
+        return parsed.isoformat(), parsed
+    return text, None
+
+
+def _resolve_expiry_label(entry: Mapping[str, Any]) -> tuple[str, date | None]:
+    expiries: set[Any] = set()
+    legs = entry.get("legs") if isinstance(entry, Mapping) else None
+    if isinstance(legs, Sequence):
+        for leg in legs:
+            if isinstance(leg, Mapping):
+                expiries.add(leg.get("expiry"))
+    if not expiries:
+        meta = entry.get("meta") if isinstance(entry, Mapping) else None
+        if isinstance(meta, Mapping):
+            extra_expiry = meta.get("expiry")
+            if isinstance(extra_expiry, Sequence) and not isinstance(extra_expiry, (str, bytes)):
+                expiries.update(extra_expiry)
+            elif extra_expiry is not None:
+                expiries.add(extra_expiry)
+    normalized = [
+        _normalize_expiry_value(expiry)
+        for expiry in expiries
+        if expiry not in {None, ""}
+    ]
+    normalized = [(label, key) for label, key in normalized if label]
+    if not normalized:
+        return "—", None
+    merged: dict[str, date | None] = {}
+    for label, sort_key in normalized:
+        if label not in merged:
+            merged[label] = sort_key
+        else:
+            current = merged[label]
+            if current is None and sort_key is not None:
+                merged[label] = sort_key
+            elif current is not None and sort_key is not None:
+                merged[label] = min(current, sort_key)
+    ordered = sorted(merged.items(), key=lambda item: ((item[1] or date.max), item[0]))
+    labels = [label for label, _ in ordered]
+    sort_key = ordered[0][1]
+    return " / ".join(labels), sort_key
+
+
+def summarize_evaluations(evaluations: Sequence[Mapping[str, Any]]) -> EvaluationSummary | None:
+    if not evaluations:
+        return None
+    summary = EvaluationSummary(total=len(evaluations))
+    for entry in evaluations:
+        label, sort_key = _resolve_expiry_label(entry)
+        breakdown = summary.expiries.get(label)
+        if breakdown is None:
+            breakdown = ExpiryBreakdown(label=label, sort_key=sort_key)
+            summary.expiries[label] = breakdown
+        status = str(entry.get("status", "")) if isinstance(entry, Mapping) else ""
+        breakdown.add(status)
+        if status.strip().lower() == "reject":
+            reason = None
+            if isinstance(entry, Mapping):
+                reason = entry.get("reason")
+                if reason is None:
+                    reason = entry.get("raw_reason")
+            summary.reasons.add_reason(reason)
+    return summary
+
+
+def _format_reject_reasons(summary: EvaluationSummary) -> str:
+    total_rejects = summary.reject_total
+    if not total_rejects:
+        return "n.v.t."
+    ordered = sorted(
+        summary.reasons.by_category.items(),
+        key=lambda item: item[1],
+        reverse=True,
+    )
+    parts = []
+    for category, count in ordered:
+        label = ReasonAggregator.label_for(category)
+        percentage = round((count / total_rejects) * 100)
+        parts.append(f"{label} ({percentage}%)")
+    return " · ".join(parts)
+
+
+def _print_evaluation_overview(symbol: str, spot: float | None, summary: EvaluationSummary | None) -> None:
+    if summary is None or summary.total <= 0:
+        return
+    sym = symbol.upper() if symbol else "—"
+    if isinstance(spot, (int, float)) and spot > 0:
+        header = f"Evaluatieoverzicht: {sym} @ {spot:.2f}"
+    else:
+        header = f"Evaluatieoverzicht: {sym}"
+    print(header)
+    print(f"Totaal combinaties: {summary.total}")
+    if summary.expiries:
+        print("Expiry breakdown:")
+        for breakdown in summary.sorted_expiries():
+            print(f"• {breakdown.label}: {breakdown.format_counts()}")
+    print(f"Top reason for reject: {_format_reject_reasons(summary)}")
+
+
+def _generate_with_capture(*args: Any, **kwargs: Any):
+    SESSION_STATE["combo_evaluations"] = []
+    SESSION_STATE["combo_evaluation_summary"] = None
+    with capture_combo_evaluations() as captured:
+        try:
+            result = generate_strategy_candidates(*args, **kwargs)
+        finally:
+            summary = summarize_evaluations(captured)
+            SESSION_STATE["combo_evaluations"] = list(captured)
+            SESSION_STATE["combo_evaluation_summary"] = summary
+    return result
 
 
 def _print_reason_summary(summary: RejectionSummary | None) -> None:
@@ -193,7 +406,7 @@ def _get_strategy_pipeline() -> StrategyPipeline:
             cfg,
             None,
             strike_selector_factory=_strike_selector_factory,
-            strategy_generator=generate_strategy_candidates,
+            strategy_generator=_generate_with_capture,
         )
     return PIPELINE
 
@@ -915,6 +1128,9 @@ def run_portfolio_menu() -> None:
             debug_path=Path(cfg.get("EXPORT_DIR", "exports")) / "PEP_debugfilter.csv",
         )
         proposals, summary = pipeline.build_proposals(context)
+        evaluation_summary = SESSION_STATE.get("combo_evaluation_summary")
+        if isinstance(evaluation_summary, EvaluationSummary) or evaluation_summary is None:
+            _print_evaluation_overview(context.symbol, context.spot_price, evaluation_summary)
         filter_preview = RejectionSummary(
             by_filter=dict(summary.by_filter), by_reason=dict(summary.by_reason)
         )
