@@ -364,33 +364,362 @@ def _generate_with_capture(*args: Any, **kwargs: Any):
     return result
 
 
+def _reason_label(value: ReasonCategory | str | None) -> str:
+    if isinstance(value, ReasonCategory):
+        return ReasonAggregator.label_for(value)
+    if value is None:
+        return ReasonAggregator.label_for(normalize_reason(None))
+    try:
+        category = normalize_reason(str(value))
+    except Exception:
+        return str(value)
+    return ReasonAggregator.label_for(category)
+
+
+def _format_leg_position(raw: Any) -> str:
+    try:
+        num = float(raw)
+    except (TypeError, ValueError):
+        return "?"
+    return "S" if num < 0 else "L"
+
+
+def _format_leg_summary(legs: Sequence[Mapping[str, Any]] | None) -> str:
+    if not legs:
+        return "—"
+    parts: list[str] = []
+    for leg in legs:
+        typ = str(leg.get("type") or "").upper()[:1]
+        strike = leg.get("strike")
+        pos = _format_leg_position(leg.get("position"))
+        label = f"{pos}{typ}" if typ else pos
+        if strike is not None:
+            try:
+                strike_val = float(strike)
+                label = f"{label} {strike_val:g}"
+            except (TypeError, ValueError):
+                label = f"{label} {strike}"
+        parts.append(label.strip())
+    return ", ".join(parts) if parts else "—"
+
+
+def _format_expiry_dte(expiry: Any) -> str:
+    if not expiry:
+        return ""
+    expiry_str = str(expiry)
+    try:
+        exp_date = parse_date(expiry_str)
+    except Exception:
+        exp_date = None
+    if isinstance(exp_date, date):
+        dte = (exp_date - today()).days
+        return f"{expiry_str} ({dte}d)"
+    return expiry_str
+
+
+def _format_dtes(legs: Sequence[Mapping[str, Any]] | None) -> str:
+    if not legs:
+        return ""
+    expiries: list[str] = []
+    seen: set[str] = set()
+    for leg in legs:
+        formatted = _format_expiry_dte(leg.get("expiry"))
+        if formatted and formatted not in seen:
+            expiries.append(formatted)
+            seen.add(formatted)
+    return ", ".join(expiries)
+
+
+def _to_float(value: Any) -> float | None:
+    try:
+        if value is None:
+            return None
+        return float(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def _format_money(value: Any) -> str:
+    num = _to_float(value)
+    if num is None:
+        return "—"
+    return f"{num:.2f}"
+
+
+def _build_rejection_table(
+    entries: Sequence[Mapping[str, Any]] | None,
+) -> tuple[list[str], list[list[str]], list[Mapping[str, Any]]]:
+    rejects: list[Mapping[str, Any]] = []
+    if entries:
+        for entry in entries:
+            status = str(entry.get("status", "")).lower()
+            if status == "pass":
+                continue
+            rejects.append(entry)
+
+    if not rejects:
+        return [], [], []
+
+    has_credit = any(
+        _to_float((entry.get("metrics") or {}).get("credit")) is not None
+        or _to_float((entry.get("metrics") or {}).get("net_credit")) is not None
+        for entry in rejects
+    )
+    has_rr = any(
+        _to_float((entry.get("metrics") or {}).get("max_profit")) is not None
+        and _to_float((entry.get("metrics") or {}).get("max_loss")) not in {None, 0}
+        for entry in rejects
+    )
+    has_pos = any(
+        _to_float((entry.get("metrics") or {}).get("pos")) is not None for entry in rejects
+    )
+    has_ev = any(
+        _to_float((entry.get("metrics") or {}).get("ev")) is not None
+        or _to_float((entry.get("metrics") or {}).get("ev_pct")) is not None
+        for entry in rejects
+    )
+    has_term = any(
+        (entry.get("metrics") or {}).get("term") is not None for entry in rejects
+    )
+    has_flags = any((entry.get("meta") or {}) for entry in rejects)
+
+    headers = ["#", "Strat", "Status", "Anchor", "Legs", "DTEs", "Note"]
+    if has_credit:
+        headers.append("Net$")
+    if has_rr:
+        headers.append("R/R")
+    if has_pos:
+        headers.append("PoS")
+    if has_ev:
+        headers.append("EV€")
+    if has_term:
+        headers.append("Term")
+    if has_flags:
+        headers.append("Flags")
+
+    rows: list[list[str]] = []
+    for idx, entry in enumerate(rejects, start=1):
+        strategy = str(entry.get("strategy") or "—")
+        status = str(entry.get("status") or "—")
+        anchor = str(entry.get("description") or "—")
+        legs_raw = entry.get("legs")
+        legs_seq = (
+            list(legs_raw)
+            if isinstance(legs_raw, Sequence) and not isinstance(legs_raw, (str, bytes))
+            else []
+        )
+        dtes = _format_dtes(legs_seq)
+        note = str(entry.get("raw_reason") or _reason_label(entry.get("reason")))
+
+        row = [
+            str(idx),
+            strategy,
+            status,
+            anchor,
+            _format_leg_summary(legs_seq),
+            dtes,
+            note,
+        ]
+
+        metrics = entry.get("metrics") or {}
+        if has_credit:
+            credit_val = metrics.get("credit")
+            if credit_val in {None, ""}:
+                credit_val = metrics.get("net_credit")
+            row.append(_format_money(credit_val))
+        if has_rr:
+            max_profit = _to_float(metrics.get("max_profit"))
+            max_loss = _to_float(metrics.get("max_loss"))
+            if max_profit is not None and max_loss not in {None, 0}:
+                try:
+                    ratio = max_profit / abs(max_loss)
+                    row.append(f"{ratio:.2f}")
+                except Exception:
+                    row.append("—")
+            else:
+                row.append("—")
+        if has_pos:
+            pos_val = _to_float(metrics.get("pos"))
+            row.append(f"{pos_val:.1f}%" if pos_val is not None else "—")
+        if has_ev:
+            ev_val = _to_float(metrics.get("ev"))
+            if ev_val is None:
+                ev_pct = _to_float(metrics.get("ev_pct"))
+                row.append(f"{ev_pct:.2f}%" if ev_pct is not None else "—")
+            else:
+                row.append(f"{ev_val:.2f}")
+        if has_term:
+            row.append(str(metrics.get("term") or "—"))
+        if has_flags:
+            meta = entry.get("meta") or {}
+            if isinstance(meta, Mapping):
+                parts = [f"{k}={v}" for k, v in meta.items()]
+                row.append("; ".join(parts) if parts else "—")
+            else:
+                row.append(str(meta))
+
+        rows.append(row)
+
+    return headers, rows, rejects
+
+
+def _show_rejection_detail(entry: Mapping[str, Any]) -> None:
+    strategy = entry.get("strategy") or "—"
+    status = entry.get("status") or "—"
+    anchor = entry.get("description") or "—"
+    reason = entry.get("reason")
+    reason_label = _reason_label(reason)
+    note = entry.get("raw_reason") or reason_label
+
+    print(f"Strategie: {strategy}")
+    print(f"Status: {status}")
+    print(f"Anchor: {anchor}")
+    print(f"Reden: {reason_label}")
+    if note and note != reason_label:
+        print(f"Detail: {note}")
+
+    metrics = entry.get("metrics") or {}
+    if metrics:
+        metric_rows = []
+        for key in sorted(metrics):
+            metric_rows.append([key, metrics[key]])
+        print("Metrics:")
+        print(tabulate(metric_rows, headers=["Metric", "Waarde"], tablefmt="github"))
+
+    meta = entry.get("meta")
+    if isinstance(meta, Mapping) and meta:
+        meta_rows = [[key, value] for key, value in meta.items()]
+        print("Flags:")
+        print(tabulate(meta_rows, headers=["Sleutel", "Waarde"], tablefmt="github"))
+
+    legs = entry.get("legs")
+    legs_list = (
+        list(legs)
+        if isinstance(legs, Sequence) and not isinstance(legs, (str, bytes))
+        else []
+    )
+    if legs_list:
+        dte_info = _format_dtes(legs_list)
+        if dte_info:
+            print(f"DTEs: {dte_info}")
+        leg_rows: list[list[str]] = []
+        headers = [
+            "#",
+            "Expiry",
+            "Type",
+            "Strike",
+            "Pos",
+            "Qty",
+            "Volume",
+            "OI",
+            "Bid",
+            "Ask",
+            "Mid",
+        ]
+        for idx, leg in enumerate(legs_list, start=1):
+            strike = leg.get("strike")
+            try:
+                strike_str = f"{float(strike):g}"
+            except (TypeError, ValueError):
+                strike_str = str(strike or "—")
+            pos_label = _format_leg_position(leg.get("position"))
+            qty = leg.get("quantity") or leg.get("qty") or ""
+            volume = leg.get("volume") or leg.get("totalVolume") or ""
+            oi = leg.get("open_interest") or leg.get("openInterest") or ""
+            bid = leg.get("bid")
+            ask = leg.get("ask")
+            mid = leg.get("mid")
+            leg_rows.append(
+                [
+                    str(idx),
+                    str(leg.get("expiry") or "—"),
+                    str(leg.get("type") or "—"),
+                    strike_str,
+                    pos_label,
+                    str(qty or ""),
+                    str(volume or ""),
+                    str(oi or ""),
+                    _format_money(bid) if bid not in {None, ""} else "",
+                    _format_money(ask) if ask not in {None, ""} else "",
+                    _format_money(mid) if mid not in {None, ""} else "",
+                ]
+            )
+        print("Legs:")
+        print(tabulate(leg_rows, headers=headers, tablefmt="github"))
+
+
 def _print_reason_summary(summary: RejectionSummary | None) -> None:
     """Display aggregated rejection information."""
 
-    if summary is None:
+    entries = SESSION_STATE.get("combo_evaluations")
+    if isinstance(entries, Sequence) and not isinstance(entries, (str, bytes)):
+        eval_entries = list(entries)
+    else:
+        eval_entries = []
+    headers, rows, rejects = _build_rejection_table(eval_entries)
+
+    has_summary_data = bool(
+        summary
+        and (
+            (summary.by_filter and len(summary.by_filter) > 0)
+            or (summary.by_reason and len(summary.by_reason) > 0)
+            or (summary.by_strategy and len(summary.by_strategy) > 0)
+        )
+    )
+
+    if not has_summary_data and not rejects:
         print("Geen opties door filters afgewezen")
         return
 
-    has_data = False
-    if summary.by_filter:
-        has_data = True
-        rows = sorted(summary.by_filter.items(), key=lambda x: x[1], reverse=True)
-        print("Afwijzingen per filter:")
-        print(tabulate(rows, headers=["Filter", "Aantal"], tablefmt="github"))
-    if summary.by_reason:
-        has_data = True
-        rows = sorted(summary.by_reason.items(), key=lambda x: x[1], reverse=True)
-        print("Redenen:")
-        print(tabulate(rows, headers=["Reden", "Aantal"], tablefmt="github"))
-    if summary.by_strategy:
-        has_data = True
-        print("Redenen per strategie:")
-        for strat, reasons in summary.by_strategy.items():
-            print(f"{strat}:")
-            for r in reasons:
-                print(f"• {r}")
-    if not has_data:
-        print("Geen opties door filters afgewezen")
+    if has_summary_data and prompt_yes_no(
+        "Wil je een samenvatting van rejection reasons (y/n)?", False
+    ):
+        if summary.by_filter:
+            rows_filter = sorted(summary.by_filter.items(), key=lambda x: x[1], reverse=True)
+            print("Afwijzingen per filter:")
+            print(tabulate(rows_filter, headers=["Filter", "Aantal"], tablefmt="github"))
+        if summary.by_reason:
+            rows_reason = sorted(summary.by_reason.items(), key=lambda x: x[1], reverse=True)
+            print("Redenen:")
+            print(tabulate(rows_reason, headers=["Reden", "Aantal"], tablefmt="github"))
+        if summary.by_strategy:
+            print("Redenen per strategie:")
+            for strat, reasons in summary.by_strategy.items():
+                print(f"{strat}:")
+                for r in reasons:
+                    print(f"• {r}")
+
+    if not rejects:
+        return
+
+    if not prompt_yes_no("Wil je meer details opvraagbaar per rij (y/n)?", False):
+        return
+
+    if not SHOW_REASONS:
+        print("Details zijn beschikbaar via --show-reasons.")
+        return
+
+    if not headers or not rows:
+        print("Geen detailgegevens beschikbaar.")
+        return
+
+    print(tabulate(rows, headers=headers, tablefmt="github"))
+
+    while True:
+        selection = prompt("Kies nummer (0 om terug):")
+        if selection in {"", "0"}:
+            break
+        try:
+            idx = int(selection)
+        except ValueError:
+            print("❌ Ongeldige keuze")
+            continue
+        if idx < 1 or idx > len(rejects):
+            print("❌ Ongeldige keuze")
+            continue
+        print()
+        _show_rejection_detail(rejects[idx - 1])
+        print()
 
 
 SHOW_REASONS = False
