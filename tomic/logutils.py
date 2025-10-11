@@ -3,10 +3,14 @@ from __future__ import annotations
 import logging
 import os
 import sys
+from contextlib import contextmanager
+from contextvars import ContextVar
 
 from tomic.config import get as cfg_get
 from functools import wraps
-from typing import Any, Callable, Optional, TypeVar
+from typing import Any, Callable, Iterator, Optional, TypeVar
+
+from tomic.strategy.reasons import ReasonCategory, normalize_reason as _normalize_reason
 
 
 def _format_result(result: Any, max_length: int = 200) -> str:
@@ -96,6 +100,11 @@ def setup_logging(
 T = TypeVar("T")
 
 
+_combo_capture: ContextVar[list[dict[str, Any]] | None] = ContextVar(
+    "combo_capture", default=None
+)
+
+
 def log_result(func: Callable[..., T]) -> Callable[..., T]:
     """Decorator that logs function calls and their return value."""
 
@@ -107,6 +116,31 @@ def log_result(func: Callable[..., T]) -> Callable[..., T]:
         return result
 
     return wrapper
+
+
+@contextmanager
+def capture_combo_evaluations() -> Iterator[list[dict[str, Any]]]:
+    """Capture combo evaluations logged within the context."""
+
+    captured: list[dict[str, Any]] = []
+    token = _combo_capture.set(captured)
+    try:
+        yield captured
+    finally:
+        _combo_capture.reset(token)
+
+
+def get_captured_combo_evaluations() -> list[dict[str, Any]]:
+    """Return captured combo evaluations for the active session."""
+
+    captured = _combo_capture.get()
+    return list(captured) if captured is not None else []
+
+
+def normalize_reason(raw_reason: str | None) -> ReasonCategory:
+    """Proxy to :func:`tomic.strategy.reasons.normalize_reason`."""
+
+    return _normalize_reason(raw_reason)
 
 
 def trace_calls(func: Callable[..., T]) -> Callable[..., T]:
@@ -192,4 +226,19 @@ def log_combo_evaluation(
     logger.info(
         f"[{strategy}] {desc} — PoS {pos_str}, RR {rr_str}, EV {ev_str} — {result.upper()} ({reason}){extra_str}"
     )
+
+    captured = _combo_capture.get()
+    if captured is not None:
+        captured.append(
+            {
+                "strategy": strategy,
+                "status": result,
+                "description": desc,
+                "legs": list(legs or []),
+                "metrics": dict(metrics or {}),
+                "raw_reason": reason,
+                "reason": normalize_reason(reason),
+                "meta": dict(extra or {}),
+            }
+        )
 
