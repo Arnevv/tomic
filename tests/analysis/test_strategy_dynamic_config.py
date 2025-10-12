@@ -71,5 +71,5 @@ def test_generate_candidates_uses_global_config(monkeypatch, cfg, expect_warn):
         proposals, reasons = generate_strategy_candidates(
             "AAA", "iron_condor", chain, 1.0, None, 100.0
         )
-    assert "ontbrekende strikes" in reasons
+    assert "ontbrekende strikes" in [reason.message for reason in reasons]
     assert isinstance(proposals, list)

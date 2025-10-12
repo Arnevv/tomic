@@ -15,6 +15,12 @@ from ..criteria import CriteriaConfig, RULES, load_criteria
 from ..utils import normalize_leg, get_leg_qty, get_leg_right
 from ..logutils import logger
 from ..config import get as cfg_get
+from ..strategy.reasons import (
+    ReasonCategory,
+    ReasonDetail,
+    make_reason,
+    reason_from_mid_source,
+)
 
 if TYPE_CHECKING:
     from tomic.strategy_candidates import StrategyProposal
@@ -192,7 +198,9 @@ def _resolve_mid_source(leg: Mapping[str, Any]) -> str:
     return source
 
 
-def validate_leg_metrics(strategy_name: str, legs: List[Dict[str, Any]]) -> Tuple[bool, List[str]]:
+def validate_leg_metrics(
+    strategy_name: str, legs: List[Dict[str, Any]]
+) -> Tuple[bool, List[ReasonDetail]]:
     """Ensure required leg metrics are present."""
     cfg = cfg_get("STRATEGY_CONFIG") or {}
     strat_cfg = cfg.get("strategies", {}).get(strategy_name, {})
@@ -249,13 +257,14 @@ def validate_leg_metrics(strategy_name: str, legs: List[Dict[str, Any]]) -> Tupl
             f"[❌ voorstel afgewezen] {strategy_name} — reason: ontbrekende metrics (details in debug)"
         )
         missing_str = ", ".join(sorted(missing_fields))
-        return False, [f"{missing_str} ontbreken — metrics kunnen niet worden berekend"]
+        message = f"{missing_str} ontbreken — metrics kunnen niet worden berekend"
+        return False, [make_reason(ReasonCategory.MISSING_DATA, "METRICS_MISSING", message)]
     return True, []
 
 
 def check_liquidity(
     strategy_name: str, legs: List[Dict[str, Any]], crit: CriteriaConfig
-) -> Tuple[bool, List[str]]:
+) -> Tuple[bool, List[ReasonDetail]]:
     """Validate option volume and open interest against minimum thresholds."""
     min_vol = float(crit.market_data.min_option_volume)
     min_oi = float(crit.market_data.min_option_open_interest)
@@ -287,7 +296,14 @@ def check_liquidity(
         logger.info(
             f"[{strategy_name}] Onvoldoende volume/open interest voor strikes {', '.join(low_liq)}"
         )
-        return False, ["onvoldoende volume/open interest"]
+        return False, [
+            make_reason(
+                ReasonCategory.LOW_LIQUIDITY,
+                "LOW_LIQUIDITY_VOLUME",
+                "onvoldoende volume/open interest",
+                data={"legs": list(low_liq)},
+            )
+        ]
     return True, []
 
 
@@ -297,9 +313,10 @@ def compute_proposal_metrics(
     legs: List[Dict[str, Any]],
     crit: CriteriaConfig,
     spot: float | None = None,
-) -> Tuple[Optional[float], List[str]]:
-    """Compute proposal metrics and return score with reasons."""
-    reasons: List[str] = []
+) -> Tuple[Optional[float], List[ReasonDetail]]:
+    """Compute proposal metrics and return score with structured reasons."""
+
+    reasons: List[ReasonDetail] = []
     for leg in legs:
         normalize_leg(leg)
 
@@ -324,6 +341,8 @@ def compute_proposal_metrics(
     missing_mid: List[str] = []
     credits: List[float] = []
     debits: List[float] = []
+    raw_fallback_sources: set[str] = set()
+
     for leg in legs:
         mid = leg.get("mid")
         try:
@@ -332,34 +351,59 @@ def compute_proposal_metrics(
             mid_val = math.nan
         if math.isnan(mid_val):
             missing_mid.append(str(leg.get("strike")))
-            continue
-        qty = get_leg_qty(leg)
-        pos = float(leg.get("position") or 0)
-        if pos < 0:
-            credits.append(mid_val * qty)
-        elif pos > 0:
-            debits.append(mid_val * qty)
-    credit_short = sum(credits)
-    debit_long = sum(debits)
+        else:
+            qty = get_leg_qty(leg)
+            pos = float(leg.get("position") or 0)
+            if pos < 0:
+                credits.append(mid_val * qty)
+            elif pos > 0:
+                debits.append(mid_val * qty)
+        fallback = str(leg.get("mid_fallback") or "").strip().lower()
+        if fallback:
+            raw_fallback_sources.add(fallback)
+
     if missing_mid:
         logger.info(
             f"[{strategy_name}] Ontbrekende bid/ask-data voor strikes {','.join(missing_mid)}"
         )
-        reasons.append("ontbrekende bid/ask-data")
-    fallbacks = {
-        fb
-        for leg in legs
-        if (fb := leg.get("mid_fallback")) in {"model", "close", "parity_close"}
-    }
-    if "parity_close" in fallbacks:
-        reasons.append("parity via close gebruikt voor midprijs")
-    if "close" in fallbacks:
-        reasons.append("fallback naar close gebruikt voor midprijs")
-    if "model" in fallbacks:
-        reasons.append("model-mid gebruikt")
+        reasons.append(
+            make_reason(
+                ReasonCategory.MISSING_DATA,
+                "BID_ASK_MISSING",
+                "ontbrekende bid/ask-data",
+                data={"legs": list(missing_mid)},
+            )
+        )
+
+    seen_codes: set[str] = {detail.code for detail in reasons}
+
+    def _add_reason(detail: ReasonDetail | None) -> None:
+        if detail is None:
+            return
+        if detail.code in seen_codes:
+            return
+        reasons.append(detail)
+        seen_codes.add(detail.code)
+
+    preview_sources: set[str] = set()
+    for source in sorted(raw_fallback_sources):
+        detail = reason_from_mid_source(source)
+        if detail is not None:
+            preview_sources.add(source)
+        _add_reason(detail)
+
+    credit_short = sum(credits)
+    debit_long = sum(debits)
     net_credit = credit_short - debit_long
+
     if strategy_name in POSITIVE_CREDIT_STRATS and net_credit <= 0:
-        reasons.append("negatieve credit")
+        _add_reason(
+            make_reason(
+                ReasonCategory.POLICY_VIOLATION,
+                "NEGATIVE_CREDIT",
+                "negatieve credit",
+            )
+        )
         return None, reasons
 
     proposal.credit = net_credit * 100
@@ -370,14 +414,21 @@ def compute_proposal_metrics(
     proposal.profit_estimated = False
     proposal.scenario_info = None
 
-    margin = None
     try:
         margin = calculate_margin(strategy_name, legs, net_cashflow=net_credit)
     except Exception:
         margin = None
+
     if margin is None or (isinstance(margin, float) and math.isnan(margin)):
-        reasons.append("margin kon niet worden berekend")
+        _add_reason(
+            make_reason(
+                ReasonCategory.MISSING_DATA,
+                "MARGIN_MISSING",
+                "margin kon niet worden berekend",
+            )
+        )
         return None, reasons
+
     for leg in legs:
         leg["margin"] = margin
     proposal.margin = margin
@@ -387,6 +438,7 @@ def compute_proposal_metrics(
         proposal.max_loss = -margin
     elif strategy_name in {"ratio_spread", "backspread_put", "calendar"}:
         proposal.max_loss = -margin
+
     if ((proposal.max_profit is None or proposal.max_profit <= 0) or strategy_name == "ratio_spread") and spot is not None:
         scenarios, err = estimate_scenario_profit(legs, spot, strategy_name)
         if scenarios:
@@ -402,7 +454,13 @@ def compute_proposal_metrics(
 
     proposal.rom = calculate_rom(proposal.max_profit, margin) if proposal.max_profit is not None and margin else None
     if proposal.rom is None:
-        reasons.append("ROM kon niet worden berekend omdat margin ontbreekt")
+        _add_reason(
+            make_reason(
+                ReasonCategory.MISSING_DATA,
+                "ROM_MISSING",
+                "ROM kon niet worden berekend omdat margin ontbreekt",
+            )
+        )
     proposal.ev = (
         calculate_ev(proposal.pos or 0.0, proposal.max_profit or 0.0, proposal.max_loss or 0.0)
         if proposal.pos is not None and proposal.max_profit is not None and proposal.max_loss is not None
@@ -425,15 +483,23 @@ def compute_proposal_metrics(
     proposal.breakevens = calculate_breakevens(strategy_name, legs, net_credit * 100)
 
     if (proposal.ev_pct is not None and proposal.ev_pct <= 0 and not proposal.profit_estimated) or score_val < 0:
-        reasons.append("negatieve EV of score")
+        _add_reason(
+            make_reason(
+                ReasonCategory.EV_BELOW_MIN,
+                "EV_TOO_LOW",
+                "negatieve EV of score",
+            )
+        )
         logger.info(
             f"[❌ voorstel afgewezen] {strategy_name} — reason: EV/score te laag"
         )
         return None, reasons
 
     proposal.score = round(score_val, 2)
-    if fallbacks:
-        proposal.fallback = ",".join(sorted(fallbacks))
+    if preview_sources:
+        proposal.fallback = ",".join(sorted(preview_sources))
+    else:
+        proposal.fallback = None
     return proposal.score, reasons
 
 
@@ -443,7 +509,7 @@ def calculate_score(
     spot: float | None = None,
     *,
     criteria: CriteriaConfig | None = None,
-) -> Tuple[Optional[float], List[str]]:
+) -> Tuple[Optional[float], List[ReasonDetail]]:
     """Populate proposal metrics and return the computed score."""
 
     legs = proposal.legs
@@ -456,13 +522,19 @@ def calculate_score(
     if not fallback_ok:
         if fallback_reason:
             if fallback_allowed:
-                reason = f"{fallback_reason} ({fallback_count}/{fallback_allowed} toegestaan)"
+                message = f"{fallback_reason} ({fallback_count}/{fallback_allowed} toegestaan)"
             else:
-                reason = fallback_reason
+                message = fallback_reason
         else:
-            reason = f"te veel fallback-legs ({fallback_count}/{fallback_allowed} toegestaan)"
-        logger.info(f"[{strategy_name}] {reason}")
-        return None, [reason]
+            message = f"te veel fallback-legs ({fallback_count}/{fallback_allowed} toegestaan)"
+        logger.info(f"[{strategy_name}] {message}")
+        return None, [
+            make_reason(
+                ReasonCategory.POLICY_VIOLATION,
+                "FALLBACK_LIMIT", message,
+                data={"fallback_count": fallback_count, "allowed": fallback_allowed},
+            )
+        ]
 
     valid, reasons = validate_leg_metrics(strategy_name, legs)
     if not valid:

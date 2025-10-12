@@ -13,7 +13,7 @@ import math
 import inspect
 import re
 from dataclasses import dataclass, field
-from typing import Any, ClassVar, Iterable, Mapping, Sequence
+from typing import Any, Iterable, Mapping, Sequence
 from tomic.helpers.dateutils import parse_date
 
 try:
@@ -89,7 +89,13 @@ from tomic.services.market_snapshot import (
     MarketSnapshotService,
     _build_factsheet,
 )
-from tomic.strategy.reasons import ReasonCategory
+from tomic.strategy.reasons import (
+    ReasonCategory,
+    ReasonDetail,
+    ReasonLike,
+    category_label,
+    category_priority,
+)
 from tomic.strategy_candidates import generate_strategy_candidates
 
 setup_logging(stdout=True)
@@ -155,32 +161,14 @@ class ReasonAggregator:
     by_strategy: dict[str, list[str]] = field(default_factory=dict)
     by_category: dict[ReasonCategory, int] = field(default_factory=dict)
 
-    _REASON_LABELS: ClassVar[dict[ReasonCategory, str]] = {
-        ReasonCategory.LOW_LIQUIDITY: "Volume/OI",
-        ReasonCategory.MISSING_MID: "Missing mid",
-        ReasonCategory.MISSING_STRIKES: "Missing strikes",
-        ReasonCategory.WIDE_SPREAD: "Wide spread",
-        ReasonCategory.RULES_FILTER: "Rules/criteria",
-        ReasonCategory.OTHER: "Other",
-    }
-
-    _PRIORITY_BUCKETS: ClassVar[dict[str, int]] = {
-        "missing_data": 0,
-        "spread_quality": 1,
-        "risk_reward": 2,
-        "ev": 3,
-        "policy": 4,
-        "other": 5,
-    }
-
     @classmethod
     def label_for(cls, category: ReasonCategory) -> str:
-        return cls._REASON_LABELS.get(category, category.value.replace("_", " ").title())
+        return category_label(category)
 
-    def _register_reason(self, category: ReasonCategory) -> str:
-        label = self.label_for(category)
+    def _register_reason(self, detail: ReasonDetail) -> str:
+        label = detail.message or self.label_for(detail.category)
         self.by_reason[label] = self.by_reason.get(label, 0) + 1
-        self.by_category[category] = self.by_category.get(category, 0) + 1
+        self.by_category[detail.category] = self.by_category.get(detail.category, 0) + 1
         return label
 
     @classmethod
@@ -188,100 +176,34 @@ class ReasonAggregator:
         parts = [frag.strip() for frag in re.split(r"[;\u2022\|]+", text) if frag and frag.strip()]
         return parts or [text.strip()]
 
-    @classmethod
-    def _classify_fragment(cls, fragment: str) -> tuple[int, ReasonCategory]:
-        normalized_fragment = fragment.strip()
-        lowered = normalized_fragment.lower()
-
-        def _priority(bucket: str) -> int:
-            return cls._PRIORITY_BUCKETS.get(bucket, cls._PRIORITY_BUCKETS["other"])
-
-        missing_keywords = [
-            "ontbrekende",
-            "missing",
-            "geen mid",
-            "bid/ask",
-            "delta",
-            "iv",
-            "modelprijs",
-            "midprijs",
-            "strikes niet",
-            "optie ontbreekt",
-        ]
-        if any(keyword in lowered for keyword in missing_keywords):
-            category = normalize_reason(normalized_fragment)
-            if category == ReasonCategory.OTHER:
-                category = ReasonCategory.MISSING_MID
-            return _priority("missing_data"), category
-
-        spread_keywords = ["spread", "one sided", "one-sided", "kwaliteit"]
-        if any(keyword in lowered for keyword in spread_keywords):
-            category = normalize_reason(normalized_fragment)
-            if category == ReasonCategory.OTHER:
-                category = ReasonCategory.WIDE_SPREAD
-            return _priority("spread_quality"), category
-
-        if any(keyword in lowered for keyword in ["risk/reward", "risk reward", "r/r", "rr "]):
-            return _priority("risk_reward"), ReasonCategory.RULES_FILTER
-
-        if any(keyword in lowered for keyword in ["negatieve ev", "ev ", "expected value", "score"]):
-            return _priority("ev"), ReasonCategory.RULES_FILTER
-
-        policy_keywords = [
-            "fallback",
-            "niet toegestaan",
-            "policy",
-            "restrict",
-            "te veel fallback",
-            "short leg",
-            "model-mid",
-            "parity",
-        ]
-        if any(keyword in lowered for keyword in policy_keywords):
-            category = normalize_reason(normalized_fragment)
-            if category == ReasonCategory.MISSING_MID:
-                category = ReasonCategory.RULES_FILTER
-            return _priority("policy"), category
-
-        return _priority("other"), normalize_reason(normalized_fragment)
+    def _select_detail(self, reason: ReasonLike) -> ReasonDetail:
+        if isinstance(reason, ReasonCategory):
+            return normalize_reason(reason)
+        if isinstance(reason, str):
+            fragments = self._split_reason(reason)
+            details = [normalize_reason(fragment) for fragment in fragments]
+            if not details:
+                return normalize_reason(reason)
+            details.sort(key=lambda detail: category_priority(detail.category))
+            return details[0]
+        return normalize_reason(reason)
 
     def add_reason(
-        self, reason: ReasonCategory | str | None, *, strategy: str | None = None
-    ) -> ReasonCategory:
-        if isinstance(reason, ReasonCategory):
-            category = reason
-        elif reason is None:
-            category = normalize_reason(None)
-        else:
-            text = str(reason)
-            fragments = self._split_reason(text)
-            classified = [
-                {
-                    "fragment": frag,
-                    "priority": prio,
-                    "category": cat,
-                }
-                for frag, (prio, cat) in zip(fragments, map(self._classify_fragment, fragments))
-            ]
-            classified.sort(key=lambda item: item["priority"])
-            chosen = classified[0]
-            category = chosen["category"]
-            logger.info(
-                "[reason-selection] raw=%s fragments=%s -> %s (priority=%s)",
-                text,
-                [
-                    (item["fragment"], item["category"].value, item["priority"])
-                    for item in classified
-                ],
-                category.value,
-                chosen["priority"],
-            )
-        label = self._register_reason(category)
+        self, reason: ReasonLike, *, strategy: str | None = None
+    ) -> ReasonDetail:
+        detail = self._select_detail(reason)
+        label = self._register_reason(detail)
+        logger.info(
+            "[reason-selection] raw=%s -> %s (%s)",
+            reason,
+            label,
+            detail.category.value,
+        )
         if strategy:
             self.by_strategy.setdefault(strategy, []).append(label)
-        return category
+        return detail
 
-    def extend_reasons(self, reasons: Iterable[ReasonCategory | str]) -> None:
+    def extend_reasons(self, reasons: Iterable[ReasonLike]) -> None:
         for reason in reasons:
             self.add_reason(reason)
 
@@ -458,16 +380,12 @@ def _generate_with_capture(*args: Any, **kwargs: Any):
     return result
 
 
-def _reason_label(value: ReasonCategory | str | None) -> str:
-    if isinstance(value, ReasonCategory):
-        return ReasonAggregator.label_for(value)
-    if value is None:
-        return ReasonAggregator.label_for(normalize_reason(None))
+def _reason_label(value: ReasonLike | ReasonDetail | None) -> str:
     try:
-        category = normalize_reason(str(value))
+        detail = normalize_reason(value)
     except Exception:
         return str(value)
-    return ReasonAggregator.label_for(category)
+    return detail.message or ReasonAggregator.label_for(detail.category)
 
 
 def _format_leg_position(raw: Any) -> str:
@@ -603,7 +521,10 @@ def _build_rejection_table(
             else []
         )
         dtes = _format_dtes(legs_seq)
-        note = str(entry.get("raw_reason") or _reason_label(entry.get("reason")))
+        reason_value = entry.get("reason")
+        raw_reason = entry.get("raw_reason")
+        label = _reason_label(reason_value or raw_reason)
+        note = str(label)
 
         row = [
             str(idx),
@@ -661,9 +582,16 @@ def _show_rejection_detail(entry: Mapping[str, Any]) -> None:
     strategy = entry.get("strategy") or "—"
     status = entry.get("status") or "—"
     anchor = entry.get("description") or "—"
-    reason = entry.get("reason")
-    reason_label = _reason_label(reason)
-    note = entry.get("raw_reason") or reason_label
+    reason_value = entry.get("reason")
+    raw_reason = entry.get("raw_reason")
+    detail = normalize_reason(reason_value or raw_reason)
+    reason_label = detail.message or ReasonAggregator.label_for(detail.category)
+    original = None
+    if isinstance(reason_value, ReasonDetail):
+        original = reason_value.data.get("original_message")
+    if original is None:
+        original = detail.data.get("original_message")
+    note = raw_reason or original or reason_label
 
     print(f"Strategie: {strategy}")
     print(f"Status: {status}")
@@ -782,7 +710,7 @@ def _print_reason_summary(summary: RejectionSummary | None) -> None:
             for strat, reasons in summary.by_strategy.items():
                 print(f"{strat}:")
                 for r in reasons:
-                    print(f"• {r}")
+                    print(f"• {_reason_label(r)}")
 
     if not rejects:
         return

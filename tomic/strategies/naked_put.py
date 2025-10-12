@@ -53,6 +53,7 @@ def generate(
                     score, reasons = calculate_score(
                         StrategyName.NAKED_PUT, proposal, spot
                     )
+                    reason_messages = [detail.message for detail in reasons]
                     if score is not None and passes_risk(proposal, min_rr):
                         proposals.append(proposal)
                         log_combo_evaluation(
@@ -64,7 +65,7 @@ def generate(
                             legs=[leg],
                         )
                     else:
-                        reason = "; ".join(reasons) if reasons else "risk/reward onvoldoende"
+                        reason = "; ".join(reason_messages) if reason_messages else "risk/reward onvoldoende"
                         log_combo_evaluation(
                             StrategyName.NAKED_PUT,
                             desc,
@@ -73,8 +74,8 @@ def generate(
                             reason,
                             legs=[leg],
                         )
-                        if reasons:
-                            rejected_reasons.extend(reasons)
+                        if reason_messages:
+                            rejected_reasons.extend(reason_messages)
                         else:
                             rejected_reasons.append("risk/reward onvoldoende")
                     if reached_limit(proposals):

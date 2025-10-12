@@ -10,7 +10,11 @@ from tomic.config import get as cfg_get
 from functools import wraps
 from typing import Any, Callable, Iterator, Optional, TypeVar
 
-from tomic.strategy.reasons import ReasonCategory, normalize_reason as _normalize_reason
+from tomic.strategy.reasons import (
+    ReasonDetail,
+    ReasonLike,
+    normalize_reason as _normalize_reason,
+)
 
 
 def _format_result(result: Any, max_length: int = 200) -> str:
@@ -137,7 +141,7 @@ def get_captured_combo_evaluations() -> list[dict[str, Any]]:
     return list(captured) if captured is not None else []
 
 
-def normalize_reason(raw_reason: str | None) -> ReasonCategory:
+def normalize_reason(raw_reason: ReasonLike) -> ReasonDetail:
     """Proxy to :func:`tomic.strategy.reasons.normalize_reason`."""
 
     return _normalize_reason(raw_reason)
@@ -183,7 +187,7 @@ def log_combo_evaluation(
     desc: str,
     metrics: Optional[dict],
     result: str,
-    reason: str,
+    reason: ReasonLike,
     *,
     legs: list[dict] | None = None,
     extra: dict | None = None,
@@ -223,8 +227,9 @@ def log_combo_evaluation(
             extra_parts.append(f"{label}={strike}{typ}")
     extra_str = " | " + " | ".join(extra_parts) if extra_parts else ""
 
+    detail = normalize_reason(reason)
     logger.info(
-        f"[{strategy}] {desc} — PoS {pos_str}, RR {rr_str}, EV {ev_str} — {result.upper()} ({reason}){extra_str}"
+        f"[{strategy}] {desc} — PoS {pos_str}, RR {rr_str}, EV {ev_str} — {result.upper()} ({detail.message}){extra_str}"
     )
 
     captured = _combo_capture.get()
@@ -236,8 +241,8 @@ def log_combo_evaluation(
                 "description": desc,
                 "legs": list(legs or []),
                 "metrics": dict(metrics or {}),
-                "raw_reason": reason,
-                "reason": normalize_reason(reason),
+                "raw_reason": detail.message,
+                "reason": detail,
                 "meta": dict(extra or {}),
             }
         )

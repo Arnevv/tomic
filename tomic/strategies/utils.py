@@ -11,6 +11,10 @@ from tomic.helpers.dateutils import dte_between_dates, filter_by_dte
 
 from . import StrategyName
 from ..utils import normalize_right, get_leg_right, today
+
+
+def _reason_messages(reasons: Sequence[Any]) -> list[str]:
+    return [getattr(reason, "message", str(reason)) for reason in reasons]
 from ..logutils import logger
 
 
@@ -384,6 +388,7 @@ def generate_short_vertical(
             ]
             proposal = StrategyProposal(legs=legs)
             score, reasons = calculate_score(strategy_name, proposal, spot)
+            reason_messages = _reason_messages(reasons)
             if score is not None and passes_risk(proposal, min_rr):
                 proposals.append(proposal)
                 log_combo_evaluation(
@@ -395,7 +400,7 @@ def generate_short_vertical(
                     legs=legs,
                 )
             else:
-                reason = "; ".join(reasons) if reasons else "risk/reward onvoldoende"
+                reason = "; ".join(reason_messages) if reason_messages else "risk/reward onvoldoende"
                 log_combo_evaluation(
                     strategy_name,
                     desc,
@@ -404,8 +409,8 @@ def generate_short_vertical(
                     reason,
                     legs=legs,
                 )
-                if reasons:
-                    rejected_reasons.extend(reasons)
+                if reason_messages:
+                    rejected_reasons.extend(reason_messages)
                 else:
                     rejected_reasons.append("risk/reward onvoldoende")
             if reached_limit(proposals):
@@ -599,6 +604,7 @@ def generate_wing_spread(
                 ]
                 proposal = StrategyProposal(legs=legs)
                 score, reasons = (score_func or _calculate_score)(strategy_name, proposal, spot)
+                reason_messages = _reason_messages(reasons)
                 if score is not None and passes_risk(proposal, min_rr):
                     proposals.append(proposal)
                     log_combo_evaluation(
@@ -610,7 +616,7 @@ def generate_wing_spread(
                         legs=legs,
                     )
                 else:
-                    reason = "; ".join(reasons) if reasons else "risk/reward onvoldoende"
+                    reason = "; ".join(reason_messages) if reason_messages else "risk/reward onvoldoende"
                     log_combo_evaluation(
                         strategy_name,
                         desc,
@@ -619,8 +625,8 @@ def generate_wing_spread(
                         reason,
                         legs=legs,
                     )
-                    if reasons:
-                        rejected_reasons.extend(reasons)
+                    if reason_messages:
+                        rejected_reasons.extend(reason_messages)
                     else:
                         rejected_reasons.append("risk/reward onvoldoende")
                 if reached_limit(proposals):
@@ -744,6 +750,7 @@ def generate_wing_spread(
                 ]
                 proposal = StrategyProposal(legs=legs)
                 score, reasons = (score_func or _calculate_score)(strategy_name, proposal, spot)
+                reason_messages = _reason_messages(reasons)
                 if score is not None and passes_risk(proposal, min_rr):
                     proposals.append(proposal)
                     log_combo_evaluation(
@@ -755,7 +762,7 @@ def generate_wing_spread(
                         legs=legs,
                     )
                 else:
-                    reason = "; ".join(reasons) if reasons else "risk/reward onvoldoende"
+                    reason = "; ".join(reason_messages) if reason_messages else "risk/reward onvoldoende"
                     log_combo_evaluation(
                         strategy_name,
                         desc,
@@ -764,8 +771,8 @@ def generate_wing_spread(
                         reason,
                         legs=legs,
                     )
-                    if reasons:
-                        rejected_reasons.extend(reasons)
+                    if reason_messages:
+                        rejected_reasons.extend(reason_messages)
                     else:
                         rejected_reasons.append("risk/reward onvoldoende")
                 if reached_limit(proposals):
@@ -977,6 +984,7 @@ def generate_ratio_like(
             legs[1]["position"] = 2
             proposal = StrategyProposal(legs=legs)
             score, reasons = calculate_score(strategy_name, proposal, spot)
+            reason_messages = _reason_messages(reasons)
             if score is not None and passes_risk(proposal, min_rr):
                 if _validate_ratio(strategy_name.value, legs, proposal.credit or 0.0):
                     proposals.append(proposal)
@@ -1000,7 +1008,7 @@ def generate_ratio_like(
                     )
                     rejected_reasons.append(reason)
             else:
-                reason = "; ".join(reasons) if reasons else "risk/reward onvoldoende"
+                reason = "; ".join(reason_messages) if reason_messages else "risk/reward onvoldoende"
                 log_combo_evaluation(
                     strategy_name,
                     desc,
@@ -1009,8 +1017,8 @@ def generate_ratio_like(
                     reason,
                     legs=legs,
                 )
-                if reasons:
-                    rejected_reasons.extend(reasons)
+                if reason_messages:
+                    rejected_reasons.extend(reason_messages)
                 else:
                     rejected_reasons.append("risk/reward onvoldoende")
             if reached_limit(proposals):

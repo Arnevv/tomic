@@ -5,11 +5,15 @@ from tomic.criteria import load_criteria
 from tomic.strategy_candidates import StrategyProposal
 
 
+from tomic.strategy.reasons import ReasonCategory
+
+
 def test_validate_leg_metrics_missing():
     legs = [{"type": "P", "strike": 100, "expiry": "20250101"}]
     ok, reasons = scoring.validate_leg_metrics("naked_put", legs)
     assert not ok
     assert reasons
+    assert reasons[0].code == "METRICS_MISSING"
     assert legs[0]["missing_metrics"] == ["mid", "model", "delta"]
 
 
@@ -49,6 +53,7 @@ def test_validate_leg_metrics_rejects_unknown_mid_source():
     ok, reasons = scoring.validate_leg_metrics("naked_put", legs)
     assert not ok
     assert "mid" in legs[0]["missing_metrics"]
+    assert reasons and reasons[0].code == "METRICS_MISSING"
 
 
 def test_validate_leg_metrics_long_missing_rejected(monkeypatch):
@@ -59,7 +64,7 @@ def test_validate_leg_metrics_long_missing_rejected(monkeypatch):
     monkeypatch.setattr(scoring, "cfg_get", lambda name, default=None: {})
     ok, reasons = scoring.validate_leg_metrics("short_put_spread", legs)
     assert not ok
-    assert reasons
+    assert reasons and reasons[0].code == "METRICS_MISSING"
     assert legs[0]["missing_metrics"] == []
     assert legs[1]["missing_metrics"] == ["mid", "model", "delta"]
     assert "metrics_ignored" not in legs[1]
@@ -111,7 +116,7 @@ def test_check_liquidity_failure():
     ]
     ok, reasons = scoring.check_liquidity("naked_put", legs, crit)
     assert not ok
-    assert reasons == ["onvoldoende volume/open interest"]
+    assert reasons and reasons[0].category == ReasonCategory.LOW_LIQUIDITY
 
 
 def test_compute_proposal_metrics(monkeypatch):
