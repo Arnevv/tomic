@@ -11,7 +11,7 @@ from .utils import (
 )
 from ..utils import build_leg
 from ..analysis.scoring import calculate_score, passes_risk
-from ..logutils import log_combo_evaluation
+from ..logutils import log_combo_evaluation, logger
 from ..criteria import RULES
 from ..strategy_candidates import (
     StrategyProposal,
@@ -47,6 +47,8 @@ def generate(
     preferred = str(config.get("preferred_option_type", "C")).upper()[0]
     order = [preferred] + (["P"] if preferred == "C" else ["C"])
 
+    logger.info("calendar: short parity ok, long fallback allowed (1)")
+
     def _build_for(option_type: str) -> tuple[list[StrategyProposal], list[str]]:
         local_props: list[StrategyProposal] = []
         local_reasons: list[str] = []
@@ -80,7 +82,10 @@ def generate(
                     continue
                 diff = abs(cand - strike_target)
                 pct = (diff / strike_target * 100) if strike_target else 0.0
-                tol = float(RULES.alerts.nearest_strike_tolerance_percent)
+                tol = max(
+                    float(RULES.alerts.nearest_strike_tolerance_percent),
+                    5.0,
+                )
                 if pct > tol:
                     reason = "strike te ver van target"
                     log_combo_evaluation(

@@ -258,6 +258,16 @@ def generate_short_vertical(
 
     leg_right = "call" if option_type == "C" else "put"
 
+    tol_value = rules.get("long_wing_strike_tolerance_percent")
+    long_wing_tolerance = float(tol_value) if tol_value is not None else 5.0
+
+    strat_label = getattr(strategy_name, "value", strategy_name)
+    if strat_label in {
+        StrategyName.SHORT_CALL_SPREAD.value,
+        StrategyName.SHORT_PUT_SPREAD.value,
+    }:
+        logger.info(f"[{strat_label}] short=market/parity, long=fallback ok")
+
     if len(delta_range) == 2 and (target_delta is not None or atr_mult is not None):
         for expiry in expiries:
             short_opt = None
@@ -321,7 +331,13 @@ def generate_short_vertical(
                 long_strike_target = float(short_opt.get("strike")) + width
             else:
                 long_strike_target = float(short_opt.get("strike")) - width
-            long_strike = _nearest_strike(strike_map, expiry, option_type, long_strike_target)
+            long_strike = _nearest_strike(
+                strike_map,
+                expiry,
+                option_type,
+                long_strike_target,
+                tolerance_percent=long_wing_tolerance,
+            )
             desc = f"short {short_opt.get('strike')} long {long_strike.matched}"
             legs_info = [
                 {
@@ -463,12 +479,22 @@ def generate_wing_spread(
 
     strat_label = getattr(strategy_name, "value", strategy_name)
     long_wing_tolerance = None
+    long_wing_tolerance_val = rules.get("long_wing_strike_tolerance_percent")
+    if long_wing_tolerance_val is not None:
+        long_wing_tolerance = float(long_wing_tolerance_val)
+    elif strat_label in {
+        StrategyName.IRON_CONDOR.value,
+        StrategyName.ATM_IRON_BUTTERFLY.value,
+    }:
+        long_wing_tolerance = 5.0
+
     if strat_label == StrategyName.IRON_CONDOR.value:
-        long_wing_tolerance_val = rules.get("long_wing_strike_tolerance_percent")
-        if long_wing_tolerance_val is not None:
-            long_wing_tolerance = float(long_wing_tolerance_val)
         logger.info(
             "[iron_condor] short legs: parity ok; long legs: fallback permitted (max 2)"
+        )
+    if strat_label == StrategyName.ATM_IRON_BUTTERFLY.value:
+        logger.info(
+            "[atm_iron_butterfly] short legs: parity ok; long legs: fallback permitted (max 2)"
         )
 
     # Butterfly mode when centers are provided
@@ -526,12 +552,22 @@ def generate_wing_spread(
                     rejected_reasons.append(reason)
                     continue
                 sc_strike = sp_strike = center
-                lc_strike = _nearest_strike(
-                    strike_map, expiry, "C", center + width
-                ).matched
-                lp_strike = _nearest_strike(
-                    strike_map, expiry, "P", center - width
-                ).matched
+                lc = _nearest_strike(
+                    strike_map,
+                    expiry,
+                    "C",
+                    center + width,
+                    tolerance_percent=long_wing_tolerance,
+                )
+                lp = _nearest_strike(
+                    strike_map,
+                    expiry,
+                    "P",
+                    center - width,
+                    tolerance_percent=long_wing_tolerance,
+                )
+                lc_strike = lc.matched
+                lp_strike = lp.matched
                 desc = f"center {center} sigma {sigma_mult}"
                 base_legs = [
                     {"expiry": expiry, "strike": sc_strike, "type": "C", "position": -1},
@@ -813,6 +849,18 @@ def generate_ratio_like(
 
     leg_right = "call" if option_type == "C" else "put"
 
+    tol_value = rules.get("long_wing_strike_tolerance_percent")
+    long_wing_tolerance = float(tol_value) if tol_value is not None else 5.0
+
+    strat_label = getattr(strategy_name, "value", strategy_name)
+    if strat_label in {
+        StrategyName.RATIO_SPREAD.value,
+        StrategyName.BACKSPREAD_PUT.value,
+    }:
+        logger.info(
+            f"[{strat_label}] short legs: parity ok; long legs: fallback permitted (max 2)"
+        )
+
     if len(delta_range) == 2 and (target_delta is not None or atr_mult is not None):
         for short_exp, long_exp in pairs:
             short_opt = None
@@ -881,7 +929,11 @@ def generate_ratio_like(
             else:
                 long_strike_target = float(short_opt.get("strike")) - width
             long_strike = _nearest_strike(
-                strike_map, long_exp, option_type, long_strike_target
+                strike_map,
+                long_exp,
+                option_type,
+                long_strike_target,
+                tolerance_percent=long_wing_tolerance,
             )
             desc_base = (
                 f"near {short_exp} far {long_exp} " if short_exp != long_exp else ""

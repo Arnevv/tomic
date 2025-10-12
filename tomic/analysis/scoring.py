@@ -43,23 +43,33 @@ def _fallback_limit_ok(
         allowed = math.ceil(limit_per_four * leg_count / 4)
 
     strat_label = getattr(strategy_name, "value", strategy_name)
-    if strat_label == "iron_condor":
+
+    def _source(leg: Mapping[str, Any]) -> str:
+        return str(leg.get("mid_source") or leg.get("mid_fallback") or "")
+
+    def _is_short(leg: Mapping[str, Any]) -> bool:
+        try:
+            return float(leg.get("position") or 0) < 0
+        except Exception:
+            return False
+
+    def _is_long(leg: Mapping[str, Any]) -> bool:
+        try:
+            return float(leg.get("position") or 0) > 0
+        except Exception:
+            return False
+
+    fallback_sources = {"model", "close"}
+
+    if strat_label in {
+        "iron_condor",
+        "atm_iron_butterfly",
+        "ratio_spread",
+        "backspread_put",
+    }:
         allowed = min(allowed, 2) if allowed else 0
-        real_sources = {"model", "close"}
-
-        def _source(leg: Mapping[str, Any]) -> str:
-            return str(leg.get("mid_source") or leg.get("mid_fallback") or "")
-
-        long_fallbacks = sum(
-            1
-            for leg in legs
-            if float(leg.get("position") or 0) > 0 and _source(leg) in real_sources
-        )
-        short_with_fallback = [
-            leg
-            for leg in legs
-            if float(leg.get("position") or 0) < 0 and _source(leg) in real_sources
-        ]
+        long_fallbacks = sum(1 for leg in legs if _is_long(leg) and _source(leg) in fallback_sources)
+        short_with_fallback = [leg for leg in legs if _is_short(leg) and _source(leg) in fallback_sources]
         if short_with_fallback:
             return False, long_fallbacks, allowed, "short legs vereisen true mid of parity"
         if long_fallbacks > allowed:
@@ -67,11 +77,45 @@ def _fallback_limit_ok(
             return False, long_fallbacks, allowed, reason
         return True, long_fallbacks, allowed, None
 
-    fallback_sources = {"parity", "model", "close"}
+    if strat_label in {"short_call_spread", "short_put_spread"}:
+        allowed = min(allowed, 1) if allowed else 0
+        long_fallbacks = sum(1 for leg in legs if _is_long(leg) and _source(leg) in fallback_sources)
+        short_with_fallback = [leg for leg in legs if _is_short(leg) and _source(leg) in fallback_sources]
+        if short_with_fallback:
+            return False, long_fallbacks, allowed, "short legs vereisen true mid of parity"
+        if long_fallbacks > allowed:
+            reason = "te veel fallback-legs op long hedge"
+            return False, long_fallbacks, allowed, reason
+        return True, long_fallbacks, allowed, None
+
+    if strat_label == "calendar":
+        allowed = min(allowed, 1) if allowed else 0
+        long_fallbacks = [leg for leg in legs if _is_long(leg) and _source(leg) in fallback_sources]
+        if any(_is_short(leg) and _source(leg) in fallback_sources for leg in legs):
+            return False, len(long_fallbacks), allowed, "short legs vereisen true mid of parity"
+        if any(_source(leg) == "model" for leg in long_fallbacks):
+            return False, len(long_fallbacks), allowed, "calendar long leg vereist parity of close"
+        if len(long_fallbacks) > allowed:
+            reason = "te veel fallback-legs op long hedge"
+            return False, len(long_fallbacks), allowed, reason
+        return True, len(long_fallbacks), allowed, None
+
+    if strat_label == "naked_put":
+        allowed = min(allowed, 1) if allowed else 0
+        count = 0
+        for leg in legs:
+            if _source(leg) in fallback_sources:
+                count += 1
+                logger.info(
+                    "[naked_put] short leg fallback geaccepteerd via %s (parity niet beschikbaar)",
+                    _source(leg),
+                )
+        return True, count, allowed, None
+
     fallback_count = sum(
         1
         for leg in legs
-        if str(leg.get("mid_source") or leg.get("mid_fallback") or "") in fallback_sources
+        if _source(leg) in fallback_sources
     )
     return fallback_count <= allowed, fallback_count, allowed, None
 
@@ -253,13 +297,15 @@ def compute_proposal_metrics(
             f"[{strategy_name}] Ontbrekende bid/ask-data voor strikes {','.join(missing_mid)}"
         )
         reasons.append("ontbrekende bid/ask-data")
-    fallbacks = {leg.get("mid_fallback") for leg in legs if leg.get("mid_fallback")}
+    fallbacks = {
+        fb
+        for leg in legs
+        if (fb := leg.get("mid_fallback")) in {"model", "close"}
+    }
     if "close" in fallbacks:
         reasons.append("fallback naar close gebruikt voor midprijs")
     if "model" in fallbacks:
         reasons.append("model-mid gebruikt")
-    if "parity" in fallbacks and strategy_name != "iron_condor":
-        reasons.append("parity-mid gebruikt")
     net_credit = credit_short - debit_long
     if strategy_name in POSITIVE_CREDIT_STRATS and net_credit <= 0:
         reasons.append("negatieve credit")
