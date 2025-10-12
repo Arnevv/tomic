@@ -291,6 +291,11 @@ _LEGACY_REASON_MAP: MutableMapping[str, ReasonDetail] = {
         "previewkwaliteit (model)",
         data={"mid_source": "model"},
     ),
+    "previewkwaliteit": make_reason(
+        ReasonCategory.PREVIEW_QUALITY,
+        "PREVIEW_GENERIC",
+        category_label(ReasonCategory.PREVIEW_QUALITY),
+    ),
     "midprijs niet gevonden": make_reason(
         ReasonCategory.MISSING_DATA,
         "MID_MISSING",

@@ -165,10 +165,13 @@ class ReasonAggregator:
     def label_for(cls, category: ReasonCategory) -> str:
         return category_label(category)
 
-    def _register_reason(self, detail: ReasonDetail) -> str:
+    def _register_reason(self, detail: ReasonDetail, *, count: int = 1) -> str:
         label = detail.message or self.label_for(detail.category)
-        self.by_reason[label] = self.by_reason.get(label, 0) + 1
-        self.by_category[detail.category] = self.by_category.get(detail.category, 0) + 1
+        if count > 0:
+            self.by_reason[label] = self.by_reason.get(label, 0) + count
+            self.by_category[detail.category] = (
+                self.by_category.get(detail.category, 0) + count
+            )
         return label
 
     @classmethod
@@ -189,10 +192,14 @@ class ReasonAggregator:
         return normalize_reason(reason)
 
     def add_reason(
-        self, reason: ReasonLike, *, strategy: str | None = None
+        self,
+        reason: ReasonLike,
+        *,
+        strategy: str | None = None,
+        count: int = 1,
     ) -> ReasonDetail:
         detail = self._select_detail(reason)
-        label = self._register_reason(detail)
+        label = self._register_reason(detail, count=max(int(count), 0))
         logger.info(
             "[reason-selection] raw=%s -> %s (%s)",
             reason,
@@ -206,6 +213,19 @@ class ReasonAggregator:
     def extend_reasons(self, reasons: Iterable[ReasonLike]) -> None:
         for reason in reasons:
             self.add_reason(reason)
+
+    def add_reason_with_count(
+        self,
+        reason: ReasonLike,
+        count: int,
+        *,
+        strategy: str | None = None,
+    ) -> ReasonDetail:
+        return self.add_reason(reason, strategy=strategy, count=count)
+
+    def extend_reason_counts(self, counts: Mapping[ReasonLike, int]) -> None:
+        for reason, count in counts.items():
+            self.add_reason(reason, count=count)
 
     def add_filter(self, name: str) -> None:
         if not name:
@@ -705,6 +725,33 @@ def _print_reason_summary(summary: RejectionSummary | None) -> None:
             rows_reason = sorted(summary.by_reason.items(), key=lambda x: x[1], reverse=True)
             print("Redenen:")
             print(tabulate(rows_reason, headers=["Reden", "Aantal"], tablefmt="github"))
+            agg = ReasonAggregator()
+            agg.extend_reason_counts(summary.by_reason)
+            if agg.by_category:
+                total_counts = sum(max(int(c), 0) for c in summary.by_reason.values())
+                ordered_categories = sorted(
+                    agg.by_category.items(),
+                    key=lambda item: item[1],
+                    reverse=True,
+                )
+                category_rows: list[list[str]] = []
+                for category, count in ordered_categories:
+                    label = ReasonAggregator.label_for(category)
+                    pct = (
+                        f"{round((count / total_counts) * 100)}%"
+                        if total_counts
+                        else "0%"
+                    )
+                    category_rows.append([label, count, pct])
+                if category_rows:
+                    print("Redenen per categorie:")
+                    print(
+                        tabulate(
+                            category_rows,
+                            headers=["Categorie", "Aantal", "%"],
+                            tablefmt="github",
+                        )
+                    )
         if summary.by_strategy:
             print("Redenen per strategie:")
             for strat, reasons in summary.by_strategy.items():
