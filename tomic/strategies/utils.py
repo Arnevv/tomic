@@ -464,7 +464,9 @@ def generate_wing_spread(
     strat_label = getattr(strategy_name, "value", strategy_name)
     long_wing_tolerance = None
     if strat_label == StrategyName.IRON_CONDOR.value:
-        long_wing_tolerance = float(rules.get("long_wing_strike_tolerance_percent", 5.0))
+        long_wing_tolerance_val = rules.get("long_wing_strike_tolerance_percent")
+        if long_wing_tolerance_val is not None:
+            long_wing_tolerance = float(long_wing_tolerance_val)
         logger.info(
             "[iron_condor] short legs: parity ok; long legs: fallback permitted (max 2)"
         )
