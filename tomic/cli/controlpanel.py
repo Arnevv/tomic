@@ -11,6 +11,7 @@ import csv
 from collections import defaultdict
 import math
 import inspect
+import re
 from dataclasses import dataclass, field
 from typing import Any, ClassVar, Iterable, Mapping, Sequence
 from tomic.helpers.dateutils import parse_date
@@ -163,6 +164,15 @@ class ReasonAggregator:
         ReasonCategory.OTHER: "Other",
     }
 
+    _PRIORITY_BUCKETS: ClassVar[dict[str, int]] = {
+        "missing_data": 0,
+        "spread_quality": 1,
+        "risk_reward": 2,
+        "ev": 3,
+        "policy": 4,
+        "other": 5,
+    }
+
     @classmethod
     def label_for(cls, category: ReasonCategory) -> str:
         return cls._REASON_LABELS.get(category, category.value.replace("_", " ").title())
@@ -173,6 +183,68 @@ class ReasonAggregator:
         self.by_category[category] = self.by_category.get(category, 0) + 1
         return label
 
+    @classmethod
+    def _split_reason(cls, text: str) -> list[str]:
+        parts = [frag.strip() for frag in re.split(r"[;\u2022\|]+", text) if frag and frag.strip()]
+        return parts or [text.strip()]
+
+    @classmethod
+    def _classify_fragment(cls, fragment: str) -> tuple[int, ReasonCategory]:
+        normalized_fragment = fragment.strip()
+        lowered = normalized_fragment.lower()
+
+        def _priority(bucket: str) -> int:
+            return cls._PRIORITY_BUCKETS.get(bucket, cls._PRIORITY_BUCKETS["other"])
+
+        missing_keywords = [
+            "ontbrekende",
+            "missing",
+            "geen mid",
+            "bid/ask",
+            "delta",
+            "iv",
+            "modelprijs",
+            "midprijs",
+            "strikes niet",
+            "optie ontbreekt",
+        ]
+        if any(keyword in lowered for keyword in missing_keywords):
+            category = normalize_reason(normalized_fragment)
+            if category == ReasonCategory.OTHER:
+                category = ReasonCategory.MISSING_MID
+            return _priority("missing_data"), category
+
+        spread_keywords = ["spread", "one sided", "one-sided", "kwaliteit"]
+        if any(keyword in lowered for keyword in spread_keywords):
+            category = normalize_reason(normalized_fragment)
+            if category == ReasonCategory.OTHER:
+                category = ReasonCategory.WIDE_SPREAD
+            return _priority("spread_quality"), category
+
+        if any(keyword in lowered for keyword in ["risk/reward", "risk reward", "r/r", "rr "]):
+            return _priority("risk_reward"), ReasonCategory.RULES_FILTER
+
+        if any(keyword in lowered for keyword in ["negatieve ev", "ev ", "expected value", "score"]):
+            return _priority("ev"), ReasonCategory.RULES_FILTER
+
+        policy_keywords = [
+            "fallback",
+            "niet toegestaan",
+            "policy",
+            "restrict",
+            "te veel fallback",
+            "short leg",
+            "model-mid",
+            "parity",
+        ]
+        if any(keyword in lowered for keyword in policy_keywords):
+            category = normalize_reason(normalized_fragment)
+            if category == ReasonCategory.MISSING_MID:
+                category = ReasonCategory.RULES_FILTER
+            return _priority("policy"), category
+
+        return _priority("other"), normalize_reason(normalized_fragment)
+
     def add_reason(
         self, reason: ReasonCategory | str | None, *, strategy: str | None = None
     ) -> ReasonCategory:
@@ -181,7 +253,29 @@ class ReasonAggregator:
         elif reason is None:
             category = normalize_reason(None)
         else:
-            category = normalize_reason(str(reason))
+            text = str(reason)
+            fragments = self._split_reason(text)
+            classified = [
+                {
+                    "fragment": frag,
+                    "priority": prio,
+                    "category": cat,
+                }
+                for frag, (prio, cat) in zip(fragments, map(self._classify_fragment, fragments))
+            ]
+            classified.sort(key=lambda item: item["priority"])
+            chosen = classified[0]
+            category = chosen["category"]
+            logger.info(
+                "[reason-selection] raw=%s fragments=%s -> %s (priority=%s)",
+                text,
+                [
+                    (item["fragment"], item["category"].value, item["priority"])
+                    for item in classified
+                ],
+                category.value,
+                chosen["priority"],
+            )
         label = self._register_reason(category)
         if strategy:
             self.by_strategy.setdefault(strategy, []).append(label)

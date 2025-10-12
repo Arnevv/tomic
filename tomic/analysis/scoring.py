@@ -22,6 +22,9 @@ if TYPE_CHECKING:
 POSITIVE_CREDIT_STRATS = set(RULES.strategy.acceptance.require_positive_credit_for)
 
 
+_VALID_MID_SOURCES = {"true", "parity_true", "parity_close", "model", "close"}
+
+
 def _bs_estimate_missing(legs: List[Dict[str, Any]]) -> None:
     """Fill missing model price and delta using Black-Scholes."""
     from ..helpers.bs_utils import populate_model_delta
@@ -172,6 +175,23 @@ def calculate_breakevens(
     return None
 
 
+def _parse_mid_value(raw_mid: Any) -> tuple[bool, float | None]:
+    try:
+        mid_val = float(raw_mid)
+    except (TypeError, ValueError):
+        return False, None
+    if math.isnan(mid_val):
+        return False, None
+    return True, mid_val
+
+
+def _resolve_mid_source(leg: Mapping[str, Any]) -> str:
+    source = str(leg.get("mid_fallback") or leg.get("mid_source") or "").strip().lower()
+    if source == "parity":
+        source = "parity_true"
+    return source
+
+
 def validate_leg_metrics(strategy_name: str, legs: List[Dict[str, Any]]) -> Tuple[bool, List[str]]:
     """Ensure required leg metrics are present."""
     cfg = cfg_get("STRATEGY_CONFIG") or {}
@@ -187,7 +207,26 @@ def validate_leg_metrics(strategy_name: str, legs: List[Dict[str, Any]]) -> Tupl
     missing_fields: set[str] = set()
     for leg in legs:
         missing: List[str] = []
-        if leg.get("mid") is None:
+        has_mid, mid_val = _parse_mid_value(leg.get("mid"))
+        if has_mid and mid_val is not None:
+            leg["mid"] = mid_val
+        source = _resolve_mid_source(leg)
+        source_ok = (not source) or (source in _VALID_MID_SOURCES)
+        has_price = has_mid and source_ok
+        logger.info(
+            "[mid-check] %s leg %s%s -> has_mid=%s (value=%s, source=%s, bid=%s, ask=%s, close=%s, source_ok=%s)",
+            strategy_name,
+            leg.get("type"),
+            leg.get("strike"),
+            has_price,
+            mid_val if has_mid else leg.get("mid"),
+            source or "—",
+            leg.get("bid"),
+            leg.get("ask"),
+            leg.get("close"),
+            source_ok,
+        )
+        if not has_price:
             missing.append("mid")
         if leg.get("model") is None:
             missing.append("model")
