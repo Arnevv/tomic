@@ -420,6 +420,19 @@ def test_reason_aggregator_retains_missing_mid_priority():
     assert agg.by_reason[detail.message] == 1
 
 
+def test_reason_aggregator_extends_reason_counts():
+    mod = importlib.import_module("tomic.cli.controlpanel")
+    agg = mod.ReasonAggregator()
+    agg.extend_reason_counts(
+        {
+            mod.ReasonAggregator.label_for(mod.ReasonCategory.PREVIEW_QUALITY): 2,
+            mod.ReasonCategory.LOW_LIQUIDITY: 3,
+        }
+    )
+    assert agg.by_category[mod.ReasonCategory.PREVIEW_QUALITY] == 2
+    assert agg.by_category[mod.ReasonCategory.LOW_LIQUIDITY] == 3
+
+
 def test_generate_with_capture_records_summary(monkeypatch):
     mod = importlib.import_module("tomic.cli.controlpanel")
 
@@ -554,6 +567,9 @@ def test_print_reason_summary_summary_only(monkeypatch, capsys):
     assert "| Filter" in out and "delta" in out
     assert "Redenen:" in out
     assert mod.ReasonAggregator.label_for(mod.ReasonCategory.PREVIEW_QUALITY) in out
+    assert "Redenen per categorie:" in out
+    assert "| Categorie" in out
+    assert "50%" in out
     assert "wheel:" in out
     assert "Strat" not in out  # table with details should not be printed
 
@@ -611,6 +627,7 @@ def test_print_reason_summary_show_details(monkeypatch, capsys):
     out = capsys.readouterr().out
     assert "Afwijzingen per filter:" in out
     assert "| Strat" in out and "Anchor B" in out
+    assert "Redenen per categorie:" in out
     assert "Strategie: Iron Condor" in out
     assert "Anchor: Anchor B" in out
     assert "Reden: previewkwaliteit (close)" in out

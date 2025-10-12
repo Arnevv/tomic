@@ -221,18 +221,14 @@ def validate_leg_metrics(
         source = _resolve_mid_source(leg)
         source_ok = (not source) or (source in _VALID_MID_SOURCES)
         has_price = has_mid and source_ok
+        leg_type = leg.get("type") or "?"
+        strike = leg.get("strike")
+        strike_suffix = "" if strike in {None, ""} else str(strike)
+        mid_display = mid_val if has_mid else leg.get("mid")
         logger.info(
-            "[mid-check] %s leg %s%s -> has_mid=%s (value=%s, source=%s, bid=%s, ask=%s, close=%s, source_ok=%s)",
-            strategy_name,
-            leg.get("type"),
-            leg.get("strike"),
-            has_price,
-            mid_val if has_mid else leg.get("mid"),
-            source or "—",
-            leg.get("bid"),
-            leg.get("ask"),
-            leg.get("close"),
-            source_ok,
+            f"[mid-check] {strategy_name} leg {leg_type}{strike_suffix} -> has_mid={has_price} "
+            f"(value={mid_display}, source={source or '—'}, bid={leg.get('bid')}, "
+            f"ask={leg.get('ask')}, close={leg.get('close')}, source_ok={source_ok})"
         )
         if not has_price:
             missing.append("mid")
