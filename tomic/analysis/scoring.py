@@ -65,6 +65,23 @@ def _fallback_limit_ok(
     ]
     total_fallbacks = len(long_fallbacks) + len(short_fallbacks)
 
+    def _warn_short_fallbacks() -> None:
+        if not short_fallbacks:
+            return
+        for leg in short_fallbacks:
+            try:
+                strike = leg.get("strike")
+                expiry = leg.get("expiry")
+                right = get_leg_right(leg).upper()
+            except Exception:  # pragma: no cover - defensive logging
+                strike = leg.get("strike")
+                expiry = leg.get("expiry")
+                right = str(leg.get("type") or "?").upper()
+            logger.warning(
+                f"[{strat_label}] ⚠️ short leg fallback via {_source(leg)} — "
+                f"{right} {strike} {expiry}"
+            )
+
     if strat_label in {
         "iron_condor",
         "atm_iron_butterfly",
@@ -72,20 +89,7 @@ def _fallback_limit_ok(
         "backspread_put",
     }:
         allowed = min(allowed, 2) if allowed else 0
-        if short_fallbacks:
-            for leg in short_fallbacks:
-                try:
-                    strike = leg.get("strike")
-                    expiry = leg.get("expiry")
-                    right = get_leg_right(leg).upper()
-                except Exception:  # pragma: no cover - defensive logging
-                    strike = leg.get("strike")
-                    expiry = leg.get("expiry")
-                    right = str(leg.get("type") or "?").upper()
-                logger.warning(
-                    f"[{strat_label}] ⚠️ short leg fallback via {_source(leg)} — "
-                    f"{right} {strike} {expiry}"
-                )
+        _warn_short_fallbacks()
         long_count = len(long_fallbacks)
         if long_count > allowed:
             reason = "te veel fallback-legs op long wings"
@@ -94,21 +98,24 @@ def _fallback_limit_ok(
 
     if strat_label in {"short_call_spread", "short_put_spread"}:
         allowed = min(allowed, 1) if allowed else 0
+        _warn_short_fallbacks()
         long_count = len(long_fallbacks)
         if long_count > allowed:
             reason = "te veel fallback-legs op long hedge"
             return False, long_count, allowed, reason
-        return total_fallbacks <= allowed, total_fallbacks, allowed, None
+        return long_count <= allowed, long_count, allowed, None
 
     if strat_label == "calendar":
         allowed = min(allowed, 1) if allowed else 0
         long_fallback_legs = [leg for leg in legs if _is_long(leg) and _source(leg) in fallback_sources]
+        _warn_short_fallbacks()
+        long_count = len(long_fallback_legs)
         if any(_source(leg) == "model" for leg in long_fallback_legs):
-            return False, total_fallbacks, allowed, "calendar long leg vereist parity of close"
-        if len(long_fallback_legs) > allowed:
+            return False, long_count, allowed, "calendar long leg vereist parity of close"
+        if long_count > allowed:
             reason = "te veel fallback-legs op long hedge"
-            return False, total_fallbacks, allowed, reason
-        return total_fallbacks <= allowed, total_fallbacks, allowed, None
+            return False, long_count, allowed, reason
+        return long_count <= allowed, long_count, allowed, None
 
     if strat_label == "naked_put":
         allowed = min(allowed, 1) if allowed else 0

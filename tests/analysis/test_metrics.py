@@ -335,6 +335,108 @@ def test_metrics_rejects_when_long_fallback_limit_exceeded(monkeypatch):
     assert reasons and reasons[0].startswith("te veel fallback-legs op long wings")
 
 
+def test_short_leg_fallbacks_warn_for_other_strategies(monkeypatch):
+    original_cfg = scoring.cfg_get
+
+    def fake_cfg(name, default=None):
+        if name == "MID_FALLBACK_MAX_PER_4":
+            return 2
+        return original_cfg(name, default)
+
+    monkeypatch.setattr(scoring, "cfg_get", fake_cfg)
+
+    captured: list[str] = []
+
+    def fake_warning(message: str, *args, **kwargs) -> None:
+        captured.append(str(message))
+
+    monkeypatch.setattr(scoring.logger, "warning", fake_warning)
+
+    scenarios = [
+        (
+            StrategyName.SHORT_CALL_SPREAD,
+            [
+                {
+                    "type": "C",
+                    "strike": 60,
+                    "expiry": "2025-08-01",
+                    "position": -1,
+                    "mid": 1.2,
+                    "model": 1.2,
+                    "delta": 0.2,
+                    "mid_fallback": "close",
+                },
+                {
+                    "type": "C",
+                    "strike": 65,
+                    "expiry": "2025-08-01",
+                    "position": 1,
+                    "mid": 0.4,
+                    "model": 0.4,
+                    "delta": 0.1,
+                },
+            ],
+        ),
+        (
+            StrategyName.SHORT_PUT_SPREAD,
+            [
+                {
+                    "type": "P",
+                    "strike": 50,
+                    "expiry": "2025-08-01",
+                    "position": -1,
+                    "mid": 1.1,
+                    "model": 1.1,
+                    "delta": -0.25,
+                    "mid_fallback": "parity_close",
+                },
+                {
+                    "type": "P",
+                    "strike": 45,
+                    "expiry": "2025-08-01",
+                    "position": 1,
+                    "mid": 0.45,
+                    "model": 0.45,
+                    "delta": -0.1,
+                },
+            ],
+        ),
+        (
+            StrategyName.CALENDAR,
+            [
+                {
+                    "type": "C",
+                    "strike": 55,
+                    "expiry": "2025-08-01",
+                    "position": -1,
+                    "mid": 1.0,
+                    "model": 1.0,
+                    "delta": 0.2,
+                    "mid_fallback": "close",
+                },
+                {
+                    "type": "C",
+                    "strike": 55,
+                    "expiry": "2025-09-01",
+                    "position": 1,
+                    "mid": 1.3,
+                    "model": 1.3,
+                    "delta": 0.15,
+                },
+            ],
+        ),
+    ]
+
+    for strategy, legs in scenarios:
+        captured.clear()
+        ok, count, allowed, reason = scoring._fallback_limit_ok(strategy, legs)
+        assert ok
+        assert reason is None
+        assert count == 0
+        assert allowed >= 1
+        assert any("short leg fallback" in msg for msg in captured)
+
+
 def test_short_call_spread_logs_short_fallback():
     legs = [
         {
