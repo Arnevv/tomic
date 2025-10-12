@@ -85,6 +85,7 @@ class IronCondorStrikeConfig(_BaseStrikeConfig):
     wing_sigma_multiple: float | None = None
     short_leg_width_points: float | None = None
     short_leg_width_ratio: float | None = None
+    long_wing_strike_tolerance_percent: float | None = None
 
 
 class IronCondorConfig(_BaseConfig):
