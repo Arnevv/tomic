@@ -19,6 +19,7 @@ from .config import get as cfg_get
 from .helpers.normalize import normalize_config
 from .strategies.config_models import CONFIG_MODELS
 from .config import _asdict
+from .strategy.reasons import ReasonDetail, dedupe_reasons, normalize_reason
 
 
 # Strategies that must yield a positive net credit are configured via RULES.
@@ -322,7 +323,11 @@ def generate_strategy_candidates(
         proposals, reasons = result
     else:  # backward compatibility
         proposals, reasons = result, None
-    return proposals, sorted(set(reasons)) if reasons is not None else []
+    if reasons is None:
+        reason_list: List[ReasonDetail] = []
+    else:
+        reason_list = dedupe_reasons(reasons)
+    return proposals, reason_list
 
 
 __all__ = [

@@ -16,6 +16,7 @@ from ..logutils import logger
 from ..mid_resolver import MidResolver, build_mid_resolver
 from ..utils import get_option_mid_price, normalize_leg
 from ..helpers.dateutils import parse_date
+from ..strategy.reasons import ReasonDetail, dedupe_reasons
 
 
 ConfigGetter = Callable[[str, Any | None], Any]
@@ -68,7 +69,7 @@ class RejectionSummary:
 
     by_filter: dict[str, int] = field(default_factory=dict)
     by_reason: dict[str, int] = field(default_factory=dict)
-    by_strategy: dict[str, list[str]] = field(default_factory=dict)
+    by_strategy: dict[str, list[ReasonDetail]] = field(default_factory=dict)
 
 
 class StrategyPipeline:
@@ -80,7 +81,7 @@ class StrategyPipeline:
         market_provider: Any | None = None,
         *,
         strike_selector_factory: Callable[..., StrikeSelector] = StrikeSelector,
-        strategy_generator: Callable[..., tuple[Sequence[Any], list[str]]] = generate_strategy_candidates,
+        strategy_generator: Callable[..., tuple[Sequence[Any], list[ReasonDetail]]] = generate_strategy_candidates,
         strike_config_loader: Callable[[str, Mapping[str, Any]], Mapping[str, Any]] = load_strike_config,
         price_getter: Callable[[Mapping[str, Any]], tuple[float | None, str | None]] | None = None,
     ) -> None:
@@ -144,7 +145,7 @@ class StrategyPipeline:
         }
 
         proposals: list[StrategyProposal] = []
-        reasons: list[str] = []
+        reasons: list[ReasonDetail] = []
         if context.spot_price and self.last_selected:
             try:
                 raw_props, reasons = self._strategy_generator(
@@ -164,7 +165,9 @@ class StrategyPipeline:
                 for proposal in raw_props
             ]
         if reasons:
-            self.last_rejections["by_strategy"] = {canonical_strategy: sorted(set(reasons))}
+            self.last_rejections["by_strategy"] = {
+                canonical_strategy: dedupe_reasons(reasons)
+            }
         summary = self.summarize_rejections(self.last_rejections)
         return proposals, summary
 
@@ -175,7 +178,7 @@ class StrategyPipeline:
         by_filter = dict(sorted((data.get("by_filter") or {}).items(), key=lambda item: item[1], reverse=True))
         by_reason = dict(sorted((data.get("by_reason") or {}).items(), key=lambda item: item[1], reverse=True))
         by_strategy = {
-            name: sorted(set(reasons))
+            name: dedupe_reasons(reasons)
             for name, reasons in (data.get("by_strategy") or {}).items()
         }
         return RejectionSummary(by_filter=by_filter, by_reason=by_reason, by_strategy=by_strategy)

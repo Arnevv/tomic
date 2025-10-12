@@ -49,4 +49,4 @@ def test_load_exported_chain_normalizes_open_interest(tmp_path, monkeypatch):
     monkeypatch.setattr(sc, "calculate_margin", lambda *a, **k: 1)
     metrics, reasons = sc._metrics("test", [leg])
     assert metrics is not None
-    assert "onvoldoende volume/open interest" not in reasons
+    assert "onvoldoende volume/open interest" not in [r.message for r in reasons]

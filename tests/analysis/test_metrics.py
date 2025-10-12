@@ -1,7 +1,10 @@
 import math
+from typing import List
+
 from tomic.analysis import scoring
 from tomic.strategy_candidates import _metrics
 from tomic.strategies import StrategyName
+from tomic.strategy.reasons import ReasonDetail
 
 
 def test_metrics_iron_condor():
@@ -12,7 +15,7 @@ def test_metrics_iron_condor():
         {"type": "P", "strike": 45, "expiry": "2025-08-01", "position": 1, "mid": 0.3, "model": 0.3, "delta": -0.1},
     ]
     metrics, reasons = _metrics(StrategyName.IRON_CONDOR, legs)
-    assert reasons == []
+    assert _messages(reasons) == []
     assert metrics is not None
     assert math.isclose(metrics["credit"], 150.0)
     assert math.isclose(metrics["margin"], 350.0)
@@ -30,7 +33,7 @@ def test_metrics_atm_iron_butterfly():
     ]
     metrics, reasons = _metrics(StrategyName.ATM_IRON_BUTTERFLY, legs)
     assert metrics is None
-    assert "negatieve EV of score" in reasons
+    assert "negatieve EV of score" in _messages(reasons)
 
 
 def test_metrics_short_put_spread():
@@ -40,7 +43,7 @@ def test_metrics_short_put_spread():
     ]
     metrics, reasons = _metrics(StrategyName.SHORT_PUT_SPREAD, legs)
     assert metrics is None
-    assert "negatieve EV of score" in reasons
+    assert "negatieve EV of score" in _messages(reasons)
 
 
 def test_metrics_short_call_spread():
@@ -50,7 +53,7 @@ def test_metrics_short_call_spread():
     ]
     metrics, reasons = _metrics(StrategyName.SHORT_CALL_SPREAD, legs)
     assert metrics is None
-    assert "negatieve EV of score" in reasons
+    assert "negatieve EV of score" in _messages(reasons)
 
 
 def test_metrics_naked_put():
@@ -59,7 +62,7 @@ def test_metrics_naked_put():
     ]
     metrics, reasons = _metrics(StrategyName.NAKED_PUT, legs)
     assert metrics is None
-    assert "negatieve EV of score" in reasons
+    assert "negatieve EV of score" in _messages(reasons)
 
 
 def test_metrics_naked_put_requires_positive_credit():
@@ -68,7 +71,7 @@ def test_metrics_naked_put_requires_positive_credit():
     ]
     metrics, reasons = _metrics(StrategyName.NAKED_PUT, legs)
     assert metrics is None
-    assert reasons == ["negatieve credit"]
+    assert _messages(reasons) == ["negatieve credit"]
 
 
 def test_metrics_backspread_put():
@@ -79,7 +82,7 @@ def test_metrics_backspread_put():
     ]
     metrics, reasons = _metrics(StrategyName.BACKSPREAD_PUT, legs, 50.0)
     assert metrics is not None
-    assert reasons == []
+    assert _messages(reasons) == []
     assert math.isclose(metrics["margin"], 500.0)
     assert metrics["max_loss"] == -500.0
     assert metrics["rom"] is not None
@@ -130,7 +133,7 @@ def test_metrics_reports_close_fallback():
     metrics, reasons = _metrics(StrategyName.IRON_CONDOR, legs)
     assert metrics is not None
     assert metrics.get("fallback") == "close"
-    assert "fallback naar close gebruikt voor midprijs" in reasons
+    assert "previewkwaliteit (close)" in _messages(reasons)
 
 
 def test_metrics_reports_parity_fallback():
@@ -176,7 +179,7 @@ def test_metrics_reports_parity_fallback():
     metrics, reasons = _metrics(StrategyName.IRON_CONDOR, legs)
     assert metrics is not None
     assert "fallback" not in metrics
-    assert reasons == []
+    assert _messages(reasons) == []
 
 
 def test_metrics_reports_model_fallback():
@@ -222,7 +225,7 @@ def test_metrics_reports_model_fallback():
     metrics, reasons = _metrics(StrategyName.IRON_CONDOR, legs)
     assert metrics is not None
     assert metrics.get("fallback") == "model"
-    assert "model-mid gebruikt" in reasons
+    assert "previewkwaliteit (model)" in _messages(reasons)
 
 
 def test_metrics_short_fallbacks_warn_but_allowed(monkeypatch):
@@ -276,7 +279,10 @@ def test_metrics_short_fallbacks_warn_but_allowed(monkeypatch):
 
     metrics, reasons = _metrics(StrategyName.IRON_CONDOR, legs)
     assert metrics is not None
-    assert all("te veel fallback-legs" not in reason for reason in reasons)
+    assert all(
+        "te veel fallback-legs" not in message
+        for message in _messages(reasons)
+    )
     assert any("short leg fallback" in msg for msg in captured)
 
 
@@ -332,7 +338,8 @@ def test_metrics_rejects_when_long_fallback_limit_exceeded(monkeypatch):
     ]
     metrics, reasons = _metrics(StrategyName.IRON_CONDOR, legs)
     assert metrics is None
-    assert reasons and reasons[0].startswith("te veel fallback-legs op long wings")
+    messages = _messages(reasons)
+    assert messages and messages[0].startswith("te veel fallback-legs op long wings")
 
 
 def test_short_leg_fallbacks_warn_for_other_strategies(monkeypatch):
@@ -461,8 +468,10 @@ def test_short_call_spread_logs_short_fallback():
     ]
     metrics, reasons = _metrics(StrategyName.SHORT_CALL_SPREAD, legs)
     assert metrics is None
-    assert "model-mid gebruikt" in reasons
-    assert any(reason.lower() == "negatieve ev of score" for reason in reasons)
+    assert "previewkwaliteit (model)" in _messages(reasons)
+    assert any(
+        message.lower() == "negatieve ev of score" for message in _messages(reasons)
+    )
 
 
 def test_calendar_rejects_model_long_fallback():
@@ -489,4 +498,9 @@ def test_calendar_rejects_model_long_fallback():
     ]
     metrics, reasons = _metrics(StrategyName.CALENDAR, legs)
     assert metrics is None
-    assert reasons and reasons[0].startswith("calendar long leg vereist parity of close")
+    messages = _messages(reasons)
+    assert messages and messages[0].startswith("calendar long leg vereist parity of close")
+
+
+def _messages(reasons: List[ReasonDetail]) -> list[str]:
+    return [reason.message for reason in reasons]

@@ -104,9 +104,10 @@ def test_strategy_generates_proposal(strategy, monkeypatch):
     props, reasons = generate_strategy_candidates(
         "AAA", strategy, chain, 1.0, cfg_norm, 100.0
     )
+    messages = [reason.message for reason in reasons]
     if not props:
         bad_words = ["ongeldige", "ontbrekende", "delta", "ratio", "config"]
-        assert not any(any(w in r for w in bad_words) for r in reasons), reasons
+        assert not any(any(w in r for w in bad_words) for r in messages), messages
     if props and strategy in POSITIVE_CREDIT_STRATS:
         assert props[0].credit is None or props[0].credit > 0
 
@@ -158,5 +159,5 @@ def test_negative_credit_rejected(strategy, monkeypatch):
         "AAA", strategy, chain, 1.0, cfg_norm, 100.0
     )
     assert not props
-    assert "negatieve credit" in reasons
+    assert "negatieve credit" in [reason.message for reason in reasons]
 

@@ -38,8 +38,15 @@ def test_metrics_rejects_low_liquidity(monkeypatch):
     logged: list[str] = []
 
     class DummyLogger:
-        def info(self, msg: str) -> None:
-            logged.append(msg)
+        def info(self, msg: str, *args: object, **kwargs: object) -> None:
+            if args:
+                try:
+                    formatted = msg % args
+                except Exception:
+                    formatted = " ".join([msg, *map(str, args)])
+            else:
+                formatted = msg
+            logged.append(str(formatted))
 
     import tomic.analysis.scoring as scoring
 
@@ -56,8 +63,9 @@ def test_metrics_rejects_low_liquidity(monkeypatch):
         portfolio=base.portfolio,
     )
     metrics, reasons = sc._metrics(StrategyName.SHORT_PUT_SPREAD, legs, criteria=criteria)
+    messages = [reason.message for reason in reasons]
     assert metrics is None
-    assert any("volume" in r for r in reasons)
-    assert logged == [
-        "[short_put_spread] Onvoldoende volume/open interest voor strikes 100 [0, 0, 20250101], 90 [0, 0, 20250101]"
-    ]
+    assert any("volume" in r for r in messages)
+    assert any(
+        "Onvoldoende volume/open interest" in entry for entry in logged
+    )

@@ -123,8 +123,9 @@ def generate(
                 score, reasons = calculate_score(
                     StrategyName.CALENDAR, proposal, spot
                 )
+                reason_messages = [detail.message for detail in reasons]
                 if score is None:
-                    reason = "; ".join(reasons) if reasons else "metrics niet berekend"
+                    reason = "; ".join(reason_messages) if reason_messages else "metrics niet berekend"
                     log_combo_evaluation(
                         StrategyName.CALENDAR,
                         desc,
@@ -133,9 +134,9 @@ def generate(
                         reason,
                         legs=legs,
                     )
-                    if reasons:
-                        local_reasons.extend(reasons)
-                        if "onvoldoende volume/open interest" in reasons:
+                    if reason_messages:
+                        local_reasons.extend(reason_messages)
+                        if "onvoldoende volume/open interest" in reason_messages:
                             invalid_nears.add(near)
                     else:
                         local_reasons.append("metrics niet berekend")

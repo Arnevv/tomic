@@ -266,7 +266,9 @@ def test_process_chain_refreshes_spot_price(monkeypatch, tmp_path):
         "Geen opties door filters afgewezen" in line for line in prints
     )
     by_strategy = getattr(mod.PIPELINE, "last_rejections", {}).get("by_strategy", {})
-    combined = {reason for reasons in by_strategy.values() for reason in reasons}
+    combined = {
+        reason.message for reasons in by_strategy.values() for reason in reasons
+    }
     assert {"r1", "r2"}.issubset(combined)
     assert "spot_AAA" in meta_store
 
@@ -405,19 +407,17 @@ def test_print_reason_summary_no_rejections(capsys):
 def test_reason_aggregator_prefers_risk_over_fallback():
     mod = importlib.import_module("tomic.cli.controlpanel")
     agg = mod.ReasonAggregator()
-    category = agg.add_reason("model-mid gebruikt; risk/reward onvoldoende")
-    assert category == mod.ReasonCategory.RULES_FILTER
-    label = agg.label_for(mod.ReasonCategory.RULES_FILTER)
-    assert agg.by_reason[label] == 1
+    detail = agg.add_reason("model-mid gebruikt; risk/reward onvoldoende")
+    assert detail.category == mod.ReasonCategory.RR_BELOW_MIN
+    assert agg.by_reason[detail.message] == 1
 
 
 def test_reason_aggregator_retains_missing_mid_priority():
     mod = importlib.import_module("tomic.cli.controlpanel")
     agg = mod.ReasonAggregator()
-    category = agg.add_reason("midprijs niet gevonden; risk/reward onvoldoende")
-    assert category == mod.ReasonCategory.MISSING_MID
-    label = agg.label_for(mod.ReasonCategory.MISSING_MID)
-    assert agg.by_reason[label] == 1
+    detail = agg.add_reason("midprijs niet gevonden; risk/reward onvoldoende")
+    assert detail.category == mod.ReasonCategory.MISSING_DATA
+    assert agg.by_reason[detail.message] == 1
 
 
 def test_generate_with_capture_records_summary(monkeypatch):
@@ -454,7 +454,7 @@ def test_generate_with_capture_records_summary(monkeypatch):
                 },
             ]
         )
-        return ([{"dummy": True}], ["Volume/OI"])
+        return ([{"dummy": True}], [mod.ReasonCategory.LOW_LIQUIDITY])
 
     monkeypatch.setattr(mod, "capture_combo_evaluations", fake_capture)
     monkeypatch.setattr(mod, "generate_strategy_candidates", fake_generate)
@@ -465,7 +465,9 @@ def test_generate_with_capture_records_summary(monkeypatch):
     proposals, reasons = mod._generate_with_capture("AAA", strategy="wheel")
 
     assert proposals == [{"dummy": True}]
-    assert reasons == ["Volume/OI"]
+    assert [mod.normalize_reason(r).message for r in reasons] == [
+        mod.ReasonAggregator.label_for(mod.ReasonCategory.LOW_LIQUIDITY)
+    ]
 
     captured = mod.SESSION_STATE["combo_evaluations"]
     assert isinstance(captured, list)
@@ -481,7 +483,7 @@ def test_generate_with_capture_records_summary(monkeypatch):
     other_breakdown = summary.expiries.get("2024-01-26")
     assert other_breakdown.ok == 0 and other_breakdown.reject == 1
 
-    assert summary.reasons.by_category[mod.ReasonCategory.MISSING_MID] == 1
+    assert summary.reasons.by_category[mod.ReasonCategory.PREVIEW_QUALITY] == 1
     assert summary.reasons.by_category[mod.ReasonCategory.LOW_LIQUIDITY] == 1
 
 
@@ -533,8 +535,16 @@ def test_print_reason_summary_summary_only(monkeypatch, capsys):
 
     summary = mod.RejectionSummary(
         by_filter={"delta": 2},
-        by_reason={"Volume/OI": 1, "Missing mid": 1},
-        by_strategy={"wheel": ["Volume/OI", "Missing mid"]},
+        by_reason={
+            mod.ReasonAggregator.label_for(mod.ReasonCategory.LOW_LIQUIDITY): 1,
+            mod.ReasonAggregator.label_for(mod.ReasonCategory.PREVIEW_QUALITY): 1,
+        },
+        by_strategy={
+            "wheel": [
+                mod.ReasonAggregator.label_for(mod.ReasonCategory.LOW_LIQUIDITY),
+                mod.ReasonAggregator.label_for(mod.ReasonCategory.PREVIEW_QUALITY),
+            ]
+        },
     )
 
     mod._print_reason_summary(summary)
@@ -542,7 +552,8 @@ def test_print_reason_summary_summary_only(monkeypatch, capsys):
     out = capsys.readouterr().out
     assert "Afwijzingen per filter:" in out
     assert "| Filter" in out and "delta" in out
-    assert "Redenen:" in out and "Missing mid" in out
+    assert "Redenen:" in out
+    assert mod.ReasonAggregator.label_for(mod.ReasonCategory.PREVIEW_QUALITY) in out
     assert "wheel:" in out
     assert "Strat" not in out  # table with details should not be printed
 
@@ -586,8 +597,13 @@ def test_print_reason_summary_show_details(monkeypatch, capsys):
 
     summary = mod.RejectionSummary(
         by_filter={"delta": 2},
-        by_reason={"Volume/OI": 1, "Missing mid": 1},
-        by_strategy={"wheel": ["Volume/OI"]},
+        by_reason={
+            mod.ReasonAggregator.label_for(mod.ReasonCategory.LOW_LIQUIDITY): 1,
+            mod.ReasonAggregator.label_for(mod.ReasonCategory.PREVIEW_QUALITY): 1,
+        },
+        by_strategy={
+            "wheel": [mod.ReasonAggregator.label_for(mod.ReasonCategory.LOW_LIQUIDITY)]
+        },
     )
 
     mod._print_reason_summary(summary)
@@ -597,7 +613,7 @@ def test_print_reason_summary_show_details(monkeypatch, capsys):
     assert "| Strat" in out and "Anchor B" in out
     assert "Strategie: Iron Condor" in out
     assert "Anchor: Anchor B" in out
-    assert "Reden: Other" in out
+    assert "Reden: previewkwaliteit (close)" in out
     assert "Detail: fallback naar close gebruikt voor midprijs" in out
     assert "note=illiquid" in out or "Flags:" in out
 
@@ -627,8 +643,9 @@ def test_summarize_evaluations_normalizes_reasons():
     assert breakdown["2024-01-19"] == (1, 1)
     assert breakdown["2024-01-26"] == (0, 1)
     top = mod._format_reject_reasons(summary)
-    assert "Volume/OI" in top and "50%" in top
-    assert "Missing mid" in top and "50%" in top
+    assert mod.ReasonAggregator.label_for(mod.ReasonCategory.LOW_LIQUIDITY) in top
+    assert mod.ReasonAggregator.label_for(mod.ReasonCategory.PREVIEW_QUALITY) in top
+    assert "50%" in top
 
 
 def test_format_leg_summary_positions():
@@ -658,7 +675,7 @@ def test_print_evaluation_overview_formats(capsys):
     assert "AAA" in out
     assert "123.46" in out
     assert "OK 1" in out
-    assert "Volume/OI" in out
+    assert mod.ReasonAggregator.label_for(mod.ReasonCategory.LOW_LIQUIDITY) in out
 
 
 def _extract_process_chain(mod):

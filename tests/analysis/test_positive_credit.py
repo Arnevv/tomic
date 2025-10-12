@@ -53,7 +53,7 @@ def test_iron_condor_negative_credit_rejected(cfg, expect_warn):
             "AAA", "iron_condor", chain, 1.0, config=cfg, spot=100.0
         )
     assert not props
-    assert "negatieve credit" in reasons
+    assert "negatieve credit" in [reason.message for reason in reasons]
 
 
 @pytest.mark.parametrize(
@@ -100,4 +100,4 @@ def test_short_call_spread_negative_credit_rejected(cfg, expect_warn):
             "AAA", "short_call_spread", chain, 1.0, config=cfg, spot=100.0
         )
     assert not props
-    assert "negatieve credit" in reasons
+    assert "negatieve credit" in [reason.message for reason in reasons]

@@ -3,9 +3,8 @@ from tomic.strategy.reasons import ReasonCategory
 
 
 def test_normalize_reason_exact_and_casefold():
-    assert (
-        normalize_reason("fallback naar close gebruikt voor midprijs")
-        == ReasonCategory.MISSING_MID
-    )
-    assert normalize_reason("Onvoldoende Volume") == ReasonCategory.LOW_LIQUIDITY
-    assert normalize_reason(None) == ReasonCategory.OTHER
+    detail = normalize_reason("fallback naar close gebruikt voor midprijs")
+    assert detail.category == ReasonCategory.PREVIEW_QUALITY
+    assert detail.data.get("mid_source") == "close"
+    assert normalize_reason("Onvoldoende Volume").category == ReasonCategory.LOW_LIQUIDITY
+    assert normalize_reason(None).category == ReasonCategory.OTHER

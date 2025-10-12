@@ -295,4 +295,4 @@ def test_strategy_scoring_applies_weights(mock_rules):
                         l["mid"] += 10
             metrics2, reasons2 = _metrics(strat, neg_legs, spot, criteria=mock_rules)
             assert metrics2 is None
-            assert "negatieve credit" in reasons2
+            assert "negatieve credit" in [reason.message for reason in reasons2]
