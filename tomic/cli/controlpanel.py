@@ -1989,7 +1989,7 @@ def run_portfolio_menu() -> None:
                     ),
                     "missing_edge": proposal.edge is None,
                     "fallback_mid": any(
-                        l.get("mid_fallback") == "close"
+                        l.get("mid_fallback") in {"close", "parity_close", "model"}
                         or (
                             l.get("mid") is not None
                             and (

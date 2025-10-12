@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import re
 from enum import Enum
+import re
 from typing import Final, Iterable, Literal, Sequence
 
 
@@ -36,6 +37,7 @@ _EXACT_REASON_MAP: Final[dict[str, ReasonCategory]] = {
     "fallback naar close gebruikt voor midprijs": ReasonCategory.MISSING_MID,
     "model-mid gebruikt": ReasonCategory.MISSING_MID,
     "parity-mid gebruikt": ReasonCategory.MISSING_MID,
+    "parity via close gebruikt voor midprijs": ReasonCategory.MISSING_MID,
     "midprijs niet gevonden": ReasonCategory.MISSING_MID,
     "geen midprijs beschikbaar": ReasonCategory.MISSING_MID,
     "ontbrekende strikes": ReasonCategory.MISSING_STRIKES,
@@ -63,6 +65,7 @@ _SUBSTRING_RULES: Final[Sequence[tuple[str, ReasonCategory]]] = (
     ("midprijs", ReasonCategory.MISSING_MID),
     ("geen mid", ReasonCategory.MISSING_MID),
     ("fallback naar close", ReasonCategory.MISSING_MID),
+    ("parity via close", ReasonCategory.MISSING_MID),
     ("mid/", ReasonCategory.MISSING_MID),
     ("strike", ReasonCategory.MISSING_STRIKES),
     ("optie", ReasonCategory.MISSING_STRIKES),
@@ -80,7 +83,13 @@ _SUBSTRING_RULES: Final[Sequence[tuple[str, ReasonCategory]]] = (
 # Regex patterns for advanced fallback classification.
 _REGEX_RULES: Final[Sequence[tuple[re.Pattern[str], ReasonCategory]]] = (
     (re.compile(r"\bvolume\b|open\s*interest|liquiditeit", re.IGNORECASE), ReasonCategory.LOW_LIQUIDITY),
-    (re.compile(r"mid(\b|prijs)|fallback\s+naar\s+close", re.IGNORECASE), ReasonCategory.MISSING_MID),
+    (
+        re.compile(
+            r"mid(\b|prijs)|fallback\s+naar\s+close|parity\s+via\s+close",
+            re.IGNORECASE,
+        ),
+        ReasonCategory.MISSING_MID,
+    ),
     (
         re.compile(
             r"(ontbreek|niet\s+gevonden|geen)\s+(strike|optie|expir)"

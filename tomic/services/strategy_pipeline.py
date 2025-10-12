@@ -370,15 +370,18 @@ class StrategyPipeline:
             scenario_info=dict(getattr(proposal, "scenario_info", {}) or {}),
         )
         if converted.legs:
-            fallback_summary: dict[str, int] = {source: 0 for source in ("true", "parity", "model", "close")}
+            fallback_summary: dict[str, int] = {
+                source: 0
+                for source in ("true", "parity_true", "parity_close", "model", "close")
+            }
             spread_rejects = 0
             for leg in converted.legs:
                 source = str(leg.get("mid_source") or "")
                 if not source:
                     source = str(leg.get("mid_fallback") or "")
-                if not source:
-                    source = "true"
                 if source == "parity":
+                    source = "parity_true"
+                if not source:
                     source = "true"
                 if source not in fallback_summary:
                     fallback_summary[source] = 0
