@@ -378,6 +378,8 @@ class StrategyPipeline:
                     source = str(leg.get("mid_fallback") or "")
                 if not source:
                     source = "true"
+                if source == "parity":
+                    source = "true"
                 if source not in fallback_summary:
                     fallback_summary[source] = 0
                 fallback_summary[source] += 1

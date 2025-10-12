@@ -174,9 +174,8 @@ def test_metrics_reports_parity_fallback():
     ]
     metrics, reasons = _metrics(StrategyName.IRON_CONDOR, legs)
     assert metrics is not None
-    assert metrics.get("fallback") == "parity"
-    assert "fallback naar close gebruikt voor midprijs" not in reasons
-    assert "parity-mid gebruikt" not in reasons
+    assert "fallback" not in metrics
+    assert reasons == []
 
 
 def test_metrics_reports_model_fallback():
@@ -270,3 +269,57 @@ def test_metrics_rejects_excessive_fallbacks():
     metrics, reasons = _metrics(StrategyName.IRON_CONDOR, legs)
     assert metrics is None
     assert any("short legs vereisen true mid of parity" in reason for reason in reasons)
+
+
+def test_short_call_spread_rejects_short_fallback():
+    legs = [
+        {
+            "type": "C",
+            "strike": 60,
+            "expiry": "2025-08-01",
+            "position": -1,
+            "mid": 1.2,
+            "model": 1.2,
+            "delta": 0.2,
+            "mid_fallback": "model",
+        },
+        {
+            "type": "C",
+            "strike": 65,
+            "expiry": "2025-08-01",
+            "position": 1,
+            "mid": 0.4,
+            "model": 0.4,
+            "delta": 0.1,
+        },
+    ]
+    metrics, reasons = _metrics(StrategyName.SHORT_CALL_SPREAD, legs)
+    assert metrics is None
+    assert reasons and reasons[0].startswith("short legs vereisen true mid of parity")
+
+
+def test_calendar_rejects_model_long_fallback():
+    legs = [
+        {
+            "type": "C",
+            "strike": 60,
+            "expiry": "2025-08-01",
+            "position": -1,
+            "mid": 1.2,
+            "model": 1.2,
+            "delta": 0.25,
+        },
+        {
+            "type": "C",
+            "strike": 60,
+            "expiry": "2025-09-01",
+            "position": 1,
+            "mid": 0.8,
+            "model": 0.8,
+            "delta": 0.2,
+            "mid_fallback": "model",
+        },
+    ]
+    metrics, reasons = _metrics(StrategyName.CALENDAR, legs)
+    assert metrics is None
+    assert reasons and reasons[0].startswith("calendar long leg vereist parity of close")
