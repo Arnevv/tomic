@@ -13,6 +13,44 @@ def test_validate_leg_metrics_missing():
     assert legs[0]["missing_metrics"] == ["mid", "model", "delta"]
 
 
+def test_validate_leg_metrics_accepts_known_mid_source():
+    legs = [
+        {
+            "type": "P",
+            "strike": 100,
+            "expiry": "20250101",
+            "mid": 1.25,
+            "model": 1.40,
+            "delta": -0.2,
+            "mid_source": "parity_close",
+            "bid": None,
+            "ask": None,
+            "close": 1.25,
+        }
+    ]
+    ok, reasons = scoring.validate_leg_metrics("naked_put", legs)
+    assert ok
+    assert reasons == []
+    assert legs[0]["missing_metrics"] == []
+
+
+def test_validate_leg_metrics_rejects_unknown_mid_source():
+    legs = [
+        {
+            "type": "P",
+            "strike": 100,
+            "expiry": "20250101",
+            "mid": 1.25,
+            "model": 1.40,
+            "delta": -0.2,
+            "mid_source": "snapshot",
+        }
+    ]
+    ok, reasons = scoring.validate_leg_metrics("naked_put", legs)
+    assert not ok
+    assert "mid" in legs[0]["missing_metrics"]
+
+
 def test_validate_leg_metrics_long_missing_rejected(monkeypatch):
     legs = [
         {"type": "P", "strike": 100, "expiry": "20250101", "mid": 1.0, "model": 1.0, "delta": -0.2, "position": -1},

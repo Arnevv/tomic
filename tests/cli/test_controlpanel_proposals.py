@@ -402,6 +402,24 @@ def test_print_reason_summary_no_rejections(capsys):
     assert "Geen opties door filters afgewezen" in out
 
 
+def test_reason_aggregator_prefers_risk_over_fallback():
+    mod = importlib.import_module("tomic.cli.controlpanel")
+    agg = mod.ReasonAggregator()
+    category = agg.add_reason("model-mid gebruikt; risk/reward onvoldoende")
+    assert category == mod.ReasonCategory.RULES_FILTER
+    label = agg.label_for(mod.ReasonCategory.RULES_FILTER)
+    assert agg.by_reason[label] == 1
+
+
+def test_reason_aggregator_retains_missing_mid_priority():
+    mod = importlib.import_module("tomic.cli.controlpanel")
+    agg = mod.ReasonAggregator()
+    category = agg.add_reason("midprijs niet gevonden; risk/reward onvoldoende")
+    assert category == mod.ReasonCategory.MISSING_MID
+    label = agg.label_for(mod.ReasonCategory.MISSING_MID)
+    assert agg.by_reason[label] == 1
+
+
 def test_generate_with_capture_records_summary(monkeypatch):
     mod = importlib.import_module("tomic.cli.controlpanel")
 
@@ -472,6 +490,8 @@ def test_print_reason_summary_declines_all(monkeypatch, capsys):
 
     responses = iter([False, False])
     monkeypatch.setattr(mod, "prompt_yes_no", lambda *a, **k: next(responses))
+    monkeypatch.setattr(mod, "prompt", lambda *a, **k: "0")
+    monkeypatch.setattr(mod, "SHOW_REASONS", False)
 
     entry = {
         "status": "reject",
@@ -499,6 +519,8 @@ def test_print_reason_summary_summary_only(monkeypatch, capsys):
 
     responses = iter([True, False])
     monkeypatch.setattr(mod, "prompt_yes_no", lambda *a, **k: next(responses))
+    monkeypatch.setattr(mod, "prompt", lambda *a, **k: "0")
+    monkeypatch.setattr(mod, "SHOW_REASONS", False)
 
     entry = {
         "status": "reject",
