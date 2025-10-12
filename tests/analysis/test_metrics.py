@@ -1,4 +1,5 @@
 import math
+from tomic.analysis import scoring
 from tomic.strategy_candidates import _metrics
 from tomic.strategies import StrategyName
 
@@ -224,7 +225,7 @@ def test_metrics_reports_model_fallback():
     assert "model-mid gebruikt" in reasons
 
 
-def test_metrics_rejects_excessive_fallbacks():
+def test_metrics_short_fallbacks_warn_but_allowed(monkeypatch):
     legs = [
         {
             "type": "C",
@@ -266,9 +267,72 @@ def test_metrics_rejects_excessive_fallbacks():
             "delta": -0.1,
         },
     ]
+    captured: list[str] = []
+
+    def fake_warning(message: str, *args, **kwargs) -> None:
+        captured.append(str(message))
+
+    monkeypatch.setattr(scoring.logger, "warning", fake_warning)
+
+    metrics, reasons = _metrics(StrategyName.IRON_CONDOR, legs)
+    assert metrics is not None
+    assert all("te veel fallback-legs" not in reason for reason in reasons)
+    assert any("short leg fallback" in msg for msg in captured)
+
+
+def test_metrics_rejects_when_long_fallback_limit_exceeded(monkeypatch):
+    original_cfg = scoring.cfg_get
+
+    def fake_cfg(name, default=None):
+        if name == "MID_FALLBACK_MAX_PER_4":
+            return 1
+        return original_cfg(name, default)
+
+    monkeypatch.setattr(scoring, "cfg_get", fake_cfg)
+
+    legs = [
+        {
+            "type": "C",
+            "strike": 60,
+            "expiry": "2025-08-01",
+            "position": -1,
+            "mid": 1.2,
+            "model": 1.2,
+            "delta": 0.2,
+        },
+        {
+            "type": "C",
+            "strike": 65,
+            "expiry": "2025-08-01",
+            "position": 1,
+            "mid": 0.4,
+            "model": 0.4,
+            "delta": 0.1,
+            "mid_fallback": "close",
+        },
+        {
+            "type": "P",
+            "strike": 50,
+            "expiry": "2025-08-01",
+            "position": -1,
+            "mid": 1.0,
+            "model": 1.0,
+            "delta": -0.2,
+        },
+        {
+            "type": "P",
+            "strike": 45,
+            "expiry": "2025-08-01",
+            "position": 1,
+            "mid": 0.3,
+            "model": 0.3,
+            "delta": -0.1,
+            "mid_fallback": "model",
+        },
+    ]
     metrics, reasons = _metrics(StrategyName.IRON_CONDOR, legs)
     assert metrics is None
-    assert any("te veel fallback-legs" in reason for reason in reasons)
+    assert reasons and reasons[0].startswith("te veel fallback-legs op long wings")
 
 
 def test_short_call_spread_logs_short_fallback():
