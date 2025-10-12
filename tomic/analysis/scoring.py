@@ -57,8 +57,13 @@ def _fallback_limit_ok(
             return False
 
     fallback_sources = {"model", "close", "parity_close"}
-    total_fallbacks = sum(1 for leg in legs if _source(leg) in fallback_sources)
-    long_fallbacks = sum(1 for leg in legs if _is_long(leg) and _source(leg) in fallback_sources)
+    long_fallbacks = [
+        leg for leg in legs if _is_long(leg) and _source(leg) in fallback_sources
+    ]
+    short_fallbacks = [
+        leg for leg in legs if not _is_long(leg) and _source(leg) in fallback_sources
+    ]
+    total_fallbacks = len(long_fallbacks) + len(short_fallbacks)
 
     if strat_label in {
         "iron_condor",
@@ -67,16 +72,32 @@ def _fallback_limit_ok(
         "backspread_put",
     }:
         allowed = min(allowed, 2) if allowed else 0
-        if long_fallbacks > allowed:
+        if short_fallbacks:
+            for leg in short_fallbacks:
+                try:
+                    strike = leg.get("strike")
+                    expiry = leg.get("expiry")
+                    right = get_leg_right(leg).upper()
+                except Exception:  # pragma: no cover - defensive logging
+                    strike = leg.get("strike")
+                    expiry = leg.get("expiry")
+                    right = str(leg.get("type") or "?").upper()
+                logger.warning(
+                    f"[{strat_label}] ⚠️ short leg fallback via {_source(leg)} — "
+                    f"{right} {strike} {expiry}"
+                )
+        long_count = len(long_fallbacks)
+        if long_count > allowed:
             reason = "te veel fallback-legs op long wings"
-            return False, total_fallbacks, allowed, reason
-        return total_fallbacks <= allowed, total_fallbacks, allowed, None
+            return False, long_count, allowed, reason
+        return long_count <= allowed, long_count, allowed, None
 
     if strat_label in {"short_call_spread", "short_put_spread"}:
         allowed = min(allowed, 1) if allowed else 0
-        if long_fallbacks > allowed:
+        long_count = len(long_fallbacks)
+        if long_count > allowed:
             reason = "te veel fallback-legs op long hedge"
-            return False, total_fallbacks, allowed, reason
+            return False, long_count, allowed, reason
         return total_fallbacks <= allowed, total_fallbacks, allowed, None
 
     if strat_label == "calendar":
