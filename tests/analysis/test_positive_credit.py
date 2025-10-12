@@ -53,7 +53,7 @@ def test_iron_condor_negative_credit_rejected(cfg, expect_warn):
             "AAA", "iron_condor", chain, 1.0, config=cfg, spot=100.0
         )
     assert not props
-    assert "ontbrekende strikes" in reasons
+    assert "negatieve credit" in reasons
 
 
 @pytest.mark.parametrize(

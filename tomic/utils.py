@@ -297,13 +297,16 @@ def build_leg(quote: Mapping[str, Any], side: Literal["long", "short"]) -> Optio
         mid, used_close = get_option_mid_price(leg)
         leg["mid"] = mid
         if leg.get("mid_from_parity"):
-            leg["mid_fallback"] = "parity"
+            if mid_source in {"parity_close", "close"}:
+                leg["mid_fallback"] = "parity_close"
+            else:
+                leg["mid_fallback"] = "parity_true"
         elif used_close:
             leg["mid_fallback"] = "close"
-        elif mid_source in {"parity", "model", "close"}:
+        elif mid_source in {"parity_true", "parity_close", "model", "close"}:
             leg["mid_fallback"] = mid_source
     else:
-        if mid_source in {"parity", "model", "close"}:
+        if mid_source in {"parity_true", "parity_close", "model", "close"}:
             leg["mid_fallback"] = mid_source
 
     if mid_source:

@@ -1,5 +1,6 @@
 import pytest
 from tomic.strategies import iron_condor
+from tomic.strategies import utils as strategy_utils
 from tomic.strategy_candidates import _metrics
 from tomic.utils import get_leg_right
 
@@ -172,7 +173,7 @@ def test_parity_mid_used_for_missing_bidask(monkeypatch):
     assert sc_leg is not None
     assert sc_leg.get("mid_from_parity") is True
     assert sc_leg.get("mid") is not None
-    assert sc_leg.get("mid_fallback") == "parity"
+    assert sc_leg.get("mid_fallback") == "parity_true"
 
 
 def test_generate_multiple_expiries(monkeypatch):
@@ -197,7 +198,7 @@ def test_generate_multiple_expiries(monkeypatch):
         }
     }
 
-    monkeypatch.setattr(iron_condor, "compute_dynamic_width", lambda *a, **k: 10)
+    monkeypatch.setattr(strategy_utils, "compute_dynamic_width", lambda *a, **k: 10)
 
     def fake_score(strategy, proposal, spot):
         exp = proposal.legs[0]["expiry"]

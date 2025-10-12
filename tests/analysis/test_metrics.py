@@ -142,7 +142,7 @@ def test_metrics_reports_parity_fallback():
             "mid": 1.2,
             "model": 1.2,
             "delta": 0.2,
-            "mid_fallback": "parity",
+            "mid_fallback": "parity_true",
         },
         {
             "type": "C",
@@ -254,7 +254,7 @@ def test_metrics_rejects_excessive_fallbacks():
             "mid": 1.0,
             "model": 1.0,
             "delta": -0.2,
-            "mid_fallback": "parity",
+            "mid_fallback": "parity_close",
         },
         {
             "type": "P",
@@ -268,10 +268,10 @@ def test_metrics_rejects_excessive_fallbacks():
     ]
     metrics, reasons = _metrics(StrategyName.IRON_CONDOR, legs)
     assert metrics is None
-    assert any("short legs vereisen true mid of parity" in reason for reason in reasons)
+    assert any("te veel fallback-legs" in reason for reason in reasons)
 
 
-def test_short_call_spread_rejects_short_fallback():
+def test_short_call_spread_logs_short_fallback():
     legs = [
         {
             "type": "C",
@@ -295,7 +295,8 @@ def test_short_call_spread_rejects_short_fallback():
     ]
     metrics, reasons = _metrics(StrategyName.SHORT_CALL_SPREAD, legs)
     assert metrics is None
-    assert reasons and reasons[0].startswith("short legs vereisen true mid of parity")
+    assert "model-mid gebruikt" in reasons
+    assert any(reason.lower() == "negatieve ev of score" for reason in reasons)
 
 
 def test_calendar_rejects_model_long_fallback():

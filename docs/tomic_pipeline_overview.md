@@ -1,8 +1,10 @@
 # TOMIC strategy pipeline — architecture & pricing flow
 
 This document summarises the current end-to-end implementation so that future
-changes (such as adding a `parity via close` fallback) can be planned with a
-clear picture of the existing behaviour.
+changes can be planned with a clear picture of the existing behaviour. It also
+records how the pipeline differentiates between high- and lower-quality mid
+prices (`true`, `parity_true`, `parity_close`, `model`, `close`) now that parity
+can be reconstructed from the counterpart’s last close.
 
 ## 1. Architecture and data flow
 
@@ -103,10 +105,12 @@ User/CLI → select symbol & strategy
   config or `MID_RESOLVER.spread_thresholds`. Legs marked `too_wide`, `invalid`,
   `missing`, or `one_sided` carry that in `spread_flag` & `mid_reason` metadata.【F:tomic/mid_resolver.py†L150-L194】【F:tomic/config.py†L25-L87】
 * **Parity fallback.** `_try_parity` looks up the opposing leg via strike/expiry
-  key, requires the counterpart to already have a `mid`, and then applies
-  discounted put–call parity using the pipeline’s `spot_price` and `interest_rate`.
-  Metadata includes `mid_source="parity"` and `mid_fallback="parity"`. Counterpart
-  lookup and DTE extraction are handled by `_find_counterpart()` and
+  key, reuses the counterpart’s resolved mid when available, and otherwise falls
+  back to its last close before applying discounted put–call parity using the
+  pipeline’s `spot_price` and `interest_rate`. Metadata distinguishes between
+  `mid_source="parity_true"` (counterpart backed by true data) and
+  `mid_source="parity_close"` (counterpart inferred from a close/model source).
+  Counterpart lookup and DTE extraction are handled by `_find_counterpart()` and
   `_extract_dte()` respectively.【F:tomic/mid_resolver.py†L200-L247】【F:tomic/mid_resolver.py†L286-L332】
 * **Model fallback.** `_try_model` first consumes any provider-supplied
   `modelprice`; otherwise it calls `_black_scholes()` with the leg’s IV and the
@@ -115,33 +119,30 @@ User/CLI → select symbol & strategy
   no other source succeeded, marking `mid_source="close"` and `mid_fallback="close"`.
 * **Metadata surface.** Each leg is enriched with the following keys (all
   optional): `mid`, `mid_source`, `mid_reason`, `spread_flag`, `quote_age_sec`,
-  `one_sided`, and `mid_fallback`. Legs reconstructed via parity also receive
+  `one_sided`, and `mid_fallback`. The resolver now surfaces the provenance of
+  parity legs explicitly (`parity_true` vs `parity_close`) so downstream reports
+  can flag preview-quality pricing. Legs reconstructed via parity also receive
   `mid_from_parity=True` when the enriched chain is consumed later.【F:tomic/mid_resolver.py†L20-L117】
 * **Integration point.** `StrategyPipeline._evaluate_leg()` merges
   `resolution.as_dict()` into each leg before normalising, ensuring downstream
   scoring sees the pricing provenance.【F:tomic/services/strategy_pipeline.py†L148-L189】
-* **True-pricing classification.** Downstream logic treats `mid_source="parity"`
-  as equivalent to a true quote when tallying fallbacks. The conversion step in
-  `StrategyPipeline._convert_proposal()` maps parity legs into the `"true"`
-  bucket for proposal summaries, and `_fallback_limit_ok()` only counts `model`
-  or `close` as fallbacks.【F:tomic/services/strategy_pipeline.py†L190-L223】【F:tomic/analysis/scoring.py†L27-L78】
+* **True-pricing classification.** Downstream logic differentiates between
+  `parity_true` (counted alongside real quotes) and preview sources
+  (`parity_close`, `model`, `close`). Proposal summaries keep separate counters
+  for each category so the CLI, logs and exports can surface where lower-quality
+  data was used. Fallback limits only consider `parity_close`, `model` and
+  `close` as fallbacks.【F:tomic/services/strategy_pipeline.py†L190-L223】【F:tomic/analysis/scoring.py†L27-L113】
 
 ## 4. Gating, policies & rejection handling
 
 * **Short-leg requirements & fallback limits.** `_fallback_limit_ok()` in
-  `tomic/analysis/scoring.py` enforces per-strategy limits. Short legs must have
-  `mid_source`/`mid_fallback` in `{"true", "parity"}`, while long wings may use
-  at most `MID_FALLBACK_MAX_PER_4` fallbacks (capped per strategy: 2 for condors,
-  1 for short spreads/calendars). Example excerpt:
-
-  ```python
-  short_with_fallback = [leg for leg in legs if _is_short(leg) and _source(leg) in {"model", "close"}]
-  if short_with_fallback:
-      return False, long_fallbacks, allowed, "short legs vereisen true mid of parity"
-  if long_fallbacks > allowed:
-      return False, long_fallbacks, allowed, "te veel fallback-legs op long wings"
-  ```
-  【F:tomic/analysis/scoring.py†L33-L78】
+  `tomic/analysis/scoring.py` still enforces per-strategy limits, but short legs
+  may now proceed with preview mids (`parity_close`, `model`, `close`) as long as
+  the total number of fallbacks stays within `MID_FALLBACK_MAX_PER_4` (capped per
+  strategy: 2 for condors, 1 for short spreads/calendars). The scorer logs the
+  degraded sources and attaches warnings such as "model-mid gebruikt" or
+  "parity via close gebruikt" so preview-quality proposals are instantly
+  recognisable.【F:tomic/analysis/scoring.py†L27-L121】【F:tomic/analysis/scoring.py†L256-L317】
 
 * **Spread limits & quote quality.** Mid spread validation happens at resolution
   time (`_spread_ok`), tagging legs with `spread_flag="too_wide"` when the
@@ -169,8 +170,8 @@ User/CLI → select symbol & strategy
 
 ---
 
-With this overview you can introduce a `parity via close` fallback by extending
-`MidResolver` (or downstream metadata) while respecting the existing gating: as
-long as short legs retain a `mid_source` of `true` or `parity`, `_fallback_limit_ok`
-will continue to accept them, and any new metadata (e.g. `parity_base_source`)
-can be surfaced alongside the current enrichment pipeline.
+With this overview you can rely on the resolver’s richer provenance data to
+interpret strategy scores. Short legs priced from `parity_close`, `model` or
+`close` remain eligible for scoring, but the CLI, logs and exports now surface
+preview-quality warnings and per-source counters so users can judge the
+reliability of proposed strategies when markets are closed or illiquid.

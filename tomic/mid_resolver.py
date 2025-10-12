@@ -14,7 +14,7 @@ from .logutils import logger
 from .utils import get_leg_right, today
 
 
-MID_SOURCES = ("true", "parity", "model", "close")
+MID_SOURCES = ("true", "parity_true", "parity_close", "model", "close")
 
 
 @dataclass(slots=True)
@@ -104,7 +104,7 @@ class MidResolver:
         for option, resolution in zip(self._raw_chain, self._resolutions):
             enriched_opt = dict(option)
             enriched_opt.update(resolution.as_dict())
-            if resolution.mid_source == "parity":
+            if resolution.mid_source in {"parity_true", "parity_close"}:
                 enriched_opt["mid_from_parity"] = True
             enriched.append(enriched_opt)
         return enriched
@@ -193,9 +193,18 @@ class MidResolver:
             res.mid_reason = res.mid_reason or "parity inputs ontbreken"
             return
         counterpart_res = self._resolutions[counterpart]
-        if counterpart_res.mid is None:
-            res.mid_reason = res.mid_reason or "parity bron heeft geen mid"
-            return
+
+        base_mid = counterpart_res.mid
+        base_source = counterpart_res.mid_source or "true"
+
+        if base_mid is None:
+            counterpart_close = _parse_float(self._raw_chain[counterpart].get("close"))
+            if counterpart_close is not None and counterpart_close > 0:
+                base_mid = counterpart_close
+                base_source = "close"
+            else:
+                res.mid_reason = res.mid_reason or "parity basis ontbreekt"
+                return
 
         strike = _parse_float(option.get("strike"))
         expiry = option.get("expiry") or option.get("expiration")
@@ -219,11 +228,6 @@ class MidResolver:
             return
 
         discount = strike * math.exp(-self._interest_rate * (dte / 365))
-        base_mid = counterpart_res.mid
-        if base_mid is None:
-            res.mid_reason = res.mid_reason or "parity basis ontbreekt"
-            return
-
         if right == "call":
             parity_mid = base_mid + spot - discount
         else:
@@ -232,9 +236,21 @@ class MidResolver:
             res.mid_reason = res.mid_reason or "parity resultaat ongeldig"
             return
         res.mid = round(parity_mid, 4)
-        res.mid_source = "parity"
-        res.mid_reason = "put-call parity"
-        res.mid_fallback = "parity"
+        if base_source not in {"true", "parity_true"}:
+            res.mid_source = "parity_close"
+            if base_source == "close":
+                res.mid_reason = "put-call parity via close tegenleg"
+            elif base_source == "parity_close":
+                res.mid_reason = "put-call parity via parity(close) tegenleg"
+            elif base_source == "model":
+                res.mid_reason = "put-call parity via model tegenleg"
+            else:
+                res.mid_reason = "put-call parity via indirect bron"
+            res.mid_fallback = "parity_close"
+        else:
+            res.mid_source = "parity_true"
+            res.mid_reason = "put-call parity"
+            res.mid_fallback = "parity_true"
 
     def _try_model(self, idx: int, option: Mapping[str, Any]) -> None:
         res = self._resolutions[idx]
