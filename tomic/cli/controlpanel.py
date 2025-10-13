@@ -56,6 +56,12 @@ if __package__ is None:
 from tomic.cli.common import Menu, prompt, prompt_yes_no
 
 from tomic.api.ib_connection import connect_ib
+from tomic.api.earnings_importer import (
+    load_json as load_earnings_json,
+    parse_earnings_csv,
+    save_json as save_earnings_json,
+    update_next_earnings,
+)
 
 from tomic import config as cfg
 from tomic.config import save_symbols
@@ -97,6 +103,7 @@ from tomic.strategy.reasons import (
     category_priority,
 )
 from tomic.strategy_candidates import generate_strategy_candidates
+from tomic.core import config as runtime_config
 
 setup_logging(stdout=True)
 
@@ -1122,6 +1129,150 @@ def run_dataexporter() -> None:
         except subprocess.CalledProcessError:
             print("❌ Earnings ophalen mislukt")
 
+    def import_market_chameleon_earnings() -> None:
+        runtime_config.load()
+        last_csv = runtime_config.get("import.last_earnings_csv_path") or ""
+        csv_input = prompt(
+            "Voer pad in naar MarketChameleon-CSV (ENTER voor laatst gebruikt): ",
+            last_csv,
+        )
+        if not csv_input:
+            print("❌ Geen pad opgegeven")
+            return
+
+        csv_path = Path(csv_input).expanduser()
+        if not csv_path.exists():
+            print(f"❌ CSV niet gevonden: {csv_path}")
+            return
+
+        runtime_config.set_value("import.last_earnings_csv_path", str(csv_path))
+
+        symbol_col = runtime_config.get("earnings_import.symbol_col", "Symbol")
+        next_candidates = runtime_config.get(
+            "earnings_import.next_col_candidates",
+            ["Next Earnings", "Next Earnings "],
+        )
+        if isinstance(next_candidates, str):
+            next_cols = [next_candidates]
+        else:
+            next_cols = [str(col) for col in next_candidates]
+
+        try:
+            csv_map = parse_earnings_csv(
+                str(csv_path),
+                symbol_col=symbol_col or "Symbol",
+                next_col_candidates=next_cols,
+            )
+        except Exception as exc:  # pragma: no cover - user feedback path
+            logger.error(f"CSV import mislukt: {exc}")
+            print(f"❌ CSV import mislukt: {exc}")
+            return
+
+        if not csv_map:
+            print("ℹ️ Geen geldige earnings gevonden in CSV.")
+            return
+
+        json_path_cfg = runtime_config.get("data.earnings_json_path")
+        json_path = Path(
+            json_path_cfg
+            or cfg.get("EARNINGS_DATES_FILE", "tomic/data/earnings_dates.json")
+        ).expanduser()
+
+        try:
+            json_data = load_earnings_json(json_path)
+        except Exception as exc:  # pragma: no cover - invalid JSON path
+            logger.error(f"Laden van earnings JSON mislukt: {exc}")
+            print(f"❌ Laden van earnings JSON mislukt: {exc}")
+            return
+
+        today_override = runtime_config.get("earnings_import.today_override")
+        if isinstance(today_override, str) and today_override:
+            try:
+                today_date = datetime.strptime(today_override, "%Y-%m-%d").date()
+            except ValueError:
+                today_date = date.today()
+        elif isinstance(today_override, date):
+            today_date = today_override
+        else:
+            today_date = date.today()
+
+        _, changes = update_next_earnings(
+            json_data,
+            csv_map,
+            today_date,
+            dry_run=True,
+        )
+
+        if not changes:
+            print("ℹ️ Geen wijzigingen nodig volgens CSV.")
+            return
+
+        rows = []
+        removed_total = 0
+        for idx, change in enumerate(changes, start=1):
+            removed = int(change.get("removed_same_month", 0))
+            removed_total += removed
+            rows.append(
+                [
+                    idx,
+                    change.get("symbol", ""),
+                    change.get("old_future") or "-",
+                    change.get("new_future") or "-",
+                    change.get("action", ""),
+                    removed,
+                ]
+            )
+
+        headers = [
+            "#",
+            "Symbol",
+            "Old Closest Future",
+            "New Next",
+            "Action",
+            "RemovedSameMonthCount",
+        ]
+        print("\nDry-run wijzigingen:")
+        print(tabulate(rows, headers=headers, tablefmt="github"))
+        print(f"\nVerwijderd vanwege dezelfde maand: {removed_total}")
+
+        replaced_count = sum(1 for c in changes if c.get("action") == "replaced_closest_future")
+        inserted_count = sum(
+            1 for c in changes if c.get("action") in {"inserted_as_next", "created_symbol"}
+        )
+        print(
+            f"Samenvatting: totaal={len(changes)} vervangen={replaced_count}"
+            f" ingevoegd={inserted_count}"
+        )
+
+        if not prompt_yes_no("Doorvoeren?"):
+            print("Import geannuleerd.")
+            return
+
+        try:
+            updated_data, _ = update_next_earnings(
+                json_data,
+                csv_map,
+                today_date,
+                dry_run=False,
+            )
+            save_earnings_json(updated_data, json_path)
+        except Exception as exc:  # pragma: no cover - file write errors
+            logger.error(f"Opslaan van earnings JSON mislukt: {exc}")
+            print(f"❌ Opslaan mislukt: {exc}")
+            return
+
+        runtime_config.set_value("data.earnings_json_path", str(json_path))
+
+        backup_path = save_earnings_json.last_backup_path
+        if backup_path:
+            print(f"Klaar. Backup: {backup_path}")
+        else:
+            print("Klaar. JSON bestand aangemaakt zonder backup.")
+
+        logger.success(
+            f"Earnings import voltooid voor {len(changes)} symbolen naar {json_path}"
+        )
+
     menu = Menu("📁 DATA & MARKTDATA")
     menu.add("OptionChain ophalen via TWS API", export_chain_bulk)
     menu.add("OptionChain ophalen via Polygon API", polygon_chain)
@@ -1130,6 +1281,7 @@ def run_dataexporter() -> None:
     menu.add("Run GitHub Action lokaal - intraday", run_intraday_action)
     menu.add("Backfill historical_volatility obv spotprices", run_backfill_hv)
     menu.add("Fetch Earnings", fetch_earnings)
+    menu.add("Import nieuwe earning dates van MarketChameleon", import_market_chameleon_earnings)
 
     menu.run()
 
