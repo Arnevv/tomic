@@ -200,11 +200,14 @@ class ReasonAggregator:
     ) -> ReasonDetail:
         detail = self._select_detail(reason)
         label = self._register_reason(detail, count=max(int(count), 0))
+        if isinstance(reason, ReasonDetail):
+            raw_label = reason.message or self.label_for(reason.category)
+        elif isinstance(reason, ReasonCategory):
+            raw_label = self.label_for(reason)
+        else:
+            raw_label = str(reason)
         logger.info(
-            "[reason-selection] raw=%s -> %s (%s)",
-            reason,
-            label,
-            detail.category.value,
+            f"[reason-selection] raw={raw_label} -> {label} ({detail.category.value})"
         )
         if strategy:
             self.by_strategy.setdefault(strategy, []).append(label)
