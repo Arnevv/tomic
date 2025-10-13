@@ -410,6 +410,8 @@ def test_reason_aggregator_prefers_risk_over_fallback():
     detail = agg.add_reason("model-mid gebruikt; risk/reward onvoldoende")
     assert detail.category == mod.ReasonCategory.RR_BELOW_MIN
     assert agg.by_reason[detail.message] == 1
+    assert agg.by_category[mod.ReasonCategory.PREVIEW_QUALITY] == 1
+    assert agg.by_category[mod.ReasonCategory.RR_BELOW_MIN] == 1
 
 
 def test_reason_aggregator_retains_missing_mid_priority():
@@ -418,6 +420,42 @@ def test_reason_aggregator_retains_missing_mid_priority():
     detail = agg.add_reason("midprijs niet gevonden; risk/reward onvoldoende")
     assert detail.category == mod.ReasonCategory.MISSING_DATA
     assert agg.by_reason[detail.message] == 1
+    assert agg.by_category[mod.ReasonCategory.MISSING_DATA] == 1
+    assert agg.by_category[mod.ReasonCategory.RR_BELOW_MIN] == 1
+
+
+def test_reason_aggregator_normalizes_multiple_fragments():
+    mod = importlib.import_module("tomic.cli.controlpanel")
+    agg = mod.ReasonAggregator()
+    details = agg._normalize_reason_list(
+        "previewkwaliteit (parity_close); negatieve EV of score"
+    )
+    categories = {detail.category for detail in details}
+    assert categories == {
+        mod.ReasonCategory.PREVIEW_QUALITY,
+        mod.ReasonCategory.EV_BELOW_MIN,
+    }
+    preview_detail = next(
+        detail for detail in details if detail.category == mod.ReasonCategory.PREVIEW_QUALITY
+    )
+    assert preview_detail.data.get("mid_source") == "parity_close"
+
+
+def test_reason_aggregator_counts_split_fragments():
+    mod = importlib.import_module("tomic.cli.controlpanel")
+    agg = mod.ReasonAggregator()
+    inputs = [
+        "previewkwaliteit (parity_close); negatieve EV of score",
+        "previewkwaliteit (model), negatieve EV of score",
+        "previewkwaliteit (close)\nnegatieve EV of score",
+        "onbekend",
+    ]
+    for value in inputs:
+        agg.add_reason(value)
+
+    assert agg.by_category[mod.ReasonCategory.PREVIEW_QUALITY] == 3
+    assert agg.by_category[mod.ReasonCategory.EV_BELOW_MIN] == 3
+    assert agg.by_category.get(mod.ReasonCategory.OTHER, 0) == 1
 
 
 def test_reason_aggregator_extends_reason_counts():

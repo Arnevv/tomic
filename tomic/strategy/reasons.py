@@ -49,9 +49,13 @@ _CATEGORY_LABELS: Final[Mapping[ReasonCategory, str]] = {
     ReasonCategory.POLICY_VIOLATION: "Policy/intern",
     ReasonCategory.RR_BELOW_MIN: "Risk/Reward",
     ReasonCategory.EV_BELOW_MIN: "EV onvoldoende",
-    ReasonCategory.PREVIEW_QUALITY: "Previewkwaliteit",
+    ReasonCategory.PREVIEW_QUALITY: "Datakwaliteit (fallback mid)",
     ReasonCategory.LOW_LIQUIDITY: "Lage liquiditeit",
     ReasonCategory.OTHER: "Overig",
+}
+
+_LABEL_LOOKUP: Final[Mapping[str, ReasonCategory]] = {
+    label.lower(): category for category, label in _CATEGORY_LABELS.items()
 }
 
 
@@ -228,6 +232,13 @@ def normalize_reason(raw_reason: ReasonLike) -> ReasonDetail:
         if not stripped:
             return make_reason(ReasonCategory.OTHER, "EMPTY", "geen reden opgegeven")
         lookup = stripped.lower()
+        category_from_label = _LABEL_LOOKUP.get(lookup)
+        if category_from_label is not None:
+            return make_reason(
+                category_from_label,
+                category_from_label.value,
+                category_label(category_from_label),
+            )
         legacy = _legacy_reason(stripped, lookup)
         if legacy is not None:
             return legacy
@@ -279,7 +290,19 @@ _LEGACY_REASON_MAP: MutableMapping[str, ReasonDetail] = {
         "previewkwaliteit (parity_close)",
         data={"mid_source": "parity_close"},
     ),
+    "previewkwaliteit (parity_close)": make_reason(
+        ReasonCategory.PREVIEW_QUALITY,
+        "PREVIEW_PARITY_CLOSE",
+        "previewkwaliteit (parity_close)",
+        data={"mid_source": "parity_close"},
+    ),
     "fallback naar close gebruikt voor midprijs": make_reason(
+        ReasonCategory.PREVIEW_QUALITY,
+        "PREVIEW_CLOSE",
+        "previewkwaliteit (close)",
+        data={"mid_source": "close"},
+    ),
+    "previewkwaliteit (close)": make_reason(
         ReasonCategory.PREVIEW_QUALITY,
         "PREVIEW_CLOSE",
         "previewkwaliteit (close)",
@@ -291,7 +314,18 @@ _LEGACY_REASON_MAP: MutableMapping[str, ReasonDetail] = {
         "previewkwaliteit (model)",
         data={"mid_source": "model"},
     ),
+    "previewkwaliteit (model)": make_reason(
+        ReasonCategory.PREVIEW_QUALITY,
+        "PREVIEW_MODEL",
+        "previewkwaliteit (model)",
+        data={"mid_source": "model"},
+    ),
     "previewkwaliteit": make_reason(
+        ReasonCategory.PREVIEW_QUALITY,
+        "PREVIEW_GENERIC",
+        category_label(ReasonCategory.PREVIEW_QUALITY),
+    ),
+    category_label(ReasonCategory.PREVIEW_QUALITY).lower(): make_reason(
         ReasonCategory.PREVIEW_QUALITY,
         "PREVIEW_GENERIC",
         category_label(ReasonCategory.PREVIEW_QUALITY),
