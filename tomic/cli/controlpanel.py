@@ -183,20 +183,23 @@ class ReasonAggregator:
 
     @classmethod
     def _split_reason(cls, text: str) -> list[str]:
-        parts = [frag.strip() for frag in re.split(r"[;\u2022\|]+", text) if frag and frag.strip()]
+        parts = [
+            frag.strip()
+            for frag in re.split(r"[;,\n\u2022\|]+", text)
+            if frag and frag.strip()
+        ]
         return parts or [text.strip()]
 
-    def _select_detail(self, reason: ReasonLike) -> ReasonDetail:
+    def _normalize_reason_list(self, reason: ReasonLike) -> list[ReasonDetail]:
         if isinstance(reason, ReasonCategory):
-            return normalize_reason(reason)
+            return [normalize_reason(reason)]
         if isinstance(reason, str):
             fragments = self._split_reason(reason)
             details = [normalize_reason(fragment) for fragment in fragments]
-            if not details:
-                return normalize_reason(reason)
-            details.sort(key=lambda detail: category_priority(detail.category))
-            return details[0]
-        return normalize_reason(reason)
+            if details:
+                return details
+            return [normalize_reason(reason)]
+        return [normalize_reason(reason)]
 
     def add_reason(
         self,
@@ -205,19 +208,27 @@ class ReasonAggregator:
         strategy: str | None = None,
         count: int = 1,
     ) -> ReasonDetail:
-        detail = self._select_detail(reason)
-        label = self._register_reason(detail, count=max(int(count), 0))
+        details = self._normalize_reason_list(reason)
+        details.sort(key=lambda detail: category_priority(detail.category))
+        count_value = max(int(count), 0)
+        labels = [
+            self._register_reason(detail, count=count_value)
+            for detail in details
+        ]
+        detail = details[0]
+        label = labels[0]
         if isinstance(reason, ReasonDetail):
             raw_label = reason.message or self.label_for(reason.category)
         elif isinstance(reason, ReasonCategory):
             raw_label = self.label_for(reason)
         else:
             raw_label = str(reason)
-        logger.info(
-            f"[reason-selection] raw={raw_label} -> {label} ({detail.category.value})"
+        mapped = ", ".join(
+            f"{lbl} ({det.category.value})" for det, lbl in zip(details, labels)
         )
+        logger.info(f"[reason-selection] raw={raw_label} -> {mapped}")
         if strategy:
-            self.by_strategy.setdefault(strategy, []).append(label)
+            self.by_strategy.setdefault(strategy, []).extend(labels)
         return detail
 
     def extend_reasons(self, reasons: Iterable[ReasonLike]) -> None:
