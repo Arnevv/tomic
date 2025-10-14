@@ -90,6 +90,11 @@ from tomic.services.strategy_pipeline import (
     StrategyProposal,
     RejectionSummary,
 )
+from tomic.services.ib_marketdata import fetch_quote_snapshot, SnapshotResult
+from tomic.services.order_submission import (
+    OrderSubmissionService,
+    prepare_order_instructions,
+)
 from tomic.scripts.backfill_hv import run_backfill_hv
 from tomic.services.market_snapshot import (
     MarketSnapshotService,
@@ -104,6 +109,7 @@ from tomic.strategy.reasons import (
 )
 from tomic.strategy_candidates import generate_strategy_candidates
 from tomic.core import config as runtime_config
+from tomic.criteria import load_criteria
 
 setup_logging(stdout=True)
 
@@ -2250,8 +2256,28 @@ def run_portfolio_menu() -> None:
             print("➤ Of pas je selectiecriteria aan in strike_selection_rules.yaml.")
 
     def _show_proposal_details(proposal: StrategyProposal) -> None:
+        criteria_cfg = load_criteria()
+        symbol = str(SESSION_STATE.get("symbol") or proposal.legs[0].get("symbol", "")) if proposal.legs else str(SESSION_STATE.get("symbol") or "")
+        spot_price = SESSION_STATE.get("spot_price")
+        fetch_only_mode = bool(cfg.get("IB_FETCH_ONLY", False))
+        refresh_result: SnapshotResult | None = None
+        should_fetch = fetch_only_mode or prompt_yes_no("Haal orderinformatie van IB op?", True)
+        if should_fetch:
+            try:
+                refresh_result = fetch_quote_snapshot(
+                    proposal,
+                    criteria=criteria_cfg,
+                    spot_price=spot_price if isinstance(spot_price, (int, float)) else None,
+                    timeout=float(cfg.get("MARKET_DATA_TIMEOUT", 15)),
+                )
+                proposal = refresh_result.proposal
+            except Exception as exc:
+                logger.exception("IB marktdata refresh mislukt: %s", exc)
+                print(f"❌ Marktdata ophalen mislukt: {exc}")
+
         rows: list[list[str]] = []
         warns: list[str] = []
+        missing_quotes: list[str] = refresh_result.missing_quotes if refresh_result else []
         for leg in proposal.legs:
             if leg.get("edge") is None:
                 logger.debug(
@@ -2333,10 +2359,21 @@ def run_portfolio_menu() -> None:
                 tablefmt="github",
             )
         )
+        if missing_quotes:
+            warns.append("⚠️ Geen verse quotes voor: " + ", ".join(missing_quotes))
         if missing_edge:
             warns.append("⚠️ Eén of meerdere edges niet beschikbaar")
         for warning in warns:
             print(warning)
+
+        acceptance_failed = bool(refresh_result and not refresh_result.accepted)
+        if acceptance_failed:
+            print("❌ Acceptatiecriteria niet gehaald na IB-refresh.")
+            for detail in refresh_result.reasons:
+                msg = getattr(detail, "message", None) or getattr(detail, "code", None)
+                if msg:
+                    print(f"  - {msg}")
+
         if missing_edge and not cfg.get("ALLOW_INCOMPLETE_METRICS", False):
             if not prompt_yes_no(
                 "⚠️ Deze strategie bevat onvolledige edge-informatie. Toch accepteren?",
@@ -2381,8 +2418,74 @@ def run_portfolio_menu() -> None:
             _export_proposal_csv(proposal)
         if prompt_yes_no("Voorstel opslaan naar JSON?", False):
             _export_proposal_json(proposal)
+
+        can_send_order = not acceptance_failed and not fetch_only_mode
+        if can_send_order and prompt_yes_no("Order naar IB sturen?", False):
+            _submit_ib_order(proposal, symbol=symbol)
+        elif fetch_only_mode:
+            print("ℹ️ fetch_only modus actief – orders worden niet verstuurd.")
+
         journal = _proposal_journal_text(proposal)
         print("\nJournal entry voorstel:\n" + journal)
+
+    def _submit_ib_order(proposal: StrategyProposal, *, symbol: str | None = None) -> None:
+        ticker = symbol or str(SESSION_STATE.get("symbol") or "")
+        if not ticker:
+            print("❌ Geen symbool beschikbaar voor orderplaatsing.")
+            return
+        account = str(cfg.get("IB_ACCOUNT_ALIAS") or "") or None
+        order_type = str(cfg.get("DEFAULT_ORDER_TYPE", "LMT"))
+        tif = str(cfg.get("DEFAULT_TIME_IN_FORCE", "DAY"))
+        try:
+            instructions = prepare_order_instructions(
+                proposal,
+                symbol=ticker,
+                account=account,
+                order_type=order_type,
+                tif=tif,
+            )
+        except Exception as exc:
+            logger.exception("Ordervoorbereiding mislukt: %s", exc)
+            print(f"❌ Kon order niet voorbereiden: {exc}")
+            return
+
+        export_dir = Path(cfg.get("EXPORT_DIR", "exports")) / datetime.now().strftime(
+            "%Y%m%d"
+        )
+        log_path = OrderSubmissionService.dump_order_log(instructions, directory=export_dir)
+        print(f"📝 Orderstructuur opgeslagen in: {log_path}")
+
+        if cfg.get("IB_FETCH_ONLY", False):
+            logger.info("fetch_only-modus actief; orders niet verzonden")
+            return
+
+        host = str(cfg.get("IB_HOST", "127.0.0.1"))
+        paper_mode = bool(cfg.get("IB_PAPER_MODE", True))
+        port_key = "IB_PORT" if paper_mode else "IB_LIVE_PORT"
+        port = int(cfg.get(port_key, 7497 if paper_mode else 7496))
+        client_id = int(cfg.get("IB_ORDER_CLIENT_ID", cfg.get("IB_CLIENT_ID", 100)))
+        timeout = int(cfg.get("DOWNLOAD_TIMEOUT", 5))
+        service = OrderSubmissionService()
+        app = None
+        try:
+            app, order_ids = service.place_orders(
+                instructions,
+                host=host,
+                port=port,
+                client_id=client_id,
+                timeout=timeout,
+            )
+        except Exception as exc:
+            print(f"❌ Verzenden naar IB mislukt: {exc}")
+            return
+        finally:
+            if app is not None:
+                try:
+                    app.disconnect()
+                except Exception:
+                    logger.debug("Probleem bij sluiten IB-verbinding", exc_info=True)
+
+        print(f"✅ {len(order_ids)} order(s) als concept verstuurd naar IB (client {client_id}).")
 
     def _save_trades(trades: list[dict[str, object]]) -> None:
         symbol = str(SESSION_STATE.get("symbol", "SYMB"))
