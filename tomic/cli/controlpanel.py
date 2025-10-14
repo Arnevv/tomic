@@ -1551,20 +1551,27 @@ def run_portfolio_menu() -> None:
                 return max(matches, key=lambda p: p.stat().st_mtime)
 
             for symbol, symbol_recs in grouped.items():
+                used_existing_chain = False
                 if existing_chain_dir:
                     chain_path = _find_existing_chain(existing_chain_dir, symbol)
-                    if not chain_path:
+                    if chain_path:
+                        used_existing_chain = True
+                    else:
                         print(
                             f"ℹ️ Geen bestaande optionchain gevonden voor {symbol} in {existing_chain_dir}"
                         )
-                        continue
+                        chain_path = services.fetch_polygon_chain(symbol)
                 else:
                     chain_path = services.fetch_polygon_chain(symbol)
-                    if not chain_path:
-                        print(f"⚠️ Geen polygon chain gevonden voor {symbol}")
-                        continue
-                if existing_chain_dir:
+
+                if not chain_path:
+                    print(f"⚠️ Geen polygon chain gevonden voor {symbol}")
+                    continue
+
+                if used_existing_chain:
                     print(f"📄 Gebruik bestaande chain voor {symbol}: {chain_path.name}")
+                elif existing_chain_dir:
+                    print(f"📥 Download polygon chain voor {symbol}: {chain_path.name}")
                 try:
                     df = pd.read_csv(chain_path)
                 except Exception as exc:
