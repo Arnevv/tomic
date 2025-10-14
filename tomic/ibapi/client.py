@@ -428,9 +428,24 @@ class EClient(object):
                             msgId = int.from_bytes(sMsgId, 'big')  
                             text = text[4:]
                         else:
-                            sMsgId = text[:text.index(b"\0")]
-                            text = text[text.index(b"\0") + len(b"\0"):]
-                            msgId = int(sMsgId)
+                            null_index = text.find(b"\0")
+                            if null_index == -1:
+                                logger.warning(
+                                    f"Skipping malformed message without separator: {text!r}"
+                                )
+                                continue
+                            sMsgId = text[:null_index]
+                            text = text[null_index + 1 :]
+                            if not sMsgId:
+                                logger.warning("Skipping message with empty id chunk")
+                                continue
+                            try:
+                                msgId = int(sMsgId)
+                            except ValueError:
+                                logger.warning(
+                                    f"Skipping message with invalid id chunk: {sMsgId!r}"
+                                )
+                                continue
 
                         if msgId > PROTOBUF_MSG_ID:
                             msgId -= PROTOBUF_MSG_ID
