@@ -125,6 +125,7 @@ class QuoteSnapshotApp(BaseIBApp):
         self._responses: dict[int, dict[str, Any]] = {}
         self._events: dict[int, threading.Event] = {}
         self._lock = threading.Lock()
+        self._snapshot_requests: dict[int, bool] = {}
 
     # ------------------------------------------------------------------
     # Helpers
@@ -140,6 +141,28 @@ class QuoteSnapshotApp(BaseIBApp):
     def _data(self, req_id: int) -> dict[str, Any]:
         return self._responses.setdefault(req_id, {})
 
+    def register_request(self, req_id: int, *, snapshot: bool) -> None:
+        with self._lock:
+            if snapshot:
+                self._snapshot_requests[req_id] = True
+            else:
+                self._snapshot_requests.pop(req_id, None)
+
+    def _is_snapshot(self, req_id: int) -> bool:
+        with self._lock:
+            return self._snapshot_requests.get(req_id, False)
+
+    def _complete_request(self, req_id: int) -> None:
+        with self._lock:
+            self._snapshot_requests.pop(req_id, None)
+
+    def _finalize_request(self, req_id: int) -> None:
+        self._event(req_id).set()
+        self._complete_request(req_id)
+
+    def clear_request(self, req_id: int) -> None:
+        self._complete_request(req_id)
+
     # ------------------------------------------------------------------
     # IB callbacks
     # ------------------------------------------------------------------
@@ -154,10 +177,11 @@ class QuoteSnapshotApp(BaseIBApp):
         elif tickType == TickTypeEnum.CLOSE:
             data.setdefault("last", price)
         if not math.isnan(price):
-            self._event(reqId).set()
+            if not self._is_snapshot(reqId):
+                self._finalize_request(reqId)
 
     def tickSnapshotEnd(self, reqId: int) -> None:  # noqa: N802 - IB API
-        self._event(reqId).set()
+        self._finalize_request(reqId)
 
     def tickOptionComputation(
         self,
@@ -188,7 +212,7 @@ class QuoteSnapshotApp(BaseIBApp):
     def error(self, reqId: int, errorTime: int, errorCode: int, errorString: str, advancedOrderRejectJson: str = "") -> None:  # noqa: N802 - IB API
         super().error(reqId, errorTime, errorCode, errorString, advancedOrderRejectJson)
         if reqId > 0:
-            self._event(reqId).set()
+            self._finalize_request(reqId)
 
 
 class IBMarketDataService:
@@ -273,27 +297,31 @@ class IBMarketDataService:
                     leg["missing_edge"] = True
                     continue
                 req_id = app._next_id()
+                app.register_request(req_id, snapshot=use_snapshot)
                 event = app._event(req_id)
                 logger.debug(
                     "reqMktData req_id=%s symbol=%s strike=%s right=%s", req_id, contract.symbol, getattr(contract, "strike", "-"), getattr(contract, "right", "-")
                 )
                 app.reqMktData(req_id, contract, generic_ticks, use_snapshot, False, [])
-                if not event.wait(timeout):
-                    logger.warning(
-                        "⏱ Timeout bij ophalen quote voor strike %s", leg.get("strike")
-                    )
-                    missing.append(str(leg.get("strike")))
-                    leg["missing_edge"] = True
-                else:
-                    snapshot = app._responses.get(req_id, {})
-                    self._apply_snapshot(leg, snapshot)
-                    if not snapshot:
+                try:
+                    if not event.wait(timeout):
+                        logger.warning(
+                            "⏱ Timeout bij ophalen quote voor strike %s", leg.get("strike")
+                        )
                         missing.append(str(leg.get("strike")))
                         leg["missing_edge"] = True
-                try:
-                    app.cancelMktData(req_id)
-                except Exception:
-                    pass
+                    else:
+                        snapshot = app._responses.get(req_id, {})
+                        self._apply_snapshot(leg, snapshot)
+                        if not snapshot:
+                            missing.append(str(leg.get("strike")))
+                            leg["missing_edge"] = True
+                finally:
+                    try:
+                        app.cancelMktData(req_id)
+                    except Exception:
+                        pass
+                    app.clear_request(req_id)
 
             score, reasons = scoring.calculate_score(
                 proposal.strategy,
