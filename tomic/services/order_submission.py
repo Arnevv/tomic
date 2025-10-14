@@ -122,13 +122,14 @@ def _serialize_instruction(instr: "OrderInstruction") -> dict[str, Any]:
                     continue
             except (TypeError, ValueError):
                 pass
-        if sec_type == "BAG" and key in {"expiry", "strike", "right", "multiplier", "tradingClass", "primaryExchange"}:
-            if key == "strike":
-                try:
-                    if float(value) != 0:
-                        filtered_contract[key] = value
-                except (TypeError, ValueError):
-                    pass
+        if sec_type == "BAG" and key in {
+            "expiry",
+            "strike",
+            "right",
+            "multiplier",
+            "tradingClass",
+            "primaryExchange",
+        }:
             continue
         filtered_contract[key] = value
 
