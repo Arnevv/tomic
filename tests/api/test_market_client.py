@@ -894,6 +894,7 @@ def test_all_data_event_set(monkeypatch):
         0.0,
         0.0,
         100.0,
+        None,
     )
     assert not client.all_data_event.is_set()
     client.error(2, "", 200, "")
@@ -995,6 +996,7 @@ def test_tick_price_close_keeps_contract_valid(monkeypatch):
         0.0,
         0.0,
         100.0,
+        None,
     )
     assert client.market_data[1]["event"].is_set()
     assert 1 not in client.invalid_contracts

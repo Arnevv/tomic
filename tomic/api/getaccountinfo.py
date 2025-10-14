@@ -232,6 +232,7 @@ class IBApp(BaseIBApp):
         vega,
         theta,
         undPrice,
+        lastGreeksUpdateTime=None,
     ):
         if reqId in self.market_req_map and not isinstance(
             self.market_req_map[reqId], dict

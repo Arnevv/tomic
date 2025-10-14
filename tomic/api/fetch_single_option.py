@@ -100,6 +100,7 @@ class StepByStepClient(EWrapper, EClient):
         vega: float,
         theta: float,
         undPrice: float,
+        lastGreeksUpdateTime: float | None = None,
     ) -> None:
         logger.debug(
             "tickOptionComputation: reqId=%s IV=%s delta=%s gamma=%s vega=%s theta=%s",
