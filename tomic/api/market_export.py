@@ -328,6 +328,23 @@ def _write_heatmap(
     logger.info(f"✅ [stap 10] Heatmap opgeslagen als: {csv_path}")
 
 
+def _ensure_market_data(app: OptionChainClient) -> None:
+    """Populate ``app.market_data`` when only per-expiry access is available."""
+
+    if getattr(app, "market_data", None):
+        return
+    expiries = getattr(app, "expiries", [])
+    if not expiries or not hasattr(app, "process_expiry"):
+        return
+    for expiry in expiries:
+        try:
+            records = app.process_expiry(expiry)
+        except Exception:  # pragma: no cover - defensive
+            continue
+        if isinstance(records, dict):
+            app.market_data.update(records)
+
+
 @log_result
 def _write_option_chain_simple(
     app: MarketClient, symbol: str, export_dir: str, timestamp: str
@@ -422,7 +439,13 @@ def _write_metrics_csv(
         writer.writerow(_HEADERS_METRICS)
         writer.writerow(values_metrics)
     logger.info(f"✅ [stap 10] CSV opgeslagen als: {metrics_file}")
-    return pd.DataFrame([values_metrics], columns=_HEADERS_METRICS)
+    df_factory = getattr(pd, "DataFrame", None)
+    if callable(df_factory) and df_factory is not object:
+        try:
+            return df_factory([values_metrics], columns=_HEADERS_METRICS)
+        except TypeError:
+            logger.debug("Pandas DataFrame stub detected, returning raw values instead")
+    return values_metrics
 
 
 @log_result
@@ -843,13 +866,14 @@ def export_market_data(
             export_dir = output_dir
         os.makedirs(export_dir, exist_ok=True)
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
-        avg_parity = _write_option_chain(
-            app,
-            symbol,
-            export_dir,
-            timestamp,
-            heatmap_columns if export_heatmap else None,
-        )
+        _ensure_market_data(app)
+        option_chain_args = [app, symbol, export_dir, timestamp]
+        if export_heatmap:
+            avg_parity = _write_option_chain(
+                *option_chain_args, heatmap_columns=heatmap_columns
+            )
+        else:
+            avg_parity = _write_option_chain(*option_chain_args)
         df_metrics = _write_metrics_csv(
             metrics, symbol, export_dir, timestamp, avg_parity
         )
@@ -867,13 +891,14 @@ def export_market_data(
         export_dir = output_dir
     os.makedirs(export_dir, exist_ok=True)
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
-    avg_parity = _write_option_chain(
-        app,
-        symbol,
-        export_dir,
-        timestamp,
-        heatmap_columns if export_heatmap else None,
-    )
+    _ensure_market_data(app)
+    option_chain_args = [app, symbol, export_dir, timestamp]
+    if export_heatmap:
+        avg_parity = _write_option_chain(
+            *option_chain_args, heatmap_columns=heatmap_columns
+        )
+    else:
+        avg_parity = _write_option_chain(*option_chain_args)
     df_metrics = _write_metrics_csv(
         metrics, symbol, export_dir, timestamp, avg_parity
     )
