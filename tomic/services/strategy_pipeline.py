@@ -17,6 +17,11 @@ from ..logutils import logger
 from ..mid_resolver import MidResolver, build_mid_resolver
 from ..utils import get_option_mid_price, normalize_leg
 from ..helpers.dateutils import parse_date
+from ..helpers.strategy_config import (
+    canonical_strategy_name,
+    coerce_int,
+    get_strategy_setting,
+)
 from ..strategy.reasons import (
     ReasonCategory,
     ReasonDetail,
@@ -223,7 +228,7 @@ class StrategyPipeline:
         return lambda _key, default=None: default
 
     def _canonical_strategy(self, strategy: str) -> str:
-        return strategy.lower().replace(" ", "_")
+        return canonical_strategy_name(strategy)
 
     def _load_rules(
         self, strategy: str, config: Mapping[str, Any] | None
@@ -262,21 +267,24 @@ class StrategyPipeline:
         self, strategy: str, config: Mapping[str, Any] | None
     ) -> bool:
         config_data = config or self._config_getter("STRATEGY_CONFIG", {}) or {}
-        if not isinstance(config_data, Mapping):
-            return False
-        strategies_cfg = config_data.get("strategies")
-        if isinstance(strategies_cfg, Mapping):
-            strat_cfg = strategies_cfg.get(strategy)
-            if isinstance(strat_cfg, Mapping):
-                flag = self._as_bool(strat_cfg.get("exclude_expiry_before_earnings"))
-                if flag is not None:
-                    return flag
-        default_cfg = config_data.get("default")
-        if isinstance(default_cfg, Mapping):
-            flag = self._as_bool(default_cfg.get("exclude_expiry_before_earnings"))
-            if flag is not None:
-                return flag
-        return False
+        value = get_strategy_setting(
+            config_data,
+            strategy,
+            "exclude_expiry_before_earnings",
+        )
+        flag = self._as_bool(value)
+        return bool(flag)
+
+    def _min_days_to_earnings(
+        self, strategy: str, config: Mapping[str, Any] | None
+    ) -> int | None:
+        config_data = config or self._config_getter("STRATEGY_CONFIG", {}) or {}
+        value = get_strategy_setting(
+            config_data,
+            strategy,
+            "min_days_until_earnings",
+        )
+        return coerce_int(value)
 
     def _load_earnings_data(self) -> dict[str, list[str]]:
         if self._earnings_data is not None:
@@ -364,10 +372,29 @@ class StrategyPipeline:
     ) -> tuple[list[StrategyProposal], list[ReasonDetail]]:
         if not proposals:
             return list(proposals), []
-        if not self._earnings_filter_enabled(strategy, context.config):
-            return list(proposals), []
         earnings_date = self._next_earnings(context)
         if earnings_date is None:
+            return list(proposals), []
+        min_days = self._min_days_to_earnings(strategy, context.config)
+        if min_days is not None and min_days > 0:
+            days_until = self._days_until_earnings(earnings_date)
+            if days_until is not None and days_until < min_days:
+                reason = make_reason(
+                    ReasonCategory.POLICY_VIOLATION,
+                    "EARNINGS_TOO_CLOSE",
+                    (
+                        f"Earnings binnen {days_until} dagen voor {strategy}"
+                        f" (minimaal {min_days} vereist)"
+                    ),
+                    data={
+                        "earnings_date": earnings_date.isoformat(),
+                        "days_until": days_until,
+                        "required_days": min_days,
+                        "strategy": strategy,
+                    },
+                )
+                return [], [reason]
+        if not self._earnings_filter_enabled(strategy, context.config):
             return list(proposals), []
         kept: list[StrategyProposal] = []
         rejected: list[ReasonDetail] = []
@@ -388,6 +415,14 @@ class StrategyPipeline:
             )
             rejected.append(reason)
         return kept, rejected
+
+    def _days_until_earnings(self, earnings_date: date | None) -> int | None:
+        if earnings_date is None:
+            return None
+        try:
+            return (earnings_date - date.today()).days
+        except Exception:
+            return None
 
     def _build_filter_config(self, rules: Mapping[str, Any]) -> FilterConfig:
         def _float(val: Any, default: float | None = None) -> float | None:
