@@ -55,6 +55,10 @@ class AppConfig(BaseModel):
     INCLUDE_GREEKS_ONLY_IF_MARKET_OPEN: bool = True
     ALLOW_INCOMPLETE_METRICS: bool = False
     MARKET_SCAN_TOP_N: int = 10
+    VOL_RULES_EARNINGS_THRESHOLDS: Dict[str, int] = {
+        "Iron Condor": 10,
+        "ATM Iron Butterfly": 10,
+    }
 
     # Parameters for IV history snapshots -------------------------------
     IV_TRACKING_DELTAS: List[float] = [0.25, 0.5]

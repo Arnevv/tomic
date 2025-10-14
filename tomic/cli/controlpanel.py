@@ -1455,11 +1455,27 @@ def run_portfolio_menu() -> None:
                 data.get("term_m1_m3"),
                 data.get("skew"),
                 data.get("next_earnings"),
+                data.get("days_until_earnings"),
             ]
 
         rows = [_as_overview_row(row) for row in snapshot.get("rows", [])]
 
-        recs, table_rows = build_market_overview(rows)
+        recs, table_rows, meta = build_market_overview(rows)
+
+        earnings_filtered = {}
+        if isinstance(meta, dict):
+            earnings_filtered = meta.get("earnings_filtered", {}) or {}
+        if isinstance(earnings_filtered, dict) and earnings_filtered:
+            total_hidden = sum(len(strategies) for strategies in earnings_filtered.values())
+            detail_parts = []
+            for symbol in sorted(earnings_filtered):
+                strategies = ", ".join(earnings_filtered[symbol])
+                detail_parts.append(f"{symbol}: {strategies}")
+            detail_msg = "; ".join(detail_parts)
+            print(
+                f"ℹ️ {total_hidden} aanbevelingen verborgen vanwege earnings-filter"
+                + (f" ({detail_msg})" if detail_msg else "")
+            )
 
         def _run_market_scan() -> None:
             if not recs:

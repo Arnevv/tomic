@@ -77,6 +77,7 @@ def test_read_metrics_returns_row(tmp_path):
     assert row.iv_rank == 0.62
     assert row.iv_percentile == 0.75
     assert row.next_earnings == date(2024, 5, 10)
+    assert row.days_until_earnings == 9
 
 
 def test_build_factsheet_parses_dates():
@@ -178,6 +179,7 @@ def test_load_snapshot_returns_serializable_rows(tmp_path):
     assert [row["symbol"] for row in rows] == ["AAA", "BBB"]
     assert rows[0]["iv_percentile"] == 0.70
     assert rows[0]["next_earnings"] == "2024-06-01"
+    assert rows[0]["days_until_earnings"] == 12
 
     filtered = service.load_snapshot({"symbols": ["BBB"]})
     assert [row["symbol"] for row in filtered["rows"]] == ["BBB"]
