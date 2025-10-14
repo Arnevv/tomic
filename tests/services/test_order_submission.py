@@ -27,13 +27,16 @@ def test_prepare_order_instructions(monkeypatch):
         order_type="LMT",
         tif="DAY",
     )
-    assert len(instructions) == 2
-    first, second = instructions
-    assert first.order.action == "SELL"
-    assert second.order.action == "BUY"
-    assert first.order.totalQuantity == 1
-    assert first.order.transmit is False
-    assert getattr(first.contract, "lastTradeDateOrContractMonth", None) == "20240119"
+    assert len(instructions) == 1
+    instr = instructions[0]
+    assert getattr(instr.order, "action", None) == "SELL"
+    assert getattr(instr.order, "totalQuantity", None) == 1
+    assert getattr(instr.order, "transmit", None) is False
+    assert getattr(instr.contract, "secType", None) == "BAG"
+    combo_legs = getattr(instr.contract, "comboLegs", [])
+    assert combo_legs and len(combo_legs) == 2
+    assert getattr(combo_legs[0], "ratio", None) == 1
+    assert getattr(instr.contract, "symbol", None) == "AAA"
 
 
 def test_dump_order_log(tmp_path, monkeypatch):
@@ -48,7 +51,7 @@ def test_dump_order_log(tmp_path, monkeypatch):
     path = OrderSubmissionService.dump_order_log(instructions, directory=tmp_path)
     payload = json.loads(path.read_text())
     assert payload[0]["order"]["orderType"] == "LMT"
-    assert payload[0]["contract"]["expiry"] == "20240119"
+    assert payload[0]["legs"][0]["expiry"] == "20240119"
 
 
 def test_place_orders_uses_parent_child(monkeypatch):
@@ -85,7 +88,6 @@ def test_place_orders_uses_parent_child(monkeypatch):
         client_id=123,
         timeout=1,
     )
-    assert order_ids == [50, 51]
-    assert dummy.placed[0] == (50, "SELL", None)
-    assert dummy.placed[1] == (51, "BUY", 50)
+    assert order_ids == [50]
+    assert dummy.placed == [(50, "SELL", None)]
     assert app is dummy
