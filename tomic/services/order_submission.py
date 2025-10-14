@@ -298,7 +298,18 @@ class OrderPlacementApp(BaseIBApp):
         start = time.time()
         requested_all = False
         while time.time() - start < timeout:
-            if all(order_id in self._order_events for order_id in order_ids):
+            all_orders_terminal = True
+            for order_id in order_ids:
+                event = self._order_events.get(order_id)
+                status = event.get("status") if event else None
+
+                # Wacht tot de order een definitieve status heeft bereikt.
+                if status is None or status in {"ApiPending", "PendingSubmit"}:
+                    all_orders_terminal = False
+                    break
+
+            if all_orders_terminal:
+                logger.debug("✅ Alle orders hebben een definitieve status bereikt.")
                 return
             if not requested_all and time.time() - start > timeout / 2:
                 try:
