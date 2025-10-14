@@ -448,10 +448,8 @@ class OrderSubmissionService:
             net_price = round(abs(per_combo_credit / 100.0), 2)
         else:
             net_price = None
-        order.orderType = (order_type or _cfg("DEFAULT_ORDER_TYPE", "LMT")).upper()
+        order.orderType = "MIDPRICE"
         order.tif = (tif or _cfg("DEFAULT_TIME_IN_FORCE", "DAY")).upper()
-        if order.orderType == "LMT" and net_price is not None and hasattr(order, "lmtPrice"):
-            order.lmtPrice = net_price
         order.action = "SELL" if (net_credit or 0) >= 0 else "BUY"
         order.transmit = True
         order.account = account or "DUK809533"
