@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from math import isclose
 from types import SimpleNamespace
+import json
 
 import pytest
 
@@ -109,7 +110,10 @@ def test_build_proposals_generates_results(sample_option):
         "close": 0,
     }
     assert prop.spread_rejects_n == 0
-    assert summary.by_strategy == {"iron_condor": ["edge:low"]}
+    assert "iron_condor" in summary.by_strategy
+    reasons = summary.by_strategy["iron_condor"]
+    assert len(reasons) == 1
+    assert reasons[0].message == "edge:low"
     assert summary.by_filter == {}
     assert pipeline.last_evaluated
     evaluated = pipeline.last_evaluated[0]
@@ -159,4 +163,75 @@ def test_summarize_rejections_merges():
     summary = pipeline.summarize_rejections(data)
     assert summary.by_filter == {"delta": 1}
     assert summary.by_reason == {"delta:low": 1}
-    assert summary.by_strategy == {"iron_condor": ["delta:low"]}
+    assert "iron_condor" in summary.by_strategy
+    reasons = summary.by_strategy["iron_condor"]
+    assert [reason.message for reason in reasons] == ["delta:low"]
+
+
+def test_earnings_filter_blocks_expiry_before_event(tmp_path, sample_option):
+    earnings_file = tmp_path / "earnings.json"
+    earnings_file.write_text(json.dumps({"XYZ": ["2030-02-01"]}))
+
+    selector = DummySelector()
+
+    def selector_factory(**kwargs):
+        return selector
+
+    generated = SimpleNamespace(
+        legs=[
+            {"expiry": "2024-01-10", "type": "call", "position": -1, "edge": 0.5},
+            {"expiry": "2024-01-10", "type": "put", "position": -1, "edge": 0.4},
+            {"expiry": "2024-01-10", "type": "call", "position": 1, "edge": 0.2},
+            {"expiry": "2024-01-10", "type": "put", "position": 1, "edge": 0.1},
+        ],
+        score=1.5,
+        pos=0.5,
+        ev=0.1,
+        ev_pct=0.01,
+        rom=5.0,
+        edge=0.2,
+        credit=1.0,
+        margin=250.0,
+        max_profit=100.0,
+        max_loss=-150.0,
+        breakevens=[95.0, 105.0],
+        fallback=None,
+        profit_estimated=False,
+        scenario_info={},
+    )
+
+    def generator(symbol, strategy, option_chain, atr, config, spot, interactive_mode=False):
+        return [generated], []
+
+    config = {
+        "STRATEGY_CONFIG": {
+            "default": {},
+            "strategies": {"iron_condor": {"exclude_expiry_before_earnings": True}},
+        },
+        "EARNINGS_DATES_FILE": str(earnings_file),
+    }
+
+    pipeline = StrategyPipeline(
+        config=config,
+        market_provider=None,
+        strike_selector_factory=selector_factory,
+        strategy_generator=generator,
+    )
+
+    context = StrategyContext(
+        symbol="XYZ",
+        strategy="iron_condor",
+        option_chain=[sample_option],
+        spot_price=101.0,
+        atr=1.0,
+        config=config["STRATEGY_CONFIG"],
+        dte_range=(0, 365),
+    )
+
+    proposals, summary = pipeline.build_proposals(context)
+
+    assert proposals == []
+    assert summary.by_reason.get("EARNINGS_BEFORE_EVENT") == 1
+    assert "iron_condor" in summary.by_strategy
+    reasons = summary.by_strategy["iron_condor"]
+    assert any(reason.code == "EARNINGS_BEFORE_EVENT" for reason in reasons)

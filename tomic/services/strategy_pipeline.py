@@ -2,8 +2,9 @@ from __future__ import annotations
 
 """Strategy generation pipeline used by CLI and services."""
 
+import json
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import date, datetime
 from pathlib import Path
 from typing import Any, Callable, Mapping, MutableMapping, Sequence
 
@@ -16,7 +17,12 @@ from ..logutils import logger
 from ..mid_resolver import MidResolver, build_mid_resolver
 from ..utils import get_option_mid_price, normalize_leg
 from ..helpers.dateutils import parse_date
-from ..strategy.reasons import ReasonDetail, dedupe_reasons
+from ..strategy.reasons import (
+    ReasonCategory,
+    ReasonDetail,
+    dedupe_reasons,
+    make_reason,
+)
 
 
 ConfigGetter = Callable[[str, Any | None], Any]
@@ -36,6 +42,7 @@ class StrategyContext:
     dte_range: tuple[int, int] | None = None
     interactive_mode: bool = False
     criteria: Any | None = None
+    next_earnings: date | None = None
     debug_path: Path | None = None
 
 
@@ -97,6 +104,8 @@ class StrategyPipeline:
         self.last_selected: list[MutableMapping[str, Any]] = []
         self.last_evaluated: list[dict[str, Any]] = []
         self.last_rejections: dict[str, Any] = {}
+        self._earnings_data: dict[str, list[str]] | None = None
+        self._earnings_cache: dict[str, date | None] = {}
 
     # ------------------------------------------------------------------
     # Public API
@@ -164,10 +173,26 @@ class StrategyPipeline:
                 self._convert_proposal(canonical_strategy, proposal)
                 for proposal in raw_props
             ]
+        earnings_reasons: list[ReasonDetail] = []
+        if proposals:
+            proposals, earnings_reasons = self._apply_earnings_filter(
+                canonical_strategy, context, proposals
+            )
+        if earnings_reasons:
+            reason_counts = self.last_rejections.get("by_reason", {})
+            for reason in earnings_reasons:
+                reason_counts[reason.code] = reason_counts.get(reason.code, 0) + 1
+            self.last_rejections["by_reason"] = reason_counts
+
+        combined_reasons: list[ReasonDetail] = []
         if reasons:
-            self.last_rejections["by_strategy"] = {
-                canonical_strategy: dedupe_reasons(reasons)
-            }
+            combined_reasons.extend(dedupe_reasons(reasons))
+        if earnings_reasons:
+            combined_reasons.extend(dedupe_reasons(earnings_reasons))
+        if combined_reasons:
+            existing = self.last_rejections.get("by_strategy") or {}
+            existing[canonical_strategy] = dedupe_reasons(combined_reasons)
+            self.last_rejections["by_strategy"] = existing
         summary = self.summarize_rejections(self.last_rejections)
         return proposals, summary
 
@@ -219,6 +244,150 @@ class StrategyPipeline:
             return int(dte_range[0]), int(dte_range[1])
         except Exception:
             return 0, 365
+
+    def _as_bool(self, value: Any) -> bool | None:
+        if isinstance(value, bool):
+            return value
+        if isinstance(value, (int, float)):
+            return bool(value)
+        if isinstance(value, str):
+            low = value.strip().lower()
+            if low in {"true", "yes", "y", "1", "on"}:
+                return True
+            if low in {"false", "no", "n", "0", "off"}:
+                return False
+        return None
+
+    def _earnings_filter_enabled(
+        self, strategy: str, config: Mapping[str, Any] | None
+    ) -> bool:
+        config_data = config or self._config_getter("STRATEGY_CONFIG", {}) or {}
+        if not isinstance(config_data, Mapping):
+            return False
+        strategies_cfg = config_data.get("strategies")
+        if isinstance(strategies_cfg, Mapping):
+            strat_cfg = strategies_cfg.get(strategy)
+            if isinstance(strat_cfg, Mapping):
+                flag = self._as_bool(strat_cfg.get("exclude_expiry_before_earnings"))
+                if flag is not None:
+                    return flag
+        default_cfg = config_data.get("default")
+        if isinstance(default_cfg, Mapping):
+            flag = self._as_bool(default_cfg.get("exclude_expiry_before_earnings"))
+            if flag is not None:
+                return flag
+        return False
+
+    def _load_earnings_data(self) -> dict[str, list[str]]:
+        if self._earnings_data is not None:
+            return self._earnings_data
+        path_value = self._config_getter(
+            "EARNINGS_DATES_FILE", "tomic/data/earnings_dates.json"
+        )
+        if not path_value:
+            self._earnings_data = {}
+            return self._earnings_data
+        path = Path(str(path_value)).expanduser()
+        try:
+            raw = json.loads(path.read_text(encoding="utf-8"))
+        except Exception:
+            self._earnings_data = {}
+            return self._earnings_data
+        data: dict[str, list[str]] = {}
+        if isinstance(raw, Mapping):
+            for symbol, entries in raw.items():
+                if not isinstance(symbol, str):
+                    continue
+                if isinstance(entries, Sequence) and not isinstance(entries, (str, bytes)):
+                    normalized = [
+                        str(item)
+                        for item in entries
+                        if isinstance(item, str) and item.strip()
+                    ]
+                    if normalized:
+                        data[symbol.upper()] = normalized
+        self._earnings_data = data
+        return self._earnings_data
+
+    def _next_earnings(self, context: StrategyContext) -> date | None:
+        value = context.next_earnings
+        parsed: date | None = None
+        if isinstance(value, datetime):
+            parsed = value.date()
+        elif isinstance(value, date):
+            parsed = value
+        elif isinstance(value, str):
+            parsed = parse_date(value)
+        if parsed is not None:
+            return parsed
+        symbol = context.symbol.upper()
+        if symbol in self._earnings_cache:
+            return self._earnings_cache[symbol]
+        data = self._load_earnings_data()
+        entries = data.get(symbol, [])
+        today_date = date.today()
+        upcoming: list[date] = []
+        for raw in entries:
+            parsed_entry = parse_date(raw)
+            if parsed_entry is None:
+                continue
+            if parsed_entry >= today_date:
+                upcoming.append(parsed_entry)
+        next_event = min(upcoming) if upcoming else None
+        self._earnings_cache[symbol] = next_event
+        return next_event
+
+    def _latest_expiry(
+        self, legs: Sequence[Mapping[str, Any]]
+    ) -> date | None:
+        expiries: list[date] = []
+        for leg in legs:
+            raw = leg.get("expiry")
+            parsed: date | None
+            if isinstance(raw, datetime):
+                parsed = raw.date()
+            elif isinstance(raw, date):
+                parsed = raw
+            elif isinstance(raw, str):
+                parsed = parse_date(raw)
+            else:
+                parsed = None
+            if parsed is not None:
+                expiries.append(parsed)
+        return max(expiries) if expiries else None
+
+    def _apply_earnings_filter(
+        self,
+        strategy: str,
+        context: StrategyContext,
+        proposals: Sequence[StrategyProposal],
+    ) -> tuple[list[StrategyProposal], list[ReasonDetail]]:
+        if not proposals:
+            return list(proposals), []
+        if not self._earnings_filter_enabled(strategy, context.config):
+            return list(proposals), []
+        earnings_date = self._next_earnings(context)
+        if earnings_date is None:
+            return list(proposals), []
+        kept: list[StrategyProposal] = []
+        rejected: list[ReasonDetail] = []
+        for proposal in proposals:
+            latest_expiry = self._latest_expiry(proposal.legs)
+            if latest_expiry is None or latest_expiry >= earnings_date:
+                kept.append(proposal)
+                continue
+            reason = make_reason(
+                ReasonCategory.POLICY_VIOLATION,
+                "EARNINGS_BEFORE_EVENT",
+                f"Earnings {earnings_date.isoformat()} voor expiry {latest_expiry.isoformat()}",
+                data={
+                    "earnings_date": earnings_date.isoformat(),
+                    "expiry": latest_expiry.isoformat(),
+                    "strategy": strategy,
+                },
+            )
+            rejected.append(reason)
+        return kept, rejected
 
     def _build_filter_config(self, rules: Mapping[str, Any]) -> FilterConfig:
         def _float(val: Any, default: float | None = None) -> float | None:

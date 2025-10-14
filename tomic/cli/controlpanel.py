@@ -1627,6 +1627,12 @@ def run_portfolio_menu() -> None:
                     filtered = filter_by_expiry(list(chain_records), dte_tuple)
                     if not filtered:
                         continue
+                    earnings_value = rec.get("next_earnings")
+                    earnings_date = None
+                    if isinstance(earnings_value, date):
+                        earnings_date = earnings_value
+                    elif isinstance(earnings_value, str):
+                        earnings_date = parse_date(earnings_value)
                     context = StrategyContext(
                         symbol=symbol,
                         strategy=strategy,
@@ -1637,6 +1643,7 @@ def run_portfolio_menu() -> None:
                         interest_rate=float(cfg.get("INTEREST_RATE", 0.05)),
                         dte_range=dte_tuple,
                         interactive_mode=False,
+                        next_earnings=earnings_date,
                     )
                     proposals, _ = pipeline.build_proposals(context)
                     for proposal in proposals:
