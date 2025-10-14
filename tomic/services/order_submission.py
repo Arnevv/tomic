@@ -284,6 +284,14 @@ class OrderSubmissionService:
         first_exchange = getattr(first_contract, "exchange", None)
         combo_contract.exchange = str(first_exchange or _cfg("OPTIONS_EXCHANGE", "SMART"))
         combo_contract.comboLegs = []  # type: ignore[assignment]
+        # Ensure the BAG contract is "clean" and does not inherit default
+        # option attributes (e.g. absurd default strikes) that IB will reject.
+        combo_contract.lastTradeDateOrContractMonth = ""
+        combo_contract.strike = 0.0
+        combo_contract.right = ""
+        combo_contract.multiplier = ""
+        combo_contract.tradingClass = ""
+        combo_contract.primaryExchange = ""
 
         combo_quantity = math.gcd(*qtys)
         if combo_quantity <= 0:
