@@ -35,7 +35,7 @@ def refresh_portfolio_data() -> None:
     """Fetch latest portfolio data via the IB API and update timestamp."""
     from tomic.api import getaccountinfo
 
-    logger.info("\ud83d\udd04 Vernieuw portfolio data via getaccountinfo")
+    logger.info("🔄 Vernieuw portfolio data via getaccountinfo")
     try:
         getaccountinfo.main()
     except Exception as exc:  # pragma: no cover - network/IB errors
@@ -61,14 +61,14 @@ def print_account_summary(values: dict, portfolio: dict) -> None:
     delta = portfolio.get("Delta")
     vega = portfolio.get("Vega")
     parts = [
-        f"\ud83d\udcb0 Netliq: {_fmt_money(net_liq)}",
-        f"\ud83c\udfe6 Margin used: {_fmt_money(margin)}",
+        f"💰 Netliq: {_fmt_money(net_liq)}",
+        f"🏦 Margin used: {_fmt_money(margin)}",
     ]
-    parts.append(f"\ud83d\udcc9 \u0394: {delta:+.2f}" if delta is not None else "\ud83d\udcc9 \u0394: n.v.t.")
+    parts.append(f"📉 Δ: {delta:+.2f}" if delta is not None else "📉 Δ: n.v.t.")
     parts.append(
-        f"\ud83d\udcc8 Vega: {vega:+.0f}" if vega is not None else "\ud83d\udcc8 Vega: n.v.t."
+        f"📈 Vega: {vega:+.0f}" if vega is not None else "📈 Vega: n.v.t."
     )
     if used_pct is not None:
-        parts.append(f"\ud83d\udce6 Used: {used_pct:.0f}%")
+        parts.append(f"📦 Used: {used_pct:.0f}%")
     print("=== ACCOUNT ===")
     print(" | ".join(parts))
