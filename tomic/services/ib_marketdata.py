@@ -356,7 +356,11 @@ class IBMarketDataService:
                 )
             for leg in proposal.legs:
                 try:
-                    contract = self._build_contract(leg)
+                    contract = self._build_contract(
+                        leg,
+                        log=False,
+                        warn_missing=False,
+                    )
                     contract = self._maybe_enrich_contract(app, leg, contract, timeout)
                 except Exception as exc:
                     logger.warning(f"⚠️ Contract kon niet worden opgebouwd: {exc}")
@@ -370,6 +374,7 @@ class IBMarketDataService:
                 req_id = app._next_id()
                 app.register_request(req_id, snapshot=use_snapshot)
                 event = app._event(req_id)
+                self._log_contract(contract, leg)
                 logger.debug(
                     "reqMktData req_id=%s symbol=%s strike=%s right=%s", req_id, contract.symbol, getattr(contract, "strike", "-"), getattr(contract, "right", "-")
                 )
@@ -410,7 +415,13 @@ class IBMarketDataService:
                 logger.debug("Kon IB verbinding niet netjes sluiten", exc_info=True)
 
     # ------------------------------------------------------------------
-    def _build_contract(self, leg: Mapping[str, Any]) -> Contract:
+    def _build_contract(
+        self,
+        leg: Mapping[str, Any],
+        *,
+        log: bool = True,
+        warn_missing: bool = True,
+    ) -> Contract:
         symbol = _normalize_symbol(leg)
         expiry = _parse_expiry(str(leg.get("expiry")))
         strike = float(leg.get("strike"))
@@ -429,7 +440,10 @@ class IBMarketDataService:
             primary_exchange=leg.get("primaryExchange") or leg.get("primary_exchange"),
             con_id=leg.get("conId") or leg.get("con_id"),
         )
-        contract = info.to_ib()
+        contract = info.to_ib(
+            log=log,
+            warn_on_missing_trading_class=warn_missing,
+        )
         return contract
 
     def _maybe_enrich_contract(
@@ -473,10 +487,35 @@ class IBMarketDataService:
         if not updated:
             return contract
         try:
-            return self._build_contract(leg)
+            return self._build_contract(leg, log=False, warn_missing=False)
         except Exception:
             logger.debug("Failed to rebuild contract with enriched data", exc_info=True)
             return contract
+
+    def _log_contract(self, contract: Contract, leg: Mapping[str, Any]) -> None:
+        symbol = _normalize_symbol(leg)
+        trading_class = leg.get("tradingClass") or leg.get("trading_class")
+        if not trading_class:
+            trading_class = getattr(contract, "tradingClass", "") or symbol
+            logger.warning(
+                "⚠️ tradingClass ontbreekt voor %s - fallback naar %s",
+                symbol,
+                trading_class,
+            )
+        logger.debug(
+            "IB contract built: symbol=%s secType=%s exchange=%s primaryExchange=%s "
+            "currency=%s expiry=%s strike=%s right=%s multiplier=%s tradingClass=%s",
+            getattr(contract, "symbol", None),
+            getattr(contract, "secType", None),
+            getattr(contract, "exchange", None),
+            getattr(contract, "primaryExchange", ""),
+            getattr(contract, "currency", None),
+            getattr(contract, "lastTradeDateOrContractMonth", None),
+            getattr(contract, "strike", None),
+            getattr(contract, "right", None),
+            getattr(contract, "multiplier", None),
+            trading_class,
+        )
 
     def _apply_snapshot(self, leg: Mapping[str, Any], data: Mapping[str, Any]) -> None:
         if not isinstance(leg, dict):
@@ -496,8 +535,21 @@ class IBMarketDataService:
         if mid is not None:
             leg["mid"] = round(mid, 4)
             leg.pop("missing_edge", None)
+            if isinstance(bid, (int, float)) and isinstance(ask, (int, float)) and ask > 0:
+                leg["mid_source"] = "true"
+                leg["mid_reason"] = "IB streaming bid/ask"
+                leg.pop("mid_fallback", None)
+                leg.pop("mid_from_parity", None)
         else:
             leg["missing_edge"] = True
+
+        delta = leg.get("delta")
+        if isinstance(delta, (int, float)):
+            right = get_leg_right(leg)
+            if right == "put":
+                leg["delta"] = -abs(float(delta))
+            elif right == "call":
+                leg["delta"] = abs(float(delta))
 
         quantity = get_leg_qty(leg)
         leg.setdefault("qty", quantity)
