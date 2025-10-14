@@ -54,6 +54,7 @@ class AppConfig(BaseModel):
     USE_HISTORICAL_IV_WHEN_CLOSED: bool = True
     INCLUDE_GREEKS_ONLY_IF_MARKET_OPEN: bool = True
     ALLOW_INCOMPLETE_METRICS: bool = False
+    MARKET_SCAN_TOP_N: int = 10
 
     # Parameters for IV history snapshots -------------------------------
     IV_TRACKING_DELTAS: List[float] = [0.25, 0.5]

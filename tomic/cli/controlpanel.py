@@ -1461,6 +1461,285 @@ def run_portfolio_menu() -> None:
 
         recs, table_rows = build_market_overview(rows)
 
+        def _run_market_scan() -> None:
+            if not recs:
+                print("⚠️ Geen aanbevelingen beschikbaar voor scan.")
+                return
+
+            top_raw = cfg.get("MARKET_SCAN_TOP_N", 10)
+            try:
+                top_n = int(top_raw)
+            except Exception:
+                print(f"⚠️ Markt scan overgeslagen: ongeldige MARKET_SCAN_TOP_N ({top_raw!r})")
+                return
+            if top_n <= 0:
+                print("⚠️ MARKET_SCAN_TOP_N is 0 — scan overgeslagen.")
+                return
+
+            grouped: dict[str, list[dict[str, Any]]] = defaultdict(list)
+            for rec in recs:
+                symbol = str(rec.get("symbol") or "").upper()
+                strategy_name = str(rec.get("strategy") or "")
+                if not symbol or not strategy_name:
+                    continue
+                grouped[symbol].append(rec)
+
+            if not grouped:
+                print("⚠️ Geen symbolen om te scannen.")
+                return
+
+            print("🔍 Markt scan via Polygon gestart…")
+            pipeline = _get_strategy_pipeline()
+            config_data = cfg.get("STRATEGY_CONFIG") or {}
+            results: list[dict[str, Any]] = []
+
+            for symbol, symbol_recs in grouped.items():
+                chain_path = services.fetch_polygon_chain(symbol)
+                if not chain_path:
+                    print(f"⚠️ Geen polygon chain gevonden voor {symbol}")
+                    continue
+                try:
+                    df = pd.read_csv(chain_path)
+                except Exception as exc:
+                    print(f"⚠️ Kon chain voor {symbol} niet laden: {exc}")
+                    continue
+                df.columns = [c.lower() for c in df.columns]
+                df = normalize_european_number_format(
+                    df,
+                    [
+                        "bid",
+                        "ask",
+                        "close",
+                        "iv",
+                        "delta",
+                        "gamma",
+                        "vega",
+                        "theta",
+                        "mid",
+                    ],
+                )
+                if "expiry" not in df.columns and "expiration" in df.columns:
+                    df = df.rename(columns={"expiration": "expiry"})
+                elif "expiry" in df.columns and "expiration" in df.columns:
+                    df = df.drop(columns=["expiration"])
+                if "expiry" in df.columns:
+                    df["expiry"] = pd.to_datetime(df["expiry"], errors="coerce").dt.strftime(
+                        "%Y-%m-%d"
+                    )
+                chain_records = [
+                    normalize_leg(rec) for rec in df.to_dict(orient="records")
+                ]
+                if not chain_records:
+                    print(f"⚠️ Geen optiedata beschikbaar voor {symbol}")
+                    continue
+
+                spot_price = refresh_spot_price(symbol)
+                if spot_price is None or spot_price <= 0:
+                    spot_price = _load_spot_from_metrics(chain_path.parent, symbol)
+                if spot_price is None or spot_price <= 0:
+                    spot_price, _ = _load_latest_close(symbol)
+                if spot_price is None or spot_price <= 0:
+                    spot_price = _spot_from_chain(chain_records)
+                if spot_price is None or spot_price <= 0:
+                    print(f"⚠️ Geen geldige spotprijs voor {symbol}")
+                    continue
+
+                atr_val = latest_atr(symbol) or 0.0
+
+                for rec in symbol_recs:
+                    raw_strategy = str(rec.get("strategy") or "")
+                    strategy = raw_strategy.lower().replace(" ", "_")
+                    if not strategy:
+                        continue
+                    rules = load_strike_config(strategy, config_data) if config_data else {}
+                    dte_range = rules.get("dte_range") or [0, 365]
+                    try:
+                        dte_tuple = (int(dte_range[0]), int(dte_range[1]))
+                    except Exception:
+                        dte_tuple = (0, 365)
+                    filtered = filter_by_expiry(list(chain_records), dte_tuple)
+                    if not filtered:
+                        continue
+                    context = StrategyContext(
+                        symbol=symbol,
+                        strategy=strategy,
+                        option_chain=filtered,
+                        spot_price=float(spot_price),
+                        atr=float(atr_val),
+                        config=config_data or {},
+                        interest_rate=float(cfg.get("INTEREST_RATE", 0.05)),
+                        dte_range=dte_tuple,
+                        interactive_mode=False,
+                    )
+                    proposals, _ = pipeline.build_proposals(context)
+                    for proposal in proposals:
+                        if proposal.score is None:
+                            continue
+                        results.append(
+                            {
+                                "symbol": symbol,
+                                "strategy": raw_strategy,
+                                "proposal": proposal,
+                                "metrics": rec,
+                                "spot": spot_price,
+                            }
+                        )
+
+            if not results:
+                print("⚠️ Geen voorstellen gevonden tijdens scan.")
+                return
+
+            def _avg_bid_ask_pct(proposal: StrategyProposal) -> float | None:
+                spreads: list[float] = []
+                for leg in proposal.legs:
+                    bid = _to_float(leg.get("bid"))
+                    ask = _to_float(leg.get("ask"))
+                    if bid is None or ask is None:
+                        continue
+                    mid = (bid + ask) / 2
+                    if math.isclose(mid, 0.0):
+                        base = ask
+                    else:
+                        base = mid
+                    if base in {None, 0} or math.isclose(base, 0.0):
+                        continue
+                    spreads.append(((ask - bid) / base) * 100)
+                if not spreads:
+                    return None
+                return sum(spreads) / len(spreads)
+
+            def _risk_reward(proposal: StrategyProposal) -> float | None:
+                profit = _to_float(proposal.max_profit)
+                loss = _to_float(proposal.max_loss)
+                if profit is None or loss in {None, 0}:
+                    return None
+                risk = abs(loss)
+                if risk <= 0:
+                    return None
+                return profit / risk
+
+            def _mid_sources(proposal: StrategyProposal) -> str:
+                fallback = getattr(proposal, "fallback", None)
+                if isinstance(fallback, str) and fallback.strip():
+                    return fallback
+                sources: set[str] = set()
+                for leg in proposal.legs:
+                    src = str(leg.get("mid_fallback") or leg.get("mid_source") or "").strip()
+                    if src:
+                        sources.add(src)
+                if not sources:
+                    return "quotes"
+                return ",".join(sorted(sources))
+
+            def _fmt_pct(value: float | None) -> str:
+                if value is None:
+                    return "—"
+                return f"{value:.0f}%"
+
+            def _fmt_ratio(value: float | None) -> str:
+                if value is None:
+                    return "—"
+                return f"{value:.2f}"
+
+            def _fmt_money(value: float | None) -> str:
+                if value is None:
+                    return "—"
+                return f"{value:.2f}"
+
+            results.sort(key=lambda item: item["proposal"].score or 0.0, reverse=True)
+            top_results = results[:top_n]
+
+            rows_out: list[list[str]] = []
+            for idx, item in enumerate(top_results, 1):
+                prop = item["proposal"]
+                metrics = item["metrics"]
+                iv_rank_raw = metrics.get("iv_rank")
+                try:
+                    iv_rank_pct = float(iv_rank_raw) * 100 if iv_rank_raw is not None else None
+                except Exception:
+                    iv_rank_pct = None
+                skew_raw = metrics.get("skew")
+                try:
+                    skew_fmt = f"{float(skew_raw):.2f}" if skew_raw is not None else "—"
+                except Exception:
+                    skew_fmt = "—"
+                earnings_raw = metrics.get("next_earnings")
+                earnings = (
+                    str(earnings_raw)
+                    if earnings_raw not in {None, ""}
+                    else "—"
+                )
+                rows_out.append(
+                    [
+                        idx,
+                        item["symbol"],
+                        item["strategy"],
+                        _fmt_money(prop.score),
+                        _fmt_money(prop.ev),
+                        _fmt_ratio(_risk_reward(prop)),
+                        _format_dtes(prop.legs),
+                        _fmt_pct(iv_rank_pct),
+                        skew_fmt,
+                        _fmt_pct(_avg_bid_ask_pct(prop)),
+                        _mid_sources(prop),
+                        earnings,
+                    ]
+                )
+
+            print(
+                tabulate(
+                    rows_out,
+                    headers=[
+                        "Nr",
+                        "Symbool",
+                        "Strategie",
+                        "Score",
+                        "EV",
+                        "R/R",
+                        "DTE",
+                        "IV Rank",
+                        "Skew",
+                        "Bid/Ask%",
+                        "MidSrc",
+                        "Earnings",
+                    ],
+                    tablefmt="github",
+                    colalign=(
+                        "right",
+                        "left",
+                        "left",
+                        "right",
+                        "right",
+                        "right",
+                        "left",
+                        "right",
+                        "right",
+                        "right",
+                        "left",
+                        "left",
+                    ),
+                )
+            )
+
+            while True:
+                sel = prompt("Selectie scan (0 om terug): ")
+                if sel in {"", "0"}:
+                    break
+                try:
+                    idx = int(sel) - 1
+                    chosen = top_results[idx]
+                except (ValueError, IndexError):
+                    print("❌ Ongeldige keuze")
+                    continue
+                SESSION_STATE.update(
+                    {
+                        "symbol": chosen["symbol"],
+                        "strategy": chosen["strategy"],
+                        "spot_price": chosen.get("spot"),
+                    }
+                )
+                _show_proposal_details(chosen["proposal"])
+
         if recs:
             print(
                 tabulate(
@@ -1494,7 +1773,10 @@ def run_portfolio_menu() -> None:
             )
 
             while True:
-                sel = prompt("Selectie (0 om terug): ")
+                sel = prompt("Selectie (0 om terug, 999 voor scan): ")
+                if sel == "999":
+                    _run_market_scan()
+                    continue
                 if sel in {"", "0"}:
                     break
                 try:

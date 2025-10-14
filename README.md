@@ -67,7 +67,7 @@ Optie Beschrijving
 2. Portfolio ophalen en tonen    Haal actuele posities op en toon het strategie-dashboard.
 3. Laatst opgehaalde portfolio tonen    Gebruik eerder opgeslagen portfolio-data.
 4. Toon portfolio greeks    Laat delta, gamma, vega en theta van je posities zien.
-5. Toon marktinformatie    Geeft IV- en HV-metrics weer voor je standaard-symbolen en toont de eerstvolgende earningsdatum.
+5. Toon marktinformatie    Geeft IV- en HV-metrics weer voor je standaard-symbolen en toont de eerstvolgende earningsdatum. Voer 999 in om een Polygon-scan te starten die alle symbolen scoort en de topresultaten toont (aantal instelbaar via MARKET_SCAN_TOP_N).
 6. Chainbron kiezen    Selecteer een option chain via TWS, Polygon of een eigen CSV.
 
 Kies je voor **Chainbron kiezen**, dan kun je eerst bepalen waar de keten vandaan
