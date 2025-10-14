@@ -95,21 +95,48 @@ def _serialize_instruction(instr: "OrderInstruction") -> dict[str, Any]:
                 "exchange": getattr(leg, "exchange", None),
             }
         )
+    contract_data = {
+        "symbol": getattr(contract, "symbol", None),
+        "secType": getattr(contract, "secType", None),
+        "expiry": getattr(contract, "lastTradeDateOrContractMonth", None),
+        "strike": getattr(contract, "strike", None),
+        "right": getattr(contract, "right", None),
+        "exchange": getattr(contract, "exchange", None),
+        "currency": getattr(contract, "currency", None),
+        "multiplier": getattr(contract, "multiplier", None),
+        "tradingClass": getattr(contract, "tradingClass", None),
+        "primaryExchange": getattr(contract, "primaryExchange", None),
+        "conId": getattr(contract, "conId", None),
+    }
+
+    sec_type = contract_data.get("secType")
+    filtered_contract: dict[str, Any] = {}
+    for key, value in contract_data.items():
+        if value in (None, ""):
+            continue
+        if isinstance(value, (int, float)) and not math.isfinite(float(value)):
+            continue
+        if key == "conId":
+            try:
+                if int(value) == 0:
+                    continue
+            except (TypeError, ValueError):
+                pass
+        if sec_type == "BAG" and key in {"expiry", "strike", "right", "multiplier", "tradingClass"}:
+            if key == "strike":
+                try:
+                    if float(value) != 0:
+                        filtered_contract[key] = value
+                except (TypeError, ValueError):
+                    pass
+            continue
+        filtered_contract[key] = value
+
+    if combo_legs:
+        filtered_contract["comboLegs"] = combo_legs
+
     return {
-        "contract": {
-            "symbol": getattr(contract, "symbol", None),
-            "secType": getattr(contract, "secType", None),
-            "expiry": getattr(contract, "lastTradeDateOrContractMonth", None),
-            "strike": getattr(contract, "strike", None),
-            "right": getattr(contract, "right", None),
-            "exchange": getattr(contract, "exchange", None),
-            "currency": getattr(contract, "currency", None),
-            "multiplier": getattr(contract, "multiplier", None),
-            "tradingClass": getattr(contract, "tradingClass", None),
-            "primaryExchange": getattr(contract, "primaryExchange", None),
-            "conId": getattr(contract, "conId", None),
-            "comboLegs": combo_legs or None,
-        },
+        "contract": filtered_contract,
         "order": {
             "action": getattr(order, "action", None),
             "totalQuantity": getattr(order, "totalQuantity", None),
@@ -152,7 +179,11 @@ class OrderPlacementApp(BaseIBApp):
 
     def openOrder(self, orderId: int, contract: Contract, order: Order, orderState: OrderState) -> None:  # noqa: N802 - IB API
         logger.info(
-            "📨 openOrder id=%s type=%s action=%s qty=%s", orderId, order.orderType, order.action, order.totalQuantity
+            "📨 openOrder "
+            f"id={orderId} "
+            f"type={order.orderType} "
+            f"action={order.action} "
+            f"qty={order.totalQuantity}"
         )
         self._order_events[orderId] = (order, orderState)
 
@@ -171,7 +202,11 @@ class OrderPlacementApp(BaseIBApp):
         mktCapPrice: float,
     ) -> None:  # noqa: N802 - IB API
         logger.info(
-            "📈 orderStatus id=%s status=%s filled=%s remaining=%s", orderId, status, filled, remaining
+            "📈 orderStatus "
+            f"id={orderId} "
+            f"status={status} "
+            f"filled={filled} "
+            f"remaining={remaining}"
         )
 
 
@@ -247,6 +282,14 @@ class OrderSubmissionService:
         combo_contract.currency = getattr(first_contract, "currency", "USD")
         first_exchange = getattr(first_contract, "exchange", None)
         combo_contract.exchange = str(first_exchange or _cfg("OPTIONS_EXCHANGE", "SMART"))
+        primary_exchange = getattr(first_contract, "primaryExchange", None) or combo_contract.exchange
+        combo_contract.primaryExchange = primary_exchange
+        combo_contract.lastTradeDateOrContractMonth = ""
+        combo_contract.right = ""
+        combo_contract.multiplier = ""
+        combo_contract.tradingClass = ""
+        combo_contract.strike = 0
+        combo_contract.conId = 0
         combo_contract.comboLegs = []  # type: ignore[assignment]
 
         combo_quantity = math.gcd(*qtys)

@@ -204,7 +204,8 @@ class QuoteSnapshotApp(BaseIBApp):
         try:
             if not event.wait(timeout):
                 logger.debug(
-                    "Contract details timeout for %s", getattr(contract, "localSymbol", contract)
+                    "Contract details timeout for "
+                    f"{getattr(contract, 'localSymbol', contract)}"
                 )
                 return None
             details = self._contract_details.pop(req_id, [])
@@ -354,8 +355,8 @@ class IBMarketDataService:
             use_snapshot = self._should_use_snapshot()
             if self._use_snapshot and not use_snapshot:
                 logger.debug(
-                    "Snapshot market data not supported with generic ticks %s; using streaming data instead",
-                    generic_ticks,
+                    "Snapshot market data not supported with generic ticks "
+                    f"{generic_ticks}; using streaming data instead"
                 )
             for leg in proposal.legs:
                 try:
@@ -368,8 +369,7 @@ class IBMarketDataService:
                 except Exception as exc:
                     logger.warning(f"⚠️ Contract kon niet worden opgebouwd: {exc}")
                     logger.warning(
-                        "IB leg payload bij fout: %s",
-                        pformat(_loggable_leg_payload(leg)),
+                        f"IB leg payload bij fout: {pformat(_loggable_leg_payload(leg))}"
                     )
                     missing.append(str(leg.get("strike")))
                     leg["missing_edge"] = True
@@ -385,20 +385,23 @@ class IBMarketDataService:
                     app.register_request(req_id, snapshot=use_snapshot)
                     event = app._event(req_id)
                     logger.debug(
-                        "reqMktData req_id=%s symbol=%s strike=%s right=%s attempt=%s",
-                        req_id,
-                        contract.symbol,
-                        getattr(contract, "strike", "-"),
-                        getattr(contract, "right", "-"),
-                        attempts,
+                        "reqMktData "
+                        f"req_id={req_id} "
+                        f"symbol={getattr(contract, 'symbol', '-')} "
+                        f"secType={getattr(contract, 'secType', '-')} "
+                        f"expiry={getattr(contract, 'lastTradeDateOrContractMonth', '-')} "
+                        f"strike={getattr(contract, 'strike', '-')} "
+                        f"right={getattr(contract, 'right', '-')} "
+                        f"exchange={getattr(contract, 'exchange', '-')} "
+                        f"snapshot={use_snapshot} "
+                        f"attempt={attempts}"
                     )
                     app.reqMktData(req_id, contract, generic_ticks, use_snapshot, False, [])
                     try:
                         if not event.wait(timeout):
                             logger.warning(
-                                "⏱ Timeout bij ophalen quote voor strike %s (poging %s)",
-                                leg.get("strike"),
-                                attempts,
+                                "⏱ Timeout bij ophalen quote voor "
+                                f"strike {leg.get('strike')} (poging {attempts})"
                             )
                         else:
                             snapshot = app._responses.get(req_id, {})
@@ -409,11 +412,9 @@ class IBMarketDataService:
                                 quote_received = True
                                 break
                             logger.debug(
-                                "Ontbrekende bid/ask na poging %s voor strike %s (bid=%s, ask=%s)",
-                                attempts,
-                                leg.get("strike"),
-                                snapshot.get("bid"),
-                                snapshot.get("ask"),
+                                "Ontbrekende bid/ask na poging "
+                                f"{attempts} voor strike {leg.get('strike')} "
+                                f"(bid={snapshot.get('bid')}, ask={snapshot.get('ask')})"
                             )
                     finally:
                         try:
@@ -530,24 +531,31 @@ class IBMarketDataService:
         if not trading_class:
             trading_class = getattr(contract, "tradingClass", "") or symbol
             logger.warning(
-                "⚠️ tradingClass ontbreekt voor %s - fallback naar %s",
-                symbol,
-                trading_class,
+                "⚠️ tradingClass ontbreekt voor "
+                f"{symbol} - fallback naar {trading_class}"
             )
-        logger.debug(
-            "IB contract built: symbol=%s secType=%s exchange=%s primaryExchange=%s "
-            "currency=%s expiry=%s strike=%s right=%s multiplier=%s tradingClass=%s",
-            getattr(contract, "symbol", None),
-            getattr(contract, "secType", None),
-            getattr(contract, "exchange", None),
-            getattr(contract, "primaryExchange", ""),
-            getattr(contract, "currency", None),
-            getattr(contract, "lastTradeDateOrContractMonth", None),
-            getattr(contract, "strike", None),
-            getattr(contract, "right", None),
-            getattr(contract, "multiplier", None),
-            trading_class,
+        primary_exchange = (
+            getattr(contract, "primaryExchange", None)
+            or leg.get("primaryExchange")
+            or leg.get("primary_exchange")
+            or getattr(contract, "exchange", None)
         )
+        parts = {
+            "symbol": getattr(contract, "symbol", None),
+            "secType": getattr(contract, "secType", None),
+            "exchange": getattr(contract, "exchange", None),
+            "primaryExchange": primary_exchange,
+            "currency": getattr(contract, "currency", None),
+            "expiry": getattr(contract, "lastTradeDateOrContractMonth", None),
+            "strike": getattr(contract, "strike", None),
+            "right": getattr(contract, "right", None),
+            "multiplier": getattr(contract, "multiplier", None),
+            "tradingClass": trading_class,
+        }
+        formatted = " ".join(
+            f"{key}={value}" for key, value in parts.items() if value not in (None, "")
+        )
+        logger.debug(f"IB contract built: {formatted}")
 
     def _apply_snapshot(self, leg: Mapping[str, Any], data: Mapping[str, Any]) -> None:
         if not isinstance(leg, dict):

@@ -37,7 +37,7 @@ class OptionContract:
         contract.symbol = self.symbol
         contract.secType = "OPT"
         contract.exchange = self.exchange
-        contract.primaryExchange = self.primary_exchange or ""
+        contract.primaryExchange = self.primary_exchange or self.exchange
         contract.currency = self.currency
         contract.lastTradeDateOrContractMonth = self.expiry
         contract.strike = self.strike
@@ -49,28 +49,29 @@ class OptionContract:
             contract.tradingClass = self.symbol.upper()
             if warn_on_missing_trading_class:
                 logger.warning(
-                    "⚠️ tradingClass ontbreekt voor %s - fallback naar %s",
-                    self.symbol,
-                    contract.tradingClass,
+                    "⚠️ tradingClass ontbreekt voor "
+                    f"{self.symbol} - fallback naar {contract.tradingClass}"
                 )
         else:
             contract.tradingClass = self.trading_class
 
         if log:
-            logger.debug(
-                "IB contract built: symbol=%s secType=%s exchange=%s primaryExchange=%s "
-                "currency=%s expiry=%s strike=%s right=%s multiplier=%s tradingClass=%s",
-                contract.symbol,
-                contract.secType,
-                contract.exchange,
-                getattr(contract, "primaryExchange", ""),
-                contract.currency,
-                contract.lastTradeDateOrContractMonth,
-                contract.strike,
-                contract.right,
-                contract.multiplier,
-                contract.tradingClass,
+            details = {
+                "symbol": contract.symbol,
+                "secType": contract.secType,
+                "exchange": contract.exchange,
+                "primaryExchange": getattr(contract, "primaryExchange", ""),
+                "currency": contract.currency,
+                "expiry": contract.lastTradeDateOrContractMonth,
+                "strike": contract.strike,
+                "right": contract.right,
+                "multiplier": contract.multiplier,
+                "tradingClass": contract.tradingClass,
+            }
+            formatted = " ".join(
+                f"{key}={value}" for key, value in details.items() if value not in (None, "")
             )
+            logger.debug(f"IB contract built: {formatted}")
 
         return contract
 
