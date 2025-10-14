@@ -1032,6 +1032,7 @@ class OptionChainClient(MarketClient):
         vega: float,
         theta: float,
         undPrice: float,
+        lastGreeksUpdateTime: float | None = None,
     ) -> None:  # noqa: N802
         with self.data_lock:
             rec = self.market_data.setdefault(reqId, {})

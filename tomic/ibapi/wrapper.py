@@ -616,6 +616,7 @@ class EWrapper:
         vega: float,
         theta: float,
         undPrice: float,
+        lastGreeksUpdateTime: float | None = None,
     ):
         """This function is called when the market in an option or its
         underlier moves. TWS's option model volatilities, prices, and

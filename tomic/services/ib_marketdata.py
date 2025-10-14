@@ -171,6 +171,7 @@ class QuoteSnapshotApp(BaseIBApp):
         vega: float,
         theta: float,
         undPrice: float,
+        lastGreeksUpdateTime: float | None = None,
     ) -> None:  # noqa: N802 - IB API
         data = self._data(reqId)
         if not math.isnan(delta):
