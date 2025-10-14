@@ -2,9 +2,17 @@
 
 from __future__ import annotations
 
+from collections import defaultdict
+from datetime import date, datetime
 from typing import Any, Dict, List, Tuple
 
+from tomic import config as cfg
 from tomic.cli.volatility_recommender import recommend_strategies
+from tomic.helpers.strategy_config import (
+    canonical_strategy_name,
+    coerce_int,
+    get_strategy_setting,
+)
 
 
 def categorize(exposure: str) -> str:
@@ -67,6 +75,9 @@ def build_market_overview(
         such as information about filtered recommendations.
     """
     recs: List[Dict[str, Any]] = []
+    config_data = cfg.get("STRATEGY_CONFIG") or {}
+    filtered_meta_sets: Dict[str, set[str]] = defaultdict(set)
+
     for r in rows:
         metrics = {
             "IV": r[2],
@@ -82,6 +93,14 @@ def build_market_overview(
             "skew": r[11],
         }
         symbol = r[0]
+        earnings_date: date | None = None
+        if len(r) > 12:
+            raw_earnings = r[12]
+            if isinstance(raw_earnings, str) and raw_earnings:
+                try:
+                    earnings_date = datetime.strptime(raw_earnings, "%Y-%m-%d").date()
+                except Exception:
+                    earnings_date = None
         days_until: int | None = None
         if len(r) > 13:
             raw_days = r[13]
@@ -90,11 +109,30 @@ def build_market_overview(
                     days_until = int(raw_days)
                 except Exception:
                     days_until = None
+        if days_until is None and earnings_date is not None:
+            try:
+                days_until = (earnings_date - date.today()).days
+            except Exception:
+                days_until = None
         matches = recommend_strategies(metrics)
         for rec in matches:
             crit = ", ".join(rec.get("criteria", []))
             strategy_name = rec.get("strategy")
             if not isinstance(strategy_name, str):
+                continue
+            min_days_value = get_strategy_setting(
+                config_data,
+                canonical_strategy_name(strategy_name),
+                "min_days_until_earnings",
+            )
+            min_days = coerce_int(min_days_value)
+            if (
+                min_days is not None
+                and min_days > 0
+                and days_until is not None
+                and days_until < min_days
+            ):
+                filtered_meta_sets[symbol].add(strategy_name)
                 continue
             recs.append(
                 {
@@ -120,7 +158,10 @@ def build_market_overview(
                 }
             )
 
-    filtered_meta: Dict[str, List[str]] = {}
+    filtered_meta: Dict[str, List[str]] = {
+        symbol: sorted(strategies)
+        for symbol, strategies in filtered_meta_sets.items()
+    }
 
     if not recs:
         return [], [], {"earnings_filtered": filtered_meta}

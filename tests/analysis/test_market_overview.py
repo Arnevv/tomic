@@ -61,7 +61,7 @@ def test_build_market_overview_no_recommendations(monkeypatch):
     assert meta == {"earnings_filtered": {}}
 
 
-def test_build_market_overview_no_longer_filters_on_earnings(monkeypatch):
+def test_build_market_overview_filters_on_strategy_setting(monkeypatch):
     rows = [[
         "CCC",
         200.0,
@@ -98,7 +98,7 @@ def test_build_market_overview_no_longer_filters_on_earnings(monkeypatch):
     )
 
     recs, table, meta = build_market_overview(rows)
-    assert len(recs) == 2
-    assert {r["strategy"] for r in recs} == {"Iron Condor", "Short Put Spread"}
-    assert len(table) == 2
-    assert meta == {"earnings_filtered": {}}
+    assert len(recs) == 1
+    assert recs[0]["strategy"] == "Short Put Spread"
+    assert len(table) == 1
+    assert meta == {"earnings_filtered": {"CCC": ["Iron Condor"]}}

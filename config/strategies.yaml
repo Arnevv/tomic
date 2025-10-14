@@ -4,6 +4,7 @@ default:
   min_risk_reward: 1.0
   allow_unpriced_wings: false
   exclude_expiry_before_earnings: false
+  min_days_until_earnings: 0
   strike_to_strategy_config:
     use_ATR: true                # standaard ATR-gebaseerde afstand
     wing_width_sigma: 1.0        # wings standaard op ±1σ
@@ -15,6 +16,7 @@ strategies:
     min_risk_reward: 1.5
     allow_unpriced_wings: true
     exclude_expiry_before_earnings: true
+    min_days_until_earnings: 14
     min_rom: 1.2
     min_edge: 0.08
     min_pos: 0.65
@@ -29,6 +31,7 @@ strategies:
   atm_iron_butterfly:
     allow_unpriced_wings: true
     exclude_expiry_before_earnings: true
+    min_days_until_earnings: 14
     min_rom: 1.0
     min_edge: 0.10
     min_pos: 0.6
