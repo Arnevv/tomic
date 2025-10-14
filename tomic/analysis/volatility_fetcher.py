@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import re
 from typing import Dict, Optional
 
 import aiohttp
@@ -12,7 +13,27 @@ from tomic.analysis.iv_patterns import IV_PATTERNS, EXTRA_PATTERNS
 from tomic.logutils import logger
 
 
-YAHOO_VIX_URL = "https://query1.finance.yahoo.com/v7/finance/quote?symbols=%5EVIX"
+YAHOO_VIX_HTML_URL = "https://finance.yahoo.com/quote/%5EVIX/"
+_YAHOO_VIX_PATTERNS = [
+    r"\"regularMarketPrice\"\s*:\s*\{\s*\"raw\"\s*:\s*([0-9]+(?:\.[0-9]+)?)",
+    r"\"currentPrice\"\s*:\s*\{\s*\"raw\"\s*:\s*([0-9]+(?:\.[0-9]+)?)",
+    r"data-symbol=\"[^\"]*VIX\"[^>]*?value=\"([0-9]+(?:\.[0-9]+)?)\"",
+    r"data-symbol=\"[^\"]*VIX\"[^>]*?>([0-9]+(?:\.[0-9]+)?)<",
+]
+
+
+def _parse_vix_from_yahoo(html: str) -> Optional[float]:
+    """Extract the VIX value from Yahoo Finance HTML."""
+
+    for pattern in _YAHOO_VIX_PATTERNS:
+        match = re.search(pattern, html, re.IGNORECASE | re.DOTALL)
+        if match:
+            try:
+                return float(match.group(1))
+            except ValueError:  # pragma: no cover - defensive, shouldn't happen
+                logger.warning("Failed to parse numeric VIX value from Yahoo HTML")
+                return None
+    return None
 
 
 async def _fetch_vix_from_yahoo() -> Optional[float]:
@@ -21,24 +42,19 @@ async def _fetch_vix_from_yahoo() -> Optional[float]:
     timeout = aiohttp.ClientTimeout(total=5)
     try:
         async with aiohttp.ClientSession(timeout=timeout) as session:
-            async with session.get(YAHOO_VIX_URL, headers={"User-Agent": "Mozilla/5.0"}) as response:
+            async with session.get(
+                YAHOO_VIX_HTML_URL, headers={"User-Agent": "Mozilla/5.0"}
+            ) as response:
                 response.raise_for_status()
-                payload = await response.json()
+                html = await response.text()
     except Exception as exc:  # pragma: no cover - network failures
         logger.error(f"Failed to fetch VIX quote: {exc}")
         return None
 
-    try:
-        results = payload["quoteResponse"]["result"]
-        if not results:
-            raise ValueError("empty result set")
-        value = results[0].get("regularMarketPrice")
-        if value is None:
-            raise ValueError("missing regularMarketPrice")
-        return float(value)
-    except (KeyError, ValueError, TypeError, IndexError) as exc:
-        logger.error(f"Failed to parse VIX payload: {exc}")
-        return None
+    value = _parse_vix_from_yahoo(html)
+    if value is None:
+        logger.error("Failed to parse VIX payload from Yahoo HTML")
+    return value
 
 
 async def fetch_volatility_metrics_async(symbol: str) -> Dict[str, float]:
