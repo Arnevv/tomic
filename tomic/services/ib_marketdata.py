@@ -5,6 +5,7 @@ from __future__ import annotations
 import math
 import threading
 from dataclasses import dataclass
+from pprint import pformat
 from typing import Any, Callable, Mapping
 
 try:  # pragma: no cover - optional dependency during tests
@@ -51,10 +52,56 @@ def _parse_expiry(value: str | None) -> str:
 
 
 def _normalize_symbol(leg: Mapping[str, Any]) -> str:
-    symbol = leg.get("symbol") or leg.get("underlying")
+    symbol = (
+        leg.get("symbol")
+        or leg.get("underlying")
+        or leg.get("ticker")
+        or leg.get("root")
+        or leg.get("root_symbol")
+    )
     if not symbol:
         raise ValueError("Leg mist onderliggende ticker")
     return str(symbol).upper()
+
+
+def _loggable_leg_payload(leg: Mapping[str, Any]) -> dict[str, Any]:
+    """Return a trimmed view of ``leg`` for logging purposes."""
+
+    keys = (
+        "symbol",
+        "underlying",
+        "expiry",
+        "strike",
+        "type",
+        "right",
+        "position",
+        "qty",
+        "exchange",
+        "currency",
+        "multiplier",
+        "tradingClass",
+        "trading_class",
+        "primaryExchange",
+        "primary_exchange",
+        "conId",
+        "con_id",
+    )
+    snapshot: dict[str, Any] = {
+        key: leg[key]
+        for key in keys
+        if key in leg and leg[key] not in (None, "")
+    }
+    extras = {
+        key: leg[key]
+        for key in leg
+        if key not in snapshot and key not in keys
+    }
+    if extras:
+        snapshot["extras"] = {
+            key: extras[key]
+            for key in sorted(extras)
+        }
+    return snapshot
 
 
 @dataclass
@@ -194,6 +241,10 @@ class IBMarketDataService:
                     contract = self._build_contract(leg)
                 except Exception as exc:
                     logger.warning(f"⚠️ Contract kon niet worden opgebouwd: {exc}")
+                    logger.warning(
+                        "IB leg payload bij fout: %s",
+                        pformat(_loggable_leg_payload(leg)),
+                    )
                     missing.append(str(leg.get("strike")))
                     leg["missing_edge"] = True
                     continue
