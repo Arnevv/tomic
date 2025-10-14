@@ -103,6 +103,8 @@ def test_build_proposals_generates_results(sample_option):
     assert prop.strategy == "iron_condor"
     assert isclose(prop.score or 0.0, 2.4)
     assert prop.legs[0]["strike"] == 100.0
+    assert prop.legs[0]["symbol"] == "XYZ"
+    assert prop.legs[0]["underlying"] == "XYZ"
     assert prop.fallback_summary == {
         "true": 1,
         "parity_true": 0,
@@ -120,6 +122,8 @@ def test_build_proposals_generates_results(sample_option):
     evaluated = pipeline.last_evaluated[0]
     assert isclose(evaluated["mid"], 1.1)
     assert evaluated["rom"] is not None and evaluated["rom"] > 0
+    assert evaluated["symbol"] == "XYZ"
+    assert evaluated["underlying"] == "XYZ"
 
 
 def test_build_proposals_handles_rejections(sample_option):

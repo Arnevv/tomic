@@ -468,6 +468,25 @@ class StrategyPipeline:
             min_theta=_float(rules.get("min_theta")),
         )
 
+    def _apply_symbol_defaults(self, leg: MutableMapping[str, Any]) -> None:
+        """Ensure that legs contain the underlying ticker information."""
+
+        symbol = (
+            leg.get("symbol")
+            or leg.get("underlying")
+            or leg.get("ticker")
+            or (self.last_context.symbol if self.last_context else None)
+        )
+        if symbol:
+            symbol_str = str(symbol).upper()
+            leg["symbol"] = symbol_str
+            leg.setdefault("underlying", symbol_str)
+
+    def _normalize_proposal_leg(self, leg: Mapping[str, Any]) -> dict[str, Any]:
+        normalized = normalize_leg(dict(leg))
+        self._apply_symbol_defaults(normalized)
+        return normalized
+
     def _evaluate_leg(
         self, option: MutableMapping[str, Any], spot_price: float, interest_rate: float
     ) -> dict[str, Any]:
@@ -499,7 +518,9 @@ class StrategyPipeline:
             else None
         )
         result = {
-            "symbol": option.get("symbol"),
+            "symbol": option.get("symbol")
+            or option.get("underlying")
+            or option.get("ticker"),
             "expiry": option.get("expiry"),
             "strike": option.get("strike"),
             "type": option.get("type"),
@@ -514,7 +535,9 @@ class StrategyPipeline:
         }
         if resolution:
             result.update(resolution.as_dict())
+        self._apply_symbol_defaults(result)
         normalize_leg(result)
+        self._apply_symbol_defaults(result)
         return result
 
     def _safe_float(self, value: Any) -> float | None:
@@ -570,7 +593,10 @@ class StrategyPipeline:
     def _convert_proposal(self, strategy: str, proposal: Any) -> StrategyProposal:
         converted = StrategyProposal(
             strategy=strategy,
-            legs=[dict(leg) for leg in getattr(proposal, "legs", [])],
+            legs=[
+                self._normalize_proposal_leg(leg)
+                for leg in getattr(proposal, "legs", [])
+            ],
             score=getattr(proposal, "score", None),
             pos=getattr(proposal, "pos", None),
             ev=getattr(proposal, "ev", None),
