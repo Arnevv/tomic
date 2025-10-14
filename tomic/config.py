@@ -35,7 +35,15 @@ class AppConfig(BaseModel):
     EXPORT_DIR: str = "exports"
     IB_HOST: str = "127.0.0.1"
     IB_PORT: int = 7497
+    IB_LIVE_PORT: int = 7496
     IB_CLIENT_ID: int = 100
+    IB_MARKETDATA_CLIENT_ID: int = 901
+    IB_ORDER_CLIENT_ID: int = 902
+    IB_ACCOUNT_ALIAS: str = ""
+    DEFAULT_ORDER_TYPE: str = "LMT"
+    DEFAULT_TIME_IN_FORCE: str = "DAY"
+    IB_PAPER_MODE: bool = True
+    IB_FETCH_ONLY: bool = False
     DATA_PROVIDER: str = "ib"
     POLYGON_API_KEY: str = ""
     ALPHAVANTAGE_API_KEY: str = ""

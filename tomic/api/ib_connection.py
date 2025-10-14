@@ -57,6 +57,7 @@ def connect_ib(
     timeout: int = 5,
     *,
     unique: bool = False,
+    app: IBClient | None = None,
 ) -> IBClient:
     """Connect to IB.
 
@@ -71,7 +72,10 @@ def connect_ib(
 
     if client_id in ACTIVE_CLIENT_IDS:
         logger.warning(f"IB client_id {client_id} already active")
-    app = IBClient()
+    if app is None:
+        app = IBClient()
+    elif not isinstance(app, IBClient):  # pragma: no cover - defensive
+        raise TypeError("app must inherit from IBClient")
 
     try:
         logger.debug(f"Connecting to IB host={host} port={port} client_id={client_id}")

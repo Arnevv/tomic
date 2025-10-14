@@ -7,6 +7,7 @@ from pathlib import Path
 from contextlib import contextmanager
 from tomic.journal.utils import save_json, load_json
 from tomic.strategy_candidates import StrategyProposal
+from tomic.services.ib_marketdata import SnapshotResult
 
 
 def test_show_market_info(monkeypatch, tmp_path):
@@ -981,8 +982,16 @@ def _extract_show_details(mod):
                     cells.append(_cell(lambda *_a, **_k: None))
                 elif name == "_export_proposal_json":
                     cells.append(_cell(lambda *_a, **_k: None))
-                else:  # _proposal_journal_text
+                elif name == "_proposal_journal_text":
                     cells.append(_cell(lambda *_a, **_k: ""))
+                elif name == "load_criteria":
+                    cells.append(_cell(mod.load_criteria))
+                elif name == "fetch_quote_snapshot":
+                    cells.append(_cell(mod.fetch_quote_snapshot))
+                elif name == "_submit_ib_order":
+                    cells.append(_cell(lambda *_a, **_k: None))
+                else:
+                    cells.append(_cell(None))
             return types.FunctionType(
                 const,
                 mod.run_portfolio_menu.__globals__,
@@ -997,6 +1006,11 @@ def test_show_proposal_details_suffix(monkeypatch, capsys):
     mod = importlib.import_module("tomic.cli.controlpanel")
     show = _extract_show_details(mod)
     assert show is not None
+    monkeypatch.setattr(
+        mod,
+        "fetch_quote_snapshot",
+        lambda proposal, **_: SnapshotResult(proposal, [], True, []),
+    )
     monkeypatch.setattr(mod, "prompt_yes_no", lambda *a, **k: False)
     proposal = StrategyProposal(
         legs=[],
@@ -1015,6 +1029,11 @@ def test_show_proposal_details_no_scenario(monkeypatch, capsys):
     mod = importlib.import_module("tomic.cli.controlpanel")
     show = _extract_show_details(mod)
     assert show is not None
+    monkeypatch.setattr(
+        mod,
+        "fetch_quote_snapshot",
+        lambda proposal, **_: SnapshotResult(proposal, [], True, []),
+    )
     monkeypatch.setattr(mod, "prompt_yes_no", lambda *a, **k: False)
     proposal = StrategyProposal(
         legs=[],
@@ -1026,6 +1045,52 @@ def test_show_proposal_details_no_scenario(monkeypatch, capsys):
     show(proposal)
     out = capsys.readouterr().out
     assert "no scenario defined" in out
+
+
+def test_show_proposal_details_blocks_on_acceptance(monkeypatch, capsys):
+    mod = importlib.import_module("tomic.cli.controlpanel")
+    show = _extract_show_details(mod)
+    assert show is not None
+    proposal = StrategyProposal(
+        legs=[
+            {
+                "symbol": "AAA",
+                "expiry": "2024-01-19",
+                "strike": 100.0,
+                "type": "put",
+                "position": -1,
+                "bid": 1.0,
+                "ask": 1.2,
+                "mid": 1.1,
+                "edge": 0.2,
+            }
+        ],
+        rom=5.0,
+        ev=1.0,
+    )
+    reason = types.SimpleNamespace(message="ROM onder minimum", code="ROM_LOW")
+
+    monkeypatch.setattr(
+        mod,
+        "fetch_quote_snapshot",
+        lambda proposal, **_: SnapshotResult(proposal, [reason], False, ["100"]),
+    )
+
+    prompts: list[str] = []
+
+    def _prompt(question, default=False):
+        prompts.append(question)
+        return True if "Haal orderinformatie" in question else False
+
+    monkeypatch.setattr(mod, "prompt_yes_no", _prompt)
+    mod.SESSION_STATE["symbol"] = "AAA"
+
+    show(proposal)
+    out = capsys.readouterr().out
+    assert "❌ Acceptatiecriteria niet gehaald" in out
+    assert "ROM onder minimum" in out
+    assert any("Haal orderinformatie" in q for q in prompts)
+    assert not any("Order naar IB" in q for q in prompts)
 
 
 def test_print_reason_summary_no_rejections(capsys):

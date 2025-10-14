@@ -76,6 +76,33 @@ uit `strike_selection_rules.yaml`. Voor de overblijvende opties worden edge,
 ROM, EV en PoS berekend. De top vijf wordt getoond en je kunt de complete lijst
 exporteren.
 
+### IB orderflow: refresh → recalculatie → concept-order
+
+Het control panel begeleidt je nu door drie duidelijke stappen zodra je een
+voorstel bekijkt:
+
+1. **Marktdata-refresh** – standaard vraagt de CLI of je actuele bid/ask/last en
+   Greeks via IB wilt ophalen. In `config.yaml` stel je host, poort en de
+   afzonderlijke client-id's in (`IB_HOST`, `IB_PORT`, `IB_LIVE_PORT`,
+   `IB_MARKETDATA_CLIENT_ID`). In *fetch_only*-modus (`IB_FETCH_ONLY=true`)
+   wordt deze stap automatisch uitgevoerd zonder verdere prompts.
+2. **Herberekening** – na de refresh worden ROM, PoS, EV, max loss, scenario's
+   en acceptance criteria opnieuw doorgerekend met de verse quotes. Wanneer de
+   acceptatieregels niet meer gehaald worden, stopt de flow en toont de CLI de
+   onderliggende redenen.
+3. **Concept-order** – alleen wanneer de criteria nog geldig zijn, verschijnt de
+   vraag *"Order naar IB sturen?"*. De ordervertaling gebruikt `DEFAULT_ORDER_TYPE`
+   (bijvoorbeeld `LMT`), `DEFAULT_TIME_IN_FORCE` (zoals `DAY`) en optioneel een
+   `IB_ACCOUNT_ALIAS`. Orders worden altijd met `Transmit=False` verstuurd zodat
+   ze als concept in TWS/Gateway verschijnen. Elke structuur wordt tevens
+   gelogd als `order_submission_<timestamp>.json` in dezelfde exportmap als de
+   CSV/JSON-output.
+
+Gebruik `IB_PAPER_MODE` om automatisch de juiste poort (paper of live) te
+kiezen en `IB_ORDER_CLIENT_ID` voor een dedicated order-client. Zet
+`IB_FETCH_ONLY=true` wanneer je uitsluitend de marktdata-refresh wilt draaien
+zonder orders te plaatsen.
+
 Exports worden geplaatst onder `exports/tradecandidates/YYYYMMDD/` met de naam
 `trade_candidates_<symbol>_<strategy>_<expiry>_<HHMMSS>.csv`.
 
