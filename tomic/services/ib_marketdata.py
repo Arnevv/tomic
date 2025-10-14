@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import math
 import threading
+import time
 from dataclasses import dataclass
 from pprint import pformat
 from typing import Any, Callable, Mapping
@@ -304,6 +305,8 @@ class IBMarketDataService:
         if use_snapshot is None:
             use_snapshot = bool(_cfg("IB_USE_SNAPSHOT_DATA", True))
         self._use_snapshot = bool(use_snapshot)
+        self._max_quote_retries = max(int(_cfg("IB_MAX_QUOTE_RETRIES", 3)), 0)
+        self._quote_retry_delay = max(float(_cfg("IB_QUOTE_RETRY_DELAY", 0.75)), 0.0)
 
     def _should_use_snapshot(self) -> bool:
         """Return ``True`` when snapshot requests can be used safely."""
@@ -371,33 +374,62 @@ class IBMarketDataService:
                     missing.append(str(leg.get("strike")))
                     leg["missing_edge"] = True
                     continue
-                req_id = app._next_id()
-                app.register_request(req_id, snapshot=use_snapshot)
-                event = app._event(req_id)
+                attempts = 0
+                quote_received = False
+                retry_delay = self._quote_retry_delay
+                max_retries = self._max_quote_retries
                 self._log_contract(contract, leg)
-                logger.debug(
-                    "reqMktData req_id=%s symbol=%s strike=%s right=%s", req_id, contract.symbol, getattr(contract, "strike", "-"), getattr(contract, "right", "-")
-                )
-                app.reqMktData(req_id, contract, generic_ticks, use_snapshot, False, [])
-                try:
-                    if not event.wait(timeout):
-                        logger.warning(
-                            "⏱ Timeout bij ophalen quote voor strike %s", leg.get("strike")
-                        )
-                        missing.append(str(leg.get("strike")))
-                        leg["missing_edge"] = True
-                    else:
-                        snapshot = app._responses.get(req_id, {})
-                        self._apply_snapshot(leg, snapshot)
-                        if not snapshot:
-                            missing.append(str(leg.get("strike")))
-                            leg["missing_edge"] = True
-                finally:
+                while attempts <= max_retries:
+                    attempts += 1
+                    req_id = app._next_id()
+                    app.register_request(req_id, snapshot=use_snapshot)
+                    event = app._event(req_id)
+                    logger.debug(
+                        "reqMktData req_id=%s symbol=%s strike=%s right=%s attempt=%s",
+                        req_id,
+                        contract.symbol,
+                        getattr(contract, "strike", "-"),
+                        getattr(contract, "right", "-"),
+                        attempts,
+                    )
+                    app.reqMktData(req_id, contract, generic_ticks, use_snapshot, False, [])
                     try:
-                        app.cancelMktData(req_id)
-                    except Exception:
-                        pass
-                    app.clear_request(req_id)
+                        if not event.wait(timeout):
+                            logger.warning(
+                                "⏱ Timeout bij ophalen quote voor strike %s (poging %s)",
+                                leg.get("strike"),
+                                attempts,
+                            )
+                        else:
+                            snapshot = app._responses.get(req_id, {})
+                            self._apply_snapshot(leg, snapshot)
+                            bid_ok = _is_finite_number(snapshot.get("bid"))
+                            ask_ok = _is_finite_number(snapshot.get("ask"))
+                            if bid_ok and ask_ok:
+                                quote_received = True
+                                break
+                            logger.debug(
+                                "Ontbrekende bid/ask na poging %s voor strike %s (bid=%s, ask=%s)",
+                                attempts,
+                                leg.get("strike"),
+                                snapshot.get("bid"),
+                                snapshot.get("ask"),
+                            )
+                    finally:
+                        try:
+                            app.cancelMktData(req_id)
+                        except Exception:
+                            pass
+                        app.clear_request(req_id)
+
+                    if quote_received:
+                        break
+                    if attempts <= max_retries and retry_delay:
+                        time.sleep(retry_delay)
+
+                if not quote_received:
+                    missing.append(str(leg.get("strike")))
+                    leg["missing_edge"] = True
 
             score, reasons = scoring.calculate_score(
                 proposal.strategy,
