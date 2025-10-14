@@ -8,12 +8,18 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Sequence
 
+import math
+
 try:  # pragma: no cover - optional during tests
-    from ibapi.contract import Contract
+    from ibapi.contract import ComboLeg, Contract
     from ibapi.order import Order
     from ibapi.order_state import OrderState
 except Exception:  # pragma: no cover
-    Contract = object  # type: ignore[assignment]
+    class ComboLeg:  # type: ignore[no-redef]
+        pass
+
+    class Contract:  # type: ignore[no-redef]
+        pass
     Order = object  # type: ignore[assignment]
     OrderState = object  # type: ignore[assignment]
 
@@ -21,6 +27,7 @@ from tomic.api.base_client import BaseIBApp
 from tomic.api.ib_connection import connect_ib
 from tomic.config import get as cfg_get
 from tomic.logutils import logger
+from tomic.metrics import calculate_credit
 from tomic.models import OptionContract
 from tomic.services.strategy_pipeline import StrategyProposal
 from tomic.utils import get_leg_qty, get_leg_right, normalize_leg
@@ -67,11 +74,11 @@ def _leg_price(leg: dict) -> float | None:
 
 @dataclass
 class OrderInstruction:
-    """Single IB order structure derived from a leg."""
+    """Single IB order structure derived from one or more legs."""
 
     contract: Contract
     order: Order
-    leg: dict
+    legs: list[dict]
 
 
 class OrderPlacementApp(BaseIBApp):
@@ -131,7 +138,7 @@ class OrderSubmissionService:
         order_type: str | None = None,
         tif: str | None = None,
     ) -> list[OrderInstruction]:
-        instructions: list[OrderInstruction] = []
+        leg_contracts: list[tuple[dict, Contract, int, str, float | None]] = []
         for leg in proposal.legs:
             normalize_leg(leg)
             qty = int(get_leg_qty(leg))
@@ -155,21 +162,74 @@ class OrderSubmissionService:
                 primary_exchange=leg.get("primaryExchange") or leg.get("primary_exchange"),
                 con_id=leg.get("conId") or leg.get("con_id"),
             ).to_ib()
+            action = _leg_action(position)
+            price = _leg_price(leg)
+            leg_contracts.append((leg, contract, qty, action, price))
 
+        if not leg_contracts:
+            return []
+
+        if len(leg_contracts) == 1:
+            leg, contract, qty, action, price = leg_contracts[0]
             order = Order()
             order.totalQuantity = qty
-            order.action = _leg_action(position)
+            order.action = action
             order.orderType = (order_type or _cfg("DEFAULT_ORDER_TYPE", "LMT")).upper()
             order.tif = (tif or _cfg("DEFAULT_TIME_IN_FORCE", "DAY")).upper()
-            price = _leg_price(leg)
             if price is not None and hasattr(order, "lmtPrice"):
                 order.lmtPrice = round(price, 2)
             order.transmit = False
             if account:
                 order.account = account
             order.orderRef = f"{proposal.strategy}-{symbol}"
-            instructions.append(OrderInstruction(contract=contract, order=order, leg=leg))
-        return instructions
+            return [OrderInstruction(contract=contract, order=order, legs=[leg])]
+
+        legs = [item[0] for item in leg_contracts]
+        contracts = [item[1] for item in leg_contracts]
+        qtys = [item[2] for item in leg_contracts]
+        combo_contract = Contract()
+        first_contract = contracts[0]
+        combo_contract.symbol = getattr(first_contract, "symbol", _leg_symbol(legs[0], fallback=symbol))
+        combo_contract.secType = "BAG"
+        combo_contract.currency = getattr(first_contract, "currency", "USD")
+        first_exchange = getattr(first_contract, "exchange", None)
+        combo_contract.exchange = str(first_exchange or _cfg("OPTIONS_EXCHANGE", "SMART"))
+        combo_contract.comboLegs = []  # type: ignore[assignment]
+
+        combo_quantity = math.gcd(*qtys)
+        if combo_quantity <= 0:
+            combo_quantity = 1
+
+        for leg, contract, qty, action, _ in leg_contracts:
+            ratio = max(1, qty // combo_quantity)
+            combo_leg = ComboLeg()
+            con_id = getattr(contract, "conId", None)
+            if con_id not in (None, 0):
+                combo_leg.conId = con_id
+            combo_leg.ratio = ratio
+            combo_leg.action = action
+            combo_leg.exchange = getattr(contract, "exchange", combo_contract.exchange)
+            combo_contract.comboLegs.append(combo_leg)  # type: ignore[attr-defined]
+
+        order = Order()
+        order.totalQuantity = combo_quantity
+        net_credit = proposal.credit
+        if net_credit is None:
+            net_credit = calculate_credit(legs)
+        if net_credit is not None:
+            net_price = round(abs(net_credit / 100.0), 2)
+        else:
+            net_price = None
+        order.orderType = (order_type or _cfg("DEFAULT_ORDER_TYPE", "LMT")).upper()
+        order.tif = (tif or _cfg("DEFAULT_TIME_IN_FORCE", "DAY")).upper()
+        if order.orderType == "LMT" and net_price is not None and hasattr(order, "lmtPrice"):
+            order.lmtPrice = net_price
+        order.action = "SELL" if (net_credit or 0) >= 0 else "BUY"
+        order.transmit = False
+        if account:
+            order.account = account
+        order.orderRef = f"{proposal.strategy}-{symbol}"
+        return [OrderInstruction(contract=combo_contract, order=order, legs=list(legs))]
 
     # ------------------------------------------------------------------
     def place_orders(
@@ -221,6 +281,16 @@ class OrderSubmissionService:
         for instr in instructions:
             contract = instr.contract
             order = instr.order
+            combo_legs: list[dict[str, Any]] = []
+            for leg in getattr(contract, "comboLegs", []) or []:
+                combo_legs.append(
+                    {
+                        "conId": getattr(leg, "conId", None),
+                        "ratio": getattr(leg, "ratio", None),
+                        "action": getattr(leg, "action", None),
+                        "exchange": getattr(leg, "exchange", None),
+                    }
+                )
             payload.append(
                 {
                     "contract": {
@@ -235,6 +305,7 @@ class OrderSubmissionService:
                         "tradingClass": getattr(contract, "tradingClass", None),
                         "primaryExchange": getattr(contract, "primaryExchange", None),
                         "conId": getattr(contract, "conId", None),
+                        "comboLegs": combo_legs or None,
                     },
                     "order": {
                         "action": getattr(order, "action", None),
@@ -247,13 +318,16 @@ class OrderSubmissionService:
                         "orderRef": getattr(order, "orderRef", None),
                         "transmit": getattr(order, "transmit", None),
                     },
-                    "leg": {
-                        "strike": instr.leg.get("strike"),
-                        "expiry": instr.leg.get("expiry"),
-                        "type": get_leg_right(instr.leg),
-                        "position": instr.leg.get("position"),
-                        "qty": get_leg_qty(instr.leg),
-                    },
+                    "legs": [
+                        {
+                            "strike": leg.get("strike"),
+                            "expiry": leg.get("expiry"),
+                            "type": get_leg_right(leg),
+                            "position": leg.get("position"),
+                            "qty": get_leg_qty(leg),
+                        }
+                        for leg in instr.legs
+                    ],
                 }
             )
         path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
