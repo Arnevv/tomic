@@ -26,7 +26,12 @@ class OptionContract:
     primary_exchange: Optional[str] = None
     con_id: Optional[int] = None
 
-    def to_ib(self) -> Contract:
+    def to_ib(
+        self,
+        *,
+        log: bool = True,
+        warn_on_missing_trading_class: bool = True,
+    ) -> Contract:
         """Create an IB ``Contract`` object."""
         contract = Contract()
         contract.symbol = self.symbol
@@ -41,21 +46,31 @@ class OptionContract:
         if self.con_id not in (None, 0):
             contract.conId = self.con_id
         if not self.trading_class:
-            logger.warning(
-                f"⚠️ tradingClass ontbreekt voor {self.symbol} - fallback naar {self.symbol.upper()}"
-            )
             contract.tradingClass = self.symbol.upper()
+            if warn_on_missing_trading_class:
+                logger.warning(
+                    "⚠️ tradingClass ontbreekt voor %s - fallback naar %s",
+                    self.symbol,
+                    contract.tradingClass,
+                )
         else:
             contract.tradingClass = self.trading_class
 
-        logger.debug(
-            f"IB contract built: symbol={contract.symbol} "
-            f"secType={contract.secType} exchange={contract.exchange} "
-            f"primaryExchange={getattr(contract, 'primaryExchange', '')} currency={contract.currency} "
-            f"expiry={contract.lastTradeDateOrContractMonth} strike={contract.strike} "
-            f"right={contract.right} multiplier={contract.multiplier} "
-            f"tradingClass={contract.tradingClass}"
-        )
+        if log:
+            logger.debug(
+                "IB contract built: symbol=%s secType=%s exchange=%s primaryExchange=%s "
+                "currency=%s expiry=%s strike=%s right=%s multiplier=%s tradingClass=%s",
+                contract.symbol,
+                contract.secType,
+                contract.exchange,
+                getattr(contract, "primaryExchange", ""),
+                contract.currency,
+                contract.lastTradeDateOrContractMonth,
+                contract.strike,
+                contract.right,
+                contract.multiplier,
+                contract.tradingClass,
+            )
 
         return contract
 
