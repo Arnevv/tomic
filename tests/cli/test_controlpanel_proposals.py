@@ -1115,6 +1115,14 @@ def test_format_reject_reasons_uses_reject_counts():
     assert "EV onvoldoende (100%)" in formatted
 
 
+def test_evaluation_summary_reject_total_falls_back_to_reason_counts():
+    mod = importlib.import_module("tomic.cli.controlpanel")
+    summary = mod.EvaluationSummary()
+    summary.reasons.by_category = {mod.ReasonCategory.LOW_LIQUIDITY: 2}
+
+    assert summary.reject_total == 2
+
+
 def test_reason_aggregator_extends_reason_counts():
     mod = importlib.import_module("tomic.cli.controlpanel")
     agg = mod.ReasonAggregator()
@@ -1381,6 +1389,7 @@ def test_print_evaluation_overview_formats(capsys):
         reject=1,
     )
     summary.reasons.by_category = {mod.ReasonCategory.LOW_LIQUIDITY: 2}
+    assert summary.reject_total == 2
     mod._print_evaluation_overview("AAA", 123.456, summary)
     out = capsys.readouterr().out
     assert "Evaluatieoverzicht" in out
