@@ -15,6 +15,7 @@ try:  # pragma: no cover - optional during tests
     from ibapi.contract import ComboLeg, Contract
     from ibapi.order import Order
     from ibapi.order_state import OrderState
+    from ibapi.tag_value import TagValue
 except Exception:  # pragma: no cover
     class ComboLeg:  # type: ignore[no-redef]
         pass
@@ -23,6 +24,10 @@ except Exception:  # pragma: no cover
         pass
     Order = object  # type: ignore[assignment]
     OrderState = object  # type: ignore[assignment]
+    class TagValue:  # type: ignore[no-redef]
+        def __init__(self, tag: str, value: str) -> None:
+            self.tag = tag
+            self.value = value
 
 from tomic.api.base_client import BaseIBApp
 from tomic.api.ib_connection import connect_ib
@@ -448,8 +453,13 @@ class OrderSubmissionService:
             net_price = round(abs(per_combo_credit / 100.0), 2)
         else:
             net_price = None
-        order.orderType = "MIDPRICE"
+        order.orderType = "LMT"
         order.tif = (tif or _cfg("DEFAULT_TIME_IN_FORCE", "DAY")).upper()
+        if net_price is not None and hasattr(order, "lmtPrice"):
+            order.lmtPrice = net_price
+        order.algoStrategy = "Adaptive"
+        order.algoParams = []
+        order.algoParams.append(TagValue("adaptivePriority", "Normal"))
         order.action = "SELL" if (net_credit or 0) >= 0 else "BUY"
         order.transmit = True
         order.account = account or "DUK809533"
