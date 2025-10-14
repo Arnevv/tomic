@@ -1,3 +1,6 @@
+import math
+import pytest
+
 import pytest
 
 from tomic.analysis import scoring
@@ -149,3 +152,84 @@ def test_compute_proposal_metrics(monkeypatch):
     assert score == 105.0
     assert reasons == []
     assert proposal.margin == 100.0
+
+
+def test_calculate_score_additional_metrics(monkeypatch):
+    legs = [
+        {
+            "type": "P",
+            "strike": 100,
+            "expiry": "2025-01-01",
+            "mid": 2.0,
+            "model": 2.0,
+            "delta": -0.2,
+            "edge": 0.1,
+            "volume": 500,
+            "open_interest": 1000,
+            "position": -1,
+            "dte": 45,
+            "HV20": 0.2,
+            "HV30": 0.25,
+            "HV90": 0.3,
+            "IV_Rank": 0.4,
+            "IV_Percentile": 0.5,
+            "ATR14": 1.2,
+        },
+        {
+            "type": "P",
+            "strike": 95,
+            "expiry": "2025-01-01",
+            "mid": 0.5,
+            "model": 0.5,
+            "delta": -0.05,
+            "edge": 0.05,
+            "volume": 500,
+            "open_interest": 1000,
+            "position": 1,
+            "dte": 45,
+            "HV20": 0.21,
+            "HV30": 0.24,
+            "HV90": 0.29,
+            "IV_Rank": 0.41,
+            "IV_Percentile": 0.51,
+            "ATR14": 1.1,
+        },
+    ]
+
+    proposal = StrategyProposal(legs=legs)
+    monkeypatch.setattr(
+        scoring,
+        "heuristic_risk_metrics",
+        lambda l, cb: {"max_profit": 200.0, "max_loss": -50.0},
+    )
+    monkeypatch.setattr(scoring, "calculate_margin", lambda *a, **k: 100.0)
+    monkeypatch.setattr(scoring, "calculate_rom", lambda mp, margin: 10.0)
+    monkeypatch.setattr(scoring, "calculate_ev", lambda pos, mp, ml: 5.0)
+
+    score, reasons = scoring.calculate_score(
+        "short_put_spread", proposal, spot=100.0, atr=1.5
+    )
+    assert score is not None
+    assert reasons == []
+    assert math.isclose(proposal.atr or 0.0, 1.5)
+    assert math.isclose(proposal.iv_rank or 0.0, 0.405)
+    assert math.isclose(proposal.iv_percentile or 0.0, 0.505)
+    assert math.isclose(proposal.hv20 or 0.0, 0.205)
+    assert math.isclose(proposal.hv30 or 0.0, 0.245)
+    assert math.isclose(proposal.hv90 or 0.0, 0.295)
+    assert proposal.dte == {
+        "min": 45,
+        "max": 45,
+        "values": [45],
+        "by_expiry": {"2025-01-01": 45},
+    }
+    assert proposal.wing_width is not None
+    assert math.isclose(proposal.wing_width["put"], 5.0)
+    assert proposal.wing_symmetry is None
+    assert proposal.breakeven_distances is not None
+    assert proposal.breakeven_distances["dollar"] and math.isclose(
+        proposal.breakeven_distances["dollar"][0], 1.5
+    )
+    assert proposal.breakeven_distances["percent"] and math.isclose(
+        proposal.breakeven_distances["percent"][0], 1.5
+    )

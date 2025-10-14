@@ -12,7 +12,8 @@ from ..metrics import (
 )
 from ..analysis.strategy import heuristic_risk_metrics
 from ..criteria import CriteriaConfig, RULES, load_criteria
-from ..utils import normalize_leg, get_leg_qty, get_leg_right
+from ..helpers.dateutils import parse_date
+from ..utils import normalize_leg, get_leg_qty, get_leg_right, today
 from ..logutils import logger
 from ..config import get as cfg_get
 from ..strategy.reasons import (
@@ -29,6 +30,174 @@ POSITIVE_CREDIT_STRATS = set(RULES.strategy.acceptance.require_positive_credit_f
 
 
 _VALID_MID_SOURCES = {"true", "parity_true", "parity_close", "model", "close"}
+
+
+def _safe_float(value: Any) -> float | None:
+    try:
+        val = float(value)
+    except (TypeError, ValueError):
+        return None
+    if math.isnan(val):
+        return None
+    return val
+
+
+def _collect_leg_values(legs: List[Dict[str, Any]], keys: Tuple[str, ...]) -> List[float]:
+    values: List[float] = []
+    targets = {key.lower().replace("_", "") for key in keys}
+    for leg in legs:
+        for raw_key, raw_value in leg.items():
+            canonical = str(raw_key).lower().replace("_", "")
+            if canonical not in targets:
+                continue
+            val = _safe_float(raw_value)
+            if val is None:
+                continue
+            values.append(val)
+            break
+    return values
+
+
+def _infer_leg_dte(leg: Mapping[str, Any]) -> Optional[int]:
+    for key in ("dte", "days_to_expiry", "DTE"):
+        raw = leg.get(key)
+        if raw in (None, ""):
+            continue
+        val = _safe_float(raw)
+        if val is None:
+            continue
+        return int(round(val))
+    expiry = leg.get("expiry") or leg.get("expiration")
+    if not expiry:
+        return None
+    exp_date = parse_date(str(expiry))
+    if exp_date is None:
+        return None
+    return (exp_date - today()).days
+
+
+def _compute_wing_metrics(legs: List[Dict[str, Any]]) -> tuple[Dict[str, float] | None, bool | None]:
+    widths: Dict[str, float] = {}
+    for right in ("call", "put"):
+        short_legs: List[Dict[str, Any]] = []
+        long_legs: List[Dict[str, Any]] = []
+        for leg in legs:
+            if get_leg_right(leg) != right:
+                continue
+            pos_val = _safe_float(leg.get("position"))
+            if pos_val is None or _safe_float(leg.get("strike")) is None:
+                continue
+            if pos_val < 0:
+                short_legs.append(leg)
+            elif pos_val > 0:
+                long_legs.append(leg)
+        if not short_legs or not long_legs:
+            continue
+        distances: List[float] = []
+        long_strikes = [
+            _safe_float(l.get("strike"))
+            for l in long_legs
+            if _safe_float(l.get("strike")) is not None
+        ]
+        long_strikes = [v for v in long_strikes if v is not None]
+        for short in short_legs:
+            short_strike = _safe_float(short.get("strike"))
+            if short_strike is None:
+                continue
+            candidates: List[float] = []
+            for long in long_strikes:
+                if long is None:
+                    continue
+                if right == "call" and long <= short_strike:
+                    continue
+                if right == "put" and long >= short_strike:
+                    continue
+                candidates.append(abs(long - short_strike))
+            if not candidates:
+                candidates = [
+                    abs(long - short_strike) for long in long_strikes if long is not None
+                ]
+            if candidates:
+                distances.append(min(candidates))
+        if distances:
+            widths[right] = sum(distances) / len(distances)
+    if not widths:
+        return None, None
+    symmetry: bool | None = None
+    if "call" in widths and "put" in widths:
+        call_width = abs(widths["call"])
+        put_width = abs(widths["put"])
+        max_width = max(call_width, put_width, 1e-6)
+        symmetry = abs(call_width - put_width) <= max_width * 0.05
+    return widths, symmetry
+
+
+def _populate_additional_metrics(
+    proposal: "StrategyProposal", legs: List[Dict[str, Any]], spot: float | None
+) -> None:
+    atr_values = _collect_leg_values(legs, ("ATR14", "atr14", "atr"))
+    if getattr(proposal, "atr", None) is None and atr_values:
+        proposal.atr = atr_values[0]
+
+    iv_rank_vals = _collect_leg_values(legs, ("IV_Rank", "iv_rank"))
+    if iv_rank_vals:
+        proposal.iv_rank = sum(iv_rank_vals) / len(iv_rank_vals)
+
+    iv_percentile_vals = _collect_leg_values(legs, ("IV_Percentile", "iv_percentile"))
+    if iv_percentile_vals:
+        proposal.iv_percentile = sum(iv_percentile_vals) / len(iv_percentile_vals)
+
+    hv20_vals = _collect_leg_values(legs, ("HV20", "hv20"))
+    if hv20_vals:
+        proposal.hv20 = sum(hv20_vals) / len(hv20_vals)
+
+    hv30_vals = _collect_leg_values(legs, ("HV30", "hv30"))
+    if hv30_vals:
+        proposal.hv30 = sum(hv30_vals) / len(hv30_vals)
+
+    hv90_vals = _collect_leg_values(legs, ("HV90", "hv90"))
+    if hv90_vals:
+        proposal.hv90 = sum(hv90_vals) / len(hv90_vals)
+
+    dte_by_expiry: Dict[str, int] = {}
+    for leg in legs:
+        expiry = leg.get("expiry") or leg.get("expiration")
+        if not expiry:
+            continue
+        dte_val = _infer_leg_dte(leg)
+        if dte_val is None:
+            continue
+        dte_by_expiry[str(expiry)] = dte_val
+    if dte_by_expiry:
+        unique_values = sorted(set(dte_by_expiry.values()))
+        proposal.dte = {
+            "min": min(unique_values),
+            "max": max(unique_values),
+            "values": unique_values,
+            "by_expiry": dte_by_expiry,
+        }
+    else:
+        proposal.dte = None
+
+    widths, symmetry = _compute_wing_metrics(legs)
+    proposal.wing_width = widths
+    proposal.wing_symmetry = symmetry
+
+    distances: List[float] = []
+    percents: List[float] = []
+    spot_val = _safe_float(spot)
+    if spot_val not in (None, 0):
+        for be in getattr(proposal, "breakevens", []) or []:
+            be_val = _safe_float(be)
+            if be_val is None:
+                continue
+            diff = abs(be_val - spot_val)
+            distances.append(diff)
+            percents.append((diff / spot_val) * 100)
+    proposal.breakeven_distances = {
+        "dollar": distances,
+        "percent": percents,
+    }
 
 
 def _bs_estimate_missing(legs: List[Dict[str, Any]]) -> None:
@@ -505,8 +674,12 @@ def calculate_score(
     spot: float | None = None,
     *,
     criteria: CriteriaConfig | None = None,
+    atr: float | None = None,
 ) -> Tuple[Optional[float], List[ReasonDetail]]:
     """Populate proposal metrics and return the computed score."""
+
+    if atr is not None:
+        proposal.atr = atr
 
     legs = proposal.legs
     strategy_name = getattr(strategy, "value", strategy)
@@ -541,7 +714,9 @@ def calculate_score(
     if not ok:
         return None, reasons
 
-    return compute_proposal_metrics(strategy_name, proposal, legs, crit, spot)
+    score, reasons = compute_proposal_metrics(strategy_name, proposal, legs, crit, spot)
+    _populate_additional_metrics(proposal, legs, spot)
+    return score, reasons
 
 
 def passes_risk(proposal: "StrategyProposal" | Mapping[str, Any], min_rr: float) -> bool:

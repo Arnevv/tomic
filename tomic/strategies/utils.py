@@ -387,7 +387,7 @@ def generate_short_vertical(
                 build_leg({**long_opt, "spot": spot}, "long"),
             ]
             proposal = StrategyProposal(legs=legs)
-            score, reasons = calculate_score(strategy_name, proposal, spot)
+            score, reasons = calculate_score(strategy_name, proposal, spot, atr=atr)
             reason_messages = _reason_messages(reasons)
             if score is not None and passes_risk(proposal, min_rr):
                 proposals.append(proposal)
@@ -603,7 +603,9 @@ def generate_wing_spread(
                     build_leg({**lp_opt, "spot": spot}, "long"),
                 ]
                 proposal = StrategyProposal(legs=legs)
-                score, reasons = (score_func or _calculate_score)(strategy_name, proposal, spot)
+                score, reasons = (score_func or _calculate_score)(
+                    strategy_name, proposal, spot, atr=atr
+                )
                 reason_messages = _reason_messages(reasons)
                 if score is not None and passes_risk(proposal, min_rr):
                     proposals.append(proposal)
@@ -749,7 +751,9 @@ def generate_wing_spread(
                     build_leg({**lp_opt, "spot": spot}, "long"),
                 ]
                 proposal = StrategyProposal(legs=legs)
-                score, reasons = (score_func or _calculate_score)(strategy_name, proposal, spot)
+                score, reasons = (score_func or _calculate_score)(
+                    strategy_name, proposal, spot, atr=atr
+                )
                 reason_messages = _reason_messages(reasons)
                 if score is not None and passes_risk(proposal, min_rr):
                     proposals.append(proposal)
@@ -983,7 +987,7 @@ def generate_ratio_like(
             ]
             legs[1]["position"] = 2
             proposal = StrategyProposal(legs=legs)
-            score, reasons = calculate_score(strategy_name, proposal, spot)
+            score, reasons = calculate_score(strategy_name, proposal, spot, atr=atr)
             reason_messages = _reason_messages(reasons)
             if score is not None and passes_risk(proposal, min_rr):
                 if _validate_ratio(strategy_name.value, legs, proposal.credit or 0.0):

@@ -381,7 +381,7 @@ def summarize_evaluations(evaluations: Sequence[Mapping[str, Any]]) -> Evaluatio
 
 
 def _format_reject_reasons(summary: EvaluationSummary) -> str:
-    total_rejects = summary.reject_total
+    total_rejects = summary.reject_total or summary.reason_total
     if not total_rejects:
         return "n.v.t."
     ordered = sorted(
@@ -2442,21 +2442,53 @@ def run_portfolio_menu() -> None:
                     ]
                 )
             writer.writerow([])
-            writer.writerow(["credit", proposal.credit])
-            writer.writerow(["max_loss", proposal.max_loss])
-            writer.writerow(["profit_estimated", proposal.profit_estimated])
-            writer.writerow(
-                [
+            summary_rows = [
+                ("credit", proposal.credit),
+                ("margin", proposal.margin),
+                ("max_profit", proposal.max_profit),
+                ("max_loss", proposal.max_loss),
+                ("rom", proposal.rom),
+                ("pos", proposal.pos),
+                ("ev", proposal.ev),
+                ("edge", proposal.edge),
+                ("score", proposal.score),
+                ("profit_estimated", proposal.profit_estimated),
+                (
                     "scenario_info",
-                    (
-                        json.dumps(proposal.scenario_info)
-                        if proposal.scenario_info is not None
-                        else None
+                    json.dumps(proposal.scenario_info)
+                    if proposal.scenario_info is not None
+                    else None,
+                ),
+                ("breakevens", json.dumps(proposal.breakevens or [])),
+                ("atr", proposal.atr),
+                ("iv_rank", proposal.iv_rank),
+                ("iv_percentile", proposal.iv_percentile),
+                ("hv20", proposal.hv20),
+                ("hv30", proposal.hv30),
+                ("hv90", proposal.hv90),
+                (
+                    "dte",
+                    json.dumps(proposal.dte)
+                    if proposal.dte is not None
+                    else None,
+                ),
+                (
+                    "breakeven_distances",
+                    json.dumps(
+                        proposal.breakeven_distances
+                        or {"dollar": [], "percent": []}
                     ),
-                ]
-            )
-            if proposal.breakevens:
-                writer.writerow(["breakevens", *proposal.breakevens])
+                ),
+                (
+                    "wing_width",
+                    json.dumps(proposal.wing_width)
+                    if proposal.wing_width is not None
+                    else None,
+                ),
+                ("wing_symmetry", proposal.wing_symmetry),
+            ]
+            for key, value in summary_rows:
+                writer.writerow([key, value])
         print(f"✅ Voorstel opgeslagen in: {path.resolve()}")
 
     def _load_acceptance_criteria(strategy: str) -> dict[str, Any]:
@@ -2568,6 +2600,20 @@ def run_portfolio_menu() -> None:
                 "score": proposal.score,
                 "profit_estimated": proposal.profit_estimated,
                 "scenario_info": proposal.scenario_info,
+                "atr": proposal.atr,
+                "iv_rank": proposal.iv_rank,
+                "iv_percentile": proposal.iv_percentile,
+                "hv": {
+                    "hv20": proposal.hv20,
+                    "hv30": proposal.hv30,
+                    "hv90": proposal.hv90,
+                },
+                "dte": proposal.dte,
+                "breakeven_distances": (
+                    proposal.breakeven_distances
+                    if proposal.breakeven_distances is not None
+                    else {"dollar": [], "percent": []}
+                ),
                 "missing_data": {
                     "missing_bidask": any(
                         (
@@ -2615,6 +2661,8 @@ def run_portfolio_menu() -> None:
             "tomic_acceptance_criteria": accept,
             "portfolio_context": portfolio_ctx,
             "portfolio_context_available": portfolio_available,
+            "wing_width": proposal.wing_width,
+            "wing_symmetry": proposal.wing_symmetry,
         }
         with path.open("w", encoding="utf-8") as f:
             json.dump(data, f, ensure_ascii=False, indent=2)
