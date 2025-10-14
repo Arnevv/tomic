@@ -122,7 +122,7 @@ def _serialize_instruction(instr: "OrderInstruction") -> dict[str, Any]:
                     continue
             except (TypeError, ValueError):
                 pass
-        if sec_type == "BAG" and key in {"expiry", "strike", "right", "multiplier", "tradingClass"}:
+        if sec_type == "BAG" and key in {"expiry", "strike", "right", "multiplier", "tradingClass", "primaryExchange"}:
             if key == "strike":
                 try:
                     if float(value) != 0:
@@ -282,14 +282,6 @@ class OrderSubmissionService:
         combo_contract.currency = getattr(first_contract, "currency", "USD")
         first_exchange = getattr(first_contract, "exchange", None)
         combo_contract.exchange = str(first_exchange or _cfg("OPTIONS_EXCHANGE", "SMART"))
-        primary_exchange = getattr(first_contract, "primaryExchange", None) or combo_contract.exchange
-        combo_contract.primaryExchange = primary_exchange
-        combo_contract.lastTradeDateOrContractMonth = ""
-        combo_contract.right = ""
-        combo_contract.multiplier = ""
-        combo_contract.tradingClass = ""
-        combo_contract.strike = 0
-        combo_contract.conId = 0
         combo_contract.comboLegs = []  # type: ignore[assignment]
 
         combo_quantity = math.gcd(*qtys)

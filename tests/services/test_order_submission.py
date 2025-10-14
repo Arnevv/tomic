@@ -39,6 +39,31 @@ def test_prepare_order_instructions(monkeypatch):
     assert getattr(instr.contract, "symbol", None) == "AAA"
 
 
+def test_bag_contract_excludes_disallowed_fields(monkeypatch):
+    monkeypatch.setattr(order_submission, "Order", lambda: types.SimpleNamespace())
+    proposal = StrategyProposal(
+        strategy="short_put_spread",
+        legs=[
+            {"symbol": "HD", "expiry": "20240119", "strike": 310.0, "type": "call", "position": -1},
+            {"symbol": "HD", "expiry": "20240119", "strike": 305.0, "type": "call", "position": 1},
+        ],
+    )
+    instructions = prepare_order_instructions(proposal, symbol="HD")
+    assert len(instructions) == 1
+    payload = order_submission._serialize_instruction(instructions[0])
+    contract = payload["contract"]
+    assert contract == {
+        "symbol": "HD",
+        "secType": "BAG",
+        "exchange": "SMART",
+        "currency": "USD",
+        "comboLegs": [
+            {"conId": None, "ratio": 1, "action": "SELL", "exchange": "SMART"},
+            {"conId": None, "ratio": 1, "action": "BUY", "exchange": "SMART"},
+        ],
+    }
+
+
 def test_dump_order_log(tmp_path, monkeypatch):
     monkeypatch.setattr(order_submission, "Order", lambda: types.SimpleNamespace())
     proposal = StrategyProposal(

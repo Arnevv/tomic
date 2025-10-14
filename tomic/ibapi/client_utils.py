@@ -56,6 +56,24 @@ def createPlaceOrderRequestProto(orderId: int, contract: Contract, order: Order)
 @staticmethod
 def createContractProto(contract: Contract, order: Order) -> ContractProto:
     contractProto = ContractProto()
+    secType = getattr(contract, "secType", "")
+
+    if secType == "BAG":
+        if contract.symbol:
+            contractProto.symbol = contract.symbol
+        if secType:
+            contractProto.secType = secType
+        if contract.currency:
+            contractProto.currency = contract.currency
+        if contract.exchange:
+            contractProto.exchange = contract.exchange
+
+        comboLegProtoList = createComboLegProtoList(contract, order)
+        if comboLegProtoList is not None and comboLegProtoList:
+            contractProto.comboLegs.extend(comboLegProtoList)
+
+        return contractProto
+
     if isValidIntValue(contract.conId): contractProto.conId = contract.conId
     if contract.symbol: contractProto.symbol = contract.symbol
     if contract.secType: contractProto.secType = contract.secType
