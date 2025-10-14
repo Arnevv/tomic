@@ -16,7 +16,7 @@ strategies:
     min_risk_reward: 1.5
     allow_unpriced_wings: true
     exclude_expiry_before_earnings: true
-    min_days_until_earnings: 14
+    min_days_until_earnings: 30
     min_rom: 1.2
     min_edge: 0.08
     min_pos: 0.65
@@ -31,7 +31,7 @@ strategies:
   atm_iron_butterfly:
     allow_unpriced_wings: true
     exclude_expiry_before_earnings: true
-    min_days_until_earnings: 14
+    min_days_until_earnings: 30
     min_rom: 1.0
     min_edge: 0.10
     min_pos: 0.6

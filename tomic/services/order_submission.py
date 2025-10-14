@@ -267,7 +267,7 @@ class OrderSubmissionService:
             order.tif = (tif or _cfg("DEFAULT_TIME_IN_FORCE", "DAY")).upper()
             if price is not None and hasattr(order, "lmtPrice"):
                 order.lmtPrice = round(price, 2)
-            order.transmit = False
+            order.transmit = True
             if account:
                 order.account = account
             order.orderRef = f"{proposal.strategy}-{symbol}"
@@ -328,7 +328,7 @@ class OrderSubmissionService:
         if order.orderType == "LMT" and net_price is not None and hasattr(order, "lmtPrice"):
             order.lmtPrice = net_price
         order.action = "SELL" if (net_credit or 0) >= 0 else "BUY"
-        order.transmit = False
+        order.transmit = True
         if account:
             order.account = account
         order.orderRef = f"{proposal.strategy}-{symbol}"
