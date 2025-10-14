@@ -18,9 +18,10 @@ except Exception:  # pragma: no cover
         CLOSE = 9
 
 try:  # pragma: no cover - ``ibapi`` optional in tests
-    from ibapi.contract import Contract
+    from ibapi.contract import Contract, ContractDetails
 except Exception:  # pragma: no cover
     Contract = object  # type: ignore[assignment]
+    ContractDetails = object  # type: ignore[assignment]
 
 from tomic.api.base_client import BaseIBApp
 from tomic.api.ib_connection import connect_ib
@@ -38,6 +39,23 @@ _GENERIC_TICKS = "100,101,104,106"
 def _cfg(key: str, default: Any) -> Any:
     value = cfg_get(key, default)
     return default if value in {None, ""} else value
+
+
+def _is_finite_number(value: Any) -> bool:
+    try:
+        if isinstance(value, bool):  # bool is subclass of int; ignore
+            return False
+        number = float(value)
+    except (TypeError, ValueError):
+        return False
+    return not math.isnan(number)
+
+
+def _store_numeric(target: dict[str, Any], key: str, value: Any) -> bool:
+    if _is_finite_number(value):
+        target[key] = float(value)
+        return True
+    return False
 
 
 def _parse_expiry(value: str | None) -> str:
@@ -126,6 +144,8 @@ class QuoteSnapshotApp(BaseIBApp):
         self._events: dict[int, threading.Event] = {}
         self._lock = threading.Lock()
         self._snapshot_requests: dict[int, bool] = {}
+        self._ready = threading.Event()
+        self._contract_details: dict[int, list[ContractDetails]] = {}
 
     # ------------------------------------------------------------------
     # Helpers
@@ -162,23 +182,61 @@ class QuoteSnapshotApp(BaseIBApp):
 
     def clear_request(self, req_id: int) -> None:
         self._complete_request(req_id)
+        self._events.pop(req_id, None)
+        self._responses.pop(req_id, None)
+        self._contract_details.pop(req_id, None)
+
+    # ------------------------------------------------------------------
+    # Ready / metadata helpers
+    # ------------------------------------------------------------------
+    def nextValidId(self, orderId: int) -> None:  # noqa: N802 - IB API
+        super().nextValidId(orderId)
+        self._ready.set()
+
+    def wait_until_ready(self, timeout: float = 2.0) -> bool:
+        return self._ready.wait(timeout)
+
+    def request_contract_details(self, contract: Contract, timeout: float = 5.0) -> OptionContract | None:
+        req_id = self._next_id()
+        event = self._event(req_id)
+        self.reqContractDetails(req_id, contract)
+        try:
+            if not event.wait(timeout):
+                logger.debug(
+                    "Contract details timeout for %s", getattr(contract, "localSymbol", contract)
+                )
+                return None
+            details = self._contract_details.pop(req_id, [])
+            if not details:
+                return None
+            first = details[0]
+            contract_obj = getattr(first, "contract", None)
+            if contract_obj is None:
+                return None
+            try:
+                return OptionContract.from_ib(contract_obj)
+            except Exception:
+                logger.debug("Failed to parse contract details", exc_info=True)
+                return None
+        finally:
+            self.clear_request(req_id)
 
     # ------------------------------------------------------------------
     # IB callbacks
     # ------------------------------------------------------------------
     def tickPrice(self, reqId: int, tickType: int, price: float, attrib: Any) -> None:  # noqa: N802 - IB API
         data = self._data(reqId)
-        if tickType == TickTypeEnum.BID:
-            data["bid"] = price
-        elif tickType == TickTypeEnum.ASK:
-            data["ask"] = price
-        elif tickType == TickTypeEnum.LAST:
-            data["last"] = price
-        elif tickType == TickTypeEnum.CLOSE:
-            data.setdefault("last", price)
-        if not math.isnan(price):
-            if not self._is_snapshot(reqId):
-                self._finalize_request(reqId)
+        numeric = _is_finite_number(price)
+        if tickType == TickTypeEnum.BID and numeric:
+            data["bid"] = float(price)
+        elif tickType == TickTypeEnum.ASK and numeric:
+            data["ask"] = float(price)
+        elif tickType == TickTypeEnum.LAST and numeric:
+            data["last"] = float(price)
+        elif tickType == TickTypeEnum.CLOSE and numeric:
+            data.setdefault("last", float(price))
+        if numeric and not self._is_snapshot(reqId):
+            self._finalize_request(reqId)
 
     def tickSnapshotEnd(self, reqId: int) -> None:  # noqa: N802 - IB API
         self._finalize_request(reqId)
@@ -198,16 +256,25 @@ class QuoteSnapshotApp(BaseIBApp):
         lastGreeksUpdateTime: float | None = None,
     ) -> None:  # noqa: N802 - IB API
         data = self._data(reqId)
-        if not math.isnan(delta):
-            data["delta"] = delta
-        if not math.isnan(gamma):
-            data["gamma"] = gamma
-        if not math.isnan(vega):
-            data["vega"] = vega
-        if not math.isnan(theta):
-            data["theta"] = theta
-        if not math.isnan(impliedVol):
-            data["iv"] = impliedVol
+        updated = False
+        if _store_numeric(data, "delta", delta):
+            updated = True
+        if _store_numeric(data, "gamma", gamma):
+            updated = True
+        if _store_numeric(data, "vega", vega):
+            updated = True
+        if _store_numeric(data, "theta", theta):
+            updated = True
+        if _store_numeric(data, "iv", impliedVol):
+            updated = True
+        if updated and not self._is_snapshot(reqId):
+            self._finalize_request(reqId)
+
+    def contractDetails(self, reqId: int, details: ContractDetails) -> None:  # noqa: N802 - IB API
+        self._contract_details.setdefault(reqId, []).append(details)
+
+    def contractDetailsEnd(self, reqId: int) -> None:  # noqa: N802 - IB API
+        self._event(reqId).set()
 
     def error(self, reqId: int, errorTime: int, errorCode: int, errorString: str, advancedOrderRejectJson: str = "") -> None:  # noqa: N802 - IB API
         super().error(reqId, errorTime, errorCode, errorString, advancedOrderRejectJson)
@@ -275,6 +342,9 @@ class IBMarketDataService:
             app=app,
         )
 
+        if hasattr(app, "wait_until_ready"):
+            app.wait_until_ready(timeout=1.0)
+
         try:
             missing: list[str] = []
             generic_ticks = self._generic_ticks or ""
@@ -287,6 +357,7 @@ class IBMarketDataService:
             for leg in proposal.legs:
                 try:
                     contract = self._build_contract(leg)
+                    contract = self._maybe_enrich_contract(app, leg, contract, timeout)
                 except Exception as exc:
                     logger.warning(f"⚠️ Contract kon niet worden opgebouwd: {exc}")
                     logger.warning(
@@ -360,6 +431,52 @@ class IBMarketDataService:
         )
         contract = info.to_ib()
         return contract
+
+    def _maybe_enrich_contract(
+        self,
+        app: QuoteSnapshotApp,
+        leg: Mapping[str, Any],
+        contract: Contract,
+        timeout: float,
+    ) -> Contract:
+        if not isinstance(leg, dict):
+            return contract
+        trading_class = leg.get("tradingClass") or leg.get("trading_class")
+        primary_exchange = leg.get("primaryExchange") or leg.get("primary_exchange")
+        con_id = leg.get("conId") or leg.get("con_id")
+        if trading_class and primary_exchange and con_id:
+            return contract
+        if not hasattr(app, "request_contract_details"):
+            return contract
+        details_timeout = max(1.0, min(float(timeout), 5.0))
+        try:
+            enriched = app.request_contract_details(contract, timeout=details_timeout)
+        except Exception:
+            logger.debug("Contract details request failed", exc_info=True)
+            return contract
+        if not enriched:
+            return contract
+
+        updated = False
+        if enriched.trading_class and not trading_class:
+            leg["tradingClass"] = enriched.trading_class
+            leg.setdefault("trading_class", enriched.trading_class)
+            updated = True
+        if enriched.primary_exchange and not primary_exchange:
+            leg["primaryExchange"] = enriched.primary_exchange
+            leg.setdefault("primary_exchange", enriched.primary_exchange)
+            updated = True
+        if enriched.con_id and not con_id:
+            leg["conId"] = enriched.con_id
+            leg.setdefault("con_id", enriched.con_id)
+            updated = True
+        if not updated:
+            return contract
+        try:
+            return self._build_contract(leg)
+        except Exception:
+            logger.debug("Failed to rebuild contract with enriched data", exc_info=True)
+            return contract
 
     def _apply_snapshot(self, leg: Mapping[str, Any], data: Mapping[str, Any]) -> None:
         if not isinstance(leg, dict):
