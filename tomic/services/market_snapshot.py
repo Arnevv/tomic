@@ -31,6 +31,7 @@ class MarketRow:
     term_m1_m3: float | None = None
     skew: float | None = None
     next_earnings: date | None = None
+    days_until_earnings: int | None = None
 
 
 @dataclass
@@ -136,6 +137,14 @@ def _read_metrics(
     if summary is None or hv is None or spot is None:
         return None
 
+    earnings_date = _parse_earnings(symbol, earnings, today_fn=today_fn)
+    days_until: int | None = None
+    if earnings_date is not None:
+        try:
+            days_until = (earnings_date - today_fn()).days
+        except Exception:
+            days_until = None
+
     return MarketRow(
         symbol=symbol,
         spot=spot.get("close"),
@@ -149,7 +158,8 @@ def _read_metrics(
         term_m1_m2=summary.get("term_m1_m2"),
         term_m1_m3=summary.get("term_m1_m3"),
         skew=summary.get("skew"),
-        next_earnings=_parse_earnings(symbol, earnings, today_fn=today_fn),
+        next_earnings=earnings_date,
+        days_until_earnings=days_until,
     )
 
 
@@ -181,8 +191,14 @@ def _build_factsheet(
         except Exception:
             earnings_date = None
 
+    raw_days = record.get("days_until_earnings")
     days_until: int | None = None
-    if earnings_date is not None:
+    if isinstance(raw_days, (int, float)):
+        try:
+            days_until = int(raw_days)
+        except Exception:
+            days_until = None
+    if days_until is None and earnings_date is not None:
         try:
             days_until = (earnings_date - today_fn()).days
         except Exception:

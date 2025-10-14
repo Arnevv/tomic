@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
-from typing import Any, Dict, List, Tuple
+from typing import Any, Dict, List, Mapping, Tuple
 
+from tomic import config as app_config
 from tomic.cli.volatility_recommender import recommend_strategies
 
 
@@ -48,8 +49,24 @@ def parse_greeks(expr: str) -> Tuple[str, str, str]:
     return vega, theta, delta
 
 
-def build_market_overview(rows: List[List[Any]]) -> Tuple[List[Dict[str, Any]], List[List[str]]]:
-    """Return recommendation records and formatted table rows.
+def _load_earnings_thresholds() -> Dict[str, int]:
+    raw = app_config.get("VOL_RULES_EARNINGS_THRESHOLDS", {})
+    thresholds: Dict[str, int] = {}
+    if isinstance(raw, Mapping):
+        for key, value in raw.items():
+            if not isinstance(key, str):
+                continue
+            try:
+                thresholds[key] = int(value)
+            except (TypeError, ValueError):
+                continue
+    return thresholds
+
+
+def build_market_overview(
+    rows: List[List[Any]],
+) -> Tuple[List[Dict[str, Any]], List[List[str]], Dict[str, Any]]:
+    """Return recommendation records, formatted table rows and metadata.
 
     Parameters
     ----------
@@ -59,12 +76,15 @@ def build_market_overview(rows: List[List[Any]]) -> Tuple[List[Dict[str, Any]], 
 
     Returns
     -------
-    (recs, table_rows):
+    (recs, table_rows, meta):
         ``recs`` is a list of recommendation dictionaries used by the CLI for
         interactive selection. ``table_rows`` contains formatted values ready to
-        be rendered by :func:`tabulate`.
+        be rendered by :func:`tabulate`. ``meta`` contains additional metadata
+        such as information about filtered recommendations.
     """
     recs: List[Dict[str, Any]] = []
+    filtered_by_symbol: Dict[str, set[str]] = {}
+    thresholds = _load_earnings_thresholds()
     for r in rows:
         metrics = {
             "IV": r[2],
@@ -79,12 +99,32 @@ def build_market_overview(rows: List[List[Any]]) -> Tuple[List[Dict[str, Any]], 
             "term_m1_m3": r[10],
             "skew": r[11],
         }
+        symbol = r[0]
+        days_until: int | None = None
+        if len(r) > 13:
+            raw_days = r[13]
+            if isinstance(raw_days, (int, float)):
+                try:
+                    days_until = int(raw_days)
+                except Exception:
+                    days_until = None
         matches = recommend_strategies(metrics)
         for rec in matches:
             crit = ", ".join(rec.get("criteria", []))
+            strategy_name = rec.get("strategy")
+            if not isinstance(strategy_name, str):
+                continue
+            threshold = thresholds.get(strategy_name)
+            if (
+                threshold is not None
+                and days_until is not None
+                and days_until <= threshold
+            ):
+                filtered_by_symbol.setdefault(str(symbol), set()).add(strategy_name)
+                continue
             recs.append(
                 {
-                    "symbol": r[0],
+                    "symbol": symbol,
                     "spot": r[1],
                     "iv": r[2],
                     "hv20": r[3],
@@ -98,6 +138,7 @@ def build_market_overview(rows: List[List[Any]]) -> Tuple[List[Dict[str, Any]], 
                     "term_m1_m2": r[9],
                     "term_m1_m3": r[10],
                     "next_earnings": r[12],
+                    "days_until_earnings": days_until,
                     "iv_rank": r[7],
                     "iv_percentile": r[8],
                     "skew": r[11],
@@ -105,8 +146,12 @@ def build_market_overview(rows: List[List[Any]]) -> Tuple[List[Dict[str, Any]], 
                 }
             )
 
+    filtered_meta = {
+        symbol: sorted(strategies) for symbol, strategies in filtered_by_symbol.items()
+    }
+
     if not recs:
-        return [], []
+        return [], [], {"earnings_filtered": filtered_meta}
 
     order = [
         "Vega Short",
@@ -144,7 +189,7 @@ def build_market_overview(rows: List[List[Any]]) -> Tuple[List[Dict[str, Any]], 
             ]
         )
 
-    return recs, table_rows
+    return recs, table_rows, {"earnings_filtered": filtered_meta}
 
 
 __all__ = ["build_market_overview", "categorize", "parse_greeks"]

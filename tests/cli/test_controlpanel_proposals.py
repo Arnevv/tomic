@@ -112,7 +112,11 @@ def test_show_market_info(monkeypatch, tmp_path):
             "2030-01-01",
         ]
     ]
-    monkeypatch.setattr(mod, "build_market_overview", lambda rows: ([rec], table_rows))
+    monkeypatch.setattr(
+        mod,
+        "build_market_overview",
+        lambda rows: ([rec], table_rows, {"earnings_filtered": {}}),
+    )
 
     prints = []
     monkeypatch.setattr(builtins, "print", lambda *a, **k: prints.append(" ".join(str(x) for x in a)))
@@ -206,7 +210,11 @@ def test_market_info_polygon_scan(monkeypatch, tmp_path):
             "2030-01-01",
         ]
     ]
-    monkeypatch.setattr(mod, "build_market_overview", lambda rows: ([rec], table_rows))
+    monkeypatch.setattr(
+        mod,
+        "build_market_overview",
+        lambda rows: ([rec], table_rows, {"earnings_filtered": {}}),
+    )
 
     date_dir = tmp_path / datetime.now().strftime("%Y%m%d")
     date_dir.mkdir()
@@ -387,6 +395,73 @@ def test_market_info_polygon_scan(monkeypatch, tmp_path):
     assert any("Bid/Ask%" in line for line in prints), prints
     assert any("12.34" in line for line in prints), prints
     assert any("close" in line for line in prints), prints
+
+
+def test_market_info_reports_earnings_filter(monkeypatch):
+    mod = importlib.import_module("tomic.cli.controlpanel")
+
+    def cfg_get(key, default=None):
+        if key == "DEFAULT_SYMBOLS":
+            return ["AAA"]
+        return default
+
+    monkeypatch.setattr(mod.cfg, "get", cfg_get)
+
+    monkeypatch.setattr(
+        mod.MARKET_SNAPSHOT_SERVICE,
+        "load_snapshot",
+        lambda params: {
+            "rows": [
+                {
+                    "symbol": "AAA",
+                    "spot": 100.0,
+                    "iv": 0.25,
+                    "hv20": 0.2,
+                    "hv30": 0.21,
+                    "hv90": 0.22,
+                    "hv252": 0.23,
+                    "iv_rank": 0.6,
+                    "iv_percentile": 0.55,
+                    "term_m1_m2": 1.0,
+                    "term_m1_m3": 1.1,
+                    "skew": 3.4,
+                    "next_earnings": "2030-01-01",
+                    "days_until_earnings": 2,
+                }
+            ]
+        },
+    )
+
+    monkeypatch.setattr(
+        mod,
+        "fetch_volatility_metrics",
+        lambda *a, **k: {"vix": 20.1},
+    )
+
+    monkeypatch.setattr(
+        mod,
+        "build_market_overview",
+        lambda rows: (
+            [],
+            [],
+            {"earnings_filtered": {"AAA": ["Iron Condor", "ATM Iron Butterfly"]}},
+        ),
+    )
+
+    prints: list[str] = []
+    monkeypatch.setattr(builtins, "print", lambda *a, **k: prints.append(" ".join(str(x) for x in a)))
+
+    def _menu_run(self):
+        for desc, handler in self.items:
+            if desc == "Toon marktinformatie":
+                handler()
+                break
+
+    monkeypatch.setattr(mod.Menu, "run", _menu_run)
+
+    mod.run_portfolio_menu()
+
+    assert any("earnings-filter" in line.lower() for line in prints)
 
 
 def test_process_chain_refreshes_spot_price(monkeypatch, tmp_path):
