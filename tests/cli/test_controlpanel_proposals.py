@@ -1090,6 +1090,31 @@ def test_reason_aggregator_counts_split_fragments():
     assert agg.by_category.get(mod.ReasonCategory.OTHER, 0) == 1
 
 
+def test_format_reject_reasons_uses_reject_counts():
+    mod = importlib.import_module("tomic.cli.controlpanel")
+    evaluations = [
+        {
+            "status": "reject",
+            "reason": "previewkwaliteit (model); previewkwaliteit (parity_close); negatieve EV of score",
+        },
+        {
+            "status": "reject",
+            "reason": "previewkwaliteit (parity_close); negatieve EV of score",
+        },
+        {
+            "status": "reject",
+            "reason": "previewkwaliteit (parity_close); negatieve EV of score",
+        },
+    ]
+
+    summary = mod.summarize_evaluations(evaluations)
+
+    assert summary.reject_total == 3
+    formatted = mod._format_reject_reasons(summary)
+    assert "Datakwaliteit (fallback mid) (133%)" in formatted
+    assert "EV onvoldoende (100%)" in formatted
+
+
 def test_reason_aggregator_extends_reason_counts():
     mod = importlib.import_module("tomic.cli.controlpanel")
     agg = mod.ReasonAggregator()

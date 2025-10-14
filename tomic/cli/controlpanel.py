@@ -285,9 +285,14 @@ class EvaluationSummary:
     total: int = 0
     expiries: dict[str, ExpiryBreakdown] = field(default_factory=dict)
     reasons: ReasonAggregator = field(default_factory=ReasonAggregator)
+    rejects: int = 0
 
     @property
     def reject_total(self) -> int:
+        return self.rejects
+
+    @property
+    def reason_total(self) -> int:
         return sum(self.reasons.by_category.values())
 
     def sorted_expiries(self) -> list[ExpiryBreakdown]:
@@ -365,6 +370,7 @@ def summarize_evaluations(evaluations: Sequence[Mapping[str, Any]]) -> Evaluatio
         status = str(entry.get("status", "")) if isinstance(entry, Mapping) else ""
         breakdown.add(status)
         if status.strip().lower() == "reject":
+            summary.rejects += 1
             reason = None
             if isinstance(entry, Mapping):
                 reason = entry.get("reason")
