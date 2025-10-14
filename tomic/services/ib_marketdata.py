@@ -198,9 +198,25 @@ class IBMarketDataService:
         *,
         app_factory: Callable[[], QuoteSnapshotApp] | None = None,
         generic_ticks: str | None = None,
+        use_snapshot: bool | None = None,
     ) -> None:
         self._app_factory = app_factory or QuoteSnapshotApp
-        self._generic_ticks = generic_ticks or _cfg("MKT_GENERIC_TICKS", _GENERIC_TICKS)
+        cfg_ticks = (
+            generic_ticks
+            if generic_ticks is not None
+            else _cfg("MKT_GENERIC_TICKS", _GENERIC_TICKS)
+        )
+        if isinstance(cfg_ticks, str):
+            cfg_ticks = cfg_ticks.strip()
+        self._generic_ticks = cfg_ticks or ""
+        if use_snapshot is None:
+            use_snapshot = bool(_cfg("IB_USE_SNAPSHOT_DATA", True))
+        self._use_snapshot = bool(use_snapshot)
+
+    def _should_use_snapshot(self) -> bool:
+        """Return ``True`` when snapshot requests can be used safely."""
+
+        return self._use_snapshot and not bool(self._generic_ticks)
 
     # ------------------------------------------------------------------
     def refresh(
@@ -236,6 +252,13 @@ class IBMarketDataService:
 
         try:
             missing: list[str] = []
+            generic_ticks = self._generic_ticks or ""
+            use_snapshot = self._should_use_snapshot()
+            if self._use_snapshot and not use_snapshot:
+                logger.debug(
+                    "Snapshot market data not supported with generic ticks %s; using streaming data instead",
+                    generic_ticks,
+                )
             for leg in proposal.legs:
                 try:
                     contract = self._build_contract(leg)
@@ -253,7 +276,7 @@ class IBMarketDataService:
                 logger.debug(
                     "reqMktData req_id=%s symbol=%s strike=%s right=%s", req_id, contract.symbol, getattr(contract, "strike", "-"), getattr(contract, "right", "-")
                 )
-                app.reqMktData(req_id, contract, self._generic_ticks, True, False, [])
+                app.reqMktData(req_id, contract, generic_ticks, use_snapshot, False, [])
                 if not event.wait(timeout):
                     logger.warning(
                         "⏱ Timeout bij ophalen quote voor strike %s", leg.get("strike")
