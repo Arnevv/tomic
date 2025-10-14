@@ -35,3 +35,13 @@ def test_apply_snapshot_marks_missing_edge_when_no_prices():
     service._apply_snapshot(leg, {})  # type: ignore[attr-defined]
     assert leg.get("missing_edge") is True
     assert "mid" not in leg
+
+
+def test_snapshot_disabled_when_generic_ticks_present():
+    service = IBMarketDataService(generic_ticks="100,101", use_snapshot=True)
+    assert service._should_use_snapshot() is False
+
+
+def test_snapshot_respected_when_no_generic_ticks():
+    service = IBMarketDataService(generic_ticks="", use_snapshot=True)
+    assert service._should_use_snapshot() is True
