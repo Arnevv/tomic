@@ -49,45 +49,49 @@ def _max_credit_for_strategy(strategy: str, legs: List[Dict[str, Any]]) -> float
     if strat == "short_call_spread":
         return _vertical_width(legs, "call")
     if strat in {"iron_condor", "atm_iron_butterfly"}:
-        puts = [
-            _safe_float(leg.get("strike"))
-            for leg in legs
-            if get_leg_right(leg) == "put"
-        ]
-        calls = [
-            _safe_float(leg.get("strike"))
-            for leg in legs
-            if get_leg_right(leg) == "call"
-        ]
-        puts = [p for p in puts if p is not None]
-        calls = [c for c in calls if c is not None]
-        if len(puts) == 2 and len(calls) == 2:
-            width_put = abs(puts[0] - puts[1])
-            width_call = abs(calls[0] - calls[1])
-            return max(width_put, width_call)
+        put_cap = _vertical_width(legs, "put")
+        call_cap = _vertical_width(legs, "call")
+        if put_cap is None and call_cap is None:
+            return None
+        values = [val for val in (put_cap, call_cap) if val is not None]
+        return max(values) if values else None
+    return None
+
+
+def _find_leg(
+    legs: List[Dict[str, Any]], right: str, *, short: bool
+) -> Dict[str, Any] | None:
+    for leg in legs:
+        if get_leg_right(leg) != right:
+            continue
+        position = float(leg.get("position") or leg.get("qty") or 0)
+        if short and position < 0:
+            return leg
+        if not short and position > 0:
+            return leg
     return None
 
 
 def _vertical_width(legs: List[Dict[str, Any]], right: str) -> float | None:
-    shorts = [
-        _safe_float(leg.get("strike"))
-        for leg in legs
-        if get_leg_right(leg) == right and (leg.get("position") or 0) < 0
-    ]
-    longs = [
-        _safe_float(leg.get("strike"))
-        for leg in legs
-        if get_leg_right(leg) == right and (leg.get("position") or 0) > 0
-    ]
-    shorts = [s for s in shorts if s is not None]
-    longs = [l for l in longs if l is not None]
-    if len(shorts) != 1 or len(longs) != 1:
+    short_leg = _find_leg(legs, right, short=True)
+    long_leg = _find_leg(legs, right, short=False)
+    if not short_leg or not long_leg:
+        return None
+    short_strike = _safe_float(short_leg.get("strike"))
+    long_strike = _safe_float(long_leg.get("strike"))
+    if short_strike is None or long_strike is None:
         return None
     if right == "put":
-        width = shorts[0] - longs[0]
+        width = short_strike - long_strike
     else:
-        width = longs[0] - shorts[0]
-    return width if width > 0 else None
+        width = long_strike - short_strike
+    if width <= 0:
+        return None
+    try:
+        qty = get_leg_qty(short_leg)
+    except Exception:
+        qty = 1
+    return width * max(qty, 1)
 
 
 def _collect_leg_values(legs: List[Dict[str, Any]], keys: Tuple[str, ...]) -> List[float]:

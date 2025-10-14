@@ -2384,6 +2384,26 @@ def run_portfolio_menu() -> None:
         for warning in warns:
             print(warning)
 
+        rr_value: float | None = None
+        try:
+            profit_val = float(proposal.max_profit) if proposal.max_profit is not None else None
+        except Exception:
+            profit_val = None
+        try:
+            loss_val = float(proposal.max_loss) if proposal.max_loss is not None else None
+        except Exception:
+            loss_val = None
+        if profit_val is not None and loss_val not in (None, 0):
+            risk = abs(loss_val)
+            if risk > 0:
+                rr_value = profit_val / risk
+
+        score_str = f"{proposal.score:.2f}" if proposal.score is not None else "—"
+        ev_str = f"{proposal.ev:.2f}" if proposal.ev is not None else "—"
+        rr_str = f"{rr_value:.2f}" if rr_value is not None else "—"
+        prefix = "IB-update → " if refresh_result else "Metrics → "
+        print(f"{prefix}Score: {score_str} | EV: {ev_str} | R/R: {rr_str}")
+
         acceptance_failed = bool(refresh_result and not refresh_result.accepted)
         if acceptance_failed:
             print("❌ Acceptatiecriteria niet gehaald na IB-refresh.")
