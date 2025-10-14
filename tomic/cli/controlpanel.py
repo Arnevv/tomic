@@ -289,7 +289,12 @@ class EvaluationSummary:
 
     @property
     def reject_total(self) -> int:
-        return self.rejects
+        if self.rejects:
+            return self.rejects
+        reason_total = self.reason_total
+        if reason_total:
+            return reason_total
+        return 0
 
     @property
     def reason_total(self) -> int:
