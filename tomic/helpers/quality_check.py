@@ -60,9 +60,17 @@ def _to_float(value: object) -> float | None:
     if isinstance(value, str):
         candidate = parse_euro_float(value)
         if candidate is not None:
+            if _is_na(candidate):
+                return None
             return candidate
         try:
-            return float(value.strip()) if value.strip() else None
+            stripped = value.strip()
+            if not stripped:
+                return None
+            candidate = float(stripped)
+            if _is_na(candidate):
+                return None
+            return candidate
         except ValueError:
             return None
     return None
