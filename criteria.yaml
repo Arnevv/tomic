@@ -14,9 +14,9 @@ strike:
   delta_min: -0.99
   delta_max:  0.99
   min_rom:    0.10      # minimaal 10% ROM
-  min_edge:   0.00
-  min_pos:    0.00
-  min_ev:     0.00
+  min_edge:   0.05
+  min_pos:    0.55
+  min_ev:     0.05
   skew_min:  -20.0
   skew_max:   20.0
   term_min:  -20.0
@@ -42,8 +42,8 @@ strategy:
 
 # 3) MARKET DATA FILTERS
 market_data:
-  min_option_volume:        10 #normaal is dit 50
-  min_option_open_interest: 100 #normaal is dit 500
+  min_option_volume:        0 #normaal is dit 50
+  min_option_open_interest: 0 #normaal is dit 500
 
 # 4) ALERTS
 alerts:

@@ -83,7 +83,7 @@ class AppConfig(BaseModel):
         {"max_underlying": 200.0, "threshold": 0.20},
         {"max_underlying": None, "threshold": 0.50},
     ]
-    MID_FALLBACK_MAX_PER_4: int = 2
+    MID_FALLBACK_MAX_PER_4: int = 4
 
     # Historical and market data settings ---------------------------------
     HIST_DURATION: str = "1 D"

@@ -12,7 +12,11 @@ strategies:
   iron_condor:
     # TOMIC-beleid: minimaal 1.5
     min_risk_reward: 1.5
-    allow_unpriced_wings: false
+    allow_unpriced_wings: true
+    min_rom: 1.2
+    min_edge: 0.08
+    min_pos: 0.65
+    min_ev: 0.06
     strike_to_strategy_config:
       short_call_delta_range: [0.10, 0.40]   # verkochte calls 15–30Δ
       short_put_delta_range: [-0.40, -0.10]  # verkochte puts 15–30Δ
@@ -21,7 +25,11 @@ strategies:
       long_wing_strike_tolerance_percent: 5.0
 
   atm_iron_butterfly:
-    allow_unpriced_wings: false
+    allow_unpriced_wings: true
+    min_rom: 1.0
+    min_edge: 0.10
+    min_pos: 0.6
+    min_ev: 0.05
     strike_to_strategy_config:
       # ATM short straddle + wings
       center_strike_relative_to_spot: [0]    # short straddle op spot
@@ -51,6 +59,10 @@ strategies:
 
   calendar:
     allow_unpriced_wings: false
+    min_rom: 0.8
+    min_edge: 0.08
+    min_pos: 0.55
+    min_ev: 0.06
     strike_to_strategy_config:
       use_ATR: false
       base_strikes_relative_to_spot: [1]     # basis-strike op spot

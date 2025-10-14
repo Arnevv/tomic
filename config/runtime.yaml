@@ -1,0 +1,11 @@
+version: 1
+earnings_import:
+  today_override: null
+  symbol_col: Symbol
+  next_col_candidates:
+  - Next Earnings
+  - 'Next Earnings '
+import:
+  last_earnings_csv_path: C:\Users\ArnevanVeen\Downloads\StockWatchlist_TOMIC_20251013_192633.csv
+data:
+  earnings_json_path: tomic\data\earnings_dates.json
