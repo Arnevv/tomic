@@ -1686,40 +1686,40 @@ def run_portfolio_menu() -> None:
                     ]
                 )
 
-            print(
-                tabulate(
-                    rows_out,
-                    headers=[
-                        "Nr",
-                        "Symbool",
-                        "Strategie",
-                        "Score",
-                        "EV",
-                        "R/R",
-                        "DTE",
-                        "IV Rank",
-                        "Skew",
-                        "Bid/Ask%",
-                        "MidSrc",
-                        "Earnings",
-                    ],
-                    tablefmt="github",
-                    colalign=(
-                        "right",
-                        "left",
-                        "left",
-                        "right",
-                        "right",
-                        "right",
-                        "left",
-                        "right",
-                        "right",
-                        "right",
-                        "left",
-                        "left",
-                    ),
-                )
+            table_headers = [
+                "Nr",
+                "Symbool",
+                "Strategie",
+                "Score",
+                "EV",
+                "R/R",
+                "DTE",
+                "IV Rank",
+                "Skew",
+                "Bid/Ask%",
+                "MidSrc",
+                "Earnings",
+            ]
+            table_output = tabulate(
+                rows_out,
+                headers=table_headers,
+                tablefmt="github",
+                colalign=(
+                    "right",
+                    "left",
+                    "left",
+                    "right",
+                    "right",
+                    "right",
+                    "left",
+                    "right",
+                    "right",
+                    "right",
+                    "left",
+                    "left",
+                ),
             )
+            print(table_output)
 
             while True:
                 sel = prompt("Selectie scan (0 om terug): ")
@@ -1739,6 +1739,8 @@ def run_portfolio_menu() -> None:
                     }
                 )
                 _show_proposal_details(chosen["proposal"])
+                print()
+                print(table_output)
 
         if recs:
             print(
