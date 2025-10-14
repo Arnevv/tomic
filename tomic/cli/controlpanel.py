@@ -1504,16 +1504,67 @@ def run_portfolio_menu() -> None:
                 print("⚠️ Geen symbolen om te scannen.")
                 return
 
-            print("🔍 Markt scan via Polygon gestart…")
+            existing_chain_dir: Path | None = None
+
+            def _select_existing_chain_dir() -> Path | None:
+                while True:
+                    raw = prompt(
+                        "Map met bestaande optionchains (enter om opnieuw te downloaden): "
+                    )
+                    if not raw:
+                        return None
+                    candidate = Path(raw).expanduser()
+                    if candidate.exists() and candidate.is_dir():
+                        return candidate
+                    print(f"❌ Map niet gevonden: {raw}")
+
+            existing_chain_dir = _select_existing_chain_dir()
+            if existing_chain_dir:
+                try:
+                    display_path = existing_chain_dir.resolve()
+                except Exception:
+                    display_path = existing_chain_dir
+                print(f"📂 Gebruik bestaande optionchains uit: {display_path}")
+            else:
+                print("🔍 Markt scan via Polygon gestart…")
+
             pipeline = _get_strategy_pipeline()
             config_data = cfg.get("STRATEGY_CONFIG") or {}
             results: list[dict[str, Any]] = []
 
+            def _find_existing_chain(directory: Path, symbol: str) -> Path | None:
+                upper = symbol.upper()
+                patterns = [
+                    f"{upper}_*-optionchainpolygon.csv",
+                    f"option_chain_{upper}_*.csv",
+                    f"{upper}_*-optionchain.csv",
+                ]
+                matches: list[Path] = []
+                for pattern in patterns:
+                    try:
+                        matches.extend(directory.rglob(pattern))
+                    except Exception as exc:
+                        print(f"⚠️ Kon niet zoeken in {directory}: {exc}")
+                        return None
+                if not matches:
+                    return None
+                return max(matches, key=lambda p: p.stat().st_mtime)
+
             for symbol, symbol_recs in grouped.items():
-                chain_path = services.fetch_polygon_chain(symbol)
-                if not chain_path:
-                    print(f"⚠️ Geen polygon chain gevonden voor {symbol}")
-                    continue
+                if existing_chain_dir:
+                    chain_path = _find_existing_chain(existing_chain_dir, symbol)
+                    if not chain_path:
+                        print(
+                            f"ℹ️ Geen bestaande optionchain gevonden voor {symbol} in {existing_chain_dir}"
+                        )
+                        continue
+                else:
+                    chain_path = services.fetch_polygon_chain(symbol)
+                    if not chain_path:
+                        print(f"⚠️ Geen polygon chain gevonden voor {symbol}")
+                        continue
+                if existing_chain_dir:
+                    print(f"📄 Gebruik bestaande chain voor {symbol}: {chain_path.name}")
                 try:
                     df = pd.read_csv(chain_path)
                 except Exception as exc:
