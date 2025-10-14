@@ -6,6 +6,7 @@ import json
 import time
 from dataclasses import dataclass
 from pathlib import Path
+from pprint import pformat
 from typing import Any, Sequence
 
 import math
@@ -79,6 +80,58 @@ class OrderInstruction:
     contract: Contract
     order: Order
     legs: list[dict]
+
+
+def _serialize_instruction(instr: "OrderInstruction") -> dict[str, Any]:
+    contract = instr.contract
+    order = instr.order
+    combo_legs: list[dict[str, Any]] = []
+    for leg in getattr(contract, "comboLegs", []) or []:
+        combo_legs.append(
+            {
+                "conId": getattr(leg, "conId", None),
+                "ratio": getattr(leg, "ratio", None),
+                "action": getattr(leg, "action", None),
+                "exchange": getattr(leg, "exchange", None),
+            }
+        )
+    return {
+        "contract": {
+            "symbol": getattr(contract, "symbol", None),
+            "secType": getattr(contract, "secType", None),
+            "expiry": getattr(contract, "lastTradeDateOrContractMonth", None),
+            "strike": getattr(contract, "strike", None),
+            "right": getattr(contract, "right", None),
+            "exchange": getattr(contract, "exchange", None),
+            "currency": getattr(contract, "currency", None),
+            "multiplier": getattr(contract, "multiplier", None),
+            "tradingClass": getattr(contract, "tradingClass", None),
+            "primaryExchange": getattr(contract, "primaryExchange", None),
+            "conId": getattr(contract, "conId", None),
+            "comboLegs": combo_legs or None,
+        },
+        "order": {
+            "action": getattr(order, "action", None),
+            "totalQuantity": getattr(order, "totalQuantity", None),
+            "orderType": getattr(order, "orderType", None),
+            "lmtPrice": getattr(order, "lmtPrice", None),
+            "tif": getattr(order, "tif", None),
+            "account": getattr(order, "account", None),
+            "parentId": getattr(order, "parentId", None),
+            "orderRef": getattr(order, "orderRef", None),
+            "transmit": getattr(order, "transmit", None),
+        },
+        "legs": [
+            {
+                "strike": leg.get("strike"),
+                "expiry": leg.get("expiry"),
+                "type": get_leg_right(leg),
+                "position": leg.get("position"),
+                "qty": get_leg_qty(leg),
+            }
+            for leg in instr.legs
+        ],
+    }
 
 
 class OrderPlacementApp(BaseIBApp):
@@ -216,8 +269,14 @@ class OrderSubmissionService:
         net_credit = proposal.credit
         if net_credit is None:
             net_credit = calculate_credit(legs)
+        per_combo_credit = None
         if net_credit is not None:
-            net_price = round(abs(net_credit / 100.0), 2)
+            try:
+                per_combo_credit = net_credit / max(combo_quantity, 1)
+            except Exception:
+                per_combo_credit = net_credit
+        if per_combo_credit is not None:
+            net_price = round(abs(per_combo_credit / 100.0), 2)
         else:
             net_price = None
         order.orderType = (order_type or _cfg("DEFAULT_ORDER_TYPE", "LMT")).upper()
@@ -258,9 +317,46 @@ class OrderSubmissionService:
                     parent_id = current_id
                 else:
                     order.parentId = parent_id
-                logger.info(
-                    "🚀 Verstuur order id=%s %s %sx%s @%s", current_id, order.action, order.totalQuantity, getattr(instr.contract, "strike", "-"), getattr(order, "lmtPrice", "-")
+                payload = _serialize_instruction(instr)
+                logger.debug(
+                    f"IB order payload id={current_id} ->\n{pformat(payload)}"
                 )
+
+                contract = instr.contract
+                parts: list[str] = [
+                    f"id={current_id}",
+                    f"action={getattr(order, 'action', '?')}",
+                    f"qty={getattr(order, 'totalQuantity', '?')}",
+                    f"type={getattr(order, 'orderType', '?')}",
+                ]
+                price = getattr(order, "lmtPrice", None)
+                if price not in (None, "", "-"):
+                    parts.append(f"limit={price}")
+                contract_bits: list[str] = []
+                symbol = getattr(contract, "symbol", None)
+                if symbol:
+                    contract_bits.append(str(symbol))
+                sec_type = getattr(contract, "secType", None)
+                if sec_type:
+                    contract_bits.append(str(sec_type))
+                expiry = getattr(contract, "lastTradeDateOrContractMonth", None)
+                if expiry:
+                    contract_bits.append(str(expiry))
+                strike = getattr(contract, "strike", None)
+                if strike not in (None, ""):
+                    contract_bits.append(str(strike))
+                right = getattr(contract, "right", None)
+                if right:
+                    contract_bits.append(str(right))
+                if contract_bits:
+                    parts.append(f"contract={' '.join(contract_bits)}")
+                legs_info = [
+                    f"{get_leg_right(leg)} {leg.get('strike')} ({leg.get('position')})"
+                    for leg in instr.legs
+                ]
+                if legs_info:
+                    parts.append("legs=" + ", ".join(legs_info))
+                logger.info(f"🚀 Verstuur order {' | '.join(parts)}")
                 app.placeOrder(current_id, instr.contract, order)
                 placed_ids.append(current_id)
             return app, placed_ids
@@ -277,59 +373,7 @@ class OrderSubmissionService:
         directory.mkdir(parents=True, exist_ok=True)
         ts = time.strftime("%Y%m%d_%H%M%S")
         path = directory / f"order_submission_{ts}.json"
-        payload: list[dict[str, Any]] = []
-        for instr in instructions:
-            contract = instr.contract
-            order = instr.order
-            combo_legs: list[dict[str, Any]] = []
-            for leg in getattr(contract, "comboLegs", []) or []:
-                combo_legs.append(
-                    {
-                        "conId": getattr(leg, "conId", None),
-                        "ratio": getattr(leg, "ratio", None),
-                        "action": getattr(leg, "action", None),
-                        "exchange": getattr(leg, "exchange", None),
-                    }
-                )
-            payload.append(
-                {
-                    "contract": {
-                        "symbol": getattr(contract, "symbol", None),
-                        "secType": getattr(contract, "secType", None),
-                        "expiry": getattr(contract, "lastTradeDateOrContractMonth", None),
-                        "strike": getattr(contract, "strike", None),
-                        "right": getattr(contract, "right", None),
-                        "exchange": getattr(contract, "exchange", None),
-                        "currency": getattr(contract, "currency", None),
-                        "multiplier": getattr(contract, "multiplier", None),
-                        "tradingClass": getattr(contract, "tradingClass", None),
-                        "primaryExchange": getattr(contract, "primaryExchange", None),
-                        "conId": getattr(contract, "conId", None),
-                        "comboLegs": combo_legs or None,
-                    },
-                    "order": {
-                        "action": getattr(order, "action", None),
-                        "totalQuantity": getattr(order, "totalQuantity", None),
-                        "orderType": getattr(order, "orderType", None),
-                        "lmtPrice": getattr(order, "lmtPrice", None),
-                        "tif": getattr(order, "tif", None),
-                        "account": getattr(order, "account", None),
-                        "parentId": getattr(order, "parentId", None),
-                        "orderRef": getattr(order, "orderRef", None),
-                        "transmit": getattr(order, "transmit", None),
-                    },
-                    "legs": [
-                        {
-                            "strike": leg.get("strike"),
-                            "expiry": leg.get("expiry"),
-                            "type": get_leg_right(leg),
-                            "position": leg.get("position"),
-                            "qty": get_leg_qty(leg),
-                        }
-                        for leg in instr.legs
-                    ],
-                }
-            )
+        payload = [_serialize_instruction(instr) for instr in instructions]
         path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
         return path
 

@@ -91,3 +91,25 @@ def test_place_orders_uses_parent_child(monkeypatch):
     assert order_ids == [50]
     assert dummy.placed == [(50, "SELL", None)]
     assert app is dummy
+
+
+def test_combo_limit_price_divides_by_quantity(monkeypatch):
+    class DummyOrder(types.SimpleNamespace):
+        def __init__(self):
+            super().__init__()
+            self.lmtPrice = None
+
+    monkeypatch.setattr(order_submission, "Order", DummyOrder)
+    proposal = StrategyProposal(
+        strategy="short_put_spread",
+        legs=[
+            {"symbol": "AAA", "expiry": "20240119", "strike": 100.0, "type": "put", "position": -2},
+            {"symbol": "AAA", "expiry": "20240119", "strike": 95.0, "type": "put", "position": 2},
+        ],
+    )
+    proposal.credit = 200.0
+    instructions = prepare_order_instructions(proposal, symbol="AAA", order_type="LMT")
+    assert len(instructions) == 1
+    instr = instructions[0]
+    assert getattr(instr.order, "totalQuantity", None) == 2
+    assert getattr(instr.order, "lmtPrice", None) == 1.0
