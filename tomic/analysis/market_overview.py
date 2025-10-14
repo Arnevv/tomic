@@ -2,9 +2,8 @@
 
 from __future__ import annotations
 
-from typing import Any, Dict, List, Mapping, Tuple
+from typing import Any, Dict, List, Tuple
 
-from tomic import config as app_config
 from tomic.cli.volatility_recommender import recommend_strategies
 
 
@@ -48,21 +47,6 @@ def parse_greeks(expr: str) -> Tuple[str, str, str]:
         delta = "Neutraal"
     return vega, theta, delta
 
-
-def _load_earnings_thresholds() -> Dict[str, int]:
-    raw = app_config.get("VOL_RULES_EARNINGS_THRESHOLDS", {})
-    thresholds: Dict[str, int] = {}
-    if isinstance(raw, Mapping):
-        for key, value in raw.items():
-            if not isinstance(key, str):
-                continue
-            try:
-                thresholds[key] = int(value)
-            except (TypeError, ValueError):
-                continue
-    return thresholds
-
-
 def build_market_overview(
     rows: List[List[Any]],
 ) -> Tuple[List[Dict[str, Any]], List[List[str]], Dict[str, Any]]:
@@ -83,8 +67,6 @@ def build_market_overview(
         such as information about filtered recommendations.
     """
     recs: List[Dict[str, Any]] = []
-    filtered_by_symbol: Dict[str, set[str]] = {}
-    thresholds = _load_earnings_thresholds()
     for r in rows:
         metrics = {
             "IV": r[2],
@@ -114,14 +96,6 @@ def build_market_overview(
             strategy_name = rec.get("strategy")
             if not isinstance(strategy_name, str):
                 continue
-            threshold = thresholds.get(strategy_name)
-            if (
-                threshold is not None
-                and days_until is not None
-                and days_until <= threshold
-            ):
-                filtered_by_symbol.setdefault(str(symbol), set()).add(strategy_name)
-                continue
             recs.append(
                 {
                     "symbol": symbol,
@@ -146,9 +120,7 @@ def build_market_overview(
                 }
             )
 
-    filtered_meta = {
-        symbol: sorted(strategies) for symbol, strategies in filtered_by_symbol.items()
-    }
+    filtered_meta: Dict[str, List[str]] = {}
 
     if not recs:
         return [], [], {"earnings_filtered": filtered_meta}
