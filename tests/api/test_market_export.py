@@ -187,6 +187,29 @@ def test_fetch_volatility_metrics_parses_new_fields(monkeypatch):
     assert "term_m1_m3" not in data
 
 
+def test_fetch_volatility_metrics_uses_vix_fallback(monkeypatch):
+    import importlib
+
+    html = """
+        \"lastPrice\": 101.5
+        HV:</span></span><span><strong>12%</strong></span>
+    """
+
+    mod = importlib.reload(importlib.import_module("tomic.analysis.volatility_fetcher"))
+
+    async def fake_download(sym):
+        return html
+
+    async def fake_vix_fetch():
+        return 21.3
+
+    monkeypatch.setattr(mod, "download_html_async", fake_download)
+    monkeypatch.setattr(mod, "_fetch_vix_from_yahoo", fake_vix_fetch)
+
+    data = mod.fetch_volatility_metrics("ABC")
+    assert data["vix"] == 21.3
+
+
 def test_fetch_market_metrics_includes_new_fields(monkeypatch):
     import importlib
     client_mod = importlib.reload(importlib.import_module("tomic.api.market_client"))

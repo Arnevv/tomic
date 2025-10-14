@@ -1762,7 +1762,14 @@ def fetch_market_metrics(
 
     owns_app = False
     if app is None:
-        app = TermStructureClient(symbol)
+        try:
+            app = TermStructureClient(symbol)
+        except TypeError as exc:  # pragma: no cover - stub fallback
+            logger.debug(
+                "TermStructureClient unavailable (%s), falling back to MarketClient",
+                exc,
+            )
+            app = MarketClient(symbol)
         start_app(app)
         owns_app = True
 
