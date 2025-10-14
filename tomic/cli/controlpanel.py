@@ -519,6 +519,30 @@ def _build_rejection_table(
     if not rejects:
         return [], [], []
 
+    def _score_value(entry: Mapping[str, Any]) -> float | None:
+        metrics = entry.get("metrics") or {}
+        if isinstance(metrics, Mapping):
+            score_val = _to_float(metrics.get("score"))
+        else:
+            score_val = None
+        if score_val is None:
+            score_val = _to_float(entry.get("score"))
+        return score_val
+
+    scored_rejects: list[tuple[int, Mapping[str, Any], float | None]] = [
+        (idx, entry, _score_value(entry)) for idx, entry in enumerate(rejects)
+    ]
+
+    def _sort_key(item: tuple[int, Mapping[str, Any], float | None]) -> tuple[int, float]:
+        original_idx, _entry, score_val = item
+        if score_val is None:
+            return (1, float(original_idx))
+        return (0, -score_val)
+
+    scored_rejects.sort(key=_sort_key)
+    rejects = [entry for _, entry, _ in scored_rejects]
+    scores = [score for _, _, score in scored_rejects]
+
     has_credit = any(
         _to_float((entry.get("metrics") or {}).get("credit")) is not None
         or _to_float((entry.get("metrics") or {}).get("net_credit")) is not None
@@ -543,6 +567,9 @@ def _build_rejection_table(
     has_flags = any((entry.get("meta") or {}) for entry in rejects)
 
     headers = ["#", "Strat", "Status", "Anchor", "Legs", "DTEs", "Note"]
+    has_score = any(score is not None for score in scores)
+    if has_score:
+        headers.append("Score")
     if has_credit:
         headers.append("Net$")
     if has_rr:
@@ -557,7 +584,7 @@ def _build_rejection_table(
         headers.append("Flags")
 
     rows: list[list[str]] = []
-    for idx, entry in enumerate(rejects, start=1):
+    for idx, (entry, score_val) in enumerate(zip(rejects, scores), start=1):
         strategy = str(entry.get("strategy") or "—")
         status = str(entry.get("status") or "—")
         anchor = str(entry.get("description") or "—")
@@ -583,6 +610,8 @@ def _build_rejection_table(
             note,
         ]
 
+        if has_score:
+            row.append(f"{score_val:.2f}" if score_val is not None else "—")
         metrics = entry.get("metrics") or {}
         if has_credit:
             credit_val = metrics.get("credit")

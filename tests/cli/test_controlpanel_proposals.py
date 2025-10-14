@@ -1275,7 +1275,7 @@ def test_print_reason_summary_show_details(monkeypatch, capsys):
     yes_no = iter([True, True])
     monkeypatch.setattr(mod, "prompt_yes_no", lambda *a, **k: next(yes_no))
 
-    selections = iter(["2", "0"])
+    selections = iter(["1", "2", "0"])
     monkeypatch.setattr(mod, "prompt", lambda *a, **k: next(selections))
     monkeypatch.setattr(mod, "SHOW_REASONS", True)
 
@@ -1289,7 +1289,13 @@ def test_print_reason_summary_show_details(monkeypatch, capsys):
                 {"type": "put", "strike": 95, "expiry": "2024-01-19", "position": 1},
             ],
             "reason": mod.ReasonCategory.LOW_LIQUIDITY,
-            "metrics": {"credit": 1.5, "pos": 60, "max_profit": 120, "max_loss": -60},
+            "metrics": {
+                "credit": 1.5,
+                "pos": 60,
+                "max_profit": 120,
+                "max_loss": -60,
+                "score": 25.123,
+            },
             "meta": {"note": "illiquid"},
         },
         {
@@ -1301,7 +1307,7 @@ def test_print_reason_summary_show_details(monkeypatch, capsys):
                 {"type": "put", "strike": 90, "expiry": "2024-01-26", "position": 1},
             ],
             "raw_reason": "fallback naar close gebruikt voor midprijs",
-            "metrics": {"net_credit": 0.85, "ev_pct": 12.345},
+            "metrics": {"net_credit": 0.85, "ev_pct": 12.345, "score": 70.5},
         },
     ]
     mod.SESSION_STATE["combo_evaluations"] = entries
@@ -1322,6 +1328,9 @@ def test_print_reason_summary_show_details(monkeypatch, capsys):
     out = capsys.readouterr().out
     assert "Afwijzingen per filter:" in out
     assert "| Strat" in out and "Anchor B" in out
+    assert "|   Score |" in out
+    assert "70.5" in out and "25.12" in out
+    assert out.index("Iron Condor") < out.index("Wheel")
     assert "Redenen per categorie:" in out
     assert "Strategie: Iron Condor" in out
     assert "Anchor: Anchor B" in out
