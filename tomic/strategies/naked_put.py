@@ -51,7 +51,7 @@ def generate(
                     leg = build_leg({**opt, "spot": spot}, "short")
                     proposal = StrategyProposal(legs=[leg])
                     score, reasons = calculate_score(
-                        StrategyName.NAKED_PUT, proposal, spot
+                        StrategyName.NAKED_PUT, proposal, spot, atr=atr
                     )
                     reason_messages = [detail.message for detail in reasons]
                     if score is not None and passes_risk(proposal, min_rr):

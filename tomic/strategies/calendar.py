@@ -121,7 +121,7 @@ def generate(
                 ]
                 proposal = StrategyProposal(legs=legs)
                 score, reasons = calculate_score(
-                    StrategyName.CALENDAR, proposal, spot
+                    StrategyName.CALENDAR, proposal, spot, atr=atr
                 )
                 reason_messages = [detail.message for detail in reasons]
                 if score is None:

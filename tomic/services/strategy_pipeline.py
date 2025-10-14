@@ -73,6 +73,16 @@ class StrategyProposal:
     scenario_info: dict[str, Any] | None = None
     fallback_summary: dict[str, int] | None = None
     spread_rejects_n: int = 0
+    atr: float | None = None
+    iv_rank: float | None = None
+    iv_percentile: float | None = None
+    hv20: float | None = None
+    hv30: float | None = None
+    hv90: float | None = None
+    dte: dict[str, Any] | None = None
+    wing_width: dict[str, float] | None = None
+    wing_symmetry: bool | None = None
+    breakeven_distances: dict[str, list[float]] | None = None
 
 
 @dataclass
@@ -575,6 +585,28 @@ class StrategyPipeline:
             fallback=getattr(proposal, "fallback", None),
             profit_estimated=bool(getattr(proposal, "profit_estimated", False)),
             scenario_info=dict(getattr(proposal, "scenario_info", {}) or {}),
+            atr=getattr(proposal, "atr", None),
+            iv_rank=getattr(proposal, "iv_rank", None),
+            iv_percentile=getattr(proposal, "iv_percentile", None),
+            hv20=getattr(proposal, "hv20", None),
+            hv30=getattr(proposal, "hv30", None),
+            hv90=getattr(proposal, "hv90", None),
+            dte=(
+                dict(getattr(proposal, "dte"))
+                if getattr(proposal, "dte", None)
+                else None
+            ),
+            wing_width=(
+                dict(getattr(proposal, "wing_width"))
+                if getattr(proposal, "wing_width", None)
+                else None
+            ),
+            wing_symmetry=getattr(proposal, "wing_symmetry", None),
+            breakeven_distances=(
+                dict(getattr(proposal, "breakeven_distances"))
+                if getattr(proposal, "breakeven_distances", None)
+                else None
+            ),
         )
         if converted.legs:
             fallback_summary: dict[str, int] = {

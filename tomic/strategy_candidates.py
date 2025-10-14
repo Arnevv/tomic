@@ -49,6 +49,16 @@ class StrategyProposal:
     scenario_info: Optional[Dict[str, Any]] = None
     fallback_summary: Optional[Dict[str, int]] = None
     spread_rejects_n: int = 0
+    atr: Optional[float] = None
+    iv_rank: Optional[float] = None
+    iv_percentile: Optional[float] = None
+    hv20: Optional[float] = None
+    hv30: Optional[float] = None
+    hv90: Optional[float] = None
+    dte: Optional[Dict[str, Any]] = None
+    wing_width: Optional[Dict[str, float]] = None
+    wing_symmetry: Optional[bool] = None
+    breakeven_distances: Optional[Dict[str, List[float]]] = None
 
 
 @dataclass
@@ -229,10 +239,11 @@ def _metrics(
     spot: float | None = None,
     *,
     criteria: CriteriaConfig | None = None,
+    atr: float | None = None,
 ) -> tuple[Optional[Dict[str, Any]], list[str]]:
     proposal = StrategyProposal(legs=legs)
     score, reasons = calculate_score(
-        strategy, proposal, spot, criteria=criteria
+        strategy, proposal, spot, criteria=criteria, atr=atr
     )
     if score is None:
         return None, reasons
