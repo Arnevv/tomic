@@ -83,6 +83,7 @@ class StrategyProposal:
     wing_width: dict[str, float] | None = None
     wing_symmetry: bool | None = None
     breakeven_distances: dict[str, list[float]] | None = None
+    credit_capped: bool = False
 
 
 @dataclass

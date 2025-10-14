@@ -42,6 +42,54 @@ def _safe_float(value: Any) -> float | None:
     return val
 
 
+def _max_credit_for_strategy(strategy: str, legs: List[Dict[str, Any]]) -> float | None:
+    strat = strategy.lower()
+    if strat == "short_put_spread":
+        return _vertical_width(legs, "put")
+    if strat == "short_call_spread":
+        return _vertical_width(legs, "call")
+    if strat in {"iron_condor", "atm_iron_butterfly"}:
+        puts = [
+            _safe_float(leg.get("strike"))
+            for leg in legs
+            if get_leg_right(leg) == "put"
+        ]
+        calls = [
+            _safe_float(leg.get("strike"))
+            for leg in legs
+            if get_leg_right(leg) == "call"
+        ]
+        puts = [p for p in puts if p is not None]
+        calls = [c for c in calls if c is not None]
+        if len(puts) == 2 and len(calls) == 2:
+            width_put = abs(puts[0] - puts[1])
+            width_call = abs(calls[0] - calls[1])
+            return max(width_put, width_call)
+    return None
+
+
+def _vertical_width(legs: List[Dict[str, Any]], right: str) -> float | None:
+    shorts = [
+        _safe_float(leg.get("strike"))
+        for leg in legs
+        if get_leg_right(leg) == right and (leg.get("position") or 0) < 0
+    ]
+    longs = [
+        _safe_float(leg.get("strike"))
+        for leg in legs
+        if get_leg_right(leg) == right and (leg.get("position") or 0) > 0
+    ]
+    shorts = [s for s in shorts if s is not None]
+    longs = [l for l in longs if l is not None]
+    if len(shorts) != 1 or len(longs) != 1:
+        return None
+    if right == "put":
+        width = shorts[0] - longs[0]
+    else:
+        width = longs[0] - shorts[0]
+    return width if width > 0 else None
+
+
 def _collect_leg_values(legs: List[Dict[str, Any]], keys: Tuple[str, ...]) -> List[float]:
     values: List[float] = []
     targets = {key.lower().replace("_", "") for key in keys}
@@ -561,6 +609,18 @@ def compute_proposal_metrics(
     debit_long = sum(debits)
     net_credit = credit_short - debit_long
 
+    theoretical_cap = _max_credit_for_strategy(strategy_name, legs)
+    credit_capped = False
+    if theoretical_cap is not None and net_credit > theoretical_cap + 1e-6:
+        logger.warning(
+            "[%s] Credit %.2f boven theoretisch maximum %.2f – wordt afgetopt",
+            strategy_name,
+            net_credit,
+            theoretical_cap,
+        )
+        net_credit = theoretical_cap
+        credit_capped = True
+
     if strategy_name in POSITIVE_CREDIT_STRATS and net_credit <= 0:
         _add_reason(
             make_reason(
@@ -572,6 +632,7 @@ def compute_proposal_metrics(
         return None, reasons
 
     proposal.credit = net_credit * 100
+    proposal.credit_capped = credit_capped
     cost_basis = -net_credit * 100
     risk = heuristic_risk_metrics(legs, cost_basis)
     proposal.max_profit = risk.get("max_profit")

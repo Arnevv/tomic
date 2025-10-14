@@ -2325,8 +2325,23 @@ def run_portfolio_menu() -> None:
                     f"{ask:.2f}" if ask is not None else "—",
                     f"{mid:.2f}" if mid is not None else "—",
                     (
+                        f"{leg.get('iv', 0):.2f}"
+                        if leg.get("iv") is not None
+                        else ""
+                    ),
+                    (
                         f"{leg.get('delta', 0):+.2f}"
                         if leg.get("delta") is not None
+                        else ""
+                    ),
+                    (
+                        f"{leg.get('gamma', 0):+.4f}"
+                        if leg.get("gamma") is not None
+                        else ""
+                    ),
+                    (
+                        f"{leg.get('vega', 0):+.2f}"
+                        if leg.get("vega") is not None
                         else ""
                     ),
                     (
@@ -2334,8 +2349,6 @@ def run_portfolio_menu() -> None:
                         if leg.get("theta") is not None
                         else ""
                     ),
-                    f"{leg.get('vega', 0):+.2f}" if leg.get("vega") is not None else "",
-                    f"{leg.get('edge'):.2f}" if leg.get("edge") is not None else "—",
                 ]
             )
         missing_edge = any(leg.get("edge") is None for leg in proposal.legs)
@@ -2351,10 +2364,11 @@ def run_portfolio_menu() -> None:
                     "Bid",
                     "Ask",
                     "Mid",
-                    "Δ",
-                    "Θ",
-                    "V",
-                    "Edge",
+                    "IV",
+                    "Delta",
+                    "Gamma",
+                    "Vega",
+                    "Theta",
                 ],
                 tablefmt="github",
             )
@@ -2363,6 +2377,10 @@ def run_portfolio_menu() -> None:
             warns.append("⚠️ Geen verse quotes voor: " + ", ".join(missing_quotes))
         if missing_edge:
             warns.append("⚠️ Eén of meerdere edges niet beschikbaar")
+        if getattr(proposal, "credit_capped", False):
+            warns.append(
+                "⚠️ Credit afgetopt op theoretisch maximum vanwege ontbrekende bid/ask"
+            )
         for warning in warns:
             print(warning)
 
