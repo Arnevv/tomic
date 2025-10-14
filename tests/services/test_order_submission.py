@@ -16,8 +16,22 @@ def test_prepare_order_instructions(monkeypatch):
     proposal = StrategyProposal(
         strategy="short_put_spread",
         legs=[
-            {"symbol": "AAA", "expiry": "20240119", "strike": 100.0, "type": "put", "position": -1},
-            {"symbol": "AAA", "expiry": "20240119", "strike": 95.0, "type": "put", "position": 1},
+            {
+                "symbol": "AAA",
+                "expiry": "20240119",
+                "strike": 100.0,
+                "type": "put",
+                "position": -1,
+                "conId": 101,
+            },
+            {
+                "symbol": "AAA",
+                "expiry": "20240119",
+                "strike": 95.0,
+                "type": "put",
+                "position": 1,
+                "conId": 102,
+            },
         ],
     )
     instructions = prepare_order_instructions(
@@ -31,7 +45,7 @@ def test_prepare_order_instructions(monkeypatch):
     instr = instructions[0]
     assert getattr(instr.order, "action", None) == "SELL"
     assert getattr(instr.order, "totalQuantity", None) == 1
-    assert getattr(instr.order, "transmit", None) is False
+    assert getattr(instr.order, "transmit", None) is True
     assert getattr(instr.contract, "secType", None) == "BAG"
     combo_legs = getattr(instr.contract, "comboLegs", [])
     assert combo_legs and len(combo_legs) == 2
@@ -44,8 +58,22 @@ def test_bag_contract_excludes_disallowed_fields(monkeypatch):
     proposal = StrategyProposal(
         strategy="short_put_spread",
         legs=[
-            {"symbol": "HD", "expiry": "20240119", "strike": 310.0, "type": "call", "position": -1},
-            {"symbol": "HD", "expiry": "20240119", "strike": 305.0, "type": "call", "position": 1},
+            {
+                "symbol": "HD",
+                "expiry": "20240119",
+                "strike": 310.0,
+                "type": "call",
+                "position": -1,
+                "conId": 201,
+            },
+            {
+                "symbol": "HD",
+                "expiry": "20240119",
+                "strike": 305.0,
+                "type": "call",
+                "position": 1,
+                "conId": 202,
+            },
         ],
     )
     instructions = prepare_order_instructions(proposal, symbol="HD")
@@ -58,8 +86,8 @@ def test_bag_contract_excludes_disallowed_fields(monkeypatch):
         "exchange": "SMART",
         "currency": "USD",
         "comboLegs": [
-            {"conId": None, "ratio": 1, "action": "SELL", "exchange": "SMART"},
-            {"conId": None, "ratio": 1, "action": "BUY", "exchange": "SMART"},
+            {"conId": 201, "ratio": 1, "action": "SELL", "exchange": "SMART"},
+            {"conId": 202, "ratio": 1, "action": "BUY", "exchange": "SMART"},
         ],
     }
 
@@ -69,7 +97,14 @@ def test_dump_order_log(tmp_path, monkeypatch):
     proposal = StrategyProposal(
         strategy="short_call",
         legs=[
-            {"symbol": "AAA", "expiry": "20240119", "strike": 100.0, "type": "call", "position": -1},
+            {
+                "symbol": "AAA",
+                "expiry": "20240119",
+                "strike": 100.0,
+                "type": "call",
+                "position": -1,
+                "conId": 301,
+            },
         ],
     )
     instructions = prepare_order_instructions(proposal, symbol="AAA")
@@ -84,8 +119,22 @@ def test_place_orders_uses_parent_child(monkeypatch):
     proposal = StrategyProposal(
         strategy="short_put_spread",
         legs=[
-            {"symbol": "AAA", "expiry": "20240119", "strike": 100.0, "type": "put", "position": -1},
-            {"symbol": "AAA", "expiry": "20240119", "strike": 95.0, "type": "put", "position": 1},
+            {
+                "symbol": "AAA",
+                "expiry": "20240119",
+                "strike": 100.0,
+                "type": "put",
+                "position": -1,
+                "conId": 401,
+            },
+            {
+                "symbol": "AAA",
+                "expiry": "20240119",
+                "strike": 95.0,
+                "type": "put",
+                "position": 1,
+                "conId": 402,
+            },
         ],
     )
     instructions = prepare_order_instructions(proposal, symbol="AAA")
@@ -102,6 +151,13 @@ def test_place_orders_uses_parent_child(monkeypatch):
 
         def disconnect(self):  # type: ignore[override]
             pass
+
+        def validate_contract_conids(self, con_ids, *, timeout: float = 3.0):  # type: ignore[override]
+            self._validated_conids.update(int(con_id) for con_id in con_ids)
+
+        def wait_for_order_handshake(self, order_ids, *, timeout: float = 3.0):  # type: ignore[override]
+            for order_id in order_ids:
+                self._order_events[order_id] = {"status": "Submitted"}
 
     dummy = DummyApp()
     monkeypatch.setattr(order_submission, "connect_ib", lambda **kwargs: kwargs.get("app"))
@@ -128,8 +184,22 @@ def test_combo_limit_price_divides_by_quantity(monkeypatch):
     proposal = StrategyProposal(
         strategy="short_put_spread",
         legs=[
-            {"symbol": "AAA", "expiry": "20240119", "strike": 100.0, "type": "put", "position": -2},
-            {"symbol": "AAA", "expiry": "20240119", "strike": 95.0, "type": "put", "position": 2},
+            {
+                "symbol": "AAA",
+                "expiry": "20240119",
+                "strike": 100.0,
+                "type": "put",
+                "position": -2,
+                "conId": 501,
+            },
+            {
+                "symbol": "AAA",
+                "expiry": "20240119",
+                "strike": 95.0,
+                "type": "put",
+                "position": 2,
+                "conId": 502,
+            },
         ],
     )
     proposal.credit = 200.0

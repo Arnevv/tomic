@@ -169,7 +169,12 @@ class OrderPlacementApp(BaseIBApp):
 
     def __init__(self) -> None:
         super().__init__()
-        self._order_events: dict[int, tuple[Order, OrderState | None]] = {}
+        self._order_events: dict[int, dict[str, Any]] = {}
+        self._contract_details_events: dict[int, bool] = {}
+        self._validated_conids: set[int] = set()
+        self._contract_details_end: set[int] = set()
+        self._contract_details_req_map: dict[int, int] = {}
+        self._next_contract_details_req_id = 10_000
         self._lock = None
         self.next_order_id_ready = False
 
@@ -186,7 +191,11 @@ class OrderPlacementApp(BaseIBApp):
             f"action={order.action} "
             f"qty={order.totalQuantity}"
         )
-        self._order_events[orderId] = (order, orderState)
+        self._order_events[orderId] = {
+            "order": order,
+            "orderState": orderState,
+            "status": None,
+        }
 
     def orderStatus(
         self,
@@ -208,6 +217,99 @@ class OrderPlacementApp(BaseIBApp):
             f"status={status} "
             f"filled={filled} "
             f"remaining={remaining}"
+        )
+        entry = self._order_events.setdefault(
+            orderId,
+            {
+                "order": None,
+                "orderState": None,
+                "status": None,
+            },
+        )
+        entry.update({
+            "status": status,
+            "filled": filled,
+            "remaining": remaining,
+            "avgFillPrice": avgFillPrice,
+            "lastFillPrice": lastFillPrice,
+        })
+
+    def contractDetails(self, reqId: int, details: Any) -> None:  # noqa: N802 - IB API
+        contract = getattr(details, "contract", None)
+        con_id = getattr(contract, "conId", None)
+        if con_id is not None:
+            try:
+                self._validated_conids.add(int(con_id))
+            except (TypeError, ValueError):
+                pass
+        self._contract_details_events[reqId] = True
+
+    def contractDetailsEnd(self, reqId: int) -> None:  # noqa: N802 - IB API
+        self._contract_details_end.add(reqId)
+
+    def validate_contract_conids(self, con_ids: Sequence[int], *, timeout: float = 3.0) -> None:
+        pending: list[int] = []
+        for con_id in {int(con_id) for con_id in con_ids if con_id not in (None, 0)}:
+            if con_id in self._validated_conids:
+                continue
+            contract = Contract()
+            contract.conId = con_id
+            contract.exchange = "SMART"
+            req_id = self._next_contract_details_req_id
+            self._next_contract_details_req_id += 1
+            self._contract_details_req_map[req_id] = con_id
+            pending.append(req_id)
+            self.reqContractDetails(req_id, contract)
+
+        if not pending:
+            return
+
+        start = time.time()
+        while time.time() - start < timeout:
+            if all(req_id in self._contract_details_end for req_id in pending):
+                break
+            time.sleep(0.1)
+
+        missing = [
+            self._contract_details_req_map[req_id]
+            for req_id in pending
+            if req_id not in self._contract_details_end
+            or not self._contract_details_events.get(req_id)
+        ]
+        if missing:
+            raise RuntimeError(
+                "❌ Geen contractDetails ontvangen voor conIds: " + ", ".join(map(str, missing))
+            )
+
+        for req_id in pending:
+            self._contract_details_req_map.pop(req_id, None)
+            self._contract_details_events.pop(req_id, None)
+            self._contract_details_end.discard(req_id)
+
+    def wait_for_order_handshake(self, order_ids: Sequence[int], *, timeout: float = 3.0) -> None:
+        if not order_ids:
+            return
+
+        try:
+            self.reqOpenOrders()
+        except Exception:
+            logger.debug("Kon reqOpenOrders niet uitvoeren", exc_info=True)
+
+        start = time.time()
+        requested_all = False
+        while time.time() - start < timeout:
+            if all(order_id in self._order_events for order_id in order_ids):
+                return
+            if not requested_all and time.time() - start > timeout / 2:
+                try:
+                    self.reqAllOpenOrders()
+                except Exception:
+                    logger.debug("Kon reqAllOpenOrders niet uitvoeren", exc_info=True)
+                requested_all = True
+            time.sleep(0.1)
+        logger.warning(
+            "⏱ Timeout bij wachten op bevestiging van orders: %s",
+            ", ".join(map(str, order_ids)),
         )
 
 
@@ -239,6 +341,13 @@ class OrderSubmissionService:
             position = float(leg.get("position") or leg.get("qty") or 0)
             if position == 0:
                 position = -qty
+            leg_con_id = leg.get("conId") or leg.get("con_id")
+            if not leg_con_id:
+                raise ValueError("conId ontbreekt voor leg")
+            try:
+                leg_con_id_int = int(leg_con_id)
+            except (TypeError, ValueError) as exc:
+                raise ValueError(f"ongeldige conId voor leg: {leg_con_id}") from exc
             contract = OptionContract(
                 symbol=_leg_symbol(leg, fallback=symbol),
                 expiry=_expiry(leg),
@@ -249,8 +358,11 @@ class OrderSubmissionService:
                 multiplier=str(leg.get("multiplier") or "100"),
                 trading_class=leg.get("tradingClass") or leg.get("trading_class"),
                 primary_exchange=leg.get("primaryExchange") or leg.get("primary_exchange"),
-                con_id=leg.get("conId") or leg.get("con_id"),
+                con_id=leg_con_id_int,
             ).to_ib()
+            contract_con_id = getattr(contract, "conId", None)
+            if contract_con_id in (None, 0):
+                raise ValueError("ongeldige conId voor leg")
             action = _leg_action(position)
             price = _leg_price(leg)
             leg_contracts.append((leg, contract, qty, action, price))
@@ -268,8 +380,7 @@ class OrderSubmissionService:
             if price is not None and hasattr(order, "lmtPrice"):
                 order.lmtPrice = round(price, 2)
             order.transmit = True
-            if account:
-                order.account = account
+            order.account = account or "DUK809533"
             order.orderRef = f"{proposal.strategy}-{symbol}"
             return [OrderInstruction(contract=contract, order=order, legs=[leg])]
 
@@ -281,8 +392,7 @@ class OrderSubmissionService:
         combo_contract.symbol = getattr(first_contract, "symbol", _leg_symbol(legs[0], fallback=symbol))
         combo_contract.secType = "BAG"
         combo_contract.currency = getattr(first_contract, "currency", "USD")
-        first_exchange = getattr(first_contract, "exchange", None)
-        combo_contract.exchange = str(first_exchange or _cfg("OPTIONS_EXCHANGE", "SMART"))
+        combo_contract.exchange = "SMART"
         combo_contract.comboLegs = []  # type: ignore[assignment]
         # Ensure the BAG contract is "clean" and does not inherit default
         # option attributes (e.g. absurd default strikes) that IB will reject.
@@ -301,11 +411,15 @@ class OrderSubmissionService:
             ratio = max(1, qty // combo_quantity)
             combo_leg = ComboLeg()
             con_id = getattr(contract, "conId", None)
-            if con_id not in (None, 0):
-                combo_leg.conId = con_id
+            if con_id in (None, 0):
+                raise ValueError("combo leg mist conId")
+            try:
+                combo_leg.conId = int(con_id)
+            except (TypeError, ValueError) as exc:
+                raise ValueError(f"ongeldige combo leg conId: {con_id}") from exc
             combo_leg.ratio = ratio
             combo_leg.action = action
-            combo_leg.exchange = getattr(contract, "exchange", combo_contract.exchange)
+            combo_leg.exchange = "SMART"
             combo_contract.comboLegs.append(combo_leg)  # type: ignore[attr-defined]
 
         order = Order()
@@ -329,8 +443,7 @@ class OrderSubmissionService:
             order.lmtPrice = net_price
         order.action = "SELL" if (net_credit or 0) >= 0 else "BUY"
         order.transmit = True
-        if account:
-            order.account = account
+        order.account = account or "DUK809533"
         order.orderRef = f"{proposal.strategy}-{symbol}"
         return [OrderInstruction(contract=combo_contract, order=order, legs=list(legs))]
 
@@ -352,6 +465,30 @@ class OrderSubmissionService:
             while not getattr(app, "next_order_id_ready", False):
                 time.sleep(0.1)
             order_id = app.next_valid_id or 1
+            con_ids_to_validate: set[int] = set()
+            for instr in instructions:
+                contract_con_id = getattr(instr.contract, "conId", None)
+                if contract_con_id not in (None, 0):
+                    try:
+                        con_ids_to_validate.add(int(contract_con_id))
+                    except (TypeError, ValueError) as exc:
+                        raise ValueError(
+                            f"ongeldige contract conId: {contract_con_id}"
+                        ) from exc
+                combo_legs = getattr(instr.contract, "comboLegs", None) or []
+                for combo_leg in combo_legs:
+                    con_id = getattr(combo_leg, "conId", None)
+                    if con_id in (None, 0):
+                        raise ValueError("combo leg mist conId")
+                    try:
+                        con_ids_to_validate.add(int(con_id))
+                    except (TypeError, ValueError) as exc:
+                        raise ValueError(
+                            f"ongeldige combo leg conId: {con_id}"
+                        ) from exc
+
+            if con_ids_to_validate:
+                app.validate_contract_conids(sorted(con_ids_to_validate))
             placed_ids: list[int] = []
             parent_id = order_id
             for idx, instr in enumerate(instructions):
@@ -403,6 +540,7 @@ class OrderSubmissionService:
                 logger.info(f"🚀 Verstuur order {' | '.join(parts)}")
                 app.placeOrder(current_id, instr.contract, order)
                 placed_ids.append(current_id)
+            app.wait_for_order_handshake(placed_ids)
             return app, placed_ids
         except Exception:
             logger.exception("❌ Fout bij versturen van IB orders")
