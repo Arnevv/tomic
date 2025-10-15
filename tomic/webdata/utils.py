@@ -18,7 +18,7 @@ async def download_html_async(
     max_retries: int | None = None,
     timeout: int | None = None,
 ) -> str:
-    """Asynchronously return raw HTML for the given symbol from Barchart.
+    """Asynchronously return raw HTML for the given symbol.
 
     Parameters
     ----------
@@ -40,7 +40,11 @@ async def download_html_async(
     url = f"https://www.barchart.com/etfs-funds/quotes/{symbol}/volatility-charts"
 
     for attempt in range(1, max_retries + 1):
-        logger.debug(f"Requesting URL: {url} (attempt {attempt})")
+        logger.debug(
+            "Requesting volatility page for %s (attempt %s)",
+            symbol,
+            attempt,
+        )
         try:
             timeout_obj = aiohttp.ClientTimeout(total=timeout)
             async with aiohttp.ClientSession(timeout=timeout_obj) as session:
