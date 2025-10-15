@@ -794,6 +794,18 @@ def _proposal_from_rejection(entry: Mapping[str, Any]) -> StrategyProposal | Non
     if not normalized_legs:
         return None
 
+    symbol_hint = _entry_symbol(entry)
+    if symbol_hint:
+        for leg in normalized_legs:
+            if not isinstance(leg, Mapping):
+                continue
+            has_symbol = any(
+                leg.get(key)
+                for key in ("symbol", "underlying", "ticker", "root", "root_symbol")
+            )
+            if not has_symbol:
+                leg["symbol"] = symbol_hint
+
     proposal_kwargs: dict[str, Any] = {}
     allowed_fields = {field.name for field in fields(StrategyProposal) if field.init}
     allowed_fields.discard("strategy")
@@ -876,12 +888,103 @@ def _refresh_reject_entries(entries: Sequence[Mapping[str, Any]]) -> None:
         entry["refreshed_reasons"] = result.reasons
         entry["refreshed_missing_quotes"] = result.missing_quotes
         entry["refreshed_accepted"] = result.accepted
+        entry["refreshed_symbol"] = symbol or label_symbol
 
     summary_parts = [f"{refreshed}/{total} ververst"]
     summary_parts.append(f"geaccepteerd: {accepted}")
     if failures:
         summary_parts.append(f"fouten: {failures}")
     print("Samenvatting: " + ", ".join(summary_parts))
+
+    accepted_entries: list[Mapping[str, Any]] = [
+        entry
+        for entry in entries
+        if entry.get("refreshed_accepted") and isinstance(entry.get("refreshed_proposal"), StrategyProposal)
+    ]
+    if not accepted_entries:
+        return
+
+    table_rows: list[list[str]] = []
+    for idx, entry in enumerate(accepted_entries, start=1):
+        refreshed: StrategyProposal = entry["refreshed_proposal"]  # type: ignore[assignment]
+        symbol_label = (
+            (entry.get("refreshed_symbol") or _entry_symbol(entry) or "—")
+            if isinstance(entry, Mapping)
+            else "—"
+        )
+        dtes = _format_dtes(refreshed.legs)
+        credit = _format_money(refreshed.credit)
+        try:
+            max_profit = float(refreshed.max_profit) if refreshed.max_profit is not None else None
+        except Exception:
+            max_profit = None
+        try:
+            max_loss = float(refreshed.max_loss) if refreshed.max_loss is not None else None
+        except Exception:
+            max_loss = None
+        rr_display = "—"
+        if max_profit is not None and max_loss not in {None, 0}:
+            try:
+                rr_display = f"{max_profit / abs(max_loss):.2f}"
+            except Exception:
+                rr_display = "—"
+        pos_display = "—"
+        pos_val = _to_float(refreshed.pos)
+        if pos_val is not None:
+            pos_display = f"{pos_val:.2f}"
+        ev_display = "—"
+        ev_val = _to_float(refreshed.ev)
+        if ev_val is not None:
+            ev_display = f"{ev_val:.2f}"
+
+        table_rows.append(
+            [
+                str(idx),
+                symbol_label,
+                refreshed.strategy,
+                dtes,
+                credit,
+                rr_display,
+                pos_display,
+                ev_display,
+            ]
+        )
+
+    print("Geaccepteerde voorstellen:")
+    print(
+        tabulate(
+            table_rows,
+            headers=["#", "Symbool", "Strategie", "DTEs", "Credit", "R/R", "PoS", "EV"],
+            tablefmt="github",
+        )
+    )
+
+    while True:
+        try:
+            selection = prompt("Kies voorstel (0 om terug): ")
+        except (EOFError, OSError):  # pragma: no cover - interactive fallback
+            logger.debug("Prompt afgebroken tijdens selectie geaccepteerd voorstel")
+            break
+        if selection in {"", "0"}:
+            break
+        try:
+            index = int(selection)
+        except ValueError:
+            print("❌ Ongeldige keuze")
+            continue
+        if index < 1 or index > len(accepted_entries):
+            print("❌ Ongeldige keuze")
+            continue
+        chosen_entry = accepted_entries[index - 1]
+        refreshed: StrategyProposal = chosen_entry["refreshed_proposal"]  # type: ignore[assignment]
+        symbol_hint = (
+            chosen_entry.get("refreshed_symbol")
+            or _entry_symbol(chosen_entry)
+            or (refreshed.legs[0].get("symbol") if refreshed.legs else None)
+        )
+        print()
+        _display_rejection_proposal(refreshed, symbol_hint if isinstance(symbol_hint, str) else None)
+        print()
 
 
 def _display_rejection_proposal(proposal: StrategyProposal, symbol_hint: str | None) -> None:
