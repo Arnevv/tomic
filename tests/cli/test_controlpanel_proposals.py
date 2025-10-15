@@ -1101,6 +1101,94 @@ def test_print_reason_summary_no_rejections(capsys):
     assert "Geen opties door filters afgewezen" in out
 
 
+def test_rejection_detail_offers_ib_fetch(monkeypatch, capsys):
+    mod = importlib.import_module("tomic.cli.controlpanel")
+
+    entry = {
+        "strategy": "iron_condor",
+        "status": "reject",
+        "description": "SC 490.0 SP 420.0 σ 1.0",
+        "metrics": {
+            "score": 66.41,
+            "ev": 841.5,
+            "rom": 0.7,
+            "credit": 1656.3,
+            "margin": 2343.7,
+            "max_profit": 1656.3,
+            "max_loss": -2343.7,
+            "breakevens": [403.437, 506.563],
+            "pos": 79.63,
+        },
+        "legs": [
+            {
+                "expiry": "2025-11-21",
+                "type": "call",
+                "strike": 490.0,
+                "position": -1,
+                "bid": 12.85,
+                "ask": 13.0,
+                "mid": 12.92,
+            },
+            {
+                "expiry": "2025-11-21",
+                "type": "put",
+                "strike": 420.0,
+                "position": -1,
+                "bid": 6.45,
+                "ask": 6.55,
+                "mid": 6.50,
+            },
+        ],
+        "meta": {"symbol": "SPY"},
+    }
+
+    prompts: list[str] = []
+    selections = iter(["1", "0"])
+
+    def fake_prompt(question: str, default: object | None = None):
+        prompts.append(question)
+        try:
+            return next(selections)
+        except StopIteration:
+            return "0"
+
+    called: list[tuple[object, object]] = []
+
+    def fake_display(proposal, symbol_hint):
+        called.append((proposal, symbol_hint))
+
+    monkeypatch.setattr(mod, "prompt", fake_prompt)
+    monkeypatch.setattr(mod, "_display_rejection_proposal", fake_display)
+
+    original_symbol = mod.SESSION_STATE.get("symbol")
+    original_strategy = mod.SESSION_STATE.get("strategy")
+    mod.SESSION_STATE["symbol"] = "OLD"
+    mod.SESSION_STATE["strategy"] = "old_strategy"
+    try:
+        mod._show_rejection_detail(entry)
+    finally:
+        if original_symbol is None:
+            mod.SESSION_STATE.pop("symbol", None)
+        else:
+            mod.SESSION_STATE["symbol"] = original_symbol
+        if original_strategy is None:
+            mod.SESSION_STATE.pop("strategy", None)
+        else:
+            mod.SESSION_STATE["strategy"] = original_strategy
+
+    capsys.readouterr()
+
+    assert any("Kies actie" in q for q in prompts)
+    assert called, "_display_rejection_proposal was not triggered"
+    proposal, symbol_hint = called[0]
+    assert isinstance(proposal, mod.StrategyProposal)
+    assert proposal.strategy == "iron_condor"
+    assert len(proposal.legs) == 2
+    assert symbol_hint == "SPY"
+    assert mod.SESSION_STATE.get("symbol") == original_symbol
+    assert mod.SESSION_STATE.get("strategy") == original_strategy
+
+
 def test_reason_aggregator_prefers_risk_over_fallback():
     mod = importlib.import_module("tomic.cli.controlpanel")
     agg = mod.ReasonAggregator()

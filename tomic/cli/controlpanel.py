@@ -12,7 +12,7 @@ from collections import defaultdict
 import math
 import inspect
 import re
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, fields
 from typing import Any, Iterable, Mapping, Sequence
 from tomic.helpers.dateutils import parse_date
 
@@ -751,6 +751,77 @@ def _show_rejection_detail(entry: Mapping[str, Any]) -> None:
             )
         print("Legs:")
         print(tabulate(leg_rows, headers=headers, tablefmt="github"))
+
+    proposal = _proposal_from_rejection(entry)
+    if not proposal:
+        return
+
+    meta = entry.get("meta") if isinstance(entry, Mapping) else None
+    symbol_hint: str | None = None
+    if isinstance(meta, Mapping):
+        raw_symbol = meta.get("symbol")
+        if raw_symbol:
+            symbol_hint = str(raw_symbol)
+
+    print("\nActies:")
+    print("1. Haal orderinformatie van IB op")
+    while True:
+        selection = prompt("Kies actie (0 om terug): ")
+        if selection in {"", "0"}:
+            break
+        if selection == "1":
+            _display_rejection_proposal(proposal, symbol_hint)
+        else:
+            print("❌ Ongeldige keuze")
+
+
+def _proposal_from_rejection(entry: Mapping[str, Any]) -> StrategyProposal | None:
+    metrics = entry.get("metrics") if isinstance(entry, Mapping) else None
+    legs = entry.get("legs") if isinstance(entry, Mapping) else None
+    strategy = entry.get("strategy") if isinstance(entry, Mapping) else None
+
+    if not isinstance(strategy, str) or not strategy:
+        return None
+    if not isinstance(metrics, Mapping):
+        return None
+    if not isinstance(legs, Sequence):
+        return None
+
+    normalized_legs: list[dict[str, Any]] = []
+    for leg in legs:
+        if isinstance(leg, Mapping):
+            normalized_legs.append(dict(leg))
+    if not normalized_legs:
+        return None
+
+    proposal_kwargs: dict[str, Any] = {}
+    allowed_fields = {field.name for field in fields(StrategyProposal) if field.init}
+    allowed_fields.discard("strategy")
+    allowed_fields.discard("legs")
+    for key, value in metrics.items():
+        if key in allowed_fields:
+            proposal_kwargs[key] = value
+
+    return StrategyProposal(strategy=strategy, legs=normalized_legs, **proposal_kwargs)
+
+
+def _display_rejection_proposal(proposal: StrategyProposal, symbol_hint: str | None) -> None:
+    previous_symbol = SESSION_STATE.get("symbol")
+    previous_strategy = SESSION_STATE.get("strategy")
+    try:
+        if symbol_hint:
+            SESSION_STATE["symbol"] = symbol_hint
+        SESSION_STATE["strategy"] = proposal.strategy
+        _show_proposal_details(proposal)
+    finally:
+        if previous_symbol is None:
+            SESSION_STATE.pop("symbol", None)
+        else:
+            SESSION_STATE["symbol"] = previous_symbol
+        if previous_strategy is None:
+            SESSION_STATE.pop("strategy", None)
+        else:
+            SESSION_STATE["strategy"] = previous_strategy
 
 
 def _print_reason_summary(summary: RejectionSummary | None) -> None:
