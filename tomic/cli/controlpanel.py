@@ -96,6 +96,7 @@ from tomic.services.order_submission import (
     prepare_order_instructions,
 )
 from tomic.scripts.backfill_hv import run_backfill_hv
+from tomic.cli.iv_backfill_flow import run_iv_backfill_flow
 from tomic.services.market_snapshot import (
     MarketSnapshotService,
     _build_factsheet,
@@ -1335,6 +1336,7 @@ def run_dataexporter() -> None:
     menu.add("Run GitHub Action lokaal", run_github_action)
     menu.add("Run GitHub Action lokaal - intraday", run_intraday_action)
     menu.add("Backfill historical_volatility obv spotprices", run_backfill_hv)
+    menu.add("IV backfill", run_iv_backfill_flow)
     menu.add("Fetch Earnings", fetch_earnings)
     menu.add("Import nieuwe earning dates van MarketChameleon", import_market_chameleon_earnings)
 
