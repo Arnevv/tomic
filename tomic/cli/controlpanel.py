@@ -805,6 +805,85 @@ def _proposal_from_rejection(entry: Mapping[str, Any]) -> StrategyProposal | Non
     return StrategyProposal(strategy=strategy, legs=normalized_legs, **proposal_kwargs)
 
 
+def _entry_symbol(entry: Mapping[str, Any]) -> str | None:
+    symbol = entry.get("symbol") if isinstance(entry, Mapping) else None
+    if isinstance(symbol, str) and symbol.strip():
+        return symbol.strip().upper()
+
+    meta = entry.get("meta") if isinstance(entry, Mapping) else None
+    if isinstance(meta, Mapping):
+        raw_symbol = meta.get("symbol") or meta.get("underlying")
+        if isinstance(raw_symbol, str) and raw_symbol.strip():
+            return raw_symbol.strip().upper()
+    return None
+
+
+def _refresh_reject_entries(entries: Sequence[Mapping[str, Any]]) -> None:
+    proposals: list[tuple[Mapping[str, Any], StrategyProposal, str | None]] = []
+    for entry in entries:
+        proposal = _proposal_from_rejection(entry)
+        if not proposal:
+            continue
+        proposals.append((entry, proposal, _entry_symbol(entry)))
+
+    if not proposals:
+        print("⚠️ Geen geschikte voorstellen om te verversen.")
+        return
+
+    criteria_cfg = load_criteria()
+    spot_price = SESSION_STATE.get("spot_price")
+    try:
+        timeout = float(cfg.get("MARKET_DATA_TIMEOUT", 15))
+    except Exception:
+        timeout = 15.0
+
+    total = len(proposals)
+    refreshed = 0
+    accepted = 0
+    failures = 0
+
+    print(f"📡 Ververs orderinformatie via IB voor {total} voorstel(len)...")
+
+    for entry, proposal, symbol in proposals:
+        label_symbol = symbol or str(SESSION_STATE.get("symbol") or "—")
+        try:
+            result = fetch_quote_snapshot(
+                proposal,
+                criteria=criteria_cfg,
+                spot_price=spot_price if isinstance(spot_price, (int, float)) else None,
+                timeout=timeout,
+            )
+        except Exception as exc:  # pragma: no cover - IB afhankelijk
+            failures += 1
+            logger.exception("IB marktdata refresh mislukt: %s", exc)
+            print(f"❌ {label_symbol} – {proposal.strategy}: {exc}")
+            continue
+
+        refreshed += 1
+        if result.accepted:
+            accepted += 1
+            print(f"✅ {label_symbol} – {proposal.strategy}: voorstel voldoet na refresh.")
+        else:
+            reason_labels = ", ".join(_reason_label(reason) for reason in result.reasons)
+            if not reason_labels:
+                reason_labels = "Onbekende reden"
+            print(
+                "⚠️ "
+                + f"{label_symbol} – {proposal.strategy}: afgewezen ({reason_labels})."
+            )
+
+        entry["refreshed_proposal"] = result.proposal
+        entry["refreshed_reasons"] = result.reasons
+        entry["refreshed_missing_quotes"] = result.missing_quotes
+        entry["refreshed_accepted"] = result.accepted
+
+    summary_parts = [f"{refreshed}/{total} ververst"]
+    summary_parts.append(f"geaccepteerd: {accepted}")
+    if failures:
+        summary_parts.append(f"fouten: {failures}")
+    print("Samenvatting: " + ", ".join(summary_parts))
+
+
 def _display_rejection_proposal(proposal: StrategyProposal, symbol_hint: str | None) -> None:
     previous_symbol = SESSION_STATE.get("symbol")
     previous_strategy = SESSION_STATE.get("strategy")
@@ -1468,10 +1547,17 @@ def _print_reason_summary(summary: RejectionSummary | None) -> None:
 
     print(tabulate(rows, headers=headers, tablefmt="github"))
 
+    if len(rejects) > 1:
+        print("Voer 'A' in om IB-orderinformatie voor alle regels te verversen.")
+
     while True:
-        selection = prompt("Kies nummer (0 om terug):")
-        if selection in {"", "0"}:
+        selection = prompt("Kies nummer (0 om terug, A voor alles):")
+        normalized = selection.strip().lower() if isinstance(selection, str) else ""
+        if normalized in {"", "0"}:
             break
+        if normalized in {"a", "all"}:
+            _refresh_reject_entries(rejects)
+            continue
         try:
             idx = int(selection)
         except ValueError:
