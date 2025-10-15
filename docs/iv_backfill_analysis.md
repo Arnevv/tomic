@@ -16,18 +16,19 @@
 * `fetch_polygon_iv30d()` levert de huidige dagrecord, inclusief `atm_iv` (0-1), `iv_rank`, `iv_percentile`, term structure en skew, en schrijft dit naar de JSON.【F:tomic/providers/polygon_iv.py†L852-L902】
 
 ### Implicaties
-* Onze JSON-schema bevat geen ruwe `IV30`-percentages, moving averages of optievolume—die zitten in de nieuwe CSV-bron en moeten expliciet gemapt/opgeslagen worden.
+* Onze JSON-schema bevat "atm_iv", dat is wat overeenkomt "IV30" uit de nieuwe bron. Er zijn nuance verschillen in de wijze van berekenen, maar dat geeft niks. Die kunnen worden genegeerd. Dus IV30 kan 1-op-1 worden geplaatst in het atm_iv (wel delen door 100) 
+* Ons JSON-schema bevat geen moving averages of optievolume—die zitten in de nieuwe CSV-bron. Die gaan we op dit moment ook (nog) niet gebruiken, want er is momenteel geen toepassing voor downstream.
 * IV-rank/-percentile steunen op historische HV en prijsdata; als we oude IV toevoegen zonder bijbehorende HV/spot, verliezen we context voor strategie-aanbevelingen.
 
 ## 3. Geplande backfill-workflow
 1. **Menu-integratie.** Voeg een item "IV backfill" aan `run_dataexporter()` toe. Het submenu moet het symbool vragen, de CSV-path laten selecteren en daarna een analyseflow starten.
 2. **CSV-inleeslaag.**
    - Verwacht kolommen zoals `Date`, `IV30`, `IV30 20-Day MA`, `OHLC 20-Day Vol`, `OHLC 52-Week Vol`, `Options Volume`.
-   - Parseer `Date` als `YYYY-MM-DD` (CSV date-formaat aanpassen waar nodig), converteer percentages naar fracties (`atm_iv = IV30 / 100`, `iv30_ma20 = (IV30 20-Day MA) / 100`).
-   - Map realized volatilities (`OHLC 20-Day Vol`, `OHLC 52-Week Vol`) naar bestaande HV-files als `hv20`/`hv252` wanneer waarden aanwezig zijn, of registreer dat HV-data nodig is.
+   - Parseer `Date` als `YYYY-MM-DD` (CSV date-formaat aanpassen waar nodig), converteer percentages naar fracties (`atm_iv = IV30 / 100`).
+   - Negeer de overige kolommen voor nu zoals `IV30 20-Day MA`, `OHLC 20-Day Vol`, `OHLC 52-Week Vol`, `Options Volume`.
 3. **Validatie en diff-rapport.**
    - Controleer op ontbrekende kolommen, lege rijen en dubbele data.
-   - Vergelijk met bestaande `iv_daily_summary/<symbol>.json` records (bijv. datering, waardeverschillen) en toon: aantal nieuwe dagen, updates (verschillende waarden), overlappende data, hiaten.
+   - Vergelijk met bestaande `iv_daily_summary/<symbol>.json` records (bijv. datering, waardeverschillen groter dan 3%) en toon: aantal nieuwe dagen, updates (verschillende waarden groter dan 3%), overlappende data, hiaten.
    - Vergelijk datums met HV (`historical_volatility/<symbol>.json`) en spot (`spot_prices/<symbol>.json`) om te signaleren of ondersteunende data ontbreekt.
 4. **Gebruikersbeslissing.** Na diff toont TOMIC een samenvattende tabel en vraagt bevestiging.
    - Bij bevestiging: schrijf in bulk. We kunnen `update_json_file()` per record gebruiken, maar efficiënter is een helper die records merge't en één keer wegschrijft (inclusief back-up van bestaande file).
@@ -38,19 +39,19 @@
 ## 4. Spot- en HV-consistentie
 * `MarketSnapshotService` vereist dat IV-, HV- en spot-data allemaal aanwezig zijn voor dezelfde datum; ontbrekende onderdelen leiden tot ontbrekende regels in de snapshot.【F:tomic/services/market_snapshot.py†L124-L163】
 * Acties:
-  - **Spotdata:** Controleer of voor elke nieuwe IV-datum een slotkoers aanwezig is in `spot_prices/<symbol>.json`. Anders het fetch_prices-script laten draaien of de gebruiker hierop wijzen voordat de IV wordt toegevoegd.
+  - **Spotdata:** Controleer of voor elke nieuwe IV-datum een slotkoers aanwezig is in `spot_prices/<symbol>.json`. Anders het fetch_prices-script laten draaien en de gebruiker hierop wijzen voordat de IV wordt toegevoegd.
   - **Historische volatiliteit:** Gebruik CSV-kolommen (`OHLC 20-Day Vol`, `OHLC 52-Week Vol`) om automatisch `hv20`/`hv252` bij te vullen, of flag dat `tomic/cli/compute_volstats` of Polygon-variant opnieuw moet worden uitgevoerd om HV te genereren.【F:tomic/analysis/vol_json.py†L46-L71】【F:tomic/providers/polygon_iv.py†L852-L902】
-  - **Optievolume:** Bepaal of we dit meenemen (nieuw veld zoals `options_volume`) en waar downstream het gebruikt gaat worden (strategie scoring, QA dashboards?).
+  - **Optievolume:** dit kunnen we voor nu negeren.  
 
 ## 5. Schema-uitbreiding & mapping
-| CSV-kolom              | Opslagveld (voorstel) | Type | Opmerkingen |
-|------------------------|-----------------------|------|-------------|
-| `Date`                 | `date`                | str  | ISO 8601 | 
-| `IV30`                 | `atm_iv`              | float| Opslaan als fractie (0-1) voor consistentie met bestaande data |
-| `IV30 20-Day MA`       | `iv30_ma20`           | float| Nieuw veld; gebruik fractie |
-| `OHLC 20-Day Vol`      | `hv20`                | float| Kan HV-json bijwerken |
-| `OHLC 52-Week Vol`     | `hv252`               | float| idem |
-| `Options Volume`       | `options_volume`      | int  | Opslaan als integer voor latere analytics |
+| CSV-kolom              | Opslagveld (voorstel) | Type    | Opmerkingen |
+|------------------------|-----------------------|---------|-------------|
+| `Date`                 | `date`                | str     | ISO 8601 | 
+| `IV30`                 | `atm_iv`              | float   | Opslaan als fractie (0-1) voor consistentie met bestaande data |
+| `IV30 20-Day MA`       | `iv30_ma20`           | negeren | 
+| `OHLC 20-Day Vol`      | `hv20`                | negeren | 
+| `OHLC 52-Week Vol`     | `hv252`               | negeren | 
+| `Options Volume`       | `options_volume`      | negeren | 
 
 * Bereken aanvullende velden indien mogelijk: `iv_rank`/`iv_percentile` (via bestaande helper `_iv_rank`) en term structure, mits benodigde expiries/IVs beschikbaar zijn. Anders markeer als `None` en laat downstream logica hiermee omgaan (de UI en pipeline tolereren `None`).
 
@@ -64,6 +65,7 @@
   - Overweeg property-tests op monotoniciteit (bijv. dat `date` gesorteerd blijft, geen duplicaten).
 
 ## 7. Voorbereiding op historische implied volatility als primaire bron
+Dit gaan we nu nog niet doen. Ik wil eerst een goede backfill hebben van IV voordat we misschien overgaan op historische IV als vervanging van HV. 
 * **Data-coverage.** Met een gevulde `iv_daily_summary` kunnen we per datum werken, niet enkel met het laatst bekende snapshot. Pas logic aan die alleen laatste IV leest (`get_latest_summary`) om ook tijdreeksen te ondersteunen waar nodig.【F:tomic/analysis/vol_json.py†L24-L43】
 * **Pipeline-aanpassingen.**
   - Introduceer een service die historische IV ophaalt voor de gekozen analyseperiode (bijv. DTE-filter) en deze gebruikt voor scenario-analyses of fallback-prijzen wanneer `USE_HISTORICAL_IV_WHEN_CLOSED` actief is.【F:tomic/api/market_export.py†L635-L676】
