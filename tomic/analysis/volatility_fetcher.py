@@ -44,10 +44,10 @@ def _to_float(value: object) -> Optional[float]:
         try:
             return float(cleaned)
         except ValueError:
-            logger.debug("Failed numeric conversion for value '%s'", value)
+            logger.debug(f"Failed numeric conversion for value '{value}'")
             return None
 
-    logger.debug("Unsupported type for numeric conversion: %s", type(value))
+    logger.debug(f"Unsupported type for numeric conversion: {type(value)}")
     return None
 
 
@@ -60,13 +60,11 @@ def _parse_vix_from_google(html: str) -> Optional[float]:
             value = _to_float(match.group(1))
             if value is not None:
                 logger.debug(
-                    "Parsed Google VIX value %s using pattern '%s'",
-                    value,
-                    pattern,
+                    f"Parsed Google VIX value {value} using pattern '{pattern}'"
                 )
                 return value
             logger.warning(
-                "Failed to parse numeric VIX value '%s' from Google HTML", match.group(1)
+                f"Failed to parse numeric VIX value '{match.group(1)}' from Google HTML"
             )
             return None
     return None
@@ -81,13 +79,11 @@ def _parse_vix_from_yahoo(html: str) -> Optional[float]:
             value = _to_float(match.group(1))
             if value is not None:
                 logger.debug(
-                    "Parsed Yahoo VIX value %s using pattern '%s'",
-                    value,
-                    pattern,
+                    f"Parsed Yahoo VIX value {value} using pattern '{pattern}'"
                 )
                 return value
             logger.warning(
-                "Failed to parse numeric VIX value '%s' from Yahoo HTML", match.group(1)
+                f"Failed to parse numeric VIX value '{match.group(1)}' from Yahoo HTML"
             )
     return None
 
@@ -97,6 +93,7 @@ async def _fetch_vix_from_yahoo() -> Optional[float]:
 
     timeout = aiohttp.ClientTimeout(total=5)
     try:
+        logger.debug(f"Requesting Yahoo Finance VIX quote from {YAHOO_VIX_HTML_URL}")
         async with aiohttp.ClientSession(timeout=timeout) as session:
             async with session.get(
                 YAHOO_VIX_HTML_URL, headers={"User-Agent": "Mozilla/5.0"}
@@ -109,9 +106,11 @@ async def _fetch_vix_from_yahoo() -> Optional[float]:
 
     value = _parse_vix_from_yahoo(html)
     if value is None:
-        logger.error("Failed to parse VIX payload from Yahoo HTML")
+        logger.error(
+            f"Failed to parse VIX payload from Yahoo HTML at {YAHOO_VIX_HTML_URL}"
+        )
     else:
-        logger.debug("Yahoo Finance VIX scrape result: %s", value)
+        logger.debug(f"Yahoo Finance VIX scrape result: {value}")
     return value
 
 
@@ -120,6 +119,7 @@ async def _fetch_vix_from_google() -> Optional[float]:
 
     timeout = aiohttp.ClientTimeout(total=5)
     try:
+        logger.debug(f"Requesting Google Finance VIX quote from {GOOGLE_VIX_HTML_URL}")
         async with aiohttp.ClientSession(timeout=timeout) as session:
             async with session.get(
                 GOOGLE_VIX_HTML_URL, headers={"User-Agent": "Mozilla/5.0"}
@@ -132,9 +132,11 @@ async def _fetch_vix_from_google() -> Optional[float]:
 
     value = _parse_vix_from_google(html)
     if value is None:
-        logger.error("Failed to parse VIX payload from Google HTML")
+        logger.error(
+            f"Failed to parse VIX payload from Google HTML at {GOOGLE_VIX_HTML_URL}"
+        )
     else:
-        logger.debug("Google Finance VIX scrape result: %s", value)
+        logger.debug(f"Google Finance VIX scrape result: {value}")
     return value
 
 
