@@ -102,11 +102,18 @@ def request_bars(client: PolygonClient, symbol: str) -> tuple[list[dict], bool]:
     path = base_path
     requested = False
 
+    lookback_years = cfg_get("PRICE_HISTORY_LOOKBACK_YEARS", 2)
+    try:
+        lookback_years = int(lookback_years)
+    except (TypeError, ValueError):  # pragma: no cover - invalid config override
+        lookback_years = 2
+    lookback_years = max(1, lookback_years)
+
     if last_date:
         try:
             last_dt = datetime.strptime(last_date, "%Y-%m-%d").date()
         except Exception:
-            last_dt = end_dt - timedelta(days=730)
+            last_dt = end_dt - timedelta(days=lookback_years * 365)
         next_expected = _next_trading_day(last_dt)
         if next_expected > end_dt:
             logger.info(
@@ -118,9 +125,10 @@ def request_bars(client: PolygonClient, symbol: str) -> tuple[list[dict], bool]:
         path = f"{base_path}/{from_date}/{to_date}"
     else:
         to_date = end_dt.strftime("%Y-%m-%d")
-        from_date = (end_dt - timedelta(days=730)).strftime("%Y-%m-%d")
+        from_date = (end_dt - timedelta(days=lookback_years * 365)).strftime("%Y-%m-%d")
         path = f"{base_path}/{from_date}/{to_date}"
-        params.update({"limit": 504})
+        approx_trading_days = min(50000, max(lookback_years * 252, 1))
+        params.update({"limit": approx_trading_days})
 
     requested = True
     logger.info(f"Fetching bars for {symbol}")

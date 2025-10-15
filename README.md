@@ -178,8 +178,11 @@ inhoud programmatic te wijzigen.
 Het bestand `earnings_dates.json` bevat verwachte earnings per symbool. De optie "Toon marktinformatie" gebruikt dit om de eerstvolgende datum te tonen.
 Het bestand `tomic/data/earnings_data.json` bevat enkel metadata (bijv. laatste fetch-tijdstempel per symbool) en is niet nodig voor runtime-functies.
 
-Dagelijkse prijsdata wordt met `tomic/cli/fetch_prices.py` tot maximaal 504 dagen
-terug opgehaald en in `PRICE_HISTORY_DIR` opgeslagen.
+Dagelijkse prijsdata wordt met `tomic/cli/fetch_prices.py` opgehaald en in
+`PRICE_HISTORY_DIR` opgeslagen. De standaard-lookback bedraagt twee jaar
+(`PRICE_HISTORY_LOOKBACK_YEARS=2`, goed voor ~504 handelsdagen), maar je kunt dit
+via `config.yaml` of een omgevingsvariabele verhogen naar bijvoorbeeld vijf jaar
+voor circa 1.260 handelsdagen uit Polygon.
 
 Alle configuratiefuncties gebruiken een interne lock. Zowel lezen via
 ``config.get()`` als schrijven met ``update()`` of ``reload()`` is hierdoor
