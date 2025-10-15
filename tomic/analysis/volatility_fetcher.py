@@ -15,33 +15,18 @@ from tomic.logutils import logger
 
 GOOGLE_VIX_HTML_URL = "https://www.google.com/finance/quote/VIX:INDEXCBOE"
 _GOOGLE_VIX_PATTERNS = [
-    r"data-last-price=\"([0-9]+(?:[\.,][0-9]+)?)\"",
-    r"YMlKec[^>]*>\s*([0-9]+(?:[\.,][0-9]+)?)<",
-    r"\"price\"\s*:\s*\{[^}]*\"raw\"\s*:\s*([0-9]+(?:[\.,][0-9]+)?)",
+    r"data-last-price=\"([0-9]+(?:\.[0-9]+)?)\"",
+    r"YMlKec\s+fxKbKc\">\s*([0-9]+(?:\.[0-9]+)?)<",
+    r"\"price\"\s*:\s*\{[^}]*\"raw\"\s*:\s*([0-9]+(?:\.[0-9]+)?)",
 ]
 
 YAHOO_VIX_HTML_URL = "https://finance.yahoo.com/quote/%5EVIX/"
 _YAHOO_VIX_PATTERNS = [
-    r"\"regularMarketPrice\"\s*:\s*\{\s*\"raw\"\s*:\s*([0-9]+(?:[\.,][0-9]+)?)",
-    r"data-symbol=\"\^?VIX\"[^>]*data-field=\"regularMarketPrice\"[^>]*value=\"([0-9]+(?:[\.,][0-9]+)?)\"",
-    r"data-field=\"regularMarketPrice\"[^>]*data-symbol=\"\^?VIX\"[^>]*value=\"([0-9]+(?:[\.,][0-9]+)?)\"",
-    r"data-field=\"regularMarketPrice\"[^>]*data-symbol=\"\^?VIX\"[^>]*>([0-9]+(?:[\.,][0-9]+)?)<",
+    r"\"regularMarketPrice\"\s*:\s*\{\s*\"raw\"\s*:\s*([0-9]+(?:\.[0-9]+)?)",
+    r"data-symbol=\"\^?VIX\"[^>]*data-field=\"regularMarketPrice\"[^>]*value=\"([0-9]+(?:\.[0-9]+)?)\"",
+    r"data-field=\"regularMarketPrice\"[^>]*data-symbol=\"\^?VIX\"[^>]*value=\"([0-9]+(?:\.[0-9]+)?)\"",
+    r"data-field=\"regularMarketPrice\"[^>]*data-symbol=\"\^?VIX\"[^>]*>([0-9]+(?:\.[0-9]+)?)<",
 ]
-
-
-def _to_float(value: str) -> Optional[float]:
-    """Convert a captured numeric string into a float."""
-
-    cleaned = value.strip().replace("\xa0", "")
-    if "," in cleaned and "." not in cleaned:
-        cleaned = cleaned.replace(",", ".")
-    else:
-        cleaned = cleaned.replace(",", "")
-    try:
-        return float(cleaned)
-    except ValueError:  # pragma: no cover - defensive, shouldn't happen
-        logger.warning(f"Failed to coerce numeric value from '{value}'")
-        return None
 
 
 def _parse_vix_from_google(html: str) -> Optional[float]:
@@ -50,9 +35,11 @@ def _parse_vix_from_google(html: str) -> Optional[float]:
     for pattern in _GOOGLE_VIX_PATTERNS:
         match = re.search(pattern, html, re.IGNORECASE | re.DOTALL)
         if match:
-            value = _to_float(match.group(1))
-            if value is not None:
-                return value
+            try:
+                return float(match.group(1))
+            except ValueError:  # pragma: no cover - defensive, shouldn't happen
+                logger.warning("Failed to parse numeric VIX value from Google HTML")
+                return None
     return None
 
 
@@ -115,10 +102,13 @@ async def fetch_volatility_metrics_async(symbol: str) -> Dict[str, float]:
     html = await download_html_async(symbol)
     iv_data = parse_patterns(IV_PATTERNS, html)
     extra_data = parse_patterns(EXTRA_PATTERNS, html)
-    vix_value = await _fetch_vix_from_google()
-    if vix_value is None:
-        vix_value = await _fetch_vix_from_yahoo()
-    extra_data["vix"] = vix_value
+    vix_value = extra_data.get("vix")
+    if not vix_value:
+        vix_fallback = await _fetch_vix_from_google()
+        if vix_fallback is None:
+            vix_fallback = await _fetch_vix_from_yahoo()
+        if vix_fallback is not None:
+            extra_data["vix"] = vix_fallback
     for key in ("iv_rank", "iv_percentile"):
         if iv_data.get(key) is not None:
             iv_data[key] /= 100

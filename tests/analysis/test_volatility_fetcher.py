@@ -41,9 +41,3 @@ def test_parse_vix_from_google_price_class():
     html = '<div class="YMlKec fxKbKc"> 20.01</div>'
 
     assert _parse_vix_from_google(html) == 20.01
-
-
-def test_parse_vix_from_google_handles_decimal_comma():
-    html = '<div class="YMlKec fxKbKc"> 20,15</div>'
-
-    assert _parse_vix_from_google(html) == 20.15
