@@ -15,18 +15,40 @@ from tomic.logutils import logger
 
 GOOGLE_VIX_HTML_URL = "https://www.google.com/finance/quote/VIX:INDEXCBOE"
 _GOOGLE_VIX_PATTERNS = [
-    r"data-last-price=\"([0-9]+(?:\.[0-9]+)?)\"",
-    r"YMlKec\s+fxKbKc\">\s*([0-9]+(?:\.[0-9]+)?)<",
-    r"\"price\"\s*:\s*\{[^}]*\"raw\"\s*:\s*([0-9]+(?:\.[0-9]+)?)",
+    r"YMlKec\s+fxKbKc\">\s*([0-9]+(?:[\.,][0-9]+)?)<",
+    r"data-last-price=\"([0-9]+(?:[\.,][0-9]+)?)\"",
+    r"\"price\"\s*:\s*\{[^}]*\"raw\"\s*:\s*([0-9]+(?:[\.,][0-9]+)?)",
 ]
 
 YAHOO_VIX_HTML_URL = "https://finance.yahoo.com/quote/%5EVIX/"
 _YAHOO_VIX_PATTERNS = [
-    r"\"regularMarketPrice\"\s*:\s*\{\s*\"raw\"\s*:\s*([0-9]+(?:\.[0-9]+)?)",
-    r"data-symbol=\"\^?VIX\"[^>]*data-field=\"regularMarketPrice\"[^>]*value=\"([0-9]+(?:\.[0-9]+)?)\"",
-    r"data-field=\"regularMarketPrice\"[^>]*data-symbol=\"\^?VIX\"[^>]*value=\"([0-9]+(?:\.[0-9]+)?)\"",
-    r"data-field=\"regularMarketPrice\"[^>]*data-symbol=\"\^?VIX\"[^>]*>([0-9]+(?:\.[0-9]+)?)<",
+    r"\"regularMarketPrice\"\s*:\s*\{\s*\"raw\"\s*:\s*([0-9]+(?:[\.,][0-9]+)?)",
+    r"data-symbol=\"\^?VIX\"[^>]*data-field=\"regularMarketPrice\"[^>]*value=\"([0-9]+(?:[\.,][0-9]+)?)\"",
+    r"data-field=\"regularMarketPrice\"[^>]*data-symbol=\"\^?VIX\"[^>]*value=\"([0-9]+(?:[\.,][0-9]+)?)\"",
+    r"data-field=\"regularMarketPrice\"[^>]*data-symbol=\"\^?VIX\"[^>]*>([0-9]+(?:[\.,][0-9]+)?)<",
 ]
+
+
+def _to_float(value: object) -> Optional[float]:
+    """Convert ``value`` to ``float`` when possible."""
+
+    if value is None:
+        return None
+    if isinstance(value, (int, float)):
+        return float(value)
+
+    if isinstance(value, str):
+        cleaned = value.strip()
+        cleaned = re.sub(r"[^0-9,.-]", "", cleaned)
+        cleaned = cleaned.replace(",", ".")
+        try:
+            return float(cleaned)
+        except ValueError:
+            logger.debug("Failed numeric conversion for value '%s'", value)
+            return None
+
+    logger.debug("Unsupported type for numeric conversion: %s", type(value))
+    return None
 
 
 def _parse_vix_from_google(html: str) -> Optional[float]:
@@ -35,11 +57,18 @@ def _parse_vix_from_google(html: str) -> Optional[float]:
     for pattern in _GOOGLE_VIX_PATTERNS:
         match = re.search(pattern, html, re.IGNORECASE | re.DOTALL)
         if match:
-            try:
-                return float(match.group(1))
-            except ValueError:  # pragma: no cover - defensive, shouldn't happen
-                logger.warning("Failed to parse numeric VIX value from Google HTML")
-                return None
+            value = _to_float(match.group(1))
+            if value is not None:
+                logger.debug(
+                    "Parsed Google VIX value %s using pattern '%s'",
+                    value,
+                    pattern,
+                )
+                return value
+            logger.warning(
+                "Failed to parse numeric VIX value '%s' from Google HTML", match.group(1)
+            )
+            return None
     return None
 
 
@@ -51,7 +80,15 @@ def _parse_vix_from_yahoo(html: str) -> Optional[float]:
         if match:
             value = _to_float(match.group(1))
             if value is not None:
+                logger.debug(
+                    "Parsed Yahoo VIX value %s using pattern '%s'",
+                    value,
+                    pattern,
+                )
                 return value
+            logger.warning(
+                "Failed to parse numeric VIX value '%s' from Yahoo HTML", match.group(1)
+            )
     return None
 
 
@@ -73,6 +110,8 @@ async def _fetch_vix_from_yahoo() -> Optional[float]:
     value = _parse_vix_from_yahoo(html)
     if value is None:
         logger.error("Failed to parse VIX payload from Yahoo HTML")
+    else:
+        logger.debug("Yahoo Finance VIX scrape result: %s", value)
     return value
 
 
@@ -94,6 +133,8 @@ async def _fetch_vix_from_google() -> Optional[float]:
     value = _parse_vix_from_google(html)
     if value is None:
         logger.error("Failed to parse VIX payload from Google HTML")
+    else:
+        logger.debug("Google Finance VIX scrape result: %s", value)
     return value
 
 
