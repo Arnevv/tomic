@@ -72,6 +72,10 @@
   - Nieuwe metrics berekenen (IV percentile/ rank op basis van de backfilled dataset i.p.v. HV-proxy).
   - Aanpassen van `volatility_rules.yaml` om historische IV-criteria te ondersteunen (bijv. `iv_vs_iv_ma20`).
 * **Spot/HV synchronisatie.** Zorg dat HV en spot-data voor dezelfde periode aanwezig zijn; anders zullen iv-rank berekeningen zoals in `fetch_polygon_iv30d()` incorrect blijven.【F:tomic/providers/polygon_iv.py†L852-L902】
+  - Dagelijkse spotdata trek je op via `fetch_prices_polygon`. De lookback voor
+    Polygon-balken is configureerbaar met `PRICE_HISTORY_LOOKBACK_YEARS`
+    (standaard 2). Zet deze tijdelijk op 5 om een volledige vijfjaarsbackfill
+    te genereren voordat je IV-geschiedenis aanvult.
 * **Tooling.** Maak het mogelijk om historische IV te exporteren naar spreadsheets of visualiseren in CLI (grafiek/diff) voor strategische analyse.
 
 ## 8. Risico's & mitigaties
