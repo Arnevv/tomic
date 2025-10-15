@@ -824,6 +824,569 @@ def _display_rejection_proposal(proposal: StrategyProposal, symbol_hint: str | N
             SESSION_STATE["strategy"] = previous_strategy
 
 
+def _show_proposal_details(proposal: StrategyProposal) -> None:
+    criteria_cfg = load_criteria()
+    symbol = (
+        str(SESSION_STATE.get("symbol") or proposal.legs[0].get("symbol", ""))
+        if proposal.legs
+        else str(SESSION_STATE.get("symbol") or "")
+    )
+    spot_price = SESSION_STATE.get("spot_price")
+    fetch_only_mode = bool(cfg.get("IB_FETCH_ONLY", False))
+    refresh_result: SnapshotResult | None = None
+    should_fetch = fetch_only_mode or prompt_yes_no("Haal orderinformatie van IB op?", True)
+    if should_fetch:
+        try:
+            refresh_result = fetch_quote_snapshot(
+                proposal,
+                criteria=criteria_cfg,
+                spot_price=spot_price if isinstance(spot_price, (int, float)) else None,
+                timeout=float(cfg.get("MARKET_DATA_TIMEOUT", 15)),
+            )
+            proposal = refresh_result.proposal
+        except Exception as exc:
+            logger.exception("IB marktdata refresh mislukt: %s", exc)
+            print(f"❌ Marktdata ophalen mislukt: {exc}")
+
+    rows: list[list[str]] = []
+    warns: list[str] = []
+    missing_quotes: list[str] = refresh_result.missing_quotes if refresh_result else []
+    for leg in proposal.legs:
+        if leg.get("edge") is None:
+            logger.debug(
+                f"[EDGE missing] {leg.get('position')} {leg.get('type')} {leg.get('strike')} {leg.get('expiry')}"
+            )
+        bid = leg.get("bid")
+        ask = leg.get("ask")
+        mid = leg.get("mid")
+        if bid is None or ask is None:
+            warns.append(f"⚠️ Bid/ask ontbreekt voor strike {leg.get('strike')}")
+        if mid is not None:
+            try:
+                mid_f = float(mid)
+                if bid is not None and math.isclose(mid_f, float(bid), abs_tol=1e-6):
+                    warns.append(
+                        f"⚠️ Midprijs gelijk aan bid voor strike {leg.get('strike')}"
+                    )
+                if ask is not None and math.isclose(mid_f, float(ask), abs_tol=1e-6):
+                    warns.append(
+                        f"⚠️ Midprijs gelijk aan ask voor strike {leg.get('strike')}"
+                    )
+            except Exception:
+                pass
+
+        missing_metrics = leg.get("missing_metrics") or []
+        if missing_metrics:
+            msg = (
+                f"⚠️ Ontbrekende metrics voor strike {leg.get('strike')}: {', '.join(missing_metrics)}"
+            )
+            if leg.get("metrics_ignored"):
+                msg += " (toegestaan)"
+            warns.append(msg)
+
+        rows.append(
+            [
+                leg.get("expiry"),
+                leg.get("strike"),
+                leg.get("type"),
+                "S" if leg.get("position", 0) < 0 else "L",
+                f"{bid:.2f}" if bid is not None else "—",
+                f"{ask:.2f}" if ask is not None else "—",
+                f"{mid:.2f}" if mid is not None else "—",
+                (f"{leg.get('iv', 0):.2f}" if leg.get("iv") is not None else ""),
+                (f"{leg.get('delta', 0):+.2f}" if leg.get("delta") is not None else ""),
+                (f"{leg.get('gamma', 0):+.4f}" if leg.get("gamma") is not None else ""),
+                (f"{leg.get('vega', 0):+.2f}" if leg.get("vega") is not None else ""),
+                (f"{leg.get('theta', 0):+.2f}" if leg.get("theta") is not None else ""),
+            ]
+        )
+    missing_edge = any(leg.get("edge") is None for leg in proposal.legs)
+
+    print(
+        tabulate(
+            rows,
+            headers=[
+                "Expiry",
+                "Strike",
+                "Type",
+                "Pos",
+                "Bid",
+                "Ask",
+                "Mid",
+                "IV",
+                "Delta",
+                "Gamma",
+                "Vega",
+                "Theta",
+            ],
+            tablefmt="github",
+        )
+    )
+    if missing_quotes:
+        warns.append("⚠️ Geen verse quotes voor: " + ", ".join(missing_quotes))
+    if missing_edge:
+        warns.append("⚠️ Eén of meerdere edges niet beschikbaar")
+    if getattr(proposal, "credit_capped", False):
+        warns.append(
+            "⚠️ Credit afgetopt op theoretisch maximum vanwege ontbrekende bid/ask"
+        )
+    for warning in warns:
+        print(warning)
+
+    rr_value: float | None = None
+    try:
+        profit_val = float(proposal.max_profit) if proposal.max_profit is not None else None
+    except Exception:
+        profit_val = None
+    try:
+        loss_val = float(proposal.max_loss) if proposal.max_loss is not None else None
+    except Exception:
+        loss_val = None
+    if profit_val is not None and loss_val not in (None, 0):
+        risk = abs(loss_val)
+        if risk > 0:
+            rr_value = profit_val / risk
+
+    score_str = f"{proposal.score:.2f}" if proposal.score is not None else "—"
+    ev_str = f"{proposal.ev:.2f}" if proposal.ev is not None else "—"
+    rr_str = f"{rr_value:.2f}" if rr_value is not None else "—"
+    prefix = "IB-update → " if refresh_result else "Metrics → "
+    print(f"{prefix}Score: {score_str} | EV: {ev_str} | R/R: {rr_str}")
+
+    acceptance_failed = bool(refresh_result and not refresh_result.accepted)
+    if acceptance_failed:
+        print("❌ Acceptatiecriteria niet gehaald na IB-refresh.")
+        for detail in refresh_result.reasons:
+            msg = getattr(detail, "message", None) or getattr(detail, "code", None)
+            if msg:
+                print(f"  - {msg}")
+
+    if missing_edge and not cfg.get("ALLOW_INCOMPLETE_METRICS", False):
+        if not prompt_yes_no(
+            "⚠️ Deze strategie bevat onvolledige edge-informatie. Toch accepteren?",
+            False,
+        ):
+            return
+    if proposal.credit is not None:
+        print(f"Credit: {proposal.credit:.2f}")
+    else:
+        print("Credit: —")
+    if proposal.margin is not None:
+        print(f"Margin: {proposal.margin:.2f}")
+    else:
+        print("Margin: —")
+    max_win = f"{proposal.max_profit:.2f}" if proposal.max_profit is not None else "—"
+    print(f"Max win: {max_win}")
+    max_loss = f"{proposal.max_loss:.2f}" if proposal.max_loss is not None else "—"
+    print(f"Max loss: {max_loss}")
+    if proposal.breakevens:
+        be = ", ".join(f"{b:.2f}" for b in proposal.breakevens)
+        print(f"Breakevens: {be}")
+    pos_str = f"{proposal.pos:.2f}" if proposal.pos is not None else "—"
+    print(f"PoS: {pos_str}")
+
+    label = None
+    if getattr(proposal, "scenario_info", None):
+        label = proposal.scenario_info.get("scenario_label")
+        if proposal.scenario_info.get("error") == "no scenario defined":
+            print("no scenario defined")
+
+    suffix = ""
+    if proposal.profit_estimated:
+        suffix = f" {label} (geschat)" if label else " (geschat)"
+
+    rom_str = f"{proposal.rom:.2f}" if proposal.rom is not None else "—"
+    print(f"ROM: {rom_str}{suffix}")
+    ev_display = f"{proposal.ev:.2f}" if proposal.ev is not None else "—"
+    print(f"EV: {ev_display}{suffix}")
+    if prompt_yes_no("Voorstel opslaan naar CSV?", False):
+        _export_proposal_csv(proposal)
+    if prompt_yes_no("Voorstel opslaan naar JSON?", False):
+        _export_proposal_json(proposal)
+
+    can_send_order = not acceptance_failed and not fetch_only_mode
+    if can_send_order and prompt_yes_no("Order naar IB sturen?", False):
+        _submit_ib_order(proposal, symbol=symbol)
+    elif fetch_only_mode:
+        print("ℹ️ fetch_only modus actief – orders worden niet verstuurd.")
+
+    journal = _proposal_journal_text(proposal)
+    print("\nJournal entry voorstel:\n" + journal)
+
+
+def _submit_ib_order(proposal: StrategyProposal, *, symbol: str | None = None) -> None:
+    ticker = symbol or str(SESSION_STATE.get("symbol") or "")
+    if not ticker:
+        print("❌ Geen symbool beschikbaar voor orderplaatsing.")
+        return
+    account = str(cfg.get("IB_ACCOUNT_ALIAS") or "") or None
+    order_type = str(cfg.get("DEFAULT_ORDER_TYPE", "LMT"))
+    tif = str(cfg.get("DEFAULT_TIME_IN_FORCE", "DAY"))
+    try:
+        instructions = prepare_order_instructions(
+            proposal,
+            symbol=ticker,
+            account=account,
+            order_type=order_type,
+            tif=tif,
+        )
+    except Exception as exc:
+        logger.exception("Ordervoorbereiding mislukt: %s", exc)
+        print(f"❌ Kon order niet voorbereiden: {exc}")
+        return
+
+    export_dir = Path(cfg.get("EXPORT_DIR", "exports")) / datetime.now().strftime("%Y%m%d")
+    log_path = OrderSubmissionService.dump_order_log(instructions, directory=export_dir)
+    print(f"📝 Orderstructuur opgeslagen in: {log_path}")
+
+    if cfg.get("IB_FETCH_ONLY", False):
+        logger.info("fetch_only-modus actief; orders niet verzonden")
+        return
+
+    host = str(cfg.get("IB_HOST", "127.0.0.1"))
+    paper_mode = bool(cfg.get("IB_PAPER_MODE", True))
+    port_key = "IB_PORT" if paper_mode else "IB_LIVE_PORT"
+    port = int(cfg.get(port_key, 7497 if paper_mode else 7496))
+    client_id = int(cfg.get("IB_ORDER_CLIENT_ID", cfg.get("IB_CLIENT_ID", 100)))
+    timeout = int(cfg.get("DOWNLOAD_TIMEOUT", 5))
+    service = OrderSubmissionService()
+    app = None
+    try:
+        app, order_ids = service.place_orders(
+            instructions,
+            host=host,
+            port=port,
+            client_id=client_id,
+            timeout=timeout,
+        )
+    except Exception as exc:
+        print(f"❌ Verzenden naar IB mislukt: {exc}")
+        return
+    finally:
+        if app is not None:
+            try:
+                app.disconnect()
+            except Exception:
+                logger.debug("Probleem bij sluiten IB-verbinding", exc_info=True)
+
+    print(f"✅ {len(order_ids)} order(s) als concept verstuurd naar IB (client {client_id}).")
+
+
+def _save_trades(trades: list[dict[str, object]]) -> None:
+    symbol = str(SESSION_STATE.get("symbol", "SYMB"))
+    strat = str(SESSION_STATE.get("strategy", "strategy")).replace(" ", "_")
+    expiry = str(trades[0].get("expiry", "")) if trades else ""
+    base = Path(cfg.get("EXPORT_DIR", "exports")) / datetime.now().strftime("%Y%m%d")
+    base.mkdir(parents=True, exist_ok=True)
+    ts = datetime.now().strftime("%H%M%S")
+    path = base / f"trade_candidates_{symbol}_{strat}_{expiry}_{ts}.csv"
+    fieldnames = [k for k in trades[0].keys() if k not in {"rom", "ev"}]
+    with path.open("w", newline="") as f:
+        writer = csv.DictWriter(f, fieldnames=fieldnames)
+        writer.writeheader()
+        for row in trades:
+            out: dict[str, object] = {}
+            for k, v in row.items():
+                if k not in fieldnames:
+                    continue
+                if k in {"pos", "rom", "ev", "edge", "mid", "model", "delta", "margin"}:
+                    try:
+                        out[k] = f"{float(v):.2f}"
+                    except Exception:
+                        out[k] = ""
+                else:
+                    out[k] = v
+            writer.writerow(out)
+    print(f"✅ Trades opgeslagen in: {path.resolve()}")
+
+
+def _export_proposal_csv(proposal: StrategyProposal) -> None:
+    symbol = str(SESSION_STATE.get("symbol", "SYMB"))
+    strat = str(SESSION_STATE.get("strategy", "strategy")).replace(" ", "_")
+    base = Path(cfg.get("EXPORT_DIR", "exports")) / datetime.now().strftime("%Y%m%d")
+    base.mkdir(parents=True, exist_ok=True)
+    ts = datetime.now().strftime("%H%M%S")
+    path = base / f"strategy_proposal_{symbol}_{strat}_{ts}.csv"
+    with path.open("w", newline="") as f:
+        writer = csv.writer(f)
+        writer.writerow(
+            [
+                "expiry",
+                "strike",
+                "type",
+                "position",
+                "bid",
+                "ask",
+                "mid",
+                "delta",
+                "theta",
+                "vega",
+                "edge",
+                "manual_override",
+                "missing_metrics",
+                "metrics_ignored",
+            ]
+        )
+        for leg in proposal.legs:
+            writer.writerow(
+                [
+                    leg.get("expiry"),
+                    leg.get("strike"),
+                    leg.get("type"),
+                    leg.get("position"),
+                    leg.get("bid"),
+                    leg.get("ask"),
+                    leg.get("mid"),
+                    leg.get("delta"),
+                    leg.get("theta"),
+                    leg.get("vega"),
+                    leg.get("edge"),
+                    leg.get("manual_override"),
+                    ",".join(leg.get("missing_metrics") or []),
+                    leg.get("metrics_ignored"),
+                ]
+            )
+        writer.writerow([])
+        summary_rows = [
+            ("credit", proposal.credit),
+            ("margin", proposal.margin),
+            ("max_profit", proposal.max_profit),
+            ("max_loss", proposal.max_loss),
+            ("rom", proposal.rom),
+            ("pos", proposal.pos),
+            ("ev", proposal.ev),
+            ("edge", proposal.edge),
+            ("score", proposal.score),
+            ("profit_estimated", proposal.profit_estimated),
+            (
+                "scenario_info",
+                json.dumps(proposal.scenario_info) if proposal.scenario_info is not None else None,
+            ),
+            ("breakevens", json.dumps(proposal.breakevens or [])),
+            ("atr", proposal.atr),
+            ("iv_rank", proposal.iv_rank),
+            ("iv_percentile", proposal.iv_percentile),
+            ("hv20", proposal.hv20),
+            ("hv30", proposal.hv30),
+            ("hv90", proposal.hv90),
+            ("dte", json.dumps(proposal.dte) if proposal.dte is not None else None),
+            (
+                "breakeven_distances",
+                json.dumps(proposal.breakeven_distances or {"dollar": [], "percent": []}),
+            ),
+            (
+                "wing_width",
+                json.dumps(proposal.wing_width) if proposal.wing_width is not None else None,
+            ),
+            ("wing_symmetry", proposal.wing_symmetry),
+        ]
+        for key, value in summary_rows:
+            writer.writerow([key, value])
+    print(f"✅ Voorstel opgeslagen in: {path.resolve()}")
+
+
+def _load_acceptance_criteria(strategy: str) -> dict[str, Any]:
+    """Return current acceptance criteria for ``strategy``."""
+
+    config_data = cfg.get("STRATEGY_CONFIG") or {}
+    rules = load_strike_config(strategy, config_data) if config_data else {}
+    try:
+        min_rom = (
+            float(rules.get("min_rom"))
+            if rules.get("min_rom") is not None
+            else None
+        )
+    except Exception:
+        min_rom = None
+    return {
+        "min_rom": min_rom,
+        "min_pos": 0.0,
+        "require_positive_ev": True,
+        "allow_missing_edge": bool(cfg.get("ALLOW_INCOMPLETE_METRICS", False)),
+    }
+
+
+def _load_portfolio_context() -> tuple[dict[str, Any], bool]:
+    """Return portfolio context and availability flag."""
+
+    ctx = {
+        "net_delta": None,
+        "net_theta": None,
+        "net_vega": None,
+        "margin_used": None,
+        "positions_open": None,
+    }
+    if not POSITIONS_FILE.exists() or not ACCOUNT_INFO_FILE.exists():
+        return ctx, False
+    try:
+        positions = json.loads(POSITIONS_FILE.read_text())
+        account = json.loads(ACCOUNT_INFO_FILE.read_text())
+        greeks = compute_portfolio_greeks(positions)
+        ctx.update(
+            {
+                "net_delta": greeks.get("Delta"),
+                "net_theta": greeks.get("Theta"),
+                "net_vega": greeks.get("Vega"),
+                "positions_open": len(positions),
+                "margin_used": (
+                    float(account.get("FullInitMarginReq"))
+                    if account.get("FullInitMarginReq") is not None
+                    else None
+                ),
+            }
+        )
+    except Exception:
+        return ctx, False
+    return ctx, True
+
+
+def _export_proposal_json(proposal: StrategyProposal) -> None:
+    symbol = str(SESSION_STATE.get("symbol", "SYMB"))
+    strategy_name = str(SESSION_STATE.get("strategy", "strategy"))
+    strat_file = strategy_name.replace(" ", "_")
+    base = Path(cfg.get("EXPORT_DIR", "exports")) / datetime.now().strftime("%Y%m%d")
+    base.mkdir(parents=True, exist_ok=True)
+    ts = datetime.now().strftime("%H%M%S")
+    path = base / f"strategy_proposal_{symbol}_{strat_file}_{ts}.json"
+
+    accept = _load_acceptance_criteria(strat_file)
+    portfolio_ctx, portfolio_available = _load_portfolio_context()
+    spot_price = SESSION_STATE.get("spot_price")
+
+    earnings_dict = load_json(
+        cfg.get("EARNINGS_DATES_FILE", "tomic/data/earnings_dates.json")
+    )
+    next_earn = None
+    if isinstance(earnings_dict, dict):
+        earnings_list = earnings_dict.get(symbol)
+        if isinstance(earnings_list, list):
+            upcoming: list[datetime] = []
+            for ds in earnings_list:
+                try:
+                    d = datetime.strptime(ds, "%Y-%m-%d").date()
+                except Exception:
+                    continue
+                if d >= today():
+                    upcoming.append(d)
+            if upcoming:
+                next_earn = min(upcoming).strftime("%Y-%m-%d")
+
+    data = {
+        "symbol": symbol,
+        "spot_price": spot_price,
+        "strategy": strat_file,
+        "next_earnings_date": next_earn,
+        "legs": proposal.legs,
+        "metrics": {
+            "credit": proposal.credit,
+            "margin": proposal.margin,
+            "pos": proposal.pos,
+            "rom": proposal.rom,
+            "ev": proposal.ev,
+            "average_edge": proposal.edge,
+            "max_profit": (
+                proposal.max_profit if proposal.max_profit is not None else "unlimited"
+            ),
+            "max_loss": (
+                proposal.max_loss if proposal.max_loss is not None else "unlimited"
+            ),
+            "breakevens": proposal.breakevens or [],
+            "score": proposal.score,
+            "profit_estimated": proposal.profit_estimated,
+            "scenario_info": proposal.scenario_info,
+            "atr": proposal.atr,
+            "iv_rank": proposal.iv_rank,
+            "iv_percentile": proposal.iv_percentile,
+            "hv": {
+                "hv20": proposal.hv20,
+                "hv30": proposal.hv30,
+                "hv90": proposal.hv90,
+            },
+            "dte": proposal.dte,
+            "breakeven_distances": (
+                proposal.breakeven_distances
+                if proposal.breakeven_distances is not None
+                else {"dollar": [], "percent": []}
+            ),
+            "missing_data": {
+                "missing_bidask": any(
+                    (
+                        (b := l.get("bid")) is None
+                        or (
+                            isinstance(b, (int, float))
+                            and (math.isnan(b) or b <= 0)
+                        )
+                    )
+                    or (
+                        (a := l.get("ask")) is None
+                        or (
+                            isinstance(a, (int, float))
+                            and (math.isnan(a) or a <= 0)
+                        )
+                    )
+                    for l in proposal.legs
+                ),
+                "missing_edge": proposal.edge is None,
+                "fallback_mid": any(
+                    l.get("mid_fallback") in {"close", "parity_close", "model"}
+                    or (
+                        l.get("mid") is not None
+                        and (
+                            (
+                                (b := l.get("bid")) is None
+                                or (
+                                    isinstance(b, (int, float))
+                                    and (math.isnan(b) or b <= 0)
+                                )
+                            )
+                            or (
+                                (a := l.get("ask")) is None
+                                or (
+                                    isinstance(a, (int, float))
+                                    and (math.isnan(a) or a <= 0)
+                                )
+                            )
+                        )
+                    )
+                    for l in proposal.legs
+                ),
+            },
+        },
+        "tomic_acceptance_criteria": accept,
+        "portfolio_context": portfolio_ctx,
+        "portfolio_context_available": portfolio_available,
+        "wing_width": proposal.wing_width,
+        "wing_symmetry": proposal.wing_symmetry,
+    }
+    with path.open("w", encoding="utf-8") as f:
+        json.dump(data, f, ensure_ascii=False, indent=2)
+    print(f"✅ Voorstel opgeslagen in: {path.resolve()}")
+
+
+def _proposal_journal_text(proposal: StrategyProposal) -> str:
+    margin_str = f"{proposal.margin:.2f}" if proposal.margin is not None else "—"
+    pos_str = f"{proposal.pos:.2f}" if proposal.pos is not None else "—"
+    rom_str = f"{proposal.rom:.2f}" if proposal.rom is not None else "—"
+    ev_str = f"{proposal.ev:.2f}" if proposal.ev is not None else "—"
+    lines = [
+        f"Symbol: {SESSION_STATE.get('symbol')}",
+        f"Strategy: {SESSION_STATE.get('strategy')}",
+        f"Credit: {proposal.credit:.2f}",
+        f"Margin: {margin_str}",
+        f"ROM: {rom_str}",
+        f"PoS: {pos_str}",
+        f"EV: {ev_str}",
+    ]
+    for leg in proposal.legs:
+        side = "Short" if leg.get("position", 0) < 0 else "Long"
+        mid = leg.get("mid")
+        mid_str = f"{mid:.2f}" if mid is not None else ""
+        lines.append(
+            f"{side} {leg.get('type')} {leg.get('strike')} {leg.get('expiry')} @ {mid_str}"
+        )
+    return "\n".join(lines)
+
+
 def _print_reason_summary(summary: RejectionSummary | None) -> None:
     """Display aggregated rejection information."""
 
@@ -2327,612 +2890,6 @@ def run_portfolio_menu() -> None:
             _print_reason_summary(summary)
             print("➤ Controleer of de juiste expiraties beschikbaar zijn in de chain.")
             print("➤ Of pas je selectiecriteria aan in strike_selection_rules.yaml.")
-
-    def _show_proposal_details(proposal: StrategyProposal) -> None:
-        criteria_cfg = load_criteria()
-        symbol = str(SESSION_STATE.get("symbol") or proposal.legs[0].get("symbol", "")) if proposal.legs else str(SESSION_STATE.get("symbol") or "")
-        spot_price = SESSION_STATE.get("spot_price")
-        fetch_only_mode = bool(cfg.get("IB_FETCH_ONLY", False))
-        refresh_result: SnapshotResult | None = None
-        should_fetch = fetch_only_mode or prompt_yes_no("Haal orderinformatie van IB op?", True)
-        if should_fetch:
-            try:
-                refresh_result = fetch_quote_snapshot(
-                    proposal,
-                    criteria=criteria_cfg,
-                    spot_price=spot_price if isinstance(spot_price, (int, float)) else None,
-                    timeout=float(cfg.get("MARKET_DATA_TIMEOUT", 15)),
-                )
-                proposal = refresh_result.proposal
-            except Exception as exc:
-                logger.exception("IB marktdata refresh mislukt: %s", exc)
-                print(f"❌ Marktdata ophalen mislukt: {exc}")
-
-        rows: list[list[str]] = []
-        warns: list[str] = []
-        missing_quotes: list[str] = refresh_result.missing_quotes if refresh_result else []
-        for leg in proposal.legs:
-            if leg.get("edge") is None:
-                logger.debug(
-                    f"[EDGE missing] {leg.get('position')} {leg.get('type')} {leg.get('strike')} {leg.get('expiry')}"
-                )
-            bid = leg.get("bid")
-            ask = leg.get("ask")
-            mid = leg.get("mid")
-            if bid is None or ask is None:
-                warns.append(f"⚠️ Bid/ask ontbreekt voor strike {leg.get('strike')}")
-            if mid is not None:
-                try:
-                    mid_f = float(mid)
-                    if bid is not None and math.isclose(
-                        mid_f, float(bid), abs_tol=1e-6
-                    ):
-                        warns.append(
-                            f"⚠️ Midprijs gelijk aan bid voor strike {leg.get('strike')}"
-                        )
-                    if ask is not None and math.isclose(
-                        mid_f, float(ask), abs_tol=1e-6
-                    ):
-                        warns.append(
-                            f"⚠️ Midprijs gelijk aan ask voor strike {leg.get('strike')}"
-                        )
-                except Exception:
-                    pass
-
-            missing_metrics = leg.get("missing_metrics") or []
-            if missing_metrics:
-                msg = (
-                    f"⚠️ Ontbrekende metrics voor strike {leg.get('strike')}: {', '.join(missing_metrics)}"
-                )
-                if leg.get("metrics_ignored"):
-                    msg += " (toegestaan)"
-                warns.append(msg)
-
-            rows.append(
-                [
-                    leg.get("expiry"),
-                    leg.get("strike"),
-                    leg.get("type"),
-                    "S" if leg.get("position", 0) < 0 else "L",
-                    f"{bid:.2f}" if bid is not None else "—",
-                    f"{ask:.2f}" if ask is not None else "—",
-                    f"{mid:.2f}" if mid is not None else "—",
-                    (
-                        f"{leg.get('iv', 0):.2f}"
-                        if leg.get("iv") is not None
-                        else ""
-                    ),
-                    (
-                        f"{leg.get('delta', 0):+.2f}"
-                        if leg.get("delta") is not None
-                        else ""
-                    ),
-                    (
-                        f"{leg.get('gamma', 0):+.4f}"
-                        if leg.get("gamma") is not None
-                        else ""
-                    ),
-                    (
-                        f"{leg.get('vega', 0):+.2f}"
-                        if leg.get("vega") is not None
-                        else ""
-                    ),
-                    (
-                        f"{leg.get('theta', 0):+.2f}"
-                        if leg.get("theta") is not None
-                        else ""
-                    ),
-                ]
-            )
-        missing_edge = any(leg.get("edge") is None for leg in proposal.legs)
-
-        print(
-            tabulate(
-                rows,
-                headers=[
-                    "Expiry",
-                    "Strike",
-                    "Type",
-                    "Pos",
-                    "Bid",
-                    "Ask",
-                    "Mid",
-                    "IV",
-                    "Delta",
-                    "Gamma",
-                    "Vega",
-                    "Theta",
-                ],
-                tablefmt="github",
-            )
-        )
-        if missing_quotes:
-            warns.append("⚠️ Geen verse quotes voor: " + ", ".join(missing_quotes))
-        if missing_edge:
-            warns.append("⚠️ Eén of meerdere edges niet beschikbaar")
-        if getattr(proposal, "credit_capped", False):
-            warns.append(
-                "⚠️ Credit afgetopt op theoretisch maximum vanwege ontbrekende bid/ask"
-            )
-        for warning in warns:
-            print(warning)
-
-        rr_value: float | None = None
-        try:
-            profit_val = float(proposal.max_profit) if proposal.max_profit is not None else None
-        except Exception:
-            profit_val = None
-        try:
-            loss_val = float(proposal.max_loss) if proposal.max_loss is not None else None
-        except Exception:
-            loss_val = None
-        if profit_val is not None and loss_val not in (None, 0):
-            risk = abs(loss_val)
-            if risk > 0:
-                rr_value = profit_val / risk
-
-        score_str = f"{proposal.score:.2f}" if proposal.score is not None else "—"
-        ev_str = f"{proposal.ev:.2f}" if proposal.ev is not None else "—"
-        rr_str = f"{rr_value:.2f}" if rr_value is not None else "—"
-        prefix = "IB-update → " if refresh_result else "Metrics → "
-        print(f"{prefix}Score: {score_str} | EV: {ev_str} | R/R: {rr_str}")
-
-        acceptance_failed = bool(refresh_result and not refresh_result.accepted)
-        if acceptance_failed:
-            print("❌ Acceptatiecriteria niet gehaald na IB-refresh.")
-            for detail in refresh_result.reasons:
-                msg = getattr(detail, "message", None) or getattr(detail, "code", None)
-                if msg:
-                    print(f"  - {msg}")
-
-        if missing_edge and not cfg.get("ALLOW_INCOMPLETE_METRICS", False):
-            if not prompt_yes_no(
-                "⚠️ Deze strategie bevat onvolledige edge-informatie. Toch accepteren?",
-                False,
-            ):
-                return
-        if proposal.credit is not None:
-            print(f"Credit: {proposal.credit:.2f}")
-        else:
-            print("Credit: —")
-        if proposal.margin is not None:
-            print(f"Margin: {proposal.margin:.2f}")
-        else:
-            print("Margin: —")
-        max_win = (
-            f"{proposal.max_profit:.2f}" if proposal.max_profit is not None else "—"
-        )
-        print(f"Max win: {max_win}")
-        max_loss = f"{proposal.max_loss:.2f}" if proposal.max_loss is not None else "—"
-        print(f"Max loss: {max_loss}")
-        if proposal.breakevens:
-            be = ", ".join(f"{b:.2f}" for b in proposal.breakevens)
-            print(f"Breakevens: {be}")
-        pos_str = f"{proposal.pos:.2f}" if proposal.pos is not None else "—"
-        print(f"PoS: {pos_str}")
-
-        label = None
-        if getattr(proposal, "scenario_info", None):
-            label = proposal.scenario_info.get("scenario_label")
-            if proposal.scenario_info.get("error") == "no scenario defined":
-                print("no scenario defined")
-
-        suffix = ""
-        if proposal.profit_estimated:
-            suffix = f" {label} (geschat)" if label else " (geschat)"
-
-        rom_str = f"{proposal.rom:.2f}" if proposal.rom is not None else "—"
-        print(f"ROM: {rom_str}{suffix}")
-        ev_str = f"{proposal.ev:.2f}" if proposal.ev is not None else "—"
-        print(f"EV: {ev_str}{suffix}")
-        if prompt_yes_no("Voorstel opslaan naar CSV?", False):
-            _export_proposal_csv(proposal)
-        if prompt_yes_no("Voorstel opslaan naar JSON?", False):
-            _export_proposal_json(proposal)
-
-        can_send_order = not acceptance_failed and not fetch_only_mode
-        if can_send_order and prompt_yes_no("Order naar IB sturen?", False):
-            _submit_ib_order(proposal, symbol=symbol)
-        elif fetch_only_mode:
-            print("ℹ️ fetch_only modus actief – orders worden niet verstuurd.")
-
-        journal = _proposal_journal_text(proposal)
-        print("\nJournal entry voorstel:\n" + journal)
-
-    def _submit_ib_order(proposal: StrategyProposal, *, symbol: str | None = None) -> None:
-        ticker = symbol or str(SESSION_STATE.get("symbol") or "")
-        if not ticker:
-            print("❌ Geen symbool beschikbaar voor orderplaatsing.")
-            return
-        account = str(cfg.get("IB_ACCOUNT_ALIAS") or "") or None
-        order_type = str(cfg.get("DEFAULT_ORDER_TYPE", "LMT"))
-        tif = str(cfg.get("DEFAULT_TIME_IN_FORCE", "DAY"))
-        try:
-            instructions = prepare_order_instructions(
-                proposal,
-                symbol=ticker,
-                account=account,
-                order_type=order_type,
-                tif=tif,
-            )
-        except Exception as exc:
-            logger.exception("Ordervoorbereiding mislukt: %s", exc)
-            print(f"❌ Kon order niet voorbereiden: {exc}")
-            return
-
-        export_dir = Path(cfg.get("EXPORT_DIR", "exports")) / datetime.now().strftime(
-            "%Y%m%d"
-        )
-        log_path = OrderSubmissionService.dump_order_log(instructions, directory=export_dir)
-        print(f"📝 Orderstructuur opgeslagen in: {log_path}")
-
-        if cfg.get("IB_FETCH_ONLY", False):
-            logger.info("fetch_only-modus actief; orders niet verzonden")
-            return
-
-        host = str(cfg.get("IB_HOST", "127.0.0.1"))
-        paper_mode = bool(cfg.get("IB_PAPER_MODE", True))
-        port_key = "IB_PORT" if paper_mode else "IB_LIVE_PORT"
-        port = int(cfg.get(port_key, 7497 if paper_mode else 7496))
-        client_id = int(cfg.get("IB_ORDER_CLIENT_ID", cfg.get("IB_CLIENT_ID", 100)))
-        timeout = int(cfg.get("DOWNLOAD_TIMEOUT", 5))
-        service = OrderSubmissionService()
-        app = None
-        try:
-            app, order_ids = service.place_orders(
-                instructions,
-                host=host,
-                port=port,
-                client_id=client_id,
-                timeout=timeout,
-            )
-        except Exception as exc:
-            print(f"❌ Verzenden naar IB mislukt: {exc}")
-            return
-        finally:
-            if app is not None:
-                try:
-                    app.disconnect()
-                except Exception:
-                    logger.debug("Probleem bij sluiten IB-verbinding", exc_info=True)
-
-        print(f"✅ {len(order_ids)} order(s) als concept verstuurd naar IB (client {client_id}).")
-
-    def _save_trades(trades: list[dict[str, object]]) -> None:
-        symbol = str(SESSION_STATE.get("symbol", "SYMB"))
-        strat = str(SESSION_STATE.get("strategy", "strategy")).replace(" ", "_")
-        expiry = str(trades[0].get("expiry", "")) if trades else ""
-        base = Path(cfg.get("EXPORT_DIR", "exports")) / datetime.now().strftime(
-            "%Y%m%d"
-        )
-        base.mkdir(parents=True, exist_ok=True)
-        ts = datetime.now().strftime("%H%M%S")
-        path = base / f"trade_candidates_{symbol}_{strat}_{expiry}_{ts}.csv"
-        fieldnames = [k for k in trades[0].keys() if k not in {"rom", "ev"}]
-        with path.open("w", newline="") as f:
-            writer = csv.DictWriter(f, fieldnames=fieldnames)
-            writer.writeheader()
-            for row in trades:
-                out: dict[str, object] = {}
-                for k, v in row.items():
-                    if k not in fieldnames:
-                        continue
-                    if k in {
-                        "pos",
-                        "rom",
-                        "ev",
-                        "edge",
-                        "mid",
-                        "model",
-                        "delta",
-                        "margin",
-                    }:
-                        try:
-                            out[k] = f"{float(v):.2f}"
-                        except Exception:
-                            out[k] = ""
-                    else:
-                        out[k] = v
-                writer.writerow(out)
-        print(f"✅ Trades opgeslagen in: {path.resolve()}")
-
-    def _export_proposal_csv(proposal: StrategyProposal) -> None:
-        symbol = str(SESSION_STATE.get("symbol", "SYMB"))
-        strat = str(SESSION_STATE.get("strategy", "strategy")).replace(" ", "_")
-        base = Path(cfg.get("EXPORT_DIR", "exports")) / datetime.now().strftime(
-            "%Y%m%d"
-        )
-        base.mkdir(parents=True, exist_ok=True)
-        ts = datetime.now().strftime("%H%M%S")
-        path = base / f"strategy_proposal_{symbol}_{strat}_{ts}.csv"
-        with path.open("w", newline="") as f:
-            writer = csv.writer(f)
-            writer.writerow(
-                [
-                    "expiry",
-                    "strike",
-                    "type",
-                    "position",
-                    "bid",
-                    "ask",
-                    "mid",
-                    "delta",
-                    "theta",
-                    "vega",
-                    "edge",
-                    "manual_override",
-                    "missing_metrics",
-                    "metrics_ignored",
-                ]
-            )
-            for leg in proposal.legs:
-                writer.writerow(
-                    [
-                        leg.get("expiry"),
-                        leg.get("strike"),
-                        leg.get("type"),
-                        leg.get("position"),
-                        leg.get("bid"),
-                        leg.get("ask"),
-                        leg.get("mid"),
-                        leg.get("delta"),
-                        leg.get("theta"),
-                        leg.get("vega"),
-                        leg.get("edge"),
-                        leg.get("manual_override"),
-                        ",".join(leg.get("missing_metrics") or []),
-                        leg.get("metrics_ignored"),
-                    ]
-                )
-            writer.writerow([])
-            summary_rows = [
-                ("credit", proposal.credit),
-                ("margin", proposal.margin),
-                ("max_profit", proposal.max_profit),
-                ("max_loss", proposal.max_loss),
-                ("rom", proposal.rom),
-                ("pos", proposal.pos),
-                ("ev", proposal.ev),
-                ("edge", proposal.edge),
-                ("score", proposal.score),
-                ("profit_estimated", proposal.profit_estimated),
-                (
-                    "scenario_info",
-                    json.dumps(proposal.scenario_info)
-                    if proposal.scenario_info is not None
-                    else None,
-                ),
-                ("breakevens", json.dumps(proposal.breakevens or [])),
-                ("atr", proposal.atr),
-                ("iv_rank", proposal.iv_rank),
-                ("iv_percentile", proposal.iv_percentile),
-                ("hv20", proposal.hv20),
-                ("hv30", proposal.hv30),
-                ("hv90", proposal.hv90),
-                (
-                    "dte",
-                    json.dumps(proposal.dte)
-                    if proposal.dte is not None
-                    else None,
-                ),
-                (
-                    "breakeven_distances",
-                    json.dumps(
-                        proposal.breakeven_distances
-                        or {"dollar": [], "percent": []}
-                    ),
-                ),
-                (
-                    "wing_width",
-                    json.dumps(proposal.wing_width)
-                    if proposal.wing_width is not None
-                    else None,
-                ),
-                ("wing_symmetry", proposal.wing_symmetry),
-            ]
-            for key, value in summary_rows:
-                writer.writerow([key, value])
-        print(f"✅ Voorstel opgeslagen in: {path.resolve()}")
-
-    def _load_acceptance_criteria(strategy: str) -> dict[str, Any]:
-        """Return current acceptance criteria for ``strategy``."""
-        config_data = cfg.get("STRATEGY_CONFIG") or {}
-        rules = load_strike_config(strategy, config_data) if config_data else {}
-        try:
-            min_rom = (
-                float(rules.get("min_rom"))
-                if rules.get("min_rom") is not None
-                else None
-            )
-        except Exception:
-            min_rom = None
-        return {
-            "min_rom": min_rom,
-            "min_pos": 0.0,
-            "require_positive_ev": True,
-            "allow_missing_edge": bool(cfg.get("ALLOW_INCOMPLETE_METRICS", False)),
-        }
-
-    def _load_portfolio_context() -> tuple[dict[str, Any], bool]:
-        """Return portfolio context and availability flag."""
-        ctx = {
-            "net_delta": None,
-            "net_theta": None,
-            "net_vega": None,
-            "margin_used": None,
-            "positions_open": None,
-        }
-        if not POSITIONS_FILE.exists() or not ACCOUNT_INFO_FILE.exists():
-            return ctx, False
-        try:
-            positions = json.loads(POSITIONS_FILE.read_text())
-            account = json.loads(ACCOUNT_INFO_FILE.read_text())
-            greeks = compute_portfolio_greeks(positions)
-            ctx.update(
-                {
-                    "net_delta": greeks.get("Delta"),
-                    "net_theta": greeks.get("Theta"),
-                    "net_vega": greeks.get("Vega"),
-                    "positions_open": len(positions),
-                    "margin_used": (
-                        float(account.get("FullInitMarginReq"))
-                        if account.get("FullInitMarginReq") is not None
-                        else None
-                    ),
-                }
-            )
-        except Exception:
-            return ctx, False
-        return ctx, True
-
-    def _export_proposal_json(proposal: StrategyProposal) -> None:
-        symbol = str(SESSION_STATE.get("symbol", "SYMB"))
-        strategy_name = str(SESSION_STATE.get("strategy", "strategy"))
-        strat_file = strategy_name.replace(" ", "_")
-        base = Path(cfg.get("EXPORT_DIR", "exports")) / datetime.now().strftime(
-            "%Y%m%d"
-        )
-        base.mkdir(parents=True, exist_ok=True)
-        ts = datetime.now().strftime("%H%M%S")
-        path = base / f"strategy_proposal_{symbol}_{strat_file}_{ts}.json"
-
-        accept = _load_acceptance_criteria(strat_file)
-        portfolio_ctx, portfolio_available = _load_portfolio_context()
-        spot_price = SESSION_STATE.get("spot_price")
-
-        earnings_dict = load_json(
-            cfg.get("EARNINGS_DATES_FILE", "tomic/data/earnings_dates.json")
-        )
-        next_earn = None
-        if isinstance(earnings_dict, dict):
-            earnings_list = earnings_dict.get(symbol)
-            if isinstance(earnings_list, list):
-                upcoming: list[datetime] = []
-                for ds in earnings_list:
-                    try:
-                        d = datetime.strptime(ds, "%Y-%m-%d").date()
-                    except Exception:
-                        continue
-                    if d >= today():
-                        upcoming.append(d)
-                if upcoming:
-                    next_earn = min(upcoming).strftime("%Y-%m-%d")
-
-        data = {
-            "symbol": symbol,
-            "spot_price": spot_price,
-            "strategy": strat_file,
-            "next_earnings_date": next_earn,
-            "legs": proposal.legs,
-            "metrics": {
-                "credit": proposal.credit,
-                "margin": proposal.margin,
-                "pos": proposal.pos,
-                "rom": proposal.rom,
-                "ev": proposal.ev,
-                "average_edge": proposal.edge,
-                "max_profit": (
-                    proposal.max_profit
-                    if proposal.max_profit is not None
-                    else "unlimited"
-                ),
-                "max_loss": (
-                    proposal.max_loss if proposal.max_loss is not None else "unlimited"
-                ),
-                "breakevens": proposal.breakevens or [],
-                "score": proposal.score,
-                "profit_estimated": proposal.profit_estimated,
-                "scenario_info": proposal.scenario_info,
-                "atr": proposal.atr,
-                "iv_rank": proposal.iv_rank,
-                "iv_percentile": proposal.iv_percentile,
-                "hv": {
-                    "hv20": proposal.hv20,
-                    "hv30": proposal.hv30,
-                    "hv90": proposal.hv90,
-                },
-                "dte": proposal.dte,
-                "breakeven_distances": (
-                    proposal.breakeven_distances
-                    if proposal.breakeven_distances is not None
-                    else {"dollar": [], "percent": []}
-                ),
-                "missing_data": {
-                    "missing_bidask": any(
-                        (
-                            (b := l.get("bid")) is None
-                            or (
-                                isinstance(b, (int, float))
-                                and (math.isnan(b) or b <= 0)
-                            )
-                        )
-                        or (
-                            (a := l.get("ask")) is None
-                            or (
-                                isinstance(a, (int, float))
-                                and (math.isnan(a) or a <= 0)
-                            )
-                        )
-                        for l in proposal.legs
-                    ),
-                    "missing_edge": proposal.edge is None,
-                    "fallback_mid": any(
-                        l.get("mid_fallback") in {"close", "parity_close", "model"}
-                        or (
-                            l.get("mid") is not None
-                            and (
-                                (
-                                    (b := l.get("bid")) is None
-                                    or (
-                                        isinstance(b, (int, float))
-                                        and (math.isnan(b) or b <= 0)
-                                    )
-                                )
-                                or (
-                                    (a := l.get("ask")) is None
-                                    or (
-                                        isinstance(a, (int, float))
-                                        and (math.isnan(a) or a <= 0)
-                                    )
-                                )
-                            )
-                        )
-                        for l in proposal.legs
-                    ),
-                },
-            },
-            "tomic_acceptance_criteria": accept,
-            "portfolio_context": portfolio_ctx,
-            "portfolio_context_available": portfolio_available,
-            "wing_width": proposal.wing_width,
-            "wing_symmetry": proposal.wing_symmetry,
-        }
-        with path.open("w", encoding="utf-8") as f:
-            json.dump(data, f, ensure_ascii=False, indent=2)
-        print(f"✅ Voorstel opgeslagen in: {path.resolve()}")
-
-    def _proposal_journal_text(proposal: StrategyProposal) -> str:
-        margin_str = f"{proposal.margin:.2f}" if proposal.margin is not None else "—"
-        pos_str = f"{proposal.pos:.2f}" if proposal.pos is not None else "—"
-        rom_str = f"{proposal.rom:.2f}" if proposal.rom is not None else "—"
-        ev_str = f"{proposal.ev:.2f}" if proposal.ev is not None else "—"
-        lines = [
-            f"Symbol: {SESSION_STATE.get('symbol')}",
-            f"Strategy: {SESSION_STATE.get('strategy')}",
-            f"Credit: {proposal.credit:.2f}",
-            f"Margin: {margin_str}",
-            f"ROM: {rom_str}",
-            f"PoS: {pos_str}",
-            f"EV: {ev_str}",
-        ]
-        for leg in proposal.legs:
-            side = "Short" if leg.get("position", 0) < 0 else "Long"
-            mid = leg.get("mid")
-            mid_str = f"{mid:.2f}" if mid is not None else ""
-            lines.append(
-                f"{side} {leg.get('type')} {leg.get('strike')} {leg.get('expiry')} @ {mid_str}"
-            )
-        return "\n".join(lines)
 
     def choose_chain_source() -> None:
         symbol = SESSION_STATE.get("symbol")
