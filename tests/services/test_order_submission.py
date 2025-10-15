@@ -208,4 +208,4 @@ def test_combo_limit_price_divides_by_quantity(monkeypatch):
     instr = instructions[0]
     assert getattr(instr.order, "totalQuantity", None) == 2
     assert getattr(instr.order, "orderType", None) == "MIDPRICE"
-    assert getattr(instr.order, "lmtPrice", None) is None
+    assert getattr(instr.order, "lmtPrice", None) == 1.0
