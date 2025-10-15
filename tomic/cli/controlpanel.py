@@ -787,10 +787,34 @@ def _proposal_from_rejection(entry: Mapping[str, Any]) -> StrategyProposal | Non
     if not isinstance(legs, Sequence):
         return None
 
+    symbol: str | None = None
+    if isinstance(entry, Mapping):
+        raw_symbol = entry.get("symbol")
+        if raw_symbol:
+            symbol = str(raw_symbol)
+        else:
+            meta = entry.get("meta")
+            if isinstance(meta, Mapping):
+                raw_symbol = (
+                    meta.get("symbol")
+                    or meta.get("underlying")
+                    or meta.get("ticker")
+                    or meta.get("root")
+                    or meta.get("root_symbol")
+                )
+                if raw_symbol:
+                    symbol = str(raw_symbol)
+
     normalized_legs: list[dict[str, Any]] = []
     for leg in legs:
         if isinstance(leg, Mapping):
-            normalized_legs.append(dict(leg))
+            normalized = dict(leg)
+            if symbol and not any(
+                normalized.get(key)
+                for key in ("symbol", "underlying", "ticker", "root", "root_symbol")
+            ):
+                normalized["symbol"] = symbol
+            normalized_legs.append(normalized)
     if not normalized_legs:
         return None
 

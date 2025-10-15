@@ -1189,6 +1189,35 @@ def test_rejection_detail_offers_ib_fetch(monkeypatch, capsys):
     assert mod.SESSION_STATE.get("strategy") == original_strategy
 
 
+def test_proposal_from_rejection_infers_symbol():
+    mod = importlib.import_module("tomic.cli.controlpanel")
+
+    entry = {
+        "strategy": "iron_condor",
+        "metrics": {},
+        "legs": [
+            {
+                "expiry": "2025-11-21",
+                "type": "call",
+                "strike": 490.0,
+                "position": -1,
+            },
+            {
+                "expiry": "2025-11-21",
+                "type": "put",
+                "strike": 420.0,
+                "position": 1,
+            },
+        ],
+        "meta": {"symbol": "SPY"},
+    }
+
+    proposal = mod._proposal_from_rejection(entry)
+    assert proposal is not None
+    symbols = {leg.get("symbol") for leg in proposal.legs}
+    assert symbols == {"SPY"}
+
+
 def test_reason_aggregator_prefers_risk_over_fallback():
     mod = importlib.import_module("tomic.cli.controlpanel")
     agg = mod.ReasonAggregator()
