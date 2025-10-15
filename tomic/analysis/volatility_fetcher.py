@@ -49,11 +49,9 @@ def _parse_vix_from_yahoo(html: str) -> Optional[float]:
     for pattern in _YAHOO_VIX_PATTERNS:
         match = re.search(pattern, html, re.IGNORECASE | re.DOTALL)
         if match:
-            try:
-                return float(match.group(1))
-            except ValueError:  # pragma: no cover - defensive, shouldn't happen
-                logger.warning("Failed to parse numeric VIX value from Yahoo HTML")
-                return None
+            value = _to_float(match.group(1))
+            if value is not None:
+                return value
     return None
 
 
