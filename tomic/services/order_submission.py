@@ -449,6 +449,8 @@ class OrderSubmissionService:
         else:
             net_price = None
         order.orderType = "MIDPRICE"
+        if net_price is not None and hasattr(order, "lmtPrice"):
+            order.lmtPrice = net_price
         order.tif = (tif or _cfg("DEFAULT_TIME_IN_FORCE", "DAY")).upper()
         order.action = "SELL" if (net_credit or 0) >= 0 else "BUY"
         order.transmit = True
