@@ -39,6 +39,9 @@ from tomic.services.strategy_pipeline import StrategyProposal
 from tomic.utils import get_leg_qty, get_leg_right, normalize_leg
 
 
+log = logger
+
+
 def _cfg(key: str, default: Any) -> Any:
     value = cfg_get(key, default)
     return default if value in {None, ""} else value
@@ -76,6 +79,50 @@ def _leg_price(leg: dict) -> float | None:
         except Exception:
             continue
     return None
+
+
+def _leg_mid_price(leg: dict) -> float | None:
+    """Return best available mid price for ``leg``."""
+
+    def _as_float(value: Any) -> float | None:
+        try:
+            if value is None:
+                return None
+            return float(value)
+        except Exception:
+            return None
+
+    mid = _as_float(leg.get("mid"))
+    if mid is not None:
+        return mid
+    bid = _as_float(leg.get("bid"))
+    ask = _as_float(leg.get("ask"))
+    if bid is not None and ask is not None:
+        return (bid + ask) / 2
+    last = _as_float(leg.get("last"))
+    if last is not None:
+        return last
+    close = _as_float(leg.get("close"))
+    if close is not None:
+        return close
+    return None
+
+
+def _combo_mid_credit(legs: Sequence[dict]) -> float | None:
+    """Return combo mid credit in dollars if all legs have usable prices."""
+
+    total = 0.0
+    any_leg = False
+    for leg in legs:
+        price = _leg_mid_price(leg)
+        if price is None:
+            return None
+        qty = get_leg_qty(leg)
+        position = float(leg.get("position") or leg.get("qty") or leg.get("quantity") or 0)
+        direction = 1 if position > 0 else -1
+        total -= direction * price * qty
+        any_leg = True
+    return total if any_leg else None
 
 
 @dataclass
@@ -443,23 +490,37 @@ class OrderSubmissionService:
         net_credit = proposal.credit
         if net_credit is None:
             net_credit = calculate_credit(legs)
+        mid_credit = _combo_mid_credit(legs)
         per_combo_credit = None
         if net_credit is not None:
             try:
                 per_combo_credit = net_credit / max(combo_quantity, 1)
             except Exception:
                 per_combo_credit = net_credit
-        if per_combo_credit is not None:
+        if mid_credit is not None:
+            try:
+                per_combo_mid_credit = mid_credit / max(combo_quantity, 1)
+            except Exception:
+                per_combo_mid_credit = mid_credit
+            target_price = per_combo_mid_credit / 100.0
+            if target_price >= 0:
+                limit_price = max(target_price - 0.01, 0.01)
+            else:
+                limit_price = abs(target_price) + 0.01
+            net_price = round(limit_price, 2)
+        elif per_combo_credit is not None:
             net_price = round(abs(per_combo_credit / 100.0), 2)
         else:
             net_price = None
         order.orderType = "LMT"
+        order.algoStrategy = ""
+        order.algoParams = []
+        order.smartComboRoutingParams = []
+        if str(getattr(combo_contract, "exchange", "")).upper() == "SMART":
+            order.smartComboRoutingParams = [TagValue("NonGuaranteed", "1")]
         order.tif = (tif or _cfg("DEFAULT_TIME_IN_FORCE", "DAY")).upper()
         if net_price is not None and hasattr(order, "lmtPrice"):
             order.lmtPrice = net_price
-        order.algoStrategy = "Adaptive"
-        order.algoParams = []
-        order.algoParams.append(TagValue("adaptivePriority", "Normal"))
         order.action = "SELL" if (net_credit or 0) >= 0 else "BUY"
         order.transmit = True
         order.account = account or "DUK809533"
@@ -557,6 +618,12 @@ class OrderSubmissionService:
                 if legs_info:
                     parts.append("legs=" + ", ".join(legs_info))
                 logger.info(f"🚀 Verstuur order {' | '.join(parts)}")
+                log.info(
+                    "orderType=%s algoStrategy=%s smartComboRoutingParams=%s",
+                    getattr(order, "orderType", ""),
+                    getattr(order, "algoStrategy", ""),
+                    getattr(order, "smartComboRoutingParams", None),
+                )
                 app.placeOrder(current_id, instr.contract, order)
                 placed_ids.append(current_id)
             app.wait_for_order_handshake(placed_ids)
