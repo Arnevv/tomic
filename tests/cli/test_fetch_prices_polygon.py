@@ -93,6 +93,7 @@ def test_latest_trading_day_before_close(monkeypatch):
             return datetime(2025, 7, 2, 10, 0, tzinfo=tz)
 
     monkeypatch.setattr(pp, "datetime", FakeDT)
+    monkeypatch.setattr(pp, "_US_MARKET_HOLIDAYS", set(), raising=False)
 
     day = pp.latest_trading_day()
     assert day == date(2025, 7, 1)
@@ -105,9 +106,39 @@ def test_latest_trading_day_after_close(monkeypatch):
             return datetime(2025, 7, 2, 21, 0, tzinfo=tz)
 
     monkeypatch.setattr(pp, "datetime", FakeDT)
+    monkeypatch.setattr(pp, "_US_MARKET_HOLIDAYS", set(), raising=False)
 
     day = pp.latest_trading_day()
     assert day == date(2025, 7, 1)
+
+
+def test_latest_trading_day_counts_columbus_day(monkeypatch):
+    class FakeDT(datetime):
+        @classmethod
+        def now(cls, tz=None):
+            return datetime(2025, 10, 14, 10, 0, tzinfo=tz)
+
+    monkeypatch.setattr(pp, "datetime", FakeDT)
+    monkeypatch.setattr(
+        pp,
+        "holidays",
+        SimpleNamespace(
+            NYSE=lambda: set(),
+            US=lambda: {date(2025, 10, 13)},
+        ),
+    )
+    monkeypatch.setattr(pp, "_US_MARKET_HOLIDAYS", None, raising=False)
+
+    day = pp.latest_trading_day()
+    assert day == date(2025, 10, 13)
+
+
+def test_next_trading_day_skips_market_holidays(monkeypatch):
+    monkeypatch.setattr(pp, "_US_MARKET_HOLIDAYS", None, raising=False)
+    monkeypatch.setattr(pp, "_us_market_holidays", lambda: {date(2025, 1, 1)})
+
+    next_day = pp._next_trading_day(date(2024, 12, 31))
+    assert next_day == date(2025, 1, 2)
 
 
 def test_request_bars_skips_on_403(monkeypatch):

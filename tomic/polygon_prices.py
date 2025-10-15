@@ -14,7 +14,9 @@ except Exception:  # pragma: no cover - fallback when package is missing
         def __contains__(self, _date: date) -> bool:
             return False
 
-    holidays = SimpleNamespace(US=lambda: _NoHolidays())  # type: ignore
+    holidays = SimpleNamespace(  # type: ignore
+        US=lambda: _NoHolidays(), NYSE=lambda: _NoHolidays()
+    )
 
 from tomic.analysis.metrics import average_true_range
 from tomic.config import get as cfg_get
@@ -25,25 +27,44 @@ from tomic.helpers.price_meta import load_price_meta
 from tomic.polygon_client import PolygonClient
 
 
+_US_MARKET_HOLIDAYS = None
+
+
 def _is_weekday(d: date) -> bool:
     """Return ``True`` when ``d`` falls on a weekday."""
     return d.weekday() < 5
 
 
+def _us_market_holidays():
+    """Return a holiday calendar for US equity markets."""
+
+    global _US_MARKET_HOLIDAYS
+    if _US_MARKET_HOLIDAYS is None:
+        try:
+            calendar_factory = getattr(holidays, "NYSE")
+        except AttributeError:  # pragma: no cover - NYSE calendar missing
+            calendar_factory = getattr(holidays, "US")
+        _US_MARKET_HOLIDAYS = calendar_factory()
+    return _US_MARKET_HOLIDAYS
+
+
 def _next_trading_day(d: date) -> date:
-    """Return the next weekday after ``d``."""
+    """Return the next US trading day after ``d``."""
+
+    us_holidays = _us_market_holidays()
     d += timedelta(days=1)
-    while not _is_weekday(d):
+    while not _is_weekday(d) or d in us_holidays:
         d += timedelta(days=1)
     return d
 
 
 def latest_trading_day() -> date:
     """Return the most recent US trading day."""
+
     tz = ZoneInfo("America/New_York")
     now = datetime.now(tz)
     d = now.date() - timedelta(days=1)
-    us_holidays = holidays.US()
+    us_holidays = _us_market_holidays()
     while d.weekday() >= 5 or d in us_holidays:
         d -= timedelta(days=1)
     return d
