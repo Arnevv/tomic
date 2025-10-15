@@ -105,7 +105,11 @@ def parse_iv_backfill_csv(path: Path | str) -> IVBackfillParseResult:
 
     with csv_path.open("r", encoding="utf-8-sig", newline="") as handle:
         reader = csv.DictReader(handle)
-        missing = [col for col in REQUIRED_COLUMNS if col not in reader.fieldnames or reader.fieldnames is None]
+        fieldnames = reader.fieldnames
+        if fieldnames is None:
+            missing = list(REQUIRED_COLUMNS)
+        else:
+            missing = [col for col in REQUIRED_COLUMNS if col not in fieldnames]
         if missing:
             raise IVBackfillValidationError(
                 f"CSV file {csv_path} is missing required columns: {', '.join(missing)}"
