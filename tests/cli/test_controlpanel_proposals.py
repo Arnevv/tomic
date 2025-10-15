@@ -934,31 +934,10 @@ def test_export_proposal_json_includes_earnings(monkeypatch, tmp_path):
         legs=[], credit=0.0, profit_estimated=True, scenario_info={"foo": "bar"}
     )
 
-    def _cell(value):
-        return (lambda x: lambda: x)(value).__closure__[0]
+    monkeypatch.setattr(mod, "_load_acceptance_criteria", lambda *_a, **_k: {})
+    monkeypatch.setattr(mod, "_load_portfolio_context", lambda: ({}, False))
 
-    export_func = None
-    for const in mod.run_portfolio_menu.__code__.co_consts:
-        if isinstance(const, types.CodeType) and const.co_name == "_export_proposal_json":
-            cells = []
-            for name in const.co_freevars:
-                if name == "_load_acceptance_criteria":
-                    cells.append(_cell(lambda *_a, **_k: {}))
-                elif name == "_load_portfolio_context":
-                    cells.append(_cell(lambda *_a, **_k: ({}, False)))
-                else:
-                    cells.append(_cell(None))
-            export_func = types.FunctionType(
-                const,
-                mod.run_portfolio_menu.__globals__,
-                None,
-                None,
-                tuple(cells),
-            )
-            break
-    assert export_func is not None
-
-    export_func(proposal)
+    mod._export_proposal_json(proposal)
 
     out_dir = tmp_path / datetime.now().strftime("%Y%m%d")
     files = list(out_dir.glob("strategy_proposal_AAA_test_strategy_*.json"))
@@ -970,36 +949,9 @@ def test_export_proposal_json_includes_earnings(monkeypatch, tmp_path):
 
 
 def _extract_show_details(mod):
-    """Return the nested _show_proposal_details function."""
-    def _cell(value):
-        return (lambda x: lambda: x)(value).__closure__[0]
+    """Return the show details function for testing."""
 
-    for const in mod.run_portfolio_menu.__code__.co_consts:
-        if isinstance(const, types.CodeType) and const.co_name == "_show_proposal_details":
-            cells = []
-            for name in const.co_freevars:
-                if name == "_export_proposal_csv":
-                    cells.append(_cell(lambda *_a, **_k: None))
-                elif name == "_export_proposal_json":
-                    cells.append(_cell(lambda *_a, **_k: None))
-                elif name == "_proposal_journal_text":
-                    cells.append(_cell(lambda *_a, **_k: ""))
-                elif name == "load_criteria":
-                    cells.append(_cell(mod.load_criteria))
-                elif name == "fetch_quote_snapshot":
-                    cells.append(_cell(mod.fetch_quote_snapshot))
-                elif name == "_submit_ib_order":
-                    cells.append(_cell(lambda *_a, **_k: None))
-                else:
-                    cells.append(_cell(None))
-            return types.FunctionType(
-                const,
-                mod.run_portfolio_menu.__globals__,
-                None,
-                None,
-                tuple(cells),
-            )
-    return None
+    return getattr(mod, "_show_proposal_details", None)
 
 
 def test_show_proposal_details_suffix(monkeypatch, capsys):
@@ -1012,6 +964,10 @@ def test_show_proposal_details_suffix(monkeypatch, capsys):
         lambda proposal, **_: SnapshotResult(proposal, [], True, []),
     )
     monkeypatch.setattr(mod, "prompt_yes_no", lambda *a, **k: False)
+    monkeypatch.setattr(mod, "_export_proposal_csv", lambda *_a, **_k: None)
+    monkeypatch.setattr(mod, "_export_proposal_json", lambda *_a, **_k: None)
+    monkeypatch.setattr(mod, "_submit_ib_order", lambda *_a, **_k: None)
+    monkeypatch.setattr(mod, "_proposal_journal_text", lambda *_a, **_k: "")
     proposal = StrategyProposal(
         legs=[],
         rom=10.0,
@@ -1035,6 +991,10 @@ def test_show_proposal_details_no_scenario(monkeypatch, capsys):
         lambda proposal, **_: SnapshotResult(proposal, [], True, []),
     )
     monkeypatch.setattr(mod, "prompt_yes_no", lambda *a, **k: False)
+    monkeypatch.setattr(mod, "_export_proposal_csv", lambda *_a, **_k: None)
+    monkeypatch.setattr(mod, "_export_proposal_json", lambda *_a, **_k: None)
+    monkeypatch.setattr(mod, "_submit_ib_order", lambda *_a, **_k: None)
+    monkeypatch.setattr(mod, "_proposal_journal_text", lambda *_a, **_k: "")
     proposal = StrategyProposal(
         legs=[],
         rom=1.0,
@@ -1075,6 +1035,10 @@ def test_show_proposal_details_blocks_on_acceptance(monkeypatch, capsys):
         "fetch_quote_snapshot",
         lambda proposal, **_: SnapshotResult(proposal, [reason], False, ["100"]),
     )
+    monkeypatch.setattr(mod, "_export_proposal_csv", lambda *_a, **_k: None)
+    monkeypatch.setattr(mod, "_export_proposal_json", lambda *_a, **_k: None)
+    monkeypatch.setattr(mod, "_submit_ib_order", lambda *_a, **_k: None)
+    monkeypatch.setattr(mod, "_proposal_journal_text", lambda *_a, **_k: "")
 
     prompts: list[str] = []
 
@@ -1187,6 +1151,119 @@ def test_rejection_detail_offers_ib_fetch(monkeypatch, capsys):
     assert symbol_hint == "SPY"
     assert mod.SESSION_STATE.get("symbol") == original_symbol
     assert mod.SESSION_STATE.get("strategy") == original_strategy
+
+
+def test_refresh_reject_entries_fetches_all(monkeypatch, capsys):
+    mod = importlib.import_module("tomic.cli.controlpanel")
+
+    entries = [
+        {
+            "status": "reject",
+            "strategy": "iron_condor",
+            "metrics": {"score": 10.0},
+            "legs": [
+                {
+                    "symbol": "AAA",
+                    "expiry": "2025-11-21",
+                    "type": "call",
+                    "strike": 490.0,
+                    "position": -1,
+                }
+            ],
+            "meta": {"symbol": "AAA"},
+        },
+        {
+            "status": "reject",
+            "strategy": "short_put_spread",
+            "metrics": {"score": 5.0},
+            "legs": [
+                {
+                    "symbol": "BBB",
+                    "expiry": "2025-12-19",
+                    "type": "put",
+                    "strike": 410.0,
+                    "position": -1,
+                }
+            ],
+            "meta": {"symbol": "BBB"},
+        },
+    ]
+
+    calls: list[tuple[str, float | None]] = []
+    outcomes = iter([True, False])
+
+    def fake_fetch(proposal, **kwargs):
+        accepted = next(outcomes)
+        calls.append((proposal.strategy, kwargs.get("spot_price")))
+        reasons = [] if accepted else ["previewkwaliteit (model)"]
+        return SnapshotResult(
+            proposal=proposal,
+            reasons=reasons,
+            accepted=accepted,
+            missing_quotes=[],
+        )
+
+    monkeypatch.setattr(mod, "fetch_quote_snapshot", fake_fetch)
+    monkeypatch.setattr(mod, "load_criteria", lambda: {"dummy": True})
+    monkeypatch.setattr(
+        mod.cfg,
+        "get",
+        lambda key, default=None: 7 if key == "MARKET_DATA_TIMEOUT" else default,
+    )
+
+    original_spot = mod.SESSION_STATE.get("spot_price")
+    mod.SESSION_STATE["spot_price"] = 123.45
+    try:
+        mod._refresh_reject_entries(entries)
+    finally:
+        if original_spot is None:
+            mod.SESSION_STATE.pop("spot_price", None)
+        else:
+            mod.SESSION_STATE["spot_price"] = original_spot
+
+    out = capsys.readouterr().out
+    assert "Samenvatting" in out
+    assert len(calls) == 2
+    assert entries[0]["refreshed_accepted"] is True
+    assert entries[1]["refreshed_accepted"] is False
+    assert entries[0]["refreshed_proposal"].strategy == "iron_condor"
+
+
+def test_print_reason_summary_all_refresh(monkeypatch, capsys):
+    mod = importlib.import_module("tomic.cli.controlpanel")
+
+    entries = [
+        {
+            "status": "reject",
+            "strategy": "Wheel",
+            "description": "Anchor A",
+            "legs": [
+                {"type": "call", "strike": 100, "expiry": "2024-01-19", "position": -1}
+            ],
+        },
+        {
+            "status": "reject",
+            "strategy": "Iron Condor",
+            "description": "Anchor B",
+            "legs": [
+                {"type": "put", "strike": 90, "expiry": "2024-01-26", "position": 1}
+            ],
+        },
+    ]
+
+    mod.SESSION_STATE["combo_evaluations"] = entries
+
+    monkeypatch.setattr(mod, "SHOW_REASONS", True)
+
+    prompts = iter(["a", "0"])
+    monkeypatch.setattr(mod, "prompt", lambda *a, **k: next(prompts))
+
+    called: list[int] = []
+    monkeypatch.setattr(mod, "_refresh_reject_entries", lambda items: called.append(len(items)))
+
+    mod._print_reason_summary(mod.RejectionSummary())
+
+    assert called == [len(entries)]
 
 
 def test_reason_aggregator_prefers_risk_over_fallback():
@@ -1429,7 +1506,16 @@ def test_print_reason_summary_show_details(monkeypatch, capsys):
     monkeypatch.setattr(mod, "prompt_yes_no", lambda *a, **k: next(yes_no))
 
     selections = iter(["1", "2", "0"])
-    monkeypatch.setattr(mod, "prompt", lambda *a, **k: next(selections))
+
+    def fake_prompt(question, default=None):
+        if "Kies actie" in question:
+            return "0"
+        try:
+            return next(selections)
+        except StopIteration:
+            return "0"
+
+    monkeypatch.setattr(mod, "prompt", fake_prompt)
     monkeypatch.setattr(mod, "SHOW_REASONS", True)
 
     entries = [
