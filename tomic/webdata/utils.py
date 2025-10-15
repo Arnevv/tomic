@@ -41,9 +41,8 @@ async def download_html_async(
 
     for attempt in range(1, max_retries + 1):
         logger.debug(
-            "Requesting volatility page for %s (attempt %s)",
-            symbol,
-            attempt,
+            f"Requesting volatility page for {symbol} at {url} "
+            f"(attempt {attempt}/{max_retries})"
         )
         try:
             timeout_obj = aiohttp.ClientTimeout(total=timeout)
@@ -51,7 +50,7 @@ async def download_html_async(
                 async with session.get(url, headers={"User-Agent": "Mozilla/5.0"}) as response:
                     response.raise_for_status()
                     html = await response.text()
-            logger.debug(f"Downloaded {len(html)} characters")
+            logger.debug(f"Downloaded {len(html)} characters from {url}")
             return html
         except Exception as exc:  # pragma: no cover - network errors
             logger.error(f"Download failed: {exc}")
@@ -74,7 +73,11 @@ def parse_patterns(patterns: Dict[str, List[str]], html: str) -> Dict[str, Optio
     """Return numeric values extracted using ``patterns``."""
     results: Dict[str, Optional[float]] = {}
     for key, pats in patterns.items():
+        logger.debug(
+            f"Searching HTML for '{key}' using {len(pats)} pattern(s)"
+        )
         for pat in pats:
+            logger.debug(f"Trying pattern '{pat}' for {key}")
             match = re.search(pat, html, re.IGNORECASE | re.DOTALL)
             if match:
                 try:
