@@ -107,6 +107,7 @@ T = TypeVar("T")
 _combo_capture: ContextVar[list[dict[str, Any]] | None] = ContextVar(
     "combo_capture", default=None
 )
+_combo_symbol: ContextVar[str | None] = ContextVar("combo_symbol", default=None)
 
 
 def log_result(func: Callable[..., T]) -> Callable[..., T]:
@@ -132,6 +133,18 @@ def capture_combo_evaluations() -> Iterator[list[dict[str, Any]]]:
         yield captured
     finally:
         _combo_capture.reset(token)
+
+
+@contextmanager
+def combo_symbol_context(symbol: str | None) -> Iterator[None]:
+    """Temporarily associate ``symbol`` with combo evaluation logs."""
+
+    normalized = str(symbol).upper() if isinstance(symbol, str) and symbol else None
+    token = _combo_symbol.set(normalized)
+    try:
+        yield
+    finally:
+        _combo_symbol.reset(token)
 
 
 def get_captured_combo_evaluations() -> list[dict[str, Any]]:
@@ -208,9 +221,14 @@ def log_combo_evaluation(
     rr_str = f"{round(rr, 2)}" if isinstance(rr, (float, int)) else "n/a"
     ev_str = f"{round(ev, 4)}" if isinstance(ev, (float, int)) else "n/a"
 
+    extra_data: dict[str, Any] = dict(extra or {})
+    symbol_hint = extra_data.get("symbol") or _combo_symbol.get()
+    if symbol_hint:
+        extra_data.setdefault("symbol", symbol_hint)
+
     extra_parts: list[str] = []
-    if extra:
-        extra_parts.extend(f"{k}={v}" for k, v in extra.items())
+    if extra_data:
+        extra_parts.extend(f"{k}={v}" for k, v in extra_data.items())
     if legs:
         expiries = sorted({str(l.get("expiry")) for l in legs if l.get("expiry")})
         if expiries:
@@ -234,16 +252,17 @@ def log_combo_evaluation(
 
     captured = _combo_capture.get()
     if captured is not None:
-        captured.append(
-            {
-                "strategy": strategy,
-                "status": result,
-                "description": desc,
-                "legs": list(legs or []),
-                "metrics": dict(metrics or {}),
-                "raw_reason": detail.message,
-                "reason": detail,
-                "meta": dict(extra or {}),
-            }
-        )
+        record = {
+            "strategy": strategy,
+            "status": result,
+            "description": desc,
+            "legs": list(legs or []),
+            "metrics": dict(metrics or {}),
+            "raw_reason": detail.message,
+            "reason": detail,
+            "meta": dict(extra_data),
+        }
+        if symbol_hint:
+            record["symbol"] = symbol_hint
+        captured.append(record)
 

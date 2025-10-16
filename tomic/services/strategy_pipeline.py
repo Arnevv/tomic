@@ -13,7 +13,7 @@ from ..metrics import calculate_edge, calculate_ev, calculate_pos, calculate_rom
 from ..strategy_candidates import generate_strategy_candidates
 from ..strike_selector import FilterConfig, StrikeSelector
 from ..loader import load_strike_config
-from ..logutils import logger
+from ..logutils import combo_symbol_context, logger
 from ..mid_resolver import MidResolver, build_mid_resolver
 from ..utils import get_option_mid_price, normalize_leg
 from ..helpers.dateutils import parse_date
@@ -173,15 +173,16 @@ class StrategyPipeline:
         reasons: list[ReasonDetail] = []
         if context.spot_price and self.last_selected:
             try:
-                raw_props, reasons = self._strategy_generator(
-                    context.symbol,
-                    canonical_strategy,
-                    self.last_selected,
-                    context.atr,
-                    context.config or self._config_getter("STRATEGY_CONFIG", {}) or {},
-                    context.spot_price,
-                    interactive_mode=context.interactive_mode,
-                )
+                with combo_symbol_context(context.symbol):
+                    raw_props, reasons = self._strategy_generator(
+                        context.symbol,
+                        canonical_strategy,
+                        self.last_selected,
+                        context.atr,
+                        context.config or self._config_getter("STRATEGY_CONFIG", {}) or {},
+                        context.spot_price,
+                        interactive_mode=context.interactive_mode,
+                    )
             except Exception as exc:  # pragma: no cover - defensive logging
                 logger.exception("Strategy generation failed: %s", exc)
                 raw_props, reasons = [], []
