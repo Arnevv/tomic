@@ -11,9 +11,8 @@ import csv
 from collections import defaultdict
 import math
 import inspect
-import re
-from dataclasses import dataclass, field, fields
-from typing import Any, Iterable, Mapping, Sequence
+from dataclasses import fields
+from typing import Any, Mapping, Sequence
 from tomic.helpers.dateutils import parse_date
 
 try:
@@ -101,16 +100,21 @@ from tomic.services.market_snapshot import (
     MarketSnapshotService,
     _build_factsheet,
 )
-from tomic.strategy.reasons import (
-    ReasonCategory,
-    ReasonDetail,
-    ReasonLike,
-    category_label,
-    category_priority,
-)
+from tomic.strategy.reasons import ReasonDetail
 from tomic.strategy_candidates import generate_strategy_candidates
 from tomic.core import config as runtime_config
 from tomic.criteria import load_criteria
+from tomic.reporting import (
+    EvaluationSummary,
+    ReasonAggregator,
+    build_rejection_table,
+    format_dtes,
+    format_money,
+    format_reject_reasons,
+    reason_label,
+    summarize_evaluations,
+    to_float,
+)
 
 setup_logging(stdout=True)
 
@@ -168,240 +172,6 @@ def _wrap_selector(selector):
     return selector
 
 
-@dataclass
-class ReasonAggregator:
-    by_filter: dict[str, int] = field(default_factory=dict)
-    by_reason: dict[str, int] = field(default_factory=dict)
-    by_strategy: dict[str, list[str]] = field(default_factory=dict)
-    by_category: dict[ReasonCategory, int] = field(default_factory=dict)
-
-    @classmethod
-    def label_for(cls, category: ReasonCategory) -> str:
-        return category_label(category)
-
-    def _register_reason(self, detail: ReasonDetail, *, count: int = 1) -> str:
-        label = detail.message or self.label_for(detail.category)
-        if count > 0:
-            self.by_reason[label] = self.by_reason.get(label, 0) + count
-            self.by_category[detail.category] = (
-                self.by_category.get(detail.category, 0) + count
-            )
-        return label
-
-    @classmethod
-    def _split_reason(cls, text: str) -> list[str]:
-        parts = [
-            frag.strip()
-            for frag in re.split(r"[;,\n\u2022\|]+", text)
-            if frag and frag.strip()
-        ]
-        return parts or [text.strip()]
-
-    def _normalize_reason_list(self, reason: ReasonLike) -> list[ReasonDetail]:
-        if isinstance(reason, ReasonCategory):
-            return [normalize_reason(reason)]
-        if isinstance(reason, str):
-            fragments = self._split_reason(reason)
-            details = [normalize_reason(fragment) for fragment in fragments]
-            if details:
-                return details
-            return [normalize_reason(reason)]
-        return [normalize_reason(reason)]
-
-    def add_reason(
-        self,
-        reason: ReasonLike,
-        *,
-        strategy: str | None = None,
-        count: int = 1,
-    ) -> ReasonDetail:
-        details = self._normalize_reason_list(reason)
-        details.sort(key=lambda detail: category_priority(detail.category))
-        count_value = max(int(count), 0)
-        labels = [
-            self._register_reason(detail, count=count_value)
-            for detail in details
-        ]
-        detail = details[0]
-        label = labels[0]
-        if isinstance(reason, ReasonDetail):
-            raw_label = reason.message or self.label_for(reason.category)
-        elif isinstance(reason, ReasonCategory):
-            raw_label = self.label_for(reason)
-        else:
-            raw_label = str(reason)
-        mapped = ", ".join(
-            f"{lbl} ({det.category.value})" for det, lbl in zip(details, labels)
-        )
-        logger.info(f"[reason-selection] raw={raw_label} -> {mapped}")
-        if strategy:
-            self.by_strategy.setdefault(strategy, []).extend(labels)
-        return detail
-
-    def extend_reasons(self, reasons: Iterable[ReasonLike]) -> None:
-        for reason in reasons:
-            self.add_reason(reason)
-
-    def add_reason_with_count(
-        self,
-        reason: ReasonLike,
-        count: int,
-        *,
-        strategy: str | None = None,
-    ) -> ReasonDetail:
-        return self.add_reason(reason, strategy=strategy, count=count)
-
-    def extend_reason_counts(self, counts: Mapping[ReasonLike, int]) -> None:
-        for reason, count in counts.items():
-            self.add_reason(reason, count=count)
-
-    def add_filter(self, name: str) -> None:
-        if not name:
-            return
-        self.by_filter[name] = self.by_filter.get(name, 0) + 1
-
-
-@dataclass
-class ExpiryBreakdown:
-    label: str
-    sort_key: date | None = None
-    ok: int = 0
-    reject: int = 0
-    other: dict[str, int] = field(default_factory=dict)
-
-    def add(self, status: str) -> None:
-        normalized = (status or "").strip().lower()
-        if normalized == "pass":
-            self.ok += 1
-        elif normalized == "reject":
-            self.reject += 1
-        else:
-            key = (status or "OTHER").strip().upper() or "OTHER"
-            self.other[key] = self.other.get(key, 0) + 1
-
-    def format_counts(self) -> str:
-        parts = [f"OK {self.ok}", f"Reject {self.reject}"]
-        if self.other:
-            extras = " · ".join(f"{name} {count}" for name, count in sorted(self.other.items()))
-            parts.append(extras)
-        return " | ".join(parts)
-
-
-@dataclass
-class EvaluationSummary:
-    total: int = 0
-    expiries: dict[str, ExpiryBreakdown] = field(default_factory=dict)
-    reasons: ReasonAggregator = field(default_factory=ReasonAggregator)
-    rejects: int = 0
-
-    @property
-    def reject_total(self) -> int:
-        return self.rejects
-
-    @property
-    def reason_total(self) -> int:
-        return sum(self.reasons.by_category.values())
-
-    def sorted_expiries(self) -> list[ExpiryBreakdown]:
-        return sorted(
-            self.expiries.values(),
-            key=lambda item: ((item.sort_key or date.max), item.label),
-        )
-
-
-def _normalize_expiry_value(value: Any) -> tuple[str | None, date | None]:
-    if value is None:
-        return None, None
-    if isinstance(value, datetime):
-        value = value.date()
-    if isinstance(value, date):
-        return value.isoformat(), value
-    text = str(value).strip()
-    if not text:
-        return None, None
-    parsed = parse_date(text)
-    if parsed:
-        return parsed.isoformat(), parsed
-    return text, None
-
-
-def _resolve_expiry_label(entry: Mapping[str, Any]) -> tuple[str, date | None]:
-    expiries: set[Any] = set()
-    legs = entry.get("legs") if isinstance(entry, Mapping) else None
-    if isinstance(legs, Sequence):
-        for leg in legs:
-            if isinstance(leg, Mapping):
-                expiries.add(leg.get("expiry"))
-    if not expiries:
-        meta = entry.get("meta") if isinstance(entry, Mapping) else None
-        if isinstance(meta, Mapping):
-            extra_expiry = meta.get("expiry")
-            if isinstance(extra_expiry, Sequence) and not isinstance(extra_expiry, (str, bytes)):
-                expiries.update(extra_expiry)
-            elif extra_expiry is not None:
-                expiries.add(extra_expiry)
-    normalized = [
-        _normalize_expiry_value(expiry)
-        for expiry in expiries
-        if expiry not in {None, ""}
-    ]
-    normalized = [(label, key) for label, key in normalized if label]
-    if not normalized:
-        return "—", None
-    merged: dict[str, date | None] = {}
-    for label, sort_key in normalized:
-        if label not in merged:
-            merged[label] = sort_key
-        else:
-            current = merged[label]
-            if current is None and sort_key is not None:
-                merged[label] = sort_key
-            elif current is not None and sort_key is not None:
-                merged[label] = min(current, sort_key)
-    ordered = sorted(merged.items(), key=lambda item: ((item[1] or date.max), item[0]))
-    labels = [label for label, _ in ordered]
-    sort_key = ordered[0][1]
-    return " / ".join(labels), sort_key
-
-
-def summarize_evaluations(evaluations: Sequence[Mapping[str, Any]]) -> EvaluationSummary | None:
-    if not evaluations:
-        return None
-    summary = EvaluationSummary(total=len(evaluations))
-    for entry in evaluations:
-        label, sort_key = _resolve_expiry_label(entry)
-        breakdown = summary.expiries.get(label)
-        if breakdown is None:
-            breakdown = ExpiryBreakdown(label=label, sort_key=sort_key)
-            summary.expiries[label] = breakdown
-        status = str(entry.get("status", "")) if isinstance(entry, Mapping) else ""
-        breakdown.add(status)
-        if status.strip().lower() == "reject":
-            summary.rejects += 1
-            reason = None
-            if isinstance(entry, Mapping):
-                reason = entry.get("reason")
-                if reason is None:
-                    reason = entry.get("raw_reason")
-            summary.reasons.add_reason(reason)
-    return summary
-
-
-def _format_reject_reasons(summary: EvaluationSummary) -> str:
-    total_rejects = summary.reject_total or summary.reason_total
-    if not total_rejects:
-        return "n.v.t."
-    ordered = sorted(
-        summary.reasons.by_category.items(),
-        key=lambda item: item[1],
-        reverse=True,
-    )
-    parts = []
-    for category, count in ordered:
-        label = ReasonAggregator.label_for(category)
-        percentage = round((count / total_rejects) * 100)
-        parts.append(f"{label} ({percentage}%)")
-    return " · ".join(parts)
 
 
 def _print_evaluation_overview(symbol: str, spot: float | None, summary: EvaluationSummary | None) -> None:
@@ -418,7 +188,7 @@ def _print_evaluation_overview(symbol: str, spot: float | None, summary: Evaluat
         print("Expiry breakdown:")
         for breakdown in summary.sorted_expiries():
             print(f"• {breakdown.label}: {breakdown.format_counts()}")
-    print(f"Top reason for reject: {_format_reject_reasons(summary)}")
+    print(f"Top reason for reject: {format_reject_reasons(summary)}")
 
 
 def _generate_with_capture(*args: Any, **kwargs: Any):
@@ -433,232 +203,12 @@ def _generate_with_capture(*args: Any, **kwargs: Any):
             SESSION_STATE["combo_evaluation_summary"] = summary
     return result
 
-
-def _reason_label(value: ReasonLike | ReasonDetail | None) -> str:
-    try:
-        detail = normalize_reason(value)
-    except Exception:
-        return str(value)
-    return detail.message or ReasonAggregator.label_for(detail.category)
-
-
 def _format_leg_position(raw: Any) -> str:
-    try:
-        num = float(raw)
-    except (TypeError, ValueError):
+    num = to_float(raw)
+    if num is None:
         return "?"
     return "S" if num < 0 else "L"
 
-
-def _format_leg_summary(legs: Sequence[Mapping[str, Any]] | None) -> str:
-    if not legs:
-        return "—"
-    parts: list[str] = []
-    for leg in legs:
-        typ = str(leg.get("type") or "").upper()[:1]
-        strike = leg.get("strike")
-        pos = _format_leg_position(leg.get("position"))
-        label = f"{pos}{typ}" if typ else pos
-        if strike is not None:
-            try:
-                strike_val = float(strike)
-                label = f"{label} {strike_val:g}"
-            except (TypeError, ValueError):
-                label = f"{label} {strike}"
-        parts.append(label.strip())
-    return ", ".join(parts) if parts else "—"
-
-
-def _format_expiry_dte(expiry: Any) -> str:
-    if not expiry:
-        return ""
-    expiry_str = str(expiry)
-    try:
-        exp_date = parse_date(expiry_str)
-    except Exception:
-        exp_date = None
-    if isinstance(exp_date, date):
-        dte = (exp_date - today()).days
-        return f"{expiry_str} ({dte}d)"
-    return expiry_str
-
-
-def _format_dtes(legs: Sequence[Mapping[str, Any]] | None) -> str:
-    if not legs:
-        return ""
-    expiries: list[str] = []
-    seen: set[str] = set()
-    for leg in legs:
-        formatted = _format_expiry_dte(leg.get("expiry"))
-        if formatted and formatted not in seen:
-            expiries.append(formatted)
-            seen.add(formatted)
-    return ", ".join(expiries)
-
-
-def _to_float(value: Any) -> float | None:
-    try:
-        if value is None:
-            return None
-        return float(value)
-    except (TypeError, ValueError):
-        return None
-
-
-def _format_money(value: Any) -> str:
-    num = _to_float(value)
-    if num is None:
-        return "—"
-    return f"{num:.2f}"
-
-
-def _build_rejection_table(
-    entries: Sequence[Mapping[str, Any]] | None,
-) -> tuple[list[str], list[list[str]], list[Mapping[str, Any]]]:
-    rejects: list[Mapping[str, Any]] = []
-    if entries:
-        for entry in entries:
-            status = str(entry.get("status", "")).lower()
-            if status == "pass":
-                continue
-            rejects.append(entry)
-
-    if not rejects:
-        return [], [], []
-
-    def _score_value(entry: Mapping[str, Any]) -> float | None:
-        metrics = entry.get("metrics") or {}
-        if isinstance(metrics, Mapping):
-            score_val = _to_float(metrics.get("score"))
-        else:
-            score_val = None
-        if score_val is None:
-            score_val = _to_float(entry.get("score"))
-        return score_val
-
-    scored_rejects: list[tuple[int, Mapping[str, Any], float | None]] = [
-        (idx, entry, _score_value(entry)) for idx, entry in enumerate(rejects)
-    ]
-
-    def _sort_key(item: tuple[int, Mapping[str, Any], float | None]) -> tuple[int, float]:
-        original_idx, _entry, score_val = item
-        if score_val is None:
-            return (1, float(original_idx))
-        return (0, -score_val)
-
-    scored_rejects.sort(key=_sort_key)
-    rejects = [entry for _, entry, _ in scored_rejects]
-    scores = [score for _, _, score in scored_rejects]
-
-    has_credit = any(
-        _to_float((entry.get("metrics") or {}).get("credit")) is not None
-        or _to_float((entry.get("metrics") or {}).get("net_credit")) is not None
-        for entry in rejects
-    )
-    has_rr = any(
-        _to_float((entry.get("metrics") or {}).get("max_profit")) is not None
-        and _to_float((entry.get("metrics") or {}).get("max_loss")) not in {None, 0}
-        for entry in rejects
-    )
-    has_pos = any(
-        _to_float((entry.get("metrics") or {}).get("pos")) is not None for entry in rejects
-    )
-    has_ev = any(
-        _to_float((entry.get("metrics") or {}).get("ev")) is not None
-        or _to_float((entry.get("metrics") or {}).get("ev_pct")) is not None
-        for entry in rejects
-    )
-    has_term = any(
-        (entry.get("metrics") or {}).get("term") is not None for entry in rejects
-    )
-    has_flags = any((entry.get("meta") or {}) for entry in rejects)
-
-    headers = ["#", "Strat", "Status", "Anchor", "Legs", "DTEs", "Note"]
-    has_score = any(score is not None for score in scores)
-    if has_score:
-        headers.append("Score")
-    if has_credit:
-        headers.append("Net$")
-    if has_rr:
-        headers.append("R/R")
-    if has_pos:
-        headers.append("PoS")
-    if has_ev:
-        headers.append("EV€")
-    if has_term:
-        headers.append("Term")
-    if has_flags:
-        headers.append("Flags")
-
-    rows: list[list[str]] = []
-    for idx, (entry, score_val) in enumerate(zip(rejects, scores), start=1):
-        strategy = str(entry.get("strategy") or "—")
-        status = str(entry.get("status") or "—")
-        anchor = str(entry.get("description") or "—")
-        legs_raw = entry.get("legs")
-        legs_seq = (
-            list(legs_raw)
-            if isinstance(legs_raw, Sequence) and not isinstance(legs_raw, (str, bytes))
-            else []
-        )
-        dtes = _format_dtes(legs_seq)
-        reason_value = entry.get("reason")
-        raw_reason = entry.get("raw_reason")
-        label = _reason_label(reason_value or raw_reason)
-        note = str(label)
-
-        row = [
-            str(idx),
-            strategy,
-            status,
-            anchor,
-            _format_leg_summary(legs_seq),
-            dtes,
-            note,
-        ]
-
-        if has_score:
-            row.append(f"{score_val:.2f}" if score_val is not None else "—")
-        metrics = entry.get("metrics") or {}
-        if has_credit:
-            credit_val = metrics.get("credit")
-            if credit_val in {None, ""}:
-                credit_val = metrics.get("net_credit")
-            row.append(_format_money(credit_val))
-        if has_rr:
-            max_profit = _to_float(metrics.get("max_profit"))
-            max_loss = _to_float(metrics.get("max_loss"))
-            if max_profit is not None and max_loss not in {None, 0}:
-                try:
-                    ratio = max_profit / abs(max_loss)
-                    row.append(f"{ratio:.2f}")
-                except Exception:
-                    row.append("—")
-            else:
-                row.append("—")
-        if has_pos:
-            pos_val = _to_float(metrics.get("pos"))
-            row.append(f"{pos_val:.1f}%" if pos_val is not None else "—")
-        if has_ev:
-            ev_val = _to_float(metrics.get("ev"))
-            if ev_val is None:
-                ev_pct = _to_float(metrics.get("ev_pct"))
-                row.append(f"{ev_pct:.2f}%" if ev_pct is not None else "—")
-            else:
-                row.append(f"{ev_val:.2f}")
-        if has_term:
-            row.append(str(metrics.get("term") or "—"))
-        if has_flags:
-            meta = entry.get("meta") or {}
-            if isinstance(meta, Mapping):
-                parts = [f"{k}={v}" for k, v in meta.items()]
-                row.append("; ".join(parts) if parts else "—")
-            else:
-                row.append(str(meta))
-
-        rows.append(row)
-
-    return headers, rows, rejects
 
 
 def _show_rejection_detail(entry: Mapping[str, Any]) -> None:
@@ -668,19 +218,19 @@ def _show_rejection_detail(entry: Mapping[str, Any]) -> None:
     reason_value = entry.get("reason")
     raw_reason = entry.get("raw_reason")
     detail = normalize_reason(reason_value or raw_reason)
-    reason_label = detail.message or ReasonAggregator.label_for(detail.category)
+    reason_label_text = detail.message or ReasonAggregator.label_for(detail.category)
     original = None
     if isinstance(reason_value, ReasonDetail):
         original = reason_value.data.get("original_message")
     if original is None:
         original = detail.data.get("original_message")
-    note = raw_reason or original or reason_label
+    note = raw_reason or original or reason_label_text
 
     print(f"Strategie: {strategy}")
     print(f"Status: {status}")
     print(f"Anchor: {anchor}")
-    print(f"Reden: {reason_label}")
-    if note and note != reason_label:
+    print(f"Reden: {reason_label_text}")
+    if note and note != reason_label_text:
         print(f"Detail: {note}")
 
     metrics = entry.get("metrics") or {}
@@ -704,7 +254,7 @@ def _show_rejection_detail(entry: Mapping[str, Any]) -> None:
         else []
     )
     if legs_list:
-        dte_info = _format_dtes(legs_list)
+        dte_info = format_dtes(legs_list)
         if dte_info:
             print(f"DTEs: {dte_info}")
         leg_rows: list[list[str]] = []
@@ -744,9 +294,9 @@ def _show_rejection_detail(entry: Mapping[str, Any]) -> None:
                     str(qty or ""),
                     str(volume or ""),
                     str(oi or ""),
-                    _format_money(bid) if bid not in {None, ""} else "",
-                    _format_money(ask) if ask not in {None, ""} else "",
-                    _format_money(mid) if mid not in {None, ""} else "",
+                    format_money(bid) if bid not in {None, ""} else "",
+                    format_money(ask) if ask not in {None, ""} else "",
+                    format_money(mid) if mid not in {None, ""} else "",
                 ]
             )
         print("Legs:")
@@ -876,7 +426,7 @@ def _refresh_reject_entries(entries: Sequence[Mapping[str, Any]]) -> None:
             accepted += 1
             print(f"✅ {label_symbol} – {proposal.strategy}: voorstel voldoet na refresh.")
         else:
-            reason_labels = ", ".join(_reason_label(reason) for reason in result.reasons)
+            reason_labels = ", ".join(reason_label(reason) for reason in result.reasons)
             if not reason_labels:
                 reason_labels = "Onbekende reden"
             print(
@@ -912,8 +462,8 @@ def _refresh_reject_entries(entries: Sequence[Mapping[str, Any]]) -> None:
             if isinstance(entry, Mapping)
             else "—"
         )
-        dtes = _format_dtes(refreshed.legs)
-        credit = _format_money(refreshed.credit)
+        dtes = format_dtes(refreshed.legs)
+        credit = format_money(refreshed.credit)
         try:
             max_profit = float(refreshed.max_profit) if refreshed.max_profit is not None else None
         except Exception:
@@ -929,11 +479,11 @@ def _refresh_reject_entries(entries: Sequence[Mapping[str, Any]]) -> None:
             except Exception:
                 rr_display = "—"
         pos_display = "—"
-        pos_val = _to_float(refreshed.pos)
+        pos_val = to_float(refreshed.pos)
         if pos_val is not None:
             pos_display = f"{pos_val:.2f}"
         ev_display = "—"
-        ev_val = _to_float(refreshed.ev)
+        ev_val = to_float(refreshed.ev)
         if ev_val is not None:
             ev_display = f"{ev_val:.2f}"
 
@@ -1577,7 +1127,7 @@ def _print_reason_summary(summary: RejectionSummary | None) -> None:
         eval_entries = list(entries)
     else:
         eval_entries = []
-    headers, rows, rejects = _build_rejection_table(eval_entries)
+    headers, rows, rejects = build_rejection_table(eval_entries)
 
     has_summary_data = bool(
         summary
@@ -1636,7 +1186,7 @@ def _print_reason_summary(summary: RejectionSummary | None) -> None:
             for strat, reasons in summary.by_strategy.items():
                 print(f"{strat}:")
                 for r in reasons:
-                    print(f"• {_reason_label(r)}")
+                    print(f"• {reason_label(r)}")
 
     if not rejects:
         return
@@ -2532,8 +2082,8 @@ def run_portfolio_menu() -> None:
             def _avg_bid_ask_pct(proposal: StrategyProposal) -> float | None:
                 spreads: list[float] = []
                 for leg in proposal.legs:
-                    bid = _to_float(leg.get("bid"))
-                    ask = _to_float(leg.get("ask"))
+                    bid = to_float(leg.get("bid"))
+                    ask = to_float(leg.get("ask"))
                     if bid is None or ask is None:
                         continue
                     mid = (bid + ask) / 2
@@ -2549,8 +2099,8 @@ def run_portfolio_menu() -> None:
                 return sum(spreads) / len(spreads)
 
             def _risk_reward(proposal: StrategyProposal) -> float | None:
-                profit = _to_float(proposal.max_profit)
-                loss = _to_float(proposal.max_loss)
+                profit = to_float(proposal.max_profit)
+                loss = to_float(proposal.max_loss)
                 if profit is None or loss in {None, 0}:
                     return None
                 risk = abs(loss)
@@ -2617,7 +2167,7 @@ def run_portfolio_menu() -> None:
                         _fmt_money(prop.score),
                         _fmt_money(prop.ev),
                         _fmt_ratio(_risk_reward(prop)),
-                        _format_dtes(prop.legs),
+                        format_dtes(prop.legs),
                         _fmt_pct(iv_rank_pct),
                         skew_fmt,
                         _fmt_pct(_avg_bid_ask_pct(prop)),
