@@ -11,7 +11,7 @@
 ## 2. Huidige data-architectuur (relevant voor backfill)
 * `run_dataexporter()` beheert het "Data & Marktdata" menu en biedt nu exporteurs/kwaliteitschecks maar geen IV-import.【F:tomic/cli/controlpanel.py†L1026-L1105】
 * `append_to_iv_summary()` schrijft individuele records naar `iv_daily_summary/<symbol>.json` en gebruikt `update_json_file()` voor dedupe + sorteer op datum.【F:tomic/analysis/vol_json.py†L46-L71】【F:tomic/journal/utils.py†L39-L58】
-* `MarketSnapshotService` leest per symbool de laatste IV-samenvatting, historische volatiliteit en slotkoers om factsheets/overzichten te bouwen.【F:tomic/services/market_snapshot.py†L120-L163】
+* `MarketSnapshotService` leest per symbool de laatste IV-samenvatting, historische volatiliteit en slotkoers om factsheets/overzichten te bouwen.【F:tomic/services/market_snapshot_service.py†L234-L273】
 * `build_market_overview()` gebruikt IV- en HV-series om strategieaanbevelingen + iv_vs_hv-metrics te produceren.【F:tomic/analysis/market_overview.py†L60-L159】
 * `fetch_polygon_iv30d()` levert de huidige dagrecord, inclusief `atm_iv` (0-1), `iv_rank`, `iv_percentile`, term structure en skew, en schrijft dit naar de JSON.【F:tomic/providers/polygon_iv.py†L852-L902】
 
@@ -37,7 +37,7 @@
 6. **Dry-run/preview modus.** Bied een vlag om alleen een rapport te genereren zonder te schrijven (nuttig voor batchimporten of CI-checks).
 
 ## 4. Spot- en HV-consistentie
-* `MarketSnapshotService` vereist dat IV-, HV- en spot-data allemaal aanwezig zijn voor dezelfde datum; ontbrekende onderdelen leiden tot ontbrekende regels in de snapshot.【F:tomic/services/market_snapshot.py†L124-L163】
+* `MarketSnapshotService` vereist dat IV-, HV- en spot-data allemaal aanwezig zijn voor dezelfde datum; ontbrekende onderdelen leiden tot ontbrekende regels in de snapshot.【F:tomic/services/market_snapshot_service.py†L160-L211】
 * Acties:
   - **Spotdata:** Controleer of voor elke nieuwe IV-datum een slotkoers aanwezig is in `spot_prices/<symbol>.json`. Anders het fetch_prices-script laten draaien en de gebruiker hierop wijzen voordat de IV wordt toegevoegd.
   - **Historische volatiliteit:** Gebruik CSV-kolommen (`OHLC 20-Day Vol`, `OHLC 52-Week Vol`) om automatisch `hv20`/`hv252` bij te vullen, of flag dat `tomic/cli/compute_volstats` of Polygon-variant opnieuw moet worden uitgevoerd om HV te genereren.【F:tomic/analysis/vol_json.py†L46-L71】【F:tomic/providers/polygon_iv.py†L852-L902】

@@ -1,4 +1,4 @@
-"""Utilities to build a structured market snapshot for the CLI layer."""
+"""Services for market snapshots and symbol scanning."""
 
 from __future__ import annotations
 
@@ -8,14 +8,16 @@ from pathlib import Path
 from typing import Any, Callable, Iterable, Mapping, Sequence
 
 from ..journal.utils import load_json
+from ..logutils import logger
 from ..utils import today
+from .strategy_pipeline import StrategyContext, StrategyPipeline, StrategyProposal
 
 
 ConfigGetter = Callable[[str, Any | None], Any]
 
 
-@dataclass
-class MarketRow:
+@dataclass(frozen=True)
+class MarketSnapshotRow:
     """Normalized metrics for a single underlying symbol."""
 
     symbol: str
@@ -34,26 +36,61 @@ class MarketRow:
     days_until_earnings: int | None = None
 
 
-@dataclass
-class Factsheet:
-    """Structured representation of key metrics for a recommendation."""
+@dataclass(frozen=True)
+class MarketSnapshot:
+    """Structured snapshot of current market metrics."""
+
+    generated_at: date
+    symbols: list[str]
+    rows: list[MarketSnapshotRow]
+
+    def as_dict(self) -> dict[str, Any]:
+        return {
+            "generated_at": self.generated_at.isoformat(),
+            "symbols": list(self.symbols),
+            "rows": [self._serialize_row(row) for row in self.rows],
+        }
+
+    @staticmethod
+    def _serialize_row(row: MarketSnapshotRow) -> dict[str, Any]:
+        data = asdict(row)
+        earn = data.get("next_earnings")
+        if isinstance(earn, date):
+            data["next_earnings"] = earn.isoformat()
+        return data
+
+
+@dataclass(frozen=True)
+class ScanRequest:
+    """Input required to evaluate strategy proposals for a symbol."""
 
     symbol: str
-    strategy: str | None = None
-    spot: float | None = None
-    iv: float | None = None
-    hv20: float | None = None
-    hv30: float | None = None
-    hv90: float | None = None
-    hv252: float | None = None
-    term_m1_m2: float | None = None
-    term_m1_m3: float | None = None
-    iv_rank: float | None = None
-    iv_percentile: float | None = None
-    skew: float | None = None
-    criteria: str | None = None
-    next_earnings: date | None = None
-    days_until_earnings: int | None = None
+    strategy: str
+    option_chain: Sequence[Mapping[str, Any]]
+    spot_price: float
+    atr: float
+    config: Mapping[str, Any]
+    interest_rate: float
+    dte_range: tuple[int, int]
+    interactive_mode: bool
+    next_earnings: date | None
+    metrics: Mapping[str, Any]
+
+
+@dataclass(frozen=True)
+class ScanRow:
+    """Intermediate scan result linking proposals to source metrics."""
+
+    symbol: str
+    strategy: str
+    proposal: StrategyProposal
+    metrics: Mapping[str, Any]
+    spot: float | None
+    next_earnings: date | None
+
+
+class MarketSnapshotError(RuntimeError):
+    """Raised when snapshot loading or scanning fails."""
 
 
 def _resolve_config_getter(config: Mapping[str, Any] | ConfigGetter | None) -> ConfigGetter:
@@ -118,8 +155,8 @@ def _read_metrics(
     *,
     loader: Callable[[Path], Any] = load_json,
     today_fn: Callable[[], date] = today,
-) -> MarketRow | None:
-    """Return :class:`MarketRow` for ``symbol`` using data files in ``*dir``."""
+) -> MarketSnapshotRow | None:
+    """Return :class:`MarketSnapshotRow` for ``symbol`` using data files in ``*dir``."""
 
     try:
         summary_data = loader(summary_dir / f"{symbol}.json")
@@ -145,7 +182,7 @@ def _read_metrics(
         except Exception:
             days_until = None
 
-    return MarketRow(
+    return MarketSnapshotRow(
         symbol=symbol,
         spot=spot.get("close"),
         iv=summary.get("atm_iv"),
@@ -158,67 +195,6 @@ def _read_metrics(
         term_m1_m2=summary.get("term_m1_m2"),
         term_m1_m3=summary.get("term_m1_m3"),
         skew=summary.get("skew"),
-        next_earnings=earnings_date,
-        days_until_earnings=days_until,
-    )
-
-
-def _format_snapshot(rows: Sequence[MarketRow]) -> list[dict[str, Any]]:
-    formatted: list[dict[str, Any]] = []
-    for row in rows:
-        data = asdict(row)
-        earn = data.get("next_earnings")
-        if isinstance(earn, date):
-            data["next_earnings"] = earn.isoformat()
-        formatted.append(data)
-    return formatted
-
-
-def _build_factsheet(
-    record: Mapping[str, Any],
-    *,
-    today_fn: Callable[[], date] = today,
-) -> Factsheet:
-    symbol = str(record.get("symbol", ""))
-    strategy = record.get("strategy")
-    raw_next = record.get("next_earnings")
-    earnings_date: date | None = None
-    if isinstance(raw_next, date):
-        earnings_date = raw_next
-    elif isinstance(raw_next, str) and raw_next:
-        try:
-            earnings_date = datetime.strptime(raw_next, "%Y-%m-%d").date()
-        except Exception:
-            earnings_date = None
-
-    raw_days = record.get("days_until_earnings")
-    days_until: int | None = None
-    if isinstance(raw_days, (int, float)):
-        try:
-            days_until = int(raw_days)
-        except Exception:
-            days_until = None
-    if days_until is None and earnings_date is not None:
-        try:
-            days_until = (earnings_date - today_fn()).days
-        except Exception:
-            days_until = None
-
-    return Factsheet(
-        symbol=symbol,
-        strategy=strategy if isinstance(strategy, str) else None,
-        spot=record.get("spot"),
-        iv=record.get("iv"),
-        hv20=record.get("hv20"),
-        hv30=record.get("hv30"),
-        hv90=record.get("hv90"),
-        hv252=record.get("hv252"),
-        term_m1_m2=record.get("term_m1_m2"),
-        term_m1_m3=record.get("term_m1_m3"),
-        iv_rank=_normalize_percent(record.get("iv_rank")),
-        iv_percentile=_normalize_percent(record.get("iv_percentile")),
-        skew=record.get("skew"),
-        criteria=record.get("criteria") if isinstance(record.get("criteria"), str) else None,
         next_earnings=earnings_date,
         days_until_earnings=days_until,
     )
@@ -244,7 +220,7 @@ class MarketSnapshotService:
             return []
         return [str(sym).upper() for sym in symbols if isinstance(sym, str)]
 
-    def load_snapshot(self, filters: Mapping[str, Any] | None = None) -> dict[str, Any]:
+    def load_snapshot(self, filters: Mapping[str, Any] | None = None) -> MarketSnapshot:
         filters = dict(filters or {})
         symbols = filters.get("symbols") or self._default_symbols()
         if isinstance(symbols, str):
@@ -264,7 +240,7 @@ class MarketSnapshotService:
                 earnings_data = None
             earnings = earnings_data if isinstance(earnings_data, Mapping) else None
 
-        rows: list[MarketRow] = []
+        rows: list[MarketSnapshotRow] = []
         for symbol in symbols:
             row = _read_metrics(
                 symbol,
@@ -283,18 +259,61 @@ class MarketSnapshotService:
             reverse=True,
         )
 
-        return {
-            "generated_at": self._today().isoformat(),
-            "symbols": symbols,
-            "rows": _format_snapshot(rows),
-        }
+        return MarketSnapshot(generated_at=self._today(), symbols=list(symbols), rows=rows)
+
+    def scan_symbols(
+        self,
+        universe: Sequence[ScanRequest],
+        rules: Mapping[str, Any] | None = None,
+    ) -> list[ScanRow]:
+        rules = rules or {}
+        pipeline = rules.get("pipeline")
+        if pipeline is None or not hasattr(pipeline, "build_proposals"):
+            raise MarketSnapshotError("rules must provide a pipeline with build_proposals")
+
+        results: list[ScanRow] = []
+        for request in universe:
+            if not isinstance(request, ScanRequest):
+                logger.warning("Skipping invalid scan request: %r", request)
+                continue
+            context = StrategyContext(
+                symbol=request.symbol,
+                strategy=request.strategy,
+                option_chain=list(request.option_chain),
+                spot_price=float(request.spot_price or 0.0),
+                atr=float(request.atr or 0.0),
+                config=dict(request.config or {}),
+                interest_rate=float(request.interest_rate),
+                dte_range=request.dte_range,
+                interactive_mode=bool(request.interactive_mode),
+                next_earnings=request.next_earnings,
+            )
+            try:
+                proposals, _ = pipeline.build_proposals(context)
+            except Exception as exc:  # pragma: no cover - pipeline level failure
+                raise MarketSnapshotError(f"pipeline execution failed for {request.symbol}") from exc
+
+            for proposal in proposals:
+                results.append(
+                    ScanRow(
+                        symbol=request.symbol,
+                        strategy=request.strategy,
+                        proposal=proposal,
+                        metrics=request.metrics,
+                        spot=request.spot_price,
+                        next_earnings=request.next_earnings,
+                    )
+                )
+
+        return results
 
 
 __all__ = [
-    "Factsheet",
-    "MarketRow",
+    "MarketSnapshot",
+    "MarketSnapshotError",
+    "MarketSnapshotRow",
     "MarketSnapshotService",
-    "_build_factsheet",
-    "_format_snapshot",
+    "ScanRequest",
+    "ScanRow",
     "_read_metrics",
 ]
