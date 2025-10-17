@@ -8783,5 +8783,12 @@
     "close": 602.22,
     "volume": 62884264.0,
     "atr": null
+  },
+  {
+    "symbol": "QQQ",
+    "date": "2025-10-16",
+    "close": 599.99,
+    "volume": 71014723.0,
+    "atr": null
   }
 ]
