@@ -4,12 +4,12 @@ import json
 from datetime import date
 from pathlib import Path
 
-from tomic.services.market_snapshot import (
-    MarketRow,
+from tomic.services.market_snapshot_service import (
+    MarketSnapshotRow,
     MarketSnapshotService,
-    _build_factsheet,
     _read_metrics,
 )
+from tomic.services.portfolio_service import PortfolioService
 
 
 def _loader(path: Path):
@@ -72,7 +72,7 @@ def test_read_metrics_returns_row(tmp_path):
         today_fn=lambda: date(2024, 5, 1),
     )
 
-    assert isinstance(row, MarketRow)
+    assert isinstance(row, MarketSnapshotRow)
     assert row.symbol == "AAA"
     assert row.iv_rank == 0.62
     assert row.iv_percentile == 0.75
@@ -81,7 +81,8 @@ def test_read_metrics_returns_row(tmp_path):
 
 
 def test_build_factsheet_parses_dates():
-    factsheet = _build_factsheet(
+    service = PortfolioService(today_fn=lambda: date(2024, 5, 20))
+    factsheet = service.build_factsheet(
         {
             "symbol": "AAA",
             "strategy": "short_put_spread",
@@ -99,7 +100,6 @@ def test_build_factsheet_parses_dates():
             "criteria": "some,criteria",
             "next_earnings": "2024-06-01",
         },
-        today_fn=lambda: date(2024, 5, 20),
     )
 
     assert factsheet.symbol == "AAA"
@@ -174,12 +174,12 @@ def test_load_snapshot_returns_serializable_rows(tmp_path):
     service = MarketSnapshotService(config, loader=_loader, today_fn=lambda: date(2024, 5, 20))
     snapshot = service.load_snapshot()
 
-    assert snapshot["generated_at"] == "2024-05-20"
-    rows = snapshot["rows"]
-    assert [row["symbol"] for row in rows] == ["AAA", "BBB"]
-    assert rows[0]["iv_percentile"] == 0.70
-    assert rows[0]["next_earnings"] == "2024-06-01"
-    assert rows[0]["days_until_earnings"] == 12
+    assert snapshot.generated_at == date(2024, 5, 20)
+    rows = snapshot.rows
+    assert [row.symbol for row in rows] == ["AAA", "BBB"]
+    assert rows[0].iv_percentile == 0.70
+    assert rows[0].next_earnings == date(2024, 6, 1)
+    assert rows[0].days_until_earnings == 12
 
     filtered = service.load_snapshot({"symbols": ["BBB"]})
-    assert [row["symbol"] for row in filtered["rows"]] == ["BBB"]
+    assert [row.symbol for row in filtered.rows] == ["BBB"]

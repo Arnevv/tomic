@@ -105,9 +105,14 @@ from tomic.services.order_submission import (
 )
 from tomic.scripts.backfill_hv import run_backfill_hv
 from tomic.cli.iv_backfill_flow import run_iv_backfill_flow
-from tomic.services.market_snapshot import (
+from tomic.services.market_snapshot_service import (
+    MarketSnapshotError,
     MarketSnapshotService,
-    _build_factsheet,
+    ScanRequest,
+)
+from tomic.services.portfolio_service import (
+    CandidateRankingError,
+    PortfolioService,
 )
 from tomic.strategy.reasons import ReasonCategory, ReasonDetail
 from tomic.strategy_candidates import generate_strategy_candidates
@@ -153,6 +158,7 @@ SESSION_STATE: dict[str, object] = {
 }
 
 MARKET_SNAPSHOT_SERVICE = MarketSnapshotService(cfg)
+PORTFOLIO_SERVICE = PortfolioService()
 
 
 def _build_run_metadata(*, symbol: str | None = None, strategy: str | None = None) -> RunMetadata:
@@ -1851,7 +1857,7 @@ def run_portfolio_menu() -> None:
         def fmt_pct(val: object) -> str:
             return f"{val * 100:.0f}" if isinstance(val, (int, float)) else ""
 
-        factsheet = _build_factsheet(chosen)
+        factsheet = PORTFOLIO_SERVICE.build_factsheet(chosen)
         earn_str = ""
         if isinstance(factsheet.next_earnings, date):
             earn_str = factsheet.next_earnings.isoformat()
@@ -1892,25 +1898,25 @@ def run_portfolio_menu() -> None:
 
         snapshot = MARKET_SNAPSHOT_SERVICE.load_snapshot({"symbols": symbols})
 
-        def _as_overview_row(data: dict[str, object]) -> list[object]:
+        def _as_overview_row(data: object) -> list[object]:
             return [
-                data.get("symbol"),
-                data.get("spot"),
-                data.get("iv"),
-                data.get("hv20"),
-                data.get("hv30"),
-                data.get("hv90"),
-                data.get("hv252"),
-                data.get("iv_rank"),
-                data.get("iv_percentile"),
-                data.get("term_m1_m2"),
-                data.get("term_m1_m3"),
-                data.get("skew"),
-                data.get("next_earnings"),
-                data.get("days_until_earnings"),
+                getattr(data, "symbol", None),
+                getattr(data, "spot", None),
+                getattr(data, "iv", None),
+                getattr(data, "hv20", None),
+                getattr(data, "hv30", None),
+                getattr(data, "hv90", None),
+                getattr(data, "hv252", None),
+                getattr(data, "iv_rank", None),
+                getattr(data, "iv_percentile", None),
+                getattr(data, "term_m1_m2", None),
+                getattr(data, "term_m1_m3", None),
+                getattr(data, "skew", None),
+                getattr(data, "next_earnings", None),
+                getattr(data, "days_until_earnings", None),
             ]
 
-        rows = [_as_overview_row(row) for row in snapshot.get("rows", [])]
+        rows = [_as_overview_row(row) for row in snapshot.rows]
 
         recs, table_rows, meta = build_market_overview(rows)
 
@@ -1982,7 +1988,7 @@ def run_portfolio_menu() -> None:
 
             pipeline = _get_strategy_pipeline()
             config_data = cfg.get("STRATEGY_CONFIG") or {}
-            results: list[dict[str, Any]] = []
+            requests: list[ScanRequest] = []
 
             def _find_existing_chain(directory: Path, symbol: str) -> Path | None:
                 upper = symbol.upper()
@@ -2085,77 +2091,47 @@ def run_portfolio_menu() -> None:
                         earnings_date = earnings_value
                     elif isinstance(earnings_value, str):
                         earnings_date = parse_date(earnings_value)
-                    context = StrategyContext(
-                        symbol=symbol,
-                        strategy=strategy,
-                        option_chain=filtered,
-                        spot_price=float(spot_price),
-                        atr=float(atr_val),
-                        config=config_data or {},
-                        interest_rate=float(cfg.get("INTEREST_RATE", 0.05)),
-                        dte_range=dte_tuple,
-                        interactive_mode=False,
-                        next_earnings=earnings_date,
-                    )
-                    proposals, _ = pipeline.build_proposals(context)
-                    for proposal in proposals:
-                        if proposal.score is None:
-                            continue
-                        results.append(
-                            {
-                                "symbol": symbol,
-                                "strategy": raw_strategy,
-                                "proposal": proposal,
-                                "metrics": rec,
-                                "spot": spot_price,
-                            }
+                    requests.append(
+                        ScanRequest(
+                            symbol=symbol,
+                            strategy=strategy,
+                            option_chain=list(filtered),
+                            spot_price=float(spot_price),
+                            atr=float(atr_val),
+                            config=config_data or {},
+                            interest_rate=float(cfg.get("INTEREST_RATE", 0.05)),
+                            dte_range=dte_tuple,
+                            interactive_mode=False,
+                            next_earnings=earnings_date,
+                            metrics=rec,
                         )
+                    )
 
-            if not results:
+            if not requests:
                 print("⚠️ Geen voorstellen gevonden tijdens scan.")
                 return
 
-            def _avg_bid_ask_pct(proposal: StrategyProposal) -> float | None:
-                spreads: list[float] = []
-                for leg in proposal.legs:
-                    bid = to_float(leg.get("bid"))
-                    ask = to_float(leg.get("ask"))
-                    if bid is None or ask is None:
-                        continue
-                    mid = (bid + ask) / 2
-                    if math.isclose(mid, 0.0):
-                        base = ask
-                    else:
-                        base = mid
-                    if base in {None, 0} or math.isclose(base, 0.0):
-                        continue
-                    spreads.append(((ask - bid) / base) * 100)
-                if not spreads:
-                    return None
-                return sum(spreads) / len(spreads)
+            try:
+                scan_rows = MARKET_SNAPSHOT_SERVICE.scan_symbols(
+                    requests, {"pipeline": pipeline}
+                )
+            except MarketSnapshotError as exc:
+                logger.exception("Market scan pipeline failed")
+                print(f"❌ Markt scan mislukt: {exc}")
+                return
 
-            def _risk_reward(proposal: StrategyProposal) -> float | None:
-                profit = to_float(proposal.max_profit)
-                loss = to_float(proposal.max_loss)
-                if profit is None or loss in {None, 0}:
-                    return None
-                risk = abs(loss)
-                if risk <= 0:
-                    return None
-                return profit / risk
+            try:
+                candidates = PORTFOLIO_SERVICE.rank_candidates(
+                    scan_rows, {"top_n": top_n}
+                )
+            except CandidateRankingError as exc:
+                logger.exception("Candidate ranking failed")
+                print(f"❌ Rangschikking van voorstellen mislukt: {exc}")
+                return
 
-            def _mid_sources(proposal: StrategyProposal) -> str:
-                fallback = getattr(proposal, "fallback", None)
-                if isinstance(fallback, str) and fallback.strip():
-                    return fallback
-                sources: set[str] = set()
-                for leg in proposal.legs:
-                    src = str(leg.get("mid_fallback") or leg.get("mid_source") or "").strip()
-                    if src:
-                        sources.add(src)
-                if not sources:
-                    return "quotes"
-                return ",".join(sorted(sources))
+            if not candidates:
+                print("⚠️ Geen voorstellen gevonden tijdens scan.")
+                return
 
             def _fmt_pct(value: float | None) -> str:
                 if value is None:
@@ -2172,42 +2148,39 @@ def run_portfolio_menu() -> None:
                     return "—"
                 return f"{value:.2f}"
 
-            results.sort(key=lambda item: item["proposal"].score or 0.0, reverse=True)
-            top_results = results[:top_n]
-
             rows_out: list[list[str]] = []
-            for idx, item in enumerate(top_results, 1):
-                prop = item["proposal"]
-                metrics = item["metrics"]
-                iv_rank_raw = metrics.get("iv_rank")
-                try:
-                    iv_rank_pct = float(iv_rank_raw) * 100 if iv_rank_raw is not None else None
-                except Exception:
-                    iv_rank_pct = None
-                skew_raw = metrics.get("skew")
-                try:
-                    skew_fmt = f"{float(skew_raw):.2f}" if skew_raw is not None else "—"
-                except Exception:
-                    skew_fmt = "—"
-                earnings_raw = metrics.get("next_earnings")
-                earnings = (
-                    str(earnings_raw)
-                    if earnings_raw not in {None, ""}
-                    else "—"
+            for idx, cand in enumerate(candidates, 1):
+                prop = cand.proposal
+                iv_rank_pct = (
+                    float(cand.iv_rank) * 100 if cand.iv_rank is not None else None
                 )
+                skew_fmt = "—"
+                if cand.skew is not None:
+                    try:
+                        skew_fmt = f"{float(cand.skew):.2f}"
+                    except Exception:
+                        skew_fmt = "—"
+                earnings = "—"
+                earn_val = cand.next_earnings
+                if isinstance(earn_val, date):
+                    earnings = earn_val.isoformat()
+                elif isinstance(earn_val, str) and earn_val:
+                    earnings = earn_val
+                mid_sources = ",".join(cand.mid_sources) if cand.mid_sources else "quotes"
+                dte_summary = cand.dte_summary or format_dtes(prop.legs)
                 rows_out.append(
                     [
                         idx,
-                        item["symbol"],
-                        item["strategy"],
+                        cand.symbol,
+                        cand.strategy,
                         _fmt_money(prop.score),
                         _fmt_money(prop.ev),
-                        _fmt_ratio(_risk_reward(prop)),
-                        format_dtes(prop.legs),
+                        _fmt_ratio(cand.risk_reward),
+                        dte_summary,
                         _fmt_pct(iv_rank_pct),
                         skew_fmt,
-                        _fmt_pct(_avg_bid_ask_pct(prop)),
-                        _mid_sources(prop),
+                        _fmt_pct(cand.bid_ask_pct),
+                        mid_sources,
                         earnings,
                     ]
                 )
@@ -2253,18 +2226,18 @@ def run_portfolio_menu() -> None:
                     break
                 try:
                     idx = int(sel) - 1
-                    chosen = top_results[idx]
+                    chosen = candidates[idx]
                 except (ValueError, IndexError):
                     print("❌ Ongeldige keuze")
                     continue
                 SESSION_STATE.update(
                     {
-                        "symbol": chosen["symbol"],
-                        "strategy": chosen["strategy"],
-                        "spot_price": chosen.get("spot"),
+                        "symbol": chosen.symbol,
+                        "strategy": chosen.strategy,
+                        "spot_price": chosen.spot,
                     }
                 )
-                _show_proposal_details(chosen["proposal"])
+                _show_proposal_details(chosen.proposal)
                 print()
                 print(table_output)
 
@@ -2342,22 +2315,22 @@ def run_portfolio_menu() -> None:
             return f"{val:.2f}" if val is not None else ""
 
         formatted_rows = []
-        for row in snapshot.get("rows", []):
+        for row in snapshot.rows:
             formatted_rows.append(
                 [
-                    row.get("symbol"),
-                    row.get("spot"),
-                    fmt4(row.get("iv")),
-                    fmt4(row.get("hv20")),
-                    fmt4(row.get("hv30")),
-                    fmt4(row.get("hv90")),
-                    fmt4(row.get("hv252")),
-                    fmt2(row.get("iv_rank")),
-                    fmt2(row.get("iv_percentile")),
-                    row.get("term_m1_m2"),
-                    row.get("term_m1_m3"),
-                    row.get("skew"),
-                    row.get("next_earnings"),
+                    getattr(row, "symbol", None),
+                    getattr(row, "spot", None),
+                    fmt4(getattr(row, "iv", None)),
+                    fmt4(getattr(row, "hv20", None)),
+                    fmt4(getattr(row, "hv30", None)),
+                    fmt4(getattr(row, "hv90", None)),
+                    fmt4(getattr(row, "hv252", None)),
+                    fmt2(getattr(row, "iv_rank", None)),
+                    fmt2(getattr(row, "iv_percentile", None)),
+                    getattr(row, "term_m1_m2", None),
+                    getattr(row, "term_m1_m3", None),
+                    getattr(row, "skew", None),
+                    getattr(row, "next_earnings", None),
                 ]
             )
 

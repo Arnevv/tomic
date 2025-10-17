@@ -2,12 +2,13 @@ import builtins
 import json
 import importlib
 import types
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
 from pathlib import Path
 from contextlib import contextmanager
 from tomic.journal.utils import save_json, load_json
 from tomic.strategy_candidates import StrategyProposal
 from tomic.services.ib_marketdata import SnapshotResult
+from tomic.services.market_snapshot_service import MarketSnapshot, MarketSnapshotRow
 
 
 def test_show_market_info(monkeypatch, tmp_path):
@@ -150,25 +151,27 @@ def test_market_info_polygon_scan(monkeypatch, tmp_path):
     monkeypatch.setattr(
         mod.MARKET_SNAPSHOT_SERVICE,
         "load_snapshot",
-        lambda params: {
-            "rows": [
-                {
-                    "symbol": "AAA",
-                    "spot": 100.0,
-                    "iv": 0.25,
-                    "hv20": 0.2,
-                    "hv30": 0.21,
-                    "hv90": 0.22,
-                    "hv252": 0.23,
-                    "iv_rank": 0.6,
-                    "iv_percentile": 0.55,
-                    "term_m1_m2": 1.0,
-                    "term_m1_m3": 1.1,
-                    "skew": 3.4,
-                    "next_earnings": "2030-01-01",
-                }
-            ]
-        },
+        lambda params: MarketSnapshot(
+            generated_at=date.today(),
+            symbols=["AAA"],
+            rows=[
+                MarketSnapshotRow(
+                    symbol="AAA",
+                    spot=100.0,
+                    iv=0.25,
+                    hv20=0.2,
+                    hv30=0.21,
+                    hv90=0.22,
+                    hv252=0.23,
+                    iv_rank=0.6,
+                    iv_percentile=0.55,
+                    term_m1_m2=1.0,
+                    term_m1_m3=1.1,
+                    skew=3.4,
+                    next_earnings=date(2030, 1, 1),
+                )
+            ],
+        ),
     )
 
     monkeypatch.setattr(
@@ -417,25 +420,27 @@ def test_market_info_polygon_scan_existing_dir(monkeypatch, tmp_path):
     monkeypatch.setattr(
         mod.MARKET_SNAPSHOT_SERVICE,
         "load_snapshot",
-        lambda params: {
-            "rows": [
-                {
-                    "symbol": "AAA",
-                    "spot": 100.0,
-                    "iv": 0.25,
-                    "hv20": 0.2,
-                    "hv30": 0.21,
-                    "hv90": 0.22,
-                    "hv252": 0.23,
-                    "iv_rank": 0.6,
-                    "iv_percentile": 0.55,
-                    "term_m1_m2": 1.0,
-                    "term_m1_m3": 1.1,
-                    "skew": 3.4,
-                    "next_earnings": "2030-01-01",
-                }
-            ]
-        },
+        lambda params: MarketSnapshot(
+            generated_at=date.today(),
+            symbols=["AAA"],
+            rows=[
+                MarketSnapshotRow(
+                    symbol="AAA",
+                    spot=100.0,
+                    iv=0.25,
+                    hv20=0.2,
+                    hv30=0.21,
+                    hv90=0.22,
+                    hv252=0.23,
+                    iv_rank=0.6,
+                    iv_percentile=0.55,
+                    term_m1_m2=1.0,
+                    term_m1_m3=1.1,
+                    skew=3.4,
+                    next_earnings=date(2030, 1, 1),
+                )
+            ],
+        ),
     )
 
     monkeypatch.setattr(
@@ -673,26 +678,28 @@ def test_market_info_reports_earnings_filter(monkeypatch):
     monkeypatch.setattr(
         mod.MARKET_SNAPSHOT_SERVICE,
         "load_snapshot",
-        lambda params: {
-            "rows": [
-                {
-                    "symbol": "AAA",
-                    "spot": 100.0,
-                    "iv": 0.25,
-                    "hv20": 0.2,
-                    "hv30": 0.21,
-                    "hv90": 0.22,
-                    "hv252": 0.23,
-                    "iv_rank": 0.6,
-                    "iv_percentile": 0.55,
-                    "term_m1_m2": 1.0,
-                    "term_m1_m3": 1.1,
-                    "skew": 3.4,
-                    "next_earnings": "2030-01-01",
-                    "days_until_earnings": 2,
-                }
-            ]
-        },
+        lambda params: MarketSnapshot(
+            generated_at=date.today(),
+            symbols=["AAA"],
+            rows=[
+                MarketSnapshotRow(
+                    symbol="AAA",
+                    spot=100.0,
+                    iv=0.25,
+                    hv20=0.2,
+                    hv30=0.21,
+                    hv90=0.22,
+                    hv252=0.23,
+                    iv_rank=0.6,
+                    iv_percentile=0.55,
+                    term_m1_m2=1.0,
+                    term_m1_m3=1.1,
+                    skew=3.4,
+                    next_earnings=date(2030, 1, 1),
+                    days_until_earnings=2,
+                )
+            ],
+        ),
     )
 
     monkeypatch.setattr(
