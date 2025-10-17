@@ -977,11 +977,20 @@ def _refresh_reject_entries(entries: Sequence[Mapping[str, Any]]) -> None:
             continue
         chosen_entry = accepted_entries[index - 1]
         refreshed: StrategyProposal = chosen_entry["refreshed_proposal"]  # type: ignore[assignment]
-        symbol_hint = (
-            chosen_entry.get("refreshed_symbol")
-            or _entry_symbol(chosen_entry)
-            or (refreshed.legs[0].get("symbol") if refreshed.legs else None)
-        )
+        symbol_hint: str | None = None
+        raw_refreshed_symbol = chosen_entry.get("refreshed_symbol")
+        if isinstance(raw_refreshed_symbol, str):
+            cleaned_symbol = raw_refreshed_symbol.strip()
+            if cleaned_symbol and cleaned_symbol != "—":
+                symbol_hint = cleaned_symbol.upper()
+
+        if not symbol_hint:
+            symbol_hint = _entry_symbol(chosen_entry)
+
+        if not symbol_hint and refreshed.legs:
+            leg_symbol = refreshed.legs[0].get("symbol")
+            if isinstance(leg_symbol, str) and leg_symbol.strip():
+                symbol_hint = leg_symbol.strip().upper()
         print()
         _display_rejection_proposal(refreshed, symbol_hint if isinstance(symbol_hint, str) else None)
         print()
