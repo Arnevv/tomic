@@ -55,7 +55,10 @@ class Menu:
             for idx, (desc, _) in enumerate(self.items, start=1):
                 print(f"{idx}. {desc}")
             print(f"{len(self.items)+1}. {self.exit_text}")
-            choice = input("Maak je keuze: ").strip()
+            try:
+                choice = input("Maak je keuze: ").strip()
+            except (EOFError, StopIteration):  # pragma: no cover - interactive safeguard
+                return
             if choice == str(len(self.items)+1):
                 break
             try:
