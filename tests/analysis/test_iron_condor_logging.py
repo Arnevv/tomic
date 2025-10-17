@@ -72,7 +72,7 @@ def test_iron_condor_logging(monkeypatch):
     }
     chain = _chain()
 
-    def fake_score(strategy, proposal, spot):
+    def fake_score(strategy, proposal, spot, **_):
         proposal.pos = 50
         proposal.max_profit = 100
         proposal.max_loss = -50
