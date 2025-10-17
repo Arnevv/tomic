@@ -49,7 +49,7 @@ def test_generate_candidates_uses_global_config(monkeypatch, cfg, expect_warn):
         {"expiry": "20250101", "strike": 80, "type": "P", "bid": 0.4, "ask": 0.6, "delta": -0.1, "edge": 0.1, "model": 0, "iv": 0.2},
     ]
     monkeypatch.setattr(config, "STRATEGY_CONFIG", cfg)
-    def fake_score(strategy, proposal, spot):
+    def fake_score(strategy, proposal, spot, **_):
         proposal.pos = 1
         proposal.ev = 1
         proposal.ev_pct = 1

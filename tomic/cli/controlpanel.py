@@ -4,7 +4,9 @@ import argparse
 import subprocess
 import sys
 from datetime import datetime, date
+import hashlib
 import json
+import uuid
 from pathlib import Path
 import os
 import csv
@@ -72,6 +74,13 @@ from tomic.analysis.volatility_fetcher import fetch_volatility_metrics
 from tomic.analysis.market_overview import build_market_overview
 from tomic.api.market_export import load_exported_chain
 from tomic.cli import services
+from tomic.export import (
+    RunMetadata,
+    build_export_path,
+    export_proposals_csv,
+    export_proposals_json,
+    render_journal_entries,
+)
 from tomic.helpers.price_utils import _load_latest_close
 from tomic.helpers.price_meta import load_price_meta, save_price_meta
 from tomic.polygon_client import PolygonClient
@@ -100,7 +109,7 @@ from tomic.services.market_snapshot import (
     MarketSnapshotService,
     _build_factsheet,
 )
-from tomic.strategy.reasons import ReasonDetail
+from tomic.strategy.reasons import ReasonCategory, ReasonDetail
 from tomic.strategy_candidates import generate_strategy_candidates
 from tomic.core import config as runtime_config
 from tomic.criteria import load_criteria
@@ -114,6 +123,10 @@ from tomic.reporting import (
     reason_label,
     summarize_evaluations,
     to_float,
+)
+from tomic.reporting.rejections import (
+    ExpiryBreakdown,
+    _format_leg_summary as _reporting_format_leg_summary,
 )
 
 setup_logging(stdout=True)
@@ -140,6 +153,48 @@ SESSION_STATE: dict[str, object] = {
 }
 
 MARKET_SNAPSHOT_SERVICE = MarketSnapshotService(cfg)
+
+
+def _build_run_metadata(*, symbol: str | None = None, strategy: str | None = None) -> RunMetadata:
+    """Return consistent metadata for the current CLI session."""
+
+    run_id = str(SESSION_STATE.setdefault("run_id", uuid.uuid4().hex[:12]))
+
+    config_hash = SESSION_STATE.get("config_hash")
+    if not isinstance(config_hash, str):
+        try:
+            cfg_model = runtime_config.load()
+            cfg_dump = cfg_model.model_dump(by_alias=True)
+            config_hash = hashlib.sha256(
+                json.dumps(cfg_dump, sort_keys=True, default=str).encode("utf-8")
+            ).hexdigest()[:12]
+        except Exception:
+            config_hash = "unknown"
+        SESSION_STATE["config_hash"] = config_hash
+
+    schema_version = cfg.get("EXPORT_SCHEMA_VERSION")
+    schema_version_str = str(schema_version) if schema_version else None
+
+    return RunMetadata(
+        timestamp=datetime.now(),
+        run_id=run_id,
+        config_hash=config_hash,
+        symbol=symbol,
+        strategy=strategy,
+        schema_version=schema_version_str,
+    )
+
+
+def _format_leg_summary(legs: Sequence[Mapping[str, Any]] | None) -> str:
+    """Expose leg summary formatting used in tests and CLI flows."""
+
+    return _reporting_format_leg_summary(legs)
+
+
+def _format_reject_reasons(summary: EvaluationSummary) -> str:
+    """Return a formatted summary of rejection reasons."""
+
+    return format_reject_reasons(summary)
 
 
 def _strike_selector_factory(*args, **kwargs):
@@ -742,8 +797,11 @@ def _show_proposal_details(proposal: StrategyProposal) -> None:
     elif fetch_only_mode:
         print("ℹ️ fetch_only modus actief – orders worden niet verstuurd.")
 
-    journal = _proposal_journal_text(proposal)
-    print("\nJournal entry voorstel:\n" + journal)
+    strategy_label = str(SESSION_STATE.get("strategy") or proposal.strategy or "") or None
+    journal_lines = render_journal_entries(
+        {"proposal": proposal, "symbol": symbol, "strategy": strategy_label}
+    )
+    print("\nJournal entry voorstel:\n" + "\n".join(journal_lines))
 
 
 def _submit_ib_order(proposal: StrategyProposal, *, symbol: str | None = None) -> None:
@@ -832,89 +890,80 @@ def _save_trades(trades: list[dict[str, object]]) -> None:
     print(f"✅ Trades opgeslagen in: {path.resolve()}")
 
 
-def _export_proposal_csv(proposal: StrategyProposal) -> None:
-    symbol = str(SESSION_STATE.get("symbol", "SYMB"))
-    strat = str(SESSION_STATE.get("strategy", "strategy")).replace(" ", "_")
-    base = Path(cfg.get("EXPORT_DIR", "exports")) / datetime.now().strftime("%Y%m%d")
-    base.mkdir(parents=True, exist_ok=True)
-    ts = datetime.now().strftime("%H%M%S")
-    path = base / f"strategy_proposal_{symbol}_{strat}_{ts}.csv"
-    with path.open("w", newline="") as f:
-        writer = csv.writer(f)
-        writer.writerow(
-            [
-                "expiry",
-                "strike",
-                "type",
-                "position",
-                "bid",
-                "ask",
-                "mid",
-                "delta",
-                "theta",
-                "vega",
-                "edge",
-                "manual_override",
-                "missing_metrics",
-                "metrics_ignored",
-            ]
-        )
-        for leg in proposal.legs:
-            writer.writerow(
-                [
-                    leg.get("expiry"),
-                    leg.get("strike"),
-                    leg.get("type"),
-                    leg.get("position"),
-                    leg.get("bid"),
-                    leg.get("ask"),
-                    leg.get("mid"),
-                    leg.get("delta"),
-                    leg.get("theta"),
-                    leg.get("vega"),
-                    leg.get("edge"),
-                    leg.get("manual_override"),
-                    ",".join(leg.get("missing_metrics") or []),
-                    leg.get("metrics_ignored"),
-                ]
-            )
-        writer.writerow([])
-        summary_rows = [
-            ("credit", proposal.credit),
-            ("margin", proposal.margin),
-            ("max_profit", proposal.max_profit),
-            ("max_loss", proposal.max_loss),
-            ("rom", proposal.rom),
-            ("pos", proposal.pos),
-            ("ev", proposal.ev),
-            ("edge", proposal.edge),
-            ("score", proposal.score),
-            ("profit_estimated", proposal.profit_estimated),
-            (
-                "scenario_info",
-                json.dumps(proposal.scenario_info) if proposal.scenario_info is not None else None,
-            ),
-            ("breakevens", json.dumps(proposal.breakevens or [])),
-            ("atr", proposal.atr),
-            ("iv_rank", proposal.iv_rank),
-            ("iv_percentile", proposal.iv_percentile),
-            ("hv20", proposal.hv20),
-            ("hv30", proposal.hv30),
-            ("hv90", proposal.hv90),
-            ("dte", json.dumps(proposal.dte) if proposal.dte is not None else None),
-            (
-                "breakeven_distances",
-                json.dumps(proposal.breakeven_distances or {"dollar": [], "percent": []}),
-            ),
-            (
-                "wing_width",
-                json.dumps(proposal.wing_width) if proposal.wing_width is not None else None,
-            ),
-            ("wing_symmetry", proposal.wing_symmetry),
-        ]
-        for key, value in summary_rows:
-            writer.writerow([key, value])
-    print(f"✅ Voorstel opgeslagen in: {path.resolve()}")
+def _export_proposal_csv(proposal: StrategyProposal) -> Path:
+    symbol = str(SESSION_STATE.get("symbol") or "").strip() or None
+    strategy_name = str(SESSION_STATE.get("strategy") or proposal.strategy or "").strip() or None
+
+    run_meta = _build_run_metadata(symbol=symbol, strategy=strategy_name)
+    footer_rows: list[tuple[str, object]] = [
+        ("credit", proposal.credit),
+        ("margin", proposal.margin),
+        ("max_profit", proposal.max_profit),
+        ("max_loss", proposal.max_loss),
+        ("rom", proposal.rom),
+        ("pos", proposal.pos),
+        ("ev", proposal.ev),
+        ("edge", proposal.edge),
+        ("score", proposal.score),
+        ("profit_estimated", proposal.profit_estimated),
+        ("scenario_info", proposal.scenario_info),
+        ("breakevens", proposal.breakevens or []),
+        ("atr", proposal.atr),
+        ("iv_rank", proposal.iv_rank),
+        ("iv_percentile", proposal.iv_percentile),
+        ("hv20", proposal.hv20),
+        ("hv30", proposal.hv30),
+        ("hv90", proposal.hv90),
+        ("dte", proposal.dte),
+        ("breakeven_distances", proposal.breakeven_distances or {"dollar": [], "percent": []}),
+        ("wing_width", proposal.wing_width),
+        ("wing_symmetry", proposal.wing_symmetry),
+    ]
+    run_meta = run_meta.with_extra(footer_rows=footer_rows)
+
+    export_dir = Path(cfg.get("EXPORT_DIR", "exports"))
+    strategy_tag = [strategy_name.replace(" ", "_")] if strategy_name else None
+    export_path = build_export_path(
+        "proposal",
+        run_meta,
+        extension="csv",
+        directory=export_dir,
+        tags=strategy_tag,
+    )
+
+    columns = [
+        "expiry",
+        "strike",
+        "type",
+        "position",
+        "bid",
+        "ask",
+        "mid",
+        "delta",
+        "theta",
+        "vega",
+        "edge",
+        "manual_override",
+        "missing_metrics",
+        "metrics_ignored",
+    ]
+
+    records: list[dict[str, object]] = []
+    for leg in proposal.legs:
+        row = dict(leg)
+        metrics = leg.get("missing_metrics") or []
+        if isinstance(metrics, (list, tuple)):
+            row["missing_metrics"] = ",".join(str(m) for m in metrics)
+        records.append(row)
+
+    result_path = export_proposals_csv(
+        records,
+        columns=columns,
+        path=export_path,
+        run_meta=run_meta,
+    )
+    print(f"✅ Voorstel opgeslagen in: {result_path.resolve()}")
+    return result_path
 
 
 def _load_acceptance_criteria(strategy: str) -> dict[str, Any]:
@@ -972,16 +1021,14 @@ def _load_portfolio_context() -> tuple[dict[str, Any], bool]:
     return ctx, True
 
 
-def _export_proposal_json(proposal: StrategyProposal) -> None:
-    symbol = str(SESSION_STATE.get("symbol", "SYMB"))
-    strategy_name = str(SESSION_STATE.get("strategy", "strategy"))
-    strat_file = strategy_name.replace(" ", "_")
-    base = Path(cfg.get("EXPORT_DIR", "exports")) / datetime.now().strftime("%Y%m%d")
-    base.mkdir(parents=True, exist_ok=True)
-    ts = datetime.now().strftime("%H%M%S")
-    path = base / f"strategy_proposal_{symbol}_{strat_file}_{ts}.json"
+def _export_proposal_json(proposal: StrategyProposal) -> Path:
+    symbol = str(SESSION_STATE.get("symbol") or "").strip() or None
+    strategy_name = str(SESSION_STATE.get("strategy") or proposal.strategy or "").strip() or None
+    strategy_file = strategy_name.replace(" ", "_") if strategy_name else None
 
-    accept = _load_acceptance_criteria(strat_file)
+    run_meta = _build_run_metadata(symbol=symbol, strategy=strategy_name)
+
+    accept = _load_acceptance_criteria(strategy_file or proposal.strategy)
     portfolio_ctx, portfolio_available = _load_portfolio_context()
     spot_price = SESSION_STATE.get("spot_price")
 
@@ -989,7 +1036,7 @@ def _export_proposal_json(proposal: StrategyProposal) -> None:
         cfg.get("EARNINGS_DATES_FILE", "tomic/data/earnings_dates.json")
     )
     next_earn = None
-    if isinstance(earnings_dict, dict):
+    if isinstance(earnings_dict, dict) and symbol:
         earnings_list = earnings_dict.get(symbol)
         if isinstance(earnings_list, list):
             upcoming: list[datetime] = []
@@ -1006,7 +1053,7 @@ def _export_proposal_json(proposal: StrategyProposal) -> None:
     data = {
         "symbol": symbol,
         "spot_price": spot_price,
-        "strategy": strat_file,
+        "strategy": strategy_file or proposal.strategy,
         "next_earnings_date": next_earn,
         "legs": proposal.legs,
         "metrics": {
@@ -1090,35 +1137,24 @@ def _export_proposal_json(proposal: StrategyProposal) -> None:
         "wing_width": proposal.wing_width,
         "wing_symmetry": proposal.wing_symmetry,
     }
-    with path.open("w", encoding="utf-8") as f:
-        json.dump(data, f, ensure_ascii=False, indent=2)
-    print(f"✅ Voorstel opgeslagen in: {path.resolve()}")
 
+    export_dir = Path(cfg.get("EXPORT_DIR", "exports"))
+    strategy_tag = [strategy_file] if strategy_file else None
+    export_path = build_export_path(
+        "proposal",
+        run_meta,
+        extension="json",
+        directory=export_dir,
+        tags=strategy_tag,
+    )
 
-def _proposal_journal_text(proposal: StrategyProposal) -> str:
-    margin_str = f"{proposal.margin:.2f}" if proposal.margin is not None else "—"
-    pos_str = f"{proposal.pos:.2f}" if proposal.pos is not None else "—"
-    rom_str = f"{proposal.rom:.2f}" if proposal.rom is not None else "—"
-    ev_str = f"{proposal.ev:.2f}" if proposal.ev is not None else "—"
-    lines = [
-        f"Symbol: {SESSION_STATE.get('symbol')}",
-        f"Strategy: {SESSION_STATE.get('strategy')}",
-        f"Credit: {proposal.credit:.2f}",
-        f"Margin: {margin_str}",
-        f"ROM: {rom_str}",
-        f"PoS: {pos_str}",
-        f"EV: {ev_str}",
-    ]
-    for leg in proposal.legs:
-        side = "Short" if leg.get("position", 0) < 0 else "Long"
-        mid = leg.get("mid")
-        mid_str = f"{mid:.2f}" if mid is not None else ""
-        lines.append(
-            f"{side} {leg.get('type')} {leg.get('strike')} {leg.get('expiry')} @ {mid_str}"
-        )
-    return "\n".join(lines)
-
-
+    result_path = export_proposals_json(
+        data,
+        path=export_path,
+        run_meta=run_meta,
+    )
+    print(f"✅ Voorstel opgeslagen in: {result_path.resolve()}")
+    return result_path
 def _print_reason_summary(summary: RejectionSummary | None) -> None:
     """Display aggregated rejection information."""
 

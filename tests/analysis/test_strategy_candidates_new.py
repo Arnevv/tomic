@@ -200,7 +200,7 @@ def test_generate_multiple_expiries(monkeypatch):
 
     monkeypatch.setattr(strategy_utils, "compute_dynamic_width", lambda *a, **k: 10)
 
-    def fake_score(strategy, proposal, spot):
+    def fake_score(strategy, proposal, spot, **_):
         exp = proposal.legs[0]["expiry"]
         proposal.pos = 1
         proposal.ev = 1

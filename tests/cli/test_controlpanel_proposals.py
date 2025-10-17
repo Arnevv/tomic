@@ -937,15 +937,17 @@ def test_export_proposal_json_includes_earnings(monkeypatch, tmp_path):
     monkeypatch.setattr(mod, "_load_acceptance_criteria", lambda *_a, **_k: {})
     monkeypatch.setattr(mod, "_load_portfolio_context", lambda: ({}, False))
 
-    mod._export_proposal_json(proposal)
+    result_path = mod._export_proposal_json(proposal)
 
-    out_dir = tmp_path / datetime.now().strftime("%Y%m%d")
-    files = list(out_dir.glob("strategy_proposal_AAA_test_strategy_*.json"))
-    assert files, "export file not created"
-    data = json.loads(files[0].read_text())
-    assert data["next_earnings_date"] == "2030-01-01"
-    assert data["metrics"]["profit_estimated"] is True
-    assert data["metrics"]["scenario_info"] == {"foo": "bar"}
+    assert result_path.exists(), "export file not created"
+    assert result_path.parent.name == datetime.now().strftime("%Y%m%d")
+    assert "AAA" in result_path.name
+    assert "proposal" in result_path.name
+    payload = json.loads(result_path.read_text())
+    assert payload["data"]["next_earnings_date"] == "2030-01-01"
+    metrics = payload["data"]["metrics"]
+    assert metrics["profit_estimated"] is True
+    assert metrics["scenario_info"] == {"foo": "bar"}
 
 
 def _extract_show_details(mod):
@@ -967,7 +969,7 @@ def test_show_proposal_details_suffix(monkeypatch, capsys):
     monkeypatch.setattr(mod, "_export_proposal_csv", lambda *_a, **_k: None)
     monkeypatch.setattr(mod, "_export_proposal_json", lambda *_a, **_k: None)
     monkeypatch.setattr(mod, "_submit_ib_order", lambda *_a, **_k: None)
-    monkeypatch.setattr(mod, "_proposal_journal_text", lambda *_a, **_k: "")
+    monkeypatch.setattr(mod, "render_journal_entries", lambda *_a, **_k: [])
     proposal = StrategyProposal(
         legs=[],
         rom=10.0,
@@ -994,7 +996,7 @@ def test_show_proposal_details_no_scenario(monkeypatch, capsys):
     monkeypatch.setattr(mod, "_export_proposal_csv", lambda *_a, **_k: None)
     monkeypatch.setattr(mod, "_export_proposal_json", lambda *_a, **_k: None)
     monkeypatch.setattr(mod, "_submit_ib_order", lambda *_a, **_k: None)
-    monkeypatch.setattr(mod, "_proposal_journal_text", lambda *_a, **_k: "")
+    monkeypatch.setattr(mod, "render_journal_entries", lambda *_a, **_k: [])
     proposal = StrategyProposal(
         legs=[],
         rom=1.0,
@@ -1038,7 +1040,7 @@ def test_show_proposal_details_blocks_on_acceptance(monkeypatch, capsys):
     monkeypatch.setattr(mod, "_export_proposal_csv", lambda *_a, **_k: None)
     monkeypatch.setattr(mod, "_export_proposal_json", lambda *_a, **_k: None)
     monkeypatch.setattr(mod, "_submit_ib_order", lambda *_a, **_k: None)
-    monkeypatch.setattr(mod, "_proposal_journal_text", lambda *_a, **_k: "")
+    monkeypatch.setattr(mod, "render_journal_entries", lambda *_a, **_k: [])
 
     prompts: list[str] = []
 
