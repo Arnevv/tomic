@@ -13,7 +13,6 @@ from typing import Iterable, Mapping
 from tomic.cli.app_services import ControlPanelServices
 from tomic.cli.common import Menu
 from tomic.cli.controlpanel_session import ControlPanelSession
-
 from .menu_config import MenuItem, MenuSection, build_menu
 from . import portfolio
 
