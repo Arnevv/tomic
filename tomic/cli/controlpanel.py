@@ -91,6 +91,7 @@ from tomic.helpers.csv_utils import normalize_european_number_format
 from tomic.helpers.interpolation import interpolate_missing_fields
 from tomic.helpers.quality_check import calculate_csv_quality
 import pandas as pd
+from tomic.formatting import PROPOSALS_SPEC, proposals_table, sort_records
 from tomic.services.strategy_pipeline import (
     StrategyPipeline,
     StrategyContext,
@@ -142,6 +143,8 @@ from tomic.services.pipeline_refresh import (
     build_proposal_from_entry,
 )
 from tomic.services.proposal_details import (
+    ProposalCore,
+    ProposalVM,
     build_proposal_core,
     build_proposal_viewmodel,
 )
@@ -543,60 +546,46 @@ def _refresh_reject_entries(entries: Sequence[Mapping[str, Any]]) -> None:
     if not accepted_entries:
         return
 
-    table_rows: list[list[str]] = []
-    for idx, entry in enumerate(accepted_entries, start=1):
+    vm_pairs: list[tuple[ProposalVM, Mapping[str, Any]]] = []
+    for idx, entry in enumerate(accepted_entries):
         refreshed: StrategyProposal = entry["refreshed_proposal"]  # type: ignore[assignment]
         symbol_label = (
-            (entry.get("refreshed_symbol") or _entry_symbol(entry) or "—")
+            (entry.get("refreshed_symbol") or _entry_symbol(entry))
             if isinstance(entry, Mapping)
-            else "—"
+            else None
         )
-        dtes = format_dtes(refreshed.legs)
-        credit = format_money(refreshed.credit)
-        try:
-            max_profit = float(refreshed.max_profit) if refreshed.max_profit is not None else None
-        except Exception:
-            max_profit = None
-        try:
-            max_loss = float(refreshed.max_loss) if refreshed.max_loss is not None else None
-        except Exception:
-            max_loss = None
-        rr_display = "—"
-        if max_profit is not None and max_loss not in {None, 0}:
-            try:
-                rr_display = f"{max_profit / abs(max_loss):.2f}"
-            except Exception:
-                rr_display = "—"
-        pos_display = "—"
-        pos_val = to_float(refreshed.pos)
-        if pos_val is not None:
-            pos_display = f"{pos_val:.2f}"
-        ev_display = "—"
-        ev_val = to_float(refreshed.ev)
-        if ev_val is not None:
-            ev_display = f"{ev_val:.2f}"
+        source = RefreshSource(index=idx, entry=entry, symbol=symbol_label)
+        candidate = RefreshProposal(
+            proposal=refreshed,
+            source=source,
+            reasons=list(entry.get("refreshed_reasons") or []),
+            missing_quotes=list(entry.get("refreshed_missing_quotes") or []),
+            core=entry.get("refreshed_core") if isinstance(entry.get("refreshed_core"), ProposalCore) else None,
+            accepted=True,
+        )
+        vm = build_proposal_viewmodel(candidate)
+        vm_pairs.append((vm, entry))
 
-        table_rows.append(
-            [
-                str(idx),
-                symbol_label,
-                refreshed.strategy,
-                dtes,
-                credit,
-                rr_display,
-                pos_display,
-                ev_display,
-            ]
-        )
+    viewmodels = [vm for vm, _ in vm_pairs]
+    if not viewmodels:
+        return
+
+    sorted_vms = sort_records(viewmodels, PROPOSALS_SPEC)
+    vm_map = {id(vm): entry for vm, entry in vm_pairs}
+    headers, rows = proposals_table(sorted_vms, spec=PROPOSALS_SPEC)
+    indexed_rows: list[list[str]] = []
+    ordered_entries: list[Mapping[str, Any]] = []
+    for index, (vm, row) in enumerate(zip(sorted_vms, rows), start=1):
+        indexed_rows.append([str(index), *row])
+        mapped_entry = vm_map.get(id(vm))
+        if mapped_entry is not None:
+            ordered_entries.append(mapped_entry)
 
     print("Geaccepteerde voorstellen:")
-    print(
-        tabulate(
-            table_rows,
-            headers=["#", "Symbool", "Strategie", "DTEs", "Credit", "R/R", "PoS", "EV"],
-            tablefmt="github",
-        )
-    )
+    print(tabulate(indexed_rows, headers=["#", *headers], tablefmt="github"))
+
+    if not ordered_entries:
+        return
 
     while True:
         try:
@@ -611,10 +600,10 @@ def _refresh_reject_entries(entries: Sequence[Mapping[str, Any]]) -> None:
         except ValueError:
             print("❌ Ongeldige keuze")
             continue
-        if index < 1 or index > len(accepted_entries):
+        if index < 1 or index > len(ordered_entries):
             print("❌ Ongeldige keuze")
             continue
-        chosen_entry = accepted_entries[index - 1]
+        chosen_entry = ordered_entries[index - 1]
         refreshed: StrategyProposal = chosen_entry["refreshed_proposal"]  # type: ignore[assignment]
         symbol_hint = (
             chosen_entry.get("refreshed_symbol")
