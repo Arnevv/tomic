@@ -13,7 +13,6 @@ import csv
 from collections import defaultdict
 import math
 import inspect
-from dataclasses import fields
 from typing import Any, Mapping, Sequence
 from tomic.helpers.dateutils import parse_date
 
@@ -132,6 +131,13 @@ from tomic.reporting import (
 from tomic.reporting.rejections import (
     ExpiryBreakdown,
     _format_leg_summary as _reporting_format_leg_summary,
+)
+from tomic.services.pipeline_refresh import (
+    ORIGINAL_INDEX_KEY,
+    RefreshContext,
+    RefreshParams,
+    refresh_pipeline,
+    build_proposal_from_entry,
 )
 
 setup_logging(stdout=True)
@@ -363,7 +369,7 @@ def _show_rejection_detail(entry: Mapping[str, Any]) -> None:
         print("Legs:")
         print(tabulate(leg_rows, headers=headers, tablefmt="github"))
 
-    proposal = _proposal_from_rejection(entry)
+    proposal = build_proposal_from_entry(entry)
     if not proposal:
         return
 
@@ -384,50 +390,6 @@ def _show_rejection_detail(entry: Mapping[str, Any]) -> None:
             _display_rejection_proposal(proposal, symbol_hint)
         else:
             print("❌ Ongeldige keuze")
-
-
-def _proposal_from_rejection(entry: Mapping[str, Any]) -> StrategyProposal | None:
-    metrics = entry.get("metrics") if isinstance(entry, Mapping) else None
-    legs = entry.get("legs") if isinstance(entry, Mapping) else None
-    strategy = entry.get("strategy") if isinstance(entry, Mapping) else None
-
-    if not isinstance(strategy, str) or not strategy:
-        return None
-    if not isinstance(metrics, Mapping):
-        return None
-    if not isinstance(legs, Sequence):
-        return None
-
-    normalized_legs: list[dict[str, Any]] = []
-    for leg in legs:
-        if isinstance(leg, Mapping):
-            normalized_legs.append(dict(leg))
-    if not normalized_legs:
-        return None
-
-    symbol_hint = _entry_symbol(entry)
-    if symbol_hint:
-        for leg in normalized_legs:
-            if not isinstance(leg, Mapping):
-                continue
-            has_symbol = any(
-                leg.get(key)
-                for key in ("symbol", "underlying", "ticker", "root", "root_symbol")
-            )
-            if not has_symbol:
-                leg["symbol"] = symbol_hint
-
-    proposal_kwargs: dict[str, Any] = {}
-    allowed_fields = {field.name for field in fields(StrategyProposal) if field.init}
-    allowed_fields.discard("strategy")
-    allowed_fields.discard("legs")
-    for key, value in metrics.items():
-        if key in allowed_fields:
-            proposal_kwargs[key] = value
-
-    return StrategyProposal(strategy=strategy, legs=normalized_legs, **proposal_kwargs)
-
-
 def _entry_symbol(entry: Mapping[str, Any]) -> str | None:
     symbol = entry.get("symbol") if isinstance(entry, Mapping) else None
     if isinstance(symbol, str) and symbol.strip():
@@ -442,67 +404,127 @@ def _entry_symbol(entry: Mapping[str, Any]) -> str | None:
 
 
 def _refresh_reject_entries(entries: Sequence[Mapping[str, Any]]) -> None:
-    proposals: list[tuple[Mapping[str, Any], StrategyProposal, str | None]] = []
-    for entry in entries:
-        proposal = _proposal_from_rejection(entry)
+    prepared_entries: list[dict[str, Any]] = []
+    proposal_cache: dict[int, StrategyProposal | None] = {}
+    original_map: dict[int, Mapping[str, Any]] = {}
+    original_proposals: dict[int, StrategyProposal] = {}
+
+    for idx, entry in enumerate(entries):
+        if not isinstance(entry, Mapping):
+            continue
+        prepared = dict(entry)
+        prepared[ORIGINAL_INDEX_KEY] = idx
+        proposal = build_proposal_from_entry(prepared)
+        proposal_cache[id(prepared)] = proposal
         if not proposal:
             continue
-        proposals.append((entry, proposal, _entry_symbol(entry)))
+        prepared_entries.append(prepared)
+        original_map[idx] = entry
+        original_proposals[idx] = proposal
 
-    if not proposals:
+    if not prepared_entries:
         print("⚠️ Geen geschikte voorstellen om te verversen.")
         return
 
     criteria_cfg = load_criteria()
-    spot_price = SESSION_STATE.get("spot_price")
+    spot_price = to_float(SESSION_STATE.get("spot_price"))
     try:
         timeout = float(cfg.get("MARKET_DATA_TIMEOUT", 15))
     except Exception:
         timeout = 15.0
+    try:
+        max_attempts = int(cfg.get("PIPELINE_REFRESH_ATTEMPTS", 1) or 1)
+    except Exception:
+        max_attempts = 1
+    if max_attempts < 1:
+        max_attempts = 1
+    try:
+        retry_delay = float(cfg.get("PIPELINE_REFRESH_RETRY_DELAY", 0.0) or 0.0)
+    except Exception:
+        retry_delay = 0.0
+    parallel = bool(cfg.get("PIPELINE_REFRESH_PARALLEL", False))
 
-    total = len(proposals)
-    refreshed = 0
-    accepted = 0
-    failures = 0
+    def _cached_builder(entry: Mapping[str, Any]) -> StrategyProposal | None:
+        cached = proposal_cache.get(id(entry))
+        if cached is None:
+            cached = build_proposal_from_entry(entry)
+            proposal_cache[id(entry)] = cached
+        return cached
 
+    params = RefreshParams(
+        entries=prepared_entries,
+        criteria=criteria_cfg,
+        spot_price=spot_price,
+        timeout=timeout,
+        max_attempts=max_attempts,
+        retry_delay=retry_delay if retry_delay > 0 else 0.0,
+        parallel=parallel,
+        proposal_builder=_cached_builder,
+    )
+
+    run_id = SESSION_STATE.get("run_id")
+    trace_id = str(run_id) if isinstance(run_id, str) else None
+    context = RefreshContext(trace_id=trace_id)
+
+    total = len(prepared_entries)
     print(f"📡 Ververs orderinformatie via IB voor {total} voorstel(len)...")
+    result = refresh_pipeline(context, params=params)
 
-    for entry, proposal, symbol in proposals:
-        label_symbol = symbol or str(SESSION_STATE.get("symbol") or "—")
-        try:
-            result = fetch_quote_snapshot(
-                proposal,
-                criteria=criteria_cfg,
-                spot_price=spot_price if isinstance(spot_price, (int, float)) else None,
-                timeout=timeout,
-            )
-        except Exception as exc:  # pragma: no cover - IB afhankelijk
-            failures += 1
-            logger.exception("IB marktdata refresh mislukt: %s", exc)
-            print(f"❌ {label_symbol} – {proposal.strategy}: {exc}")
+    refreshed_count = result.stats.accepted + result.stats.rejected
+    accepted_count = len(result.accepted)
+    failures = sum(1 for item in result.rejections if item.error is not None)
+
+    fallback_symbol = str(SESSION_STATE.get("symbol") or "—")
+
+    for item in result.accepted:
+        target = original_map.get(item.source.index)
+        if target is None:
             continue
+        proposal = item.proposal
+        symbol_label = item.source.symbol or _entry_symbol(target) or fallback_symbol
+        target["refreshed_proposal"] = proposal
+        target["refreshed_reasons"] = item.reasons
+        target["refreshed_missing_quotes"] = item.missing_quotes
+        target["refreshed_accepted"] = True
+        target["refreshed_symbol"] = symbol_label
+        print(f"✅ {symbol_label} – {proposal.strategy}: voorstel voldoet na refresh.")
 
-        refreshed += 1
-        if result.accepted:
-            accepted += 1
-            print(f"✅ {label_symbol} – {proposal.strategy}: voorstel voldoet na refresh.")
+    for item in result.rejections:
+        target = original_map.get(item.source.index)
+        if target is None:
+            continue
+        proposal = item.proposal or original_proposals.get(item.source.index)
+        symbol_label = item.source.symbol or _entry_symbol(target) or fallback_symbol
+        target["refreshed_accepted"] = False
+        if proposal:
+            target["refreshed_proposal"] = proposal
+        target["refreshed_reasons"] = item.reasons
+        target["refreshed_missing_quotes"] = item.missing_quotes
+        target["refreshed_symbol"] = symbol_label
+        strategy_label = (
+            proposal.strategy
+            if isinstance(proposal, StrategyProposal)
+            else str(target.get("strategy") or "?")
+        )
+        if item.error is not None:
+            logger.error(
+                "Refresh mislukt voor %s (%s): %s",
+                strategy_label,
+                symbol_label,
+                item.error,
+            )
+            print(f"❌ {symbol_label} – {strategy_label}: {item.error}")
         else:
-            reason_labels = ", ".join(reason_label(reason) for reason in result.reasons)
+            reason_labels = ", ".join(reason_label(reason) for reason in item.reasons)
             if not reason_labels:
                 reason_labels = "Onbekende reden"
             print(
                 "⚠️ "
-                + f"{label_symbol} – {proposal.strategy}: afgewezen ({reason_labels})."
+                + f"{symbol_label} – {strategy_label}: afgewezen ({reason_labels})."
             )
 
-        entry["refreshed_proposal"] = result.proposal
-        entry["refreshed_reasons"] = result.reasons
-        entry["refreshed_missing_quotes"] = result.missing_quotes
-        entry["refreshed_accepted"] = result.accepted
-        entry["refreshed_symbol"] = symbol or label_symbol
-
-    summary_parts = [f"{refreshed}/{total} ververst"]
-    summary_parts.append(f"geaccepteerd: {accepted}")
+    summary_parts = [f"{refreshed_count}/{total} ververst"]
+    summary_parts.append(f"geaccepteerd: {accepted_count}")
     if failures:
         summary_parts.append(f"fouten: {failures}")
     print("Samenvatting: " + ", ".join(summary_parts))

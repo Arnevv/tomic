@@ -8,6 +8,15 @@ from contextlib import contextmanager
 from tomic.journal.utils import save_json, load_json
 from tomic.strategy_candidates import StrategyProposal
 from tomic.services.ib_marketdata import SnapshotResult
+from tomic.services.pipeline_refresh import (
+    PipelineStats,
+    Proposal as RefreshProposal,
+    RefreshContext,
+    RefreshParams,
+    RefreshResult,
+    RefreshSource,
+    Rejection as RefreshRejection,
+)
 from tomic.services.market_snapshot_service import MarketSnapshot, MarketSnapshotRow
 
 
@@ -1198,21 +1207,40 @@ def test_refresh_reject_entries_fetches_all(monkeypatch, capsys):
         },
     ]
 
-    calls: list[tuple[str, float | None]] = []
-    outcomes = iter([True, False])
+    captured: dict[str, object] = {}
 
-    def fake_fetch(proposal, **kwargs):
-        accepted = next(outcomes)
-        calls.append((proposal.strategy, kwargs.get("spot_price")))
-        reasons = [] if accepted else ["previewkwaliteit (model)"]
-        return SnapshotResult(
-            proposal=proposal,
-            reasons=reasons,
-            accepted=accepted,
+    def fake_refresh(context: RefreshContext, *, params: RefreshParams) -> RefreshResult:
+        captured["context"] = context
+        captured["params"] = params
+        accepted_proposal = mod.build_proposal_from_entry(entries[0])
+        rejected_proposal = mod.build_proposal_from_entry(entries[1])
+        assert accepted_proposal is not None
+        assert rejected_proposal is not None
+        accepted = RefreshProposal(
+            proposal=accepted_proposal,
+            source=RefreshSource(index=0, entry=entries[0], symbol="AAA"),
+            reasons=[],
             missing_quotes=[],
         )
+        rejection = RefreshRejection(
+            source=RefreshSource(index=1, entry=entries[1], symbol="BBB"),
+            proposal=rejected_proposal,
+            reasons=[],
+            missing_quotes=[],
+            attempts=1,
+        )
+        stats = PipelineStats(
+            total=2,
+            accepted=1,
+            rejected=1,
+            failed=0,
+            duration=0.05,
+            attempts=2,
+            retries=0,
+        )
+        return RefreshResult(accepted=[accepted], rejections=[rejection], stats=stats)
 
-    monkeypatch.setattr(mod, "fetch_quote_snapshot", fake_fetch)
+    monkeypatch.setattr(mod, "refresh_pipeline", fake_refresh)
     monkeypatch.setattr(mod, "load_criteria", lambda: {"dummy": True})
     monkeypatch.setattr(
         mod.cfg,
@@ -1231,11 +1259,14 @@ def test_refresh_reject_entries_fetches_all(monkeypatch, capsys):
             mod.SESSION_STATE["spot_price"] = original_spot
 
     out = capsys.readouterr().out
-    assert "Samenvatting" in out
-    assert len(calls) == 2
+    params = captured["params"]
+    assert isinstance(params, RefreshParams)
+    assert params.timeout == 7
+    assert params.spot_price == 123.45
     assert entries[0]["refreshed_accepted"] is True
     assert entries[1]["refreshed_accepted"] is False
     assert entries[0]["refreshed_proposal"].strategy == "iron_condor"
+    assert "Samenvatting" in out
 
 
 def test_print_reason_summary_all_refresh(monkeypatch, capsys):
