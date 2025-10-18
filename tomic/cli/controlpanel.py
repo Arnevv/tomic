@@ -6,7 +6,6 @@ import sys
 from datetime import datetime, date
 import json
 from pathlib import Path
-import os
 import csv
 import inspect
 from typing import Any, Mapping, Sequence
@@ -50,10 +49,8 @@ if __package__ is None:
 
 from tomic.cli.common import Menu, prompt, prompt_yes_no
 
-from tomic.api.ib_connection import connect_ib
 
 from tomic import config as cfg
-from tomic.config import save_symbols
 from tomic.logutils import capture_combo_evaluations, normalize_reason, setup_logging, logger
 from tomic.analysis.greeks import compute_portfolio_greeks
 from tomic.journal.utils import load_json, save_json
@@ -70,6 +67,9 @@ from tomic.cli.portfolio.menu_flow import (
     run_market_scan as portfolio_run_market_scan,
     show_market_overview as portfolio_show_market_overview,
 )
+from tomic.cli.module_runner import run_module
+from tomic.cli.settings.menu_config import SETTINGS_MENU
+from tomic.cli.settings.handlers import build_settings_menu
 from tomic.exports import (
     export_proposal_csv,
     export_proposal_json,
@@ -401,13 +401,6 @@ def _save_trades(session: ControlPanelSession, trades: list[dict[str, object]]) 
     print(f"✅ Trades opgeslagen in: {path.resolve()}")
 
 
-
-
-def run_module(module_name: str, *args: str) -> None:
-    """Run a Python module using ``python -m``."""
-    subprocess.run([sys.executable, "-m", module_name, *args], check=True)
-
-
 def save_portfolio_timestamp() -> None:
     """Store the datetime of the latest portfolio fetch."""
     META_FILE.write_text(json.dumps({"last_update": datetime.now().isoformat()}))
@@ -437,34 +430,6 @@ def print_saved_portfolio_greeks() -> None:
     print("📐 Portfolio Greeks:")
     for key, val in portfolio.items():
         print(f"{key}: {val:+.4f}")
-
-
-def print_api_version() -> None:
-    """Connect to TWS and display the server version information."""
-    try:
-        app = connect_ib()
-        print(f"Server versie: {app.serverVersion()}")
-        print(f"Verbindingstijd: {app.twsConnectionTime()}")
-    except Exception:
-        print("❌ Geen verbinding met TWS")
-        return
-    finally:
-        try:
-            app.disconnect()
-        except Exception:
-            pass
-
-
-def check_ib_connection() -> None:
-    """Test whether the IB API is reachable."""
-    try:
-        app = connect_ib()
-        app.disconnect()
-        print("✅ Verbinding met TWS beschikbaar")
-    except Exception:
-        print("❌ Geen verbinding met TWS")
-
-
 def run_dataexporter(services: ControlPanelServices | None = None) -> None:
     """Menu for export and CSV validation utilities."""
 
@@ -800,270 +765,13 @@ def run_portfolio_menu(
     menu.run()
 
 
-def run_settings_menu() -> None:
-    """Menu to view and edit configuration."""
+def run_settings_menu(
+    session: ControlPanelSession | None = None,
+    services: ControlPanelServices | None = None,
+) -> None:
+    """Render the configuration menu using declarative metadata."""
 
-    def show_config() -> None:
-        asdict = (
-            cfg.CONFIG.model_dump
-            if hasattr(cfg.CONFIG, "model_dump")
-            else cfg.CONFIG.dict
-        )
-        for key, value in asdict().items():
-            print(f"{key}: {value}")
-
-    def change_host() -> None:
-        host_default = cfg.get("IB_HOST")
-        port_default = cfg.get("IB_PORT")
-        host = prompt(f"Host ({host_default}): ", host_default)
-        port_str = prompt(f"Poort ({port_default}): ")
-        port = int(port_str) if port_str else port_default
-        cfg.update({"IB_HOST": host, "IB_PORT": port})
-
-    def change_symbols() -> None:
-        print("Huidige symbols:", ", ".join(cfg.get("DEFAULT_SYMBOLS", [])))
-        raw = prompt("Nieuw lijst (comma-sep): ")
-        if raw:
-            symbols = [s.strip().upper() for s in raw.split(",") if s.strip()]
-            save_symbols(symbols)
-
-    def change_rate() -> None:
-        rate_default = cfg.get("INTEREST_RATE")
-        rate_str = prompt(f"Rente ({rate_default}): ")
-        if rate_str:
-            try:
-                rate = float(rate_str)
-            except ValueError:
-                print("❌ Ongeldige rente")
-                return
-            cfg.update({"INTEREST_RATE": rate})
-
-    def change_path(key: str) -> None:
-        current = cfg.get(key)
-        value = prompt(f"{key} ({current}): ")
-        if value:
-            cfg.update({key: value})
-
-    def change_int(key: str) -> None:
-        current = cfg.get(key)
-        val = prompt(f"{key} ({current}): ")
-        if val:
-            try:
-                cfg.update({key: int(val)})
-            except ValueError:
-                print("❌ Ongeldige waarde")
-
-    def change_float(key: str) -> None:
-        current = cfg.get(key)
-        val = prompt(f"{key} ({current}): ")
-        if val:
-            try:
-                cfg.update({key: float(val)})
-            except ValueError:
-                print("❌ Ongeldige waarde")
-
-    def change_str(key: str) -> None:
-        current = cfg.get(key)
-        val = prompt(f"{key} ({current}): ", current)
-        if val:
-            cfg.update({key: val})
-
-    def change_bool(key: str) -> None:
-        current = cfg.get(key)
-        val = prompt_yes_no(f"{key}?", current)
-        cfg.update({key: val})
-
-    def run_connection_menu() -> None:
-        sub = Menu("\U0001f50c Verbinding & API – TWS instellingen en tests")
-        sub.add("Pas IB host/poort aan", change_host)
-        sub.add("Wijzig client ID", lambda: change_int("IB_CLIENT_ID"))
-        sub.add("Test TWS-verbinding", check_ib_connection)
-        sub.add("Haal TWS API-versie op", print_api_version)
-        sub.run()
-
-    def run_general_menu() -> None:
-        sub = Menu("\U0001f4c8 Portfolio & Analyse")
-        sub.add("Pas default symbols aan", change_symbols)
-        sub.add("Pas interest rate aan", change_rate)
-        sub.add(
-            "USE_HISTORICAL_IV_WHEN_CLOSED",
-            lambda: change_bool("USE_HISTORICAL_IV_WHEN_CLOSED"),
-        )
-        sub.add(
-            "INCLUDE_GREEKS_ONLY_IF_MARKET_OPEN",
-            lambda: change_bool("INCLUDE_GREEKS_ONLY_IF_MARKET_OPEN"),
-        )
-        sub.run()
-
-    def run_logging_menu() -> None:
-        sub = Menu("\U0001fab5 Logging & Gedrag")
-
-        def set_info() -> None:
-            cfg.update({"LOG_LEVEL": "INFO"})
-            os.environ["TOMIC_LOG_LEVEL"] = "INFO"
-            setup_logging()
-
-        def set_debug() -> None:
-            cfg.update({"LOG_LEVEL": "DEBUG"})
-            os.environ["TOMIC_LOG_LEVEL"] = "DEBUG"
-            setup_logging()
-
-        sub.add("Stel logniveau in op INFO", set_info)
-        sub.add("Stel logniveau in op DEBUG", set_debug)
-        sub.run()
-
-    def run_paths_menu() -> None:
-        sub = Menu("\U0001f4c1 Bestandslocaties")
-        sub.add("ACCOUNT_INFO_FILE", lambda: change_path("ACCOUNT_INFO_FILE"))
-        sub.add("JOURNAL_FILE", lambda: change_path("JOURNAL_FILE"))
-        sub.add("POSITIONS_FILE", lambda: change_path("POSITIONS_FILE"))
-        sub.add("PORTFOLIO_META_FILE", lambda: change_path("PORTFOLIO_META_FILE"))
-        sub.add("VOLATILITY_DB", lambda: change_path("VOLATILITY_DB"))
-        sub.add("EXPORT_DIR", lambda: change_path("EXPORT_DIR"))
-        sub.run()
-
-    def run_network_menu() -> None:
-        sub = Menu("\U0001f310 Netwerk & Snelheid")
-        sub.add(
-            "CONTRACT_DETAILS_TIMEOUT",
-            lambda: change_int("CONTRACT_DETAILS_TIMEOUT"),
-        )
-        sub.add(
-            "CONTRACT_DETAILS_RETRIES",
-            lambda: change_int("CONTRACT_DETAILS_RETRIES"),
-        )
-        sub.add("DOWNLOAD_TIMEOUT", lambda: change_int("DOWNLOAD_TIMEOUT"))
-        sub.add("DOWNLOAD_RETRIES", lambda: change_int("DOWNLOAD_RETRIES"))
-        sub.add(
-            "MAX_CONCURRENT_REQUESTS",
-            lambda: change_int("MAX_CONCURRENT_REQUESTS"),
-        )
-        sub.add("BID_ASK_TIMEOUT", lambda: change_int("BID_ASK_TIMEOUT"))
-        sub.add("MARKET_DATA_TIMEOUT", lambda: change_int("MARKET_DATA_TIMEOUT"))
-        sub.add("OPTION_DATA_RETRIES", lambda: change_int("OPTION_DATA_RETRIES"))
-        sub.add("OPTION_RETRY_WAIT", lambda: change_int("OPTION_RETRY_WAIT"))
-        sub.run()
-
-    def run_option_menu() -> None:
-        def show_open_settings() -> None:
-            print("Huidige reqMktData instellingen:")
-            print(f"MKT_GENERIC_TICKS: {cfg.get('MKT_GENERIC_TICKS', '100,101,106')}")
-            print(
-                f"UNDERLYING_PRIMARY_EXCHANGE: {cfg.get('UNDERLYING_PRIMARY_EXCHANGE', '')}"
-            )
-            print(
-                f"OPTIONS_PRIMARY_EXCHANGE: {cfg.get('OPTIONS_PRIMARY_EXCHANGE', '')}"
-            )
-
-        def show_closed_settings() -> None:
-            print("Huidige reqHistoricalData instellingen:")
-            print(
-                f"USE_HISTORICAL_IV_WHEN_CLOSED: {cfg.get('USE_HISTORICAL_IV_WHEN_CLOSED', True)}"
-            )
-            print(f"HIST_DURATION: {cfg.get('HIST_DURATION', '1 D')}")
-            print(f"HIST_BARSIZE: {cfg.get('HIST_BARSIZE', '1 day')}")
-            print(f"HIST_WHAT: {cfg.get('HIST_WHAT', 'TRADES')}")
-            print(
-                f"UNDERLYING_PRIMARY_EXCHANGE: {cfg.get('UNDERLYING_PRIMARY_EXCHANGE', '')}"
-            )
-            print(
-                f"OPTIONS_PRIMARY_EXCHANGE: {cfg.get('OPTIONS_PRIMARY_EXCHANGE', '')}"
-            )
-
-        def run_open_menu() -> None:
-            show_open_settings()
-            menu = Menu("Markt open – reqMktData")
-            menu.add("MKT_GENERIC_TICKS", lambda: change_str("MKT_GENERIC_TICKS"))
-            menu.add(
-                "UNDERLYING_PRIMARY_EXCHANGE",
-                lambda: change_str("UNDERLYING_PRIMARY_EXCHANGE"),
-            )
-            menu.add(
-                "OPTIONS_PRIMARY_EXCHANGE",
-                lambda: change_str("OPTIONS_PRIMARY_EXCHANGE"),
-            )
-            menu.run()
-
-        def run_closed_menu() -> None:
-            show_closed_settings()
-            menu = Menu("Markt dicht – reqHistoricalData")
-            menu.add(
-                "USE_HISTORICAL_IV_WHEN_CLOSED",
-                lambda: change_bool("USE_HISTORICAL_IV_WHEN_CLOSED"),
-            )
-            menu.add("HIST_DURATION", lambda: change_str("HIST_DURATION"))
-            menu.add("HIST_BARSIZE", lambda: change_str("HIST_BARSIZE"))
-            menu.add("HIST_WHAT", lambda: change_str("HIST_WHAT"))
-            menu.add(
-                "UNDERLYING_PRIMARY_EXCHANGE",
-                lambda: change_str("UNDERLYING_PRIMARY_EXCHANGE"),
-            )
-            menu.add(
-                "OPTIONS_PRIMARY_EXCHANGE",
-                lambda: change_str("OPTIONS_PRIMARY_EXCHANGE"),
-            )
-            menu.run()
-
-        sub = Menu("\U0001f4dd Optie-strategie parameters")
-        sub.add("STRIKE_RANGE", lambda: change_int("STRIKE_RANGE"))
-        sub.add("FIRST_EXPIRY_MIN_DTE", lambda: change_int("FIRST_EXPIRY_MIN_DTE"))
-        sub.add("DELTA_MIN", lambda: change_float("DELTA_MIN"))
-        sub.add("DELTA_MAX", lambda: change_float("DELTA_MAX"))
-        sub.add("AMOUNT_REGULARS", lambda: change_int("AMOUNT_REGULARS"))
-        sub.add("AMOUNT_WEEKLIES", lambda: change_int("AMOUNT_WEEKLIES"))
-        sub.add("UNDERLYING_EXCHANGE", lambda: change_str("UNDERLYING_EXCHANGE"))
-        sub.add(
-            "UNDERLYING_PRIMARY_EXCHANGE",
-            lambda: change_str("UNDERLYING_PRIMARY_EXCHANGE"),
-        )
-        sub.add("OPTIONS_EXCHANGE", lambda: change_str("OPTIONS_EXCHANGE"))
-        sub.add(
-            "OPTIONS_PRIMARY_EXCHANGE",
-            lambda: change_str("OPTIONS_PRIMARY_EXCHANGE"),
-        )
-        sub.add("Markt open – reqMktData", run_open_menu)
-        sub.add("Markt dicht – reqHistoricalData", run_closed_menu)
-        sub.run()
-
-    def run_rules_menu() -> None:
-        path = prompt("Pad naar criteria.yaml (optioneel): ")
-        sub = Menu("\U0001f4dc Criteria beheren")
-
-        sub.add("Toon criteria", lambda: run_module("tomic.cli.rules", "show"))
-
-        def _validate() -> None:
-            if path:
-                run_module("tomic.cli.rules", "validate", path)
-            else:
-                run_module("tomic.cli.rules", "validate")
-
-        def _validate_reload() -> None:
-            if path:
-                run_module("tomic.cli.rules", "validate", path, "--reload")
-            else:
-                run_module("tomic.cli.rules", "validate", "--reload")
-
-        sub.add("Valideer criteria.yaml", _validate)
-        sub.add("Valideer & reload", _validate_reload)
-        sub.add(
-            "Reload zonder validatie", lambda: run_module("tomic.cli.rules", "reload")
-        )
-        sub.run()
-
-    def run_strategy_criteria_menu() -> None:
-        sub = Menu("\U0001f3af Strategie & Criteria")
-        sub.add("Optie-strategie parameters", run_option_menu)
-        sub.add("Criteria beheren", run_rules_menu)
-        sub.run()
-
-    menu = Menu("\u2699\ufe0f INSTELLINGEN & CONFIGURATIE")
-    menu.add("Portfolio & Analyse", run_general_menu)
-    menu.add("Verbinding & API", run_connection_menu)
-    menu.add("Netwerk & Snelheid", run_network_menu)
-    menu.add("Bestandslocaties", run_paths_menu)
-    menu.add("Strategie & Criteria", run_strategy_criteria_menu)
-    menu.add("Logging & Gedrag", run_logging_menu)
-    menu.add("Toon volledige configuratie", show_config)
+    menu = build_settings_menu(SETTINGS_MENU, session, services)
     menu.run()
 
 
@@ -1081,7 +789,7 @@ def run_controlpanel(
     menu.add("Data & Marktdata", lambda: run_dataexporter(services))
     menu.add("Trades & Journal", run_trade_management)
     menu.add("Risicotools & Synthetica", run_risk_tools)
-    menu.add("Configuratie", run_settings_menu)
+    menu.add("Configuratie", lambda: run_settings_menu(session, services))
     menu.run()
     print("Tot ziens.")
 

@@ -1,98 +1,52 @@
-import importlib
-import types
+from __future__ import annotations
+
+from tomic.cli.settings import handlers
+from tomic.cli.settings.menu_config import SettingAction, SettingMenu, SETTINGS_MENU
 
 
-def _extract(code_obj, name):
-    for const in code_obj.co_consts:
-        if isinstance(const, types.CodeType) and const.co_name == name:
-            return const
-    return None
+def _find_menu(menu: SettingMenu, label: str) -> SettingMenu:
+    for item in menu.items:
+        if isinstance(item, SettingMenu) and item.label == label:
+            return item
+    raise AssertionError(f"Menu with label '{label}' not found")
 
 
-def _cell(value):
-    return (lambda: value).__closure__[0]
+def test_strategy_criteria_menu_contains_items() -> None:
+    strategy_menu = _find_menu(SETTINGS_MENU, "🎯 Strategie & Criteria")
 
+    labels = [item.label for item in strategy_menu.items if isinstance(item, SettingMenu)]
+    assert "📝 Optie-strategie parameters" in labels
 
-def test_strategy_criteria_menu_contains_items(monkeypatch):
-    mod = importlib.import_module("tomic.cli.controlpanel")
-    strat_code = _extract(mod.run_settings_menu.__code__, "run_strategy_criteria_menu")
-    assert strat_code is not None
-
-    calls = []
-    def fake_option():
-        calls.append("option")
-    def fake_rules():
-        calls.append("rules")
-
-    func = types.FunctionType(
-        strat_code,
-        mod.run_settings_menu.__globals__,
-        None,
-        None,
-        (
-            _cell(fake_option),
-            _cell(fake_rules),
-        ),
-    )
-
-    menu_holder = {}
-    class FakeMenu:
-        def __init__(self, title, exit_text="Terug"):
-            menu_holder["title"] = title
-            self.items = []
-            menu_holder["items"] = self.items
-        def add(self, desc, handler):
-            self.items.append((desc, handler))
-        def run(self):
-            pass
-    monkeypatch.setattr(mod, "Menu", FakeMenu)
-
-    func()
-
-    assert "Strategie & Criteria" in menu_holder["title"]
-    descriptions = [d for d, _ in menu_holder["items"]]
-    assert "Optie-strategie parameters" in descriptions
-    assert "Criteria beheren" in descriptions
-
-    for _, handler in menu_holder["items"]:
-        handler()
-    assert calls == ["option", "rules"]
+    actions = [item.action_id for item in strategy_menu.items if isinstance(item, SettingAction)]
+    assert "run_rules_menu" in actions
 
 
 def test_rules_menu_executes_actions(monkeypatch):
-    mod = importlib.import_module("tomic.cli.controlpanel")
-    rules_code = _extract(mod.run_settings_menu.__code__, "run_rules_menu")
-    assert rules_code is not None
-
-    func = types.FunctionType(
-        rules_code,
-        mod.run_settings_menu.__globals__,
-        None,
-        None,
-        (),
-    )
-
     actions = []
-    monkeypatch.setattr(mod, "run_module", lambda *a: actions.append(a))
-    monkeypatch.setattr(mod, "prompt", lambda *a, **k: "/tmp/crit.yaml")
+    monkeypatch.setattr(handlers, "run_module", lambda *a: actions.append(a))
+    monkeypatch.setattr(handlers, "prompt", lambda *a, **k: "/tmp/crit.yaml")
 
     menu_holder = {}
+
     class FakeMenu:
         def __init__(self, title, exit_text="Terug"):
             menu_holder["title"] = title
             self.items = []
             menu_holder["items"] = self.items
+
         def add(self, desc, handler):
             self.items.append((desc, handler))
-        def run(self):
-            for _, h in self.items:
-                h()
-    monkeypatch.setattr(mod, "Menu", FakeMenu)
 
-    func()
+        def run(self):
+            for _, handler in self.items:
+                handler()
+
+    monkeypatch.setattr(handlers, "Menu", FakeMenu)
+
+    handlers.run_rules_menu(None, None)
 
     assert "Criteria beheren" in menu_holder["title"]
-    descriptions = [d for d, _ in menu_holder["items"]]
+    descriptions = [desc for desc, _ in menu_holder["items"]]
     assert descriptions == [
         "Toon criteria",
         "Valideer criteria.yaml",
