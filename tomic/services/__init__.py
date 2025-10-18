@@ -6,6 +6,17 @@ from .strategy_pipeline import (
     StrategyProposal,
     RejectionSummary,
 )
+from .chain_processing_service import (
+    ChainEvaluation,
+    ChainEvaluationConfig,
+    ChainProcessingConfig,
+    ChainProcessingError,
+    PreparedChain,
+    SpotPriceResolver,
+    evaluate_chain,
+    load_and_prepare_chain,
+    spot_from_chain,
+)
 from .pipeline_refresh import (
     PipelineError,
     PipelineStats,
@@ -30,6 +41,15 @@ __all__ = [
     "StrategyContext",
     "StrategyProposal",
     "RejectionSummary",
+    "ChainEvaluation",
+    "ChainEvaluationConfig",
+    "ChainProcessingConfig",
+    "ChainProcessingError",
+    "PreparedChain",
+    "SpotPriceResolver",
+    "evaluate_chain",
+    "load_and_prepare_chain",
+    "spot_from_chain",
     "PipelineError",
     "PipelineStats",
     "PipelineTimeout",

@@ -12,28 +12,25 @@ def test_process_chain_respects_quality(tmp_path, monkeypatch):
     csv_path = tmp_path / "chain.csv"
     csv_path.write_text("data")
 
-    df = pd.DataFrame({
-        "expiry": ["20240101"],
-        "strike": [100],
-        "delta": [0.5],
-        "iv": [0.2],
-    })
-    monkeypatch.setattr(mod.pd, "read_csv", lambda p: df)
-    monkeypatch.setattr(mod, "calculate_csv_quality", lambda d: 50.0)
-    monkeypatch.setattr(mod.cfg, "get", lambda name, default=None: 70 if name == "CSV_MIN_QUALITY" else default)
-    monkeypatch.setattr(mod.cfg, "_load_yaml", lambda p: {})
-    monkeypatch.setattr(mod, "load_strike_config", lambda strat, data: {})
-    monkeypatch.setattr(mod, "refresh_spot_price", lambda s: None)
-    monkeypatch.setattr(mod, "_load_spot_from_metrics", lambda d, s: None)
-    monkeypatch.setattr(mod, "_load_latest_close", lambda s: (100.0, "20240101"))
+    monkeypatch.setattr(
+        mod.cfg,
+        "get",
+        lambda name, default=None: 70 if name == "CSV_MIN_QUALITY" else default,
+    )
 
+    prepared = SimpleNamespace(quality=50.0)
+    monkeypatch.setattr(mod, "load_and_prepare_chain", lambda *args, **kwargs: prepared)
     called = {}
-    monkeypatch.setattr(mod, "filter_by_expiry", lambda data, rng: called.setdefault("filter", True) or data)
+    monkeypatch.setattr(
+        mod,
+        "evaluate_chain",
+        lambda *args, **kwargs: called.setdefault("evaluated", True),
+    )
     monkeypatch.setattr(mod, "prompt_yes_no", lambda text, default=False: False)
 
     mod._process_chain(csv_path)
 
-    assert "filter" not in called
+    assert "evaluated" not in called
 
 
 def test_write_option_chain_skips_selector_on_low_quality(tmp_path, monkeypatch):

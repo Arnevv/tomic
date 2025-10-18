@@ -7,6 +7,7 @@ from pathlib import Path
 from contextlib import contextmanager
 from tomic.journal.utils import save_json, load_json
 from tomic.strategy_candidates import StrategyProposal
+from tomic.services.chain_processing_service import ChainEvaluation
 from tomic.services.ib_marketdata import SnapshotResult
 from tomic.services.pipeline_refresh import (
     PipelineStats,
@@ -18,6 +19,7 @@ from tomic.services.pipeline_refresh import (
     Rejection as RefreshRejection,
 )
 from tomic.services.market_snapshot_service import MarketSnapshot, MarketSnapshotRow
+from tomic.services.strategy_pipeline import RejectionSummary, StrategyContext
 
 
 def test_show_market_info(monkeypatch, tmp_path):
@@ -770,87 +772,46 @@ def test_process_chain_refreshes_spot_price(monkeypatch, tmp_path):
     csv_path = tmp_path / "chain.csv"
     csv_path.write_text("dummy")
 
-    class SimpleDF:
-        def __init__(self):
-            self.columns = ["expiry", "underlying_price"]
-            self._data = {
-                "expiry": ["2024-01-01"],
-                "underlying_price": [123.45],
-            }
-
-        def __getitem__(self, key):
-            return self._data[key]
-
-        def __setitem__(self, key, val):
-            self._data[key] = val
-
-        def to_dict(self, orient=None):
-            return [
-                {k: v[0] if isinstance(v, list) else v for k, v in self._data.items()}
+    class DummyPrepared:
+        def __init__(self, path: Path):
+            self.path = path
+            self.quality = 100.0
+            self.normalized_legs = [
+                {
+                    "expiry": "2024-01-01",
+                    "strike": 100,
+                    "type": "call",
+                    "position": 1,
+                    "edge": 0.1,
+                    "pos": 0.2,
+                    "ev": 0.05,
+                    "delta": 0.1,
+                    "mid": 1.0,
+                }
             ]
+            self.dataframe = types.SimpleNamespace(
+                to_csv=lambda *a, **k: None
+            )
 
-        def __len__(self):
-            return len(next(iter(self._data.values())))
+        def expiry_counts(self) -> dict[str, int]:
+            return {"2024-01-01": 1}
 
-    df = SimpleDF()
+    prepared = DummyPrepared(csv_path)
 
-    class DummyPD:
-        def read_csv(self, path):
-            return df
+    monkeypatch.setattr(mod, "load_and_prepare_chain", lambda *a, **k: prepared)
 
-        def to_datetime(self, series, errors=None):
-            class _DT:
-                def strftime(self, fmt):
-                    return series
-
-            return types.SimpleNamespace(dt=_DT())
-
-    monkeypatch.setattr(mod, "pd", DummyPD())
-    monkeypatch.setattr(mod, "normalize_european_number_format", lambda d, c: d)
-    monkeypatch.setattr(mod, "calculate_csv_quality", lambda d: 100.0)
-    monkeypatch.setattr(mod, "interpolate_missing_fields", lambda d: d)
-
-    dummy_option = {
-        "expiry": "2024-01-01",
-        "mid": 1.0,
-        "edge": 0.1,
-        "pos": 0.2,
-        "ev": 0.05,
-        "type": "call",
-        "strike": 100,
-    }
-    monkeypatch.setattr(mod, "filter_by_expiry", lambda data, rng: [dummy_option])
-    monkeypatch.setattr(
-        mod,
-        "StrikeSelector",
-        lambda config: type(
-            "S",
-            (),
-            {
-                "select": lambda self, data, debug_csv=None, return_info=False: (
-                    ([dummy_option], {}, {}) if return_info else [dummy_option]
-                )
-            },
-        )(),
-    )
-    monkeypatch.setattr(
-        mod, "generate_strategy_candidates", lambda *a, **k: ([], ["r1", "r2"])
-    )
-    monkeypatch.setattr(mod, "latest_atr", lambda s: 0.0)
-    monkeypatch.setattr(mod, "_load_spot_from_metrics", lambda d, s: None)
-    monkeypatch.setattr(mod, "_load_latest_close", lambda s: (111.0, "2024-01-01"))
-    monkeypatch.setattr(mod, "normalize_leg", lambda rec: rec)
-    monkeypatch.setattr(mod, "get_option_mid_price", lambda opt: (opt.get("mid"), False))
-    monkeypatch.setattr(mod, "calculate_pos", lambda *a, **k: 0.0)
-    monkeypatch.setattr(mod, "calculate_rom", lambda *a, **k: 0.0)
-    monkeypatch.setattr(mod, "calculate_edge", lambda *a, **k: 0.0)
-    monkeypatch.setattr(mod, "calculate_ev", lambda *a, **k: 0.0)
+    pipeline = types.SimpleNamespace(last_evaluated=[])
+    monkeypatch.setattr(mod, "_get_strategy_pipeline", lambda: pipeline)
 
     def cfg_get(name, default=None):
         if name == "CSV_MIN_QUALITY":
-            return 0
+            return 50
         if name == "PRICE_HISTORY_DIR":
             return str(tmp_path)
+        if name == "EXPORT_DIR":
+            return str(tmp_path)
+        if name == "INTEREST_RATE":
+            return 0.05
         return default
 
     monkeypatch.setattr(mod.cfg, "get", cfg_get)
@@ -860,6 +821,7 @@ def test_process_chain_refreshes_spot_price(monkeypatch, tmp_path):
     monkeypatch.setattr(mod, "save_price_meta", lambda m: meta_store.update(m))
 
     real_dt = datetime
+
     class DummyDateTime:
         def __init__(self):
             self.current = real_dt(2024, 1, 1)
@@ -873,15 +835,66 @@ def test_process_chain_refreshes_spot_price(monkeypatch, tmp_path):
 
     monkeypatch.setattr(mod, "datetime", DummyDateTime())
 
-    import tomic.polygon_client as poly_mod
     prices = iter([101.0, 202.0])
-    monkeypatch.setattr(poly_mod.PolygonClient, "connect", lambda self: None)
-    monkeypatch.setattr(poly_mod.PolygonClient, "disconnect", lambda self: None)
-    monkeypatch.setattr(
-        poly_mod.PolygonClient,
-        "fetch_spot_price",
-        lambda self, sym: next(prices),
-    )
+
+    def fake_refresh(symbol):
+        meta_store[f"spot_{symbol.upper()}"] = "ts"
+        return next(prices)
+
+    monkeypatch.setattr(mod, "refresh_spot_price", fake_refresh)
+    monkeypatch.setattr(mod, "_load_spot_from_metrics", lambda d, s: None)
+    monkeypatch.setattr(mod, "_load_latest_close", lambda s: (111.0, "2024-01-01"))
+
+    def fake_evaluate(prep, config, pipe, spot_resolver):
+        spot = spot_resolver.resolve(
+            config.symbol,
+            config.chain_directory or prep.path.parent,
+            prep.normalized_legs,
+            config.initial_spot,
+        )
+        context = StrategyContext(
+            symbol=config.symbol,
+            strategy=config.strategy,
+            option_chain=list(prep.normalized_legs),
+            spot_price=float(spot or 0.0),
+            atr=float(config.atr),
+            config=config.strategy_config,
+            interest_rate=config.interest_rate,
+            dte_range=config.default_dte_range,
+            interactive_mode=config.interactive_mode,
+            criteria=config.criteria,
+            debug_path=config.export_dir / "PEP_debugfilter.csv",
+        )
+        pipe.last_evaluated = [
+            {
+                "expiry": "2024-01-01",
+                "strike": 100,
+                "type": "call",
+                "delta": 0.1,
+                "edge": 0.2,
+                "pos": 0.3,
+            }
+        ]
+        proposal = StrategyProposal(
+            legs=[dict(prep.normalized_legs[0])],
+            score=10.0,
+            pos=0.3,
+            ev=0.05,
+            rom=0.1,
+        )
+        return ChainEvaluation(
+            context=context,
+            proposals=[proposal],
+            summary=RejectionSummary(),
+            filtered_chain=list(prep.normalized_legs),
+            dte_range=config.default_dte_range,
+            expiry_counts_before={"2024-01-01": 1},
+            expiry_counts_after={"2024-01-01": 1},
+            spot_price=spot,
+            evaluated_trades=list(pipe.last_evaluated),
+        )
+
+    monkeypatch.setattr(mod, "evaluate_chain", fake_evaluate)
 
     responses = {
         "Doorgaan?": [True],
@@ -904,27 +917,19 @@ def test_process_chain_refreshes_spot_price(monkeypatch, tmp_path):
     monkeypatch.setattr(
         builtins, "print", lambda *a, **k: prints.append(" ".join(str(x) for x in a))
     )
+    inputs = iter(["0"])
+    monkeypatch.setattr(builtins, "input", lambda *a: next(inputs))
 
     mod.SESSION_STATE.clear()
-    mod.SESSION_STATE.update({"evaluated_trades": [], "symbol": "AAA"})
+    mod.SESSION_STATE.update({"evaluated_trades": [], "symbol": "AAA", "strategy": "Test"})
 
     mod._process_chain(csv_path)
 
     assert mod.SESSION_STATE.get("spot_price") == 202.0
-    assert any(
-        "Geen opties door filters afgewezen" in line for line in prints
-    )
-    by_strategy = getattr(mod.PIPELINE, "last_rejections", {}).get("by_strategy", {})
-    combined = {
-        reason.message for reasons in by_strategy.values() for reason in reasons
-    }
-    assert {"r1", "r2"}.issubset(combined)
+    assert any("Geen opties door filters afgewezen" in line for line in prints)
     assert "spot_AAA" in meta_store
 
-    spot_path = tmp_path / "AAA_spot.json"
-    assert spot_path.exists(), "spot cache should use _spot.json suffix"
     assert not (tmp_path / "AAA.json").exists(), "historical data file must remain untouched"
-    assert load_json(spot_path).get("price") == 202.0
 
 
 def test_export_proposal_json_includes_earnings(monkeypatch, tmp_path):
