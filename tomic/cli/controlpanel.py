@@ -155,6 +155,11 @@ from tomic.services.proposal_details import (
     build_proposal_core,
     build_proposal_viewmodel,
 )
+from tomic.formatting.table_builders import (
+    proposal_earnings_table,
+    proposal_legs_table,
+    proposal_summary_table,
+)
 
 setup_logging(stdout=True)
 
@@ -684,65 +689,20 @@ def _show_proposal_details(proposal: StrategyProposal) -> None:
     }
     vm = build_proposal_viewmodel(candidate, earnings_ctx)
 
-    def _fmt(value: float | None, decimals: int = 2) -> str:
-        if value is None:
-            return "—"
-        return f"{value:.{decimals}f}"
+    leg_headers, leg_rows = proposal_legs_table(vm)
+    if leg_rows:
+        print(tabulate(leg_rows, headers=leg_headers, tablefmt="github"))
 
-    def _fmt_signed(value: float | None, decimals: int) -> str:
-        if value is None:
-            return ""
-        return f"{value:+.{decimals}f}"
+    summary_headers, summary_rows = proposal_summary_table(vm)
+    if summary_rows:
+        print(tabulate(summary_rows, headers=summary_headers, tablefmt="github"))
 
-    rows: list[list[str]] = []
-    for leg in vm.legs:
-        pos_label = "S" if (leg.position is not None and leg.position < 0) else "L"
-        rows.append(
-            [
-                leg.expiry or "",
-                _fmt(leg.strike),
-                leg.option_type or "",
-                pos_label,
-                _fmt(leg.bid),
-                _fmt(leg.ask),
-                _fmt(leg.mid),
-                _fmt(leg.iv),
-                _fmt_signed(leg.delta, 2),
-                _fmt_signed(leg.gamma, 4),
-                _fmt_signed(leg.vega, 2),
-                _fmt_signed(leg.theta, 2),
-            ]
-        )
-
-    print(
-        tabulate(
-            rows,
-            headers=[
-                "Expiry",
-                "Strike",
-                "Type",
-                "Pos",
-                "Bid",
-                "Ask",
-                "Mid",
-                "IV",
-                "Delta",
-                "Gamma",
-                "Vega",
-                "Theta",
-            ],
-            tablefmt="github",
-        )
-    )
+    earnings_headers, earnings_rows = proposal_earnings_table(vm)
+    if earnings_rows:
+        print(tabulate(earnings_rows, headers=earnings_headers, tablefmt="github"))
 
     for warning in vm.warnings:
         print(warning)
-
-    prefix = "IB-update → " if vm.accepted is not None else "Metrics → "
-    summary = vm.summary
-    print(
-        f"{prefix}Score: {_fmt(summary.score)} | EV: {_fmt(summary.ev)} | R/R: {_fmt(summary.risk_reward)}"
-    )
 
     acceptance_failed = vm.accepted is False
     if acceptance_failed:
@@ -760,28 +720,6 @@ def _show_proposal_details(proposal: StrategyProposal) -> None:
         ):
             return
 
-    print(f"Credit: {_fmt(summary.credit)}")
-    print(f"Margin: {_fmt(summary.margin)}")
-    print(f"Max win: {_fmt(summary.max_profit)}")
-    print(f"Max loss: {_fmt(summary.max_loss)}")
-    if summary.breakevens:
-        be = ", ".join(f"{value:.2f}" for value in summary.breakevens)
-        print(f"Breakevens: {be}")
-    print(f"PoS: {_fmt(summary.pos)}")
-
-    if summary.scenario_error == "no scenario defined":
-        print("no scenario defined")
-
-    suffix = ""
-    if summary.profit_estimated:
-        suffix = (
-            f" {summary.scenario_label} (geschat)"
-            if summary.scenario_label
-            else " (geschat)"
-        )
-
-    print(f"ROM: {_fmt(summary.rom)}{suffix}")
-    print(f"EV: {_fmt(summary.ev)}{suffix}")
     if prompt_yes_no("Voorstel opslaan naar CSV?", False):
         _export_proposal_csv(proposal)
     if prompt_yes_no("Voorstel opslaan naar JSON?", False):

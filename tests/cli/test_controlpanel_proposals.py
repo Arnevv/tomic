@@ -760,8 +760,8 @@ def test_show_proposal_details_suffix(monkeypatch, capsys):
     )
     show(proposal)
     out = capsys.readouterr().out
-    assert "ROM: 10.00 Foo (geschat)" in out
-    assert "EV: 5.00 Foo (geschat)" in out
+    assert "ROM         | 10.00     | Foo (geschat)" in out
+    assert "EV          | 5.00      | Foo (geschat)" in out
 
 
 def test_show_proposal_details_no_scenario(monkeypatch, capsys):
@@ -787,7 +787,7 @@ def test_show_proposal_details_no_scenario(monkeypatch, capsys):
     )
     show(proposal)
     out = capsys.readouterr().out
-    assert "no scenario defined" in out
+    assert "Scenario fout | no scenario defined" in out
 
 
 def test_show_proposal_details_blocks_on_acceptance(monkeypatch, capsys):

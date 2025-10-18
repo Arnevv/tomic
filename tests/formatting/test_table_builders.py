@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import date
 import math
 
@@ -8,9 +8,15 @@ import pytest
 
 from tomic.formatting.table_builders import (
     PORTFOLIO_SPEC,
+    PROPOSAL_EARNINGS_SPEC,
+    PROPOSAL_LEGS_SPEC,
+    PROPOSAL_SUMMARY_SPEC,
     PROPOSALS_SPEC,
     REJECTIONS_SPEC,
     portfolio_table,
+    proposal_earnings_table,
+    proposal_legs_table,
+    proposal_summary_table,
     proposals_table,
     rejections_table,
 )
@@ -200,6 +206,114 @@ def test_proposals_table_formats_and_sorts():
     ]
 
 
+def test_proposal_legs_table_formats_values():
+    summary = _build_summary()
+    earnings = EarningsVM(None, None, None, None)
+    core = ProposalCore(
+        symbol="AAA",
+        strategy="iron_condor",
+        expiry="2024-07-19",
+        strikes=(100.0, 110.0),
+        legs=(
+            {"expiry": "2024-07-19", "type": "put", "strike": 100.0},
+            {"expiry": "2024-07-19", "type": "call", "strike": 110.0},
+        ),
+        greeks={},
+        pricing_meta={},
+    )
+    legs = (
+        ProposalLegVM(
+            expiry="2024-07-19",
+            strike=100.0,
+            option_type="put",
+            position=-1,
+            bid=1.0,
+            ask=1.2,
+            mid=1.1,
+            iv=0.21,
+            delta=-0.35,
+            gamma=0.01234,
+            vega=0.12,
+            theta=-0.08,
+            warnings=(),
+        ),
+        ProposalLegVM(
+            expiry="2024-07-19",
+            strike=110.0,
+            option_type="call",
+            position=1,
+            bid=0.85,
+            ask=1.05,
+            mid=0.95,
+            iv=0.19,
+            delta=0.22,
+            gamma=0.0085,
+            vega=0.09,
+            theta=0.05,
+            warnings=(),
+        ),
+    )
+    vm = ProposalVM(
+        core=core,
+        legs=legs,
+        warnings=(),
+        missing_quotes=(),
+        summary=summary,
+        earnings=earnings,
+        accepted=None,
+        reasons=(),
+        credit_capped=False,
+        has_missing_edge=False,
+    )
+
+    headers, rows = proposal_legs_table(vm, spec=PROPOSAL_LEGS_SPEC)
+
+    assert headers == [
+        "Expiry",
+        "Strike",
+        "Type",
+        "Pos",
+        "Bid",
+        "Ask",
+        "Mid",
+        "IV",
+        "Δ",
+        "Γ",
+        "Vega",
+        "Θ",
+    ]
+    assert rows == [
+        [
+            "2024-07-19",
+            "100.00",
+            "PUT",
+            "S",
+            "1.00",
+            "1.20",
+            "1.10",
+            "21.0%",
+            "-0.35",
+            "+0.0123",
+            "+0.12",
+            "-0.08",
+        ],
+        [
+            "2024-07-19",
+            "110.00",
+            "CALL",
+            "L",
+            "0.85",
+            "1.05",
+            "0.95",
+            "19.0%",
+            "+0.22",
+            "+0.0085",
+            "+0.09",
+            "+0.05",
+        ],
+    ]
+
+
 def _build_rejection(symbol: str, expiry: str, **kwargs) -> Rejection:
     legs = (
         {
@@ -288,6 +402,42 @@ def test_rejections_table_applies_sanitization():
             "100.50",
             "18",
         ],
+    ]
+
+
+def test_proposal_summary_table_includes_scenario_details():
+    vm = _build_vm("AAA", "2024-07-19", (100.0, 105.0))
+    summary = _build_summary(
+        ev=5.0,
+        rom=10.0,
+        profit_estimated=True,
+        scenario_label="Foo",
+        scenario_error="no scenario defined",
+    )
+    vm = replace(vm, summary=summary)
+
+    headers, rows = proposal_summary_table(vm, spec=PROPOSAL_SUMMARY_SPEC)
+
+    assert headers == ["Metric", "Value", "Details"]
+    assert rows[0] == ["Bron", "IB-update", "✅ geaccepteerd"]
+    assert ["ROM", "10.00", "Foo (geschat)"] in rows
+    assert ["EV", "5.00", "Foo (geschat)"] in rows
+    assert ["Scenario fout", "no scenario defined", "—"] in rows
+
+
+def test_proposal_earnings_table_formats_values():
+    vm = _build_vm("AAA", "2024-07-19", (100.0,))
+    earnings = EarningsVM(date(2024, 7, 10), 5, 2, True)
+    vm = replace(vm, earnings=earnings)
+
+    headers, rows = proposal_earnings_table(vm, spec=PROPOSAL_EARNINGS_SPEC)
+
+    assert headers == ["Metric", "Value", "Details"]
+    assert rows == [
+        ["Volgende earnings", "2024-07-10", "—"],
+        ["Dagen tot earnings", "5", "—"],
+        ["Gap tot expiratie", "2", "—"],
+        ["Earnings voor expiratie", "Ja", "—"],
     ]
 
 
