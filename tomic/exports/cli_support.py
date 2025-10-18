@@ -20,7 +20,7 @@ from tomic.export import (
 )
 from tomic.helpers.price_meta import load_price_meta, save_price_meta
 from tomic.journal.utils import load_json, save_json
-from tomic.polygon_client import PolygonClient
+from tomic.integrations.polygon.client import PolygonClient
 from tomic.services.strategy_pipeline import StrategyProposal
 from tomic.cli.controlpanel_session import ControlPanelSession
 from tomic.analysis.greeks import compute_portfolio_greeks

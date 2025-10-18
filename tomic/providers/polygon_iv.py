@@ -14,7 +14,7 @@ import csv
 
 from tomic.analysis.metrics import historical_volatility
 
-from tomic.polygon_client import PolygonClient
+from tomic.integrations.polygon.client import PolygonClient
 
 from tomic.config import get as cfg_get
 from tomic.logutils import logger

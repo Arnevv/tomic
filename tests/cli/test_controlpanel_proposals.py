@@ -638,7 +638,7 @@ def test_process_chain_refreshes_spot_price(monkeypatch, tmp_path):
 
     monkeypatch.setattr(mod, "datetime", DummyDateTime())
 
-    import tomic.polygon_client as poly_mod
+    import tomic.integrations.polygon.client as poly_mod
     prices = iter([101.0, 202.0])
     monkeypatch.setattr(poly_mod.PolygonClient, "connect", lambda self: None)
     monkeypatch.setattr(poly_mod.PolygonClient, "disconnect", lambda self: None)

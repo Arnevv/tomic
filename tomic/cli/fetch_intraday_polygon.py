@@ -10,7 +10,7 @@ from zoneinfo import ZoneInfo
 
 from tomic.config import get as cfg_get
 from tomic.logutils import logger, setup_logging
-from tomic.polygon_client import PolygonClient
+from tomic.integrations.polygon.client import PolygonClient
 from tomic.helpers.price_meta import load_price_meta, save_price_meta
 from tomic.polygon_prices import request_intraday, store_record
 

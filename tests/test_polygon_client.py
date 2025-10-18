@@ -3,7 +3,7 @@ from types import SimpleNamespace
 
 
 def test_request_retries_rate_limit(monkeypatch):
-    mod = importlib.import_module("tomic.polygon_client")
+    mod = importlib.import_module("tomic.integrations.polygon.client")
 
     attempts = {"count": 0}
 
@@ -38,7 +38,7 @@ def test_request_retries_rate_limit(monkeypatch):
 
 
 def test_request_switches_api_key_on_403(monkeypatch):
-    mod = importlib.import_module("tomic.polygon_client")
+    mod = importlib.import_module("tomic.integrations.polygon.client")
 
     used_keys = []
 
@@ -77,7 +77,7 @@ def test_request_switches_api_key_on_403(monkeypatch):
 
 
 def test_request_raises_after_all_keys_invalid(monkeypatch):
-    mod = importlib.import_module("tomic.polygon_client")
+    mod = importlib.import_module("tomic.integrations.polygon.client")
 
     used_keys = []
 

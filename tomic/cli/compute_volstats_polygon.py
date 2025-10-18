@@ -12,7 +12,7 @@ from tomic.config import get as cfg_get
 from tomic.journal.utils import update_json_file
 from tomic.logutils import logger, setup_logging
 from tomic.providers.polygon_iv import fetch_polygon_iv30d
-from tomic.polygon_client import PolygonClient
+from tomic.integrations.polygon.client import PolygonClient
 from tomic.helpers.price_utils import _load_latest_close
 from tomic.utils import load_price_history
 
