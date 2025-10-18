@@ -4,14 +4,11 @@ import argparse
 import subprocess
 import sys
 from datetime import datetime, date
-import hashlib
 import json
-import uuid
 from pathlib import Path
 import os
 import csv
 from collections import defaultdict
-import math
 import inspect
 from typing import Any, Mapping, Sequence
 from tomic.helpers.dateutils import parse_date
@@ -56,12 +53,6 @@ if __package__ is None:
 from tomic.cli.common import Menu, prompt, prompt_yes_no
 
 from tomic.api.ib_connection import connect_ib
-from tomic.api.earnings_importer import (
-    load_json as load_earnings_json,
-    parse_earnings_csv,
-    save_json as save_earnings_json,
-    update_next_earnings,
-)
 
 from tomic import config as cfg
 from tomic.config import save_symbols
@@ -75,19 +66,17 @@ from tomic.api.market_export import load_exported_chain
 from tomic.cli.app_services import ControlPanelServices, create_controlpanel_services
 from tomic.cli.controlpanel_session import ControlPanelSession
 from tomic.cli.rejections.handlers import build_rejection_summary
-from tomic.export import (
-    RunMetadata,
-    build_export_path,
-    export_proposals_csv,
-    export_proposals_json,
-    render_journal_entries,
+from tomic.cli.exports.menu import build_export_menu
+from tomic.exports import (
+    export_proposal_csv,
+    export_proposal_json,
+    proposal_journal_text,
+    refresh_spot_price,
+    load_spot_from_metrics,
+    spot_from_chain,
 )
 from tomic.helpers.price_utils import _load_latest_close
-from tomic.helpers.price_meta import load_price_meta, save_price_meta
-from tomic.polygon_client import PolygonClient
-from tomic.strike_selector import StrikeSelector, filter_by_expiry
-from tomic.loader import load_strike_config
-from tomic.utils import get_option_mid_price, latest_atr, load_price_history, normalize_leg
+from tomic.utils import get_option_mid_price, latest_atr, normalize_leg
 from tomic.metrics import calculate_edge, calculate_ev, calculate_pos, calculate_rom
 from tomic.services.chain_processing import (
     ChainEvaluationConfig,
@@ -104,8 +93,6 @@ from tomic.services.order_submission import (
     OrderSubmissionService,
     prepare_order_instructions,
 )
-from tomic.scripts.backfill_hv import run_backfill_hv
-from tomic.cli.iv_backfill_flow import run_iv_backfill_flow
 from tomic.services.portfolio_service import CandidateRankingError
 from tomic.services.market_scan_service import (
     MarketScanError,
@@ -150,42 +137,6 @@ POSITIONS_FILE = Path(cfg.get("POSITIONS_FILE", "positions.json"))
 ACCOUNT_INFO_FILE = Path(cfg.get("ACCOUNT_INFO_FILE", "account_info.json"))
 META_FILE = Path(cfg.get("PORTFOLIO_META_FILE", "portfolio_meta.json"))
 STRATEGY_DASHBOARD_MODULE = "tomic.cli.strategy_dashboard"
-
-def _build_run_metadata(
-    session: ControlPanelSession,
-    *,
-    symbol: str | None = None,
-    strategy: str | None = None,
-) -> RunMetadata:
-    """Return consistent metadata for the current CLI session."""
-
-    if not session.run_id:
-        session.run_id = uuid.uuid4().hex[:12]
-    run_id = str(session.run_id)
-
-    config_hash = session.config_hash
-    if not isinstance(config_hash, str) or not config_hash:
-        try:
-            cfg_model = runtime_config.load()
-            cfg_dump = cfg_model.model_dump(by_alias=True)
-            config_hash = hashlib.sha256(
-                json.dumps(cfg_dump, sort_keys=True, default=str).encode("utf-8")
-            ).hexdigest()[:12]
-        except Exception:
-            config_hash = "unknown"
-        session.config_hash = config_hash
-
-    schema_version = cfg.get("EXPORT_SCHEMA_VERSION")
-    schema_version_str = str(schema_version) if schema_version else None
-
-    return RunMetadata(
-        timestamp=datetime.now(),
-        run_id=run_id,
-        config_hash=config_hash,
-        symbol=symbol,
-        strategy=strategy,
-        schema_version=schema_version_str,
-    )
 
 
 def _format_leg_summary(legs: Sequence[Mapping[str, Any]] | None) -> str:
@@ -351,9 +302,11 @@ def _show_proposal_details(
             return
 
     if prompt_yes_no("Voorstel opslaan naar CSV?", False):
-        _export_proposal_csv(session, proposal)
+        path = export_proposal_csv(session, proposal)
+        print(f"✅ Voorstel opgeslagen in: {path.resolve()}")
     if prompt_yes_no("Voorstel opslaan naar JSON?", False):
-        _export_proposal_json(session, proposal)
+        path = export_proposal_json(session, proposal)
+        print(f"✅ Voorstel opgeslagen in: {path.resolve()}")
 
     can_send_order = not acceptance_failed and not fetch_only_mode
     if can_send_order and prompt_yes_no("Order naar IB sturen?", False):
@@ -363,10 +316,13 @@ def _show_proposal_details(
 
     proposal_strategy = getattr(proposal, "strategy", None)
     strategy_label = str(session.strategy or proposal_strategy or "") or None
-    journal_lines = render_journal_entries(
-        {"proposal": proposal, "symbol": symbol, "strategy": strategy_label}
+    journal_text = proposal_journal_text(
+        session,
+        proposal,
+        symbol=symbol,
+        strategy=strategy_label,
     )
-    print("\nJournal entry voorstel:\n" + "\n".join(journal_lines))
+    print("\nJournal entry voorstel:\n" + journal_text)
 
 
 def _submit_ib_order(
@@ -457,353 +413,6 @@ def _save_trades(session: ControlPanelSession, trades: list[dict[str, object]]) 
     print(f"✅ Trades opgeslagen in: {path.resolve()}")
 
 
-def _export_proposal_csv(
-    session: ControlPanelSession, proposal: StrategyProposal
-) -> Path:
-    symbol = str(session.symbol or "").strip() or None
-    strategy_name = str(session.strategy or proposal.strategy or "").strip() or None
-
-    run_meta = _build_run_metadata(session, symbol=symbol, strategy=strategy_name)
-    footer_rows: list[tuple[str, object]] = [
-        ("credit", proposal.credit),
-        ("margin", proposal.margin),
-        ("max_profit", proposal.max_profit),
-        ("max_loss", proposal.max_loss),
-        ("rom", proposal.rom),
-        ("pos", proposal.pos),
-        ("ev", proposal.ev),
-        ("edge", proposal.edge),
-        ("score", proposal.score),
-        ("profit_estimated", proposal.profit_estimated),
-        ("scenario_info", proposal.scenario_info),
-        ("breakevens", proposal.breakevens or []),
-        ("atr", proposal.atr),
-        ("iv_rank", proposal.iv_rank),
-        ("iv_percentile", proposal.iv_percentile),
-        ("hv20", proposal.hv20),
-        ("hv30", proposal.hv30),
-        ("hv90", proposal.hv90),
-        ("dte", proposal.dte),
-        ("breakeven_distances", proposal.breakeven_distances or {"dollar": [], "percent": []}),
-        ("wing_width", proposal.wing_width),
-        ("wing_symmetry", proposal.wing_symmetry),
-    ]
-    run_meta = run_meta.with_extra(footer_rows=footer_rows)
-
-    export_dir = Path(cfg.get("EXPORT_DIR", "exports"))
-    strategy_tag = [strategy_name.replace(" ", "_")] if strategy_name else None
-    export_path = build_export_path(
-        "proposal",
-        run_meta,
-        extension="csv",
-        directory=export_dir,
-        tags=strategy_tag,
-    )
-
-    columns = [
-        "expiry",
-        "strike",
-        "type",
-        "position",
-        "bid",
-        "ask",
-        "mid",
-        "delta",
-        "theta",
-        "vega",
-        "edge",
-        "manual_override",
-        "missing_metrics",
-        "metrics_ignored",
-    ]
-
-    records: list[dict[str, object]] = []
-    for leg in proposal.legs:
-        row = dict(leg)
-        metrics = leg.get("missing_metrics") or []
-        if isinstance(metrics, (list, tuple)):
-            row["missing_metrics"] = ",".join(str(m) for m in metrics)
-        records.append(row)
-
-    result_path = export_proposals_csv(
-        records,
-        columns=columns,
-        path=export_path,
-        run_meta=run_meta,
-    )
-    print(f"✅ Voorstel opgeslagen in: {result_path.resolve()}")
-    return result_path
-
-
-def _load_acceptance_criteria(strategy: str) -> dict[str, Any]:
-    """Return current acceptance criteria for ``strategy``."""
-
-    config_data = cfg.get("STRATEGY_CONFIG") or {}
-    rules = load_strike_config(strategy, config_data) if config_data else {}
-    try:
-        min_rom = (
-            float(rules.get("min_rom"))
-            if rules.get("min_rom") is not None
-            else None
-        )
-    except Exception:
-        min_rom = None
-    return {
-        "min_rom": min_rom,
-        "min_pos": 0.0,
-        "require_positive_ev": True,
-        "allow_missing_edge": bool(cfg.get("ALLOW_INCOMPLETE_METRICS", False)),
-    }
-
-
-def _load_portfolio_context() -> tuple[dict[str, Any], bool]:
-    """Return portfolio context and availability flag."""
-
-    ctx = {
-        "net_delta": None,
-        "net_theta": None,
-        "net_vega": None,
-        "margin_used": None,
-        "positions_open": None,
-    }
-    if not POSITIONS_FILE.exists() or not ACCOUNT_INFO_FILE.exists():
-        return ctx, False
-    try:
-        positions = json.loads(POSITIONS_FILE.read_text())
-        account = json.loads(ACCOUNT_INFO_FILE.read_text())
-        greeks = compute_portfolio_greeks(positions)
-        ctx.update(
-            {
-                "net_delta": greeks.get("Delta"),
-                "net_theta": greeks.get("Theta"),
-                "net_vega": greeks.get("Vega"),
-                "positions_open": len(positions),
-                "margin_used": (
-                    float(account.get("FullInitMarginReq"))
-                    if account.get("FullInitMarginReq") is not None
-                    else None
-                ),
-            }
-        )
-    except Exception:
-        return ctx, False
-    return ctx, True
-
-
-def _export_proposal_json(
-    session: ControlPanelSession, proposal: StrategyProposal
-) -> Path:
-    symbol = str(session.symbol or "").strip() or None
-    strategy_name = str(session.strategy or proposal.strategy or "").strip() or None
-    strategy_file = strategy_name.replace(" ", "_") if strategy_name else None
-
-    run_meta = _build_run_metadata(session, symbol=symbol, strategy=strategy_name)
-
-    accept = _load_acceptance_criteria(strategy_file or proposal.strategy)
-    portfolio_ctx, portfolio_available = _load_portfolio_context()
-    spot_price = session.spot_price
-
-    earnings_dict = load_json(
-        cfg.get("EARNINGS_DATES_FILE", "tomic/data/earnings_dates.json")
-    )
-    next_earn = None
-    if isinstance(earnings_dict, dict) and symbol:
-        earnings_list = earnings_dict.get(symbol)
-        if isinstance(earnings_list, list):
-            upcoming: list[datetime] = []
-            for ds in earnings_list:
-                try:
-                    d = datetime.strptime(ds, "%Y-%m-%d").date()
-                except Exception:
-                    continue
-                if d >= today():
-                    upcoming.append(d)
-            if upcoming:
-                next_earn = min(upcoming).strftime("%Y-%m-%d")
-
-    data = {
-        "symbol": symbol,
-        "spot_price": spot_price,
-        "strategy": strategy_file or proposal.strategy,
-        "next_earnings_date": next_earn,
-        "legs": proposal.legs,
-        "metrics": {
-            "credit": proposal.credit,
-            "margin": proposal.margin,
-            "pos": proposal.pos,
-            "rom": proposal.rom,
-            "ev": proposal.ev,
-            "average_edge": proposal.edge,
-            "max_profit": (
-                proposal.max_profit if proposal.max_profit is not None else "unlimited"
-            ),
-            "max_loss": (
-                proposal.max_loss if proposal.max_loss is not None else "unlimited"
-            ),
-            "breakevens": proposal.breakevens or [],
-            "score": proposal.score,
-            "profit_estimated": proposal.profit_estimated,
-            "scenario_info": proposal.scenario_info,
-            "atr": proposal.atr,
-            "iv_rank": proposal.iv_rank,
-            "iv_percentile": proposal.iv_percentile,
-            "hv": {
-                "hv20": proposal.hv20,
-                "hv30": proposal.hv30,
-                "hv90": proposal.hv90,
-            },
-            "dte": proposal.dte,
-            "breakeven_distances": (
-                proposal.breakeven_distances
-                if proposal.breakeven_distances is not None
-                else {"dollar": [], "percent": []}
-            ),
-            "missing_data": {
-                "missing_bidask": any(
-                    (
-                        (b := l.get("bid")) is None
-                        or (
-                            isinstance(b, (int, float))
-                            and (math.isnan(b) or b <= 0)
-                        )
-                    )
-                    or (
-                        (a := l.get("ask")) is None
-                        or (
-                            isinstance(a, (int, float))
-                            and (math.isnan(a) or a <= 0)
-                        )
-                    )
-                    for l in proposal.legs
-                ),
-                "missing_edge": proposal.edge is None,
-                "fallback_mid": any(
-                    l.get("mid_fallback") in {"close", "parity_close", "model"}
-                    or (
-                        l.get("mid") is not None
-                        and (
-                            (
-                                (b := l.get("bid")) is None
-                                or (
-                                    isinstance(b, (int, float))
-                                    and (math.isnan(b) or b <= 0)
-                                )
-                            )
-                            or (
-                                (a := l.get("ask")) is None
-                                or (
-                                    isinstance(a, (int, float))
-                                    and (math.isnan(a) or a <= 0)
-                                )
-                            )
-                        )
-                    )
-                    for l in proposal.legs
-                ),
-            },
-        },
-        "tomic_acceptance_criteria": accept,
-        "portfolio_context": portfolio_ctx,
-        "portfolio_context_available": portfolio_available,
-        "wing_width": proposal.wing_width,
-        "wing_symmetry": proposal.wing_symmetry,
-    }
-
-    export_dir = Path(cfg.get("EXPORT_DIR", "exports"))
-    strategy_tag = [strategy_file] if strategy_file else None
-
-
-def _load_spot_from_metrics(directory: Path, symbol: str) -> float | None:
-    """Return spot price from a metrics CSV in ``directory`` if available."""
-    pattern = f"other_data_{symbol.upper()}_*.csv"
-    files = list(directory.glob(pattern))
-    if not files:
-        return None
-    latest = max(files, key=lambda p: p.stat().st_mtime)
-    try:
-        with latest.open(newline="") as f:
-            row = next(csv.DictReader(f))
-            spot = row.get("SpotPrice") or row.get("spotprice")
-            return float(spot) if spot is not None else None
-    except Exception:
-        return None
-
-
-def _spot_from_chain(chain: list[dict]) -> float | None:
-    """Return first positive spot-like value from option ``chain``.
-
-    The option chain may include fields such as ``spot``, ``underlying_price`` or
-    ``underlying`` that reflect the underlying price at the time the chain was
-    generated. This helper scans known keys and returns the first valid value.
-    If no suitable value is found, ``None`` is returned.
-    """
-
-    keys = ("spot", "underlying_price", "underlying", "underlying_close", "close")
-    for rec in chain:
-        for key in keys:
-            val = rec.get(key)
-            try:
-                num = float(val)
-            except Exception:
-                continue
-            if num > 0:
-                return num
-    return None
-
-def refresh_spot_price(symbol: str) -> float | None:
-    """Fetch and cache the current spot price for ``symbol``.
-
-    Uses :class:`PolygonClient` to retrieve the delayed last trade price and
-    caches it under :data:`PRICE_HISTORY_DIR` as ``<SYMBOL>_spot.json``.
-    When existing data is newer than roughly ten minutes the cached value is
-    reused.
-    """
-
-    sym = symbol.upper()
-    base = Path(cfg.get("PRICE_HISTORY_DIR", "tomic/data/spot_prices"))
-    base.mkdir(parents=True, exist_ok=True)
-    spot_file = base / f"{sym}_spot.json"
-
-    meta = load_price_meta()
-    now = datetime.now()
-    meta_key = f"spot_{sym}"
-    ts_str = meta.get(meta_key)
-    if spot_file.exists() and ts_str:
-        try:
-            ts = datetime.fromisoformat(ts_str)
-            if (now - ts).total_seconds() < 600:
-                data = load_json(spot_file)
-                price = None
-                if isinstance(data, dict):
-                    price = data.get("price") or data.get("close")
-                elif isinstance(data, list) and data:
-                    rec = data[-1]
-                    price = rec.get("price") or rec.get("close")
-                if price is not None:
-                    return float(price)
-        except Exception:
-            pass
-
-    client = PolygonClient()
-    try:
-        client.connect()
-        price = client.fetch_spot_price(sym)
-    except Exception as exc:  # pragma: no cover - network issues
-        logger.warning(f"⚠️ Spot price fetch failed for {sym}: {exc}")
-        price = None
-    finally:
-        try:
-            client.disconnect()
-        except Exception:
-            pass
-
-    if price is None:
-        return None
-
-    save_json({"price": float(price), "timestamp": now.isoformat()}, spot_file)
-    meta[meta_key] = now.isoformat()
-    save_price_meta(meta)
-    return float(price)
 
 
 def run_module(module_name: str, *args: str) -> None:
@@ -871,322 +480,15 @@ def check_ib_connection() -> None:
 def run_dataexporter(services: ControlPanelServices | None = None) -> None:
     """Menu for export and CSV validation utilities."""
 
+    session = ControlPanelSession()
     if services is None:
-        services = _create_services(ControlPanelSession())
+        services = _create_services(session)
 
-    def export_one() -> None:
-        symbol = prompt("Ticker symbool: ")
-        if not symbol:
-            print("Geen symbool opgegeven")
-            return
-        try:
-            run_module("tomic.api.getonemarket", symbol)
-        except subprocess.CalledProcessError:
-            print("❌ Export mislukt")
-
-    def export_chain_bulk() -> None:
-        symbol = prompt("Ticker symbool: ")
-        if not symbol:
-            print("Geen symbool opgegeven")
-            return
-        try:
-            run_module("tomic.cli.option_lookup_bulk", symbol)
-        except subprocess.CalledProcessError:
-            print("❌ Export mislukt")
-
-    def csv_check() -> None:
-        path = prompt("Pad naar CSV-bestand: ")
-        if not path:
-            print("Geen pad opgegeven")
-            return
-        try:
-            run_module("tomic.cli.csv_quality_check", path)
-        except subprocess.CalledProcessError:
-            print("❌ Kwaliteitscheck mislukt")
-
-    def export_all() -> None:
-        sub = Menu("Selecteer exporttype")
-        sub.add(
-            "Alleen marktdata",
-            lambda: run_module("tomic.api.getallmarkets_async", "--only-metrics"),
-        )
-        sub.add(
-            "Alleen optionchains",
-            lambda: run_module("tomic.api.getallmarkets_async", "--only-chains"),
-        )
-        sub.add(
-            "Marktdata en optionchains",
-            lambda: run_module("tomic.api.getallmarkets_async"),
-        )
-        sub.run()
-
-    def bench_getonemarket() -> None:
-        raw = prompt("Symbolen (spatiegescheiden): ")
-        symbols = [s.strip().upper() for s in raw.split() if s.strip()]
-        if not symbols:
-            print("Geen symbolen opgegeven")
-            return
-        try:
-            run_module("tomic.analysis.bench_getonemarket", *symbols)
-        except subprocess.CalledProcessError:
-            print("❌ Benchmark mislukt")
-
-    def fetch_prices() -> None:
-        raw = prompt("Symbolen (spatiegescheiden, leeg=default): ")
-        symbols = [s.strip().upper() for s in raw.split() if s.strip()]
-        try:
-            run_module("tomic.cli.fetch_prices", *symbols)
-        except subprocess.CalledProcessError:
-            print("❌ Ophalen van prijzen mislukt")
-
-    def show_history() -> None:
-        symbol = prompt("Ticker symbool: ")
-        if not symbol:
-            print("Geen symbool opgegeven")
-            return
-        data = load_price_history(symbol.upper())
-        rows = [[rec.get("date"), rec.get("close")] for rec in data[-10:]] if data else []
-        if not rows:
-            print("⚠️ Geen data gevonden")
-            return
-        rows.sort(key=lambda r: r[0], reverse=True)
-        print(tabulate(rows, headers=["Datum", "Close"], tablefmt="github"))
-
-    def polygon_chain() -> None:
-        symbol = prompt("Ticker symbool: ").strip().upper()
-        if not symbol:
-            print("❌ Geen symbool opgegeven")
-            return
-
-        try:
-            path = services.export.fetch_polygon_chain(symbol)
-        except Exception as exc:
-            print(f"❌ Ophalen van optionchain mislukt: {exc}")
-            return
-
-        if path:
-            print(f"✅ Option chain opgeslagen in: {path.resolve()}")
-        else:
-            date_dir = Path(cfg.get("EXPORT_DIR", "exports")) / datetime.now().strftime(
-                "%Y%m%d"
-            )
-            print(f"⚠️ Geen exportbestand gevonden in {date_dir.resolve()}")
-
-    def polygon_metrics() -> None:
-        symbol = prompt("Ticker symbool: ")
-        if not symbol:
-            print("Geen symbool opgegeven")
-            return
-        from tomic.polygon_client import PolygonClient
-
-        client = PolygonClient()
-        client.connect()
-        try:
-            metrics = client.fetch_market_metrics(symbol)
-            print(json.dumps(metrics, indent=2))
-        except Exception:
-            print("❌ Ophalen van metrics mislukt")
-        finally:
-            client.disconnect()
-
-    def run_github_action() -> None:
-        """Run the 'Update price history' GitHub Action locally."""
-        try:
-            run_module("tomic.cli.fetch_prices_polygon")
-        except subprocess.CalledProcessError:
-            print("❌ Ophalen van prijzen mislukt")
-            return
-
-        try:
-            changed = services.export.git_commit(
-                "Update price history",
-                Path("tomic/data/spot_prices"),
-                Path("tomic/data/iv_daily_summary"),
-                Path("tomic/data/historical_volatility"),
-            )
-            if not changed:
-                print("No changes to commit")
-        except subprocess.CalledProcessError:
-            print("❌ Git-commando mislukt")
-
-    def run_intraday_action() -> None:
-        """Run the intraday price update GitHub Action locally."""
-        try:
-            run_module("tomic.cli.fetch_intraday_polygon")
-        except subprocess.CalledProcessError:
-            print("❌ Ophalen van intraday prijzen mislukt")
-            return
-
-        try:
-            changed = services.export.git_commit(
-                "Update intraday prices", Path("tomic/data/spot_prices")
-            )
-            if not changed:
-                print("No changes to commit")
-        except subprocess.CalledProcessError:
-            print("❌ Git-commando mislukt")
-
-    def fetch_earnings() -> None:
-        try:
-            run_module("tomic.cli.fetch_earnings_alpha")
-        except subprocess.CalledProcessError:
-            print("❌ Earnings ophalen mislukt")
-
-    def import_market_chameleon_earnings() -> None:
-        runtime_config.load()
-        last_csv = runtime_config.get("import.last_earnings_csv_path") or ""
-        csv_input = prompt(
-            "Voer pad in naar MarketChameleon-CSV (ENTER voor laatst gebruikt): ",
-            last_csv,
-        )
-        if not csv_input:
-            print("❌ Geen pad opgegeven")
-            return
-
-        csv_path = Path(csv_input).expanduser()
-        if not csv_path.exists():
-            print(f"❌ CSV niet gevonden: {csv_path}")
-            return
-
-        runtime_config.set_value("import.last_earnings_csv_path", str(csv_path))
-
-        symbol_col = runtime_config.get("earnings_import.symbol_col", "Symbol")
-        next_candidates = runtime_config.get(
-            "earnings_import.next_col_candidates",
-            ["Next Earnings", "Next Earnings "],
-        )
-        if isinstance(next_candidates, str):
-            next_cols = [next_candidates]
-        else:
-            next_cols = [str(col) for col in next_candidates]
-
-        try:
-            csv_map = parse_earnings_csv(
-                str(csv_path),
-                symbol_col=symbol_col or "Symbol",
-                next_col_candidates=next_cols,
-            )
-        except Exception as exc:  # pragma: no cover - user feedback path
-            logger.error(f"CSV import mislukt: {exc}")
-            print(f"❌ CSV import mislukt: {exc}")
-            return
-
-        if not csv_map:
-            print("ℹ️ Geen geldige earnings gevonden in CSV.")
-            return
-
-        json_path_cfg = runtime_config.get("data.earnings_json_path")
-        json_path = Path(
-            json_path_cfg
-            or cfg.get("EARNINGS_DATES_FILE", "tomic/data/earnings_dates.json")
-        ).expanduser()
-
-        try:
-            json_data = load_earnings_json(json_path)
-        except Exception as exc:  # pragma: no cover - invalid JSON path
-            logger.error(f"Laden van earnings JSON mislukt: {exc}")
-            print(f"❌ Laden van earnings JSON mislukt: {exc}")
-            return
-
-        today_override = runtime_config.get("earnings_import.today_override")
-        if isinstance(today_override, str) and today_override:
-            try:
-                today_date = datetime.strptime(today_override, "%Y-%m-%d").date()
-            except ValueError:
-                today_date = date.today()
-        elif isinstance(today_override, date):
-            today_date = today_override
-        else:
-            today_date = date.today()
-
-        _, changes = update_next_earnings(
-            json_data,
-            csv_map,
-            today_date,
-            dry_run=True,
-        )
-
-        if not changes:
-            print("ℹ️ Geen wijzigingen nodig volgens CSV.")
-            return
-
-        rows = []
-        removed_total = 0
-        for idx, change in enumerate(changes, start=1):
-            removed = int(change.get("removed_same_month", 0))
-            removed_total += removed
-            rows.append(
-                [
-                    idx,
-                    change.get("symbol", ""),
-                    change.get("old_future") or "-",
-                    change.get("new_future") or "-",
-                    change.get("action", ""),
-                    removed,
-                ]
-            )
-
-        headers = [
-            "#",
-            "Symbol",
-            "Old Closest Future",
-            "New Next",
-            "Action",
-            "RemovedSameMonthCount",
-        ]
-        print("\nDry-run wijzigingen:")
-        print(tabulate(rows, headers=headers, tablefmt="github"))
-        print(f"\nVerwijderd vanwege dezelfde maand: {removed_total}")
-
-        replaced_count = sum(1 for c in changes if c.get("action") == "replaced_closest_future")
-        inserted_count = sum(
-            1 for c in changes if c.get("action") in {"inserted_as_next", "created_symbol"}
-        )
-        print(
-            f"Samenvatting: totaal={len(changes)} vervangen={replaced_count}"
-            f" ingevoegd={inserted_count}"
-        )
-
-        if not prompt_yes_no("Doorvoeren?"):
-            print("Import geannuleerd.")
-            return
-
-        try:
-            updated_data, _ = update_next_earnings(
-                json_data,
-                csv_map,
-                today_date,
-                dry_run=False,
-            )
-            save_earnings_json(updated_data, json_path)
-        except Exception as exc:  # pragma: no cover - file write errors
-            logger.error(f"Opslaan van earnings JSON mislukt: {exc}")
-            print(f"❌ Opslaan mislukt: {exc}")
-            return
-
-        runtime_config.set_value("data.earnings_json_path", str(json_path))
-
-        backup_path = save_earnings_json.last_backup_path
-        if backup_path:
-            print(f"Klaar. Backup: {backup_path}")
-        else:
-            print("Klaar. JSON bestand aangemaakt zonder backup.")
-
-        logger.success(
-            f"Earnings import voltooid voor {len(changes)} symbolen naar {json_path}"
-        )
-
-    menu = Menu("📁 DATA & MARKTDATA")
-    menu.add("OptionChain ophalen via TWS API", export_chain_bulk)
-    menu.add("OptionChain ophalen via Polygon API", polygon_chain)
-    menu.add("Controleer CSV-kwaliteit", csv_check)
-    menu.add("Run GitHub Action lokaal", run_github_action)
-    menu.add("Run GitHub Action lokaal - intraday", run_intraday_action)
-    menu.add("Backfill historical_volatility obv spotprices", run_backfill_hv)
-    menu.add("IV backfill", run_iv_backfill_flow)
-    menu.add("Fetch Earnings", fetch_earnings)
-    menu.add("Import nieuwe earning dates van MarketChameleon", import_market_chameleon_earnings)
-
+    menu = build_export_menu(
+        session,
+        services,
+        run_module=run_module,
+    )
     menu.run()
 
 
@@ -1461,9 +763,9 @@ def run_portfolio_menu(
                 strategy_config=config_data,
                 chain_config=prep_config,
                 refresh_spot_price=refresh_spot_price,
-                load_spot_from_metrics=_load_spot_from_metrics,
+                load_spot_from_metrics=load_spot_from_metrics,
                 load_latest_close=_load_latest_close,
-                spot_from_chain=_spot_from_chain,
+                spot_from_chain=spot_from_chain,
                 atr_loader=latest_atr,
             )
 
@@ -1746,12 +1048,12 @@ def run_portfolio_menu(
             symbol,
             prepared,
             refresh_quote=refresh_spot_price,
-            load_metrics_spot=_load_spot_from_metrics,
+            load_metrics_spot=load_spot_from_metrics,
             load_latest_close=_load_latest_close,
-            chain_spot_fallback=_spot_from_chain,
+            chain_spot_fallback=spot_from_chain,
         )
         if not isinstance(spot_price, (int, float)) or spot_price <= 0:
-            spot_price = _spot_from_chain(prepared.records) or 0.0
+            spot_price = spot_from_chain(prepared.records) or 0.0
         session.spot_price = spot_price
 
         strategy_name = str(session.strategy or "").lower().replace(" ", "_")
