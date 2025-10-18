@@ -3,7 +3,7 @@ from __future__ import annotations
 """Pure helpers to translate domain models into table structures."""
 
 from dataclasses import dataclass
-from datetime import date
+from datetime import date, datetime
 from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
 import math
 from typing import Any, Callable, Iterable, Mapping, Sequence
@@ -12,7 +12,13 @@ from tomic.helpers.dateutils import parse_date
 from tomic.reporting.rejections import reason_label
 from tomic.services.pipeline_refresh import Rejection
 from tomic.services.portfolio_service import Factsheet
-from tomic.services.proposal_details import ProposalCore, ProposalLegVM, ProposalVM
+from tomic.services.proposal_details import (
+    EarningsVM,
+    ProposalCore,
+    ProposalLegVM,
+    ProposalSummaryVM,
+    ProposalVM,
+)
 from tomic.utils import normalize_right, today
 
 TableData = tuple[list[str], list[list[str]]]
@@ -196,6 +202,20 @@ def _iter_leg_vms(record: Any) -> Iterable[ProposalLegVM]:
         for leg in legs:
             if isinstance(leg, ProposalLegVM):
                 yield leg
+
+
+@dataclass(frozen=True)
+class SummaryRow:
+    metric: str
+    value: Any
+    details: Any | None = None
+
+
+@dataclass(frozen=True)
+class EarningsRow:
+    metric: str
+    value: Any
+    details: Any | None = None
 
 
 def _first_leg_iv(record: Any) -> float | None:
@@ -456,6 +476,209 @@ def portfolio_table(
     return _build_table(factsheets, spec)
 
 
+def _leg_position_label(leg: ProposalLegVM) -> str:
+    position = getattr(leg, "position", None)
+    if position is None:
+        return PLACEHOLDER
+    if position < 0:
+        return "S"
+    if position > 0:
+        return "L"
+    return "0"
+
+
+def _leg_option_type(leg: ProposalLegVM) -> str:
+    option_type = getattr(leg, "option_type", None)
+    if not option_type:
+        return ""
+    return str(option_type).upper()
+
+
+def _format_breakevens(values: Iterable[Any] | None) -> str:
+    if not values:
+        return PLACEHOLDER
+    formatted: list[str] = []
+    for value in values:
+        formatted_value = fmt_num(value, 2)
+        if formatted_value != PLACEHOLDER:
+            formatted.append(formatted_value)
+    return ", ".join(formatted) if formatted else PLACEHOLDER
+
+
+def _scenario_detail(summary: ProposalSummaryVM) -> str | None:
+    label = summary.scenario_label.strip() if summary.scenario_label else ""
+    if summary.profit_estimated:
+        if label:
+            return f"{label} (geschat)"
+        return "(geschat)"
+    if label:
+        return label
+    return None
+
+
+def _summary_status(accepted: bool | None) -> str | None:
+    if accepted is True:
+        return "✅ geaccepteerd"
+    if accepted is False:
+        return "❌ afgewezen"
+    return None
+
+
+def _format_summary_value(value: Any, row: SummaryRow) -> str:
+    metric = getattr(row, "metric", "").lower()
+    if metric in {"score", "ev", "credit", "margin", "max win", "max loss", "risk/reward", "rom", "edge"}:
+        return fmt_num(value, 2)
+    if metric == "pos":
+        return fmt_pct(value, 1)
+    if metric == "breakevens":
+        return _format_breakevens(value if isinstance(value, Iterable) else None)
+    if metric == "bron":
+        return sanitize(value)
+    if metric == "greeks σ":
+        mapping = value if isinstance(value, Mapping) else {}
+        return fmt_greek_totals(mapping)
+    if metric.startswith("iv"):
+        return fmt_pct(value, 1)
+    if metric.startswith("hv"):
+        return fmt_pct(value, 1)
+    return sanitize(value)
+
+
+def _format_summary_details(value: Any, row: SummaryRow) -> str:
+    if value in (None, ""):
+        return PLACEHOLDER
+    return sanitize(value)
+
+
+def _format_earnings_value(value: Any, row: EarningsRow) -> str:
+    if value in (None, ""):
+        return PLACEHOLDER
+    if isinstance(value, date):
+        return value.isoformat()
+    if isinstance(value, datetime):
+        return value.date().isoformat()
+    if isinstance(value, bool):
+        return "Ja" if value else "Nee"
+    if isinstance(value, (int, float)):
+        number = _to_float(value)
+        if number is None:
+            return PLACEHOLDER
+        return fmt_num(number, 0 if float(number).is_integer() else 2)
+    return sanitize(value)
+
+
+def _format_earnings_details(value: Any, row: EarningsRow) -> str:
+    if value in (None, ""):
+        return PLACEHOLDER
+    return sanitize(value)
+
+
+PROPOSAL_LEGS_SPEC = TableSpec(
+    name="proposal_legs",
+    columns=(
+        ColumnSpec("Expiry", "expiry"),
+        ColumnSpec("Strike", "strike", decimals=2),
+        ColumnSpec("Type", _leg_option_type, nullable=False),
+        ColumnSpec("Pos", _leg_position_label, nullable=False),
+        ColumnSpec("Bid", "bid", decimals=2),
+        ColumnSpec("Ask", "ask", decimals=2),
+        ColumnSpec("Mid", "mid", decimals=2),
+        ColumnSpec("IV", "iv", format=lambda v: fmt_pct(v, 1)),
+        ColumnSpec("Δ", "delta", format=lambda v: fmt_signed(v, 2)),
+        ColumnSpec("Γ", "gamma", format=lambda v: fmt_signed(v, 4)),
+        ColumnSpec("Vega", "vega", format=lambda v: fmt_signed(v, 2)),
+        ColumnSpec("Θ", "theta", format=lambda v: fmt_signed(v, 2)),
+    ),
+    default_sort=("expiry", "strike", "option_type"),
+)
+
+
+PROPOSAL_SUMMARY_SPEC = TableSpec(
+    name="proposal_summary",
+    columns=(
+        ColumnSpec("Metric", "metric", nullable=False),
+        ColumnSpec("Value", "value", format=_format_summary_value),
+        ColumnSpec("Details", "details", format=_format_summary_details),
+    ),
+)
+
+
+PROPOSAL_EARNINGS_SPEC = TableSpec(
+    name="proposal_earnings",
+    columns=(
+        ColumnSpec("Metric", "metric", nullable=False),
+        ColumnSpec("Value", "value", format=_format_earnings_value),
+        ColumnSpec("Details", "details", format=_format_earnings_details),
+    ),
+)
+
+
+def proposal_legs_table(vm: ProposalVM, *, spec: TableSpec = PROPOSAL_LEGS_SPEC) -> TableData:
+    """Return table data for proposal legs."""
+
+    return _build_table(vm.legs, spec)
+
+
+def proposal_summary_table(vm: ProposalVM, *, spec: TableSpec = PROPOSAL_SUMMARY_SPEC) -> TableData:
+    """Return table data for proposal summary metrics."""
+
+    summary = vm.summary
+    scenario_detail = _scenario_detail(summary)
+    source = "IB-update" if vm.accepted is not None else "Metrics"
+    rows: list[SummaryRow] = [
+        SummaryRow("Bron", source, _summary_status(vm.accepted)),
+        SummaryRow("Score", summary.score),
+        SummaryRow("EV", summary.ev, scenario_detail),
+        SummaryRow("Risk/Reward", summary.risk_reward),
+        SummaryRow("Credit", summary.credit),
+        SummaryRow("Margin", summary.margin),
+        SummaryRow("Max win", summary.max_profit),
+        SummaryRow("Max loss", summary.max_loss),
+        SummaryRow("Breakevens", summary.breakevens),
+        SummaryRow("PoS", summary.pos),
+        SummaryRow("ROM", summary.rom, scenario_detail),
+    ]
+    if summary.edge is not None:
+        rows.append(SummaryRow("Edge", summary.edge))
+    if summary.greeks:
+        rows.append(SummaryRow("Greeks Σ", summary.greeks))
+    if summary.iv_rank is not None:
+        rows.append(SummaryRow("IV Rank", summary.iv_rank))
+    if summary.iv_percentile is not None:
+        rows.append(SummaryRow("IV Percentile", summary.iv_percentile))
+    for hv_label, value in (
+        ("HV20", summary.hv20),
+        ("HV30", summary.hv30),
+        ("HV90", summary.hv90),
+        ("HV252", summary.hv252),
+    ):
+        if value is not None:
+            rows.append(SummaryRow(hv_label, value))
+    if summary.scenario_error:
+        rows.append(SummaryRow("Scenario fout", summary.scenario_error))
+    return _build_table(rows, spec)
+
+
+def proposal_earnings_table(vm: ProposalVM, *, spec: TableSpec = PROPOSAL_EARNINGS_SPEC) -> TableData:
+    """Return table data describing proposal earnings context."""
+
+    earnings = vm.earnings if isinstance(vm.earnings, EarningsVM) else None
+    if earnings is None:
+        return ([column.header for column in spec.columns], [])
+    rows: list[EarningsRow] = []
+    if earnings.next_earnings:
+        rows.append(EarningsRow("Volgende earnings", earnings.next_earnings))
+    if earnings.days_until is not None:
+        rows.append(EarningsRow("Dagen tot earnings", earnings.days_until))
+    if earnings.expiry_gap_days is not None:
+        rows.append(EarningsRow("Gap tot expiratie", earnings.expiry_gap_days))
+    if earnings.occurs_before_expiry is not None:
+        rows.append(EarningsRow("Earnings voor expiratie", earnings.occurs_before_expiry))
+    if not rows:
+        return ([column.header for column in spec.columns], [])
+    return _build_table(rows, spec)
+
+
 __all__ = [
     "ColumnSpec",
     "TableSpec",
@@ -464,12 +687,18 @@ __all__ = [
     "fmt_num",
     "fmt_opt_strikes",
     "fmt_pct",
+    "proposal_earnings_table",
+    "proposal_legs_table",
+    "proposal_summary_table",
     "portfolio_table",
     "proposals_table",
     "rejections_table",
     "sanitize",
     "sort_records",
     "PORTFOLIO_SPEC",
+    "PROPOSAL_EARNINGS_SPEC",
+    "PROPOSAL_LEGS_SPEC",
+    "PROPOSAL_SUMMARY_SPEC",
     "PROPOSALS_SPEC",
     "REJECTIONS_SPEC",
 ]
