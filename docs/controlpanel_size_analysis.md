@@ -2,7 +2,6 @@
 
 ## Nieuwe module-indeling
 - `tomic/cli/controlpanel/__init__.py`: bouwt de root-`Menu` via declaratieve `MenuSection`-configuratie, beheert de gedeelde `ControlPanelContext`, exporteert wrappers voor bestaande CLI-handlers en houdt `SESSION_STATE` synchroon met de actieve `ControlPanelSession`.
-- `tomic/cli/controlpanel/__main__.py`: dunne runner die `python -m tomic.cli.controlpanel` (of het `tomic`-CLI-subcommando) naar `main()` dispatcht zodat de historisch gebruikte startwijze behouden blijft.
 - `tomic/cli/controlpanel/portfolio.py`: bevat de volledige set handlers voor portfolio-, export- en riskomenu's, inclusief `_process_chain_with_context`, `_show_proposal_details` en alle IO/logica rond strategie-evaluaties.【F:tomic/cli/controlpanel/portfolio.py†L379-L700】
 - `tomic/cli/controlpanel/menu_config.py`: definieert de declaratieve `MenuItem`- en `MenuSection`-dataclasses plus een helper om submenus op basis van secties te bouwen.【F:tomic/cli/controlpanel/menu_config.py†L1-L44】
 
