@@ -87,7 +87,6 @@ from tomic.strike_selector import StrikeSelector, filter_by_expiry
 from tomic.loader import load_strike_config
 from tomic.utils import get_option_mid_price, latest_atr, load_price_history, normalize_leg
 from tomic.metrics import calculate_edge, calculate_ev, calculate_pos, calculate_rom
-from tomic.helpers.csv_utils import normalize_european_number_format
 from tomic.services.chain_processing import (
     ChainEvaluationConfig,
     ChainPreparationConfig,
@@ -111,14 +110,16 @@ from tomic.services.order_submission import (
 )
 from tomic.scripts.backfill_hv import run_backfill_hv
 from tomic.cli.iv_backfill_flow import run_iv_backfill_flow
-from tomic.services.market_snapshot_service import (
-    MarketSnapshotError,
-    MarketSnapshotService,
-    ScanRequest,
-)
+from tomic.services.market_snapshot_service import MarketSnapshotService
 from tomic.services.portfolio_service import (
     CandidateRankingError,
     PortfolioService,
+)
+from tomic.services.market_scan_service import (
+    MarketScanError,
+    MarketScanRequest,
+    MarketScanService,
+    select_chain_source,
 )
 from tomic.strategy.reasons import ReasonCategory, ReasonDetail
 from tomic.strategy_candidates import generate_strategy_candidates
@@ -1980,142 +1981,65 @@ def run_portfolio_menu() -> None:
 
             pipeline = _get_strategy_pipeline()
             config_data = cfg.get("STRATEGY_CONFIG") or {}
-            requests: list[ScanRequest] = []
+            interest_rate = float(cfg.get("INTEREST_RATE", 0.05))
+            prep_config = ChainPreparationConfig.from_app_config()
 
-            def _find_existing_chain(directory: Path, symbol: str) -> Path | None:
-                upper = symbol.upper()
-                patterns = [
-                    f"{upper}_*-optionchainpolygon.csv",
-                    f"option_chain_{upper}_*.csv",
-                    f"{upper}_*-optionchain.csv",
-                ]
-                matches: list[Path] = []
-                for pattern in patterns:
-                    try:
-                        matches.extend(directory.rglob(pattern))
-                    except Exception as exc:
-                        print(f"⚠️ Kon niet zoeken in {directory}: {exc}")
-                        return None
-                if not matches:
-                    return None
-                return max(matches, key=lambda p: p.stat().st_mtime)
-
+            scan_requests: list[MarketScanRequest] = []
             for symbol, symbol_recs in grouped.items():
-                if existing_chain_dir:
-                    chain_path = _find_existing_chain(existing_chain_dir, symbol)
-                    if not chain_path:
-                        print(
-                            f"ℹ️ Geen bestaande optionchain gevonden voor {symbol} in {existing_chain_dir}"
-                        )
-                        continue
-                else:
-                    chain_path = services.fetch_polygon_chain(symbol)
-                    if not chain_path:
-                        print(f"⚠️ Geen polygon chain gevonden voor {symbol}")
-                        continue
-                if existing_chain_dir:
-                    print(f"📄 Gebruik bestaande chain voor {symbol}: {chain_path.name}")
-                try:
-                    df = pd.read_csv(chain_path)
-                except Exception as exc:
-                    print(f"⚠️ Kon chain voor {symbol} niet laden: {exc}")
-                    continue
-                df.columns = [c.lower() for c in df.columns]
-                df = normalize_european_number_format(
-                    df,
-                    [
-                        "bid",
-                        "ask",
-                        "close",
-                        "iv",
-                        "delta",
-                        "gamma",
-                        "vega",
-                        "theta",
-                        "mid",
-                    ],
-                )
-                if "expiry" not in df.columns and "expiration" in df.columns:
-                    df = df.rename(columns={"expiration": "expiry"})
-                elif "expiry" in df.columns and "expiration" in df.columns:
-                    df = df.drop(columns=["expiration"])
-                if "expiry" in df.columns:
-                    df["expiry"] = pd.to_datetime(df["expiry"], errors="coerce").dt.strftime(
-                        "%Y-%m-%d"
-                    )
-                chain_records = [
-                    normalize_leg(rec) for rec in df.to_dict(orient="records")
-                ]
-                if not chain_records:
-                    print(f"⚠️ Geen optiedata beschikbaar voor {symbol}")
-                    continue
-
-                spot_price = refresh_spot_price(symbol)
-                if spot_price is None or spot_price <= 0:
-                    spot_price = _load_spot_from_metrics(chain_path.parent, symbol)
-                if spot_price is None or spot_price <= 0:
-                    spot_price, _ = _load_latest_close(symbol)
-                if spot_price is None or spot_price <= 0:
-                    spot_price = _spot_from_chain(chain_records)
-                if spot_price is None or spot_price <= 0:
-                    print(f"⚠️ Geen geldige spotprijs voor {symbol}")
-                    continue
-
-                atr_val = latest_atr(symbol) or 0.0
-
                 for rec in symbol_recs:
                     raw_strategy = str(rec.get("strategy") or "")
                     strategy = raw_strategy.lower().replace(" ", "_")
                     if not strategy:
                         continue
-                    rules = load_strike_config(strategy, config_data) if config_data else {}
-                    dte_range = rules.get("dte_range") or [0, 365]
-                    try:
-                        dte_tuple = (int(dte_range[0]), int(dte_range[1]))
-                    except Exception:
-                        dte_tuple = (0, 365)
-                    filtered = filter_by_expiry(list(chain_records), dte_tuple)
-                    if not filtered:
-                        continue
                     earnings_value = rec.get("next_earnings")
-                    earnings_date = None
+                    earnings_date: date | None = None
                     if isinstance(earnings_value, date):
                         earnings_date = earnings_value
                     elif isinstance(earnings_value, str):
                         earnings_date = parse_date(earnings_value)
-                    requests.append(
-                        ScanRequest(
+                    scan_requests.append(
+                        MarketScanRequest(
                             symbol=symbol,
                             strategy=strategy,
-                            option_chain=list(filtered),
-                            spot_price=float(spot_price),
-                            atr=float(atr_val),
-                            config=config_data or {},
-                            interest_rate=float(cfg.get("INTEREST_RATE", 0.05)),
-                            dte_range=dte_tuple,
-                            interactive_mode=False,
+                            metrics=dict(rec),
                             next_earnings=earnings_date,
-                            metrics=rec,
                         )
                     )
 
-            if not requests:
+            if not scan_requests:
                 print("⚠️ Geen voorstellen gevonden tijdens scan.")
                 return
 
-            try:
-                scan_rows = MARKET_SNAPSHOT_SERVICE.scan_symbols(
-                    requests, {"pipeline": pipeline}
+            scan_service = MarketScanService(
+                pipeline,
+                PORTFOLIO_SERVICE,
+                interest_rate=interest_rate,
+                strategy_config=config_data,
+                chain_config=prep_config,
+                refresh_spot_price=refresh_spot_price,
+                load_spot_from_metrics=_load_spot_from_metrics,
+                load_latest_close=_load_latest_close,
+                spot_from_chain=_spot_from_chain,
+                atr_loader=latest_atr,
+            )
+
+            def _chain_source(symbol: str) -> Path | None:
+                return select_chain_source(
+                    symbol,
+                    existing_dir=existing_chain_dir,
+                    fetch_chain=services.fetch_polygon_chain,
                 )
-            except MarketSnapshotError as exc:
+
+            try:
+                candidates = scan_service.run_market_scan(
+                    scan_requests,
+                    chain_source=_chain_source,
+                    top_n=top_n,
+                )
+            except MarketScanError as exc:
                 logger.exception("Market scan pipeline failed")
                 print(f"❌ Markt scan mislukt: {exc}")
                 return
-
-            try:
-                candidates = PORTFOLIO_SERVICE.rank_candidates(
-                    scan_rows, {"top_n": top_n}
-                )
             except CandidateRankingError as exc:
                 logger.exception("Candidate ranking failed")
                 print(f"❌ Rangschikking van voorstellen mislukt: {exc}")

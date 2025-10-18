@@ -233,165 +233,51 @@ def test_market_info_polygon_scan(monkeypatch, tmp_path):
         lambda rows: ([rec], table_rows, {"earnings_filtered": {}}),
     )
 
-    date_dir = tmp_path / datetime.now().strftime("%Y%m%d")
-    date_dir.mkdir()
-    csv_path = date_dir / "AAA_scan-optionchainpolygon.csv"
-    csv_path.write_text(
-        "expiry,strike,type,bid,ask,mid,delta,theta,vega\n"
-        "2030-01-19,100,put,1.0,1.2,1.1,-0.30,-0.01,0.02\n"
-        "2030-01-19,95,put,0.5,0.6,0.55,-0.15,-0.01,0.01\n"
-    )
-
-    csv_rows = [
-        {
-            "expiry": "2030-01-19",
-            "strike": 100,
-            "type": "put",
-            "bid": 1.0,
-            "ask": 1.2,
-            "mid": 1.1,
-            "delta": -0.30,
-            "theta": -0.01,
-            "vega": 0.02,
-        },
-        {
-            "expiry": "2030-01-19",
-            "strike": 95,
-            "type": "put",
-            "bid": 0.5,
-            "ask": 0.6,
-            "mid": 0.55,
-            "delta": -0.15,
-            "theta": -0.01,
-            "vega": 0.01,
-        },
-    ]
-
-    class SimpleDF:
-        def __init__(self, rows):
-            self._data = {key: [row[key] for row in rows] for key in rows[0]}
-
-        @property
-        def columns(self):
-            return list(self._data.keys())
-
-        @columns.setter
-        def columns(self, new_cols):
-            old_cols = list(self._data.keys())
-            self._data = {new: self._data[old] for old, new in zip(old_cols, new_cols)}
-
-        def __getitem__(self, key):
-            return self._data[key]
-
-        def __setitem__(self, key, value):
-            length = len(next(iter(self._data.values()), []))
-            if isinstance(value, list):
-                self._data[key] = value
-            else:
-                self._data[key] = [value] * length
-
-        def rename(self, *, columns):
-            rows = []
-            length = len(next(iter(self._data.values()), []))
-            for idx in range(length):
-                row = {}
-                for col, vals in self._data.items():
-                    new_col = columns.get(col, col)
-                    row[new_col] = vals[idx]
-                rows.append(row)
-            return SimpleDF(rows)
-
-        def drop(self, *, columns):
-            rows = []
-            length = len(next(iter(self._data.values()), []))
-            for idx in range(length):
-                row = {
-                    col: vals[idx]
-                    for col, vals in self._data.items()
-                    if col not in columns
-                }
-                rows.append(row)
-            return SimpleDF(rows)
-
-        def to_dict(self, orient="records"):
-            if orient != "records":
-                raise NotImplementedError
-            length = len(next(iter(self._data.values()), []))
-            rows = []
-            for idx in range(length):
-                rows.append({col: vals[idx] for col, vals in self._data.items()})
-            return rows
-
-    class DummyPD:
-        def read_csv(self, path):
-            return SimpleDF(csv_rows)
-
-        def to_datetime(self, values, errors=None):
-            class _DT:
-                def __init__(self, vals):
-                    self._vals = vals
-
-                def strftime(self, fmt):
-                    return values
-
-            return types.SimpleNamespace(dt=_DT(values))
-
-    monkeypatch.setattr(mod, "pd", DummyPD())
-    monkeypatch.setattr(mod, "normalize_european_number_format", lambda df, cols: df)
-
     prints: list[str] = []
     fetch_calls: list[str] = []
 
     def fake_fetch(symbol):
         fetch_calls.append(symbol)
-        prints.append(f"FETCH {symbol}")
-        return csv_path
+        return tmp_path / "AAA_scan-optionchainpolygon.csv"
 
     monkeypatch.setattr(mod.services, "fetch_polygon_chain", fake_fetch)
 
-    class DummyPipeline:
-        def build_proposals(self, context):
-            prop = mod.StrategyProposal(
-                strategy=context.strategy,
-                legs=[
-                    {
-                        "expiry": "2024-01-19",
-                        "strike": 100,
-                        "type": "put",
-                        "position": -1,
-                        "bid": 1.0,
-                        "ask": 1.2,
-                        "mid": 1.1,
-                    },
-                    {
-                        "expiry": "2024-01-19",
-                        "strike": 95,
-                        "type": "put",
-                        "position": 1,
-                        "bid": 0.5,
-                        "ask": 0.6,
-                        "mid": 0.55,
-                        "mid_fallback": "close",
-                    },
-                ],
+    captured: dict[str, object] = {}
+
+    class DummyScanService:
+        def __init__(self, pipeline, portfolio_service, **kwargs):
+            captured["init"] = kwargs
+
+        def run_market_scan(self, requests, *, chain_source, top_n):
+            captured["requests"] = list(requests)
+            captured["top_n"] = top_n
+            captured["paths"] = [chain_source(req.symbol) for req in requests]
+            proposal = types.SimpleNamespace(
                 score=12.34,
                 ev=45.67,
-                margin=500.0,
-                max_profit=200.0,
-                max_loss=-150.0,
-                rom=0.4,
-                fallback="close",
+                legs=[{"expiry": "2024-01-19", "strike": 100, "type": "put"}],
             )
-            return [prop], mod.RejectionSummary()
+            return [
+                types.SimpleNamespace(
+                    symbol="AAA",
+                    strategy="short_put_spread",
+                    proposal=proposal,
+                    score=12.34,
+                    ev=45.67,
+                    risk_reward=1.5,
+                    dte_summary="30",
+                    iv_rank=0.6,
+                    iv_percentile=0.55,
+                    skew=3.4,
+                    bid_ask_pct=0.02,
+                    mid_sources=("close",),
+                    next_earnings=date(2030, 1, 1),
+                    metrics={"iv_rank": 0.6, "iv_percentile": 0.55, "skew": 3.4},
+                    spot=100.0,
+                )
+            ]
 
-    monkeypatch.setattr(mod, "_get_strategy_pipeline", lambda: DummyPipeline())
-    monkeypatch.setattr(mod, "latest_atr", lambda symbol: 0.0)
-    monkeypatch.setattr(mod, "load_strike_config", lambda strategy, cfg: {"dte_range": [0, 365]})
-    monkeypatch.setattr(mod, "refresh_spot_price", lambda symbol: 100.0)
-    monkeypatch.setattr(mod, "_load_spot_from_metrics", lambda directory, symbol: None)
-    monkeypatch.setattr(mod, "_load_latest_close", lambda symbol: (None, None))
-    monkeypatch.setattr(mod, "normalize_leg", lambda rec: rec)
-    monkeypatch.setattr(mod, "filter_by_expiry", lambda data, rng: list(data))
+    monkeypatch.setattr(mod, "MarketScanService", DummyScanService)
 
     def _menu_run(self):
         for desc, handler in self.items:
@@ -403,12 +289,14 @@ def test_market_info_polygon_scan(monkeypatch, tmp_path):
 
     monkeypatch.setattr(builtins, "print", lambda *a, **k: prints.append(" ".join(str(x) for x in a)))
 
-    inputs = iter(["999", "", "0", "0"])
+    inputs = iter(["999", "", "", "0"])
     monkeypatch.setattr(builtins, "input", lambda *a: next(inputs))
 
     mod.run_portfolio_menu()
 
     assert fetch_calls == ["AAA"], prints
+    assert captured["top_n"] == 2
+    assert captured["paths"] == [tmp_path / "AAA_scan-optionchainpolygon.csv"]
     assert any("Bid/Ask%" in line for line in prints), prints
     assert any("12.34" in line for line in prints), prints
     assert any("close" in line for line in prints), prints
@@ -505,159 +393,53 @@ def test_market_info_polygon_scan_existing_dir(monkeypatch, tmp_path):
     existing_dir = tmp_path / "chains"
     existing_dir.mkdir()
     csv_path = existing_dir / "AAA_existing-optionchainpolygon.csv"
-    csv_path.write_text(
-        "expiry,strike,type,bid,ask,mid,delta,theta,vega\n"
-        "2030-01-19,100,put,1.0,1.2,1.1,-0.30,-0.01,0.02\n"
-        "2030-01-19,95,put,0.5,0.6,0.55,-0.15,-0.01,0.01\n"
-    )
-
-    csv_rows = [
-        {
-            "expiry": "2030-01-19",
-            "strike": 100,
-            "type": "put",
-            "bid": 1.0,
-            "ask": 1.2,
-            "mid": 1.1,
-            "delta": -0.30,
-            "theta": -0.01,
-            "vega": 0.02,
-        },
-        {
-            "expiry": "2030-01-19",
-            "strike": 95,
-            "type": "put",
-            "bid": 0.5,
-            "ask": 0.6,
-            "mid": 0.55,
-            "delta": -0.15,
-            "theta": -0.01,
-            "vega": 0.01,
-        },
-    ]
-
-    class SimpleDF:
-        def __init__(self, rows):
-            self._data = {key: [row[key] for row in rows] for key in rows[0]}
-
-        @property
-        def columns(self):
-            return list(self._data.keys())
-
-        @columns.setter
-        def columns(self, new_cols):
-            old_cols = list(self._data.keys())
-            self._data = {new: self._data[old] for old, new in zip(old_cols, new_cols)}
-
-        def __getitem__(self, key):
-            return self._data[key]
-
-        def __setitem__(self, key, value):
-            length = len(next(iter(self._data.values()), []))
-            if isinstance(value, list):
-                self._data[key] = value
-            else:
-                self._data[key] = [value] * length
-
-        def rename(self, *, columns):
-            rows = []
-            length = len(next(iter(self._data.values()), []))
-            for idx in range(length):
-                row = {}
-                for col, vals in self._data.items():
-                    new_col = columns.get(col, col)
-                    row[new_col] = vals[idx]
-                rows.append(row)
-            return SimpleDF(rows)
-
-        def drop(self, *, columns):
-            rows = []
-            length = len(next(iter(self._data.values()), []))
-            for idx in range(length):
-                row = {
-                    col: vals[idx]
-                    for col, vals in self._data.items()
-                    if col not in columns
-                }
-                rows.append(row)
-            return SimpleDF(rows)
-
-        def to_dict(self, orient="records"):
-            if orient != "records":
-                raise NotImplementedError
-            length = len(next(iter(self._data.values()), []))
-            rows = []
-            for idx in range(length):
-                rows.append({col: vals[idx] for col, vals in self._data.items()})
-            return rows
-
-    class DummyPD:
-        def read_csv(self, path):
-            return SimpleDF(csv_rows)
-
-        def to_datetime(self, values, errors=None):
-            class _DT:
-                def __init__(self, vals):
-                    self._vals = vals
-
-                def strftime(self, fmt):
-                    return values
-
-            return types.SimpleNamespace(dt=_DT(values))
-
-    monkeypatch.setattr(mod, "pd", DummyPD())
-    monkeypatch.setattr(mod, "normalize_european_number_format", lambda df, cols: df)
+    csv_path.write_text("dummy")
 
     prints: list[str] = []
+    fetch_calls: list[str] = []
 
     def fake_fetch(symbol):
-        raise AssertionError("fetch_polygon_chain should not be called")
+        fetch_calls.append(symbol)
+        raise AssertionError("fetch should not be called when using existing dir")
 
     monkeypatch.setattr(mod.services, "fetch_polygon_chain", fake_fetch)
 
-    class DummyPipeline:
-        def build_proposals(self, context):
-            prop = mod.StrategyProposal(
-                strategy=context.strategy,
-                legs=[
-                    {
-                        "expiry": "2024-01-19",
-                        "strike": 100,
-                        "type": "put",
-                        "position": -1,
-                        "bid": 1.0,
-                        "ask": 1.2,
-                        "mid": 1.1,
-                    },
-                    {
-                        "expiry": "2024-01-19",
-                        "strike": 95,
-                        "type": "put",
-                        "position": 1,
-                        "bid": 0.5,
-                        "ask": 0.6,
-                        "mid": 0.55,
-                        "mid_fallback": "close",
-                    },
-                ],
+    captured: dict[str, object] = {}
+
+    class DummyScanService:
+        def __init__(self, pipeline, portfolio_service, **kwargs):
+            captured["init"] = kwargs
+
+        def run_market_scan(self, requests, *, chain_source, top_n):
+            captured["requests"] = list(requests)
+            captured["top_n"] = top_n
+            captured["paths"] = [chain_source(req.symbol) for req in requests]
+            proposal = types.SimpleNamespace(
                 score=12.34,
                 ev=45.67,
-                margin=500.0,
-                max_profit=200.0,
-                max_loss=-150.0,
-                rom=0.4,
-                fallback="close",
+                legs=[{"expiry": "2024-01-19", "strike": 100, "type": "put"}],
             )
-            return [prop], mod.RejectionSummary()
+            return [
+                types.SimpleNamespace(
+                    symbol="AAA",
+                    strategy="short_put_spread",
+                    proposal=proposal,
+                    score=12.34,
+                    ev=45.67,
+                    risk_reward=1.5,
+                    dte_summary="30",
+                    iv_rank=0.6,
+                    iv_percentile=0.55,
+                    skew=3.4,
+                    bid_ask_pct=0.02,
+                    mid_sources=("close",),
+                    next_earnings=date(2030, 1, 1),
+                    metrics={"iv_rank": 0.6, "iv_percentile": 0.55, "skew": 3.4},
+                    spot=100.0,
+                )
+            ]
 
-    monkeypatch.setattr(mod, "_get_strategy_pipeline", lambda: DummyPipeline())
-    monkeypatch.setattr(mod, "latest_atr", lambda symbol: 0.0)
-    monkeypatch.setattr(mod, "load_strike_config", lambda strategy, cfg: {"dte_range": [0, 365]})
-    monkeypatch.setattr(mod, "refresh_spot_price", lambda symbol: 100.0)
-    monkeypatch.setattr(mod, "_load_spot_from_metrics", lambda directory, symbol: None)
-    monkeypatch.setattr(mod, "_load_latest_close", lambda symbol: (None, None))
-    monkeypatch.setattr(mod, "normalize_leg", lambda rec: rec)
-    monkeypatch.setattr(mod, "filter_by_expiry", lambda data, rng: list(data))
+    monkeypatch.setattr(mod, "MarketScanService", DummyScanService)
 
     def _menu_run(self):
         for desc, handler in self.items:
@@ -668,15 +450,16 @@ def test_market_info_polygon_scan_existing_dir(monkeypatch, tmp_path):
     monkeypatch.setattr(mod.Menu, "run", _menu_run)
 
     monkeypatch.setattr(builtins, "print", lambda *a, **k: prints.append(" ".join(str(x) for x in a)))
-
-    inputs = iter(["999", str(existing_dir), "0", "0"])
+    inputs = iter(["999", str(existing_dir), "", "0"])
     monkeypatch.setattr(builtins, "input", lambda *a: next(inputs))
 
     mod.run_portfolio_menu()
 
-    assert any("Gebruik bestaande optionchains" in line for line in prints), prints
-    assert any("Gebruik bestaande chain voor AAA" in line for line in prints), prints
-
+    assert fetch_calls == []
+    assert captured["paths"] == [csv_path]
+    assert any("Bid/Ask%" in line for line in prints), prints
+    assert any("12.34" in line for line in prints), prints
+    assert any("close" in line for line in prints), prints
 
 def test_market_info_reports_earnings_filter(monkeypatch):
     mod = importlib.import_module("tomic.cli.controlpanel")
