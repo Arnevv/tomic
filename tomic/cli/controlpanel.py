@@ -75,6 +75,15 @@ from tomic.exports import (
     load_spot_from_metrics,
     spot_from_chain,
 )
+
+# Backwards compatibility for existing monkeypatches and callers that rely on the
+# previously-local helper names. These aliases preserve the prior import surface
+# exposed by ``tomic.cli.controlpanel`` while the helpers now live in
+# ``tomic.exports``.
+_export_proposal_csv = export_proposal_csv
+_export_proposal_json = export_proposal_json
+_load_spot_from_metrics = load_spot_from_metrics
+_spot_from_chain = spot_from_chain
 from tomic.helpers.price_utils import _load_latest_close
 from tomic.utils import get_option_mid_price, latest_atr, normalize_leg
 from tomic.metrics import calculate_edge, calculate_ev, calculate_pos, calculate_rom
