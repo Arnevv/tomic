@@ -72,7 +72,8 @@ from tomic.utils import today
 from tomic.analysis.volatility_fetcher import fetch_volatility_metrics
 from tomic.analysis.market_overview import build_market_overview
 from tomic.api.market_export import load_exported_chain
-from tomic.cli import services
+from tomic.cli.app_services import ControlPanelServices, create_controlpanel_services
+from tomic.cli.controlpanel_session import ControlPanelSession
 from tomic.export import (
     RunMetadata,
     build_export_path,
@@ -97,12 +98,7 @@ from tomic.services.chain_processing import (
 )
 import pandas as pd
 from tomic.formatting import PROPOSALS_SPEC, proposals_table, sort_records
-from tomic.services.strategy_pipeline import (
-    StrategyPipeline,
-    StrategyContext,
-    StrategyProposal,
-    RejectionSummary,
-)
+from tomic.services.strategy_pipeline import StrategyProposal, RejectionSummary
 from tomic.services.ib_marketdata import fetch_quote_snapshot, SnapshotResult
 from tomic.services.order_submission import (
     OrderSubmissionService,
@@ -110,11 +106,7 @@ from tomic.services.order_submission import (
 )
 from tomic.scripts.backfill_hv import run_backfill_hv
 from tomic.cli.iv_backfill_flow import run_iv_backfill_flow
-from tomic.services.market_snapshot_service import MarketSnapshotService
-from tomic.services.portfolio_service import (
-    CandidateRankingError,
-    PortfolioService,
-)
+from tomic.services.portfolio_service import CandidateRankingError
 from tomic.services.market_scan_service import (
     MarketScanError,
     MarketScanRequest,
@@ -169,32 +161,20 @@ ACCOUNT_INFO_FILE = Path(cfg.get("ACCOUNT_INFO_FILE", "account_info.json"))
 META_FILE = Path(cfg.get("PORTFOLIO_META_FILE", "portfolio_meta.json"))
 STRATEGY_DASHBOARD_MODULE = "tomic.cli.strategy_dashboard"
 
-# Runtime session data shared between menu steps
-SESSION_STATE: dict[str, object] = {
-    "evaluated_trades": [],
-    "iv": None,
-    "hv20": None,
-    "hv30": None,
-    "hv90": None,
-    "hv252": None,
-    "term_m1_m2": None,
-    "term_m1_m3": None,
-    "criteria": None,
-    "combo_evaluations": [],
-    "combo_evaluation_summary": None,
-}
-
-MARKET_SNAPSHOT_SERVICE = MarketSnapshotService(cfg)
-PORTFOLIO_SERVICE = PortfolioService()
-
-
-def _build_run_metadata(*, symbol: str | None = None, strategy: str | None = None) -> RunMetadata:
+def _build_run_metadata(
+    session: ControlPanelSession,
+    *,
+    symbol: str | None = None,
+    strategy: str | None = None,
+) -> RunMetadata:
     """Return consistent metadata for the current CLI session."""
 
-    run_id = str(SESSION_STATE.setdefault("run_id", uuid.uuid4().hex[:12]))
+    if not session.run_id:
+        session.run_id = uuid.uuid4().hex[:12]
+    run_id = str(session.run_id)
 
-    config_hash = SESSION_STATE.get("config_hash")
-    if not isinstance(config_hash, str):
+    config_hash = session.config_hash
+    if not isinstance(config_hash, str) or not config_hash:
         try:
             cfg_model = runtime_config.load()
             cfg_dump = cfg_model.model_dump(by_alias=True)
@@ -203,7 +183,7 @@ def _build_run_metadata(*, symbol: str | None = None, strategy: str | None = Non
             ).hexdigest()[:12]
         except Exception:
             config_hash = "unknown"
-        SESSION_STATE["config_hash"] = config_hash
+        session.config_hash = config_hash
 
     schema_version = cfg.get("EXPORT_SCHEMA_VERSION")
     schema_version_str = str(schema_version) if schema_version else None
@@ -279,17 +259,26 @@ def _print_evaluation_overview(symbol: str, spot: float | None, summary: Evaluat
     print(f"Top reason for reject: {format_reject_reasons(summary)}")
 
 
-def _generate_with_capture(*args: Any, **kwargs: Any):
-    SESSION_STATE["combo_evaluations"] = []
-    SESSION_STATE["combo_evaluation_summary"] = None
+def _generate_with_capture(
+    session: ControlPanelSession, *args: Any, **kwargs: Any
+):
+    session.clear_combo_results()
     with capture_combo_evaluations() as captured:
         try:
             result = generate_strategy_candidates(*args, **kwargs)
         finally:
             summary = summarize_evaluations(captured)
-            SESSION_STATE["combo_evaluations"] = list(captured)
-            SESSION_STATE["combo_evaluation_summary"] = summary
+            session.set_combo_results(captured, summary)
     return result
+
+
+def _create_services(session: ControlPanelSession) -> ControlPanelServices:
+    return create_controlpanel_services(
+        strike_selector_factory=_strike_selector_factory,
+        strategy_generator=lambda *args, **kwargs: _generate_with_capture(
+            session, *args, **kwargs
+        ),
+    )
 
 def _format_leg_position(raw: Any) -> str:
     num = to_float(raw)
@@ -299,7 +288,7 @@ def _format_leg_position(raw: Any) -> str:
 
 
 
-def _show_rejection_detail(entry: Mapping[str, Any]) -> None:
+def _show_rejection_detail(session: ControlPanelSession, entry: Mapping[str, Any]) -> None:
     strategy = entry.get("strategy") or "—"
     status = entry.get("status") or "—"
     anchor = entry.get("description") or "—"
@@ -408,9 +397,11 @@ def _show_rejection_detail(entry: Mapping[str, Any]) -> None:
         if selection in {"", "0"}:
             break
         if selection == "1":
-            _display_rejection_proposal(proposal, symbol_hint)
+            _display_rejection_proposal(session, proposal, symbol_hint)
         else:
             print("❌ Ongeldige keuze")
+
+
 def _entry_symbol(entry: Mapping[str, Any]) -> str | None:
     symbol = entry.get("symbol") if isinstance(entry, Mapping) else None
     if isinstance(symbol, str) and symbol.strip():
@@ -424,7 +415,9 @@ def _entry_symbol(entry: Mapping[str, Any]) -> str | None:
     return None
 
 
-def _refresh_reject_entries(entries: Sequence[Mapping[str, Any]]) -> None:
+def _refresh_reject_entries(
+    session: ControlPanelSession, entries: Sequence[Mapping[str, Any]]
+) -> None:
     prepared_entries: list[dict[str, Any]] = []
     proposal_cache: dict[int, StrategyProposal | None] = {}
     original_map: dict[int, Mapping[str, Any]] = {}
@@ -448,7 +441,7 @@ def _refresh_reject_entries(entries: Sequence[Mapping[str, Any]]) -> None:
         return
 
     criteria_cfg = load_criteria()
-    spot_price = to_float(SESSION_STATE.get("spot_price"))
+    spot_price = to_float(session.spot_price)
     try:
         timeout = float(cfg.get("MARKET_DATA_TIMEOUT", 15))
     except Exception:
@@ -483,7 +476,7 @@ def _refresh_reject_entries(entries: Sequence[Mapping[str, Any]]) -> None:
         proposal_builder=_cached_builder,
     )
 
-    run_id = SESSION_STATE.get("run_id")
+    run_id = session.run_id
     trace_id = str(run_id) if isinstance(run_id, str) else None
     context = RefreshContext(trace_id=trace_id)
 
@@ -495,7 +488,7 @@ def _refresh_reject_entries(entries: Sequence[Mapping[str, Any]]) -> None:
     accepted_count = len(result.accepted)
     failures = sum(1 for item in result.rejections if item.error is not None)
 
-    fallback_symbol = str(SESSION_STATE.get("symbol") or "—")
+    fallback_symbol = str(session.symbol or "—")
 
     for item in result.accepted:
         target = original_map.get(item.source.index)
@@ -623,38 +616,42 @@ def _refresh_reject_entries(entries: Sequence[Mapping[str, Any]]) -> None:
             or (refreshed.legs[0].get("symbol") if refreshed.legs else None)
         )
         print()
-        _display_rejection_proposal(refreshed, symbol_hint if isinstance(symbol_hint, str) else None)
+        _display_rejection_proposal(
+            session,
+            refreshed,
+            symbol_hint if isinstance(symbol_hint, str) else None,
+        )
         print()
 
 
-def _display_rejection_proposal(proposal: StrategyProposal, symbol_hint: str | None) -> None:
-    previous_symbol = SESSION_STATE.get("symbol")
-    previous_strategy = SESSION_STATE.get("strategy")
+def _display_rejection_proposal(
+    session: ControlPanelSession,
+    proposal: StrategyProposal,
+    symbol_hint: str | None,
+) -> None:
+    previous_symbol = session.symbol
+    previous_strategy = session.strategy
     try:
         if symbol_hint:
-            SESSION_STATE["symbol"] = symbol_hint
-        SESSION_STATE["strategy"] = proposal.strategy
-        _show_proposal_details(proposal)
+            session.symbol = symbol_hint
+        session.strategy = proposal.strategy
+        _show_proposal_details(session, proposal)
     finally:
-        if previous_symbol is None:
-            SESSION_STATE.pop("symbol", None)
-        else:
-            SESSION_STATE["symbol"] = previous_symbol
-        if previous_strategy is None:
-            SESSION_STATE.pop("strategy", None)
-        else:
-            SESSION_STATE["strategy"] = previous_strategy
+        session.symbol = previous_symbol
+        session.strategy = previous_strategy
 
 
-def _show_proposal_details(proposal: StrategyProposal) -> None:
+def _show_proposal_details(
+    session: ControlPanelSession, proposal: StrategyProposal
+) -> None:
     criteria_cfg = load_criteria()
     symbol = (
-        str(SESSION_STATE.get("symbol") or proposal.legs[0].get("symbol", ""))
+        str(session.symbol or proposal.legs[0].get("symbol", ""))
         if proposal.legs
-        else str(SESSION_STATE.get("symbol") or "")
+        else str(session.symbol or "")
     )
     symbol = symbol or None
-    spot_price = SESSION_STATE.get("spot_price")
+    spot_price = session.spot_price
     fetch_only_mode = bool(cfg.get("IB_FETCH_ONLY", False))
     refresh_result: SnapshotResult | None = None
     should_fetch = fetch_only_mode or prompt_yes_no("Haal orderinformatie van IB op?", True)
@@ -684,8 +681,8 @@ def _show_proposal_details(proposal: StrategyProposal) -> None:
 
     earnings_ctx = {
         "symbol": symbol,
-        "next_earnings": SESSION_STATE.get("next_earnings"),
-        "days_until_earnings": SESSION_STATE.get("days_until_earnings"),
+        "next_earnings": session.next_earnings,
+        "days_until_earnings": session.days_until_earnings,
     }
     vm = build_proposal_viewmodel(candidate, earnings_ctx)
 
@@ -721,28 +718,28 @@ def _show_proposal_details(proposal: StrategyProposal) -> None:
             return
 
     if prompt_yes_no("Voorstel opslaan naar CSV?", False):
-        _export_proposal_csv(proposal)
+        _export_proposal_csv(session, proposal)
     if prompt_yes_no("Voorstel opslaan naar JSON?", False):
-        _export_proposal_json(proposal)
+        _export_proposal_json(session, proposal)
 
     can_send_order = not acceptance_failed and not fetch_only_mode
     if can_send_order and prompt_yes_no("Order naar IB sturen?", False):
-        _submit_ib_order(proposal, symbol=symbol)
+        _submit_ib_order(session, proposal, symbol=symbol)
     elif fetch_only_mode:
         print("ℹ️ fetch_only modus actief – orders worden niet verstuurd.")
 
     proposal_strategy = getattr(proposal, "strategy", None)
-    strategy_label = (
-        str(SESSION_STATE.get("strategy") or proposal_strategy or "") or None
-    )
+    strategy_label = str(session.strategy or proposal_strategy or "") or None
     journal_lines = render_journal_entries(
         {"proposal": proposal, "symbol": symbol, "strategy": strategy_label}
     )
     print("\nJournal entry voorstel:\n" + "\n".join(journal_lines))
 
 
-def _submit_ib_order(proposal: StrategyProposal, *, symbol: str | None = None) -> None:
-    ticker = symbol or str(SESSION_STATE.get("symbol") or "")
+def _submit_ib_order(
+    session: ControlPanelSession, proposal: StrategyProposal, *, symbol: str | None = None
+) -> None:
+    ticker = symbol or str(session.symbol or "")
     if not ticker:
         print("❌ Geen symbool beschikbaar voor orderplaatsing.")
         return
@@ -799,9 +796,9 @@ def _submit_ib_order(proposal: StrategyProposal, *, symbol: str | None = None) -
     print(f"✅ {len(order_ids)} order(s) als concept verstuurd naar IB (client {client_id}).")
 
 
-def _save_trades(trades: list[dict[str, object]]) -> None:
-    symbol = str(SESSION_STATE.get("symbol", "SYMB"))
-    strat = str(SESSION_STATE.get("strategy", "strategy")).replace(" ", "_")
+def _save_trades(session: ControlPanelSession, trades: list[dict[str, object]]) -> None:
+    symbol = str(session.symbol or "SYMB")
+    strat = str(session.strategy or "strategy").replace(" ", "_")
     expiry = str(trades[0].get("expiry", "")) if trades else ""
     base = Path(cfg.get("EXPORT_DIR", "exports")) / datetime.now().strftime("%Y%m%d")
     base.mkdir(parents=True, exist_ok=True)
@@ -827,11 +824,13 @@ def _save_trades(trades: list[dict[str, object]]) -> None:
     print(f"✅ Trades opgeslagen in: {path.resolve()}")
 
 
-def _export_proposal_csv(proposal: StrategyProposal) -> Path:
-    symbol = str(SESSION_STATE.get("symbol") or "").strip() or None
-    strategy_name = str(SESSION_STATE.get("strategy") or proposal.strategy or "").strip() or None
+def _export_proposal_csv(
+    session: ControlPanelSession, proposal: StrategyProposal
+) -> Path:
+    symbol = str(session.symbol or "").strip() or None
+    strategy_name = str(session.strategy or proposal.strategy or "").strip() or None
 
-    run_meta = _build_run_metadata(symbol=symbol, strategy=strategy_name)
+    run_meta = _build_run_metadata(session, symbol=symbol, strategy=strategy_name)
     footer_rows: list[tuple[str, object]] = [
         ("credit", proposal.credit),
         ("margin", proposal.margin),
@@ -958,16 +957,18 @@ def _load_portfolio_context() -> tuple[dict[str, Any], bool]:
     return ctx, True
 
 
-def _export_proposal_json(proposal: StrategyProposal) -> Path:
-    symbol = str(SESSION_STATE.get("symbol") or "").strip() or None
-    strategy_name = str(SESSION_STATE.get("strategy") or proposal.strategy or "").strip() or None
+def _export_proposal_json(
+    session: ControlPanelSession, proposal: StrategyProposal
+) -> Path:
+    symbol = str(session.symbol or "").strip() or None
+    strategy_name = str(session.strategy or proposal.strategy or "").strip() or None
     strategy_file = strategy_name.replace(" ", "_") if strategy_name else None
 
-    run_meta = _build_run_metadata(symbol=symbol, strategy=strategy_name)
+    run_meta = _build_run_metadata(session, symbol=symbol, strategy=strategy_name)
 
     accept = _load_acceptance_criteria(strategy_file or proposal.strategy)
     portfolio_ctx, portfolio_available = _load_portfolio_context()
-    spot_price = SESSION_STATE.get("spot_price")
+    spot_price = session.spot_price
 
     earnings_dict = load_json(
         cfg.get("EARNINGS_DATES_FILE", "tomic/data/earnings_dates.json")
@@ -1092,14 +1093,13 @@ def _export_proposal_json(proposal: StrategyProposal) -> Path:
     )
     print(f"✅ Voorstel opgeslagen in: {result_path.resolve()}")
     return result_path
-def _print_reason_summary(summary: RejectionSummary | None) -> None:
+def _print_reason_summary(
+    session: ControlPanelSession, summary: RejectionSummary | None
+) -> None:
     """Display aggregated rejection information."""
 
-    entries = SESSION_STATE.get("combo_evaluations")
-    if isinstance(entries, Sequence) and not isinstance(entries, (str, bytes)):
-        eval_entries = list(entries)
-    else:
-        eval_entries = []
+    entries = session.combo_evaluations
+    eval_entries = list(entries) if isinstance(entries, Sequence) else []
     headers, rows, rejects = build_rejection_table(eval_entries)
 
     has_summary_data = bool(
@@ -1182,7 +1182,7 @@ def _print_reason_summary(summary: RejectionSummary | None) -> None:
         if normalized in {"", "0"}:
             break
         if normalized in {"a", "all"}:
-            _refresh_reject_entries(rejects)
+            _refresh_reject_entries(session, rejects)
             continue
         try:
             idx = int(selection)
@@ -1193,26 +1193,11 @@ def _print_reason_summary(summary: RejectionSummary | None) -> None:
             print("❌ Ongeldige keuze")
             continue
         print()
-        _show_rejection_detail(rejects[idx - 1])
+        _show_rejection_detail(session, rejects[idx - 1])
         print()
 
 
 SHOW_REASONS = False
-
-
-PIPELINE: StrategyPipeline | None = None
-
-
-def _get_strategy_pipeline() -> StrategyPipeline:
-    global PIPELINE
-    if PIPELINE is None:
-        PIPELINE = StrategyPipeline(
-            cfg,
-            None,
-            strike_selector_factory=_strike_selector_factory,
-            strategy_generator=_generate_with_capture,
-        )
-    return PIPELINE
 
 
 def _load_spot_from_metrics(directory: Path, symbol: str) -> float | None:
@@ -1370,8 +1355,11 @@ def check_ib_connection() -> None:
         print("❌ Geen verbinding met TWS")
 
 
-def run_dataexporter() -> None:
+def run_dataexporter(services: ControlPanelServices | None = None) -> None:
     """Menu for export and CSV validation utilities."""
+
+    if services is None:
+        services = _create_services(ControlPanelSession())
 
     def export_one() -> None:
         symbol = prompt("Ticker symbool: ")
@@ -1458,7 +1446,7 @@ def run_dataexporter() -> None:
             return
 
         try:
-            path = services.fetch_polygon_chain(symbol)
+            path = services.export.fetch_polygon_chain(symbol)
         except Exception as exc:
             print(f"❌ Ophalen van optionchain mislukt: {exc}")
             return
@@ -1497,7 +1485,7 @@ def run_dataexporter() -> None:
             return
 
         try:
-            changed = services.git_commit(
+            changed = services.export.git_commit(
                 "Update price history",
                 Path("tomic/data/spot_prices"),
                 Path("tomic/data/iv_daily_summary"),
@@ -1517,7 +1505,7 @@ def run_dataexporter() -> None:
             return
 
         try:
-            changed = services.git_commit(
+            changed = services.export.git_commit(
                 "Update intraday prices", Path("tomic/data/spot_prices")
             )
             if not changed:
@@ -1728,7 +1716,12 @@ def run_risk_tools() -> None:
     menu.run()
 
 
-def run_portfolio_menu() -> None:
+def run_portfolio_menu(
+    session: ControlPanelSession | None = None,
+    services: ControlPanelServices | None = None,
+) -> None:
+    session = session or ControlPanelSession()
+    services = services or _create_services(session)
     """Menu to fetch and display portfolio information."""
 
     def fetch_and_show() -> None:
@@ -1788,7 +1781,7 @@ def run_portfolio_menu() -> None:
         def fmt_pct(val: object) -> str:
             return f"{val * 100:.0f}" if isinstance(val, (int, float)) else ""
 
-        factsheet = PORTFOLIO_SERVICE.build_factsheet(chosen)
+        factsheet = services.portfolio.build_factsheet(chosen)
         earn_str = ""
         if isinstance(factsheet.next_earnings, date):
             earn_str = factsheet.next_earnings.isoformat()
@@ -1827,7 +1820,7 @@ def run_portfolio_menu() -> None:
         if isinstance(vix_value, (int, float)):
             print(f"VIX {vix_value:.2f}")
 
-        snapshot = MARKET_SNAPSHOT_SERVICE.load_snapshot({"symbols": symbols})
+        snapshot = services.market_snapshot.load_snapshot({"symbols": symbols})
 
         def _as_overview_row(data: object) -> list[object]:
             return [
@@ -1917,7 +1910,7 @@ def run_portfolio_menu() -> None:
             else:
                 print("🔍 Markt scan via Polygon gestart…")
 
-            pipeline = _get_strategy_pipeline()
+            pipeline = services.get_pipeline()
             config_data = cfg.get("STRATEGY_CONFIG") or {}
             interest_rate = float(cfg.get("INTEREST_RATE", 0.05))
             prep_config = ChainPreparationConfig.from_app_config()
@@ -1950,7 +1943,7 @@ def run_portfolio_menu() -> None:
 
             scan_service = MarketScanService(
                 pipeline,
-                PORTFOLIO_SERVICE,
+                services.portfolio,
                 interest_rate=interest_rate,
                 strategy_config=config_data,
                 chain_config=prep_config,
@@ -1965,7 +1958,7 @@ def run_portfolio_menu() -> None:
                 return select_chain_source(
                     symbol,
                     existing_dir=existing_chain_dir,
-                    fetch_chain=services.fetch_polygon_chain,
+                    fetch_chain=services.export.fetch_polygon_chain,
                 )
 
             try:
@@ -2084,14 +2077,14 @@ def run_portfolio_menu() -> None:
                 except (ValueError, IndexError):
                     print("❌ Ongeldige keuze")
                     continue
-                SESSION_STATE.update(
+                session.update_from_mapping(
                     {
                         "symbol": chosen.symbol,
                         "strategy": chosen.strategy,
                         "spot_price": chosen.spot,
                     }
                 )
-                _show_proposal_details(chosen.proposal)
+                _show_proposal_details(session, chosen.proposal)
                 print()
                 print(table_output)
 
@@ -2140,10 +2133,10 @@ def run_portfolio_menu() -> None:
                 except (ValueError, IndexError):
                     print("❌ Ongeldige keuze")
                     continue
-                SESSION_STATE.update(chosen)
-                print(
-                    f"\n🎯 Gekozen strategie: {SESSION_STATE.get('symbol')} – {SESSION_STATE.get('strategy')}\n"
-                )
+                session.update_from_mapping(chosen)
+                symbol_label = session.symbol or "—"
+                strategy_label = session.strategy or "—"
+                print(f"\n🎯 Gekozen strategie: {symbol_label} – {strategy_label}\n")
                 print_factsheet(chosen)
                 choose_chain_source()
                 return
@@ -2235,7 +2228,7 @@ def run_portfolio_menu() -> None:
             print("✅ Interpolatie toegepast op ontbrekende delta/iv.")
             print(f"Nieuwe CSV kwaliteit {prepared.quality:.1f}%")
 
-        symbol = str(SESSION_STATE.get("symbol", ""))
+        symbol = str(session.symbol or "")
         spot_price = resolve_chain_spot_price(
             symbol,
             prepared,
@@ -2246,10 +2239,10 @@ def run_portfolio_menu() -> None:
         )
         if not isinstance(spot_price, (int, float)) or spot_price <= 0:
             spot_price = _spot_from_chain(prepared.records) or 0.0
-        SESSION_STATE["spot_price"] = spot_price
+        session.spot_price = spot_price
 
-        strategy_name = str(SESSION_STATE.get("strategy", "")).lower().replace(" ", "_")
-        pipeline = _get_strategy_pipeline()
+        strategy_name = str(session.strategy or "").lower().replace(" ", "_")
+        pipeline = services.get_pipeline()
         atr_val = latest_atr(symbol) or 0.0
         eval_config = ChainEvaluationConfig.from_app_config(
             symbol=symbol,
@@ -2259,18 +2252,18 @@ def run_portfolio_menu() -> None:
         )
 
         evaluation = evaluate_chain(prepared, pipeline, eval_config)
-        evaluation_summary = SESSION_STATE.get("combo_evaluation_summary")
+        evaluation_summary = session.combo_evaluation_summary
         if isinstance(evaluation_summary, EvaluationSummary) or evaluation_summary is None:
             _print_evaluation_overview(
                 evaluation.context.symbol,
                 evaluation.context.spot_price,
                 evaluation_summary,
             )
-        _print_reason_summary(evaluation.filter_preview)
+        _print_reason_summary(session, evaluation.filter_preview)
 
         evaluated = evaluation.evaluated_trades
-        SESSION_STATE["evaluated_trades"] = evaluated
-        SESSION_STATE["spot_price"] = evaluation.context.spot_price
+        session.evaluated_trades = list(evaluated)
+        session.spot_price = evaluation.context.spot_price
 
         if evaluated:
             close_price, close_date = _load_latest_close(symbol)
@@ -2312,14 +2305,14 @@ def run_portfolio_menu() -> None:
                 )
             )
             if prompt_yes_no("Opslaan naar CSV?", False):
-                _save_trades(evaluated)
+                _save_trades(session, evaluated)
             if prompt_yes_no("Doorgaan naar strategie voorstellen?", False):
                 global SHOW_REASONS
                 SHOW_REASONS = True
 
                 latest_spot = refresh_spot_price(symbol)
                 if isinstance(latest_spot, (int, float)) and latest_spot > 0:
-                    SESSION_STATE["spot_price"] = float(latest_spot)
+                    session.spot_price = float(latest_spot)
                     evaluation.context.spot_price = float(latest_spot)
 
                 if evaluation.context.spot_price > 0:
@@ -2407,7 +2400,7 @@ def run_portfolio_menu() -> None:
                     if warn_edge:
                         print("⚠️ Eén of meerdere edges niet beschikbaar")
                     if SHOW_REASONS:
-                        _print_reason_summary(summary)
+                        _print_reason_summary(session, summary)
                     while True:
                         sel = prompt("Kies voorstel (0 om terug): ")
                         if sel in {"", "0"}:
@@ -2418,32 +2411,32 @@ def run_portfolio_menu() -> None:
                         except (ValueError, IndexError):
                             print("❌ Ongeldige keuze")
                             continue
-                        _show_proposal_details(chosen_prop)
+                        _show_proposal_details(session, chosen_prop)
                         break
                 else:
                     print("⚠️ Geen voorstellen gevonden")
-                    _print_reason_summary(summary)
+                    _print_reason_summary(session, summary)
         else:
             print("⚠️ Geen geschikte strikes gevonden.")
-            _print_reason_summary(evaluation.summary)
+            _print_reason_summary(session, evaluation.summary)
             print("➤ Controleer of de juiste expiraties beschikbaar zijn in de chain.")
             print("➤ Of pas je selectiecriteria aan in strike_selection_rules.yaml.")
 
     def choose_chain_source() -> None:
-        symbol = SESSION_STATE.get("symbol")
+        symbol = session.symbol
         if not symbol:
             print("⚠️ Geen strategie geselecteerd")
             return
 
         def use_ib() -> None:
-            path = services.export_chain(str(symbol))
+            path = services.export.export_chain(str(symbol))
             if not path:
                 print("⚠️ Geen chain gevonden")
                 return
             _process_chain(path)
 
         def use_polygon() -> None:
-            path = services.fetch_polygon_chain(str(symbol))
+            path = services.export.fetch_polygon_chain(str(symbol))
             if not path:
                 print("⚠️ Geen polygon chain gevonden")
                 return
@@ -2748,6 +2741,25 @@ def run_settings_menu() -> None:
     menu.run()
 
 
+def run_controlpanel(
+    session: ControlPanelSession | None = None,
+    services: ControlPanelServices | None = None,
+) -> None:
+    """Render the main control panel menu with injected dependencies."""
+
+    session = session or ControlPanelSession()
+    services = services or _create_services(session)
+
+    menu = Menu("TOMIC CONTROL PANEL", exit_text="Stoppen")
+    menu.add("Analyse & Strategie", lambda: run_portfolio_menu(session, services))
+    menu.add("Data & Marktdata", lambda: run_dataexporter(services))
+    menu.add("Trades & Journal", run_trade_management)
+    menu.add("Risicotools & Synthetica", run_risk_tools)
+    menu.add("Configuratie", run_settings_menu)
+    menu.run()
+    print("Tot ziens.")
+
+
 def main(argv: list[str] | None = None) -> None:
     """Start the interactive control panel."""
 
@@ -2762,14 +2774,9 @@ def main(argv: list[str] | None = None) -> None:
     global SHOW_REASONS
     SHOW_REASONS = args.show_reasons
 
-    menu = Menu("TOMIC CONTROL PANEL", exit_text="Stoppen")
-    menu.add("Analyse & Strategie", run_portfolio_menu)
-    menu.add("Data & Marktdata", run_dataexporter)
-    menu.add("Trades & Journal", run_trade_management)
-    menu.add("Risicotools & Synthetica", run_risk_tools)
-    menu.add("Configuratie", run_settings_menu)
-    menu.run()
-    print("Tot ziens.")
+    session = ControlPanelSession()
+    services = _create_services(session)
+    run_controlpanel(session, services)
 
 
 if __name__ == "__main__":
