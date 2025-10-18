@@ -378,3 +378,13 @@ def run_iv_backfill_flow() -> None:
     if backup_path:
         print(f"Backup aangemaakt: {backup_path}")
 
+
+def main() -> None:
+    """CLI entrypoint voor ``python -m tomic.cli.iv_backfill_flow``."""
+
+    run_iv_backfill_flow()
+
+
+if __name__ == "__main__":
+    main()
+
