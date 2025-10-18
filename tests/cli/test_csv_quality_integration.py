@@ -3,6 +3,8 @@ import pandas as pd
 import pytest
 from types import SimpleNamespace
 
+from tomic.services.chain_processing import ChainPreparationConfig, PreparedChain
+
 if not hasattr(pd, "DataFrame") or isinstance(pd.DataFrame, type(object)):
     pytest.skip("pandas not available", allow_module_level=True)
 
@@ -12,28 +14,46 @@ def test_process_chain_respects_quality(tmp_path, monkeypatch):
     csv_path = tmp_path / "chain.csv"
     csv_path.write_text("data")
 
-    df = pd.DataFrame({
-        "expiry": ["20240101"],
-        "strike": [100],
-        "delta": [0.5],
-        "iv": [0.2],
-    })
-    monkeypatch.setattr(mod.pd, "read_csv", lambda p: df)
-    monkeypatch.setattr(mod, "calculate_csv_quality", lambda d: 50.0)
-    monkeypatch.setattr(mod.cfg, "get", lambda name, default=None: 70 if name == "CSV_MIN_QUALITY" else default)
-    monkeypatch.setattr(mod.cfg, "_load_yaml", lambda p: {})
-    monkeypatch.setattr(mod, "load_strike_config", lambda strat, data: {})
-    monkeypatch.setattr(mod, "refresh_spot_price", lambda s: None)
-    monkeypatch.setattr(mod, "_load_spot_from_metrics", lambda d, s: None)
-    monkeypatch.setattr(mod, "_load_latest_close", lambda s: (100.0, "20240101"))
+    prep_cfg = ChainPreparationConfig(min_quality=70)
+    monkeypatch.setattr(
+        mod.ChainPreparationConfig,
+        "from_app_config",
+        classmethod(lambda cls: prep_cfg),
+    )
 
-    called = {}
-    monkeypatch.setattr(mod, "filter_by_expiry", lambda data, rng: called.setdefault("filter", True) or data)
+    prepared = PreparedChain(
+        path=csv_path,
+        source_path=csv_path,
+        dataframe=pd.DataFrame({"expiry": ["2024-01-01"]}),
+        records=[{"expiry": "2024-01-01"}],
+        quality=50.0,
+        interpolation_applied=False,
+    )
+    monkeypatch.setattr(mod, "load_and_prepare_chain", lambda *a, **k: prepared)
+    monkeypatch.setattr(mod, "resolve_chain_spot_price", lambda *a, **k: 100.0)
+    monkeypatch.setattr(mod, "_spot_from_chain", lambda records: 100.0)
+
+    evaluation = SimpleNamespace(
+        context=SimpleNamespace(symbol="AAA", spot_price=100.0),
+        filter_preview=SimpleNamespace(by_filter={}, by_reason={}),
+        evaluated_trades=[],
+        proposals=[],
+        summary=SimpleNamespace(by_filter={}, by_reason={}),
+    )
+    evaluate_called: dict[str, bool] = {}
+
+    def fake_evaluate(*args, **kwargs):
+        evaluate_called["called"] = True
+        return evaluation
+
+    monkeypatch.setattr(mod, "evaluate_chain", fake_evaluate)
+    monkeypatch.setattr(mod, "_print_reason_summary", lambda *a, **k: None)
+    monkeypatch.setattr(mod, "_print_evaluation_overview", lambda *a, **k: None)
     monkeypatch.setattr(mod, "prompt_yes_no", lambda text, default=False: False)
 
     mod._process_chain(csv_path)
 
-    assert "filter" not in called
+    assert "called" not in evaluate_called
 
 
 def test_write_option_chain_skips_selector_on_low_quality(tmp_path, monkeypatch):

@@ -1,0 +1,293 @@
+"""Services for preparing and evaluating option chains.
+
+This module contains pure helper functions that handle the heavy lifting of
+loading CSV based option chains, normalising the records and evaluating them
+through the strategy pipeline. The functions intentionally avoid any user
+interaction so they can be reused from the CLI, automated jobs or tests.
+"""
+
+from __future__ import annotations
+
+from dataclasses import dataclass, field
+from pathlib import Path
+from typing import Callable, Iterable, Mapping, Sequence
+
+import pandas as pd
+
+from tomic import config as cfg
+from tomic.helpers.csv_utils import normalize_european_number_format
+from tomic.helpers.interpolation import interpolate_missing_fields
+from tomic.helpers.quality_check import calculate_csv_quality
+from tomic.loader import load_strike_config
+from tomic.logutils import logger
+from tomic.services.strategy_pipeline import (
+    RejectionSummary,
+    StrategyContext,
+    StrategyPipeline,
+    StrategyProposal,
+)
+from tomic.strike_selector import filter_by_expiry
+from tomic.utils import normalize_leg
+
+
+class ChainPreparationError(RuntimeError):
+    """Raised when a chain cannot be loaded or processed."""
+
+
+@dataclass(slots=True)
+class ChainPreparationConfig:
+    """Configuration for loading and normalising a CSV option chain."""
+
+    min_quality: float = 70.0
+    columns_to_normalize: Sequence[str] = (
+        "bid",
+        "ask",
+        "close",
+        "iv",
+        "delta",
+        "gamma",
+        "vega",
+        "theta",
+        "mid",
+    )
+    interpolation_suffix: str = "_interpolated"
+    date_format: str = "%Y-%m-%d"
+
+    @classmethod
+    def from_app_config(cls) -> "ChainPreparationConfig":
+        """Build configuration using application level settings."""
+
+        min_quality = float(cfg.get("CSV_MIN_QUALITY", 70))
+        suffix = str(cfg.get("CHAIN_INTERPOLATION_SUFFIX", "_interpolated"))
+        return cls(min_quality=min_quality, interpolation_suffix=suffix)
+
+
+@dataclass(slots=True)
+class PreparedChain:
+    """Result of loading and preparing an option chain."""
+
+    path: Path
+    source_path: Path
+    dataframe: pd.DataFrame
+    records: list[dict]
+    quality: float
+    interpolation_applied: bool = False
+
+
+@dataclass(slots=True)
+class ChainEvaluationConfig:
+    """Configuration for evaluating a prepared option chain."""
+
+    symbol: str
+    strategy: str
+    strategy_config: Mapping[str, object]
+    interest_rate: float
+    export_dir: Path
+    dte_range: tuple[int, int]
+    spot_price: float
+    atr: float
+    interactive_mode: bool = True
+    debug_filename: str = "PEP_debugfilter.csv"
+
+    @classmethod
+    def from_app_config(
+        cls,
+        *,
+        symbol: str,
+        strategy: str,
+        spot_price: float,
+        atr: float,
+    ) -> "ChainEvaluationConfig":
+        """Create configuration using global application settings."""
+
+        config_data: Mapping[str, object] = cfg.get("STRATEGY_CONFIG") or {}
+        interest_rate = float(cfg.get("INTEREST_RATE", 0.05))
+        export_dir = Path(cfg.get("EXPORT_DIR", "exports"))
+        rules = load_strike_config(strategy, config_data) if config_data else {}
+        dte_range = rules.get("dte_range") or [0, 365]
+        try:
+            dte_tuple = (int(dte_range[0]), int(dte_range[1]))
+        except Exception:  # pragma: no cover - defensive fall-back
+            dte_tuple = (0, 365)
+
+        return cls(
+            symbol=symbol,
+            strategy=strategy,
+            strategy_config=config_data,
+            interest_rate=interest_rate,
+            export_dir=export_dir,
+            dte_range=dte_tuple,
+            spot_price=spot_price,
+            atr=atr,
+        )
+
+
+@dataclass(slots=True)
+class ChainEvaluationResult:
+    """Structured result of evaluating a prepared chain."""
+
+    context: StrategyContext
+    filtered_chain: list[dict]
+    proposals: list[StrategyProposal]
+    summary: RejectionSummary
+    filter_preview: RejectionSummary
+    evaluated_trades: list[dict]
+    expiry_counts_before: dict[str, int] = field(default_factory=dict)
+    expiry_counts_after: dict[str, int] = field(default_factory=dict)
+    skipped_expiries: tuple[str, ...] = ()
+
+
+def load_and_prepare_chain(
+    path: Path,
+    config: ChainPreparationConfig,
+    *,
+    apply_interpolation: bool = False,
+) -> PreparedChain:
+    """Load, normalise and optionally interpolate an option chain CSV."""
+
+    if not path.exists():
+        raise ChainPreparationError(f"Chain-bestand ontbreekt: {path}")
+
+    try:
+        df = pd.read_csv(path)
+    except Exception as exc:  # pragma: no cover - depends on pandas internals
+        raise ChainPreparationError(f"Fout bij laden van chain: {exc}") from exc
+
+    df.columns = [c.lower() for c in df.columns]
+    df = normalize_european_number_format(df, config.columns_to_normalize)
+
+    if "expiry" not in df.columns and "expiration" in df.columns:
+        df = df.rename(columns={"expiration": "expiry"})
+    elif "expiry" in df.columns and "expiration" in df.columns:
+        df = df.drop(columns=["expiration"])
+
+    if "expiry" in df.columns:
+        df["expiry"] = pd.to_datetime(df["expiry"], errors="coerce").dt.strftime(
+            config.date_format
+        )
+
+    quality = calculate_csv_quality(df)
+    source_path = path
+    interpolated_path = path
+    interpolation_applied = False
+
+    if apply_interpolation:
+        logger.info(
+            "Interpolating missing delta/iv values using linear (delta) and spline (iv)"
+        )
+        df = interpolate_missing_fields(df)
+        quality = calculate_csv_quality(df)
+        interpolated_path = path.with_name(path.stem + config.interpolation_suffix + path.suffix)
+        df.to_csv(interpolated_path, index=False)
+        interpolation_applied = True
+        logger.info("Interpolation completed successfully")
+        logger.info(f"Interpolated CSV saved to {interpolated_path}")
+
+    records = [normalize_leg(rec) for rec in df.to_dict(orient="records")]
+
+    logger.info(f"Loaded {len(df)} rows from {path}")
+    logger.info(f"CSV loaded from {path} with quality {quality:.1f}%")
+
+    return PreparedChain(
+        path=interpolated_path,
+        source_path=source_path,
+        dataframe=df,
+        records=records,
+        quality=quality,
+        interpolation_applied=interpolation_applied,
+    )
+
+
+def resolve_spot_price(
+    symbol: str,
+    prepared: PreparedChain,
+    *,
+    refresh_quote: Callable[[str], float | None],
+    load_metrics_spot: Callable[[Path, str], float | None],
+    load_latest_close: Callable[[str], tuple[float | None, object]],
+    chain_spot_fallback: Callable[[Iterable[dict]], float | None],
+) -> float | None:
+    """Resolve the best spot price using a series of fallbacks."""
+
+    def _latest_close() -> float | None:
+        price, *_rest = load_latest_close(symbol)
+        return price
+
+    candidates: list[Callable[[], float | None]] = [
+        lambda: refresh_quote(symbol),
+        lambda: load_metrics_spot(prepared.source_path.parent, symbol),
+        _latest_close,
+        lambda: chain_spot_fallback(prepared.records),
+    ]
+
+    for getter in candidates:
+        try:
+            value = getter()
+        except Exception:  # pragma: no cover - defensive fall-back
+            continue
+        if isinstance(value, (int, float)) and value > 0:
+            return float(value)
+    return None
+
+
+def _count_by_expiry(records: Iterable[Mapping[str, object]]) -> dict[str, int]:
+    counts: dict[str, int] = {}
+    for rec in records:
+        exp = rec.get("expiry")
+        if not isinstance(exp, str) or not exp:
+            continue
+        counts[exp] = counts.get(exp, 0) + 1
+    return counts
+
+
+def evaluate_chain(
+    prepared: PreparedChain,
+    pipeline: StrategyPipeline,
+    config: ChainEvaluationConfig,
+) -> ChainEvaluationResult:
+    """Evaluate a prepared option chain using the configured pipeline."""
+
+    expiry_counts_before = _count_by_expiry(prepared.records)
+    filtered_chain = filter_by_expiry(list(prepared.records), config.dte_range)
+    expiry_counts_after = _count_by_expiry(filtered_chain)
+    skipped = tuple(exp for exp in expiry_counts_before if exp not in expiry_counts_after)
+
+    context = StrategyContext(
+        symbol=config.symbol,
+        strategy=config.strategy,
+        option_chain=filtered_chain,
+        spot_price=float(config.spot_price or 0.0),
+        atr=config.atr,
+        config=config.strategy_config or {},
+        interest_rate=config.interest_rate,
+        dte_range=config.dte_range,
+        interactive_mode=config.interactive_mode,
+        debug_path=config.export_dir / config.debug_filename,
+    )
+
+    proposals, summary = pipeline.build_proposals(context)
+    filter_preview = RejectionSummary(
+        by_filter=dict(summary.by_filter),
+        by_reason=dict(summary.by_reason),
+    )
+    evaluated = list(pipeline.last_evaluated)
+
+    for exp, cnt in expiry_counts_before.items():
+        logger.info(f"- {exp}: {cnt} options in CSV")
+    for exp, cnt in expiry_counts_after.items():
+        logger.info(f"- {exp}: {cnt} options after DTE filter")
+    for exp in skipped:
+        logger.info(f"- {exp}: skipped (outside DTE range)")
+
+    return ChainEvaluationResult(
+        context=context,
+        filtered_chain=filtered_chain,
+        proposals=list(proposals),
+        summary=summary,
+        filter_preview=filter_preview,
+        evaluated_trades=evaluated,
+        expiry_counts_before=expiry_counts_before,
+        expiry_counts_after=expiry_counts_after,
+        skipped_expiries=skipped,
+    )
+

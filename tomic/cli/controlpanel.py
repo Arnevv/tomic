@@ -85,11 +85,17 @@ from tomic.helpers.price_meta import load_price_meta, save_price_meta
 from tomic.polygon_client import PolygonClient
 from tomic.strike_selector import StrikeSelector, filter_by_expiry
 from tomic.loader import load_strike_config
-from tomic.utils import get_option_mid_price, latest_atr, normalize_leg, load_price_history
+from tomic.utils import get_option_mid_price, latest_atr, load_price_history, normalize_leg
 from tomic.metrics import calculate_edge, calculate_ev, calculate_pos, calculate_rom
 from tomic.helpers.csv_utils import normalize_european_number_format
-from tomic.helpers.interpolation import interpolate_missing_fields
-from tomic.helpers.quality_check import calculate_csv_quality
+from tomic.services.chain_processing import (
+    ChainEvaluationConfig,
+    ChainPreparationConfig,
+    ChainPreparationError,
+    evaluate_chain,
+    load_and_prepare_chain,
+    resolve_spot_price as resolve_chain_spot_price,
+)
 import pandas as pd
 from tomic.formatting import PROPOSALS_SPEC, proposals_table, sort_records
 from tomic.services.strategy_pipeline import (
@@ -2339,136 +2345,70 @@ def run_portfolio_menu() -> None:
         print(tabulate(formatted_rows, headers=headers, tablefmt="github"))
 
     def _process_chain(path: Path) -> None:
-        if not path.exists():
-            print("⚠️ Chain-bestand ontbreekt")
-            return
-
+        prep_config = ChainPreparationConfig.from_app_config()
         try:
-            df = pd.read_csv(path)
-        except Exception as exc:
-            print(f"⚠️ Fout bij laden van chain: {exc}")
+            prepared = load_and_prepare_chain(path, prep_config)
+        except ChainPreparationError as exc:
+            print(f"⚠️ {exc}")
             return
-        df.columns = [c.lower() for c in df.columns]
-        df = normalize_european_number_format(
-            df,
-            [
-                "bid",
-                "ask",
-                "close",
-                "iv",
-                "delta",
-                "gamma",
-                "vega",
-                "theta",
-                "mid",
-            ],
-        )
-        if "expiry" not in df.columns and "expiration" in df.columns:
-            df = df.rename(columns={"expiration": "expiry"})
-        elif "expiry" in df.columns and "expiration" in df.columns:
-            df = df.drop(columns=["expiration"])
 
-        if "expiry" in df.columns:
-            df["expiry"] = pd.to_datetime(df["expiry"], errors="coerce").dt.strftime(
-                "%Y-%m-%d"
+        if prepared.quality < prep_config.min_quality:
+            print(
+                f"⚠️ CSV kwaliteit {prepared.quality:.1f}% lager dan {prep_config.min_quality}%"
             )
-        logger.info(f"Loaded {len(df)} rows from {path}")
-
-        quality = calculate_csv_quality(df)
-        min_q = cfg.get("CSV_MIN_QUALITY", 70)
-        if quality < min_q:
-            print(f"⚠️ CSV kwaliteit {quality:.1f}% lager dan {min_q}%")
         else:
-            print(f"CSV kwaliteit {quality:.1f}%")
-        logger.info(f"CSV loaded from {path} with quality {quality:.1f}%")
+            print(f"CSV kwaliteit {prepared.quality:.1f}%")
+
         if not prompt_yes_no("Doorgaan?", False):
             return
-        do_interpolate = prompt_yes_no(
-            "Wil je delta/iv interpoleren om de data te verbeteren?", False
-        )
-        if do_interpolate:
-            logger.info(
-                "Interpolating missing delta/iv values using linear (delta) and spline (iv)"
-            )
-            df = interpolate_missing_fields(df)
+
+        if prompt_yes_no("Wil je delta/iv interpoleren om de data te verbeteren?", False):
+            try:
+                prepared = load_and_prepare_chain(
+                    path, prep_config, apply_interpolation=True
+                )
+            except ChainPreparationError as exc:
+                print(f"⚠️ {exc}")
+                return
             print("✅ Interpolatie toegepast op ontbrekende delta/iv.")
-            logger.info("Interpolation completed successfully")
-            quality = calculate_csv_quality(df)
-            print(f"Nieuwe CSV kwaliteit {quality:.1f}%")
-            new_path = path.with_name(path.stem + "_interpolated.csv")
-            df.to_csv(new_path, index=False)
-            logger.info(f"Interpolated CSV saved to {new_path}")
-            path = new_path
-        data = [normalize_leg(rec) for rec in df.to_dict(orient="records")]
+            print(f"Nieuwe CSV kwaliteit {prepared.quality:.1f}%")
+
         symbol = str(SESSION_STATE.get("symbol", ""))
-        spot_price = refresh_spot_price(symbol)
-        if spot_price is None or spot_price <= 0:
-            spot_price = _load_spot_from_metrics(path.parent, symbol)
-        if spot_price is None or spot_price <= 0:
-            spot_price, _ = _load_latest_close(symbol)
-        if spot_price is None or spot_price <= 0:
-            spot_price = _spot_from_chain(data)
+        spot_price = resolve_chain_spot_price(
+            symbol,
+            prepared,
+            refresh_quote=refresh_spot_price,
+            load_metrics_spot=_load_spot_from_metrics,
+            load_latest_close=_load_latest_close,
+            chain_spot_fallback=_spot_from_chain,
+        )
+        if not isinstance(spot_price, (int, float)) or spot_price <= 0:
+            spot_price = _spot_from_chain(prepared.records) or 0.0
         SESSION_STATE["spot_price"] = spot_price
-        exp_counts: dict[str, int] = {}
-        for row in data:
-            exp = row.get("expiry")
-            if exp:
-                exp_counts[exp] = exp_counts.get(exp, 0) + 1
-        for exp, cnt in exp_counts.items():
-            logger.info(f"- {exp}: {cnt} options in CSV")
 
-        strat = str(SESSION_STATE.get("strategy", "")).lower().replace(" ", "_")
-        config_data = cfg.get("STRATEGY_CONFIG") or {}
-        rules = load_strike_config(strat, config_data) if config_data else {}
-        dte_range = rules.get("dte_range") or [0, 365]
-        try:
-            dte_tuple = (int(dte_range[0]), int(dte_range[1]))
-        except Exception:
-            dte_tuple = (0, 365)
-
-        filtered = filter_by_expiry(data, dte_tuple)
-
-        after_counts: dict[str, int] = {}
-        for row in filtered:
-            exp = row.get("expiry")
-            if exp:
-                after_counts[exp] = after_counts.get(exp, 0) + 1
-        kept_expiries = set(after_counts)
-        for exp, cnt in after_counts.items():
-            logger.info(f"- {exp}: {cnt} options after DTE filter")
-        for exp in exp_counts:
-            if exp not in kept_expiries:
-                logger.info(f"- {exp}: skipped (outside DTE range)")
-
+        strategy_name = str(SESSION_STATE.get("strategy", "")).lower().replace(" ", "_")
         pipeline = _get_strategy_pipeline()
         atr_val = latest_atr(symbol) or 0.0
-        spot_for_pipeline = SESSION_STATE.get("spot_price")
-        if spot_for_pipeline is None or spot_for_pipeline <= 0:
-            spot_for_pipeline = _spot_from_chain(data)
-        context = StrategyContext(
+        eval_config = ChainEvaluationConfig.from_app_config(
             symbol=symbol,
-            strategy=strat,
-            option_chain=filtered,
-            spot_price=float(spot_for_pipeline or 0.0),
+            strategy=strategy_name,
+            spot_price=float(spot_price or 0.0),
             atr=atr_val,
-            config=config_data or {},
-            interest_rate=float(cfg.get("INTEREST_RATE", 0.05)),
-            dte_range=dte_tuple,
-            interactive_mode=True,
-            debug_path=Path(cfg.get("EXPORT_DIR", "exports")) / "PEP_debugfilter.csv",
         )
-        proposals, summary = pipeline.build_proposals(context)
+
+        evaluation = evaluate_chain(prepared, pipeline, eval_config)
         evaluation_summary = SESSION_STATE.get("combo_evaluation_summary")
         if isinstance(evaluation_summary, EvaluationSummary) or evaluation_summary is None:
-            _print_evaluation_overview(context.symbol, context.spot_price, evaluation_summary)
-        filter_preview = RejectionSummary(
-            by_filter=dict(summary.by_filter), by_reason=dict(summary.by_reason)
-        )
-        _print_reason_summary(filter_preview)
+            _print_evaluation_overview(
+                evaluation.context.symbol,
+                evaluation.context.spot_price,
+                evaluation_summary,
+            )
+        _print_reason_summary(evaluation.filter_preview)
 
-        evaluated = pipeline.last_evaluated
+        evaluated = evaluation.evaluated_trades
         SESSION_STATE["evaluated_trades"] = evaluated
-        SESSION_STATE["spot_price"] = context.spot_price
+        SESSION_STATE["spot_price"] = evaluation.context.spot_price
 
         if evaluated:
             close_price, close_date = _load_latest_close(symbol)
@@ -2518,13 +2458,15 @@ def run_portfolio_menu() -> None:
                 latest_spot = refresh_spot_price(symbol)
                 if isinstance(latest_spot, (int, float)) and latest_spot > 0:
                     SESSION_STATE["spot_price"] = float(latest_spot)
-                    context.spot_price = float(latest_spot)
+                    evaluation.context.spot_price = float(latest_spot)
 
-                if context.spot_price > 0:
-                    print(f"Spotprice: {context.spot_price:.2f}")
+                if evaluation.context.spot_price > 0:
+                    print(f"Spotprice: {evaluation.context.spot_price:.2f}")
                 else:
                     print("Spotprice: onbekend")
 
+                proposals = evaluation.proposals
+                summary = evaluation.summary
                 if proposals:
                     rom_w = cfg.get("SCORE_WEIGHT_ROM", 0.5)
                     pos_w = cfg.get("SCORE_WEIGHT_POS", 0.3)
@@ -2621,7 +2563,7 @@ def run_portfolio_menu() -> None:
                     _print_reason_summary(summary)
         else:
             print("⚠️ Geen geschikte strikes gevonden.")
-            _print_reason_summary(summary)
+            _print_reason_summary(evaluation.summary)
             print("➤ Controleer of de juiste expiraties beschikbaar zijn in de chain.")
             print("➤ Of pas je selectiecriteria aan in strike_selection_rules.yaml.")
 
