@@ -10,6 +10,7 @@ from typing import Any, Callable, Mapping, Sequence
 
 from ..logutils import logger
 from .ib_marketdata import SnapshotResult, fetch_quote_snapshot
+from .proposal_details import ProposalCore, build_proposal_core
 from .strategy_pipeline import StrategyProposal
 
 ProposalBuilder = Callable[[Mapping[str, Any]], StrategyProposal | None]
@@ -64,6 +65,8 @@ class Proposal:
     source: RefreshSource
     reasons: list[Any] = field(default_factory=list)
     missing_quotes: list[str] = field(default_factory=list)
+    core: ProposalCore | None = None
+    accepted: bool | None = True
 
 
 @dataclass(frozen=True)
@@ -76,6 +79,8 @@ class Rejection:
     missing_quotes: list[str] = field(default_factory=list)
     error: Exception | None = None
     attempts: int = 0
+    core: ProposalCore | None = None
+    accepted: bool | None = False
 
 
 @dataclass(frozen=True)
@@ -234,6 +239,11 @@ def refresh_pipeline(
                         source=source,
                         reasons=reasons,
                         missing_quotes=missing,
+                        core=build_proposal_core(
+                            snapshot.proposal,
+                            symbol=symbol,
+                            entry=outcome.entry,
+                        ),
                     )
                 )
             else:
@@ -244,15 +254,28 @@ def refresh_pipeline(
                         reasons=reasons,
                         missing_quotes=missing,
                         attempts=outcome.attempts,
+                        core=build_proposal_core(
+                            snapshot.proposal,
+                            symbol=symbol,
+                            entry=outcome.entry,
+                        ),
                     )
                 )
         else:
+            rejection_core = None
+            if isinstance(outcome.proposal, StrategyProposal):
+                rejection_core = build_proposal_core(
+                    outcome.proposal,
+                    symbol=symbol,
+                    entry=outcome.entry,
+                )
             rejected_items.append(
                 Rejection(
                     source=source,
                     proposal=outcome.proposal,
                     error=outcome.error,
                     attempts=outcome.attempts,
+                    core=rejection_core,
                 )
             )
 

@@ -19,6 +19,11 @@ from .pipeline_refresh import (
     build_proposal_from_entry,
     refresh_pipeline,
 )
+from .proposal_details import (
+    ProposalCore,
+    build_proposal_core,
+    build_proposal_viewmodel,
+)
 
 __all__ = [
     "StrategyPipeline",
@@ -36,4 +41,7 @@ __all__ = [
     "Rejection",
     "build_proposal_from_entry",
     "refresh_pipeline",
+    "ProposalCore",
+    "build_proposal_core",
+    "build_proposal_viewmodel",
 ]
