@@ -39,7 +39,7 @@ def test_fetch_earnings_alpha_sleep(monkeypatch, tmp_path):
     mod.main([])
 
     assert calls == ["AAA", "BBB"]
-    assert len(sleep_calls) == 2
+    assert sleep_calls == []
     assert "earn.json" in saved
     assert "meta.json" in saved
 

@@ -9,7 +9,8 @@ from typing import List, Any
 
 from tomic.analysis.metrics import historical_volatility
 from tomic.config import get as cfg_get
-from tomic.journal.utils import update_json_file
+from tomic.infrastructure.storage import update_json_file
+from tomic.infrastructure.throttling import RateLimiter
 from tomic.logutils import logger, setup_logging
 from tomic.providers.polygon_iv import fetch_polygon_iv30d
 from tomic.integrations.polygon.client import PolygonClient
@@ -194,9 +195,11 @@ def main(argv: List[str] | None = None) -> None:
         count = sum(1 for hv in series if hv < value)
         return count / len(series)
 
+    limiter = RateLimiter(1, sleep_between, sleep=sleep)
     for idx, sym in enumerate(symbols):
         if max_syms is not None and idx >= max_syms:
             break
+        limiter.wait()
         close_price, date_str = _load_latest_close(sym)
         closes = _get_closes(sym)
         if close_price is not None and closes:
@@ -234,7 +237,6 @@ def main(argv: List[str] | None = None) -> None:
 
         if metrics is None:
             logger.info(f"⏭️ {sym} already processed for {date_str}")
-            sleep(sleep_between)
             continue
 
         iv = metrics.get("atm_iv")
@@ -265,7 +267,6 @@ def main(argv: List[str] | None = None) -> None:
         }
         update_json_file(summary_dir / f"{sym}.json", summary_record, ["date"])
         logger.info(f"Saved vol stats for {sym}")
-        sleep(sleep_between)
     logger.success("✅ Volatility stats updated")
 
 

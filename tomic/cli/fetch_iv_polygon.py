@@ -9,7 +9,8 @@ from typing import List
 
 from tomic.config import get as cfg_get
 from tomic.logutils import logger, setup_logging
-from tomic.journal.utils import load_json, update_json_file
+from tomic.infrastructure.storage import load_json, update_json_file
+from tomic.infrastructure.throttling import RateLimiter
 from tomic.providers.polygon_iv import fetch_polygon_iv30d
 from tomic.helpers.price_utils import _load_latest_close
 
@@ -30,7 +31,9 @@ def main(argv: List[str] | None = None) -> None:
     sleep_between = float(cfg_get("POLYGON_SLEEP_BETWEEN", 1.2))
 
     processed = 0
+    limiter = RateLimiter(1, sleep_between, sleep=sleep)
     for sym in symbols:
+        limiter.wait()
         if max_syms is not None and processed >= max_syms:
             break
         metrics = fetch_polygon_iv30d(sym)
@@ -58,7 +61,6 @@ def main(argv: List[str] | None = None) -> None:
         ):
             logger.info(f"⏭️ {sym} al aanwezig voor {date_str}")
             processed += 1
-            sleep(sleep_between)
             continue
 
         try:
@@ -67,7 +69,6 @@ def main(argv: List[str] | None = None) -> None:
         except Exception as exc:  # pragma: no cover - filesystem errors
             logger.warning(f"Failed to save IV for {sym}: {exc}")
         processed += 1
-        sleep(sleep_between)
     logger.success("✅ Polygon IV fetch complete")
 
 
