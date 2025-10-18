@@ -8,6 +8,7 @@ import json
 from pathlib import Path
 import csv
 import inspect
+from functools import partial
 from typing import Any, Mapping, Sequence
 
 try:
@@ -91,6 +92,7 @@ from tomic.strategy.reasons import ReasonCategory, ReasonDetail
 from tomic.strategy_candidates import generate_strategy_candidates
 from tomic.core import config as runtime_config
 from tomic.criteria import load_criteria
+from tomic.strike_selector import StrikeSelector
 from tomic.reporting import (
     EvaluationSummary,
     format_dtes,
@@ -125,6 +127,7 @@ POSITIONS_FILE = Path(cfg.get("POSITIONS_FILE", "positions.json"))
 ACCOUNT_INFO_FILE = Path(cfg.get("ACCOUNT_INFO_FILE", "account_info.json"))
 META_FILE = Path(cfg.get("PORTFOLIO_META_FILE", "portfolio_meta.json"))
 STRATEGY_DASHBOARD_MODULE = "tomic.cli.strategy_dashboard"
+MARKET_SNAPSHOT_SERVICE = None
 
 
 def _format_leg_summary(legs: Sequence[Mapping[str, Any]] | None) -> str:
@@ -401,6 +404,308 @@ def _save_trades(session: ControlPanelSession, trades: list[dict[str, object]]) 
     print(f"✅ Trades opgeslagen in: {path.resolve()}")
 
 
+def start_trading_plan(session: ControlPanelSession, services: ControlPanelServices) -> None:
+    run_module("tomic.cli.trading_plan")
+
+
+def _run_trade_management_module(session: ControlPanelSession, services: ControlPanelServices) -> None:
+    run_module("tomic.cli.trade_management")
+
+
+def fetch_and_show_portfolio(session: ControlPanelSession, services: ControlPanelServices) -> None:
+    print("ℹ️ Haal portfolio op...")
+    try:
+        run_module("tomic.api.getaccountinfo")
+        save_portfolio_timestamp()
+    except subprocess.CalledProcessError:
+        print("❌ Ophalen van portfolio mislukt")
+        return
+    view = prompt("Weergavemodus (compact/full/alerts): ", "full").strip().lower()
+    try:
+        run_module(
+            STRATEGY_DASHBOARD_MODULE,
+            str(POSITIONS_FILE),
+            str(ACCOUNT_INFO_FILE),
+            f"--view={view}",
+        )
+        run_module("tomic.analysis.performance_analyzer")
+    except subprocess.CalledProcessError:
+        print("❌ Dashboard kon niet worden gestart")
+
+
+def show_saved_portfolio(session: ControlPanelSession, services: ControlPanelServices) -> None:
+    if not (POSITIONS_FILE.exists() and ACCOUNT_INFO_FILE.exists()):
+        print("⚠ Geen opgeslagen portfolio gevonden. Kies optie 1 om te verversen.")
+        return
+    ts = load_portfolio_timestamp()
+    if ts:
+        print(f"ℹ️ Laatste update: {ts}")
+    print_saved_portfolio_greeks()
+    view = prompt("Weergavemodus (compact/full/alerts): ", "full").strip().lower()
+    try:
+        run_module(
+            STRATEGY_DASHBOARD_MODULE,
+            str(POSITIONS_FILE),
+            str(ACCOUNT_INFO_FILE),
+            f"--view={view}",
+        )
+        run_module("tomic.analysis.performance_analyzer")
+    except subprocess.CalledProcessError:
+        print("❌ Dashboard kon niet worden gestart")
+
+
+def show_saved_greeks(session: ControlPanelSession, services: ControlPanelServices) -> None:
+    if not POSITIONS_FILE.exists():
+        print("⚠️ Geen opgeslagen portfolio gevonden. Kies optie 1 om te verversen.")
+        return
+    try:
+        run_module("tomic.cli.portfolio_greeks", str(POSITIONS_FILE))
+    except subprocess.CalledProcessError:
+        print("❌ Greeks-overzicht kon niet worden getoond")
+
+
+def _print_factsheet(
+    session: ControlPanelSession,
+    services: ControlPanelServices,
+    chosen: dict[str, object],
+) -> None:
+    factsheet = services.portfolio.build_factsheet(chosen)
+    table_spec = build_factsheet_table(factsheet)
+    print(tabulate(table_spec.rows, headers=table_spec.headers, tablefmt="github"))
+
+
+def show_market_info(session: ControlPanelSession, services: ControlPanelServices) -> None:
+    symbols = [s.upper() for s in cfg.get("DEFAULT_SYMBOLS", [])]
+
+    vix_value = None
+    try:
+        metrics = fetch_volatility_metrics(symbols[0] if symbols else "SPY")
+        vix_value = metrics.get("vix")
+    except Exception:
+        vix_value = None
+    if isinstance(vix_value, (int, float)):
+        print(f"VIX {vix_value:.2f}")
+
+    snapshot = services.market_snapshot.load_snapshot({"symbols": symbols})
+
+    def _as_overview_row(data: object) -> list[object]:
+        return [
+            getattr(data, "symbol", None),
+            getattr(data, "spot", None),
+            getattr(data, "iv", None),
+            getattr(data, "hv20", None),
+            getattr(data, "hv30", None),
+            getattr(data, "hv90", None),
+            getattr(data, "hv252", None),
+            getattr(data, "iv_rank", None),
+            getattr(data, "iv_percentile", None),
+            getattr(data, "term_m1_m2", None),
+            getattr(data, "term_m1_m3", None),
+            getattr(data, "skew", None),
+            getattr(data, "next_earnings", None),
+            getattr(data, "days_until_earnings", None),
+        ]
+
+    rows = [_as_overview_row(row) for row in snapshot.rows]
+
+    recs, table_rows, meta = build_market_overview(rows)
+
+    earnings_filtered: dict[str, Sequence[str]] = {}
+    if isinstance(meta, dict):
+        earnings_filtered = meta.get("earnings_filtered", {}) or {}
+    if earnings_filtered:
+        total_hidden = sum(len(strategies) for strategies in earnings_filtered.values())
+        detail_parts = []
+        for symbol in sorted(earnings_filtered):
+            strategies = ", ".join(earnings_filtered[symbol])
+            detail_parts.append(f"{symbol}: {strategies}")
+        detail_msg = "; ".join(detail_parts)
+        print(
+            f"ℹ️ {total_hidden} aanbevelingen verborgen vanwege earnings-filter"
+            + (f" ({detail_msg})" if detail_msg else "")
+        )
+
+    if not recs:
+        print("⚠️ Geen aanbevelingen beschikbaar.")
+        return
+
+    portfolio_show_market_overview(tabulate, table_rows)
+
+    while True:
+        sel = prompt("Selectie (0 om terug, 999 voor scan): ")
+        if sel == "999":
+            portfolio_run_market_scan(
+                session,
+                services,
+                recs,
+                tabulate_fn=tabulate,
+                prompt_fn=prompt,
+                show_proposal_details=_show_proposal_details,
+                refresh_spot_price_fn=refresh_spot_price,
+                load_spot_from_metrics_fn=load_spot_from_metrics,
+                load_latest_close_fn=_load_latest_close,
+                spot_from_chain_fn=spot_from_chain,
+            )
+            continue
+        if sel in {"", "0"}:
+            break
+        try:
+            idx = int(sel) - 1
+            chosen = recs[idx]
+        except (ValueError, IndexError):
+            print("❌ Ongeldige keuze")
+            continue
+        session.update_from_mapping(chosen)
+        symbol_label = session.symbol or "—"
+        strategy_label = session.strategy or "—"
+        print(f"\n🎯 Gekozen strategie: {symbol_label} – {strategy_label}\n")
+        _print_factsheet(session, services, chosen)
+        choose_chain_source(session, services)
+        return
+
+
+def show_informative_market_info(
+    session: ControlPanelSession, services: ControlPanelServices
+) -> None:
+    symbols = [s.upper() for s in cfg.get("DEFAULT_SYMBOLS", [])]
+
+    vix_value = None
+    try:
+        metrics = fetch_volatility_metrics(symbols[0] if symbols else "SPY")
+        vix_value = metrics.get("vix")
+    except Exception:
+        vix_value = None
+    if isinstance(vix_value, (int, float)):
+        print(f"VIX {vix_value:.2f}")
+
+    service = MARKET_SNAPSHOT_SERVICE or services.market_snapshot
+    snapshot = service.load_snapshot({"symbols": symbols})
+
+    def fmt4(val: float | None) -> str:
+        return f"{val:.4f}" if val is not None else ""
+
+    def fmt2(val: float | None) -> str:
+        return f"{val:.2f}" if val is not None else ""
+
+    formatted_rows = []
+    for row in snapshot.rows:
+        formatted_rows.append(
+            [
+                getattr(row, "symbol", None),
+                getattr(row, "spot", None),
+                fmt4(getattr(row, "iv", None)),
+                fmt4(getattr(row, "hv20", None)),
+                fmt4(getattr(row, "hv30", None)),
+                fmt4(getattr(row, "hv90", None)),
+                fmt4(getattr(row, "hv252", None)),
+                fmt2(getattr(row, "iv_rank", None)),
+                fmt2(getattr(row, "iv_percentile", None)),
+                getattr(row, "term_m1_m2", None),
+                getattr(row, "term_m1_m3", None),
+                getattr(row, "skew", None),
+                getattr(row, "next_earnings", None),
+            ]
+        )
+
+    headers = [
+        "symbol",
+        "spotprice",
+        "IV",
+        "hv20",
+        "hv30",
+        "hv90",
+        "hv252",
+        "iv_rank (HV)",
+        "iv_percentile (HV)",
+        "term_m1_m2",
+        "term_m1_m3",
+        "skew",
+        "next_earnings",
+    ]
+
+    print(tabulate(formatted_rows, headers=headers, tablefmt="github"))
+
+
+def _process_chain_with_context(
+    session: ControlPanelSession,
+    services: ControlPanelServices,
+    path: Path,
+    show_reasons: bool,
+) -> bool:
+    return portfolio_process_chain(
+        session,
+        services,
+        path,
+        show_reasons,
+        tabulate_fn=tabulate,
+        prompt_fn=prompt,
+        prompt_yes_no_fn=prompt_yes_no,
+        show_proposal_details=_show_proposal_details,
+        build_rejection_summary_fn=build_rejection_summary,
+        save_trades_fn=_save_trades,
+        refresh_spot_price_fn=refresh_spot_price,
+        load_spot_from_metrics_fn=load_spot_from_metrics,
+        load_latest_close_fn=_load_latest_close,
+        spot_from_chain_fn=spot_from_chain,
+        print_evaluation_overview_fn=_print_evaluation_overview,
+    )
+
+
+def _process_exported_chain(session: ControlPanelSession, services: ControlPanelServices) -> None:
+    symbol = session.symbol
+    if not symbol:
+        print("⚠️ Geen strategie geselecteerd")
+        return
+    path = services.export.export_chain(str(symbol))
+    if not path:
+        print("⚠️ Geen chain gevonden")
+        return
+    global SHOW_REASONS
+    SHOW_REASONS = _process_chain_with_context(session, services, path, SHOW_REASONS)
+
+
+def _process_polygon_chain(session: ControlPanelSession, services: ControlPanelServices) -> None:
+    symbol = session.symbol
+    if not symbol:
+        print("⚠️ Geen strategie geselecteerd")
+        return
+    path = services.export.fetch_polygon_chain(str(symbol))
+    if not path:
+        print("⚠️ Geen polygon chain gevonden")
+        return
+    global SHOW_REASONS
+    SHOW_REASONS = _process_chain_with_context(session, services, path, SHOW_REASONS)
+
+
+def _process_manual_chain(session: ControlPanelSession, services: ControlPanelServices) -> None:
+    path_text = prompt("Pad naar CSV: ")
+    if not path_text:
+        return
+    path = Path(path_text)
+    global SHOW_REASONS
+    SHOW_REASONS = _process_chain_with_context(session, services, path, SHOW_REASONS)
+
+
+def choose_chain_source(session: ControlPanelSession, services: ControlPanelServices) -> None:
+    menu = Menu("Chain ophalen")
+    menu.add(
+        "Download nieuwe chain via TWS",
+        partial(_process_exported_chain, session, services),
+    )
+    menu.add(
+        "Download nieuwe chain via Polygon",
+        partial(_process_polygon_chain, session, services),
+    )
+    menu.add("CSV handmatig kiezen", partial(_process_manual_chain, session, services))
+    menu.run()
+
+
+def show_earnings_info(session: ControlPanelSession, services: ControlPanelServices) -> None:
+    try:
+        run_module("tomic.cli.earnings_info")
+    except subprocess.CalledProcessError:
+        print("❌ Earnings-informatie kon niet worden getoond")
+
 def save_portfolio_timestamp() -> None:
     """Store the datetime of the latest portfolio fetch."""
     META_FILE.write_text(json.dumps({"last_update": datetime.now().isoformat()}))
@@ -450,21 +755,23 @@ def run_trade_management() -> None:
 
     menu = Menu("⚙️ TRADES & JOURNAL")
     menu.add(
-        "Overzicht bekijken", lambda: run_module("tomic.journal.journal_inspector")
+        "Overzicht bekijken",
+        partial(run_module, "tomic.journal.journal_inspector"),
     )
     menu.add(
-        "Nieuwe trade aanmaken", lambda: run_module("tomic.journal.journal_updater")
+        "Nieuwe trade aanmaken",
+        partial(run_module, "tomic.journal.journal_updater"),
     )
     menu.add(
         "Trade aanpassen / snapshot toevoegen",
-        lambda: run_module("tomic.journal.journal_inspector"),
+        partial(run_module, "tomic.journal.journal_inspector"),
     )
     menu.add(
         "Journal updaten met positie IDs",
-        lambda: run_module("tomic.cli.link_positions"),
+        partial(run_module, "tomic.cli.link_positions"),
     )
 
-    menu.add("Trade afsluiten", lambda: run_module("tomic.cli.close_trade"))
+    menu.add("Trade afsluiten", partial(run_module, "tomic.cli.close_trade"))
     menu.run()
 
 
@@ -472,14 +779,14 @@ def run_risk_tools() -> None:
     """Menu for risk analysis helpers."""
 
     menu = Menu("🚦 RISICO TOOLS & SYNTHETICA")
-    menu.add("Entry checker", lambda: run_module("tomic.cli.entry_checker"))
-    menu.add("Scenario-analyse", lambda: run_module("tomic.cli.portfolio_scenario"))
-    menu.add("Event watcher", lambda: run_module("tomic.cli.event_watcher"))
-    menu.add("Synthetics detector", lambda: run_module("tomic.cli.synthetics_detector"))
-    menu.add("ATR Calculator", lambda: run_module("tomic.cli.atr_calculator"))
+    menu.add("Entry checker", partial(run_module, "tomic.cli.entry_checker"))
+    menu.add("Scenario-analyse", partial(run_module, "tomic.cli.portfolio_scenario"))
+    menu.add("Event watcher", partial(run_module, "tomic.cli.event_watcher"))
+    menu.add("Synthetics detector", partial(run_module, "tomic.cli.synthetics_detector"))
+    menu.add("ATR Calculator", partial(run_module, "tomic.cli.atr_calculator"))
     menu.add(
         "Theoretical value calculator",
-        lambda: run_module("tomic.cli.bs_calculator"),
+        partial(run_module, "tomic.cli.bs_calculator"),
     )
     menu.run()
 
@@ -490,280 +797,24 @@ def run_portfolio_menu(
 ) -> None:
     session = session or ControlPanelSession()
     services = services or _create_services(session)
-    """Menu to fetch and display portfolio information."""
-
-    def fetch_and_show() -> None:
-        print("ℹ️ Haal portfolio op...")
-        try:
-            run_module("tomic.api.getaccountinfo")
-            save_portfolio_timestamp()
-        except subprocess.CalledProcessError:
-            print("❌ Ophalen van portfolio mislukt")
-            return
-        view = prompt("Weergavemodus (compact/full/alerts): ", "full").strip().lower()
-        try:
-            run_module(
-                STRATEGY_DASHBOARD_MODULE,
-                str(POSITIONS_FILE),
-                str(ACCOUNT_INFO_FILE),
-                f"--view={view}",
-            )
-            run_module("tomic.analysis.performance_analyzer")
-        except subprocess.CalledProcessError:
-            print("❌ Dashboard kon niet worden gestart")
-
-    def show_saved() -> None:
-        if not (POSITIONS_FILE.exists() and ACCOUNT_INFO_FILE.exists()):
-            print("⚠️ Geen opgeslagen portfolio gevonden. Kies optie 1 om te verversen.")
-            return
-        ts = load_portfolio_timestamp()
-        if ts:
-            print(f"ℹ️ Laatste update: {ts}")
-        print_saved_portfolio_greeks()
-        view = prompt("Weergavemodus (compact/full/alerts): ", "full").strip().lower()
-        try:
-            run_module(
-                STRATEGY_DASHBOARD_MODULE,
-                str(POSITIONS_FILE),
-                str(ACCOUNT_INFO_FILE),
-                f"--view={view}",
-            )
-            run_module("tomic.analysis.performance_analyzer")
-        except subprocess.CalledProcessError:
-            print("❌ Dashboard kon niet worden gestart")
-
-    def show_greeks() -> None:
-        if not POSITIONS_FILE.exists():
-            print("⚠️ Geen opgeslagen portfolio gevonden. Kies optie 1 om te verversen.")
-            return
-        try:
-            run_module("tomic.cli.portfolio_greeks", str(POSITIONS_FILE))
-        except subprocess.CalledProcessError:
-            print("❌ Greeks-overzicht kon niet worden getoond")
-    def print_factsheet(chosen: dict[str, object]) -> None:
-        """Print key metrics for the selected recommendation."""
-
-        factsheet = services.portfolio.build_factsheet(chosen)
-        table_spec = build_factsheet_table(factsheet)
-        print(tabulate(table_spec.rows, headers=table_spec.headers, tablefmt="github"))
-
-    def show_market_info() -> None:
-        symbols = [s.upper() for s in cfg.get("DEFAULT_SYMBOLS", [])]
-
-        vix_value = None
-        try:
-            metrics = fetch_volatility_metrics(symbols[0] if symbols else "SPY")
-            vix_value = metrics.get("vix")
-        except Exception:
-            vix_value = None
-        if isinstance(vix_value, (int, float)):
-            print(f"VIX {vix_value:.2f}")
-
-        snapshot = services.market_snapshot.load_snapshot({"symbols": symbols})
-
-        def _as_overview_row(data: object) -> list[object]:
-            return [
-                getattr(data, "symbol", None),
-                getattr(data, "spot", None),
-                getattr(data, "iv", None),
-                getattr(data, "hv20", None),
-                getattr(data, "hv30", None),
-                getattr(data, "hv90", None),
-                getattr(data, "hv252", None),
-                getattr(data, "iv_rank", None),
-                getattr(data, "iv_percentile", None),
-                getattr(data, "term_m1_m2", None),
-                getattr(data, "term_m1_m3", None),
-                getattr(data, "skew", None),
-                getattr(data, "next_earnings", None),
-                getattr(data, "days_until_earnings", None),
-            ]
-
-        rows = [_as_overview_row(row) for row in snapshot.rows]
-
-        recs, table_rows, meta = build_market_overview(rows)
-
-        earnings_filtered = {}
-        if isinstance(meta, dict):
-            earnings_filtered = meta.get("earnings_filtered", {}) or {}
-        if isinstance(earnings_filtered, dict) and earnings_filtered:
-            total_hidden = sum(len(strategies) for strategies in earnings_filtered.values())
-            detail_parts = []
-            for symbol in sorted(earnings_filtered):
-                strategies = ", ".join(earnings_filtered[symbol])
-                detail_parts.append(f"{symbol}: {strategies}")
-            detail_msg = "; ".join(detail_parts)
-            print(
-                f"ℹ️ {total_hidden} aanbevelingen verborgen vanwege earnings-filter"
-                + (f" ({detail_msg})" if detail_msg else "")
-            )
-
-        if recs:
-            portfolio_show_market_overview(tabulate, table_rows)
-
-            while True:
-                sel = prompt("Selectie (0 om terug, 999 voor scan): ")
-                if sel == "999":
-                    portfolio_run_market_scan(
-                        session,
-                        services,
-                        recs,
-                        tabulate_fn=tabulate,
-                        prompt_fn=prompt,
-                        show_proposal_details=_show_proposal_details,
-                        refresh_spot_price_fn=refresh_spot_price,
-                        load_spot_from_metrics_fn=load_spot_from_metrics,
-                        load_latest_close_fn=_load_latest_close,
-                        spot_from_chain_fn=spot_from_chain,
-                    )
-                    continue
-                if sel in {"", "0"}:
-                    break
-                try:
-                    idx = int(sel) - 1
-                    chosen = recs[idx]
-                except (ValueError, IndexError):
-                    print("❌ Ongeldige keuze")
-                    continue
-                session.update_from_mapping(chosen)
-                symbol_label = session.symbol or "—"
-                strategy_label = session.strategy or "—"
-                print(f"\n🎯 Gekozen strategie: {symbol_label} – {strategy_label}\n")
-                print_factsheet(chosen)
-                choose_chain_source()
-                return
-        else:
-            print("⚠️ Geen aanbevelingen beschikbaar.")
-
-    def show_informative_market_info() -> None:
-        symbols = [s.upper() for s in cfg.get("DEFAULT_SYMBOLS", [])]
-
-        vix_value = None
-        try:
-            metrics = fetch_volatility_metrics(symbols[0] if symbols else "SPY")
-            vix_value = metrics.get("vix")
-        except Exception:
-            vix_value = None
-        if isinstance(vix_value, (int, float)):
-            print(f"VIX {vix_value:.2f}")
-
-        snapshot = MARKET_SNAPSHOT_SERVICE.load_snapshot({"symbols": symbols})
-
-        def fmt4(val: float | None) -> str:
-            return f"{val:.4f}" if val is not None else ""
-
-        def fmt2(val: float | None) -> str:
-            return f"{val:.2f}" if val is not None else ""
-
-        formatted_rows = []
-        for row in snapshot.rows:
-            formatted_rows.append(
-                [
-                    getattr(row, "symbol", None),
-                    getattr(row, "spot", None),
-                    fmt4(getattr(row, "iv", None)),
-                    fmt4(getattr(row, "hv20", None)),
-                    fmt4(getattr(row, "hv30", None)),
-                    fmt4(getattr(row, "hv90", None)),
-                    fmt4(getattr(row, "hv252", None)),
-                    fmt2(getattr(row, "iv_rank", None)),
-                    fmt2(getattr(row, "iv_percentile", None)),
-                    getattr(row, "term_m1_m2", None),
-                    getattr(row, "term_m1_m3", None),
-                    getattr(row, "skew", None),
-                    getattr(row, "next_earnings", None),
-                ]
-            )
-
-        headers = [
-            "symbol",
-            "spotprice",
-            "IV",
-            "hv20",
-            "hv30",
-            "hv90",
-            "hv252",
-            "iv_rank (HV)",
-            "iv_percentile (HV)",
-            "term_m1_m2",
-            "term_m1_m3",
-            "skew",
-            "next_earnings",
-        ]
-
-        print(tabulate(formatted_rows, headers=headers, tablefmt="github"))
-
-    def _process_chain(path: Path) -> None:
-        global SHOW_REASONS
-        SHOW_REASONS = portfolio_process_chain(
-            session,
-            services,
-            path,
-            SHOW_REASONS,
-            tabulate_fn=tabulate,
-            prompt_fn=prompt,
-            prompt_yes_no_fn=prompt_yes_no,
-            show_proposal_details=_show_proposal_details,
-            build_rejection_summary_fn=build_rejection_summary,
-            save_trades_fn=_save_trades,
-            refresh_spot_price_fn=refresh_spot_price,
-            load_spot_from_metrics_fn=load_spot_from_metrics,
-            load_latest_close_fn=_load_latest_close,
-            spot_from_chain_fn=spot_from_chain,
-            print_evaluation_overview_fn=_print_evaluation_overview,
-        )
-
-    def choose_chain_source() -> None:
-        symbol = session.symbol
-        if not symbol:
-            print("⚠️ Geen strategie geselecteerd")
-            return
-
-        def use_ib() -> None:
-            path = services.export.export_chain(str(symbol))
-            if not path:
-                print("⚠️ Geen chain gevonden")
-                return
-            _process_chain(path)
-
-        def use_polygon() -> None:
-            path = services.export.fetch_polygon_chain(str(symbol))
-            if not path:
-                print("⚠️ Geen polygon chain gevonden")
-                return
-            _process_chain(path)
-
-        def manual() -> None:
-            p = prompt("Pad naar CSV: ")
-            if not p:
-                return
-            _process_chain(Path(p))
-
-        menu = Menu("Chain ophalen")
-        menu.add("Download nieuwe chain via TWS", use_ib)
-        menu.add("Download nieuwe chain via Polygon", use_polygon)
-        menu.add("CSV handmatig kiezen", manual)
-        menu.run()
 
     menu = Menu("📊 ANALYSE & STRATEGIE")
-    menu.add("Trading Plan", lambda: run_module("tomic.cli.trading_plan"))
-    menu.add("Portfolio ophalen en tonen", fetch_and_show)
-    menu.add("Laatst opgehaalde portfolio tonen", show_saved)
+    menu.add("Trading Plan", partial(start_trading_plan, session, services))
+    menu.add(
+        "Portfolio ophalen en tonen",
+        partial(fetch_and_show_portfolio, session, services),
+    )
+    menu.add(
+        "Laatst opgehaalde portfolio tonen",
+        partial(show_saved_portfolio, session, services),
+    )
     menu.add(
         "Trademanagement (controleer exitcriteria)",
-        lambda: run_module("tomic.cli.trade_management"),
+        partial(_run_trade_management_module, session, services),
     )
-    menu.add("Toon marktinformatie", show_market_info)
-
-    def _show_earnings_info() -> None:
-        try:
-            run_module("tomic.cli.earnings_info")
-        except subprocess.CalledProcessError:
-            print("❌ Earnings-informatie kon niet worden getoond")
-
-    menu.add("Earnings-informatie", _show_earnings_info)
+    menu.add("Toon marktinformatie", partial(show_market_info, session, services))
+    menu.add("Earnings-informatie", partial(show_earnings_info, session, services))
     menu.run()
-
 
 def run_settings_menu(
     session: ControlPanelSession | None = None,
@@ -774,44 +825,3 @@ def run_settings_menu(
     menu = build_settings_menu(SETTINGS_MENU, session, services)
     menu.run()
 
-
-def run_controlpanel(
-    session: ControlPanelSession | None = None,
-    services: ControlPanelServices | None = None,
-) -> None:
-    """Render the main control panel menu with injected dependencies."""
-
-    session = session or ControlPanelSession()
-    services = services or _create_services(session)
-
-    menu = Menu("TOMIC CONTROL PANEL", exit_text="Stoppen")
-    menu.add("Analyse & Strategie", lambda: run_portfolio_menu(session, services))
-    menu.add("Data & Marktdata", lambda: run_dataexporter(services))
-    menu.add("Trades & Journal", run_trade_management)
-    menu.add("Risicotools & Synthetica", run_risk_tools)
-    menu.add("Configuratie", lambda: run_settings_menu(session, services))
-    menu.run()
-    print("Tot ziens.")
-
-
-def main(argv: list[str] | None = None) -> None:
-    """Start the interactive control panel."""
-
-    parser = argparse.ArgumentParser(description="TOMIC control panel")
-    parser.add_argument(
-        "--show-reasons",
-        action="store_true",
-        help="Toon selectie- en strategie-redenen",
-    )
-    args = parser.parse_args(argv or [])
-
-    global SHOW_REASONS
-    SHOW_REASONS = args.show_reasons
-
-    session = ControlPanelSession()
-    services = _create_services(session)
-    run_controlpanel(session, services)
-
-
-if __name__ == "__main__":
-    main(sys.argv[1:])
