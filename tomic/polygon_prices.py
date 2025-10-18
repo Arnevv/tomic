@@ -24,7 +24,7 @@ from tomic.logutils import logger
 from tomic.journal.utils import load_json, save_json
 from tomic.helpers.price_utils import _load_latest_close
 from tomic.helpers.price_meta import load_price_meta
-from tomic.polygon_client import PolygonClient
+from tomic.integrations.polygon.client import PolygonClient
 
 
 _US_MARKET_HOLIDAYS = None

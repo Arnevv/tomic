@@ -2,12 +2,16 @@ from __future__ import annotations
 
 """Polygon REST API client implementing :class:`MarketDataProvider`."""
 
-from typing import Any, Dict, List
 import os
 import random
-import requests
 import time
-from .logutils import logger
+from typing import Any, Dict, List
+
+import requests
+
+from ... import config as cfg
+from ...logutils import logger
+from ...market_provider import MarketDataProvider
 
 # Enable full API key logging when TOMIC_SHOW_POLYGON_KEY is truthy
 _SHOW_POLYGON_KEY = os.getenv("TOMIC_SHOW_POLYGON_KEY", "0").lower() not in {
@@ -16,9 +20,6 @@ _SHOW_POLYGON_KEY = os.getenv("TOMIC_SHOW_POLYGON_KEY", "0").lower() not in {
     "false",
     "no",
 }
-
-from .market_provider import MarketDataProvider
-from . import config as cfg
 
 
 class PolygonClient(MarketDataProvider):
@@ -129,7 +130,7 @@ class PolygonClient(MarketDataProvider):
 
     def fetch_spot_price(self, symbol: str) -> float | None:
         """Return the latest trade price for ``symbol``."""
-        # Probeer eerst de snapshot‑endpoint
+        # Probeer eerst de snapshot-endpoint
         data = self._request(
             f"v2/snapshot/locale/us/markets/stocks/tickers/{symbol.upper()}"
         )
@@ -141,7 +142,7 @@ class PolygonClient(MarketDataProvider):
         if price is None:
             price = ticker.get("day", {}).get("c") or ticker.get("min", {}).get("c")
 
-        # Valt terug op de last‑trade‑endpoint wanneer snapshot niets oplevert
+        # Valt terug op de last-trade-endpoint wanneer snapshot niets oplevert
         if price is None:
             data = self._request(f"v2/last/trade/{symbol.upper()}")
             result = data.get("results") or data.get("last") or {}
@@ -151,4 +152,3 @@ class PolygonClient(MarketDataProvider):
             return float(price) if price is not None else None
         except Exception:
             return None
-
