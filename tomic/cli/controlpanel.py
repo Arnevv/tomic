@@ -1015,6 +1015,7 @@ def run_portfolio_menu(
         print(tabulate(formatted_rows, headers=headers, tablefmt="github"))
 
     def _process_chain(path: Path) -> None:
+        global SHOW_REASONS
         prep_config = ChainPreparationConfig.from_app_config()
         try:
             prepared = load_and_prepare_chain(path, prep_config)
@@ -1132,7 +1133,6 @@ def run_portfolio_menu(
             if prompt_yes_no("Opslaan naar CSV?", False):
                 _save_trades(session, evaluated)
             if prompt_yes_no("Doorgaan naar strategie voorstellen?", False):
-                global SHOW_REASONS
                 SHOW_REASONS = True
 
                 latest_spot = refresh_spot_price(symbol)
