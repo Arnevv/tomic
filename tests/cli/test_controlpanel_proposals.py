@@ -5,8 +5,12 @@ import types
 from datetime import date, datetime, timedelta
 from pathlib import Path
 from contextlib import contextmanager
+
+import tomic.services.chain_processing as chain_services
+
 from tomic.journal.utils import save_json, load_json
 from tomic.strategy_candidates import StrategyProposal
+from tomic.services.chain_processing import PreparedChain, ChainPreparationConfig
 from tomic.services.ib_marketdata import SnapshotResult
 from tomic.services.pipeline_refresh import (
     PipelineStats,
@@ -770,45 +774,21 @@ def test_process_chain_refreshes_spot_price(monkeypatch, tmp_path):
     csv_path = tmp_path / "chain.csv"
     csv_path.write_text("dummy")
 
-    class SimpleDF:
-        def __init__(self):
-            self.columns = ["expiry", "underlying_price"]
-            self._data = {
-                "expiry": ["2024-01-01"],
-                "underlying_price": [123.45],
-            }
+    prepared = PreparedChain(
+        path=csv_path,
+        source_path=csv_path,
+        dataframe=types.SimpleNamespace(),
+        records=[],
+        quality=100.0,
+        interpolation_applied=False,
+    )
 
-        def __getitem__(self, key):
-            return self._data[key]
-
-        def __setitem__(self, key, val):
-            self._data[key] = val
-
-        def to_dict(self, orient=None):
-            return [
-                {k: v[0] if isinstance(v, list) else v for k, v in self._data.items()}
-            ]
-
-        def __len__(self):
-            return len(next(iter(self._data.values())))
-
-    df = SimpleDF()
-
-    class DummyPD:
-        def read_csv(self, path):
-            return df
-
-        def to_datetime(self, series, errors=None):
-            class _DT:
-                def strftime(self, fmt):
-                    return series
-
-            return types.SimpleNamespace(dt=_DT())
-
-    monkeypatch.setattr(mod, "pd", DummyPD())
-    monkeypatch.setattr(mod, "normalize_european_number_format", lambda d, c: d)
-    monkeypatch.setattr(mod, "calculate_csv_quality", lambda d: 100.0)
-    monkeypatch.setattr(mod, "interpolate_missing_fields", lambda d: d)
+    monkeypatch.setattr(
+        mod.ChainPreparationConfig,
+        "from_app_config",
+        classmethod(lambda cls: ChainPreparationConfig(min_quality=0)),
+    )
+    monkeypatch.setattr(mod, "load_and_prepare_chain", lambda *a, **k: prepared)
 
     dummy_option = {
         "expiry": "2024-01-01",
@@ -819,6 +799,8 @@ def test_process_chain_refreshes_spot_price(monkeypatch, tmp_path):
         "type": "call",
         "strike": 100,
     }
+    prepared.records = [dummy_option]
+    monkeypatch.setattr(chain_services, "filter_by_expiry", lambda data, rng: [dummy_option])
     monkeypatch.setattr(mod, "filter_by_expiry", lambda data, rng: [dummy_option])
     monkeypatch.setattr(
         mod,
