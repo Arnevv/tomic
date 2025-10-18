@@ -21,7 +21,11 @@ except Exception:  # pragma: no cover - fallback when package is missing
 from tomic.analysis.metrics import average_true_range
 from tomic.config import get as cfg_get
 from tomic.logutils import logger
-from tomic.journal.utils import load_json, save_json
+from tomic.infrastructure.storage import (
+    load_json,
+    save_json,
+    merge_json_records,
+)
 from tomic.helpers.price_utils import _load_latest_close
 from tomic.helpers.price_meta import load_price_meta
 from tomic.integrations.polygon.client import PolygonClient
@@ -177,17 +181,8 @@ def request_bars(client: PolygonClient, symbol: str) -> tuple[list[dict], bool]:
 
 def merge_price_data(file: Path, records: list[dict]) -> int:
     """Merge ``records`` into ``file`` keeping existing entries intact."""
-    data = load_json(file)
-    if not isinstance(data, list):
-        data = []
-    existing_dates = {rec.get("date") for rec in data if isinstance(rec, dict)}
-    new = [r for r in records if r.get("date") not in existing_dates]
-    if not new:
-        return 0
-    data.extend(new)
-    data.sort(key=lambda r: r.get("date", ""))
-    save_json(data, file)
-    return len(new)
+
+    return merge_json_records(file, records, key="date")
 
 
 def request_intraday(client: PolygonClient, symbol: str) -> dict | None:

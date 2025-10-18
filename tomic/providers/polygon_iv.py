@@ -9,7 +9,7 @@ from typing import Any, Dict, List
 from tomic.utils import today
 from tomic.utils import _is_third_friday, load_price_history
 import json
-import time
+from time import sleep
 import csv
 
 from tomic.analysis.metrics import historical_volatility
@@ -18,7 +18,8 @@ from tomic.integrations.polygon.client import PolygonClient
 
 from tomic.config import get as cfg_get
 from tomic.logutils import logger
-from tomic.journal.utils import load_json, update_json_file
+from tomic.infrastructure.storage import load_json, update_json_file
+from tomic.infrastructure.throttling import RateLimiter
 from tomic.helpers.price_utils import _load_latest_close
 
 
@@ -125,12 +126,17 @@ class SnapshotFetcher:
         next_path: str | None = path
         first = True
         self.client.connect()
+        page_limiter = RateLimiter(1, 0.2, sleep=sleep)
         try:
             while next_path:
+                if not first:
+                    page_limiter.wait()
                 params_to_use = params if first else {}
                 if first:
                     logger.info(f"Requesting snapshot for {symbol} {expiry}")
                 payload = self.client._request(next_path, params_to_use)
+                if first:
+                    page_limiter.record()
                 results = payload.get("results", {})
                 if isinstance(results, dict):
                     opts = results.get("options") or []
@@ -147,7 +153,6 @@ class SnapshotFetcher:
                     else:
                         base = self.client.BASE_URL.rstrip("/")
                         next_path = next_url[len(base) + 1 :] if next_url.startswith(base) else next_url
-                    time.sleep(0.2)
                 else:
                     next_path = None
                 if first:
@@ -159,7 +164,7 @@ class SnapshotFetcher:
         logger.info(f"{symbol} {expiry}: {len(options)} contracts")
         delay_ms = int(cfg_get("POLYGON_DELAY_SNAPSHOT_MS", 200))
         if delay_ms > 0:
-            time.sleep(delay_ms / 1000)
+            sleep(delay_ms / 1000)
         return options
 
 

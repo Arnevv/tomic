@@ -13,6 +13,7 @@ from tomic.logutils import logger, setup_logging
 from tomic.integrations.polygon.client import PolygonClient
 from tomic.helpers.price_meta import load_price_meta, save_price_meta
 from tomic.polygon_prices import request_intraday, store_record
+from tomic.infrastructure.throttling import RateLimiter
 
 
 def main(argv: List[str] | None = None) -> None:
@@ -25,11 +26,13 @@ def main(argv: List[str] | None = None) -> None:
     symbols = [s.upper() for s in argv] if argv else [s.upper() for s in cfg_get("DEFAULT_SYMBOLS", [])]
 
     base_dir = Path(cfg_get("PRICE_HISTORY_DIR", "tomic/data/spot_prices"))
+    limiter = RateLimiter(1, 0.1, sleep=sleep)
     client = PolygonClient()
     client.connect()
     stored = 0
     try:
         for sym in symbols:
+            limiter.wait()
             record = request_intraday(client, sym)
             if not record:
                 logger.warning(f"No intraday data for {sym}")
@@ -42,7 +45,6 @@ def main(argv: List[str] | None = None) -> None:
                 ZoneInfo("America/New_York")
             ).isoformat()
             save_price_meta(meta)
-            sleep(0.1)
     finally:
         client.disconnect()
     logger.success(f"✅ Intraday prijzen opgeslagen voor {stored} symbolen")

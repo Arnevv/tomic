@@ -15,7 +15,8 @@ import requests
 
 from tomic.config import get as cfg_get
 from tomic.logutils import logger, setup_logging
-from tomic.journal.utils import load_json, save_json
+from tomic.infrastructure.storage import load_json, save_json
+from tomic.infrastructure.throttling import RateLimiter
 from tomic.helpers.dateutils import parse_date
 
 
@@ -116,18 +117,18 @@ def main(argv: List[str] | None = None) -> None:
     symbols.sort(key=_last_seen)
 
     stored = 0
+    limiter = RateLimiter(1, sleep_between, sleep=sleep)
     with TemporaryDirectory() as _tmp:
         for sym in symbols:
+            limiter.wait()
             try:
                 dates = _fetch_symbol(sym, api_key)
                 logger.info(f"{sym} new dates from API: {dates}")
             except Exception as exc:  # pragma: no cover - network errors
                 logger.error(f"Failed to fetch {sym}: {exc}")
-                sleep(sleep_between)
                 continue
             if not dates:
                 logger.warning(f"⚠️ Geen earnings data voor {sym}, mogelijk API-probleem.")
-                sleep(sleep_between)
                 continue
 
             current = data.get(sym, []) if isinstance(data.get(sym), list) else []
@@ -147,7 +148,6 @@ def main(argv: List[str] | None = None) -> None:
                 data[sym] = merged
                 stored += 1
                 meta[sym] = datetime.now().isoformat()
-            sleep(sleep_between)
 
     save_json(data, earnings_file)
     save_json(meta, meta_file)
