@@ -59,7 +59,10 @@ class Menu:
                 choice = input("Maak je keuze: ").strip()
             except (EOFError, StopIteration):  # pragma: no cover - interactive safeguard
                 return
-            if choice == str(len(self.items)+1):
+            exit_index = len(self.items) + 1
+            if choice == str(exit_index):
+                break
+            if choice.isdigit() and int(choice) >= exit_index:
                 break
             try:
                 index = int(choice) - 1
