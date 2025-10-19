@@ -8,7 +8,11 @@ from contextvars import ContextVar
 
 from tomic.config import get as cfg_get
 from functools import wraps
-from typing import Any, Callable, Iterator, Optional, TypeVar
+from typing import Any, Callable, Iterator, Optional, TypeVar, TYPE_CHECKING
+
+if TYPE_CHECKING:  # pragma: no cover - type hints only
+    from collections.abc import Iterable, Mapping, Sequence
+    from tomic.reporting import EvaluationSummary
 
 from tomic.strategy.reasons import (
     ReasonDetail,
@@ -265,4 +269,14 @@ def log_combo_evaluation(
         if symbol_hint:
             record["symbol"] = symbol_hint
         captured.append(record)
+
+
+def summarize_evaluations(
+    evaluations: "Sequence[Mapping[str, Any]] | Iterable[Mapping[str, Any]]",
+) -> "EvaluationSummary | None":
+    """Delegate to :func:`tomic.reporting.summarize_evaluations` lazily."""
+
+    from tomic.reporting import summarize_evaluations as _summarize  # local import
+
+    return _summarize(evaluations)
 

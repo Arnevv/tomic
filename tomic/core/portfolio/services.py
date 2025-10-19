@@ -31,7 +31,7 @@ from tomic.services.order_submission import (
     OrderSubmissionService,
     prepare_order_instructions,
 )
-from tomic.services.pipeline_refresh import RefreshProposal, RefreshSource
+from tomic.services.pipeline_refresh import Proposal as RefreshProposal, RefreshSource
 from tomic.services.proposal_details import ProposalVM, build_proposal_core, build_proposal_viewmodel
 from tomic.services.strategy_pipeline import StrategyProposal
 
