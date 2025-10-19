@@ -3,7 +3,11 @@ import pandas as pd
 import pytest
 from types import SimpleNamespace
 
-from tomic.services.chain_processing import ChainPreparationConfig, PreparedChain
+from tomic.services.chain_processing import (
+    ChainPreparationConfig,
+    PreparedChain,
+    SpotResolution,
+)
 
 if not hasattr(pd, "DataFrame") or isinstance(pd.DataFrame, type(object)):
     pytest.skip("pandas not available", allow_module_level=True)
@@ -30,7 +34,11 @@ def test_process_chain_respects_quality(tmp_path, monkeypatch):
         interpolation_applied=False,
     )
     monkeypatch.setattr(mod, "load_and_prepare_chain", lambda *a, **k: prepared)
-    monkeypatch.setattr(mod, "resolve_chain_spot_price", lambda *a, **k: 100.0)
+    monkeypatch.setattr(
+        mod,
+        "resolve_chain_spot_price",
+        lambda *a, **k: SpotResolution(100.0, "live", True, False),
+    )
     monkeypatch.setattr(mod, "_spot_from_chain", lambda records: 100.0)
 
     evaluation = SimpleNamespace(

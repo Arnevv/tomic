@@ -16,6 +16,7 @@ import pandas as pd
 
 from tomic import config as cfg
 from tomic.helpers.csv_utils import normalize_european_number_format
+from tomic.helpers.price_utils import ClosePriceSnapshot
 from tomic.helpers.interpolation import interpolate_missing_fields
 from tomic.helpers.quality_check import calculate_csv_quality
 from tomic.loader import load_strike_config
@@ -198,36 +199,96 @@ def load_and_prepare_chain(
     )
 
 
+@dataclass(frozen=True)
+class SpotResolution:
+    """Structured result describing how a spot price was resolved."""
+
+    price: float | None
+    source: str
+    is_live: bool
+    used_close_fallback: bool
+    close: ClosePriceSnapshot | None = None
+
+    @property
+    def is_valid(self) -> bool:
+        return isinstance(self.price, (int, float)) and self.price > 0
+
+
 def resolve_spot_price(
     symbol: str,
     prepared: PreparedChain,
     *,
     refresh_quote: Callable[[str], float | None],
     load_metrics_spot: Callable[[Path, str], float | None],
-    load_latest_close: Callable[[str], tuple[float | None, object]],
+    load_latest_close: Callable[[str], ClosePriceSnapshot],
     chain_spot_fallback: Callable[[Iterable[dict]], float | None],
-) -> float | None:
+) -> SpotResolution:
     """Resolve the best spot price using a series of fallbacks."""
 
-    def _latest_close() -> float | None:
-        price, *_rest = load_latest_close(symbol)
-        return price
+    close_snapshot: ClosePriceSnapshot | None = None
 
-    candidates: list[Callable[[], float | None]] = [
-        lambda: refresh_quote(symbol),
-        lambda: load_metrics_spot(prepared.source_path.parent, symbol),
-        _latest_close,
-        lambda: chain_spot_fallback(prepared.records),
+    def _latest_close() -> float | None:
+        nonlocal close_snapshot
+        close_snapshot = load_latest_close(symbol)
+        if isinstance(close_snapshot, ClosePriceSnapshot):
+            return close_snapshot.price
+        price, _date = close_snapshot if isinstance(close_snapshot, tuple) else (None, None)
+        try:
+            return float(price) if isinstance(price, (int, float)) else None
+        except Exception:  # pragma: no cover - defensive conversion
+            return None
+
+    candidates: list[tuple[str, bool, Callable[[], float | None]]] = [
+        ("live", True, lambda: refresh_quote(symbol)),
+        (
+            "metrics",
+            False,
+            lambda: load_metrics_spot(prepared.source_path.parent, symbol),
+        ),
+        ("close", False, _latest_close),
+        ("chain", False, lambda: chain_spot_fallback(prepared.records)),
     ]
 
-    for getter in candidates:
+    for label, is_live, getter in candidates:
         try:
             value = getter()
         except Exception:  # pragma: no cover - defensive fall-back
             continue
-        if isinstance(value, (int, float)) and value > 0:
-            return float(value)
-    return None
+        if not isinstance(value, (int, float)) or value <= 0:
+            continue
+
+        used_close = label == "close"
+        if used_close and close_snapshot is None:
+            close_snapshot = load_latest_close(symbol)
+
+        if used_close:
+            baseline_txt = " (baseline)" if close_snapshot and close_snapshot.baseline else ""
+            logger.info(
+                "📉 %s: using close fallback at %.2f%s",
+                symbol,
+                float(value),
+                baseline_txt,
+            )
+        elif is_live:
+            logger.info("⚡ %s: live spot price %.2f", symbol, float(value))
+        else:
+            logger.info("ℹ️ %s: using cached spot %.2f from %s", symbol, float(value), label)
+
+        return SpotResolution(
+            price=float(value),
+            source=label,
+            is_live=is_live,
+            used_close_fallback=used_close,
+            close=close_snapshot if isinstance(close_snapshot, ClosePriceSnapshot) else None,
+        )
+
+    return SpotResolution(
+        price=None,
+        source="unresolved",
+        is_live=False,
+        used_close_fallback=False,
+        close=close_snapshot if isinstance(close_snapshot, ClosePriceSnapshot) else None,
+    )
 
 
 def _count_by_expiry(records: Iterable[Mapping[str, object]]) -> dict[str, int]:

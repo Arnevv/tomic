@@ -1,5 +1,7 @@
 import importlib
 
+from tomic.helpers.price_utils import ClosePriceSnapshot
+
 
 def test_compute_volstats_polygon_intraday(monkeypatch):
     mod = importlib.import_module("tomic.cli.compute_volstats_polygon")
@@ -8,7 +10,7 @@ def test_compute_volstats_polygon_intraday(monkeypatch):
 
     # base closes do not include intraday price
     monkeypatch.setattr(mod, "_get_closes", lambda sym: [1.0] * 30)
-    monkeypatch.setattr(mod, "_load_latest_close", lambda sym: (2.0, "2024-01-02"))
+    monkeypatch.setattr(mod, "_load_latest_close", lambda sym: ClosePriceSnapshot(2.0, "2024-01-02"))
 
     hv_inputs = []
 
