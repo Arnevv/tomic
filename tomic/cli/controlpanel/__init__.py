@@ -13,6 +13,8 @@ from typing import Iterable, Mapping
 from tomic.cli.app_services import ControlPanelServices
 from tomic.cli.common import Menu
 from tomic.cli.controlpanel_session import ControlPanelSession
+from tomic.cli.module_runner import run_module
+from tomic.scripts.backfill_hv import run_backfill_hv
 from tomic.logutils import summarize_evaluations
 from tomic.reporting import ReasonAggregator
 from tomic.strategy.reasons import ReasonCategory
