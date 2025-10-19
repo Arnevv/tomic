@@ -3,6 +3,7 @@ from __future__ import annotations
 import math
 from typing import Any, Mapping
 
+import tomic.services.pipeline_refresh as refresh_mod
 from tomic.services.pipeline_refresh import (
     IncompleteData,
     PipelineStats,
@@ -122,4 +123,55 @@ def test_refresh_pipeline_retries_and_errors(monkeypatch):
     assert not failure.accepted
     assert failure.rejections
     assert isinstance(failure.rejections[0].error, IncompleteData)
+
+
+def test_resolve_runtime_settings_prefers_config(monkeypatch):
+    config = {
+        "MARKET_DATA_TIMEOUT": 12,
+        "PIPELINE_REFRESH_ATTEMPTS": 4,
+        "PIPELINE_REFRESH_RETRY_DELAY": 1.5,
+        "PIPELINE_REFRESH_PARALLEL": True,
+        "PIPELINE_REFRESH_MAX_WORKERS": 8,
+        "PIPELINE_REFRESH_MAX_INFLIGHT": 3,
+        "PIPELINE_REFRESH_MIN_INTERVAL": 0.25,
+    }
+
+    monkeypatch.setattr(
+        refresh_mod,
+        "cfg_value",
+        lambda key, default=None: config.get(key, default),
+    )
+
+    settings = refresh_mod._resolve_runtime_settings(RefreshParams(entries=[]))
+
+    assert math.isclose(settings.timeout, 12.0, rel_tol=1e-6)
+    assert settings.max_attempts == 4
+    assert math.isclose(settings.retry_delay, 1.5, rel_tol=1e-6)
+    assert settings.parallel is True
+    assert settings.max_workers == 8
+    assert settings.throttle.max_inflight == 3
+    assert math.isclose(settings.throttle.min_interval, 0.25, rel_tol=1e-6)
+
+
+def test_resolve_runtime_settings_respects_overrides(monkeypatch):
+    monkeypatch.setattr(refresh_mod, "cfg_value", lambda key, default=None: default)
+
+    params = RefreshParams(
+        entries=[],
+        max_attempts=5,
+        retry_delay=0.75,
+        parallel=False,
+        max_workers=2,
+        throttle_inflight=1,
+        throttle_interval=0.1,
+    )
+
+    settings = refresh_mod._resolve_runtime_settings(params)
+
+    assert settings.max_attempts == 5
+    assert math.isclose(settings.retry_delay, 0.75, rel_tol=1e-6)
+    assert settings.parallel is False
+    assert settings.max_workers == 2
+    assert settings.throttle.max_inflight == 1
+    assert math.isclose(settings.throttle.min_interval, 0.1, rel_tol=1e-6)
 
