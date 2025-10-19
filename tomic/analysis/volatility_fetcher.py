@@ -405,8 +405,11 @@ class _IbkrVixClient(BaseIBApp):
                     "req_id": req_id,
                 }
                 logger.debug(
-                    "Requesting VIX snapshot via IBKR: %s",
-                    payload,
+                    json.dumps(
+                        payload,
+                        sort_keys=True,
+                        separators=(",", ":"),
+                    )
                 )
                 self.reqMktData(req_id, contract, "", True, False, [])
             except Exception as exc:  # pragma: no cover - network failures
