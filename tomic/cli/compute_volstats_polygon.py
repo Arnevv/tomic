@@ -8,6 +8,7 @@ from time import sleep
 from typing import List, Any
 
 from tomic.analysis.metrics import historical_volatility
+from tomic.cli.services.vol_helpers import iv_percentile, iv_rank, rolling_hv
 from tomic.config import get as cfg_get
 from tomic.infrastructure.storage import update_json_file
 from tomic.infrastructure.throttling import RateLimiter
@@ -171,29 +172,6 @@ def main(argv: List[str] | None = None) -> None:
 
     summary_dir = Path(cfg_get("IV_DAILY_SUMMARY_DIR", "tomic/data/iv_daily_summary"))
     hv_dir = Path(cfg_get("HISTORICAL_VOLATILITY_DIR", "tomic/data/historical_volatility"))
-
-    def rolling_hv(closes: list[float], window: int) -> list[float]:
-        result = []
-        for i in range(window, len(closes) + 1):
-            hv = historical_volatility(closes[i - window : i], window=window)
-            if hv is not None:
-                result.append(hv)
-        return result
-
-    def iv_rank(value: float, series: list[float]) -> float | None:
-        if not series:
-            return None
-        lo = min(series)
-        hi = max(series)
-        if hi == lo:
-            return None
-        return (value - lo) / (hi - lo)
-
-    def iv_percentile(value: float, series: list[float]) -> float | None:
-        if not series:
-            return None
-        count = sum(1 for hv in series if hv < value)
-        return count / len(series)
 
     limiter = RateLimiter(1, sleep_between, sleep=sleep)
     for idx, sym in enumerate(symbols):

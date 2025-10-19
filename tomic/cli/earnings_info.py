@@ -5,48 +5,25 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from typing import List
 
+from tomic.cli._tabulate import tabulate
+from tomic.cli.volatility_recommender import recommend_strategies
 from tomic.config import get as cfg_get
 from tomic.journal.utils import load_json
 from tomic.utils import today
-from tomic.cli.volatility_recommender import recommend_strategies
-
-try:
-    from tabulate import tabulate
-except Exception:  # pragma: no cover - fallback when tabulate is missing
-
-    def tabulate(rows: List[List[str]], headers: List[str] | None = None, tablefmt: str = "simple") -> str:
-        if headers:
-            table_rows = [headers] + rows
-        else:
-            table_rows = rows
-        if not table_rows:
-            return ""
-        col_w = [max(len(str(c)) for c in col) for col in zip(*table_rows)]
-
-        def fmt(row: List[str]) -> str:
-            return "| " + " | ".join(str(c).ljust(col_w[i]) for i, c in enumerate(row)) + " |"
-
-        lines = []
-        if headers:
-            lines.append(fmt(headers))
-            lines.append("|-" + "-|-".join("-" * col_w[i] for i in range(len(col_w))) + "-|")
-        for row in rows:
-            lines.append(fmt(row))
-        return "\n".join(lines)
 
 
-def _load_iv_data(symbol: str, directory: Path) -> dict[str, dict]:
+def _load_json_records(symbol: str, directory: Path) -> dict[str, dict]:
     data = load_json(directory / f"{symbol}.json")
     if not isinstance(data, list):
         return {}
-    return {rec.get("date"): rec for rec in data if isinstance(rec, dict)}
-
-
-def _load_hv_data(symbol: str, directory: Path) -> dict[str, dict]:
-    data = load_json(directory / f"{symbol}.json")
-    if not isinstance(data, list):
-        return {}
-    return {rec.get("date"): rec for rec in data if isinstance(rec, dict)}
+    records: dict[str, dict] = {}
+    for rec in data:
+        if not isinstance(rec, dict):
+            continue
+        key = rec.get("date")
+        if isinstance(key, str):
+            records[key] = rec
+    return records
 
 
 def _most_recent_iv_record(
@@ -127,6 +104,7 @@ def main(argv: List[str] | None = None) -> None:
     symbols = [s.upper() for s in argv] if argv else [s.upper() for s in cfg_get("DEFAULT_SYMBOLS", [])]
 
     summary_dir = Path(cfg_get("IV_DAILY_SUMMARY_DIR", "tomic/data/iv_daily_summary"))
+    hv_dir = Path(cfg_get("HISTORICAL_VOLATILITY_DIR", "tomic/data/historical_volatility"))
     earnings_file = Path(cfg_get("EARNINGS_DATES_FILE", "tomic/data/earnings_dates.json"))
     earnings_dict = load_json(earnings_file)
     earnings_data: list[dict] = []
@@ -141,14 +119,14 @@ def main(argv: List[str] | None = None) -> None:
     today_str = today().strftime("%Y-%m-%d")
 
     for sym in symbols:
-        iv_data = _load_iv_data(sym, summary_dir)
+        iv_data = _load_json_records(sym, summary_dir)
         iv_date_used, iv_today_rec = _most_recent_iv_record(iv_data, today_str)
         if iv_today_rec is None:
             continue  # geen bruikbare data beschikbaar
         iv_age = (
             today() - datetime.strptime(iv_date_used, "%Y-%m-%d").date()
         ).days
-        hv_data = _load_hv_data(sym, Path(cfg_get("HISTORICAL_VOLATILITY_DIR", "tomic/data/historical_volatility")))
+        hv_data = _load_json_records(sym, hv_dir)
         earn_date, dte = _next_earnings(sym, earnings_data)
         if earn_date is None or dte is None:
             continue

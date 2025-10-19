@@ -13,6 +13,7 @@ from tomic.helpers.price_utils import _load_latest_close
 from tomic.journal.utils import update_json_file
 from tomic.logutils import logger
 from tomic.utils import load_price_history
+from .vol_helpers import iv_percentile, iv_rank, rolling_hv
 
 
 def _get_closes(symbol: str) -> list[float]:
@@ -68,29 +69,6 @@ def compute_volatility_stats(symbols: Sequence[str] | None = None) -> list[str]:
 
     summary_dir = Path(cfg_get("IV_DAILY_SUMMARY_DIR", "tomic/data/iv_daily_summary"))
     hv_dir = Path(cfg_get("HISTORICAL_VOLATILITY_DIR", "tomic/data/historical_volatility"))
-
-    def rolling_hv(closes: list[float], window: int) -> list[float]:
-        result = []
-        for i in range(window, len(closes) + 1):
-            hv = historical_volatility(closes[i - window : i], window=window)
-            if hv is not None:
-                result.append(hv)
-        return result
-
-    def iv_rank(iv: float, series: list[float]) -> float | None:
-        if not series:
-            return None
-        lo = min(series)
-        hi = max(series)
-        if hi == lo:
-            return None
-        return (iv - lo) / (hi - lo)
-
-    def iv_percentile(iv: float, series: list[float]) -> float | None:
-        if not series:
-            return None
-        count = sum(1 for hv in series if hv < iv)
-        return count / len(series)
 
     stored: list[str] = []
     for sym in target_symbols:

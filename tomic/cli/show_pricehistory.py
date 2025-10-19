@@ -3,33 +3,10 @@ from __future__ import annotations
 
 from typing import List
 
+from tomic.cli._tabulate import tabulate
 from tomic.config import get as cfg_get
 from tomic.logutils import setup_logging
 from tomic.utils import load_price_history
-
-try:
-    from tabulate import tabulate
-except Exception:  # pragma: no cover - fallback when tabulate missing
-
-    def tabulate(rows: List[List[str]], headers: List[str] | None = None, tablefmt: str = "simple") -> str:
-        if headers:
-            table_rows = [headers] + rows
-        else:
-            table_rows = rows
-        if not table_rows:
-            return ""
-        col_w = [max(len(str(c)) for c in col) for col in zip(*table_rows)]
-
-        def fmt(row: List[str]) -> str:
-            return "| " + " | ".join(str(c).ljust(col_w[i]) for i, c in enumerate(row)) + " |"
-
-        lines = []
-        if headers:
-            lines.append(fmt(headers))
-            lines.append("|-" + "-|-".join("-" * col_w[i] for i in range(len(col_w))) + "-|")
-        for row in rows:
-            lines.append(fmt(row))
-        return "\n".join(lines)
 
 
 def main(argv: List[str] | None = None) -> None:

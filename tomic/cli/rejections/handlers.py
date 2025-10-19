@@ -14,6 +14,7 @@ from tomic.reporting import (
     format_dtes,
     reason_label,
 )
+from tomic.reporting._formatting import format_leg_position
 from tomic.services.pipeline_refresh import (
     ORIGINAL_INDEX_KEY,
     RefreshContext,
@@ -91,16 +92,6 @@ def _ensure_tabulate(tabulate_fn: _Tabulate | None) -> _Tabulate:
     if tabulate_fn is None:
         return _default_tabulate
     return tabulate_fn
-
-
-def _format_leg_position(raw: Any) -> str:
-    try:
-        num = float(raw)
-    except (TypeError, ValueError):
-        return "?"
-    return "S" if num < 0 else "L"
-
-
 def _entry_symbol(entry: Mapping[str, Any]) -> str | None:
     symbol = entry.get("symbol") if isinstance(entry, Mapping) else None
     if isinstance(symbol, str) and symbol.strip():
@@ -196,7 +187,7 @@ def show_rejection_detail(
             strike_str = f"{float(strike):g}"
         except (TypeError, ValueError):
             strike_str = str(strike or "—")
-        pos_label = _format_leg_position(leg.get("position"))
+        pos_label = format_leg_position(leg.get("position"))
         qty = leg.get("quantity") or leg.get("qty") or ""
         volume = leg.get("volume") or leg.get("totalVolume") or ""
         oi = leg.get("open_interest") or leg.get("openInterest") or ""
