@@ -36,13 +36,27 @@ def build_menu(
     session: ControlPanelSession,
     services: ControlPanelServices,
 ) -> None:
-    """Populate ``menu`` with sections that open dedicated submenus."""
+    """Populate ``menu`` with sections.
+
+    Sections with a single item open that handler directly so the user does not
+    have to confirm the same choice twice. Sections with multiple items still
+    open a submenu to let the user choose between the available handlers.
+    """
 
     for section in sections:
-        menu.add(
-            section.title,
-            partial(_run_section_menu, section=section, session=session, services=services),
-        )
+        if len(section.items) == 1:
+            item = section.items[0]
+            menu.add(section.title, partial(item.handler, session, services))
+        else:
+            menu.add(
+                section.title,
+                partial(
+                    _run_section_menu,
+                    section=section,
+                    session=session,
+                    services=services,
+                ),
+            )
 
 
 def _run_section_menu(*, section: MenuSection, session: ControlPanelSession, services: ControlPanelServices) -> None:
