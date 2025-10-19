@@ -665,6 +665,7 @@ def _memory_cache_entry() -> Tuple[Optional[float], Optional[str]]:
         return _VIX_CACHE.get("value"), _VIX_CACHE.get("source")
     if time.monotonic() - float(ts) <= _MEMORY_CACHE_TTL:
         return _VIX_CACHE.get("value"), _VIX_CACHE.get("source")
+    _VIX_CACHE.clear()
     return None, None
 
 
