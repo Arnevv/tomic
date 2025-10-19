@@ -59,6 +59,8 @@ class Candidate:
     spot_as_of: str | None = None
     spot_timestamp: str | None = None
     spot_baseline: bool = False
+    mid_status: str = "tradable"
+    needs_refresh: bool = False
 
 
 class CandidateRankingError(RuntimeError):
@@ -153,6 +155,8 @@ class PortfolioService:
             bid_ask_pct = self._avg_bid_ask_pct(proposal)
             risk_reward = self._risk_reward(proposal)
             mid_sources = self._mid_sources(proposal)
+            needs_refresh = bool(getattr(proposal, "needs_refresh", False) or ("needs_refresh" in mid_sources))
+            mid_status = mid_sources[0] if mid_sources else "tradable"
             next_earn = row.next_earnings
             if isinstance(next_earn, str):
                 try:
@@ -192,6 +196,8 @@ class PortfolioService:
                     spot_as_of=getattr(row, "spot_as_of", None),
                     spot_timestamp=getattr(row, "spot_timestamp", None),
                     spot_baseline=getattr(row, "spot_baseline", False),
+                    mid_status=mid_status,
+                    needs_refresh=needs_refresh,
                 )
             )
 
@@ -232,17 +238,44 @@ class PortfolioService:
 
     @staticmethod
     def _mid_sources(proposal: StrategyProposal) -> tuple[str, ...]:
-        fallback = getattr(proposal, "fallback", None)
-        if isinstance(fallback, str) and fallback.strip():
-            return (fallback.strip(),)
-        sources: set[str] = set()
-        for leg in getattr(proposal, "legs", []):
-            raw = leg.get("mid_fallback") or leg.get("mid_source")
-            if isinstance(raw, str) and raw.strip():
-                sources.add(raw.strip())
-        if not sources:
-            return ("quotes",)
-        return tuple(sorted(sources))
+        summary_raw = getattr(proposal, "fallback_summary", None)
+        summary: dict[str, int]
+        if isinstance(summary_raw, Mapping):
+            summary = {
+                str(source): int(summary_raw.get(source, 0) or 0)
+                for source in summary_raw
+            }
+        else:
+            summary = {}
+            for leg in getattr(proposal, "legs", []):
+                source = str(leg.get("mid_source") or "").strip()
+                if not source:
+                    source = str(leg.get("mid_fallback") or "").strip()
+                if source == "parity":
+                    source = "parity_true"
+                if not source:
+                    source = "true"
+                summary[source] = summary.get(source, 0) + 1
+        for key in ("true", "parity_true", "parity_close", "model", "close"):
+            summary.setdefault(key, 0)
+
+        preview_total = sum(summary.get(src, 0) for src in ("parity_close", "model", "close"))
+        status = "advisory" if preview_total else "tradable"
+        needs_refresh = bool(getattr(proposal, "needs_refresh", False) or preview_total > 0)
+
+        tags: list[str] = [status]
+        if needs_refresh:
+            tags.append("needs_refresh")
+
+        details = [
+            f"{source}:{count}"
+            for source, count in sorted(summary.items())
+            if count > 0
+        ]
+        if not details:
+            details.append("quotes")
+        tags.extend(details)
+        return tuple(tags)
 
     @staticmethod
     def _as_float(value: Any) -> float | None:

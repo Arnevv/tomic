@@ -75,6 +75,22 @@ _TRUE_MID_SOURCES: Final[set[str]] = {"true", "parity_true"}
 _KNOWN_PREVIEW_SOURCES: Final[set[str]] = {"parity_close", "model", "close"}
 
 
+_MID_REASON_LABELS: Final[Mapping[str, str]] = {
+    "true": "bid/ask spread ok",
+    "parity_true": "put-call parity",
+    "model": "model mid gebruikt",
+    "close": "fallback naar close",
+    "ib_stream": "IB streaming bid/ask",
+}
+
+_PARITY_CLOSE_VARIANTS: Final[Mapping[str, str]] = {
+    "close": "put-call parity via close tegenleg",
+    "parity_close": "put-call parity via parity(close) tegenleg",
+    "model": "put-call parity via model tegenleg",
+    "parity_true": "put-call parity via parity tegenleg",
+}
+
+
 @dataclass(frozen=True)
 class ReasonDetail:
     """Structured representation of a rejection reason."""
@@ -145,6 +161,35 @@ def reason_from_mid_source(mid_source: str | None) -> ReasonDetail | None:
         label,
         data={"mid_source": source},
     )
+
+
+def mid_reason_message(mid_source: str | None, *, base_source: str | None = None) -> str | None:
+    """Return the canonical reason message for a ``mid_source`` value.
+
+    ``base_source`` is used for put-call parity fallbacks so we can express the
+    provenance (e.g. a parity calculation based on ``close`` data).  Unknown
+    sources fall back to ``previewkwaliteit`` phrasing which keeps the
+    reason mapper consistent even when new mid fallbacks are introduced.
+    """
+
+    source = (mid_source or "").strip().lower()
+    if not source:
+        return None
+    if source == "parity":
+        source = "parity_true"
+    if source == "parity_close":
+        base = (base_source or "").strip().lower()
+        if base == "parity":
+            base = "parity_true"
+        if base in _PARITY_CLOSE_VARIANTS:
+            return _PARITY_CLOSE_VARIANTS[base]
+        return "put-call parity via indirect bron"
+    label = _MID_REASON_LABELS.get(source)
+    if label:
+        return label
+    if source:
+        return f"previewkwaliteit ({source})"
+    return None
 
 
 def _as_detail_from_mapping(mapping: Mapping[str, Any]) -> ReasonDetail:
@@ -468,5 +513,6 @@ __all__: Final[Iterable[str]] = (
     "normalize_reason_list",
     "dedupe_reasons",
     "reason_from_mid_source",
+    "mid_reason_message",
 )
 

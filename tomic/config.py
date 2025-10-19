@@ -94,6 +94,15 @@ class AppConfig(BaseModel):
     INCLUDE_GREEKS_ONLY_IF_MARKET_OPEN: bool = True
     ALLOW_INCOMPLETE_METRICS: bool = False
     MARKET_SCAN_TOP_N: int = 30
+    SCORING: Dict[str, Any] = {
+        "mid_preview": {
+            "penalty_per_leg": 1.5,
+            "max_preview_ratio": 0.5,
+            "penalty_cap": 6.0,
+            "short_leg_multiplier": 1.25,
+            "min_penalty": 0.0,
+        }
+    }
     # Parameters for IV history snapshots -------------------------------
     IV_TRACKING_DELTAS: List[float] = [0.25, 0.5]
     IV_EXPIRY_LOOKAHEAD_DAYS: List[int] = [0, 30, 60]
