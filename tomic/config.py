@@ -74,6 +74,9 @@ class AppConfig(BaseModel):
     CONTRACT_DETAILS_RETRIES: int = 0
     DOWNLOAD_TIMEOUT: int = 10
     DOWNLOAD_RETRIES: int = 2
+    VIX_TIMEOUT: int = 3
+    VIX_RETRIES: int = 1
+    VIX_SOURCE_ORDER: List[str] = ["yahoo_json", "google_html", "yahoo_html"]
     BID_ASK_TIMEOUT: int = 5
     MARKET_DATA_TIMEOUT: int = 120
     OPTION_DATA_RETRIES: int = 0
