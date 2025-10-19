@@ -401,6 +401,15 @@ def _ibkr_source_label(exchange: str | None) -> str:
     return f"ibkr:{exchange.lower()}"
 
 
+def _parse_ibkr_exchange(raw_exchange: str) -> tuple[str, Optional[str]]:
+    """Return (exchange, primary_exchange) for an IBKR venue string."""
+
+    parts = raw_exchange.split("@", 1)
+    exchange = parts[0].strip().upper()
+    primary = parts[1].strip().upper() if len(parts) == 2 else None
+    return exchange, primary if primary else None
+
+
 def _fetch_vix_from_ibkr_sync(settings: VixConfig) -> _VixFetcherResult:
     if Contract is None:
         return None, None, "ibapi not installed"
@@ -430,7 +439,8 @@ def _fetch_vix_from_ibkr_sync(settings: VixConfig) -> _VixFetcherResult:
     last_error: Optional[str] = None
     try:
         exchanges = settings.ib_exchanges or ["CBOE", "CBOEIND"]
-        for exchange in exchanges:
+        for raw_exchange in exchanges:
+            exchange, primary_exchange = _parse_ibkr_exchange(raw_exchange)
             try:
                 contract = Contract()
             except Exception as exc:  # pragma: no cover - contract creation
@@ -439,7 +449,8 @@ def _fetch_vix_from_ibkr_sync(settings: VixConfig) -> _VixFetcherResult:
             contract.secType = "IND"
             contract.currency = "USD"
             contract.exchange = exchange
-            contract.primaryExchange = exchange
+            if primary_exchange is not None:
+                contract.primaryExchange = primary_exchange
             value, error = app.request_snapshot(contract, timeout)
             if value is not None:
                 return value, _ibkr_source_label(exchange), None
