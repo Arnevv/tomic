@@ -35,6 +35,11 @@ from tomic.services.strategy_pipeline import StrategyProposal, RejectionSummary
 from tomic.core.portfolio import services as portfolio_services
 from tomic.strategy_candidates import generate_strategy_candidates as _generate_strategy_candidates
 from tomic.exports import spot_from_chain
+from tomic.cli.module_runner import run_module
+from tomic.scripts.backfill_hv import run_backfill_hv
+from tomic.logutils import summarize_evaluations
+from tomic.reporting import ReasonAggregator
+from tomic.strategy.reasons import ReasonCategory
 from .menu_config import MenuItem, MenuSection, build_menu
 from . import portfolio
 

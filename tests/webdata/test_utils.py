@@ -1,14 +1,9 @@
-from tomic.webdata.utils import parse_patterns
-from tomic.analysis.iv_patterns import EXTRA_PATTERNS
+from tomic.webdata.utils import to_float
 
 
-def test_parse_skew_from_simple_html():
-    html = "<div>Skew:</span> <span><strong>-0.25%</strong></span></div>"
-    result = parse_patterns({"skew": EXTRA_PATTERNS["skew"]}, html)
-    assert result["skew"] == -0.25
+def test_to_float_parses_percentage_string():
+    assert to_float(" 12,34 %") == 12.34
 
 
-def test_parse_skew_ignores_week_prefix():
-    html = "Skew 4 Week -1.20%"
-    result = parse_patterns({"skew": EXTRA_PATTERNS["skew"]}, html)
-    assert result["skew"] == -1.20
+def test_to_float_handles_invalid_value():
+    assert to_float("abc") is None

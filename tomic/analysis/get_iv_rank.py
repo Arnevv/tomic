@@ -1,36 +1,49 @@
-import sys
+"""Legacy helpers for IV rank scraping.
 
+The project no longer scrapes third-party websites for implied volatility data.
+These helpers remain only to provide a clear runtime error when the module is
+invoked.
+"""
+
+from __future__ import annotations
+
+import sys
 from typing import Dict, Optional
 
-from tomic.analysis.iv_patterns import IV_PATTERNS
-import asyncio
-from tomic.webdata.utils import download_html, download_html_async, parse_patterns
 from tomic.logutils import logger
 from tomic.logutils import setup_logging
 
 
 async def fetch_iv_metrics_async(symbol: str = "SPY") -> Dict[str, Optional[float]]:
-    """Async helper to fetch IV metrics for the symbol."""
-    html = await download_html_async(symbol)
-    data = parse_patterns(IV_PATTERNS, html)
-    for key in ("iv_rank", "iv_percentile"):
-        if data.get(key) is not None:
-            data[key] /= 100
-    return data
+    """Async helper kept for backwards compatibility.
+
+    The scraper-based implementation has been removed, so an empty mapping is
+    returned. Callers should migrate away from this helper.
+    """
+
+    logger.warning(
+        "IV metrics scraping has been removed; no data will be returned for %s",
+        symbol,
+    )
+    return {}
 
 
 def fetch_iv_metrics(symbol: str = "SPY") -> Dict[str, Optional[float]]:
-    """Return IV Rank, Implied Volatility and IV Percentile for the symbol."""
+    """Return IV metrics for ``symbol``.
+
+    The legacy scraper is no longer available and an empty mapping is returned
+    instead.
+    """
+
+    import asyncio
+
     return asyncio.run(fetch_iv_metrics_async(symbol))
 
 
 def fetch_iv_rank(symbol: str = "SPY") -> float:
-    """Fetch only the IV Rank for the given symbol."""
-    metrics = fetch_iv_metrics(symbol)
-    iv_rank = metrics.get("iv_rank")
-    if iv_rank is None:
-        raise ValueError("IV Rank not found on page")
-    return iv_rank
+    """Raise a clear error indicating that IV rank scraping is unsupported."""
+
+    raise RuntimeError("IV rank scraping has been removed from tomic")
 
 
 def main(argv=None):
@@ -45,14 +58,11 @@ def main(argv=None):
 
     try:
         metrics = fetch_iv_metrics(symbol)
-        iv_rank = metrics.get("iv_rank")
-        implied_vol = metrics.get("implied_volatility")
-        iv_pct = metrics.get("iv_percentile")
-
-        logger.info(f"IV Rank for {symbol}: {iv_rank}")
-        logger.info(f"Implied Volatility: {implied_vol}")
-        logger.info(f"IV Percentile: {iv_pct}")
-        logger.success("✅ Metrics fetched")
+        if metrics:
+            logger.info(f"IV metrics for {symbol}: {metrics}")
+        else:
+            logger.warning("Geen IV-data beschikbaar voor %s", symbol)
+        logger.success("✅ IV-scraper aangeroepen (zonder data)")
     except Exception as exc:
         logger.error(f"Error fetching IV metrics: {exc}")
 
