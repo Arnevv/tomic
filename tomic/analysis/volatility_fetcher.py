@@ -769,6 +769,9 @@ async def _get_vix_value() -> Tuple[Optional[float], Optional[str]]:
     return None, None
 
 
+_VIX_SYMBOL = "VIX"
+
+
 async def fetch_volatility_metrics_async(symbol: str) -> Dict[str, float]:
     """Asynchronously fetch volatility metrics for ``symbol``.
 
@@ -783,9 +786,9 @@ async def fetch_volatility_metrics_async(symbol: str) -> Dict[str, float]:
         metrics["vix"] = vix_value
     if vix_source:
         metrics["vix_source"] = vix_source
-    logger.info(
+    logger.debug(
         "volatility_metrics symbol=%s vix=%s vix_src=%s",
-        symbol,
+        _VIX_SYMBOL,
         metrics.get("vix"),
         vix_source,
     )
