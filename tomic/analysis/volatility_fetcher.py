@@ -3,16 +3,44 @@
 from __future__ import annotations
 
 import asyncio
+import csv
+import io
 import json
+import math
 import re
-from typing import Awaitable, Callable, Dict, Optional, Tuple
+import sys
+import threading
+import time
+from datetime import datetime, timezone
+from pathlib import Path
+from typing import Any, Awaitable, Callable, Dict, Optional, Tuple
 
 import aiohttp
 
 from tomic.analysis.iv_patterns import EXTRA_PATTERNS, IV_PATTERNS
-from tomic.config import get as cfg_get
+from tomic.api.base_client import BaseIBApp
+from tomic.api.ib_connection import connect_ib
+from tomic.config import VixConfig, VixJsonApiConfig, get as cfg_get
 from tomic.logutils import logger
+from tomic.utils import today
 from tomic.webdata.utils import download_html, download_html_async, parse_patterns, to_float
+
+try:  # pragma: no cover - optional dependency during tests
+    from ibapi.contract import Contract
+except Exception:  # pragma: no cover - tests without ibapi
+    Contract = None  # type: ignore[assignment]
+
+try:  # pragma: no cover - optional dependency during tests
+    from ibapi.ticktype import TickTypeEnum
+except Exception:  # pragma: no cover - fallback constants used in tests
+    class _TickTypeEnumFallback:  # type: ignore[too-few-public-methods]
+        LAST = 4
+        CLOSE = 9
+        DELAYED_LAST = 68
+        DELAYED_CLOSE = 75
+        MARK_PRICE = 37
+
+    TickTypeEnum = _TickTypeEnumFallback()  # type: ignore[assignment]
 
 
 GOOGLE_VIX_HTML_URL = "https://www.google.com/finance/quote/VIX:INDEXCBOE"
@@ -42,7 +70,13 @@ YAHOO_VIX_JSON_URL = (
 
 _BLOCKER_KEYWORDS = ("consent", "captcha", "enable javascript")
 
-_VIX_CACHE: dict[str, Optional[str | float]] = {}
+_REPO_ROOT = Path(__file__).resolve().parents[2]
+_MEMORY_CACHE_TTL = 60.0
+_VIX_CACHE: dict[str, Any] = {}
+
+_VixFetcherResult = Tuple[Optional[float], Optional[str], Optional[str]]
+
+_DEFAULT_VIX_SETTINGS = VixConfig()
 
 
 def _parse_vix_from_google(html: str) -> Optional[float]:
@@ -111,35 +145,126 @@ def _detect_blocker(html: str) -> Optional[str]:
     return None
 
 
-def _vix_timeout() -> float:
-    return float(cfg_get("VIX_TIMEOUT", 3))
+def _vix_settings() -> VixConfig:
+    raw = cfg_get("VIX", None)
+    if isinstance(raw, VixConfig):
+        return raw
+    if isinstance(raw, dict):
+        return VixConfig(**raw)
 
-
-def _vix_retries() -> int:
-    return int(cfg_get("VIX_RETRIES", 1))
-
-
-def _vix_source_order() -> list[str]:
-    raw = cfg_get(
-        "VIX_SOURCE_ORDER",
-        ["yahoo_json", "google_html", "yahoo_html"],
-    )
-    if isinstance(raw, str):
-        order = [part.strip() for part in raw.split(",") if part.strip()]
-    elif isinstance(raw, (list, tuple)):
-        order = [str(part) for part in raw]
+    order_raw = cfg_get("VIX_SOURCE_ORDER", _DEFAULT_VIX_SETTINGS.provider_order)
+    if isinstance(order_raw, str):
+        order = [part.strip() for part in order_raw.split(",") if part.strip()]
+    elif isinstance(order_raw, (list, tuple)):
+        order = [str(part) for part in order_raw]
     else:
-        order = ["yahoo_json", "google_html", "yahoo_html"]
-    if "barchart_html" not in order:
-        order.insert(0, "barchart_html")
-    return order
+        order = list(_DEFAULT_VIX_SETTINGS.provider_order)
+
+    return VixConfig(
+        provider_order=order or list(_DEFAULT_VIX_SETTINGS.provider_order),
+        daily_store=_DEFAULT_VIX_SETTINGS.daily_store,
+        http_timeout_sec=float(cfg_get("VIX_TIMEOUT", _DEFAULT_VIX_SETTINGS.http_timeout_sec)),
+        http_retries=int(cfg_get("VIX_RETRIES", _DEFAULT_VIX_SETTINGS.http_retries)),
+    )
 
 
-async def _request_text(url: str, *, headers: Optional[dict[str, str]] = None) -> Tuple[Optional[str], Optional[str]]:
+def _daily_store_path(settings: VixConfig) -> Path:
+    path = Path(settings.daily_store)
+    if not path.is_absolute():
+        path = _REPO_ROOT / path
+    return path
+
+
+def _load_daily_vix(settings: VixConfig) -> Tuple[Optional[float], Optional[str]]:
+    path = _daily_store_path(settings)
+    try:
+        with path.open("r", encoding="utf-8", newline="") as handle:
+            reader = csv.DictReader(handle)
+            last_row: dict[str, str] | None = None
+            for row in reader:
+                last_row = row
+    except FileNotFoundError:
+        return None, None
+    except Exception as exc:  # pragma: no cover - unexpected file errors
+        logger.warning(f"Failed to read VIX daily cache at {path}: {exc}")
+        return None, None
+
+    if not last_row:
+        return None, None
+
+    if last_row.get("date") != today().isoformat():
+        return None, None
+
+    value = to_float(last_row.get("vix"))
+    if value is None:
+        return None, None
+    return value, last_row.get("source")
+
+
+def _save_daily_vix(settings: VixConfig, value: float, source: str | None) -> None:
+    path = _daily_store_path(settings)
+    try:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        write_header = not path.exists()
+        with path.open("a", encoding="utf-8", newline="") as handle:
+            writer = csv.DictWriter(handle, fieldnames=["date", "vix", "source", "ts"])
+            if write_header:
+                writer.writeheader()
+            writer.writerow(
+                {
+                    "date": today().isoformat(),
+                    "vix": f"{value:.6f}",
+                    "source": source or "",
+                    "ts": datetime.now(timezone.utc).isoformat(),
+                }
+            )
+    except Exception as exc:  # pragma: no cover - filesystem errors
+        logger.warning(f"Failed to persist VIX daily cache at {path}: {exc}")
+
+
+def _extract_json_field(payload: Any, path: str | None) -> Any:
+    if not path:
+        return payload
+    current: Any = payload
+    for part in path.split("."):
+        if isinstance(current, dict):
+            current = current.get(part)
+        elif isinstance(current, list):
+            try:
+                idx = int(part)
+            except (TypeError, ValueError):
+                return None
+            if 0 <= idx < len(current):
+                current = current[idx]
+            else:
+                return None
+        else:
+            return None
+    return current
+
+
+def _http_timeout() -> float:
+    settings = _vix_settings()
+    return max(0.1, float(settings.http_timeout_sec))
+
+
+def _http_retries() -> int:
+    settings = _vix_settings()
+    return max(0, int(settings.http_retries))
+
+
+def _ib_timeout() -> float:
+    settings = _vix_settings()
+    return max(0.5, float(settings.ib_timeout_sec))
+
+
+async def _request_text(
+    url: str, *, headers: Optional[dict[str, str]] = None
+) -> Tuple[Optional[str], Optional[str]]:
     """Return ``(text, error)`` fetched from ``url`` with VIX retry policy."""
 
-    timeout = _vix_timeout()
-    retries = max(0, _vix_retries())
+    timeout = _http_timeout()
+    retries = _http_retries()
     attempts = retries + 1
     collected_errors: list[str] = []
     for attempt in range(1, attempts + 1):
@@ -161,73 +286,307 @@ async def _request_text(url: str, *, headers: Optional[dict[str, str]] = None) -
     return None, "; ".join(collected_errors) if collected_errors else "Unknown error"
 
 
-async def _fetch_vix_from_yahoo_html() -> Tuple[Optional[float], Optional[str]]:
+def _accepted_tick_types() -> set[int]:
+    values = {
+        getattr(TickTypeEnum, "LAST", None),
+        getattr(TickTypeEnum, "CLOSE", None),
+        getattr(TickTypeEnum, "DELAYED_LAST", None),
+        getattr(TickTypeEnum, "DELAYED_CLOSE", None),
+        getattr(TickTypeEnum, "MARK_PRICE", None),
+    }
+    return {int(v) for v in values if isinstance(v, int)}
+
+
+class _IbkrVixClient(BaseIBApp):
+    """Light-weight client for requesting a single VIX snapshot."""
+
+    _ACCEPTED_TICKS = _accepted_tick_types()
+
+    def __init__(self) -> None:
+        super().__init__()
+        self._event = threading.Event()
+        self._lock = threading.Lock()
+        self._value: Optional[float] = None
+        self._error: Optional[str] = None
+        self._req_counter = 9000
+        self._active_req: Optional[int] = None
+
+    def _next_id(self) -> int:
+        self._req_counter += 1
+        return self._req_counter
+
+    def _store_value(self, value: float) -> None:
+        with self._lock:
+            self._value = value
+        self._event.set()
+
+    def _store_error(self, message: str) -> None:
+        with self._lock:
+            self._error = message
+        self._event.set()
+
+    def tickPrice(self, reqId: int, tickType: int, price: float, attrib) -> None:  # noqa: N802 - IB API
+        if reqId != self._active_req:
+            return
+        if tickType not in self._ACCEPTED_TICKS:
+            return
+        try:
+            value = float(price)
+        except (TypeError, ValueError):
+            return
+        if not math.isfinite(value) or value <= 0:
+            return
+        self._store_value(value)
+
+    def tickSnapshotEnd(self, reqId: int) -> None:  # noqa: N802 - IB API
+        if reqId != self._active_req:
+            return
+        with self._lock:
+            if self._value is None and not self._error:
+                self._error = "snapshot ended without price"
+        self._event.set()
+
+    def error(  # type: ignore[override]
+        self,
+        reqId: int,
+        errorTime: int,
+        errorCode: int,
+        errorString: str,
+        advancedOrderRejectJson: str = "",
+    ) -> None:
+        super().error(reqId, errorTime, errorCode, errorString, advancedOrderRejectJson)
+        if reqId in {-1, self._active_req}:
+            self._store_error(errorString)
+
+    def request_snapshot(self, contract: Any, timeout: float) -> Tuple[Optional[float], Optional[str]]:
+        timeout = max(timeout, 0.5)
+        last_error: Optional[str] = None
+        for data_type in (1, 2, 3, 4):
+            try:
+                self.reqMarketDataType(data_type)
+            except Exception:  # pragma: no cover - unavailable in some modes
+                pass
+            req_id = self._next_id()
+            self._active_req = req_id
+            self._event.clear()
+            with self._lock:
+                self._value = None
+                self._error = None
+            try:
+                self.reqMktData(req_id, contract, "", True, False, [])
+            except Exception as exc:  # pragma: no cover - network failures
+                last_error = str(exc)
+                self._active_req = None
+                continue
+            if self._event.wait(timeout):
+                with self._lock:
+                    if self._value is not None:
+                        return self._value, None
+                    last_error = self._error or "no data"
+            else:
+                last_error = "timeout"
+            try:
+                self.cancelMktData(req_id)
+            except Exception:  # pragma: no cover - clean-up best effort
+                pass
+            self._active_req = None
+            if self._value is not None:
+                return self._value, None
+        return None, last_error
+
+
+def _ibkr_source_label(exchange: str | None) -> str:
+    if not exchange:
+        return "ibkr"
+    return f"ibkr:{exchange.lower()}"
+
+
+def _fetch_vix_from_ibkr_sync(settings: VixConfig) -> _VixFetcherResult:
+    if Contract is None:
+        return None, None, "ibapi not installed"
+
+    timeout = _ib_timeout()
+    host = cfg_get("IB_HOST", "127.0.0.1")
+    paper_mode = bool(cfg_get("IB_PAPER_MODE", True))
+    port_key = "IB_PORT" if paper_mode else "IB_LIVE_PORT"
+    default_port = 7497 if paper_mode else 7496
+    port = int(cfg_get(port_key, default_port))
+    client_id = int(cfg_get("IB_MARKETDATA_CLIENT_ID", 901))
+
+    app = _IbkrVixClient()
+    try:
+        connect_ib(
+            client_id=client_id,
+            host=host,
+            port=port,
+            timeout=int(max(1, round(timeout))),
+            unique=True,
+            app=app,
+        )
+    except Exception as exc:  # pragma: no cover - network failures
+        logger.warning(f"IBKR VIX connection failed: {exc}")
+        return None, None, str(exc)
+
+    last_error: Optional[str] = None
+    try:
+        exchanges = settings.ib_exchanges or ["CBOE", "CBOEIND"]
+        for exchange in exchanges:
+            try:
+                contract = Contract()
+            except Exception as exc:  # pragma: no cover - contract creation
+                return None, None, f"failed to build contract: {exc}"
+            contract.symbol = "VIX"
+            contract.secType = "IND"
+            contract.currency = "USD"
+            contract.exchange = exchange
+            contract.primaryExchange = exchange
+            value, error = app.request_snapshot(contract, timeout)
+            if value is not None:
+                return value, _ibkr_source_label(exchange), None
+            if error:
+                last_error = error
+        return None, None, last_error or "no data"
+    finally:
+        try:
+            app.disconnect()
+        except Exception:  # pragma: no cover - best effort cleanup
+            pass
+
+
+def _json_api_source_label(config: VixJsonApiConfig | None) -> str:
+    if config and config.name:
+        return config.name
+    return "json_api"
+
+
+def _parse_csv_payload(text: str, field: str | None) -> Optional[float]:
+    reader = csv.DictReader(io.StringIO(text))
+    try:
+        row = next(reader)
+    except StopIteration:
+        return None
+    if not row:
+        return None
+    if field:
+        return to_float(row.get(field))
+    for value in row.values():
+        parsed = to_float(value)
+        if parsed is not None:
+            return parsed
+    return None
+
+
+def _parse_json_payload(text: str, field: str | None) -> Optional[float]:
+    try:
+        payload = json.loads(text)
+    except json.JSONDecodeError as exc:
+        logger.error(f"Failed to decode VIX JSON payload: {exc}")
+        return None
+    value = _extract_json_field(payload, field) if field else payload
+    if isinstance(value, dict):
+        for candidate in value.values():
+            parsed = to_float(candidate)
+            if parsed is not None:
+                return parsed
+        return None
+    if isinstance(value, list):
+        for item in value:
+            parsed = to_float(item)
+            if parsed is not None:
+                return parsed
+        return None
+    return to_float(value)
+
+
+async def _fetch_vix_from_json_api() -> _VixFetcherResult:
+    settings = _vix_settings()
+    api_cfg = settings.json_api
+    if not api_cfg or not api_cfg.url:
+        return None, None, "json api not configured"
+    headers = api_cfg.headers or None
+    text, error = await _request_text(api_cfg.url, headers=headers)
+    if text is None:
+        return None, None, error
+    fmt = (api_cfg.format or "json").lower()
+    if fmt == "csv":
+        value = _parse_csv_payload(text, api_cfg.field)
+        if value is None:
+            return None, None, "csv parse error"
+    else:
+        value = _parse_json_payload(text, api_cfg.field)
+        if value is None:
+            missing = f"field '{api_cfg.field}'" if api_cfg.field else "value"
+            return None, None, f"json parse error ({missing})"
+    return value, _json_api_source_label(api_cfg), None
+
+
+async def _fetch_vix_from_yahoo_html() -> _VixFetcherResult:
     html, error = await _request_text(
         YAHOO_VIX_HTML_URL, headers={"User-Agent": "Mozilla/5.0"}
     )
     if html is None:
-        return None, error
+        return None, None, error
     blocker = _detect_blocker(html)
     if blocker:
         logger.warning(
             f"Yahoo HTML response appears blocked by '{blocker}' keyword"
         )
-        return None, f"blocked by {blocker} page"
+        return None, None, f"blocked by {blocker} page"
     value = _parse_vix_from_yahoo(html)
     if value is not None:
         logger.debug(f"Yahoo Finance VIX scrape result: {value}")
-        return value, None
+        return value, "yahoo_html", None
     logger.error(
         f"Failed to parse VIX payload from Yahoo HTML at {YAHOO_VIX_HTML_URL}"
     )
-    return None, "parse error"
+    return None, None, "parse error"
 
 
-async def _fetch_vix_from_google_html() -> Tuple[Optional[float], Optional[str]]:
+async def _fetch_vix_from_google_html() -> _VixFetcherResult:
     html, error = await _request_text(
         GOOGLE_VIX_HTML_URL, headers={"User-Agent": "Mozilla/5.0"}
     )
     if html is None:
-        return None, error
+        return None, None, error
     blocker = _detect_blocker(html)
     if blocker:
         logger.warning(
             f"Google HTML response appears blocked by '{blocker}' keyword"
         )
-        return None, f"blocked by {blocker} page"
+        return None, None, f"blocked by {blocker} page"
     value = _parse_vix_from_google(html)
     if value is not None:
         logger.debug(f"Google Finance VIX scrape result: {value}")
-        return value, None
+        return value, "google_html", None
     logger.error(
         f"Failed to parse VIX payload from Google HTML at {GOOGLE_VIX_HTML_URL}"
     )
-    return None, "parse error"
+    return None, None, "parse error"
 
 
-async def _fetch_vix_from_barchart_html() -> Tuple[Optional[float], Optional[str]]:
+async def _fetch_vix_from_barchart_html() -> _VixFetcherResult:
     html, error = await _request_text(
         BARCHART_VIX_HTML_URL, headers={"User-Agent": "Mozilla/5.0"}
     )
     if html is None:
-        return None, error
+        return None, None, error
     blocker = _detect_blocker(html)
     if blocker:
         logger.warning(
             f"Barchart HTML response appears blocked by '{blocker}' keyword"
         )
-        return None, f"blocked by {blocker} page"
+        return None, None, f"blocked by {blocker} page"
     value = _parse_vix_from_barchart(html)
     if value is not None:
         logger.debug(f"Barchart VIX scrape result: {value}")
-        return value, None
+        return value, "barchart_html", None
     logger.error(
         f"Failed to parse VIX payload from Barchart HTML at {BARCHART_VIX_HTML_URL}"
     )
-    return None, "parse error"
+    return None, None, "parse error"
 
 
-async def _fetch_vix_from_yahoo_json() -> Tuple[Optional[float], Optional[str]]:
+async def _fetch_vix_from_yahoo_json() -> _VixFetcherResult:
     text, error = await _request_text(
         YAHOO_VIX_JSON_URL,
         headers={
@@ -236,66 +595,125 @@ async def _fetch_vix_from_yahoo_json() -> Tuple[Optional[float], Optional[str]]:
         },
     )
     if text is None:
-        return None, error
+        return None, None, error
     try:
         payload = json.loads(text)
     except json.JSONDecodeError as exc:
         logger.error(f"Failed to decode Yahoo JSON payload: {exc}")
-        return None, "invalid json"
+        return None, None, "invalid json"
     try:
         result = payload["quoteResponse"]["result"][0]
     except (KeyError, IndexError, TypeError) as exc:
         logger.error(f"Unexpected Yahoo JSON payload shape: {exc}")
-        return None, "unexpected json shape"
+        return None, None, "unexpected json shape"
     value = to_float(result.get("regularMarketPrice"))
     if value is not None:
         logger.debug(f"Yahoo JSON VIX result: {value}")
-        return value, None
+        return value, "yahoo_json", None
     logger.error("Yahoo JSON payload missing regularMarketPrice")
-    return None, "missing regularMarketPrice"
+    return None, None, "missing regularMarketPrice"
 
 
-_VIX_SOURCE_FETCHERS: dict[str, Callable[[], Awaitable[Tuple[Optional[float], Optional[str]]]]] = {
-    "barchart_html": _fetch_vix_from_barchart_html,
+async def _fetch_vix_from_ibkr() -> _VixFetcherResult:
+    loop = asyncio.get_running_loop()
+    settings = _vix_settings()
+    return await loop.run_in_executor(None, _fetch_vix_from_ibkr_sync, settings)
+
+
+async def _fetch_vix_manual() -> _VixFetcherResult:
+    if not sys.stdin or not sys.stdin.isatty():
+        return None, None, "stdin not interactive"
+    try:
+        from tomic.cli.vix_prompt import prompt_manual_vix
+    except Exception as exc:  # pragma: no cover - optional CLI dependency
+        logger.error(f"Manual VIX prompt unavailable: {exc}")
+        return None, None, "manual prompt unavailable"
+
+    loop = asyncio.get_running_loop()
+    try:
+        value = await loop.run_in_executor(None, prompt_manual_vix)
+    except Exception as exc:  # pragma: no cover - user input errors
+        logger.error(f"Manual VIX prompt failed: {exc}")
+        return None, None, str(exc)
+    if value is None:
+        return None, None, "user skipped"
+    return value, "manual", None
+
+
+_VIX_SOURCE_FETCHERS: dict[
+    str, Callable[[], Awaitable[_VixFetcherResult]]
+] = {
+    "ibkr": _fetch_vix_from_ibkr,
+    "json_api": _fetch_vix_from_json_api,
     "yahoo_json": _fetch_vix_from_yahoo_json,
-    "google_html": _fetch_vix_from_google_html,
+    "barchart_html": _fetch_vix_from_barchart_html,
     "yahoo_html": _fetch_vix_from_yahoo_html,
+    "google_html": _fetch_vix_from_google_html,
+    "manual": _fetch_vix_manual,
 }
+
+
+def _update_memory_cache(value: Optional[float], source: Optional[str]) -> None:
+    _VIX_CACHE.update({"value": value, "source": source, "ts": time.monotonic()})
+
+
+def _memory_cache_entry() -> Tuple[Optional[float], Optional[str]]:
+    if not _VIX_CACHE:
+        return None, None
+    ts = _VIX_CACHE.get("ts")
+    if ts is None:
+        return _VIX_CACHE.get("value"), _VIX_CACHE.get("source")
+    if time.monotonic() - float(ts) <= _MEMORY_CACHE_TTL:
+        return _VIX_CACHE.get("value"), _VIX_CACHE.get("source")
+    return None, None
 
 
 async def _get_vix_value() -> Tuple[Optional[float], Optional[str]]:
     """Return cached VIX value or fetch according to configured order."""
 
-    cached_value = _VIX_CACHE.get("value") if _VIX_CACHE else None
-    cached_source = _VIX_CACHE.get("source") if _VIX_CACHE else None
+    cached_value, cached_source = _memory_cache_entry()
     if cached_value is not None or ("value" in _VIX_CACHE):
-        return cached_value, cached_source  # type: ignore[return-value]
+        return cached_value, cached_source
 
-    order = _vix_source_order()
+    settings = _vix_settings()
+    daily_value, daily_source = _load_daily_vix(settings)
+    if daily_value is not None:
+        _update_memory_cache(daily_value, daily_source)
+        return daily_value, daily_source
+
+    order = settings.provider_order or list(_DEFAULT_VIX_SETTINGS.provider_order)
     errors: dict[str, str] = {}
-    for source in order:
-        fetcher = _VIX_SOURCE_FETCHERS.get(source)
+    for source_name in order:
+        fetcher = _VIX_SOURCE_FETCHERS.get(source_name)
         if fetcher is None:
-            logger.warning(f"Unknown VIX source '{source}' in configuration")
-            errors[source] = "unknown source"
+            logger.warning(f"Unknown VIX source '{source_name}' in configuration")
+            errors[source_name] = "unknown source"
             continue
-        value, err = await fetcher()
+        try:
+            value, provider_label, error = await fetcher()
+        except Exception as exc:  # pragma: no cover - defensive logging
+            logger.exception(f"VIX provider '{source_name}' failed unexpectedly: {exc}")
+            errors[source_name] = str(exc)
+            continue
         if value is not None:
-            _VIX_CACHE.update({"value": value, "source": source})
-            return value, source
-        if err:
-            errors[source] = err
+            label = provider_label or source_name
+            _update_memory_cache(value, label)
+            _save_daily_vix(settings, value, label)
+            return value, label
+        if error:
+            errors[source_name] = error
 
     logger.error(
         "Failed to retrieve VIX from any source: %s",
         "; ".join(f"{src} -> {msg}" for src, msg in errors.items()) or "no sources",
     )
-    _VIX_CACHE.update({"value": None, "source": None})
+    _update_memory_cache(None, None)
     return None, None
 
 
 async def fetch_volatility_metrics_async(symbol: str) -> Dict[str, float]:
     """Asynchronously fetch volatility metrics from the web."""
+
     html = await download_html_async(symbol)
     iv_data = parse_patterns(IV_PATTERNS, html)
     extra_data = parse_patterns(EXTRA_PATTERNS, html)
@@ -306,7 +724,7 @@ async def fetch_volatility_metrics_async(symbol: str) -> Dict[str, float]:
             iv_data[key] /= 100
     merged = {**iv_data, **extra_data}
     logger.info(
-        "volatility_metrics symbol=%s iv_rank=%s vix=%s source=%s",
+        "volatility_metrics symbol=%s iv_rank=%s vix=%s vix_src=%s",
         symbol,
         merged.get("iv_rank"),
         merged.get("vix"),
