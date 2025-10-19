@@ -50,6 +50,13 @@ class AppConfig(BaseModel):
 
     DEFAULT_SYMBOLS: List[str] = []
 
+    VIX_PRICE_POLICY: str = "last_known"
+    VIX_EXCHANGES: List[str] = ["CBOE", "CBOEIND"]
+    VIX_RTH_TIMEOUT_MS: int = 1500
+    VIX_OFFHOURS_TIMEOUT_MS: int = 1500
+    VIX_LOG_TICK_SOURCE: bool = True
+    VIX_MEMORY_TTL_SECONDS: int = 0
+
     POSITIONS_FILE: str = "positions.json"
     ACCOUNT_INFO_FILE: str = "account_info.json"
     PRICE_META_FILE: str = "price_meta.json"

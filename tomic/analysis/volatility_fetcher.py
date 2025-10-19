@@ -11,23 +11,23 @@ import re
 import sys
 import threading
 import time
-from datetime import datetime, timezone
-from pathlib import Path
+from datetime import datetime, time as dtime, timedelta, timezone
 from typing import Any, Awaitable, Callable, Dict, Optional, Tuple
 
 import aiohttp
 
-from tomic.api.base_client import BaseIBApp
+from zoneinfo import ZoneInfo
+
 from tomic.api.ib_connection import connect_ib
 from tomic.config import VixConfig, VixJsonApiConfig, get as cfg_get
 from tomic.logutils import logger
-from tomic.utils import today
 from tomic.webdata.utils import to_float
 
 try:  # pragma: no cover - optional dependency during tests
-    from ibapi.contract import Contract
+    from ibapi.contract import Contract, ContractDetails
 except Exception:  # pragma: no cover - tests without ibapi
     Contract = None  # type: ignore[assignment]
+    ContractDetails = Any  # type: ignore[assignment]
 
 try:  # pragma: no cover - optional dependency during tests
     from ibapi.ticktype import TickTypeEnum
@@ -40,6 +40,13 @@ except Exception:  # pragma: no cover - fallback constants used in tests
         MARK_PRICE = 37
 
     TickTypeEnum = _TickTypeEnumFallback()  # type: ignore[assignment]
+
+
+_TICK_TYPE_NAMES: dict[int, str] = {}
+for _name in ("LAST", "DELAYED_LAST", "MARK_PRICE", "CLOSE", "DELAYED_CLOSE"):
+    _value = getattr(TickTypeEnum, _name, None)
+    if isinstance(_value, int):
+        _TICK_TYPE_NAMES[int(_value)] = _name
 
 
 GOOGLE_VIX_HTML_URL = "https://www.google.com/finance/quote/VIX:INDEXCBOE"
@@ -69,9 +76,9 @@ YAHOO_VIX_JSON_URL = (
 
 _BLOCKER_KEYWORDS = ("consent", "captcha", "enable javascript")
 
-_REPO_ROOT = Path(__file__).resolve().parents[2]
-_MEMORY_CACHE_TTL = 60.0
 _VIX_CACHE: dict[str, Any] = {}
+_CONTRACT_DETAILS_CACHE: dict[str, Any] = {}
+_CONTRACT_DETAILS_LOCK = threading.Lock()
 
 _VixFetcherResult = Tuple[Optional[float], Optional[str], Optional[str]]
 
@@ -167,60 +174,6 @@ def _vix_settings() -> VixConfig:
     )
 
 
-def _daily_store_path(settings: VixConfig) -> Path:
-    path = Path(settings.daily_store)
-    if not path.is_absolute():
-        path = _REPO_ROOT / path
-    return path
-
-
-def _load_daily_vix(settings: VixConfig) -> Tuple[Optional[float], Optional[str]]:
-    path = _daily_store_path(settings)
-    try:
-        with path.open("r", encoding="utf-8", newline="") as handle:
-            reader = csv.DictReader(handle)
-            last_row: dict[str, str] | None = None
-            for row in reader:
-                last_row = row
-    except FileNotFoundError:
-        return None, None
-    except Exception as exc:  # pragma: no cover - unexpected file errors
-        logger.warning(f"Failed to read VIX daily cache at {path}: {exc}")
-        return None, None
-
-    if not last_row:
-        return None, None
-
-    if last_row.get("date") != today().isoformat():
-        return None, None
-
-    value = to_float(last_row.get("vix"))
-    if value is None:
-        return None, None
-    return value, last_row.get("source")
-
-
-def _save_daily_vix(settings: VixConfig, value: float, source: str | None) -> None:
-    path = _daily_store_path(settings)
-    try:
-        path.parent.mkdir(parents=True, exist_ok=True)
-        write_header = not path.exists()
-        with path.open("a", encoding="utf-8", newline="") as handle:
-            writer = csv.DictWriter(handle, fieldnames=["date", "vix", "source", "ts"])
-            if write_header:
-                writer.writeheader()
-            writer.writerow(
-                {
-                    "date": today().isoformat(),
-                    "vix": f"{value:.6f}",
-                    "source": source or "",
-                    "ts": datetime.now(timezone.utc).isoformat(),
-                }
-            )
-    except Exception as exc:  # pragma: no cover - filesystem errors
-        logger.warning(f"Failed to persist VIX daily cache at {path}: {exc}")
-
-
 def _extract_json_field(payload: Any, path: str | None) -> Any:
     if not path:
         return payload
@@ -257,6 +210,161 @@ def _ib_timeout() -> float:
     return max(0.5, float(settings.ib_timeout_sec))
 
 
+def _tick_type_name(tick_type: int) -> str:
+    return _TICK_TYPE_NAMES.get(int(tick_type), str(tick_type))
+
+
+def _parse_ibkr_exchange(raw_exchange: str) -> tuple[str, Optional[str]]:
+    parts = raw_exchange.split("@", 1)
+    exchange = parts[0].strip().upper()
+    primary = parts[1].strip().upper() if len(parts) == 2 else None
+    return exchange, primary if primary else None
+
+
+def _contract_cache_key(exchange: str, primary: Optional[str]) -> str:
+    return f"{exchange.upper()}@{primary or ''}"
+
+
+def _build_vix_contract(exchange: str, primary: Optional[str]) -> Any:
+    if Contract is None:
+        return None
+    try:
+        contract = Contract()
+    except Exception as exc:  # pragma: no cover - contract creation issues
+        logger.warning(f"Failed to construct VIX contract for {exchange}: {exc}")
+        return None
+    contract.symbol = "VIX"
+    contract.secType = "IND"
+    contract.currency = "USD"
+    contract.exchange = exchange
+    if primary:
+        contract.primaryExchange = primary
+    return contract
+
+
+def _cache_contract_details(key: str, details: Any) -> None:
+    with _CONTRACT_DETAILS_LOCK:
+        _CONTRACT_DETAILS_CACHE[key] = details
+
+
+def _cached_contract_details(key: str) -> Any:
+    with _CONTRACT_DETAILS_LOCK:
+        return _CONTRACT_DETAILS_CACHE.get(key)
+
+
+def _memory_cache_ttl() -> float:
+    try:
+        ttl = float(cfg_get("VIX_MEMORY_TTL_SECONDS", 0))
+    except (TypeError, ValueError):
+        ttl = 0.0
+    return max(0.0, min(ttl, 60.0))
+
+
+def is_rth_open(details: ContractDetails, now_utc: datetime) -> bool:
+    trading_hours = getattr(details, "tradingHours", "") or ""
+    tz_name = getattr(details, "timeZoneId", "") or "UTC"
+    try:
+        tz = ZoneInfo(tz_name)
+    except Exception:
+        tz = timezone.utc
+
+    if now_utc.tzinfo is None:
+        now_utc = now_utc.replace(tzinfo=timezone.utc)
+    local_now = now_utc.astimezone(tz)
+    target_day = local_now.strftime("%Y%m%d")
+
+    pattern = re.compile(r"(\d{8}:)")
+    matches = list(pattern.finditer(trading_hours))
+    segments: list[str] = []
+    if matches:
+        for idx, match in enumerate(matches):
+            start = match.start()
+            end = matches[idx + 1].start() if idx + 1 < len(matches) else len(trading_hours)
+            segment = trading_hours[start:end].strip(" ,;")
+            if segment:
+                segments.append(segment)
+    elif trading_hours.strip():
+        segments.append(trading_hours.strip())
+
+    for segment in segments:
+        if ":" not in segment:
+            continue
+        day, hours = segment.split(":", 1)
+        day = day.strip()
+        if day != target_day:
+            continue
+        hours = hours.strip()
+        if not hours or hours.upper() == "CLOSED":
+            return False
+        windows = [part.strip() for part in hours.split(",") if part.strip()]
+        matched_window = False
+        try:
+            day_date = datetime.strptime(day, "%Y%m%d").date()
+        except ValueError:
+            return False
+        for window in windows:
+            if window.upper() == "CLOSED" or "-" not in window:
+                continue
+            start_str, end_str = window.split("-", 1)
+            try:
+                start_time = dtime(int(start_str[:2]), int(start_str[2:4]))
+                end_time = dtime(int(end_str[:2]), int(end_str[2:4]))
+            except (ValueError, TypeError):
+                continue
+            matched_window = True
+            start_dt = datetime.combine(day_date, start_time, tzinfo=tz)
+            end_dt = datetime.combine(day_date, end_time, tzinfo=tz)
+            if end_dt <= start_dt:
+                end_dt += timedelta(days=1)
+            if start_dt <= local_now < end_dt:
+                return True
+        return False if matched_window else False
+    return False
+
+
+def select_tick(
+    ticks: Dict[int, float], *, rth_open: bool, mode: str = "last_known"
+) -> Optional[tuple[int, float]]:
+    if mode != "last_known":
+        return None
+
+    def _pick(candidates: tuple[Optional[int], ...]) -> Optional[tuple[int, float]]:
+        for tick_type in candidates:
+            if not isinstance(tick_type, int):
+                continue
+            value = ticks.get(tick_type)
+            if value is None:
+                continue
+            try:
+                number = float(value)
+            except (TypeError, ValueError):
+                continue
+            if not math.isfinite(number) or number <= 0:
+                continue
+            return tick_type, float(number)
+        return None
+
+    last_candidates = (
+        getattr(TickTypeEnum, "LAST", None),
+        getattr(TickTypeEnum, "DELAYED_LAST", None),
+    )
+    mark_candidates = (getattr(TickTypeEnum, "MARK_PRICE", None),)
+    close_candidates = (
+        getattr(TickTypeEnum, "CLOSE", None),
+        getattr(TickTypeEnum, "DELAYED_CLOSE", None),
+    )
+
+    if rth_open:
+        selection = _pick(last_candidates)
+        if selection:
+            return selection
+        selection = _pick(mark_candidates)
+        if selection:
+            return selection
+        return _pick(close_candidates)
+
+    return _pick(close_candidates)
+
 async def _request_text(
     url: str, *, headers: Optional[dict[str, str]] = None
 ) -> Tuple[Optional[str], Optional[str]]:
@@ -285,164 +393,27 @@ async def _request_text(
     return None, "; ".join(collected_errors) if collected_errors else "Unknown error"
 
 
-def _accepted_tick_types() -> set[int]:
-    values = {
-        getattr(TickTypeEnum, "LAST", None),
-        getattr(TickTypeEnum, "CLOSE", None),
-        getattr(TickTypeEnum, "DELAYED_LAST", None),
-        getattr(TickTypeEnum, "DELAYED_CLOSE", None),
-        getattr(TickTypeEnum, "MARK_PRICE", None),
-    }
-    return {int(v) for v in values if isinstance(v, int)}
 
 
-def _serialise_contract(contract: Any) -> Dict[str, Any]:
-    """Return a serialisable view of a contract for logging purposes."""
-
-    fields = (
-        "conId",
-        "symbol",
-        "secType",
-        "currency",
-        "exchange",
-        "primaryExchange",
-        "lastTradeDateOrContractMonth",
-        "tradingClass",
-        "localSymbol",
-    )
-    payload: Dict[str, Any] = {}
-    for field in fields:
-        if hasattr(contract, field):
-            value = getattr(contract, field)
-            if value not in (None, ""):
-                payload[field] = value
-    return payload
+def _format_ib_source(exchange: str, tick_type: int, md_type: int, *, include_tick: bool) -> str:
+    exchange_label = exchange.upper() if exchange else "IBKR"
+    base = f"ibkr:{exchange_label}" if exchange else "ibkr"
+    if include_tick:
+        return f"{base}|{_tick_type_name(tick_type)}|md={md_type}"
+    return base
 
 
-class _IbkrVixClient(BaseIBApp):
-    """Light-weight client for requesting a single VIX snapshot."""
-
-    _ACCEPTED_TICKS = _accepted_tick_types()
-
-    def __init__(self) -> None:
-        super().__init__()
-        self._event = threading.Event()
-        self._lock = threading.Lock()
-        self._value: Optional[float] = None
-        self._error: Optional[str] = None
-        self._req_counter = 9000
-        self._active_req: Optional[int] = None
-
-    def _next_id(self) -> int:
-        self._req_counter += 1
-        return self._req_counter
-
-    def _store_value(self, value: float) -> None:
-        with self._lock:
-            self._value = value
-        self._event.set()
-
-    def _store_error(self, message: str) -> None:
-        with self._lock:
-            self._error = message
-        self._event.set()
-
-    def tickPrice(self, reqId: int, tickType: int, price: float, attrib) -> None:  # noqa: N802 - IB API
-        if reqId != self._active_req:
-            return
-        if tickType not in self._ACCEPTED_TICKS:
-            return
-        try:
-            value = float(price)
-        except (TypeError, ValueError):
-            return
-        if not math.isfinite(value) or value <= 0:
-            return
-        self._store_value(value)
-
-    def tickSnapshotEnd(self, reqId: int) -> None:  # noqa: N802 - IB API
-        if reqId != self._active_req:
-            return
-        with self._lock:
-            if self._value is None and not self._error:
-                self._error = "snapshot ended without price"
-        self._event.set()
-
-    def error(  # type: ignore[override]
-        self,
-        reqId: int,
-        errorTime: int,
-        errorCode: int,
-        errorString: str,
-        advancedOrderRejectJson: str = "",
-    ) -> None:
-        super().error(reqId, errorTime, errorCode, errorString, advancedOrderRejectJson)
-        if reqId in {-1, self._active_req}:
-            self._store_error(errorString)
-
-    def request_snapshot(self, contract: Any, timeout: float) -> Tuple[Optional[float], Optional[str]]:
-        timeout = max(timeout, 0.5)
-        last_error: Optional[str] = None
-        for data_type in (1, 2, 3, 4):
-            try:
-                self.reqMarketDataType(data_type)
-            except Exception:  # pragma: no cover - unavailable in some modes
-                pass
-            req_id = self._next_id()
-            self._active_req = req_id
-            self._event.clear()
-            with self._lock:
-                self._value = None
-                self._error = None
-            try:
-                payload = {
-                    "contract": _serialise_contract(contract),
-                    "generic_ticks": "",
-                    "snapshot": True,
-                    "regulatory_snapshot": False,
-                    "options": [],
-                    "market_data_type": data_type,
-                    "req_id": req_id,
-                }
-                logger.debug(
-                    "Requesting VIX snapshot via IBKR: %s",
-                    payload,
-                )
-                self.reqMktData(req_id, contract, "", True, False, [])
-            except Exception as exc:  # pragma: no cover - network failures
-                last_error = str(exc)
-                self._active_req = None
-                continue
-            if self._event.wait(timeout):
-                with self._lock:
-                    if self._value is not None:
-                        return self._value, None
-                    last_error = self._error or "no data"
-            else:
-                last_error = "timeout"
-            try:
-                self.cancelMktData(req_id)
-            except Exception:  # pragma: no cover - clean-up best effort
-                pass
-            self._active_req = None
-            if self._value is not None:
-                return self._value, None
-        return None, last_error
-
-
-def _ibkr_source_label(exchange: str | None) -> str:
-    if not exchange:
-        return "ibkr"
-    return f"ibkr:{exchange.lower()}"
-
-
-def _parse_ibkr_exchange(raw_exchange: str) -> tuple[str, Optional[str]]:
-    """Return (exchange, primary_exchange) for an IBKR venue string."""
-
-    parts = raw_exchange.split("@", 1)
-    exchange = parts[0].strip().upper()
-    primary = parts[1].strip().upper() if len(parts) == 2 else None
-    return exchange, primary if primary else None
+def _iter_exchanges(settings: VixConfig) -> list[str]:
+    raw = cfg_get("VIX_EXCHANGES", None)
+    if isinstance(raw, str):
+        items = [part.strip() for part in raw.split(",") if part.strip()]
+    elif isinstance(raw, (list, tuple)):
+        items = [str(part).strip() for part in raw if str(part).strip()]
+    else:
+        items = []
+    if not items:
+        return settings.ib_exchanges or ["CBOE", "CBOEIND"]
+    return items
 
 
 def _fetch_vix_from_ibkr_sync(settings: VixConfig) -> _VixFetcherResult:
@@ -457,7 +428,14 @@ def _fetch_vix_from_ibkr_sync(settings: VixConfig) -> _VixFetcherResult:
     port = int(cfg_get(port_key, default_port))
     client_id = int(cfg_get("IB_MARKETDATA_CLIENT_ID", 901))
 
-    app = _IbkrVixClient()
+    policy = str(cfg_get("VIX_PRICE_POLICY", "last_known") or "last_known").lower()
+    include_tick = bool(cfg_get("VIX_LOG_TICK_SOURCE", True))
+    rth_timeout_ms = int(cfg_get("VIX_RTH_TIMEOUT_MS", 1500))
+    off_timeout_ms = int(cfg_get("VIX_OFFHOURS_TIMEOUT_MS", 1500))
+    contract_details_timeout_ms = int(
+        max(500, float(cfg_get("CONTRACT_DETAILS_TIMEOUT", 2)) * 1000)
+    )
+
     logger.debug(
         "Connecting to IBKR for VIX host=%s port=%s client_id=%s timeout=%ss",
         host,
@@ -467,49 +445,113 @@ def _fetch_vix_from_ibkr_sync(settings: VixConfig) -> _VixFetcherResult:
     )
 
     try:
-        connect_ib(
+        app = connect_ib(
             client_id=client_id,
             host=host,
             port=port,
             timeout=int(max(1, round(timeout))),
             unique=True,
-            app=app,
         )
     except Exception as exc:  # pragma: no cover - network failures
         logger.warning(f"IBKR VIX connection failed: {exc}")
         return None, None, str(exc)
 
+    now_utc = datetime.now(timezone.utc)
+    exchanges = _iter_exchanges(settings)
     last_error: Optional[str] = None
     try:
-        exchanges = settings.ib_exchanges or ["CBOE", "CBOEIND"]
         for raw_exchange in exchanges:
-            exchange, primary_exchange = _parse_ibkr_exchange(raw_exchange)
-            try:
-                contract = Contract()
-            except Exception as exc:  # pragma: no cover - contract creation
-                return None, None, f"failed to build contract: {exc}"
-            contract.symbol = "VIX"
-            contract.secType = "IND"
-            contract.currency = "USD"
-            contract.exchange = exchange
-            if primary_exchange is not None:
-                contract.primaryExchange = primary_exchange
-            logger.debug(
-                "Prepared IBKR contract for VIX: %s",
-                _serialise_contract(contract),
+            exchange, primary = _parse_ibkr_exchange(str(raw_exchange))
+            contract = _build_vix_contract(exchange, primary)
+            if contract is None:
+                last_error = f"failed to build contract for {exchange}"
+                continue
+
+            cache_key = _contract_cache_key(exchange, primary)
+            details = _cached_contract_details(cache_key)
+            if details is None:
+                try:
+                    details = app.get_contract_details(
+                        contract, timeout_ms=contract_details_timeout_ms
+                    )
+                except TimeoutError:
+                    logger.warning(
+                        "IBKR contract details timeout for %s (timeout_ms=%s)",
+                        exchange,
+                        contract_details_timeout_ms,
+                    )
+                    details = None
+                except Exception as exc:  # pragma: no cover - defensive logging
+                    logger.warning(
+                        "IBKR contract details failed for %s: %s", exchange, exc
+                    )
+                    details = None
+                else:
+                    if details is not None:
+                        _cache_contract_details(cache_key, details)
+
+            rth_open = False
+            if details is not None:
+                try:
+                    rth_open = is_rth_open(details, now_utc)
+                except Exception as exc:  # pragma: no cover - unexpected parsing
+                    logger.warning(
+                        "Failed to parse trading hours for %s: %s", exchange, exc
+                    )
+
+            md_sequence = [1, 2, 3] if rth_open else [2, 4]
+            timeout_ms = rth_timeout_ms if rth_open else off_timeout_ms
+            for md_type in md_sequence:
+                try:
+                    ticks = app.request_snapshot_with_mdtype(
+                        contract, md_type, timeout_ms=timeout_ms
+                    )
+                except TimeoutError:
+                    logger.debug(
+                        "IBKR snapshot timeout exchange=%s mdType=%s timeout_ms=%s",
+                        exchange,
+                        md_type,
+                        timeout_ms,
+                    )
+                    last_error = "timeout"
+                    continue
+                except Exception as exc:  # pragma: no cover - network failures
+                    logger.debug(
+                        "IBKR snapshot error exchange=%s mdType=%s: %s",
+                        exchange,
+                        md_type,
+                        exc,
+                    )
+                    last_error = str(exc)
+                    continue
+
+                selection = select_tick(ticks, rth_open=rth_open, mode=policy)
+                if selection:
+                    tick_type, value = selection
+                    source = _format_ib_source(
+                        exchange, tick_type, md_type, include_tick=include_tick
+                    )
+                    logger.info(
+                        "VIX=%s source=%s policy=%s rth_open=%s",
+                        f"{value:.4f}",
+                        source,
+                        policy,
+                        rth_open,
+                    )
+                    return value, source, None
+
+            last_error = (
+                f"no acceptable tick (exchange={exchange}, policy={policy}, rth_open={rth_open})"
             )
-            value, error = app.request_snapshot(contract, timeout)
-            if value is not None:
-                return value, _ibkr_source_label(exchange), None
-            if error:
-                last_error = error
-        return None, None, last_error or "no data"
+
+        if last_error is None:
+            last_error = f"VIX fetch failed: no acceptable tick (policy={policy}, rth_open=False)"
+        return None, None, last_error
     finally:
         try:
             app.disconnect()
         except Exception:  # pragma: no cover - best effort cleanup
             pass
-
 
 def _json_api_source_label(config: VixJsonApiConfig | None) -> str:
     if config and config.name:
@@ -712,17 +754,23 @@ _VIX_SOURCE_FETCHERS: dict[
 
 
 def _update_memory_cache(value: Optional[float], source: Optional[str]) -> None:
-    _VIX_CACHE.update({"value": value, "source": source, "ts": time.monotonic()})
+    ttl = _memory_cache_ttl()
+    if ttl <= 0:
+        _VIX_CACHE.clear()
+        return
+    _VIX_CACHE.update({"value": value, "source": source, "ts": time.monotonic(), "ttl": ttl})
 
 
 def _memory_cache_entry() -> Tuple[Optional[float], Optional[str]]:
-    if not _VIX_CACHE:
+    ttl = _memory_cache_ttl()
+    if ttl <= 0 or not _VIX_CACHE:
         return None, None
     ts = _VIX_CACHE.get("ts")
     if ts is None:
+        return None, None
+    if time.monotonic() - float(ts) <= ttl:
         return _VIX_CACHE.get("value"), _VIX_CACHE.get("source")
-    if time.monotonic() - float(ts) <= _MEMORY_CACHE_TTL:
-        return _VIX_CACHE.get("value"), _VIX_CACHE.get("source")
+    _VIX_CACHE.clear()
     return None, None
 
 
@@ -734,11 +782,6 @@ async def _get_vix_value() -> Tuple[Optional[float], Optional[str]]:
         return cached_value, cached_source
 
     settings = _vix_settings()
-    daily_value, daily_source = _load_daily_vix(settings)
-    if daily_value is not None:
-        _update_memory_cache(daily_value, daily_source)
-        return daily_value, daily_source
-
     order = settings.provider_order or list(_DEFAULT_VIX_SETTINGS.provider_order)
     errors: dict[str, str] = {}
     for source_name in order:
@@ -756,7 +799,6 @@ async def _get_vix_value() -> Tuple[Optional[float], Optional[str]]:
         if value is not None:
             label = provider_label or source_name
             _update_memory_cache(value, label)
-            _save_daily_vix(settings, value, label)
             return value, label
         if error:
             errors[source_name] = error
@@ -765,7 +807,6 @@ async def _get_vix_value() -> Tuple[Optional[float], Optional[str]]:
         "Failed to retrieve VIX from any source: %s",
         "; ".join(f"{src} -> {msg}" for src, msg in errors.items()) or "no sources",
     )
-    _update_memory_cache(None, None)
     return None, None
 
 

@@ -1,6 +1,7 @@
 import threading
 import time
 import socket
+from typing import Any, Dict, Optional
 from ibapi.client import EClient
 from ibapi.wrapper import EWrapper
 
@@ -19,10 +20,114 @@ class IBClient(EClient, EWrapper):
     def __init__(self) -> None:
         EClient.__init__(self, self)
         self.next_valid_id = None
+        self._req_lock = threading.Lock()
+        self._next_req_id = 1
+        self._contract_details_lock = threading.Lock()
+        self._contract_details_requests: Dict[int, Dict[str, Any]] = {}
+        self._snapshot_lock = threading.Lock()
+        self._snapshot_requests: Dict[int, Dict[str, Any]] = {}
 
     def nextValidId(self, orderId: int) -> None:  # noqa: N802 - IB API callback
         self.next_valid_id = orderId
         logger.debug(f"IB nextValidId -> {orderId}")
+
+    def _next_request_id(self) -> int:
+        with self._req_lock:
+            req_id = self._next_req_id
+            self._next_req_id += 1
+            return req_id
+
+    def contractDetails(self, reqId: int, contractDetails) -> None:  # noqa: N802 - IB API
+        with self._contract_details_lock:
+            state = self._contract_details_requests.get(reqId)
+            if state is not None:
+                state.setdefault("details", []).append(contractDetails)
+
+    def contractDetailsEnd(self, reqId: int) -> None:  # noqa: N802 - IB API
+        with self._contract_details_lock:
+            state = self._contract_details_requests.get(reqId)
+            if state is not None:
+                state.setdefault("event", threading.Event()).set()
+
+    def tickPrice(self, reqId: int, tickType: int, price: float, attrib) -> None:  # noqa: N802
+        with self._snapshot_lock:
+            state = self._snapshot_requests.get(reqId)
+            if state is None:
+                return
+            try:
+                state.setdefault("ticks", {})[int(tickType)] = float(price)
+            except (TypeError, ValueError):
+                return
+
+    def tickSnapshotEnd(self, reqId: int) -> None:  # noqa: N802
+        with self._snapshot_lock:
+            state = self._snapshot_requests.get(reqId)
+            if state is not None:
+                state.setdefault("event", threading.Event()).set()
+
+    def get_contract_details(self, contract: Any, timeout_ms: int | None = None) -> Any:
+        timeout_ms = 2000 if timeout_ms is None else max(int(timeout_ms), 1)
+        state: Dict[str, Any] = {
+            "event": threading.Event(),
+            "details": [],
+            "error": None,
+        }
+        req_id = self._next_request_id()
+        with self._contract_details_lock:
+            self._contract_details_requests[req_id] = state
+        try:
+            self.reqContractDetails(req_id, contract)
+            timeout = max(timeout_ms / 1000.0, 0.5)
+            if not state["event"].wait(timeout):
+                raise TimeoutError("contract details timeout")
+            error = state.get("error")
+            if error:
+                raise RuntimeError(error)
+            details = state.get("details")
+            if isinstance(details, list) and details:
+                return details[0]
+            return None
+        finally:
+            try:
+                self.cancelContractDetails(req_id)
+            except Exception:
+                pass
+            with self._contract_details_lock:
+                self._contract_details_requests.pop(req_id, None)
+
+    def request_snapshot_with_mdtype(
+        self, contract: Any, md_type: int, timeout_ms: int
+    ) -> Dict[int, float]:
+        timeout_ms = max(int(timeout_ms), 1)
+        state: Dict[str, Any] = {
+            "event": threading.Event(),
+            "ticks": {},
+            "error": None,
+        }
+        req_id = self._next_request_id()
+        with self._snapshot_lock:
+            self._snapshot_requests[req_id] = state
+        try:
+            try:
+                self.reqMarketDataType(md_type)
+            except Exception:
+                pass
+            self.reqMktData(req_id, contract, "", True, False, [])
+            timeout = max(timeout_ms / 1000.0, 0.5)
+            if not state["event"].wait(timeout):
+                raise TimeoutError("snapshot timeout")
+            error = state.get("error")
+            if error:
+                raise RuntimeError(error)
+            ticks = state.get("ticks", {})
+            return {int(k): float(v) for k, v in ticks.items()}
+        finally:
+            try:
+                self.cancelMktData(req_id)
+            except Exception:
+                pass
+            with self._snapshot_lock:
+                self._snapshot_requests.pop(req_id, None)
 
     def disconnect(self) -> None:  # type: ignore[override]
         """Disconnect from IB and update the active client registry."""
@@ -44,9 +149,26 @@ class IBClient(EClient, EWrapper):
     ) -> None:  # noqa: N802 - signature compatible with EWrapper
         """Log IB error messages with full context."""
 
-        logger.error(f"IB error {errorCode}: {errorString}")
+        message = f"IB error {errorCode}: {errorString}"
+        handled = False
+        if reqId != -1:
+            with self._snapshot_lock:
+                state = self._snapshot_requests.get(reqId)
+                if state is not None:
+                    state["error"] = message
+                    state["event"].set()
+                    handled = True
+            with self._contract_details_lock:
+                state = self._contract_details_requests.get(reqId)
+                if state is not None:
+                    state["error"] = message
+                    state["event"].set()
+                    handled = True
+        logger.error(message)
         if extra:
             logger.error(f"IB extra info: {extra}")
+        if handled:
+            logger.debug(f"Handled IB error for request {reqId}")
 
 
 @log_result
