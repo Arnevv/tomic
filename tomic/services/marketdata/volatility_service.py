@@ -135,12 +135,11 @@ class HistoricalVolatilityBackfillService:
             )
             if new_records:
                 self.storage.append(symbol, new_records)
+                start = new_records[0]["date"]
+                end = new_records[-1]["date"]
+                count = len(new_records)
                 logger.success(
-                    "✅ Backfilled HV voor %s: %s → %s (%d records toegevoegd)",
-                    symbol,
-                    new_records[0]["date"],
-                    new_records[-1]["date"],
-                    len(new_records),
+                    f"✅ Backfilled HV voor {symbol}: {start} → {end} ({count} records toegevoegd)"
                 )
                 results.append(HistoricalVolatilityResult(symbol=symbol, records=new_records))
             else:

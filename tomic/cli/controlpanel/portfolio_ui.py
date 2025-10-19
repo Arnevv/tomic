@@ -650,7 +650,6 @@ def run_risk_tools() -> None:
     menu.add("Scenario-analyse", partial(run_module, "tomic.cli.portfolio_scenario"))
     menu.add("Event watcher", partial(run_module, "tomic.cli.event_watcher"))
     menu.add("Synthetics detector", partial(run_module, "tomic.cli.synthetics_detector"))
-    menu.add("ATR Calculator", partial(run_module, "tomic.cli.atr_calculator"))
     menu.add(
         "Theoretical value calculator",
         partial(run_module, "tomic.cli.bs_calculator"),
