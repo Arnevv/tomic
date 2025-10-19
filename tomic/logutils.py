@@ -27,9 +27,59 @@ def _format_result(result: Any, max_length: int = 200) -> str:
         return f"{result[:max_length]}... [truncated {len(result)} chars]"
     return str(result)
 
-try:
-    from loguru import logger  # type: ignore
+class _LoggerProxy:
+    """Compatibility wrapper that mimics ``logging.Logger`` semantics."""
 
+    def __init__(self, inner):
+        self._inner = inner
+
+    def _log(self, method: str, message: str, *args, **kwargs):
+        exc_info = kwargs.pop("exc_info", None)
+        if args:
+            try:
+                message = message % args
+            except Exception:
+                try:
+                    message = message.format(*args)
+                except Exception:
+                    message = " ".join([message, *map(str, args)])
+        target = self._inner
+        if exc_info:
+            if exc_info is True:
+                target = target.opt(exception=True)
+            else:
+                target = target.opt(exception=exc_info)
+        return getattr(target, method)(message, **kwargs)
+
+    def debug(self, message: str, *args, **kwargs):
+        return self._log("debug", message, *args, **kwargs)
+
+    def info(self, message: str, *args, **kwargs):
+        return self._log("info", message, *args, **kwargs)
+
+    def warning(self, message: str, *args, **kwargs):
+        return self._log("warning", message, *args, **kwargs)
+
+    def error(self, message: str, *args, **kwargs):
+        return self._log("error", message, *args, **kwargs)
+
+    def exception(self, message: str, *args, **kwargs):
+        return self._log("exception", message, *args, **kwargs)
+
+    def critical(self, message: str, *args, **kwargs):
+        return self._log("critical", message, *args, **kwargs)
+
+    def success(self, message: str, *args, **kwargs):
+        return self._log("success", message, *args, **kwargs)
+
+    def __getattr__(self, name: str):
+        return getattr(self._inner, name)
+
+
+try:
+    from loguru import logger as _loguru_logger  # type: ignore
+
+    logger = _LoggerProxy(_loguru_logger)
     _LOGURU_AVAILABLE = True
 except ImportError:  # pragma: no cover - optional dependency
     import logging as _logging
