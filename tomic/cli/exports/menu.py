@@ -231,6 +231,7 @@ def build_export_menu(
         "Backfill historical_volatility obv spotprices",
         lambda: run_module("tomic.scripts.backfill_hv"),
     )
+    menu.add("ATR Calculator", lambda: run_module("tomic.cli.atr_calculator"))
     menu.add("IV backfill", lambda: run_module("tomic.cli.iv_backfill_flow"))
     menu.add("Fetch Earnings", fetch_earnings)
     menu.add("Import nieuwe earning dates van MarketChameleon", import_market_chameleon_earnings)
