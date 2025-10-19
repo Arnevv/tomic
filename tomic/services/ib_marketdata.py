@@ -5,7 +5,8 @@ from __future__ import annotations
 import math
 import threading
 import time
-from dataclasses import dataclass
+from dataclasses import dataclass, field, replace
+from datetime import datetime
 from pprint import pformat
 from typing import Any, Callable, Mapping
 
@@ -31,6 +32,7 @@ from tomic.logutils import logger
 from tomic.models import OptionContract
 from tomic.services._config import cfg_value
 from tomic.services._id_sequence import IncrementingIdMixin
+from tomic.services.portfolio_service import PortfolioService
 from tomic.services.strategy_pipeline import StrategyProposal
 from tomic.utils import get_leg_qty, get_leg_right, normalize_leg
 
@@ -125,6 +127,92 @@ class SnapshotResult:
     reasons: list[Any]
     accepted: bool
     missing_quotes: list[str]
+    delta_log: list[dict[str, Any]] = field(default_factory=list)
+    trigger: str | None = None
+    metrics_delta: dict[str, Any] | None = None
+    governance: dict[str, Any] | None = None
+    refreshed_at: str | None = None
+
+
+def _capture_metric_snapshot(proposal: StrategyProposal) -> dict[str, float]:
+    """Return numeric metrics for delta logging."""
+
+    keys = ("score", "ev", "rom", "edge", "credit", "max_profit", "max_loss", "pos")
+    metrics: dict[str, float] = {}
+    for key in keys:
+        value = getattr(proposal, key, None)
+        try:
+            if value is None:
+                continue
+            metrics[key] = float(value)
+        except (TypeError, ValueError):
+            continue
+    return metrics
+
+
+def _compute_metric_delta(
+    before: Mapping[str, float], after: Mapping[str, float]
+) -> dict[str, dict[str, float | None]]:
+    """Return structured delta information between two metric snapshots."""
+
+    delta: dict[str, dict[str, float | None]] = {}
+    keys = set(before) | set(after)
+    for key in sorted(keys):
+        previous = before.get(key)
+        current = after.get(key)
+        if previous is None and current is None:
+            continue
+        entry: dict[str, float | None] = {
+            "before": previous,
+            "after": current,
+        }
+        if previous is not None and current is not None:
+            entry["delta"] = round(current - previous, 6)
+        delta[key] = entry
+    return delta
+
+
+def _governance_payload(
+    proposal: StrategyProposal,
+    snapshot: SnapshotResult,
+    trigger: str | None,
+) -> dict[str, Any]:
+    """Build monitoring payload using portfolio and scoring metadata."""
+
+    mid_sources = PortfolioService._mid_sources(proposal)
+    payload: dict[str, Any] = {
+        "mid_sources": mid_sources,
+        "needs_refresh": bool(getattr(proposal, "needs_refresh", False)),
+        "trigger": trigger,
+        "accepted": snapshot.accepted,
+        "reasons": [getattr(reason, "code", str(reason)) for reason in snapshot.reasons],
+    }
+
+    missing_metrics: dict[str, Any] = {}
+    ignored_metrics: list[str] = []
+    for leg in proposal.legs:
+        if not isinstance(leg, Mapping):
+            continue
+        missing = leg.get("missing_metrics")
+        if missing:
+            strike = str(leg.get("strike"))
+            missing_metrics[strike] = list(missing)
+        if leg.get("metrics_ignored"):
+            ignored_metrics.append(str(leg.get("strike")))
+    if missing_metrics:
+        payload["missing_metrics"] = missing_metrics
+    if ignored_metrics:
+        payload["ignored_metrics"] = ignored_metrics
+
+    payload["bid_ask_pct"] = PortfolioService._avg_bid_ask_pct(proposal)
+    payload["risk_reward"] = PortfolioService._risk_reward(proposal)
+    summary = getattr(proposal, "fallback_summary", None)
+    if isinstance(summary, Mapping):
+        payload["fallback_summary"] = {
+            str(source): int(summary.get(source, 0) or 0) for source in summary
+        }
+
+    return payload
 
 
 class QuoteSnapshotApp(IncrementingIdMixin, BaseIBApp):
@@ -311,10 +399,13 @@ class IBMarketDataService:
         spot_price: float | None = None,
         interest_rate: float | None = None,
         timeout: float | None = None,
+        trigger: str | None = None,
+        log_delta: bool = True,
     ) -> SnapshotResult:
         if not proposal.legs:
             return SnapshotResult(proposal, [], True, [])
 
+        trigger_label = trigger or "manual"
         timeout = timeout or float(cfg_value("MARKET_DATA_TIMEOUT", 15))
         port = int(cfg_value("IB_PORT", 7497))
         if bool(cfg_value("IB_PAPER_MODE", True)):
@@ -325,7 +416,7 @@ class IBMarketDataService:
         host = str(cfg_value("IB_HOST", "127.0.0.1"))
 
         app = self._app_factory()
-        logger.info("📡 Ophalen IB quotes voor voorstel")
+        logger.info("📡 Ophalen IB quotes voor voorstel trigger=%s", trigger_label)
         connect_ib(
             client_id=client_id,
             host=host,
@@ -339,6 +430,8 @@ class IBMarketDataService:
 
         try:
             missing: list[str] = []
+            delta_entries: list[dict[str, Any]] = []
+            before_metrics = _capture_metric_snapshot(proposal)
             generic_ticks = self._generic_ticks or ""
             use_snapshot = self._should_use_snapshot()
             if self._use_snapshot and not use_snapshot:
@@ -393,7 +486,12 @@ class IBMarketDataService:
                             )
                         else:
                             snapshot = app._responses.get(req_id, {})
-                            self._apply_snapshot(leg, snapshot)
+                            self._apply_snapshot(
+                                leg,
+                                snapshot,
+                                delta_log=delta_entries if log_delta else None,
+                                trigger=trigger_label,
+                            )
                             bid_ok = _is_finite_number(snapshot.get("bid"))
                             ask_ok = _is_finite_number(snapshot.get("ask"))
                             if bid_ok and ask_ok:
@@ -428,7 +526,29 @@ class IBMarketDataService:
                 atr=proposal.atr,
             )
             accepted = score is not None
-            return SnapshotResult(proposal, reasons, accepted, missing)
+            after_metrics = _capture_metric_snapshot(proposal)
+            metrics_delta = _compute_metric_delta(before_metrics, after_metrics)
+            refreshed_at = datetime.utcnow().isoformat()
+            result = SnapshotResult(
+                proposal=proposal,
+                reasons=reasons,
+                accepted=accepted,
+                missing_quotes=missing,
+                delta_log=list(delta_entries) if log_delta else [],
+                trigger=trigger_label,
+                metrics_delta=metrics_delta if metrics_delta else None,
+                refreshed_at=refreshed_at,
+            )
+            if log_delta and delta_entries:
+                logger.info(
+                    "[refresh-summary] trigger=%s legs=%d delta_count=%d accepted=%s",
+                    trigger_label,
+                    len(proposal.legs),
+                    len(delta_entries),
+                    accepted,
+                )
+            result.governance = _governance_payload(proposal, result, trigger_label)
+            return result
         finally:
             try:
                 app.disconnect()
@@ -545,9 +665,22 @@ class IBMarketDataService:
         )
         logger.debug(f"IB contract built: {formatted}")
 
-    def _apply_snapshot(self, leg: Mapping[str, Any], data: Mapping[str, Any]) -> None:
+    def _apply_snapshot(
+        self,
+        leg: Mapping[str, Any],
+        data: Mapping[str, Any],
+        *,
+        delta_log: list[dict[str, Any]] | None = None,
+        trigger: str | None = None,
+    ) -> None:
         if not isinstance(leg, dict):
             raise TypeError("Leg moet mutable mapping zijn")
+
+        previous_mid = leg.get("mid")
+        previous_source = (
+            str(leg.get("mid_source") or leg.get("mid_fallback") or leg.get("mid_reason") or "")
+            or None
+        )
         leg.update({k: data[k] for k in ("bid", "ask", "last") if k in data})
         for greek in ("delta", "gamma", "vega", "theta", "iv"):
             if greek in data:
@@ -561,15 +694,65 @@ class IBMarketDataService:
         elif isinstance(leg.get("last"), (int, float)):
             mid = float(leg["last"])
         if mid is not None:
-            leg["mid"] = round(mid, 4)
+            rounded_mid = round(mid, 4)
+            leg["mid"] = rounded_mid
             leg.pop("missing_edge", None)
-            if isinstance(bid, (int, float)) and isinstance(ask, (int, float)) and ask > 0:
-                leg["mid_source"] = "true"
-                leg["mid_reason"] = "IB streaming bid/ask"
-                leg.pop("mid_fallback", None)
-                leg.pop("mid_from_parity", None)
+            leg["mid_source"] = "true"
+            leg["mid_reason"] = "ib_snapshot"
+            leg.pop("mid_fallback", None)
+            leg.pop("mid_from_parity", None)
+            if trigger:
+                leg["mid_refresh_trigger"] = trigger
+            timestamp = datetime.utcnow().isoformat()
+            leg["mid_refresh_timestamp"] = timestamp
+            previous_mid_val = None
+            try:
+                previous_mid_val = float(previous_mid) if previous_mid is not None else None
+            except (TypeError, ValueError):
+                previous_mid_val = None
+            if previous_mid_val is not None:
+                leg["mid_previous"] = previous_mid_val
+                leg["mid_delta"] = round(rounded_mid - previous_mid_val, 4)
+            else:
+                leg.pop("mid_previous", None)
+                leg.pop("mid_delta", None)
+
+            if delta_log is not None:
+                entry = {
+                    "symbol": leg.get("symbol") or leg.get("underlying") or leg.get("root"),
+                    "expiry": leg.get("expiry"),
+                    "strike": leg.get("strike"),
+                    "before": previous_mid_val,
+                    "after": rounded_mid,
+                    "delta": None
+                    if previous_mid_val is None
+                    else round(rounded_mid - previous_mid_val, 4),
+                    "source_before": previous_source,
+                    "source_after": "true",
+                    "trigger": trigger,
+                    "timestamp": timestamp,
+                }
+                delta_log.append(entry)
+                try:
+                    strike_label = leg.get("strike")
+                    symbol = leg.get("symbol") or leg.get("underlying") or "?"
+                    logger.info(
+                        "[refresh-delta] %s %s mid %s → %s (Δ=%s) trigger=%s",
+                        symbol,
+                        strike_label,
+                        previous_mid_val,
+                        rounded_mid,
+                        entry["delta"],
+                        trigger or "manual",
+                    )
+                except Exception:  # pragma: no cover - defensive logging
+                    logger.debug("Failed to log refresh delta", exc_info=True)
         else:
             leg["missing_edge"] = True
+            leg.pop("mid_refresh_timestamp", None)
+            leg.pop("mid_refresh_trigger", None)
+            leg.pop("mid_previous", None)
+            leg.pop("mid_delta", None)
 
         delta = leg.get("delta")
         if isinstance(delta, (int, float)):
@@ -591,18 +774,51 @@ def fetch_quote_snapshot(
     spot_price: float | None = None,
     interest_rate: float | None = None,
     timeout: float | None = None,
+    trigger: str | None = None,
+    log_delta: bool = True,
     service: IBMarketDataService | None = None,
 ) -> SnapshotResult:
     """Refresh proposal quotes via IB and recompute metrics."""
 
     svc = service or IBMarketDataService()
-    return svc.refresh(
+    baseline_metrics = _capture_metric_snapshot(proposal)
+    result = svc.refresh(
         proposal,
         criteria=criteria,
         spot_price=spot_price,
         interest_rate=interest_rate,
         timeout=timeout,
+        trigger=trigger,
+        log_delta=log_delta,
     )
+    result.trigger = result.trigger or trigger or "manual"
+    if not result.metrics_delta:
+        updated_metrics = _capture_metric_snapshot(result.proposal)
+        metrics_delta = _compute_metric_delta(baseline_metrics, updated_metrics)
+        if metrics_delta:
+            result.metrics_delta = metrics_delta
+    if not result.governance:
+        result.governance = _governance_payload(result.proposal, result, result.trigger)
+
+    metrics_delta = result.metrics_delta or {}
+    if metrics_delta:
+        changed = {
+            key: details
+            for key, details in metrics_delta.items()
+            if details.get("delta") not in {0, 0.0, None}
+        }
+    else:
+        changed = {}
+    if changed:
+        logger.info(
+            "[refresh-metrics] trigger=%s accepted=%s changes=%s",
+            result.trigger,
+            result.accepted,
+            changed,
+        )
+    if result.accepted and result.governance and not result.governance.get("needs_refresh"):
+        result.proposal.needs_refresh = False
+    return result
 
 
 __all__ = [

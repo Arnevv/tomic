@@ -6,12 +6,14 @@ import math
 import time
 from concurrent.futures import Executor, ThreadPoolExecutor, as_completed
 from dataclasses import dataclass, field, fields
+from threading import BoundedSemaphore, Lock
 from typing import Any, Callable, Mapping, Sequence
 
 from ..logutils import logger
 from .ib_marketdata import SnapshotResult, fetch_quote_snapshot
 from .proposal_details import ProposalCore, build_proposal_core
 from .strategy_pipeline import StrategyProposal
+from ._config import cfg_value
 
 ProposalBuilder = Callable[[Mapping[str, Any]], StrategyProposal | None]
 SnapshotFetcher = Callable[..., SnapshotResult]
@@ -38,14 +40,16 @@ class RefreshParams:
     spot_price: float | None = None
     interest_rate: float | None = None
     timeout: float | None = None
-    max_attempts: int = 1
-    retry_delay: float = 0.0
-    parallel: bool = False
+    max_attempts: int | None = None
+    retry_delay: float | None = None
+    parallel: bool | None = None
     max_workers: int | None = None
     executor: Executor | None = None
     fetch_snapshot: SnapshotFetcher | None = None
     proposal_builder: ProposalBuilder | None = None
     sort_key: SortKeyCallable | None = None
+    throttle_inflight: int | None = None
+    throttle_interval: float | None = None
 
 
 @dataclass(frozen=True)
@@ -131,6 +135,56 @@ class _ProcessingOutcome:
     error: PipelineError | None
 
 
+class RefreshThrottle:
+    """Coordinator enforcing shared throttling across refresh attempts."""
+
+    def __init__(self, max_inflight: int | None, min_interval: float) -> None:
+        self.max_inflight = max_inflight if max_inflight and max_inflight > 0 else None
+        self.min_interval = max(0.0, float(min_interval))
+        self._semaphore = (
+            BoundedSemaphore(self.max_inflight)
+            if isinstance(self.max_inflight, int)
+            else None
+        )
+        self._lock = Lock()
+        self._last_timestamp = 0.0
+
+    def __enter__(self) -> "RefreshThrottle":
+        if self._semaphore is not None:
+            self._semaphore.acquire()
+        self._throttle()
+        return self
+
+    def __exit__(self, exc_type, exc, tb) -> None:
+        if self._semaphore is not None:
+            self._semaphore.release()
+
+    def _throttle(self) -> None:
+        if self.min_interval <= 0:
+            return
+        with self._lock:
+            now = time.monotonic()
+            wait = self.min_interval - (now - self._last_timestamp)
+            if wait > 0:
+                time.sleep(wait)
+                now = time.monotonic()
+            self._last_timestamp = now
+
+    def describe(self) -> str:
+        inflight = self.max_inflight if self.max_inflight is not None else "∞"
+        return f"inflight={inflight} interval={self.min_interval:.2f}s"
+
+
+@dataclass(frozen=True)
+class RefreshRuntimeSettings:
+    timeout: float
+    max_attempts: int
+    retry_delay: float
+    parallel: bool
+    max_workers: int | None
+    throttle: RefreshThrottle
+
+
 def refresh_pipeline(
     ctx: RefreshContext | None,
     *,
@@ -162,12 +216,17 @@ def refresh_pipeline(
 
     builder = params.proposal_builder or build_proposal_from_entry
     fetcher = params.fetch_snapshot or fetch_quote_snapshot
-    max_attempts = max(1, int(params.max_attempts or 1))
-    retry_delay = max(0.0, float(params.retry_delay or 0.0))
-    use_parallel = (params.parallel or params.executor is not None) and len(entries) > 1
+    runtime = _resolve_runtime_settings(params)
+    use_parallel = (runtime.parallel or params.executor is not None) and len(entries) > 1
 
     logger.info(
-        "refresh_pipeline start total=%d trace_id=%s", len(entries), context.trace_id
+        "refresh_pipeline start total=%d trace_id=%s attempts=%d retry=%.2fs parallel=%s throttle=%s",
+        len(entries),
+        context.trace_id,
+        runtime.max_attempts,
+        runtime.retry_delay,
+        use_parallel,
+        runtime.throttle.describe(),
     )
 
     start = time.monotonic()
@@ -177,7 +236,7 @@ def refresh_pipeline(
         executor = params.executor
         owns_executor = False
         if executor is None:
-            max_workers = params.max_workers or min(32, len(entries))
+            max_workers = runtime.max_workers or min(32, len(entries))
             executor = ThreadPoolExecutor(max_workers=max_workers)
             owns_executor = True
         try:
@@ -188,8 +247,10 @@ def refresh_pipeline(
                     entry,
                     builder,
                     fetcher,
-                    max_attempts,
-                    retry_delay,
+                    runtime.timeout,
+                    runtime.max_attempts,
+                    runtime.retry_delay,
+                    runtime.throttle,
                     params,
                 )
                 for index, entry in enumerate(entries)
@@ -207,8 +268,10 @@ def refresh_pipeline(
                     entry,
                     builder,
                     fetcher,
-                    max_attempts,
-                    retry_delay,
+                    runtime.timeout,
+                    runtime.max_attempts,
+                    runtime.retry_delay,
+                    runtime.throttle,
                     params,
                 )
             )
@@ -349,13 +412,74 @@ def build_proposal_from_entry(entry: Mapping[str, Any]) -> StrategyProposal | No
     return StrategyProposal(strategy=strategy, legs=normalized_legs, **proposal_kwargs)
 
 
+def _coerce_int(value: Any) -> int | None:
+    try:
+        if value in {None, ""}:
+            return None
+        number = int(value)
+    except Exception:
+        return None
+    return number if number > 0 else None
+
+
+def _resolve_runtime_settings(params: RefreshParams) -> RefreshRuntimeSettings:
+    timeout_cfg = cfg_value("MARKET_DATA_TIMEOUT", 15.0)
+    timeout = float(params.timeout if params.timeout is not None else timeout_cfg)
+
+    attempts_cfg = cfg_value("PIPELINE_REFRESH_ATTEMPTS", 1)
+    attempts_val = params.max_attempts if params.max_attempts not in {None, 0} else attempts_cfg
+    try:
+        max_attempts = max(1, int(attempts_val))
+    except Exception:
+        max_attempts = 1
+
+    retry_cfg = cfg_value("PIPELINE_REFRESH_RETRY_DELAY", 0.0)
+    retry_val = params.retry_delay if params.retry_delay is not None else retry_cfg
+    try:
+        retry_delay = max(0.0, float(retry_val))
+    except Exception:
+        retry_delay = 0.0
+
+    parallel_cfg = bool(cfg_value("PIPELINE_REFRESH_PARALLEL", False))
+    parallel = bool(params.parallel) if params.parallel is not None else parallel_cfg
+
+    if params.max_workers is not None:
+        max_workers = _coerce_int(params.max_workers)
+    else:
+        max_workers = _coerce_int(cfg_value("PIPELINE_REFRESH_MAX_WORKERS", None))
+
+    inflight = params.throttle_inflight
+    if inflight is None:
+        inflight = _coerce_int(cfg_value("PIPELINE_REFRESH_MAX_INFLIGHT", None))
+
+    interval_raw = params.throttle_interval
+    if interval_raw is None:
+        interval_raw = cfg_value("PIPELINE_REFRESH_MIN_INTERVAL", 0.0)
+    try:
+        interval = max(0.0, float(interval_raw))
+    except Exception:
+        interval = 0.0
+
+    throttle = RefreshThrottle(inflight, interval)
+    return RefreshRuntimeSettings(
+        timeout=timeout,
+        max_attempts=max_attempts,
+        retry_delay=retry_delay,
+        parallel=parallel,
+        max_workers=max_workers,
+        throttle=throttle,
+    )
+
+
 def _process_entry(
     index: int,
     entry: Mapping[str, Any],
     builder: ProposalBuilder,
     fetcher: SnapshotFetcher,
+    timeout: float,
     max_attempts: int,
     retry_delay: float,
+    throttle: RefreshThrottle,
     params: RefreshParams,
 ) -> _ProcessingOutcome:
     try:
@@ -380,13 +504,14 @@ def _process_entry(
     while attempts < max_attempts:
         attempts += 1
         try:
-            snapshot = fetcher(
-                proposal,
-                criteria=params.criteria,
-                spot_price=params.spot_price,
-                interest_rate=params.interest_rate,
-                timeout=params.timeout,
-            )
+            with throttle:
+                snapshot = fetcher(
+                    proposal,
+                    criteria=params.criteria,
+                    spot_price=params.spot_price,
+                    interest_rate=params.interest_rate,
+                    timeout=timeout,
+                )
             return _ProcessingOutcome(index, entry, snapshot.proposal, snapshot, attempts, None)
         except Exception as exc:  # pragma: no cover - network dependent
             last_error = _map_exception(exc)
