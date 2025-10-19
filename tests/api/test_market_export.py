@@ -157,61 +157,35 @@ def test_write_option_chain_no_records(tmp_path):
     assert list(tmp_path.iterdir()) == []
 
 
-def test_fetch_volatility_metrics_parses_new_fields(monkeypatch):
+def test_fetch_volatility_metrics_returns_vix_only(monkeypatch):
     import importlib
 
-    html = """
-        \"lastPrice\": 101.5
-        HV:</span></span><span><strong>12%</strong></span>
-        Skew:</span> <span><strong>-2.5%</strong></span>
-        ATR(14):</span></span><span><strong>7.8</strong></span>
-        VIX:</span> <span><strong>19.5</strong></span>
-        M1 - M2:</span></span><span><strong>-0.3%</strong></span>
-        M1-M3:</span></span><span><strong>-0.7%</strong></span>
-        IV Rank 45
-        Implied Volatility:</span></span><span><strong>20%</strong></span>
-        IV Percentile:</span></span><span><strong>60%</strong></span>
-    """
-
     mod = importlib.reload(importlib.import_module("tomic.analysis.volatility_fetcher"))
-
-    async def fake_download(sym):
-        return html
-
-    async def fake_get_vix():
-        return 19.5, "stub"
-
-    monkeypatch.setattr(mod, "download_html_async", fake_download)
-    monkeypatch.setattr(mod, "_get_vix_value", fake_get_vix)
-
-    data = mod.fetch_volatility_metrics("ABC")
-    assert data["atr14"] == 7.8
-    assert data["vix"] == 19.5
-    assert "term_m1_m2" not in data
-    assert "term_m1_m3" not in data
-
-
-def test_fetch_volatility_metrics_uses_vix_fallback(monkeypatch):
-    import importlib
-
-    html = """
-        \"lastPrice\": 101.5
-        HV:</span></span><span><strong>12%</strong></span>
-    """
-
-    mod = importlib.reload(importlib.import_module("tomic.analysis.volatility_fetcher"))
-
-    async def fake_download(sym):
-        return html
 
     async def fake_get_vix():
         return 21.3, "stub"
 
-    monkeypatch.setattr(mod, "download_html_async", fake_download)
     monkeypatch.setattr(mod, "_get_vix_value", fake_get_vix)
 
     data = mod.fetch_volatility_metrics("ABC")
     assert data["vix"] == 21.3
+    assert data.get("vix_source") == "stub"
+    assert len(data) == 2
+
+
+def test_fetch_volatility_metrics_handles_missing_vix(monkeypatch):
+    import importlib
+
+    mod = importlib.reload(importlib.import_module("tomic.analysis.volatility_fetcher"))
+
+    async def fake_get_vix():
+        return None, None
+
+    monkeypatch.setattr(mod, "_get_vix_value", fake_get_vix)
+
+    data = mod.fetch_volatility_metrics("ABC")
+    assert data.get("vix") is None
+    assert data.get("vix_source") is None
 
 
 def test_fetch_market_metrics_includes_new_fields(monkeypatch):

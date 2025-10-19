@@ -17,13 +17,12 @@ from typing import Any, Awaitable, Callable, Dict, Optional, Tuple
 
 import aiohttp
 
-from tomic.analysis.iv_patterns import EXTRA_PATTERNS, IV_PATTERNS
 from tomic.api.base_client import BaseIBApp
 from tomic.api.ib_connection import connect_ib
 from tomic.config import VixConfig, VixJsonApiConfig, get as cfg_get
 from tomic.logutils import logger
 from tomic.utils import today
-from tomic.webdata.utils import download_html, download_html_async, parse_patterns, to_float
+from tomic.webdata.utils import to_float
 
 try:  # pragma: no cover - optional dependency during tests
     from ibapi.contract import Contract
@@ -297,6 +296,29 @@ def _accepted_tick_types() -> set[int]:
     return {int(v) for v in values if isinstance(v, int)}
 
 
+def _serialise_contract(contract: Any) -> Dict[str, Any]:
+    """Return a serialisable view of a contract for logging purposes."""
+
+    fields = (
+        "conId",
+        "symbol",
+        "secType",
+        "currency",
+        "exchange",
+        "primaryExchange",
+        "lastTradeDateOrContractMonth",
+        "tradingClass",
+        "localSymbol",
+    )
+    payload: Dict[str, Any] = {}
+    for field in fields:
+        if hasattr(contract, field):
+            value = getattr(contract, field)
+            if value not in (None, ""):
+                payload[field] = value
+    return payload
+
+
 class _IbkrVixClient(BaseIBApp):
     """Light-weight client for requesting a single VIX snapshot."""
 
@@ -373,6 +395,19 @@ class _IbkrVixClient(BaseIBApp):
                 self._value = None
                 self._error = None
             try:
+                payload = {
+                    "contract": _serialise_contract(contract),
+                    "generic_ticks": "",
+                    "snapshot": True,
+                    "regulatory_snapshot": False,
+                    "options": [],
+                    "market_data_type": data_type,
+                    "req_id": req_id,
+                }
+                logger.debug(
+                    "Requesting VIX snapshot via IBKR: %s",
+                    payload,
+                )
                 self.reqMktData(req_id, contract, "", True, False, [])
             except Exception as exc:  # pragma: no cover - network failures
                 last_error = str(exc)
@@ -423,6 +458,14 @@ def _fetch_vix_from_ibkr_sync(settings: VixConfig) -> _VixFetcherResult:
     client_id = int(cfg_get("IB_MARKETDATA_CLIENT_ID", 901))
 
     app = _IbkrVixClient()
+    logger.debug(
+        "Connecting to IBKR for VIX host=%s port=%s client_id=%s timeout=%ss",
+        host,
+        port,
+        client_id,
+        timeout,
+    )
+
     try:
         connect_ib(
             client_id=client_id,
@@ -451,6 +494,10 @@ def _fetch_vix_from_ibkr_sync(settings: VixConfig) -> _VixFetcherResult:
             contract.exchange = exchange
             if primary_exchange is not None:
                 contract.primaryExchange = primary_exchange
+            logger.debug(
+                "Prepared IBKR contract for VIX: %s",
+                _serialise_contract(contract),
+            )
             value, error = app.request_snapshot(contract, timeout)
             if value is not None:
                 return value, _ibkr_source_label(exchange), None
@@ -723,25 +770,26 @@ async def _get_vix_value() -> Tuple[Optional[float], Optional[str]]:
 
 
 async def fetch_volatility_metrics_async(symbol: str) -> Dict[str, float]:
-    """Asynchronously fetch volatility metrics from the web."""
+    """Asynchronously fetch volatility metrics for ``symbol``.
 
-    html = await download_html_async(symbol)
-    iv_data = parse_patterns(IV_PATTERNS, html)
-    extra_data = parse_patterns(EXTRA_PATTERNS, html)
+    External scraping for implied-volatility metrics has been removed. The
+    remaining data focuses solely on retrieving the VIX value via the normal
+    provider chain.
+    """
+
+    metrics: Dict[str, float] = {}
     vix_value, vix_source = await _get_vix_value()
-    extra_data["vix"] = vix_value
-    for key in ("iv_rank", "iv_percentile"):
-        if iv_data.get(key) is not None:
-            iv_data[key] /= 100
-    merged = {**iv_data, **extra_data}
+    if vix_value is not None:
+        metrics["vix"] = vix_value
+    if vix_source:
+        metrics["vix_source"] = vix_source
     logger.info(
-        "volatility_metrics symbol=%s iv_rank=%s vix=%s vix_src=%s",
+        "volatility_metrics symbol=%s vix=%s vix_src=%s",
         symbol,
-        merged.get("iv_rank"),
-        merged.get("vix"),
+        metrics.get("vix"),
         vix_source,
     )
-    return merged
+    return metrics
 
 
 def fetch_volatility_metrics(symbol: str) -> Dict[str, float]:
@@ -757,8 +805,6 @@ def fetch_volatility_metrics(symbol: str) -> Dict[str, float]:
 
 
 __all__ = [
-    "download_html",
-    "parse_patterns",
     "fetch_volatility_metrics",
     "fetch_volatility_metrics_async",
 ]

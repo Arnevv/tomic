@@ -1,5 +1,5 @@
-"""Public helpers for web scraping."""
+"""Public helpers for working with web data."""
 
-from .utils import download_html, parse_patterns
+from .utils import to_float
 
-__all__ = ["download_html", "parse_patterns"]
+__all__ = ["to_float"]
