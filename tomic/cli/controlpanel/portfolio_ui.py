@@ -357,7 +357,7 @@ def show_market_info(session: ControlPanelSession, services: ControlPanelService
 
     vix_value = None
     try:
-        metrics = fetch_volatility_metrics(symbols[0] if symbols else "SPY")
+        metrics = fetch_volatility_metrics("VIX")
         vix_value = metrics.get("vix")
     except Exception:
         vix_value = None

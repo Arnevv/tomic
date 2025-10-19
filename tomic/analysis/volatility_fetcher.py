@@ -783,9 +783,9 @@ async def fetch_volatility_metrics_async(symbol: str) -> Dict[str, float]:
         metrics["vix"] = vix_value
     if vix_source:
         metrics["vix_source"] = vix_source
-    logger.info(
+    logger.debug(
         "volatility_metrics symbol=%s vix=%s vix_src=%s",
-        symbol,
+        "VIX",
         metrics.get("vix"),
         vix_source,
     )

@@ -10,7 +10,10 @@ from pathlib import Path
 from types import ModuleType
 from typing import Iterable, Mapping
 
+from tomic import config as _config
+from tomic.analysis.volatility_fetcher import fetch_volatility_metrics as _fetch_volatility_metrics
 from tomic.cli.app_services import ControlPanelServices
+from tomic.services.market_snapshot_service import MarketSnapshotService
 from tomic.cli.common import Menu
 from tomic.cli.controlpanel_session import ControlPanelSession
 from tomic.cli.module_runner import run_module
@@ -20,14 +23,22 @@ from tomic.reporting import ReasonAggregator
 from tomic.strategy.reasons import ReasonCategory
 from .menu_config import MenuItem, MenuSection, build_menu
 from . import portfolio
+from tomic.core.portfolio import services as portfolio_services
 
 
 class _ControlPanelModule(ModuleType):
     """Module type that keeps ``SHOW_REASONS`` synchronized with submodules."""
 
+    def __getattr__(self, name: str):  # type: ignore[override]
+        if hasattr(portfolio, name):
+            return getattr(portfolio, name)
+        raise AttributeError(name)
+
     def __setattr__(self, name: str, value) -> None:  # type: ignore[override]
         if name == "SHOW_REASONS":
             portfolio.SHOW_REASONS = value
+        elif hasattr(portfolio, name):
+            setattr(portfolio, name, value)
         super().__setattr__(name, value)
 
 
@@ -89,6 +100,12 @@ def _create_context() -> ControlPanelContext:
 _CONTEXT = _create_context()
 SESSION_STATE = SessionState(_CONTEXT)
 SHOW_REASONS = portfolio.SHOW_REASONS
+
+# Backwards compatibility for tests that patch the paths directly via the
+# controlpanel module instead of ``portfolio_services``.
+POSITIONS_FILE = portfolio_services.POSITIONS_FILE
+fetch_volatility_metrics = _fetch_volatility_metrics
+cfg = _config
 
 
 def _sync_state() -> None:
