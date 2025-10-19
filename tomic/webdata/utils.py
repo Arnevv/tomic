@@ -2,14 +2,35 @@
 
 from __future__ import annotations
 
-import re
 import asyncio
-import aiohttp
-import urllib.request
+import re
 from typing import Dict, List, Optional
 
-from tomic.logutils import logger
+import aiohttp
+import urllib.request
+
 from tomic.config import get as cfg_get
+from tomic.logutils import logger
+
+
+def to_float(value: object) -> Optional[float]:
+    """Return ``value`` cast to ``float`` when possible."""
+
+    if value is None:
+        return None
+    if isinstance(value, (int, float)):
+        return float(value)
+    if isinstance(value, str):
+        cleaned = value.strip()
+        cleaned = re.sub(r"[^0-9,.-]", "", cleaned)
+        cleaned = cleaned.replace(",", ".")
+        try:
+            return float(cleaned)
+        except ValueError:
+            logger.debug(f"Failed numeric conversion for value '{value}'")
+            return None
+    logger.debug(f"Unsupported type for numeric conversion: {type(value)}")
+    return None
 
 
 async def download_html_async(
@@ -71,30 +92,29 @@ def download_html(
 
 def parse_patterns(patterns: Dict[str, List[str]], html: str) -> Dict[str, Optional[float]]:
     """Return numeric values extracted using ``patterns``."""
+
     results: Dict[str, Optional[float]] = {}
     for key, pats in patterns.items():
-        logger.debug(
-            f"Searching HTML for '{key}' using {len(pats)} pattern(s)"
-        )
+        logger.debug(f"Searching HTML for '{key}' using {len(pats)} pattern(s)")
         for pat in pats:
             logger.debug(f"Trying pattern '{pat}' for {key}")
             match = re.search(pat, html, re.IGNORECASE | re.DOTALL)
             if match:
-                try:
-                    results[key] = float(match.group(1))
+                value = to_float(match.group(1))
+                if value is not None:
+                    results[key] = value
                     logger.debug(
                         f"Matched pattern '{pat}' for {key} -> {results[key]}"
                     )
-                    break
-                except ValueError:
+                else:
                     logger.warning(
                         f"Failed to parse {key} from '{match.group(1)}'"
                     )
-                    break
+                break
         if key not in results:
             logger.error(f"{key} not found on page")
             results[key] = None
     return results
 
 
-__all__ = ["download_html", "download_html_async", "parse_patterns"]
+__all__ = ["download_html", "download_html_async", "parse_patterns", "to_float"]
