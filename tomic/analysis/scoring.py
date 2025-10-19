@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any, Dict, List, Mapping, Optional, Tuple, TYPE_CHECKING
+from typing import Any, Dict, Iterable, List, Mapping, Optional, Tuple, TYPE_CHECKING
 import math
 
 from ..metrics import (
@@ -19,6 +19,7 @@ from ..config import get as cfg_get
 from ..strategy.reasons import (
     ReasonCategory,
     ReasonDetail,
+    dedupe_reasons,
     make_reason,
     reason_from_mid_source,
 )
@@ -30,6 +31,7 @@ POSITIVE_CREDIT_STRATS = set(RULES.strategy.acceptance.require_positive_credit_f
 
 
 _VALID_MID_SOURCES = {"true", "parity_true", "parity_close", "model", "close"}
+_PREVIEW_SOURCES = {"parity_close", "model", "close"}
 
 
 def _safe_float(value: Any) -> float | None:
@@ -108,6 +110,20 @@ def _collect_leg_values(legs: List[Dict[str, Any]], keys: Tuple[str, ...]) -> Li
             values.append(val)
             break
     return values
+
+
+def _normalized_mid_source(leg: Mapping[str, Any]) -> str:
+    source = str(leg.get("mid_source") or "").strip().lower()
+    fallback = str(leg.get("mid_fallback") or "").strip().lower()
+    if source == "parity":
+        source = "parity_true"
+    if fallback == "parity":
+        fallback = "parity_true"
+    if source:
+        return source
+    if fallback:
+        return fallback
+    return "true"
 
 
 def _infer_leg_dte(leg: Mapping[str, Any]) -> Optional[int]:
@@ -360,6 +376,80 @@ def _fallback_limit_ok(
     return total_fallbacks <= allowed, total_fallbacks, allowed, None
 
 
+def _preview_penalty(
+    strategy_name: str,
+    fallback_summary: Mapping[str, int],
+    *,
+    preview_sources: Iterable[str],
+    short_preview_legs: int,
+    long_preview_legs: int,
+    total_legs: int,
+    fallback_count: int,
+    fallback_allowed: int,
+    fallback_reason: str | None,
+    fallback_warning: str | None,
+) -> tuple[float, ReasonDetail | None, bool]:
+    preview_leg_count = sum(fallback_summary.get(src, 0) for src in _PREVIEW_SOURCES)
+    if preview_leg_count <= 0 or total_legs <= 0:
+        return 0.0, None, False
+
+    scoring_cfg = cfg_get("SCORING", {}) or {}
+    preview_cfg = scoring_cfg.get("mid_preview") or {}
+    per_leg = float(preview_cfg.get("penalty_per_leg", 1.5))
+    max_ratio = float(preview_cfg.get("max_preview_ratio", 0.5) or 0.0)
+    max_penalty = float(preview_cfg.get("penalty_cap", per_leg * total_legs))
+    short_multiplier = float(preview_cfg.get("short_leg_multiplier", 1.0))
+    min_penalty = float(preview_cfg.get("min_penalty", 0.0))
+
+    ratio = preview_leg_count / total_legs if total_legs else 0.0
+    severity = 1.0
+    if max_ratio > 0:
+        severity = min(max(ratio / max_ratio, 0.0), 1.0)
+
+    penalty = per_leg * preview_leg_count * severity
+    if short_preview_legs > 0 and short_multiplier > 0:
+        penalty *= max(short_multiplier, 0.0)
+    if max_penalty > 0:
+        penalty = min(penalty, max_penalty)
+    if min_penalty > 0:
+        penalty = max(penalty, min_penalty)
+
+    penalty = round(penalty, 2)
+    data: dict[str, Any] = {
+        "strategy": strategy_name,
+        "preview_sources": sorted(set(preview_sources)),
+        "preview_leg_count": preview_leg_count,
+        "total_leg_count": total_legs,
+        "preview_ratio": round(ratio, 4),
+        "max_preview_ratio": max_ratio if max_ratio > 0 else None,
+        "short_preview_legs": short_preview_legs or None,
+        "long_preview_legs": long_preview_legs or None,
+        "penalty_per_leg": per_leg,
+        "penalty_severity": round(severity, 4),
+        "penalty_cap": max_penalty if max_penalty > 0 else None,
+        "fallback_limit_count": fallback_count,
+        "fallback_limit_allowed": fallback_allowed,
+        "fallback_limit_reason": fallback_reason,
+    }
+    data = {key: value for key, value in data.items() if value not in (None, [])}
+
+    message = (
+        f"score verlaagd met {penalty:.2f} door preview mids"
+        f" ({preview_leg_count}/{total_legs})"
+    )
+    limit_message = fallback_warning or fallback_reason
+    if limit_message:
+        data["fallback_limit_message"] = limit_message
+        message = f"{message} — {limit_message}"
+    detail = make_reason(
+        ReasonCategory.PREVIEW_QUALITY,
+        "MID_PREVIEW_PENALTY",
+        message,
+        data=data,
+    )
+    return penalty, detail, True
+
+
 def calculate_breakevens(
     strategy: str | Any, legs: List[Dict[str, Any]], credit: float
 ) -> Optional[List[float]]:
@@ -530,10 +620,21 @@ def compute_proposal_metrics(
     legs: List[Dict[str, Any]],
     crit: CriteriaConfig,
     spot: float | None = None,
+    *,
+    fallback_count: int = 0,
+    fallback_allowed: int = 0,
+    fallback_reason: str | None = None,
+    fallback_warning: str | None = None,
 ) -> Tuple[Optional[float], List[ReasonDetail]]:
     """Compute proposal metrics and return score with structured reasons."""
 
     reasons: List[ReasonDetail] = []
+
+    def _finalize(result_score: Optional[float]) -> Tuple[Optional[float], List[ReasonDetail]]:
+        deduped = dedupe_reasons(reasons)
+        proposal.reasons = deduped
+        return result_score, deduped
+
     for leg in legs:
         normalize_leg(leg)
 
@@ -558,7 +659,10 @@ def compute_proposal_metrics(
     missing_mid: List[str] = []
     credits: List[float] = []
     debits: List[float] = []
-    raw_fallback_sources: set[str] = set()
+    fallback_summary: dict[str, int] = {}
+    preview_sources: set[str] = set()
+    preview_short_legs = 0
+    preview_long_legs = 0
 
     for leg in legs:
         mid = leg.get("mid")
@@ -566,18 +670,26 @@ def compute_proposal_metrics(
             mid_val = float(mid) if mid is not None else math.nan
         except Exception:
             mid_val = math.nan
+        qty = get_leg_qty(leg)
+        pos = float(leg.get("position") or 0)
         if math.isnan(mid_val):
             missing_mid.append(str(leg.get("strike")))
         else:
-            qty = get_leg_qty(leg)
-            pos = float(leg.get("position") or 0)
             if pos < 0:
                 credits.append(mid_val * qty)
             elif pos > 0:
                 debits.append(mid_val * qty)
-        fallback = str(leg.get("mid_fallback") or "").strip().lower()
-        if fallback:
-            raw_fallback_sources.add(fallback)
+        source = _normalized_mid_source(leg)
+        fallback_summary[source] = fallback_summary.get(source, 0) + 1
+        if source in _PREVIEW_SOURCES:
+            preview_sources.add(source)
+            if pos < 0:
+                preview_short_legs += 1
+            elif pos > 0:
+                preview_long_legs += 1
+
+    for valid_source in _VALID_MID_SOURCES:
+        fallback_summary.setdefault(valid_source, 0)
 
     if missing_mid:
         logger.info(
@@ -602,12 +714,8 @@ def compute_proposal_metrics(
         reasons.append(detail)
         seen_codes.add(detail.code)
 
-    preview_sources: set[str] = set()
-    for source in sorted(raw_fallback_sources):
-        detail = reason_from_mid_source(source)
-        if detail is not None:
-            preview_sources.add(source)
-        _add_reason(detail)
+    for source in sorted(preview_sources):
+        _add_reason(reason_from_mid_source(source))
 
     credit_short = sum(credits)
     debit_long = sum(debits)
@@ -633,7 +741,7 @@ def compute_proposal_metrics(
                 "negatieve credit",
             )
         )
-        return None, reasons
+        return _finalize(None)
 
     proposal.credit = net_credit * 100
     proposal.credit_capped = credit_capped
@@ -657,7 +765,7 @@ def compute_proposal_metrics(
                 "margin kon niet worden berekend",
             )
         )
-        return None, reasons
+        return _finalize(None)
 
     for leg in legs:
         leg["margin"] = margin
@@ -723,14 +831,32 @@ def compute_proposal_metrics(
         logger.info(
             f"[❌ voorstel afgewezen] {strategy_name} — reason: EV/score te laag"
         )
-        return None, reasons
+        return _finalize(None)
+    penalty, penalty_detail, needs_refresh = _preview_penalty(
+        strategy_name,
+        fallback_summary,
+        preview_sources=preview_sources,
+        short_preview_legs=preview_short_legs,
+        long_preview_legs=preview_long_legs,
+        total_legs=len(legs),
+        fallback_count=fallback_count,
+        fallback_allowed=fallback_allowed,
+        fallback_reason=fallback_reason,
+        fallback_warning=fallback_warning,
+    )
+    if penalty_detail:
+        _add_reason(penalty_detail)
+    if penalty > 0:
+        score_val = max(score_val - penalty, 0.0)
 
     proposal.score = round(score_val, 2)
+    proposal.fallback_summary = dict(sorted(fallback_summary.items()))
+    proposal.needs_refresh = needs_refresh
     if preview_sources:
         proposal.fallback = ",".join(sorted(preview_sources))
     else:
         proposal.fallback = None
-    return proposal.score, reasons
+    return _finalize(proposal.score)
 
 
 def calculate_score(
@@ -753,22 +879,16 @@ def calculate_score(
     fallback_ok, fallback_count, fallback_allowed, fallback_reason = _fallback_limit_ok(
         strategy_name, legs
     )
+    fallback_warning: str | None = None
     if not fallback_ok:
         if fallback_reason:
             if fallback_allowed:
-                message = f"{fallback_reason} ({fallback_count}/{fallback_allowed} toegestaan)"
+                fallback_warning = f"{fallback_reason} ({fallback_count}/{fallback_allowed} toegestaan)"
             else:
-                message = fallback_reason
+                fallback_warning = fallback_reason
         else:
-            message = f"te veel fallback-legs ({fallback_count}/{fallback_allowed} toegestaan)"
-        logger.info(f"[{strategy_name}] {message}")
-        return None, [
-            make_reason(
-                ReasonCategory.POLICY_VIOLATION,
-                "FALLBACK_LIMIT", message,
-                data={"fallback_count": fallback_count, "allowed": fallback_allowed},
-            )
-        ]
+            fallback_warning = f"te veel fallback-legs ({fallback_count}/{fallback_allowed} toegestaan)"
+        logger.info(f"[{strategy_name}] {fallback_warning}")
 
     valid, reasons = validate_leg_metrics(strategy_name, legs)
     if not valid:
@@ -779,7 +899,17 @@ def calculate_score(
     if not ok:
         return None, reasons
 
-    score, reasons = compute_proposal_metrics(strategy_name, proposal, legs, crit, spot)
+    score, reasons = compute_proposal_metrics(
+        strategy_name,
+        proposal,
+        legs,
+        crit,
+        spot,
+        fallback_count=fallback_count,
+        fallback_allowed=fallback_allowed,
+        fallback_reason=fallback_reason,
+        fallback_warning=fallback_warning,
+    )
     _populate_additional_metrics(proposal, legs, spot)
     return score, reasons
 

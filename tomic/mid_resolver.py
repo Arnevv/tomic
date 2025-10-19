@@ -11,6 +11,7 @@ from .bs_calculator import black_scholes
 from .config import get as cfg_get
 from .helpers.dateutils import dte_between_dates, parse_date
 from .logutils import logger
+from .strategy.reasons import mid_reason_message
 from .utils import get_leg_right, today
 
 
@@ -167,7 +168,7 @@ class MidResolver:
             if spread_ok:
                 res.mid = round(mid, 4)
                 res.mid_source = "true"
-                res.mid_reason = "bid/ask spread ok"
+                res.mid_reason = mid_reason_message("true")
                 res.spread_flag = flag
             else:
                 res.mid_reason = "spread te wijd"
@@ -238,18 +239,11 @@ class MidResolver:
         res.mid = round(parity_mid, 4)
         if base_source not in {"true", "parity_true"}:
             res.mid_source = "parity_close"
-            if base_source == "close":
-                res.mid_reason = "put-call parity via close tegenleg"
-            elif base_source == "parity_close":
-                res.mid_reason = "put-call parity via parity(close) tegenleg"
-            elif base_source == "model":
-                res.mid_reason = "put-call parity via model tegenleg"
-            else:
-                res.mid_reason = "put-call parity via indirect bron"
+            res.mid_reason = mid_reason_message("parity_close", base_source=base_source)
             res.mid_fallback = "parity_close"
         else:
             res.mid_source = "parity_true"
-            res.mid_reason = "put-call parity"
+            res.mid_reason = mid_reason_message("parity_true")
             res.mid_fallback = "parity_true"
 
     def _try_model(self, idx: int, option: Mapping[str, Any]) -> None:
@@ -265,7 +259,7 @@ class MidResolver:
             return
         res.mid = round(model, 4)
         res.mid_source = "model"
-        res.mid_reason = "model mid gebruikt"
+        res.mid_reason = mid_reason_message("model")
         res.mid_fallback = "model"
 
     def _try_close(self, idx: int, option: Mapping[str, Any]) -> None:
@@ -278,7 +272,7 @@ class MidResolver:
             return
         res.mid = round(close, 4)
         res.mid_source = "close"
-        res.mid_reason = "fallback naar close"
+        res.mid_reason = mid_reason_message("close")
         res.mid_fallback = "close"
 
     def _spread_ok(self, mid: float, spread: float, option: Mapping[str, Any]) -> tuple[bool, str]:

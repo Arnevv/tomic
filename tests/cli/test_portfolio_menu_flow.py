@@ -195,7 +195,9 @@ def test_run_market_scan_selects_candidate(
         iv_rank=0.4,
         skew=0.1,
         bid_ask_pct=0.02,
-        mid_sources=("quotes",),
+        mid_sources=("tradable", "true:1"),
+        mid_status="tradable",
+        needs_refresh=False,
         next_earnings=None,
         spot=105.0,
     )

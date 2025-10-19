@@ -337,9 +337,13 @@ def test_metrics_rejects_when_long_fallback_limit_exceeded(monkeypatch):
         },
     ]
     metrics, reasons = _metrics(StrategyName.IRON_CONDOR, legs)
-    assert metrics is None
+    assert metrics is not None
     messages = _messages(reasons)
-    assert messages and messages[0].startswith("te veel fallback-legs op long wings")
+    assert any("previewkwaliteit (close)" in msg for msg in messages)
+    assert any("previewkwaliteit (model)" in msg for msg in messages)
+    assert any("te veel fallback-legs" in msg for msg in messages)
+    assert any("score verlaagd" in msg for msg in messages)
+    assert metrics["score"] < 48.0
 
 
 def test_short_leg_fallbacks_warn_for_other_strategies(monkeypatch):
@@ -497,9 +501,11 @@ def test_calendar_rejects_model_long_fallback():
         },
     ]
     metrics, reasons = _metrics(StrategyName.CALENDAR, legs)
-    assert metrics is None
+    assert metrics is not None
     messages = _messages(reasons)
-    assert messages and messages[0].startswith("calendar long leg vereist parity of close")
+    assert any("previewkwaliteit (model)" in msg for msg in messages)
+    assert any("score verlaagd" in msg for msg in messages)
+    assert any("calendar long leg vereist parity of close" in msg for msg in messages)
 
 
 def _messages(reasons: List[ReasonDetail]) -> list[str]:

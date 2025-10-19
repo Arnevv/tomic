@@ -59,6 +59,8 @@ class StrategyProposal:
     wing_width: Optional[Dict[str, float]] = None
     wing_symmetry: Optional[bool] = None
     breakeven_distances: Optional[Dict[str, List[float]]] = None
+    reasons: List[ReasonDetail] = field(default_factory=list)
+    needs_refresh: bool = False
 
 
 @dataclass

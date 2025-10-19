@@ -8,11 +8,33 @@ from dataclasses import dataclass, fields
 from functools import partial
 from pathlib import Path
 from types import ModuleType
-from typing import Iterable, Mapping
+from typing import Any, Iterable, Mapping, Sequence
 
+from tomic.cli import services as cli_services
 from tomic.cli.app_services import ControlPanelServices
-from tomic.cli.common import Menu
+from tomic.cli.common import Menu, prompt, prompt_yes_no
 from tomic.cli.controlpanel_session import ControlPanelSession
+import tomic.cli.rejections.handlers as rejection_handlers
+from tomic.cli.rejections.handlers import (
+    build_rejection_summary,
+    refresh_rejections,
+    show_rejection_detail,
+)
+from tomic.logutils import capture_combo_evaluations, summarize_evaluations
+from tomic.reporting import ReasonAggregator, EvaluationSummary, format_reject_reasons
+from tomic.reporting.rejections import ExpiryBreakdown
+from tomic.strategy.reasons import ReasonCategory, normalize_reason
+from tomic.analysis.market_overview import build_market_overview
+from tomic.analysis.volatility_fetcher import fetch_volatility_metrics
+from tomic.services.market_snapshot_service import MarketSnapshotService
+from tomic.services.market_scan_service import MarketScanService, MarketScanRequest
+from tomic.services import refresh_pipeline, build_proposal_from_entry
+from tomic.services.chain_processing import ChainPreparationConfig
+from tomic.integrations.polygon.client import PolygonClient
+from tomic.services.strategy_pipeline import StrategyProposal, RejectionSummary
+from tomic.core.portfolio import services as portfolio_services
+from tomic.strategy_candidates import generate_strategy_candidates as _generate_strategy_candidates
+from tomic.exports import spot_from_chain
 from tomic.cli.module_runner import run_module
 from tomic.scripts.backfill_hv import run_backfill_hv
 from tomic.logutils import summarize_evaluations
@@ -28,6 +50,15 @@ class _ControlPanelModule(ModuleType):
     def __setattr__(self, name: str, value) -> None:  # type: ignore[override]
         if name == "SHOW_REASONS":
             portfolio.SHOW_REASONS = value
+        if name == "MARKET_SNAPSHOT_SERVICE":
+            portfolio.MARKET_SNAPSHOT_SERVICE = value
+            if hasattr(_CONTEXT.services, "market_snapshot"):
+                _CONTEXT.services.market_snapshot = value
+        if name == "fetch_volatility_metrics":
+            setattr(portfolio, "fetch_volatility_metrics", value)
+        if name == "capture_combo_evaluations":
+            globals()[name] = value
+            setattr(portfolio_services, "capture_combo_evaluations", value)
         super().__setattr__(name, value)
 
 
@@ -89,6 +120,16 @@ def _create_context() -> ControlPanelContext:
 _CONTEXT = _create_context()
 SESSION_STATE = SessionState(_CONTEXT)
 SHOW_REASONS = portfolio.SHOW_REASONS
+services = cli_services
+
+
+class _PipelineAccessor:
+    def __getattr__(self, name: str) -> Any:  # type: ignore[override]
+        pipeline = _CONTEXT.services.get_pipeline()
+        return getattr(pipeline, name)
+
+
+PIPELINE = _PipelineAccessor()
 
 
 def _sync_state() -> None:
@@ -218,12 +259,121 @@ print_saved_portfolio_greeks = portfolio.print_saved_portfolio_greeks
 run_dataexporter = portfolio.run_dataexporter
 run_trade_management = portfolio.run_trade_management
 run_risk_tools = portfolio.run_risk_tools
+generate_strategy_candidates = _generate_strategy_candidates
+_print_evaluation_overview = portfolio._print_evaluation_overview
+
+cfg = portfolio.cfg
+MARKET_SNAPSHOT_SERVICE = MarketSnapshotService(cfg)
+_CONTEXT.services.market_snapshot = MARKET_SNAPSHOT_SERVICE
+fetch_volatility_metrics = fetch_volatility_metrics
+build_market_overview = build_market_overview
+MarketSnapshotService = MarketSnapshotService
+MarketScanService = MarketScanService
+MarketScanRequest = MarketScanRequest
+StrategyProposal = StrategyProposal
+RejectionSummary = RejectionSummary
+EvaluationSummary = EvaluationSummary
+ExpiryBreakdown = ExpiryBreakdown
+format_reject_reasons = format_reject_reasons
+capture_combo_evaluations = capture_combo_evaluations
+ChainPreparationConfig = ChainPreparationConfig
+PolygonClient = PolygonClient
+refresh_pipeline = refresh_pipeline
+build_proposal_from_entry = build_proposal_from_entry
+spot_from_chain = spot_from_chain
+_spot_from_chain = spot_from_chain
+POSITIONS_FILE = portfolio_services.POSITIONS_FILE
+normalize_reason = normalize_reason
+
+_ORIGINAL_REFRESH_REJECTIONS = refresh_rejections
+setattr(portfolio, "fetch_volatility_metrics", fetch_volatility_metrics)
+setattr(portfolio, "MARKET_SNAPSHOT_SERVICE", MARKET_SNAPSHOT_SERVICE)
+setattr(portfolio, "build_market_overview", build_market_overview)
+setattr(portfolio, "MarketScanService", MarketScanService)
+
+
+def _refresh_reject_entries(
+    entries: Sequence[Mapping[str, Any]],
+    *,
+    session: ControlPanelSession | None = None,
+    services: ControlPanelServices | None = None,
+    config: Any | None = None,
+    tabulate_fn: Any | None = None,
+    prompt_fn: Any | None = None,
+    **_: Any,
+) -> None:
+    table = tabulate_fn or getattr(portfolio, "tabulate", None)
+    _ORIGINAL_REFRESH_REJECTIONS(
+        session or _CONTEXT.session,
+        services or _CONTEXT.services,
+        entries,
+        config=config or cfg,
+        show_proposal_details=_show_proposal_details,
+        tabulate_fn=table,
+        prompt_fn=prompt_fn or prompt,
+    )
+
+
+def _print_reason_summary(summary: RejectionSummary | None) -> None:
+    original = rejection_handlers.refresh_rejections
+
+    def _proxy(
+        session: ControlPanelSession,
+        services: ControlPanelServices,
+        entries: Sequence[Mapping[str, Any]],
+        **kwargs: Any,
+    ) -> None:
+        _refresh_reject_entries(entries)
+
+    rejection_handlers.refresh_rejections = _proxy
+    try:
+        build_rejection_summary(
+            _CONTEXT.session,
+            summary,
+            services=_CONTEXT.services,
+            config=cfg,
+            show_reasons=SHOW_REASONS,
+            tabulate_fn=getattr(portfolio, "tabulate", None),
+            prompt_fn=prompt,
+            prompt_yes_no_fn=prompt_yes_no,
+            show_proposal_details=_show_proposal_details,
+        )
+    finally:
+        rejection_handlers.refresh_rejections = original
+
+
+def _export_proposal_json(proposal: StrategyProposal) -> Path:
+    path = portfolio_services.export_proposal_to_json(_CONTEXT.session, proposal)
+    _sync_state()
+    return path
+
+
+def _show_rejection_detail(entry: Mapping[str, Any]) -> None:
+    show_rejection_detail(
+        _CONTEXT.session,
+        entry,
+        tabulate_fn=getattr(portfolio, "tabulate", None),
+        prompt_fn=prompt,
+        show_proposal_details=_show_proposal_details,
+    )
+
+
+def _generate_with_capture(*args: Any, **kwargs: Any):
+    return portfolio_services.capture_strategy_generation(
+        _CONTEXT.session,
+        generate_strategy_candidates,
+        *args,
+        **kwargs,
+    )
 
 
 def run_portfolio_menu(
     session: ControlPanelSession | None = None,
     services: ControlPanelServices | None = None,
 ) -> None:
+    def _process_chain(path: Path) -> None:
+        return globals()["_process_chain"](path)
+
     if session is None:
         session = _CONTEXT.session
     if services is None:

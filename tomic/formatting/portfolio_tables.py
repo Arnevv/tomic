@@ -198,7 +198,13 @@ def build_market_scan_table(candidates: Sequence[Candidate]) -> TableSpec:
         elif isinstance(earn_val, str) and earn_val:
             earnings = earn_val
 
-        mid_sources = ",".join(cand.mid_sources) if cand.mid_sources else "quotes"
+        mid_items = list(cand.mid_sources) if cand.mid_sources else []
+        if mid_items:
+            mid_sources = ",".join(
+                "needs_refresh⚠" if item == "needs_refresh" else item for item in mid_items
+            )
+        else:
+            mid_sources = "quotes"
         dte_summary = cand.dte_summary or format_dtes(prop.legs)
 
         rows.append(

@@ -84,6 +84,8 @@ class StrategyProposal:
     wing_symmetry: bool | None = None
     breakeven_distances: dict[str, list[float]] | None = None
     credit_capped: bool = False
+    reasons: list[ReasonDetail] = field(default_factory=list)
+    needs_refresh: bool = False
 
 
 @dataclass
@@ -636,25 +638,40 @@ class StrategyPipeline:
                 else None
             ),
         )
+        converted.reasons = list(getattr(proposal, "reasons", []) or [])
+        converted.needs_refresh = bool(getattr(proposal, "needs_refresh", False))
         if converted.legs:
-            fallback_summary: dict[str, int] = {
-                source: 0
-                for source in ("true", "parity_true", "parity_close", "model", "close")
-            }
+            raw_summary = getattr(proposal, "fallback_summary", None)
+            fallback_summary: dict[str, int]
+            if isinstance(raw_summary, Mapping):
+                fallback_summary = {
+                    str(source): int(raw_summary.get(source, 0) or 0)
+                    for source in raw_summary
+                }
+            else:
+                fallback_summary = {
+                    source: 0
+                    for source in ("true", "parity_true", "parity_close", "model", "close")
+                }
+                for leg in converted.legs:
+                    source = str(leg.get("mid_source") or "")
+                    if not source:
+                        source = str(leg.get("mid_fallback") or "")
+                    if source == "parity":
+                        source = "parity_true"
+                    if not source:
+                        source = "true"
+                    fallback_summary[source] = fallback_summary.get(source, 0) + 1
+            for key in ("true", "parity_true", "parity_close", "model", "close"):
+                fallback_summary.setdefault(key, 0)
+
             spread_rejects = 0
             for leg in converted.legs:
-                source = str(leg.get("mid_source") or "")
-                if not source:
-                    source = str(leg.get("mid_fallback") or "")
-                if source == "parity":
-                    source = "parity_true"
-                if not source:
-                    source = "true"
-                if source not in fallback_summary:
-                    fallback_summary[source] = 0
-                fallback_summary[source] += 1
                 if str(leg.get("spread_flag")) == "too_wide":
                     spread_rejects += 1
             converted.fallback_summary = fallback_summary
             converted.spread_rejects_n = spread_rejects
+            preview_sources = {k for k in ("parity_close", "model", "close") if fallback_summary.get(k, 0)}
+            if preview_sources:
+                converted.needs_refresh = True
         return converted
