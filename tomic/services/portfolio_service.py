@@ -54,6 +54,11 @@ class Candidate:
     next_earnings: date | None
     metrics: Mapping[str, Any]
     spot: float | None
+    spot_preview: bool = False
+    spot_source: str | None = None
+    spot_as_of: str | None = None
+    spot_timestamp: str | None = None
+    spot_baseline: bool = False
 
 
 class CandidateRankingError(RuntimeError):
@@ -182,6 +187,11 @@ class PortfolioService:
                     next_earnings=next_earn,
                     metrics=metrics,
                     spot=row.spot,
+                    spot_preview=getattr(row, "spot_preview", False),
+                    spot_source=getattr(row, "spot_source", None),
+                    spot_as_of=getattr(row, "spot_as_of", None),
+                    spot_timestamp=getattr(row, "spot_timestamp", None),
+                    spot_baseline=getattr(row, "spot_baseline", False),
                 )
             )
 

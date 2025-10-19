@@ -88,6 +88,11 @@ class ScanRow:
     metrics: Mapping[str, Any]
     spot: float | None
     next_earnings: date | None
+    spot_preview: bool = False
+    spot_source: str | None = None
+    spot_as_of: str | None = None
+    spot_timestamp: str | None = None
+    spot_baseline: bool = False
 
 
 class MarketSnapshotError(RuntimeError):

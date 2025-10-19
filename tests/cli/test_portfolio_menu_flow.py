@@ -9,6 +9,8 @@ import pytest
 from tomic.cli.app_services import ControlPanelServices, ExportServices
 from tomic.cli.controlpanel_session import ControlPanelSession
 from tomic.cli.portfolio import menu_flow
+from tomic.helpers.price_utils import ClosePriceSnapshot
+from tomic.services.chain_processing import SpotResolution
 
 
 @pytest.fixture
@@ -51,7 +53,7 @@ def test_process_chain_evaluates_and_updates_session(
     monkeypatch.setattr(
         menu_flow,
         "resolve_chain_spot_price",
-        lambda symbol, prepared, refresh_quote, load_metrics_spot, load_latest_close, chain_spot_fallback: 101.0,
+        lambda *a, **k: SpotResolution(101.0, "live", True, False),
     )
     monkeypatch.setattr(
         menu_flow.ChainEvaluationConfig,
@@ -132,7 +134,7 @@ def test_process_chain_evaluates_and_updates_session(
         save_trades_fn=save_trades,
         refresh_spot_price_fn=refresh_spot,
         load_spot_from_metrics_fn=mock.Mock(return_value=None),
-        load_latest_close_fn=mock.Mock(return_value=(120.0, "2024-05-01")),
+        load_latest_close_fn=mock.Mock(return_value=ClosePriceSnapshot(120.0, "2024-05-01")),
         spot_from_chain_fn=mock.Mock(return_value=102.0),
         print_evaluation_overview_fn=print_overview,
     )

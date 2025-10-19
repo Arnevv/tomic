@@ -8,6 +8,8 @@ from contextlib import contextmanager
 
 import tomic.services.chain_processing as chain_services
 
+from tomic.helpers.price_utils import ClosePriceSnapshot
+
 from tomic.journal.utils import save_json, load_json
 from tomic.strategy_candidates import StrategyProposal
 from tomic.services.chain_processing import PreparedChain, ChainPreparationConfig
@@ -603,7 +605,7 @@ def test_process_chain_refreshes_spot_price(monkeypatch, tmp_path):
     )
     monkeypatch.setattr(mod, "latest_atr", lambda s: 0.0)
     monkeypatch.setattr(mod, "_load_spot_from_metrics", lambda d, s: None)
-    monkeypatch.setattr(mod, "_load_latest_close", lambda s: (111.0, "2024-01-01"))
+    monkeypatch.setattr(mod, "_load_latest_close", lambda s: ClosePriceSnapshot(111.0, "2024-01-01"))
     monkeypatch.setattr(mod, "normalize_leg", lambda rec: rec)
     monkeypatch.setattr(mod, "get_option_mid_price", lambda opt: (opt.get("mid"), False))
     monkeypatch.setattr(mod, "calculate_pos", lambda *a, **k: 0.0)
@@ -1544,7 +1546,7 @@ def test_strategy_proposals_abort_on_missing_spot(monkeypatch, tmp_path):
     monkeypatch.setattr(mod, "generate_strategy_candidates", fake_generate)
     monkeypatch.setattr(mod, "latest_atr", lambda s: 0.0)
     monkeypatch.setattr(mod, "_load_spot_from_metrics", lambda d, s: None)
-    monkeypatch.setattr(mod, "_load_latest_close", lambda s: (None, None))
+    monkeypatch.setattr(mod, "_load_latest_close", lambda s: ClosePriceSnapshot(None, None))
     monkeypatch.setattr(mod, "refresh_spot_price", lambda s: None)
     monkeypatch.setattr(mod, "normalize_leg", lambda rec: rec)
     monkeypatch.setattr(mod, "get_option_mid_price", lambda opt: (opt.get("mid"), False))

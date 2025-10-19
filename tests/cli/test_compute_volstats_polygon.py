@@ -1,5 +1,7 @@
 import importlib
 
+from tomic.helpers.price_utils import ClosePriceSnapshot
+
 
 def test_compute_volstats_polygon_main(monkeypatch):
     mod = importlib.import_module("tomic.cli.compute_volstats_polygon")
@@ -8,7 +10,7 @@ def test_compute_volstats_polygon_main(monkeypatch):
     monkeypatch.setattr(mod, "cfg_get", lambda name, default=None: ["ABC"] if name == "DEFAULT_SYMBOLS" else default)
 
     monkeypatch.setattr(mod, "_get_closes", lambda sym: [1.0] * 100)
-    monkeypatch.setattr(mod, "_load_latest_close", lambda sym: (1.0, "2024-01-01"))
+    monkeypatch.setattr(mod, "_load_latest_close", lambda sym: ClosePriceSnapshot(1.0, "2024-01-01"))
 
     # Stub computations
     monkeypatch.setattr(

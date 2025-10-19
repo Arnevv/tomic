@@ -7,6 +7,7 @@ from datetime import date
 from pathlib import Path
 from typing import Callable, Iterable, Mapping, Sequence
 
+from ..helpers.price_utils import ClosePriceSnapshot
 from ..loader import load_strike_config
 from ..logutils import logger
 from ..strike_selector import filter_by_expiry
@@ -15,6 +16,7 @@ from .chain_processing import (
     ChainPreparationConfig,
     ChainPreparationError,
     PreparedChain,
+    SpotResolution,
     load_and_prepare_chain,
     resolve_spot_price,
 )
@@ -50,7 +52,7 @@ class MarketScanService:
         chain_config: ChainPreparationConfig | None = None,
         refresh_spot_price: Callable[[str], float | None],
         load_spot_from_metrics: Callable[[Path, str], float | None],
-        load_latest_close: Callable[[str], tuple[float | None, object]],
+        load_latest_close: Callable[[str], ClosePriceSnapshot],
         spot_from_chain: Callable[[Iterable[Mapping[str, object]]], float | None],
         atr_loader: Callable[[str], float | None] | None = None,
         apply_interpolation: bool = False,
@@ -91,12 +93,12 @@ class MarketScanService:
 
         scan_rows: list[ScanRow] = []
         prepared_cache: dict[str, PreparedChain] = {}
-        spot_cache: dict[str, float] = {}
+        spot_cache: dict[str, SpotResolution] = {}
         atr_cache: dict[str, float] = {}
 
         for symbol, entries in grouped.items():
             prepared = prepared_cache.get(symbol)
-            spot_price = spot_cache.get(symbol)
+            spot_resolution = spot_cache.get(symbol)
             if prepared is None:
                 chain_path = chain_source(symbol)
                 if chain_path is None:
@@ -112,7 +114,7 @@ class MarketScanService:
                     logger.warning("Failed to prepare chain for %s: %s", symbol, exc)
                     continue
 
-                spot_price = resolve_spot_price(
+                spot_resolution = resolve_spot_price(
                     symbol,
                     prepared,
                     refresh_quote=self._refresh_spot_price,
@@ -120,17 +122,24 @@ class MarketScanService:
                     load_latest_close=self._load_latest_close,
                     chain_spot_fallback=self._spot_from_chain,
                 )
-                if spot_price is None or spot_price <= 0:
+                if not spot_resolution.is_valid:
                     logger.warning("Skipping %s – unable to resolve valid spot price", symbol)
                     continue
 
                 prepared_cache[symbol] = prepared
-                spot_cache[symbol] = float(spot_price)
+                spot_cache[symbol] = spot_resolution
                 atr_cache[symbol] = float(self._atr_loader(symbol) or 0.0)
             else:
-                spot_price = float(spot_cache[symbol])
+                spot_resolution = spot_cache[symbol]
 
+            spot_price = float(spot_resolution.price or 0.0)
             atr_value = atr_cache.get(symbol, 0.0)
+
+            close_snapshot = spot_resolution.close
+            spot_as_of = close_snapshot.date if close_snapshot else None
+            spot_timestamp = close_snapshot.fetched_at if close_snapshot else None
+            spot_baseline = close_snapshot.baseline if close_snapshot else False
+            spot_preview = spot_resolution.used_close_fallback and not spot_resolution.is_live
 
             for req in entries:
                 dte_range = self._resolve_dte_range(req.strategy)
@@ -167,6 +176,11 @@ class MarketScanService:
                             metrics=req.metrics,
                             spot=spot_price,
                             next_earnings=req.next_earnings,
+                            spot_preview=spot_preview,
+                            spot_source=spot_resolution.source,
+                            spot_as_of=spot_as_of,
+                            spot_timestamp=spot_timestamp,
+                            spot_baseline=spot_baseline,
                         )
                     )
 

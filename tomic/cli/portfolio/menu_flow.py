@@ -16,6 +16,7 @@ from tomic.formatting.portfolio_tables import (
     build_market_scan_table,
     build_proposals_table,
 )
+from tomic.helpers.price_utils import ClosePriceSnapshot
 from tomic.logutils import logger
 from tomic.reporting import EvaluationSummary, format_reject_reasons
 from tomic.helpers.dateutils import parse_date
@@ -24,6 +25,7 @@ from tomic.services.chain_processing import (
     ChainPreparationConfig,
     ChainPreparationError,
     ChainEvaluationResult,
+    SpotResolution,
     evaluate_chain,
     load_and_prepare_chain,
     resolve_spot_price as resolve_chain_spot_price,
@@ -45,7 +47,7 @@ ShowProposalDetailsFn = Callable[[ControlPanelSession, StrategyProposal], None]
 BuildRejectionSummaryFn = Callable[..., None]
 SaveTradesFn = Callable[[ControlPanelSession, Sequence[dict]], None]
 PrintEvaluationOverviewFn = Callable[[str, float | None, EvaluationSummary | None], None]
-LoadLatestCloseFn = Callable[[str], tuple[float | None, object]]
+LoadLatestCloseFn = Callable[[str], ClosePriceSnapshot]
 RefreshSpotFn = Callable[[str], float | None]
 LoadSpotFromMetricsFn = Callable[[Path, str], float | None]
 SpotFromChainFn = Callable[[Iterable[dict]], float | None]
@@ -130,7 +132,7 @@ def process_chain(
         print(f"Nieuwe CSV kwaliteit {prepared.quality:.1f}%")
 
     symbol = str(session.symbol or "")
-    spot_price = resolve_chain_spot_price(
+    spot_resolution = resolve_chain_spot_price(
         symbol,
         prepared,
         refresh_quote=refresh_spot_price_fn,
@@ -138,6 +140,11 @@ def process_chain(
         load_latest_close=load_latest_close_fn,
         chain_spot_fallback=spot_from_chain_fn,
     )
+    if isinstance(spot_resolution, SpotResolution):
+        spot_price = spot_resolution.price
+    else:  # pragma: no cover - backward compatibility guard
+        spot_price = spot_resolution  # type: ignore[assignment]
+
     if not isinstance(spot_price, (int, float)) or spot_price <= 0:
         spot_price = spot_from_chain_fn(prepared.records) or 0.0
     session.spot_price = spot_price

@@ -3,6 +3,7 @@ import json
 from datetime import datetime, date
 from types import SimpleNamespace
 
+from tomic.helpers.price_utils import ClosePriceSnapshot
 import tomic.polygon_prices as pp
 
 
@@ -143,7 +144,7 @@ def test_next_trading_day_skips_market_holidays(monkeypatch):
 
 def test_request_bars_skips_on_403(monkeypatch):
     monkeypatch.setattr(pp, "latest_trading_day", lambda: date(2024, 1, 2))
-    monkeypatch.setattr(pp, "_load_latest_close", lambda s: (None, None))
+    monkeypatch.setattr(pp, "_load_latest_close", lambda s: ClosePriceSnapshot(None, None))
 
     class FakeHTTPError(Exception):
         def __init__(self, status):
