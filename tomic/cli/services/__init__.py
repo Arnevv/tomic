@@ -5,8 +5,18 @@ from datetime import datetime
 from pathlib import Path
 
 from tomic import config as cfg
-from tomic.api.market_export import export_option_chain, ExportResult
+from tomic.api.market_export import ExportResult, export_option_chain
 from tomic.providers.polygon_iv import fetch_polygon_option_chain
+from .earnings_alpha import update_alpha_earnings
+from .intraday_polygon import fetch_polygon_intraday_prices
+from .iv_polygon import fetch_polygon_iv_data
+from .price_history_ib import fetch_ib_daily_prices
+from .price_history_polygon import fetch_polygon_price_history
+from .volatility import (
+    compute_polygon_volatility_stats,
+    compute_volatility_stats,
+    fetch_iv30d,
+)
 
 
 def _latest_export_dir(base: Path) -> Path | None:
@@ -68,3 +78,19 @@ def git_commit(message: str, *dirs: Path | str) -> bool:
     subprocess.run(["git", "commit", "-m", message], check=True)
     subprocess.run(["git", "push"], check=True)
     return True
+
+
+__all__ = [
+    "export_chain",
+    "fetch_ib_daily_prices",
+    "fetch_polygon_price_history",
+    "fetch_polygon_intraday_prices",
+    "fetch_polygon_iv_data",
+    "compute_volatility_stats",
+    "compute_polygon_volatility_stats",
+    "fetch_iv30d",
+    "find_latest_chain",
+    "fetch_polygon_chain",
+    "git_commit",
+    "update_alpha_earnings",
+]
