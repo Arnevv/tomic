@@ -178,7 +178,11 @@ def test_fetch_volatility_metrics_parses_new_fields(monkeypatch):
     async def fake_download(sym):
         return html
 
+    async def fake_get_vix():
+        return 19.5, "stub"
+
     monkeypatch.setattr(mod, "download_html_async", fake_download)
+    monkeypatch.setattr(mod, "_get_vix_value", fake_get_vix)
 
     data = mod.fetch_volatility_metrics("ABC")
     assert data["atr14"] == 7.8
@@ -200,11 +204,11 @@ def test_fetch_volatility_metrics_uses_vix_fallback(monkeypatch):
     async def fake_download(sym):
         return html
 
-    async def fake_vix_fetch():
-        return 21.3
+    async def fake_get_vix():
+        return 21.3, "stub"
 
     monkeypatch.setattr(mod, "download_html_async", fake_download)
-    monkeypatch.setattr(mod, "_fetch_vix_from_yahoo", fake_vix_fetch)
+    monkeypatch.setattr(mod, "_get_vix_value", fake_get_vix)
 
     data = mod.fetch_volatility_metrics("ABC")
     assert data["vix"] == 21.3
