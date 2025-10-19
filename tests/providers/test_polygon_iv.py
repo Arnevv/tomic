@@ -651,6 +651,62 @@ def test_load_polygon_expiries(monkeypatch):
     assert calls == ["2024-01-19", "2024-02-16", "2024-01-26"]
 
 
+def test_snapshot_fetcher_respects_rate_limiter(monkeypatch):
+    mod = importlib.import_module("tomic.providers.polygon_iv")
+
+    requests = []
+
+    class FakeClient:
+        BASE_URL = "https://api.polygon.io"
+
+        def __init__(self, api_key=None):
+            self.api_key = api_key
+            self.connected = False
+
+        def connect(self):
+            self.connected = True
+
+        def disconnect(self):
+            self.connected = False
+
+        def _request(self, path, params):
+            requests.append((path, params))
+            if len(requests) == 1:
+                return {
+                    "results": {"options": [{"id": 1}]},
+                    "next_url": f"{self.BASE_URL}/v3/snapshot/options/SPY?page=2",
+                }
+            return {"results": {"options": [{"id": 2}]}}
+
+    limiter_calls = {"wait": 0, "record": 0}
+
+    class FakeRateLimiter:
+        def __init__(self, *args, **kwargs):
+            pass
+
+        def wait(self):
+            limiter_calls["wait"] += 1
+
+        def record(self):
+            limiter_calls["record"] += 1
+
+    sleep_durations: list[float] = []
+
+    monkeypatch.setattr(mod, "PolygonClient", FakeClient)
+    monkeypatch.setattr(mod, "RateLimiter", FakeRateLimiter)
+    monkeypatch.setattr(mod, "sleep", lambda seconds: sleep_durations.append(seconds))
+    monkeypatch.setattr(mod, "cfg_get", lambda name, default=None: 0 if name == "POLYGON_DELAY_SNAPSHOT_MS" else default)
+
+    fetcher = mod.SnapshotFetcher(api_key="key")
+    options = fetcher.fetch_expiry("SPY", "2024-01-19")
+
+    assert [opt["id"] for opt in options] == [1, 2]
+    assert requests[0] == ("v3/snapshot/options/SPY", {"expiration_date": "2024-01-19"})
+    assert requests[1] == ("v3/snapshot/options/SPY?page=2", {})
+    assert limiter_calls == {"wait": 1, "record": 1}
+    assert sleep_durations == []
+
+
 def test_fetch_polygon_option_chain_filters(monkeypatch):
     mod = importlib.import_module("tomic.providers.polygon_iv")
 
