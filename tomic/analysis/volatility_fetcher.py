@@ -237,8 +237,6 @@ def _build_vix_contract(exchange: str, primary: Optional[str]) -> Any:
     contract.secType = "IND"
     contract.currency = "USD"
     contract.exchange = exchange
-    if primary:
-        contract.primaryExchange = primary
     return contract
 
 
@@ -412,8 +410,37 @@ def _iter_exchanges(settings: VixConfig) -> list[str]:
     else:
         items = []
     if not items:
-        return settings.ib_exchanges or ["CBOE", "CBOEIND"]
-    return items
+        items = settings.ib_exchanges or ["CBOE", "CBOEIND"]
+
+    seen: set[str] = set()
+    unique_items: list[str] = []
+    for item in items:
+        key = item.upper()
+        if key in seen:
+            continue
+        seen.add(key)
+        unique_items.append(item)
+
+    enumerated = list(enumerate(unique_items))
+
+    def _priority(entry: tuple[int, str]) -> tuple[int, int]:
+        _, value = entry
+        exchange, primary = _parse_ibkr_exchange(value)
+        if exchange == "CBOE" and primary is None:
+            tier = 0
+        elif exchange == "CBOE":
+            tier = 1
+        else:
+            tier = 2
+        return tier, entry[0]
+
+    enumerated.sort(key=_priority)
+    return [value for _, value in enumerated]
+
+
+def _is_invalid_exchange_error(message: str) -> bool:
+    lowered = message.lower()
+    return "error 200" in lowered and "ib error" in lowered
 
 
 def _fetch_vix_from_ibkr_sync(settings: VixConfig) -> _VixFetcherResult:
@@ -482,9 +509,13 @@ def _fetch_vix_from_ibkr_sync(settings: VixConfig) -> _VixFetcherResult:
                     )
                     details = None
                 except Exception as exc:  # pragma: no cover - defensive logging
+                    message = str(exc)
                     logger.warning(
-                        "IBKR contract details failed for %s: %s", exchange, exc
+                        "IBKR contract details failed for %s: %s", exchange, message
                     )
+                    if _is_invalid_exchange_error(message):
+                        last_error = message
+                        continue
                     details = None
                 else:
                     if details is not None:
@@ -501,6 +532,7 @@ def _fetch_vix_from_ibkr_sync(settings: VixConfig) -> _VixFetcherResult:
 
             md_sequence = [1, 2, 3] if rth_open else [2, 4]
             timeout_ms = rth_timeout_ms if rth_open else off_timeout_ms
+            invalid_exchange = False
             for md_type in md_sequence:
                 try:
                     ticks = app.request_snapshot_with_mdtype(
@@ -516,13 +548,18 @@ def _fetch_vix_from_ibkr_sync(settings: VixConfig) -> _VixFetcherResult:
                     last_error = "timeout"
                     continue
                 except Exception as exc:  # pragma: no cover - network failures
+                    message = str(exc)
                     logger.debug(
                         "IBKR snapshot error exchange=%s mdType=%s: %s",
                         exchange,
                         md_type,
-                        exc,
+                        message,
                     )
-                    last_error = str(exc)
+                    if _is_invalid_exchange_error(message):
+                        last_error = message
+                        invalid_exchange = True
+                        break
+                    last_error = message
                     continue
 
                 selection = select_tick(ticks, rth_open=rth_open, mode=policy)
@@ -539,6 +576,9 @@ def _fetch_vix_from_ibkr_sync(settings: VixConfig) -> _VixFetcherResult:
                         rth_open,
                     )
                     return value, source, None
+
+            if invalid_exchange:
+                continue
 
             last_error = (
                 f"no acceptable tick (exchange={exchange}, policy={policy}, rth_open={rth_open})"
