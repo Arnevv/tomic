@@ -10,6 +10,7 @@ from typing import Any, Callable, Iterable, Mapping, Sequence
 from ..journal.utils import load_json
 from ..logutils import logger
 from ..utils import today
+from ._percent import normalize_percent
 from .strategy_pipeline import StrategyContext, StrategyPipeline, StrategyProposal
 
 
@@ -101,18 +102,6 @@ def _resolve_config_getter(config: Mapping[str, Any] | ConfigGetter | None) -> C
     if isinstance(config, Mapping):
         return lambda key, default=None: config.get(key, default)
     return lambda _key, default=None: default
-
-
-def _normalize_percent(value: Any) -> float | None:
-    if isinstance(value, (int, float)):
-        val = float(value)
-        if val > 1:
-            val /= 100
-        if 0 <= val <= 1:
-            return val
-    return None
-
-
 def _parse_latest(data: Sequence[Mapping[str, Any]]) -> Mapping[str, Any] | None:
     if not data:
         return None
@@ -190,8 +179,8 @@ def _read_metrics(
         hv30=hv.get("hv30"),
         hv90=hv.get("hv90"),
         hv252=hv.get("hv252"),
-        iv_rank=_normalize_percent(summary.get("iv_rank (HV)")),
-        iv_percentile=_normalize_percent(summary.get("iv_percentile (HV)")),
+        iv_rank=normalize_percent(summary.get("iv_rank (HV)")),
+        iv_percentile=normalize_percent(summary.get("iv_percentile (HV)")),
         term_m1_m2=summary.get("term_m1_m2"),
         term_m1_m3=summary.get("term_m1_m3"),
         skew=summary.get("skew"),

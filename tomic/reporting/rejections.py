@@ -9,6 +9,7 @@ from typing import Any, Iterable, Mapping, Sequence
 
 from tomic.helpers.dateutils import parse_date
 from tomic.logutils import logger, normalize_reason
+from tomic.reporting._formatting import format_leg_position
 from tomic.strategy.reasons import (
     ReasonCategory,
     ReasonDetail,
@@ -273,14 +274,6 @@ def format_money(value: Any) -> str:
     return f"{num:.2f}"
 
 
-def _format_leg_position(raw: Any) -> str:
-    try:
-        num = float(raw)
-    except (TypeError, ValueError):
-        return "?"
-    return "S" if num < 0 else "L"
-
-
 def _format_leg_summary(legs: Sequence[Mapping[str, Any]] | None) -> str:
     if not legs:
         return "—"
@@ -288,7 +281,7 @@ def _format_leg_summary(legs: Sequence[Mapping[str, Any]] | None) -> str:
     for leg in legs:
         typ = str(leg.get("type") or "").upper()[:1]
         strike = leg.get("strike")
-        pos = _format_leg_position(leg.get("position"))
+        pos = format_leg_position(leg.get("position"))
         label = f"{pos}{typ}" if typ else pos
         if strike is not None:
             try:

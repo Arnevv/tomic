@@ -31,22 +31,15 @@ except Exception:  # pragma: no cover
 
 from tomic.api.base_client import BaseIBApp
 from tomic.api.ib_connection import connect_ib
-from tomic.config import get as cfg_get
 from tomic.logutils import logger
 from tomic.metrics import calculate_credit
 from tomic.models import OptionContract
+from tomic.services._config import cfg_value
 from tomic.services.strategy_pipeline import StrategyProposal
 from tomic.utils import get_leg_qty, get_leg_right, normalize_leg
 
 
 log = logger
-
-
-def _cfg(key: str, default: Any) -> Any:
-    value = cfg_get(key, default)
-    return default if value in {None, ""} else value
-
-
 def _expiry(leg: dict) -> str:
     expiry = leg.get("expiry")
     if not expiry:
@@ -416,7 +409,7 @@ class OrderSubmissionService:
                 expiry=_expiry(leg),
                 strike=float(leg.get("strike")),
                 right=right[:1].upper(),
-                exchange=str(leg.get("exchange") or _cfg("OPTIONS_EXCHANGE", "SMART")),
+                exchange=str(leg.get("exchange") or cfg_value("OPTIONS_EXCHANGE", "SMART")),
                 currency=str(leg.get("currency") or "USD"),
                 multiplier=str(leg.get("multiplier") or "100"),
                 trading_class=leg.get("tradingClass") or leg.get("trading_class"),
@@ -438,8 +431,8 @@ class OrderSubmissionService:
             order = Order()
             order.totalQuantity = qty
             order.action = action
-            order.orderType = (order_type or _cfg("DEFAULT_ORDER_TYPE", "LMT")).upper()
-            order.tif = (tif or _cfg("DEFAULT_TIME_IN_FORCE", "DAY")).upper()
+            order.orderType = (order_type or cfg_value("DEFAULT_ORDER_TYPE", "LMT")).upper()
+            order.tif = (tif or cfg_value("DEFAULT_TIME_IN_FORCE", "DAY")).upper()
             if price is not None and hasattr(order, "lmtPrice"):
                 order.lmtPrice = round(price, 2)
             order.transmit = True
@@ -518,7 +511,7 @@ class OrderSubmissionService:
         order.smartComboRoutingParams = []
         if str(getattr(combo_contract, "exchange", "")).upper() == "SMART":
             order.smartComboRoutingParams = [TagValue("NonGuaranteed", "1")]
-        order.tif = (tif or _cfg("DEFAULT_TIME_IN_FORCE", "DAY")).upper()
+        order.tif = (tif or cfg_value("DEFAULT_TIME_IN_FORCE", "DAY")).upper()
         if net_price is not None and hasattr(order, "lmtPrice"):
             order.lmtPrice = net_price
         order.action = "SELL" if (net_credit or 0) >= 0 else "BUY"

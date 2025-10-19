@@ -9,6 +9,7 @@ from typing import Any, Callable, Mapping, Sequence
 from ..logutils import logger
 from ..reporting import to_float, format_dtes
 from ..services.strategy_pipeline import StrategyProposal
+from ._percent import normalize_percent
 from .market_snapshot_service import ScanRow
 
 
@@ -104,8 +105,8 @@ class PortfolioService:
             hv252=record.get("hv252"),
             term_m1_m2=record.get("term_m1_m2"),
             term_m1_m3=record.get("term_m1_m3"),
-            iv_rank=self._normalize_percent(record.get("iv_rank")),
-            iv_percentile=self._normalize_percent(record.get("iv_percentile")),
+            iv_rank=normalize_percent(record.get("iv_rank")),
+            iv_percentile=normalize_percent(record.get("iv_percentile")),
             skew=record.get("skew"),
             criteria=record.get("criteria") if isinstance(record.get("criteria"), str) else None,
             next_earnings=earnings_date,
@@ -154,8 +155,8 @@ class PortfolioService:
                 except Exception:
                     next_earn = None
 
-            iv_rank = self._normalize_percent(metrics.get("iv_rank"))
-            iv_pct = self._normalize_percent(metrics.get("iv_percentile"))
+            iv_rank = normalize_percent(metrics.get("iv_rank"))
+            iv_pct = normalize_percent(metrics.get("iv_percentile"))
             skew_value = self._as_float(metrics.get("skew"))
 
             dte_summary = None
@@ -232,16 +233,6 @@ class PortfolioService:
         if not sources:
             return ("quotes",)
         return tuple(sorted(sources))
-
-    @staticmethod
-    def _normalize_percent(value: Any) -> float | None:
-        if isinstance(value, (int, float)):
-            val = float(value)
-            if val > 1:
-                val /= 100
-            if 0 <= val <= 1:
-                return val
-        return None
 
     @staticmethod
     def _as_float(value: Any) -> float | None:

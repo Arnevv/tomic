@@ -27,21 +27,15 @@ except Exception:  # pragma: no cover
 from tomic.api.base_client import BaseIBApp
 from tomic.api.ib_connection import connect_ib
 from tomic.analysis import scoring
-from tomic.config import get as cfg_get
 from tomic.logutils import logger
 from tomic.models import OptionContract
+from tomic.services._config import cfg_value
+from tomic.services._id_sequence import IncrementingIdMixin
 from tomic.services.strategy_pipeline import StrategyProposal
 from tomic.utils import get_leg_qty, get_leg_right, normalize_leg
 
 
 _GENERIC_TICKS = "100,101,104,106"
-
-
-def _cfg(key: str, default: Any) -> Any:
-    value = cfg_get(key, default)
-    return default if value in {None, ""} else value
-
-
 def _is_finite_number(value: Any) -> bool:
     try:
         if isinstance(value, bool):  # bool is subclass of int; ignore
@@ -133,14 +127,13 @@ class SnapshotResult:
     missing_quotes: list[str]
 
 
-class QuoteSnapshotApp(BaseIBApp):
+class QuoteSnapshotApp(IncrementingIdMixin, BaseIBApp):
     """Light-weight IB client for market data snapshots."""
 
     WARNING_ERROR_CODES: set[int] = BaseIBApp.WARNING_ERROR_CODES | {2104, 2106, 2158}
 
     def __init__(self) -> None:
-        super().__init__()
-        self._req_id = 5000
+        super().__init__(initial_request_id=5000)
         self._responses: dict[int, dict[str, Any]] = {}
         self._events: dict[int, threading.Event] = {}
         self._lock = threading.Lock()
@@ -151,11 +144,6 @@ class QuoteSnapshotApp(BaseIBApp):
     # ------------------------------------------------------------------
     # Helpers
     # ------------------------------------------------------------------
-    def _next_id(self) -> int:
-        with self._lock:
-            self._req_id += 1
-            return self._req_id
-
     def _event(self, req_id: int) -> threading.Event:
         return self._events.setdefault(req_id, threading.Event())
 
@@ -298,16 +286,16 @@ class IBMarketDataService:
         cfg_ticks = (
             generic_ticks
             if generic_ticks is not None
-            else _cfg("MKT_GENERIC_TICKS", _GENERIC_TICKS)
+            else cfg_value("MKT_GENERIC_TICKS", _GENERIC_TICKS)
         )
         if isinstance(cfg_ticks, str):
             cfg_ticks = cfg_ticks.strip()
         self._generic_ticks = cfg_ticks or ""
         if use_snapshot is None:
-            use_snapshot = bool(_cfg("IB_USE_SNAPSHOT_DATA", True))
+            use_snapshot = bool(cfg_value("IB_USE_SNAPSHOT_DATA", True))
         self._use_snapshot = bool(use_snapshot)
-        self._max_quote_retries = max(int(_cfg("IB_MAX_QUOTE_RETRIES", 3)), 0)
-        self._quote_retry_delay = max(float(_cfg("IB_QUOTE_RETRY_DELAY", 0.75)), 0.0)
+        self._max_quote_retries = max(int(cfg_value("IB_MAX_QUOTE_RETRIES", 3)), 0)
+        self._quote_retry_delay = max(float(cfg_value("IB_QUOTE_RETRY_DELAY", 0.75)), 0.0)
 
     def _should_use_snapshot(self) -> bool:
         """Return ``True`` when snapshot requests can be used safely."""
@@ -327,14 +315,14 @@ class IBMarketDataService:
         if not proposal.legs:
             return SnapshotResult(proposal, [], True, [])
 
-        timeout = timeout or float(_cfg("MARKET_DATA_TIMEOUT", 15))
-        port = int(_cfg("IB_PORT", 7497))
-        if bool(_cfg("IB_PAPER_MODE", True)):
-            port = int(_cfg("IB_PORT", 7497))
+        timeout = timeout or float(cfg_value("MARKET_DATA_TIMEOUT", 15))
+        port = int(cfg_value("IB_PORT", 7497))
+        if bool(cfg_value("IB_PAPER_MODE", True)):
+            port = int(cfg_value("IB_PORT", 7497))
         else:
-            port = int(_cfg("IB_LIVE_PORT", 7496))
-        client_id = int(_cfg("IB_MARKETDATA_CLIENT_ID", 901))
-        host = str(_cfg("IB_HOST", "127.0.0.1"))
+            port = int(cfg_value("IB_LIVE_PORT", 7496))
+        client_id = int(cfg_value("IB_MARKETDATA_CLIENT_ID", 901))
+        host = str(cfg_value("IB_HOST", "127.0.0.1"))
 
         app = self._app_factory()
         logger.info("📡 Ophalen IB quotes voor voorstel")
@@ -466,7 +454,7 @@ class IBMarketDataService:
             expiry=expiry,
             strike=strike,
             right=right[:1].upper(),
-            exchange=str(leg.get("exchange") or _cfg("OPTIONS_EXCHANGE", "SMART")),
+            exchange=str(leg.get("exchange") or cfg_value("OPTIONS_EXCHANGE", "SMART")),
             currency=str(leg.get("currency") or "USD"),
             multiplier=str(leg.get("multiplier") or "100"),
             trading_class=leg.get("tradingClass") or leg.get("trading_class"),

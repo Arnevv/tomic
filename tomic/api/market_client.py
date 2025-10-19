@@ -29,6 +29,7 @@ except Exception:  # pragma: no cover - tests provide stub
 from tomic.api.base_client import BaseIBApp
 from tomic.analysis.volatility_fetcher import fetch_volatility_metrics
 from tomic.config import get as cfg_get
+from tomic.services._id_sequence import IncrementingIdMixin
 from .client_registry import ACTIVE_CLIENT_IDS
 from tomic.logutils import log_result, logger
 from tomic.models import OptionContract
@@ -132,7 +133,7 @@ DATA_TYPE_DESCRIPTIONS: dict[int, str] = {
 }
 
 
-class MarketClient(BaseIBApp):
+class MarketClient(IncrementingIdMixin, BaseIBApp):
     """Minimal IB client used for market data exports.
 
     The client maintains an internal ``threading.Lock`` for coordinating IB
@@ -149,7 +150,7 @@ class MarketClient(BaseIBApp):
     }
 
     def __init__(self, symbol: str, primary_exchange: str | None = None) -> None:
-        super().__init__()
+        super().__init__(initial_request_id=50)
         self.symbol = symbol.upper()
         self.underlying_exchange = cfg_get("UNDERLYING_EXCHANGE", "SMART")
         self.primary_exchange = (
@@ -168,8 +169,6 @@ class MarketClient(BaseIBApp):
         self.expiries: list[str] = []
         self.connected = threading.Event()
         self.data_event = threading.Event()
-        self._req_id = 50
-        self._lock = threading.Lock()
         # Protect access to market data from callback threads
         self.data_lock = threading.RLock()
         self._spot_req_id: int | None = None
@@ -200,12 +199,6 @@ class MarketClient(BaseIBApp):
             f"currency={c.currency} conId={getattr(c, 'conId', None)}"
         )
         return c
-
-    @log_result
-    def _next_id(self) -> int:
-        with self._lock:
-            self._req_id += 1
-            return self._req_id
 
     @log_result
     def _init_market(self) -> None:
