@@ -101,7 +101,10 @@ class DummyIB:
     def request_snapshot_with_mdtype(
         self, contract: Any, md_type: int, timeout_ms: int
     ) -> Dict[int, float]:
-        return dict(self._snapshots.get((contract.exchange, md_type), {}))
+        payload = self._snapshots.get((contract.exchange, md_type))
+        if isinstance(payload, Exception):
+            raise payload
+        return dict(payload or {})
 
     def disconnect(self) -> None:
         self.disconnected = True
@@ -232,6 +235,53 @@ def test_ibkr_offhours_falls_back_to_delayed_close(monkeypatch: pytest.MonkeyPat
     assert error is None
     assert value is not None and abs(value - 19.88) < 1e-9
     assert source == "ibkr:CBOE|DELAYED_CLOSE|md=4"
+
+
+def test_iter_exchanges_prioritizes_plain_cboe(monkeypatch: pytest.MonkeyPatch) -> None:
+    config = vf.VixConfig(provider_order=["ibkr"], ib_exchanges=["CBOE", "CBOEIND"])
+    monkeypatch.setattr(vf, "_vix_settings", lambda: config)
+
+    def fake_cfg(key: str, default: Any = None) -> Any:
+        if key == "VIX_EXCHANGES":
+            return ["CBOEIND", "CBOE"]
+        return default
+
+    monkeypatch.setattr(vf, "cfg_get", fake_cfg)
+
+    result = vf._iter_exchanges(config)
+
+    assert result[0].split("@", 1)[0].upper() == "CBOE"
+
+
+def test_ibkr_skips_invalid_exchange_error(monkeypatch: pytest.MonkeyPatch) -> None:
+    day = _today_str("America/New_York")
+    details = {
+        "CBOEIND": SimpleNamespace(
+            tradingHours=f"{day}:CLOSED",
+            timeZoneId="America/New_York",
+        ),
+        "CBOE": SimpleNamespace(
+            tradingHours=f"{day}:0000-2359",
+            timeZoneId="America/New_York",
+        ),
+    }
+    snapshots: Dict[Tuple[str, int], Dict[int, float]] = {
+        ("CBOEIND", 2): RuntimeError("IB error 200: destination or exchange selected is Invalid"),
+        ("CBOE", 1): {_tick("LAST"): 24.5},
+    }
+    _prepare_ib_env(
+        monkeypatch,
+        details=details,
+        snapshots=snapshots,
+        exchanges=["CBOEIND", "CBOE"],
+    )
+    monkeypatch.setattr(vf, "_iter_exchanges", lambda settings: ["CBOEIND", "CBOE"])
+
+    value, source, error = asyncio.run(vf._fetch_vix_from_ibkr())
+
+    assert error is None
+    assert value is not None and abs(value - 24.5) < 1e-9
+    assert source == "ibkr:CBOE|LAST|md=1"
 
 
 def test_fetch_volatility_metrics_async_skips_file_cache(
