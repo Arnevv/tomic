@@ -262,7 +262,12 @@ def resolve_spot_price(
             close_snapshot = load_latest_close(symbol)
 
         if used_close:
-            baseline_txt = " (baseline)" if close_snapshot and close_snapshot.baseline else ""
+            baseline_flag = (
+                close_snapshot.baseline
+                if isinstance(close_snapshot, ClosePriceSnapshot)
+                else False
+            )
+            baseline_txt = " (baseline)" if baseline_flag else ""
             logger.info(
                 "📉 %s: using close fallback at %.2f%s",
                 symbol,
