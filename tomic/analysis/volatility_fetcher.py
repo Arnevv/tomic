@@ -352,16 +352,12 @@ def select_tick(
         getattr(TickTypeEnum, "DELAYED_CLOSE", None),
     )
 
-    if rth_open:
-        selection = _pick(last_candidates)
+    for candidates in (last_candidates, mark_candidates, close_candidates):
+        selection = _pick(candidates)
         if selection:
             return selection
-        selection = _pick(mark_candidates)
-        if selection:
-            return selection
-        return _pick(close_candidates)
 
-    return _pick(close_candidates)
+    return None
 
 async def _request_text(
     url: str, *, headers: Optional[dict[str, str]] = None
@@ -530,7 +526,7 @@ def _fetch_vix_from_ibkr_sync(settings: VixConfig) -> _VixFetcherResult:
                         "Failed to parse trading hours for %s: %s", exchange, exc
                     )
 
-            md_sequence = [1, 2, 3] if rth_open else [2, 4]
+            md_sequence = [1, 2, 3] if rth_open else [1, 2, 3, 4]
             timeout_ms = rth_timeout_ms if rth_open else off_timeout_ms
             invalid_exchange = False
             for md_type in md_sequence:

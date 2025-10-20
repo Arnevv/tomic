@@ -39,10 +39,22 @@ def test_select_tick_rth_close_fallback() -> None:
     assert vf.select_tick(ticks, rth_open=True) == (_tick("CLOSE"), 18.2)
 
 
-def test_select_tick_offhours_only_accepts_close() -> None:
-    ticks = {_tick("MARK_PRICE"): 17.3}
+def test_select_tick_offhours_prefers_last_then_mark_then_close() -> None:
+    ticks = {
+        _tick("LAST"): 18.6,
+        _tick("MARK_PRICE"): 18.5,
+        _tick("CLOSE"): 18.4,
+    }
 
-    assert vf.select_tick(ticks, rth_open=False) is None
+    assert vf.select_tick(ticks, rth_open=False) == (_tick("LAST"), 18.6)
+
+    ticks = {_tick("MARK_PRICE"): 17.3, _tick("CLOSE"): 17.1}
+
+    assert vf.select_tick(ticks, rth_open=False) == (_tick("MARK_PRICE"), 17.3)
+
+    ticks = {_tick("CLOSE"): 16.9}
+
+    assert vf.select_tick(ticks, rth_open=False) == (_tick("CLOSE"), 16.9)
 
 
 def test_is_rth_open_true_for_open_window() -> None:
@@ -206,7 +218,10 @@ def test_ibkr_offhours_prefers_close(monkeypatch: pytest.MonkeyPatch) -> None:
             timeZoneId="America/New_York",
         )
     }
-    snapshots = {("CBOE", 2): {_tick("CLOSE"): 20.78}}
+    snapshots = {
+        ("CBOE", 1): {},
+        ("CBOE", 2): {_tick("CLOSE"): 20.78},
+    }
     _prepare_ib_env(monkeypatch, details=details, snapshots=snapshots)
 
     value, source, error = asyncio.run(vf._fetch_vix_from_ibkr())
@@ -225,6 +240,7 @@ def test_ibkr_offhours_falls_back_to_delayed_close(monkeypatch: pytest.MonkeyPat
         )
     }
     snapshots = {
+        ("CBOE", 1): {},
         ("CBOE", 2): {},
         ("CBOE", 4): {_tick("DELAYED_CLOSE"): 19.88},
     }
@@ -235,6 +251,29 @@ def test_ibkr_offhours_falls_back_to_delayed_close(monkeypatch: pytest.MonkeyPat
     assert error is None
     assert value is not None and abs(value - 19.88) < 1e-9
     assert source == "ibkr:CBOE|DELAYED_CLOSE|md=4"
+
+
+def test_ibkr_offhours_prefers_last_when_available(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    day = _today_str("America/New_York")
+    details = {
+        "CBOE": SimpleNamespace(
+            tradingHours=f"{day}:CLOSED",
+            timeZoneId="America/New_York",
+        )
+    }
+    snapshots = {
+        ("CBOE", 1): {_tick("LAST"): 18.59},
+        ("CBOE", 2): {_tick("CLOSE"): 20.78},
+    }
+    _prepare_ib_env(monkeypatch, details=details, snapshots=snapshots)
+
+    value, source, error = asyncio.run(vf._fetch_vix_from_ibkr())
+
+    assert error is None
+    assert value is not None and abs(value - 18.59) < 1e-9
+    assert source == "ibkr:CBOE|LAST|md=1"
 
 
 def test_iter_exchanges_prioritizes_plain_cboe(monkeypatch: pytest.MonkeyPatch) -> None:
