@@ -102,7 +102,7 @@ def _leg_mid_price(leg: dict) -> float | None:
 
 
 def _combo_mid_credit(legs: Sequence[dict]) -> float | None:
-    """Return combo mid credit in dollars if all legs have usable prices."""
+    """Return combo mid credit per contract in dollars if prices are available."""
 
     total = 0.0
     any_leg = False
@@ -115,7 +115,31 @@ def _combo_mid_credit(legs: Sequence[dict]) -> float | None:
         direction = 1 if position > 0 else -1
         total -= direction * price * qty
         any_leg = True
-    return total if any_leg else None
+    if not any_leg:
+        return None
+    return total * 100
+
+
+def _guard_limit_price_scale(order: Order, *, credit_for_scale: float | None) -> None:
+    """Abort order creation when price and credit look mismatched in scale."""
+
+    if credit_for_scale is None:
+        return
+    price = getattr(order, "lmtPrice", None)
+    if price is None:
+        return
+    try:
+        price_val = float(price)
+        credit_val = float(credit_for_scale)
+    except (TypeError, ValueError):  # pragma: no cover - defensive
+        return
+    if abs(price_val) < 1 and abs(credit_val) > 100:
+        log.warning(
+            "⚠️ Mogelijke schaalfout: limit price %.2f voor combo-credit %.2f",
+            price_val,
+            credit_val,
+        )
+        raise ValueError("waarschijnlijke schaalfout in limit price versus credit")
 
 
 def _has_non_guaranteed(order: Order) -> bool:
@@ -594,6 +618,7 @@ class OrderSubmissionService:
             net_credit = calculate_credit(legs)
         mid_credit = _combo_mid_credit(legs)
         per_combo_credit = None
+        per_combo_mid_credit: float | None = None
         if net_credit is not None:
             try:
                 per_combo_credit = net_credit / max(combo_quantity, 1)
@@ -624,6 +649,10 @@ class OrderSubmissionService:
         order.tif = (tif or cfg_value("DEFAULT_TIME_IN_FORCE", "DAY")).upper()
         if net_price is not None and hasattr(order, "lmtPrice"):
             order.lmtPrice = net_price
+            scale_credit = per_combo_credit
+            if scale_credit is None:
+                scale_credit = per_combo_mid_credit
+            _guard_limit_price_scale(order, credit_for_scale=scale_credit)
         order.action = "SELL" if (net_credit or 0) >= 0 else "BUY"
         order.transmit = True
         order.account = account or "DUK809533"
