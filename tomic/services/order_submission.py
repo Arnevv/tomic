@@ -118,6 +118,57 @@ def _combo_mid_credit(legs: Sequence[dict]) -> float | None:
     return total if any_leg else None
 
 
+def _has_non_guaranteed(order: Order) -> bool:
+    """Return ``True`` if the order requests ``NonGuaranteed`` routing."""
+
+    params = getattr(order, "smartComboRoutingParams", None)
+    if not params:
+        return False
+    try:
+        iterator = list(params)
+    except TypeError:  # pragma: no cover - defensive
+        return False
+    for param in iterator:
+        tag = getattr(param, "tag", None)
+        value = getattr(param, "value", None)
+        if str(tag or "").lower() == "nonguaranteed" and str(value) == "1":
+            return True
+    return False
+
+
+def _clear_non_guaranteed(order: Order) -> None:
+    """Remove any ``NonGuaranteed`` routing parameter from ``order``."""
+
+    params = getattr(order, "smartComboRoutingParams", None)
+    if not params:
+        order.smartComboRoutingParams = []
+        return
+    try:
+        filtered = [
+            param
+            for param in params
+            if str(getattr(param, "tag", "")).lower() != "nonguaranteed"
+        ]
+    except TypeError:  # pragma: no cover - defensive
+        filtered = []
+    order.smartComboRoutingParams = filtered
+
+
+def _should_request_non_guaranteed(order: Order, contract: Contract) -> bool:
+    """Return ``True`` when ``NonGuaranteed`` routing is allowed for this order."""
+
+    exchange = str(getattr(contract, "exchange", "") or "").upper()
+    if exchange != "SMART":
+        return False
+    combo_legs = getattr(contract, "comboLegs", None) or []
+    if len(combo_legs) != 2:
+        return False
+    order_type = str(getattr(order, "orderType", "") or "").upper()
+    if order_type == "LMT":
+        return False
+    return True
+
+
 @dataclass
 class OrderInstruction:
     """Single IB order structure derived from one or more legs."""
@@ -125,6 +176,24 @@ class OrderInstruction:
     contract: Contract
     order: Order
     legs: list[dict]
+
+
+def _validate_instructions(instructions: Sequence[OrderInstruction]) -> None:
+    """Validate order instructions before submission."""
+
+    for instr in instructions:
+        contract = getattr(instr, "contract", None)
+        order = getattr(instr, "order", None)
+        if contract is None or order is None:
+            continue
+        sec_type = str(getattr(contract, "secType", "") or "").upper()
+        if sec_type != "BAG":
+            continue
+        combo_legs = getattr(contract, "comboLegs", None) or []
+        if len(combo_legs) > 2 and _has_non_guaranteed(order):
+            raise ValueError(
+                "NonGuaranteed routing is niet toegestaan voor BAG-combo's met meer dan twee benen"
+            )
 
 
 def _serialize_instruction(instr: "OrderInstruction") -> dict[str, Any]:
@@ -215,6 +284,7 @@ class OrderPlacementApp(BaseIBApp):
     def __init__(self) -> None:
         super().__init__()
         self._order_events: dict[int, dict[str, Any]] = {}
+        self._order_errors: dict[int, list[tuple[int, str]]] = {}
         self._contract_details_events: dict[int, bool] = {}
         self._validated_conids: set[int] = set()
         self._contract_details_end: set[int] = set()
@@ -224,6 +294,24 @@ class OrderPlacementApp(BaseIBApp):
         self.next_order_id_ready = False
 
     # IB callbacks -------------------------------------------------
+    def error(  # type: ignore[override]
+        self,
+        reqId: int,
+        errorTime: int,
+        errorCode: int,
+        errorString: str,
+        advancedOrderRejectJson: str = "",
+    ) -> None:
+        super().error(reqId, errorTime, errorCode, errorString, advancedOrderRejectJson)
+        try:
+            order_id = int(reqId)
+        except (TypeError, ValueError):
+            return
+        if order_id < 0:
+            return
+        errors = self._order_errors.setdefault(order_id, [])
+        errors.append((int(errorCode), str(errorString)))
+
     def nextValidId(self, orderId: int) -> None:  # noqa: N802 - IB API
         super().nextValidId(orderId)
         self.next_order_id_ready = True
@@ -352,6 +440,13 @@ class OrderPlacementApp(BaseIBApp):
                 if status is None or status in {"ApiPending", "PendingSubmit"}:
                     all_orders_terminal = False
                     break
+                if self._order_errors.get(order_id):
+                    logger.debug(
+                        "❗ Order %s ontving een foutmelding: %s",
+                        order_id,
+                        self._order_errors.get(order_id),
+                    )
+                    return
 
             if all_orders_terminal:
                 logger.debug("✅ Alle orders hebben een definitieve status bereikt.")
@@ -367,6 +462,20 @@ class OrderPlacementApp(BaseIBApp):
             "⏱ Timeout bij wachten op bevestiging van orders: %s",
             ", ".join(map(str, order_ids)),
         )
+
+    # Helpers ------------------------------------------------------
+    def get_order_errors(
+        self, order_ids: Sequence[int] | None = None
+    ) -> list[tuple[int, int, str]]:
+        if order_ids is None:
+            items = self._order_errors.items()
+        else:
+            items = ((order_id, self._order_errors.get(order_id, [])) for order_id in order_ids)
+        collected: list[tuple[int, int, str]] = []
+        for order_id, errors in items:
+            for code, message in errors:
+                collected.append((int(order_id), int(code), str(message)))
+        return collected
 
 
 class OrderSubmissionService:
@@ -508,9 +617,10 @@ class OrderSubmissionService:
         order.orderType = "LMT"
         order.algoStrategy = ""
         order.algoParams = []
-        order.smartComboRoutingParams = []
-        if str(getattr(combo_contract, "exchange", "")).upper() == "SMART":
+        if _should_request_non_guaranteed(order, combo_contract):
             order.smartComboRoutingParams = [TagValue("NonGuaranteed", "1")]
+        else:
+            order.smartComboRoutingParams = []
         order.tif = (tif or cfg_value("DEFAULT_TIME_IN_FORCE", "DAY")).upper()
         if net_price is not None and hasattr(order, "lmtPrice"):
             order.lmtPrice = net_price
@@ -532,98 +642,164 @@ class OrderSubmissionService:
     ) -> tuple[OrderPlacementApp, list[int]]:
         if not instructions:
             raise ValueError("geen orders om te plaatsen")
-        app = self._app_factory()
-        connect_ib(host=host, port=port, client_id=client_id, timeout=timeout, app=app)
-        try:
-            while not getattr(app, "next_order_id_ready", False):
-                time.sleep(0.1)
-            order_id = app.next_valid_id or 1
-            con_ids_to_validate: set[int] = set()
-            for instr in instructions:
-                contract_con_id = getattr(instr.contract, "conId", None)
-                if contract_con_id not in (None, 0):
-                    try:
-                        con_ids_to_validate.add(int(contract_con_id))
-                    except (TypeError, ValueError) as exc:
-                        raise ValueError(
-                            f"ongeldige contract conId: {contract_con_id}"
-                        ) from exc
-                combo_legs = getattr(instr.contract, "comboLegs", None) or []
-                for combo_leg in combo_legs:
-                    con_id = getattr(combo_leg, "conId", None)
-                    if con_id in (None, 0):
-                        raise ValueError("combo leg mist conId")
-                    try:
-                        con_ids_to_validate.add(int(con_id))
-                    except (TypeError, ValueError) as exc:
-                        raise ValueError(
-                            f"ongeldige combo leg conId: {con_id}"
-                        ) from exc
 
-            if con_ids_to_validate:
-                app.validate_contract_conids(sorted(con_ids_to_validate))
-            placed_ids: list[int] = []
-            parent_id = order_id
-            for idx, instr in enumerate(instructions):
-                current_id = order_id + idx
-                order = instr.order
-                if idx == 0:
-                    parent_id = current_id
-                else:
-                    order.parentId = parent_id
-                payload = _serialize_instruction(instr)
-                logger.debug(
-                    f"IB order payload id={current_id} ->\n{pformat(payload)}"
-                )
+        instructions = list(instructions)
+        _validate_instructions(instructions)
 
-                contract = instr.contract
-                parts: list[str] = [
-                    f"id={current_id}",
-                    f"action={getattr(order, 'action', '?')}",
-                    f"qty={getattr(order, 'totalQuantity', '?')}",
-                    f"type={getattr(order, 'orderType', '?')}",
-                ]
-                price = getattr(order, "lmtPrice", None)
-                if price not in (None, "", "-"):
-                    parts.append(f"limit={price}")
-                contract_bits: list[str] = []
-                symbol = getattr(contract, "symbol", None)
-                if symbol:
-                    contract_bits.append(str(symbol))
-                sec_type = getattr(contract, "secType", None)
-                if sec_type:
-                    contract_bits.append(str(sec_type))
-                expiry = getattr(contract, "lastTradeDateOrContractMonth", None)
-                if expiry:
-                    contract_bits.append(str(expiry))
-                strike = getattr(contract, "strike", None)
-                if strike not in (None, ""):
-                    contract_bits.append(str(strike))
-                right = getattr(contract, "right", None)
-                if right:
-                    contract_bits.append(str(right))
-                if contract_bits:
-                    parts.append(f"contract={' '.join(contract_bits)}")
-                legs_info = [
-                    f"{get_leg_right(leg)} {leg.get('strike')} ({leg.get('position')})"
-                    for leg in instr.legs
-                ]
-                if legs_info:
-                    parts.append("legs=" + ", ".join(legs_info))
-                logger.info(f"🚀 Verstuur order {' | '.join(parts)}")
-                log.info(
-                    "orderType=%s algoStrategy=%s smartComboRoutingParams=%s",
-                    getattr(order, "orderType", ""),
-                    getattr(order, "algoStrategy", ""),
-                    getattr(order, "smartComboRoutingParams", None),
-                )
-                app.placeOrder(current_id, instr.contract, order)
-                placed_ids.append(current_id)
-            app.wait_for_order_handshake(placed_ids)
-            return app, placed_ids
-        except Exception:
-            logger.exception("❌ Fout bij versturen van IB orders")
-            raise
+        retry_info: dict[str, Any] | None = None
+
+        attempt = 0
+        while True:
+            attempt += 1
+            app = self._app_factory()
+            connect_ib(host=host, port=port, client_id=client_id, timeout=timeout, app=app)
+            try:
+                while not getattr(app, "next_order_id_ready", False):
+                    time.sleep(0.1)
+                order_id = app.next_valid_id or 1
+                con_ids_to_validate: set[int] = set()
+                for instr in instructions:
+                    contract_con_id = getattr(instr.contract, "conId", None)
+                    if contract_con_id not in (None, 0):
+                        try:
+                            con_ids_to_validate.add(int(contract_con_id))
+                        except (TypeError, ValueError) as exc:
+                            raise ValueError(
+                                f"ongeldige contract conId: {contract_con_id}"
+                            ) from exc
+                    combo_legs = getattr(instr.contract, "comboLegs", None) or []
+                    for combo_leg in combo_legs:
+                        con_id = getattr(combo_leg, "conId", None)
+                        if con_id in (None, 0):
+                            raise ValueError("combo leg mist conId")
+                        try:
+                            con_ids_to_validate.add(int(con_id))
+                        except (TypeError, ValueError) as exc:
+                            raise ValueError(
+                                f"ongeldige combo leg conId: {con_id}"
+                            ) from exc
+
+                if con_ids_to_validate:
+                    app.validate_contract_conids(sorted(con_ids_to_validate))
+                placed_ids: list[int] = []
+                parent_id = order_id
+                order_map: dict[int, OrderInstruction] = {}
+                for idx, instr in enumerate(instructions):
+                    current_id = order_id + idx
+                    order = instr.order
+                    order_map[current_id] = instr
+                    if idx == 0:
+                        parent_id = current_id
+                    else:
+                        order.parentId = parent_id
+                    payload = _serialize_instruction(instr)
+                    logger.debug(
+                        f"IB order payload id={current_id} ->\n{pformat(payload)}"
+                    )
+
+                    contract = instr.contract
+                    parts: list[str] = [
+                        f"id={current_id}",
+                        f"action={getattr(order, 'action', '?')}",
+                        f"qty={getattr(order, 'totalQuantity', '?')}",
+                        f"type={getattr(order, 'orderType', '?')}",
+                    ]
+                    price = getattr(order, "lmtPrice", None)
+                    if price not in (None, "", "-"):
+                        parts.append(f"limit={price}")
+                    contract_bits: list[str] = []
+                    symbol = getattr(contract, "symbol", None)
+                    if symbol:
+                        contract_bits.append(str(symbol))
+                    sec_type = getattr(contract, "secType", None)
+                    if sec_type:
+                        contract_bits.append(str(sec_type))
+                    expiry = getattr(contract, "lastTradeDateOrContractMonth", None)
+                    if expiry:
+                        contract_bits.append(str(expiry))
+                    strike = getattr(contract, "strike", None)
+                    if strike not in (None, ""):
+                        contract_bits.append(str(strike))
+                    right = getattr(contract, "right", None)
+                    if right:
+                        contract_bits.append(str(right))
+                    if contract_bits:
+                        parts.append(f"contract={' '.join(contract_bits)}")
+                    legs_info = [
+                        f"{get_leg_right(leg)} {leg.get('strike')} ({leg.get('position')})"
+                        for leg in instr.legs
+                    ]
+                    if legs_info:
+                        parts.append("legs=" + ", ".join(legs_info))
+                    logger.info(f"🚀 Verstuur order {' | '.join(parts)}")
+                    log.info(
+                        "orderType=%s algoStrategy=%s smartComboRoutingParams=%s",
+                        getattr(order, "orderType", ""),
+                        getattr(order, "algoStrategy", ""),
+                        getattr(order, "smartComboRoutingParams", None),
+                    )
+                    app.placeOrder(current_id, instr.contract, order)
+                    placed_ids.append(current_id)
+                app.wait_for_order_handshake(placed_ids)
+                errors = app.get_order_errors(placed_ids)
+                retryable = False
+                for err_order_id, code, _message in errors:
+                    if code != 10043:
+                        continue
+                    instr = order_map.get(err_order_id)
+                    if instr and _has_non_guaranteed(instr.order):
+                        retryable = True
+                        break
+                if retryable:
+                    if retry_info is not None:
+                        logger.error(
+                            "IB error 10043 blijft optreden ondanks het verwijderen van NonGuaranteed"
+                        )
+                        raise RuntimeError(
+                            "IB error 10043: combo-order geweigerd nadat NonGuaranteed werd verwijderd"
+                        )
+                    retry_info = {
+                        "reason": "remove_non_guaranteed_for_multi_leg_combo",
+                        "old_ids": tuple(placed_ids),
+                    }
+                    logger.warning(
+                        "⚠️ IB error 10043 ontvangen voor order(s) %s; probeer opnieuw zonder NonGuaranteed",
+                        ", ".join(map(str, placed_ids)),
+                    )
+                    for instr in instructions:
+                        if _has_non_guaranteed(instr.order):
+                            _clear_non_guaranteed(instr.order)
+                    _validate_instructions(instructions)
+                    try:
+                        app.disconnect()
+                    except Exception:
+                        logger.debug(
+                            "Kon app niet disconnecten na IB fout", exc_info=True
+                        )
+                    continue
+
+                if retry_info:
+                    old_ids = retry_info.get("old_ids", ())
+                    mapping = ", ".join(
+                        f"{old} -> {new}" for old, new in zip(old_ids, placed_ids)
+                    )
+                    if not mapping:
+                        mapping = (
+                            f"old_order_ids={list(old_ids)} new_order_ids={placed_ids}"
+                        )
+                    logger.info(
+                        "retry_reason=%s %s",
+                        retry_info.get("reason", "unknown"),
+                        mapping,
+                    )
+                return app, placed_ids
+            except Exception:
+                logger.exception("❌ Fout bij versturen van IB orders")
+                try:
+                    app.disconnect()
+                except Exception:
+                    logger.debug("Kon app niet disconnecten na uitzondering", exc_info=True)
+                raise
     # ------------------------------------------------------------------
     @staticmethod
     def dump_order_log(
