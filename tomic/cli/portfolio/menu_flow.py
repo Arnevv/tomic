@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Callable, Iterable, Mapping, Sequence
 
 from tomic import config as cfg
+from tomic.core.portfolio import services as portfolio_services
 from tomic.cli.app_services import ControlPanelServices
 from tomic.cli.controlpanel_session import ControlPanelSession
 from tomic.formatting.portfolio_tables import (
@@ -436,6 +437,7 @@ def run_market_scan(
         load_latest_close=load_latest_close_fn,
         spot_from_chain=spot_from_chain_fn,
         atr_loader=latest_atr,
+        refresh_snapshot=portfolio_services.refresh_proposal_from_ib,
     )
 
     def _chain_source(symbol: str) -> Path | None:
@@ -447,7 +449,10 @@ def run_market_scan(
 
     try:
         candidates = scan_service.run_market_scan(
-            scan_requests, chain_source=_chain_source, top_n=top_n
+            scan_requests,
+            chain_source=_chain_source,
+            top_n=top_n,
+            refresh_quotes=True,
         )
     except MarketScanError as exc:
         logger.exception("Market scan pipeline failed")

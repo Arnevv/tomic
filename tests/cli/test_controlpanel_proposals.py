@@ -250,10 +250,11 @@ def test_market_info_polygon_scan(monkeypatch, tmp_path):
         def __init__(self, pipeline, portfolio_service, **kwargs):
             captured["init"] = kwargs
 
-        def run_market_scan(self, requests, *, chain_source, top_n):
+        def run_market_scan(self, requests, *, chain_source, top_n, refresh_quotes=False):
             captured["requests"] = list(requests)
             captured["top_n"] = top_n
             captured["paths"] = [chain_source(req.symbol) for req in requests]
+            captured["refresh_quotes"] = refresh_quotes
             proposal = types.SimpleNamespace(
                 score=12.34,
                 ev=45.67,
@@ -299,7 +300,9 @@ def test_market_info_polygon_scan(monkeypatch, tmp_path):
     mod.run_portfolio_menu()
 
     assert fetch_calls == ["AAA"], prints
+    assert captured["init"].get("refresh_snapshot") is mod.portfolio_services.refresh_proposal_from_ib
     assert captured["top_n"] == 2
+    assert captured["refresh_quotes"] is True
     assert captured["paths"] == [tmp_path / "AAA_scan-optionchainpolygon.csv"]
     assert any("Bid/Ask%" in line for line in prints), prints
     assert any("12.34" in line for line in prints), prints
@@ -414,10 +417,11 @@ def test_market_info_polygon_scan_existing_dir(monkeypatch, tmp_path):
         def __init__(self, pipeline, portfolio_service, **kwargs):
             captured["init"] = kwargs
 
-        def run_market_scan(self, requests, *, chain_source, top_n):
+        def run_market_scan(self, requests, *, chain_source, top_n, refresh_quotes=False):
             captured["requests"] = list(requests)
             captured["top_n"] = top_n
             captured["paths"] = [chain_source(req.symbol) for req in requests]
+            captured["refresh_quotes"] = refresh_quotes
             proposal = types.SimpleNamespace(
                 score=12.34,
                 ev=45.67,
@@ -462,7 +466,9 @@ def test_market_info_polygon_scan_existing_dir(monkeypatch, tmp_path):
     mod.run_portfolio_menu()
 
     assert fetch_calls == []
+    assert captured["init"].get("refresh_snapshot") is mod.portfolio_services.refresh_proposal_from_ib
     assert captured["paths"] == [csv_path]
+    assert captured["refresh_quotes"] is True
     assert any("Bid/Ask%" in line for line in prints), prints
     assert any("12.34" in line for line in prints), prints
     assert any("close" in line for line in prints), prints

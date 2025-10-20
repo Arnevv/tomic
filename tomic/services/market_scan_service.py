@@ -5,7 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import date
 from pathlib import Path
-from typing import Callable, Iterable, Mapping, Sequence
+from typing import Any, Callable, Iterable, Mapping, Sequence
 
 from ..helpers.price_utils import ClosePriceSnapshot
 from ..loader import load_strike_config
@@ -22,7 +22,7 @@ from .chain_processing import (
 )
 from .market_snapshot_service import ScanRow
 from .portfolio_service import Candidate, PortfolioService
-from .strategy_pipeline import StrategyContext, StrategyPipeline
+from .strategy_pipeline import StrategyContext, StrategyPipeline, StrategyProposal
 
 
 @dataclass(frozen=True)
@@ -56,6 +56,7 @@ class MarketScanService:
         spot_from_chain: Callable[[Iterable[Mapping[str, object]]], float | None],
         atr_loader: Callable[[str], float | None] | None = None,
         apply_interpolation: bool = False,
+        refresh_snapshot: Callable[..., Any] | None = None,
     ) -> None:
         self._pipeline = pipeline
         self._portfolio = portfolio_service
@@ -68,6 +69,7 @@ class MarketScanService:
         self._spot_from_chain = spot_from_chain
         self._atr_loader = atr_loader or latest_atr
         self._apply_interpolation = apply_interpolation
+        self._refresh_snapshot = refresh_snapshot
 
     def run_market_scan(
         self,
@@ -75,6 +77,7 @@ class MarketScanService:
         *,
         chain_source: Callable[[str], Path | None],
         top_n: int | None = None,
+        refresh_quotes: bool = False,
     ) -> list[Candidate]:
         """Evaluate ``requests`` and return ranked :class:`Candidate` entries."""
 
@@ -186,6 +189,33 @@ class MarketScanService:
 
         if not scan_rows:
             return []
+
+        if refresh_quotes:
+            refresher = self._refresh_snapshot
+            if refresher is None:
+                logger.warning(
+                    "Refresh requested but no snapshot refresher configured; skipping"
+                )
+            else:
+                for row in scan_rows:
+                    try:
+                        result = refresher(
+                            row.proposal,
+                            symbol=row.symbol,
+                            spot_price=row.spot,
+                        )
+                    except Exception as exc:  # pragma: no cover - defensive logging
+                        logger.warning(
+                            "Quote refresh failed for %s/%s: %s",
+                            row.symbol,
+                            row.strategy,
+                            exc,
+                            exc_info=True,
+                        )
+                        continue
+                    proposal = getattr(result, "proposal", None)
+                    if isinstance(proposal, StrategyProposal):
+                        row.proposal = proposal
 
         rules = {"top_n": top_n} if top_n is not None else None
         return self._portfolio.rank_candidates(scan_rows, rules)
