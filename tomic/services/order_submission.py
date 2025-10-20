@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import time
 from dataclasses import dataclass
+from decimal import Decimal, ROUND_HALF_UP
 from pathlib import Path
 from pprint import pformat
 from typing import Any, Sequence
@@ -74,16 +75,17 @@ def _leg_price(leg: dict) -> float | None:
     return None
 
 
+def _as_float(value: Any) -> float | None:
+    try:
+        if value is None:
+            return None
+        return float(value)
+    except Exception:
+        return None
+
+
 def _leg_mid_price(leg: dict) -> float | None:
     """Return best available mid price for ``leg``."""
-
-    def _as_float(value: Any) -> float | None:
-        try:
-            if value is None:
-                return None
-            return float(value)
-        except Exception:
-            return None
 
     mid = _as_float(leg.get("mid"))
     if mid is not None:
@@ -120,6 +122,189 @@ def _combo_mid_credit(legs: Sequence[dict]) -> float | None:
     return total * 100
 
 
+def _block_order(reason: str, advice: str) -> None:
+    """Log a blocking reason and raise an exception."""
+
+    message = f"[order-block] reason={reason} advice={advice}"
+    log.error(message)
+    raise ValueError(advice)
+
+
+@dataclass
+class _LegSummary:
+    strike: float
+    expiry: str
+    right: str
+    position: float
+    qty: int
+    bid: float | None
+    ask: float | None
+    min_tick: float | None
+
+    @property
+    def is_long(self) -> bool:
+        return self.position > 0
+
+    @property
+    def is_short(self) -> bool:
+        return self.position < 0
+
+
+def _normalize_leg_summary(leg: dict) -> _LegSummary:
+    strike_raw = leg.get("strike")
+    if strike_raw in (None, ""):
+        _block_order("missing_strike", "leg mist strike")
+    try:
+        strike = float(strike_raw)
+    except Exception as exc:  # pragma: no cover - defensive
+        raise ValueError(f"ongeldige strike waarde: {strike_raw}") from exc
+    expiry = _expiry(leg)
+    right = get_leg_right(leg)
+    position = float(leg.get("position") or leg.get("qty") or leg.get("quantity") or 0)
+    if position == 0:
+        position = -float(get_leg_qty(leg))
+    qty = int(get_leg_qty(leg))
+    bid = _as_float(leg.get("bid"))
+    ask = _as_float(leg.get("ask"))
+    min_tick = leg.get("minTick")
+    if min_tick in (None, ""):
+        min_tick = leg.get("min_tick")
+    min_tick_value = _as_float(min_tick)
+    return _LegSummary(
+        strike=strike,
+        expiry=expiry,
+        right=right,
+        position=position,
+        qty=qty,
+        bid=bid,
+        ask=ask,
+        min_tick=min_tick_value,
+    )
+
+
+def _evaluate_combo_structure(
+    legs: Sequence[dict],
+) -> tuple[str | None, float | None, list[_LegSummary]]:
+    """Validate combo structure and return (structure_type, width, summaries)."""
+
+    summaries = [_normalize_leg_summary(leg) for leg in legs]
+    expiries = {item.expiry for item in summaries}
+    if len(expiries) > 1:
+        _block_order("expiry_mismatch", "alle legs moeten dezelfde expiratiedatum hebben")
+
+    if len(summaries) == 2:
+        rights = {item.right for item in summaries}
+        if len(rights) != 1:
+            _block_order("unsupported_structure", "vertical spread moet gelijke rechten hebben")
+        shorts = [leg for leg in summaries if leg.is_short]
+        longs = [leg for leg in summaries if leg.is_long]
+        if len(shorts) != 1 or len(longs) != 1:
+            _block_order("vertical_parity", "vertical spread vereist één short en één long leg")
+        short_leg = shorts[0]
+        long_leg = longs[0]
+        width = abs(short_leg.strike - long_leg.strike)
+        if width <= 0:
+            _block_order("invalid_width", "spread breedte kan niet nul zijn")
+        if short_leg.right == "call" and not (short_leg.strike < long_leg.strike):
+            _block_order(
+                "delta_sanity",
+                "call vertical: short strike moet lager zijn dan long strike",
+            )
+        if short_leg.right == "put" and not (short_leg.strike > long_leg.strike):
+            _block_order(
+                "delta_sanity",
+                "put vertical: short strike moet hoger zijn dan long strike",
+            )
+        return "vertical", width, summaries
+
+    if len(summaries) == 4:
+        rights = {item.right for item in summaries}
+        if rights != {"call", "put"}:
+            _block_order("unsupported_structure", "iron condor/fly vereist zowel calls als puts")
+        calls = [item for item in summaries if item.right == "call"]
+        puts = [item for item in summaries if item.right == "put"]
+        if len(calls) != 2 or len(puts) != 2:
+            _block_order("iron_parity", "iron structuur vereist twee calls en twee puts")
+        call_long = next((leg for leg in calls if leg.is_long), None)
+        call_short = next((leg for leg in calls if leg.is_short), None)
+        put_long = next((leg for leg in puts if leg.is_long), None)
+        put_short = next((leg for leg in puts if leg.is_short), None)
+        if not all([call_long, call_short, put_long, put_short]):
+            _block_order("iron_parity", "longs horen op de wings, shorts in het midden")
+        if not (call_long.strike > call_short.strike):
+            _block_order(
+                "delta_sanity",
+                "call wing moet verder uit de money liggen dan de short call",
+            )
+        if not (put_long.strike < put_short.strike):
+            _block_order(
+                "delta_sanity",
+                "put wing moet verder uit de money liggen dan de short put",
+            )
+        ordered = sorted(summaries, key=lambda item: (item.strike, item.right))
+        if ordered[0].is_short or ordered[-1].is_short:
+            _block_order("iron_parity", "wings moeten long zijn")
+        middle = ordered[1:3]
+        if any(item.is_long for item in middle):
+            _block_order("iron_parity", "middenbenen moeten short zijn")
+        if not (ordered[0].strike < ordered[1].strike <= ordered[2].strike < ordered[3].strike):
+            _block_order("delta_sanity", "strikes staan niet in oplopende volgorde voor iron structuur")
+        call_width = call_long.strike - call_short.strike
+        put_width = put_short.strike - put_long.strike
+        if call_width <= 0 or put_width <= 0:
+            _block_order("invalid_width", "spread breedte ongeldig voor iron structuur")
+        width = min(call_width, put_width)
+        structure = "iron_fly" if math.isclose(call_short.strike, put_short.strike) else "iron_condor"
+        return structure, width, summaries
+
+    return None, None, summaries
+
+
+def _collect_min_tick(legs: Sequence[_LegSummary]) -> float | None:
+    values = [
+        float(leg.min_tick)
+        for leg in legs
+        if leg.min_tick not in (None, 0)
+    ]
+    if not values:
+        return None
+    return min(value for value in values if value > 0)
+
+
+def _compute_worst_case_credit(
+    legs: Sequence[_LegSummary],
+    *,
+    combo_quantity: int,
+) -> float | None:
+    worst_value: float | None = 0.0
+    for leg in legs:
+        ratio = max(1, int(abs(leg.qty) // max(combo_quantity, 1)))
+        if leg.is_short:
+            if leg.bid is None:
+                return None
+            worst_value += leg.bid * ratio
+        else:
+            if leg.ask is None:
+                return None
+            worst_value -= leg.ask * ratio
+    if worst_value is None:
+        return None
+    return worst_value * 100
+
+
+def _round_to_tick(price: float, *, min_tick: float | None) -> float:
+    if min_tick in (None, 0):
+        return round(price + 1e-9, 2)
+    try:
+        tick = Decimal(str(min_tick))
+        value = Decimal(str(price))
+    except Exception:  # pragma: no cover - defensive fallback
+        return round(price + 1e-9, 2)
+    steps = (value / tick).quantize(Decimal("1"), rounding=ROUND_HALF_UP)
+    rounded = steps * tick
+    return float(rounded)
+
+
 def _guard_limit_price_scale(order: Order, *, credit_for_scale: float | None) -> None:
     """Abort order creation when price and credit look mismatched in scale."""
 
@@ -134,12 +319,7 @@ def _guard_limit_price_scale(order: Order, *, credit_for_scale: float | None) ->
     except (TypeError, ValueError):  # pragma: no cover - defensive
         return
     if abs(price_val) < 1 and abs(credit_val) > 100:
-        log.warning(
-            "⚠️ Mogelijke schaalfout: limit price %.2f voor combo-credit %.2f",
-            price_val,
-            credit_val,
-        )
-        raise ValueError("waarschijnlijke schaalfout in limit price versus credit")
+        _block_order("scale_mismatch", "verkeerde schaal")
 
 
 def _has_non_guaranteed(order: Order) -> bool:
@@ -191,6 +371,35 @@ def _should_request_non_guaranteed(order: Order, contract: Contract) -> bool:
     if order_type == "LMT":
         return False
     return True
+
+
+def _force_directed_exchange(contract: Contract, exchanges: Sequence[str] = ("CBOE", "BOX")) -> str:
+    """Update ``contract`` and combo legs to use a directed exchange."""
+
+    current = str(getattr(contract, "exchange", "") or "").upper()
+    target = None
+    for candidate in exchanges:
+        candidate = candidate.upper()
+        if candidate != current:
+            target = candidate
+            break
+    if target is None:
+        target = exchanges[0].upper() if exchanges else "CBOE"
+    try:
+        contract.exchange = target
+    except Exception:  # pragma: no cover - defensive
+        pass
+    try:
+        contract.primaryExchange = target
+    except Exception:  # pragma: no cover - defensive
+        pass
+    combo_legs = getattr(contract, "comboLegs", None) or []
+    for combo_leg in combo_legs:
+        try:
+            combo_leg.exchange = target
+        except Exception:  # pragma: no cover - defensive
+            continue
+    return target
 
 
 def _infer_combo_width(proposal: StrategyProposal, legs: Sequence[dict]) -> float | None:
@@ -655,6 +864,11 @@ class OrderSubmissionService:
             combo_leg.exchange = "SMART"
             combo_contract.comboLegs.append(combo_leg)  # type: ignore[attr-defined]
 
+        structure, combo_width, leg_summaries = _evaluate_combo_structure(legs)
+        min_tick = _collect_min_tick(leg_summaries)
+        epsilon = 0.05
+        if min_tick and min_tick > 0:
+            epsilon = max(0.05, 2 * min_tick)
         order = Order()
         order.totalQuantity = combo_quantity
         net_credit = proposal.credit
@@ -673,16 +887,33 @@ class OrderSubmissionService:
                 per_combo_mid_credit = mid_credit / max(combo_quantity, 1)
             except Exception:
                 per_combo_mid_credit = mid_credit
-            target_price = per_combo_mid_credit / 100.0
-            if target_price >= 0:
-                limit_price = max(target_price - 0.01, 0.01)
-            else:
-                limit_price = abs(target_price) + 0.01
-            net_price = round(limit_price, 2)
-        elif per_combo_credit is not None:
-            net_price = round(abs(per_combo_credit / 100.0), 2)
-        else:
-            net_price = None
+        credit_reference = per_combo_credit
+        if credit_reference is None:
+            credit_reference = per_combo_mid_credit
+        if credit_reference is None:
+            _block_order("missing_credit", "combo mist (mid) credit informatie")
+        raw_price = abs(float(credit_reference)) / 100.0
+        net_price = round(raw_price, 4)
+        price_capped = False
+        if combo_width is not None:
+            width_cap = combo_width - epsilon
+            if width_cap <= 0:
+                _block_order("price_too_close_to_width", "spread breedte laat geen veilige limit toe")
+            if per_combo_credit is not None and abs(float(per_combo_credit)) / 100.0 > width_cap + 1e-9:
+                _block_order(
+                    "price_too_close_to_width",
+                    "contract credit groter dan spread breedte minus marge",
+                )
+            if net_price > width_cap:
+                net_price = width_cap
+                price_capped = True
+        net_price = _round_to_tick(net_price, min_tick=min_tick)
+        if combo_width is not None and net_price > combo_width - epsilon + 1e-9:
+            price_capped = True
+            capped_to = max(combo_width - epsilon, 0)
+            net_price = _round_to_tick(capped_to, min_tick=min_tick)
+        if net_price <= 0:
+            _block_order("tick_rounding_underflow", "limit price valt naar nul na afronding")
         order.orderType = "LMT"
         order.algoStrategy = ""
         order.algoParams = []
@@ -691,36 +922,43 @@ class OrderSubmissionService:
         else:
             order.smartComboRoutingParams = []
         order.tif = (tif or cfg_value("DEFAULT_TIME_IN_FORCE", "DAY")).upper()
-        if net_price is not None and hasattr(order, "lmtPrice"):
-            order.lmtPrice = net_price
-            scale_credit = per_combo_credit
-            if scale_credit is None:
-                scale_credit = per_combo_mid_credit
-            _guard_limit_price_scale(order, credit_for_scale=scale_credit)
-        credit_reference = per_combo_credit
-        if credit_reference is None:
-            credit_reference = per_combo_mid_credit
-        action = "SELL"
-        if credit_reference is not None:
-            action = "BUY" if credit_reference > 0 else "SELL"
-            combo_width = _infer_combo_width(proposal, legs)
-            if combo_width and combo_width > 0:
-                max_credit = combo_width * 100
-                if abs(credit_reference) > max_credit + 1e-9:
-                    raise ValueError(
-                        "Combo credit overschrijdt spread-breedte"
-                    )
-            credit_price = credit_reference / 100
-            log.info(
-                "[order-check] combo credit=%+.2f → setting action=%s",
-                credit_price,
-                action,
+        if hasattr(order, "lmtPrice"):
+            order.lmtPrice = float(net_price)
+            _guard_limit_price_scale(order, credit_for_scale=credit_reference)
+        worst_credit = _compute_worst_case_credit(
+            leg_summaries,
+            combo_quantity=combo_quantity,
+        )
+        if (
+            worst_credit is not None
+            and credit_reference is not None
+            and worst_credit * credit_reference < 0
+        ):
+            _block_order(
+                "direction_vs_cash_mismatch",
+                "combo credit en legs cashflow spreken elkaar tegen",
             )
-        else:
-            log.info(
-                "[order-check] combo credit=n/a → setting action=%s",
-                action,
-            )
+        action = "BUY" if credit_reference > 0 else "SELL"
+        if price_capped:
+            log.info("price_capped_to=%.2f", net_price)
+        width_display = combo_width
+        if width_display is None:
+            width_display = _infer_combo_width(proposal, legs)
+        width_str = "n/a"
+        if width_display is not None and width_display > 0:
+            width_str = f"{width_display:.2f}"
+        credit_price = float(credit_reference) / 100.0
+        lmt_display = f"{float(net_price):.2f}"
+        capped_suffix = " (capped)" if price_capped else ""
+        log.info(
+            "[order-check] credit=%+0.2f → action=%s | width=%s | eps=%0.2f | lmt=%s%s",
+            credit_price,
+            action,
+            width_str,
+            epsilon,
+            lmt_display,
+            capped_suffix,
+        )
         order.action = action
         order.transmit = True
         order.account = account or "DUK809533"
@@ -751,6 +989,7 @@ class OrderSubmissionService:
         _validate_instructions(instructions)
 
         retry_info: dict[str, Any] | None = None
+        directed_retry_done = False
 
         attempt = 0
         while True:
@@ -880,6 +1119,34 @@ class OrderSubmissionService:
                         logger.debug(
                             "Kon app niet disconnecten na IB fout", exc_info=True
                         )
+                    continue
+
+                directed_exchange_needed = False
+                for _err_order_id, code, _message in errors:
+                    if code == 201 and not directed_retry_done:
+                        directed_exchange_needed = True
+                        break
+                if directed_exchange_needed:
+                    directed_retry_done = True
+                    retry_info = {
+                        "reason": "directed_exchange_after_201",
+                        "old_ids": tuple(placed_ids),
+                    }
+                    chosen_exchange: str | None = None
+                    for instr in instructions:
+                        chosen_exchange = _force_directed_exchange(instr.contract)
+                    if chosen_exchange:
+                        logger.warning(
+                            "⚠️ IB error 201 ontvangen; herprobeer met exchange=%s",
+                            chosen_exchange,
+                        )
+                    else:
+                        logger.warning("⚠️ IB error 201 ontvangen; herprobeer met directed exchange")
+                    _validate_instructions(instructions)
+                    try:
+                        app.disconnect()
+                    except Exception:
+                        logger.debug("Kon app niet disconnecten na IB fout", exc_info=True)
                     continue
 
                 if retry_info:

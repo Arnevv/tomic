@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import math
 import types
+from typing import Any
 
 import pytest
 
@@ -57,6 +58,31 @@ def test_prepare_order_instructions(monkeypatch):
     assert getattr(instr.contract, "symbol", None) == "AAA"
 
 
+def test_validate_instructions_credit_direction_ok():
+    contract = types.SimpleNamespace(secType="BAG", comboLegs=[], exchange="SMART")
+    order = types.SimpleNamespace(action="BUY", totalQuantity=1, orderType="LMT")
+    instr = order_submission.OrderInstruction(
+        contract=contract,
+        order=order,
+        legs=[],
+        credit_per_combo=250.0,
+    )
+    order_submission._validate_instructions([instr])
+
+
+def test_validate_instructions_credit_direction_error():
+    contract = types.SimpleNamespace(secType="BAG", comboLegs=[], exchange="SMART")
+    order = types.SimpleNamespace(action="SELL", totalQuantity=1, orderType="LMT")
+    instr = order_submission.OrderInstruction(
+        contract=contract,
+        order=order,
+        legs=[],
+        credit_per_combo=250.0,
+    )
+    with pytest.raises(ValueError, match="Inconsistent combo direction vs credit/debit"):
+        order_submission._validate_instructions([instr])
+
+
 def test_bag_contract_excludes_disallowed_fields(monkeypatch):
     monkeypatch.setattr(order_submission, "Order", lambda: types.SimpleNamespace())
     proposal = StrategyProposal(
@@ -73,13 +99,14 @@ def test_bag_contract_excludes_disallowed_fields(monkeypatch):
             {
                 "symbol": "HD",
                 "expiry": "20240119",
-                "strike": 305.0,
+                "strike": 315.0,
                 "type": "call",
                 "position": 1,
                 "conId": 202,
             },
         ],
     )
+    proposal.credit = 120.0
     instructions = prepare_order_instructions(proposal, symbol="HD")
     assert len(instructions) == 1
     payload = order_submission._serialize_instruction(instructions[0])
@@ -270,7 +297,7 @@ def test_combo_mid_credit_converts_to_per_share_limit(monkeypatch):
     instructions = prepare_order_instructions(proposal, symbol="GLD")
     assert len(instructions) == 1
     order = instructions[0].order
-    assert math.isclose(getattr(order, "lmtPrice", None) or 0.0, 10.49, rel_tol=1e-4)
+    assert math.isclose(getattr(order, "lmtPrice", None) or 0.0, 9.5, rel_tol=1e-4)
 
 
 def test_combo_credit_width_guard(monkeypatch):
@@ -324,8 +351,166 @@ def test_combo_credit_width_guard(monkeypatch):
     )
     proposal.credit = 1500.0
 
-    with pytest.raises(ValueError, match="spread-breedte"):
+    with pytest.raises(ValueError, match="spread breedte minus marge"):
         prepare_order_instructions(proposal, symbol="GLD")
+
+
+def _iron_fly_legs(min_tick: float = 0.05) -> list[dict[str, Any]]:
+    return [
+        {
+            "symbol": "AAA",
+            "expiry": "20240119",
+            "strike": 95.0,
+            "type": "put",
+            "position": 1,
+            "conId": 9101,
+            "bid": 1.0,
+            "ask": 1.05,
+            "minTick": min_tick,
+        },
+        {
+            "symbol": "AAA",
+            "expiry": "20240119",
+            "strike": 100.0,
+            "type": "put",
+            "position": -1,
+            "conId": 9102,
+            "bid": 2.6,
+            "ask": 2.65,
+            "minTick": min_tick,
+        },
+        {
+            "symbol": "AAA",
+            "expiry": "20240119",
+            "strike": 100.0,
+            "type": "call",
+            "position": -1,
+            "conId": 9103,
+            "bid": 2.6,
+            "ask": 2.65,
+            "minTick": min_tick,
+        },
+        {
+            "symbol": "AAA",
+            "expiry": "20240119",
+            "strike": 105.0,
+            "type": "call",
+            "position": 1,
+            "conId": 9104,
+            "bid": 1.0,
+            "ask": 1.05,
+            "minTick": min_tick,
+        },
+    ]
+
+
+def _wide_call_vertical(min_tick: float = 0.01) -> list[dict[str, Any]]:
+    return [
+        {
+            "symbol": "AAA",
+            "expiry": "20240119",
+            "strike": 100.0,
+            "type": "call",
+            "position": -1,
+            "conId": 9201,
+            "minTick": min_tick,
+        },
+        {
+            "symbol": "AAA",
+            "expiry": "20240119",
+            "strike": 115.0,
+            "type": "call",
+            "position": 1,
+            "conId": 9202,
+            "minTick": min_tick,
+        },
+    ]
+
+
+def test_credit_above_width_cap_blocks(monkeypatch):
+    class DummyOrder(types.SimpleNamespace):
+        def __init__(self):
+            super().__init__()
+            self.smartComboRoutingParams = []
+            self.lmtPrice = None
+
+    monkeypatch.setattr(order_submission, "Order", DummyOrder)
+    proposal = StrategyProposal(strategy="iron_fly", legs=_iron_fly_legs())
+    proposal.credit = 500.0
+    with pytest.raises(ValueError, match="spread breedte minus marge"):
+        prepare_order_instructions(proposal, symbol="AAA")
+
+
+def test_credit_on_width_cap_succeeds(monkeypatch):
+    class DummyOrder(types.SimpleNamespace):
+        def __init__(self):
+            super().__init__()
+            self.smartComboRoutingParams = []
+            self.lmtPrice = None
+
+    monkeypatch.setattr(order_submission, "Order", DummyOrder)
+    proposal = StrategyProposal(strategy="iron_fly", legs=_iron_fly_legs())
+    proposal.credit = 490.0
+    instructions = prepare_order_instructions(proposal, symbol="AAA")
+    assert len(instructions) == 1
+    order = instructions[0].order
+    assert math.isclose(getattr(order, "lmtPrice", None) or 0.0, 4.9, rel_tol=1e-4)
+
+
+def test_credit_below_width_cap_succeeds(monkeypatch):
+    class DummyOrder(types.SimpleNamespace):
+        def __init__(self):
+            super().__init__()
+            self.smartComboRoutingParams = []
+            self.lmtPrice = None
+
+    monkeypatch.setattr(order_submission, "Order", DummyOrder)
+    proposal = StrategyProposal(strategy="iron_fly", legs=_iron_fly_legs())
+    proposal.credit = 450.0
+    instructions = prepare_order_instructions(proposal, symbol="AAA")
+    assert len(instructions) == 1
+    order = instructions[0].order
+    assert math.isclose(getattr(order, "lmtPrice", None) or 0.0, 4.5, rel_tol=1e-4)
+
+
+def test_iron_structure_rejects_reversed_wings(monkeypatch):
+    class DummyOrder(types.SimpleNamespace):
+        def __init__(self):
+            super().__init__()
+            self.smartComboRoutingParams = []
+            self.lmtPrice = None
+
+    monkeypatch.setattr(order_submission, "Order", DummyOrder)
+    legs = _iron_fly_legs()
+    for leg in legs:
+        if leg["strike"] in {95.0, 105.0}:
+            leg["position"] = -abs(leg["position"])
+    proposal = StrategyProposal(strategy="iron_fly", legs=legs)
+    proposal.credit = 450.0
+    with pytest.raises(ValueError, match="longs horen op de wings"):
+        prepare_order_instructions(proposal, symbol="AAA")
+
+
+def test_contract_credit_converts_to_limit_price(monkeypatch):
+    class DummyOrder(types.SimpleNamespace):
+        def __init__(self):
+            super().__init__()
+            self.smartComboRoutingParams = []
+            self.lmtPrice = None
+
+    monkeypatch.setattr(order_submission, "Order", DummyOrder)
+    legs = _wide_call_vertical()
+    proposal = StrategyProposal(strategy="call_credit_spread", legs=legs)
+    proposal.credit = 1050.0
+    instructions = prepare_order_instructions(proposal, symbol="AAA")
+    order = instructions[0].order
+    assert math.isclose(getattr(order, "lmtPrice", None) or 0.0, 10.5, rel_tol=1e-4)
+
+
+def test_scale_guard_detects_bad_conversion():
+    order = types.SimpleNamespace(lmtPrice=0.10)
+    with pytest.raises(ValueError, match="verkeerde schaal"):
+        order_submission._guard_limit_price_scale(order, credit_for_scale=1050.0)
 
 
 def test_combo_scale_guard_detects_mismatch(monkeypatch):
@@ -336,53 +521,13 @@ def test_combo_scale_guard_detects_mismatch(monkeypatch):
             self.lmtPrice = None
 
     monkeypatch.setattr(order_submission, "Order", DummyOrder)
-    monkeypatch.setattr(order_submission, "_combo_mid_credit", lambda legs: 10.5)
+    monkeypatch.setattr(order_submission, "_round_to_tick", lambda price, min_tick=None: 0.10)
 
-    proposal = StrategyProposal(
-        strategy="iron_butterfly",
-        legs=[
-            {
-                "symbol": "GLD",
-                "expiry": "20240216",
-                "strike": 180.0,
-                "type": "call",
-                "position": -1,
-                "conId": 2101,
-                "mid": 8.0,
-            },
-            {
-                "symbol": "GLD",
-                "expiry": "20240216",
-                "strike": 180.0,
-                "type": "put",
-                "position": -1,
-                "conId": 2102,
-                "mid": 8.0,
-            },
-            {
-                "symbol": "GLD",
-                "expiry": "20240216",
-                "strike": 190.0,
-                "type": "call",
-                "position": 1,
-                "conId": 2103,
-                "mid": 2.75,
-            },
-            {
-                "symbol": "GLD",
-                "expiry": "20240216",
-                "strike": 170.0,
-                "type": "put",
-                "position": 1,
-                "conId": 2104,
-                "mid": 2.75,
-            },
-        ],
-    )
-    proposal.credit = 950.0
+    proposal = StrategyProposal(strategy="call_credit_spread", legs=_wide_call_vertical())
+    proposal.credit = 1050.0
 
-    with pytest.raises(ValueError, match="schaalfout"):
-        prepare_order_instructions(proposal, symbol="GLD")
+    with pytest.raises(ValueError, match="verkeerde schaal"):
+        prepare_order_instructions(proposal, symbol="AAA")
 
 
 def test_combo_with_more_than_two_legs_omits_non_guaranteed(monkeypatch):
@@ -430,6 +575,7 @@ def test_combo_with_more_than_two_legs_omits_non_guaranteed(monkeypatch):
             },
         ],
     )
+    proposal.credit = 150.0
     instructions = prepare_order_instructions(proposal, symbol="AAA")
     assert len(instructions) == 1
     order = instructions[0].order
