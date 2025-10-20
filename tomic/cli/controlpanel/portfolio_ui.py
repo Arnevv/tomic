@@ -182,50 +182,74 @@ def _show_proposal_details(
     symbol = base_symbol or None
     fetch_only_mode = bool(cfg.get("IB_FETCH_ONLY", False))
     refresh_result = None
-    if fetch_only_mode or prompt_yes_no("Haal orderinformatie van IB op?", True):
+    fetch_attempted = False
+
+    def _attempt_ib_refresh() -> bool:
+        nonlocal proposal, refresh_result, fetch_attempted
         try:
             refresh_result = portfolio_services.refresh_proposal_from_ib(
                 proposal,
                 symbol=symbol,
                 spot_price=session.spot_price,
             )
-            proposal = refresh_result.proposal
         except Exception as exc:
             print(f"❌ Marktdata ophalen mislukt: {exc}")
+            return False
+        proposal = refresh_result.proposal
+        fetch_attempted = True
+        return True
 
-    presentation = portfolio_services.build_proposal_presentation(
-        session,
-        proposal,
-        refresh_result=refresh_result,
-    )
-    vm = presentation.viewmodel
+    if fetch_only_mode or prompt_yes_no("Haal orderinformatie van IB op?", True):
+        _attempt_ib_refresh()
 
-    leg_headers, leg_rows = proposal_legs_table(vm)
-    if leg_rows:
-        print(tabulate(leg_rows, headers=leg_headers, tablefmt="github"))
+    presentation = None
+    vm = None
 
-    summary_headers, summary_rows = proposal_summary_table(vm)
-    if summary_rows:
-        print(tabulate(summary_rows, headers=summary_headers, tablefmt="github"))
+    while True:
+        presentation = portfolio_services.build_proposal_presentation(
+            session,
+            proposal,
+            refresh_result=refresh_result,
+        )
+        vm = presentation.viewmodel
 
-    earnings_headers, earnings_rows = proposal_earnings_table(vm)
-    if earnings_rows:
-        print(tabulate(earnings_rows, headers=earnings_headers, tablefmt="github"))
+        leg_headers, leg_rows = proposal_legs_table(vm)
+        if leg_rows:
+            print(tabulate(leg_rows, headers=leg_headers, tablefmt="github"))
 
-    for warning in vm.warnings:
-        print(warning)
+        summary_headers, summary_rows = proposal_summary_table(vm)
+        if summary_rows:
+            print(tabulate(summary_rows, headers=summary_headers, tablefmt="github"))
 
-    if presentation.acceptance_failed:
-        print("❌ Acceptatiecriteria niet gehaald na IB-refresh.")
-        for message in portfolio_services.rejection_messages(vm):
-            print(f"  - {message}")
+        earnings_headers, earnings_rows = proposal_earnings_table(vm)
+        if earnings_rows:
+            print(tabulate(earnings_rows, headers=earnings_headers, tablefmt="github"))
 
-    if presentation.has_missing_edge and not cfg.get("ALLOW_INCOMPLETE_METRICS", False):
-        if not prompt_yes_no(
-            "⚠️ Deze strategie bevat onvolledige edge-informatie. Toch accepteren?",
-            False,
-        ):
-            return
+        for warning in vm.warnings:
+            print(warning)
+
+        missing_bidask = fetch_attempted and any(
+            leg.bid is None or leg.ask is None for leg in vm.legs
+        )
+        if missing_bidask:
+            if prompt_yes_no("Bid/ask data niet compleet, retry uitvoeren?", False):
+                if _attempt_ib_refresh():
+                    print()
+                    continue
+
+        if presentation.acceptance_failed:
+            print("❌ Acceptatiecriteria niet gehaald na IB-refresh.")
+            for message in portfolio_services.rejection_messages(vm):
+                print(f"  - {message}")
+
+        if presentation.has_missing_edge and not cfg.get("ALLOW_INCOMPLETE_METRICS", False):
+            if not prompt_yes_no(
+                "⚠️ Deze strategie bevat onvolledige edge-informatie. Toch accepteren?",
+                False,
+            ):
+                return
+
+        break
 
     if prompt_yes_no("Voorstel opslaan naar CSV?", False):
         path = portfolio_services.export_proposal_to_csv(session, presentation.proposal)

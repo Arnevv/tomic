@@ -846,6 +846,113 @@ def test_show_proposal_details_blocks_on_acceptance(monkeypatch, capsys):
     assert not any("Order naar IB" in q for q in prompts)
 
 
+def test_show_proposal_details_retry_on_missing_bid_ask(monkeypatch, capsys, tmp_path):
+    mod = importlib.import_module("tomic.cli.controlpanel")
+    show = _extract_show_details(mod)
+    assert show is not None
+    session = mod._CONTEXT.session
+
+    base_proposal = mod.StrategyProposal(
+        strategy="iron_bfly",
+        legs=[
+            {
+                "symbol": "AAA",
+                "expiry": "2024-01-19",
+                "strike": 100.0,
+                "type": "call",
+                "position": -1,
+                "edge": 0.05,
+            }
+        ],
+    )
+
+    refreshed = [
+        mod.StrategyProposal(
+            strategy="iron_bfly",
+            legs=[
+                {
+                    "symbol": "AAA",
+                    "expiry": "2024-01-19",
+                    "strike": 100.0,
+                    "type": "call",
+                    "position": -1,
+                    "bid": 1.0,
+                    "ask": None,
+                    "mid": 1.0,
+                    "edge": 0.05,
+                }
+            ],
+        ),
+        mod.StrategyProposal(
+            strategy="iron_bfly",
+            legs=[
+                {
+                    "symbol": "AAA",
+                    "expiry": "2024-01-19",
+                    "strike": 100.0,
+                    "type": "call",
+                    "position": -1,
+                    "bid": 1.0,
+                    "ask": 1.2,
+                    "mid": 1.1,
+                    "edge": 0.05,
+                }
+            ],
+        ),
+    ]
+
+    refresh_iter = iter(refreshed)
+    refresh_calls: list[object] = []
+
+    def _refresh(proposal, **_):
+        refresh_calls.append(proposal)
+        updated = next(refresh_iter)
+        return SnapshotResult(updated, [], True, [])
+
+    monkeypatch.setattr(mod.portfolio_services, "refresh_proposal_from_ib", _refresh)
+
+    def _export_csv(session, proposal):
+        path = tmp_path / "proposal.csv"
+        path.write_text("csv")
+        return path
+
+    def _export_json(session, proposal):
+        path = tmp_path / "proposal.json"
+        path.write_text("{}")
+        return path
+
+    monkeypatch.setattr(mod.portfolio_services, "export_proposal_to_csv", _export_csv)
+    monkeypatch.setattr(mod.portfolio_services, "export_proposal_to_json", _export_json)
+    monkeypatch.setattr(mod, "_submit_ib_order", lambda *_a, **_k: None)
+
+    prompts: list[str] = []
+    responses = iter([True, True, False, False, False])
+
+    def _prompt(question, default=False):
+        prompts.append(question)
+        try:
+            return next(responses)
+        except StopIteration:
+            return default
+
+    monkeypatch.setattr(mod, "prompt_yes_no", _prompt)
+    monkeypatch.setattr(mod.portfolio, "prompt_yes_no", _prompt)
+
+    show(session, base_proposal)
+
+    out = capsys.readouterr().out
+    assert any("Bid/ask ontbreekt" in line for line in out.splitlines())
+    assert any("Bid/ask data niet compleet" in question for question in prompts)
+    retry_index = next(
+        i for i, q in enumerate(prompts) if "Bid/ask data niet compleet" in q
+    )
+    csv_index = next(
+        i for i, q in enumerate(prompts) if "Voorstel opslaan naar CSV" in q
+    )
+    assert retry_index < csv_index, "retry prompt should appear before export prompts"
+    assert len(refresh_calls) == 2
+
+
 def test_print_reason_summary_no_rejections(capsys):
     mod = importlib.import_module("tomic.cli.controlpanel")
     agg = mod.ReasonAggregator()
