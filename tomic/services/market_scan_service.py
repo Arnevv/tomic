@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import date
 from pathlib import Path
 from typing import Any, Callable, Iterable, Mapping, Sequence
@@ -197,7 +197,7 @@ class MarketScanService:
                     "Refresh requested but no snapshot refresher configured; skipping"
                 )
             else:
-                for row in scan_rows:
+                for index, row in enumerate(scan_rows):
                     try:
                         result = refresher(
                             row.proposal,
@@ -215,7 +215,7 @@ class MarketScanService:
                         continue
                     proposal = getattr(result, "proposal", None)
                     if isinstance(proposal, StrategyProposal):
-                        row.proposal = proposal
+                        scan_rows[index] = replace(row, proposal=proposal)
 
         rules = {"top_n": top_n} if top_n is not None else None
         return self._portfolio.rank_candidates(scan_rows, rules)
