@@ -37,6 +37,7 @@ def test_prepare_order_instructions(monkeypatch):
             },
         ],
     )
+    proposal.credit = 100.0
     instructions = prepare_order_instructions(
         proposal,
         symbol="AAA",
@@ -46,7 +47,7 @@ def test_prepare_order_instructions(monkeypatch):
     )
     assert len(instructions) == 1
     instr = instructions[0]
-    assert getattr(instr.order, "action", None) == "SELL"
+    assert getattr(instr.order, "action", None) == "BUY"
     assert getattr(instr.order, "totalQuantity", None) == 1
     assert getattr(instr.order, "transmit", None) is True
     assert getattr(instr.contract, "secType", None) == "BAG"
@@ -140,6 +141,7 @@ def test_place_orders_uses_parent_child(monkeypatch):
             },
         ],
     )
+    proposal.credit = 100.0
     instructions = prepare_order_instructions(proposal, symbol="AAA")
 
     class DummyApp(order_submission.OrderPlacementApp):
@@ -173,7 +175,7 @@ def test_place_orders_uses_parent_child(monkeypatch):
         timeout=1,
     )
     assert order_ids == [50]
-    assert dummy.placed == [(50, "SELL", None)]
+    assert dummy.placed == [(50, "BUY", None)]
     assert app is dummy
 
 
@@ -263,12 +265,67 @@ def test_combo_mid_credit_converts_to_per_share_limit(monkeypatch):
             },
         ],
     )
-    proposal.credit = 1050.0
+    proposal.credit = 950.0
 
     instructions = prepare_order_instructions(proposal, symbol="GLD")
     assert len(instructions) == 1
     order = instructions[0].order
     assert math.isclose(getattr(order, "lmtPrice", None) or 0.0, 10.49, rel_tol=1e-4)
+
+
+def test_combo_credit_width_guard(monkeypatch):
+    class DummyOrder(types.SimpleNamespace):
+        def __init__(self):
+            super().__init__()
+            self.lmtPrice = None
+            self.smartComboRoutingParams = []
+
+    monkeypatch.setattr(order_submission, "Order", DummyOrder)
+    proposal = StrategyProposal(
+        strategy="iron_butterfly",
+        legs=[
+            {
+                "symbol": "GLD",
+                "expiry": "20240216",
+                "strike": 180.0,
+                "type": "call",
+                "position": -1,
+                "conId": 1111,
+                "mid": 8.0,
+            },
+            {
+                "symbol": "GLD",
+                "expiry": "20240216",
+                "strike": 180.0,
+                "type": "put",
+                "position": -1,
+                "conId": 1112,
+                "mid": 8.0,
+            },
+            {
+                "symbol": "GLD",
+                "expiry": "20240216",
+                "strike": 190.0,
+                "type": "call",
+                "position": 1,
+                "conId": 1113,
+                "mid": 2.75,
+            },
+            {
+                "symbol": "GLD",
+                "expiry": "20240216",
+                "strike": 170.0,
+                "type": "put",
+                "position": 1,
+                "conId": 1114,
+                "mid": 2.75,
+            },
+        ],
+    )
+    proposal.credit = 1500.0
+
+    with pytest.raises(ValueError, match="spread-breedte"):
+        prepare_order_instructions(proposal, symbol="GLD")
 
 
 def test_combo_scale_guard_detects_mismatch(monkeypatch):
@@ -322,7 +379,7 @@ def test_combo_scale_guard_detects_mismatch(monkeypatch):
             },
         ],
     )
-    proposal.credit = 1050.0
+    proposal.credit = 950.0
 
     with pytest.raises(ValueError, match="schaalfout"):
         prepare_order_instructions(proposal, symbol="GLD")

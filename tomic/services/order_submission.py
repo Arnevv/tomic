@@ -193,6 +193,44 @@ def _should_request_non_guaranteed(order: Order, contract: Contract) -> bool:
     return True
 
 
+def _infer_combo_width(proposal: StrategyProposal, legs: Sequence[dict]) -> float | None:
+    """Return maximum spread width (per contract) inferred from legs or proposal."""
+
+    widths: list[float] = []
+    wing_width = getattr(proposal, "wing_width", None)
+    if wing_width:
+        try:
+            for value in wing_width.values():
+                if value is None:
+                    continue
+                widths.append(abs(float(value)))
+        except Exception:  # pragma: no cover - defensive
+            widths = []
+    if not widths:
+        strikes_by_type: dict[str, list[float]] = {}
+        for leg in legs:
+            try:
+                strike = leg.get("strike")
+                right = get_leg_right(leg)
+                if strike in (None, "") or right not in {"call", "put"}:
+                    continue
+                strikes_by_type.setdefault(right, []).append(float(strike))
+            except Exception:
+                continue
+        for strike_values in strikes_by_type.values():
+            if len(strike_values) < 2:
+                continue
+            low = min(strike_values)
+            high = max(strike_values)
+            widths.append(abs(high - low))
+    if not widths:
+        return None
+    max_width = max(widths)
+    if max_width <= 0:
+        return None
+    return max_width
+
+
 @dataclass
 class OrderInstruction:
     """Single IB order structure derived from one or more legs."""
@@ -200,6 +238,7 @@ class OrderInstruction:
     contract: Contract
     order: Order
     legs: list[dict]
+    credit_per_combo: float | None = None
 
 
 def _validate_instructions(instructions: Sequence[OrderInstruction]) -> None:
@@ -218,6 +257,11 @@ def _validate_instructions(instructions: Sequence[OrderInstruction]) -> None:
             raise ValueError(
                 "NonGuaranteed routing is niet toegestaan voor BAG-combo's met meer dan twee benen"
             )
+        credit = getattr(instr, "credit_per_combo", None)
+        action = str(getattr(order, "action", "") or "").upper()
+        if credit is not None and action in {"BUY", "SELL"}:
+            if (action == "BUY" and credit < 0) or (action == "SELL" and credit > 0):
+                raise ValueError("Inconsistent combo direction vs credit/debit")
 
 
 def _serialize_instruction(instr: "OrderInstruction") -> dict[str, Any]:
@@ -653,11 +697,42 @@ class OrderSubmissionService:
             if scale_credit is None:
                 scale_credit = per_combo_mid_credit
             _guard_limit_price_scale(order, credit_for_scale=scale_credit)
-        order.action = "SELL" if (net_credit or 0) >= 0 else "BUY"
+        credit_reference = per_combo_credit
+        if credit_reference is None:
+            credit_reference = per_combo_mid_credit
+        action = "SELL"
+        if credit_reference is not None:
+            action = "BUY" if credit_reference > 0 else "SELL"
+            combo_width = _infer_combo_width(proposal, legs)
+            if combo_width and combo_width > 0:
+                max_credit = combo_width * 100
+                if abs(credit_reference) > max_credit + 1e-9:
+                    raise ValueError(
+                        "Combo credit overschrijdt spread-breedte"
+                    )
+            credit_price = credit_reference / 100
+            log.info(
+                "[order-check] combo credit=%+.2f → setting action=%s",
+                credit_price,
+                action,
+            )
+        else:
+            log.info(
+                "[order-check] combo credit=n/a → setting action=%s",
+                action,
+            )
+        order.action = action
         order.transmit = True
         order.account = account or "DUK809533"
         order.orderRef = f"{proposal.strategy}-{symbol}"
-        return [OrderInstruction(contract=combo_contract, order=order, legs=list(legs))]
+        return [
+            OrderInstruction(
+                contract=combo_contract,
+                order=order,
+                legs=list(legs),
+                credit_per_combo=credit_reference,
+            )
+        ]
 
     # ------------------------------------------------------------------
     def place_orders(
