@@ -46,7 +46,7 @@ def _build_summary(**overrides):
         max_profit=200.0,
         max_loss=-50.0,
         breakevens=(95.0, 90.0),
-        pos=0.62,
+        pos=62.0,
         ev=125.12,
         rom=0.1,
         score=1.0,
@@ -91,7 +91,7 @@ def _build_vm(symbol: str, expiry: str, strikes: tuple[float, ...], **kwargs) ->
         pricing_meta={
             "credit": kwargs.get("credit", 1.2),
             "ev": kwargs.get("ev", 15.6),
-            "pos": kwargs.get("pos", 0.61),
+            "pos": kwargs.get("pos", 61.0),
         },
     )
     leg_vm = ProposalLegVM(
@@ -112,7 +112,7 @@ def _build_vm(symbol: str, expiry: str, strikes: tuple[float, ...], **kwargs) ->
     summary = _build_summary(
         credit=kwargs.get("credit", 1.2),
         ev=kwargs.get("ev", 15.6),
-        pos=kwargs.get("pos", 0.61),
+        pos=kwargs.get("pos", 61.0),
         greeks={
             "delta": kwargs.get("delta", -0.35),
             "theta": kwargs.get("theta", 0.08),
@@ -145,7 +145,7 @@ def test_proposals_table_formats_and_sorts():
         iv=0.23,
         credit=1.75,
         ev=28.5,
-        pos=0.58,
+        pos=58.0,
     )
     earlier = _build_vm(
         symbol="AAA",
@@ -157,7 +157,7 @@ def test_proposals_table_formats_and_sorts():
         iv=0.21,
         credit=1.2,
         ev=15.6,
-        pos=0.61,
+        pos=61.0,
         strategy="short_put",
     )
 

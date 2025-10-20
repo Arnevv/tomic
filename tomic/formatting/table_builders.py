@@ -140,6 +140,15 @@ def fmt_pct(value: Any, decimals: int = 1) -> str:
     return PLACEHOLDER if formatted == PLACEHOLDER else f"{formatted}%"
 
 
+def fmt_percent(value: Any, decimals: int = 1) -> str:
+    """Return a percentage string for values provided in 0-100 scale."""
+
+    number = _to_float(value)
+    if number is None:
+        return PLACEHOLDER
+    return fmt_pct(number / 100, decimals)
+
+
 def fmt_opt_strikes(strikes: Iterable[float | None] | None) -> str:
     if not strikes:
         return PLACEHOLDER
@@ -426,7 +435,7 @@ PROPOSALS_SPEC = TableSpec(
         ColumnSpec("Vega", lambda r: _greek_value(r, "vega"), format=lambda v: fmt_signed(v, 2)),
         ColumnSpec("IV", _first_leg_iv, format=lambda v: fmt_pct(v, 1)),
         ColumnSpec("EV", lambda r: _pricing_value(r, "ev"), decimals=2),
-        ColumnSpec("PoS", lambda r: _pricing_value(r, "pos"), format=lambda v: fmt_pct(v, 1)),
+        ColumnSpec("PoS", lambda r: _pricing_value(r, "pos"), format=lambda v: fmt_percent(v, 1)),
         ColumnSpec("Credit/Mid", _credit_or_mid, decimals=2),
     ),
     default_sort=("core.symbol", "core.expiry", _sort_right, _sort_strike),
@@ -529,7 +538,7 @@ def _format_summary_value(value: Any, row: SummaryRow) -> str:
     if metric in {"score", "ev", "credit", "margin", "max win", "max loss", "risk/reward", "rom", "edge"}:
         return fmt_num(value, 2)
     if metric == "pos":
-        return fmt_pct(value, 1)
+        return fmt_percent(value, 1)
     if metric == "breakevens":
         return _format_breakevens(value if isinstance(value, Iterable) else None)
     if metric == "bron":
@@ -687,6 +696,7 @@ __all__ = [
     "fmt_num",
     "fmt_opt_strikes",
     "fmt_pct",
+    "fmt_percent",
     "proposal_earnings_table",
     "proposal_legs_table",
     "proposal_summary_table",
