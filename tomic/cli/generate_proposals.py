@@ -1,15 +1,13 @@
 from __future__ import annotations
 
 import sys
-from pathlib import Path
 from typing import List
-import json
 
 from tomic.logutils import setup_logging, logger
-from tomic.config import get as cfg_get
-from types import SimpleNamespace
-from tomic.analysis.proposal_engine import generate_proposals
-from tomic.analysis.vol_json import load_latest_summaries
+from tomic.services.proposal_generation import (
+    ProposalGenerationError,
+    generate_proposal_overview,
+)
 
 
 def main(argv: List[str] | None = None) -> None:
@@ -17,43 +15,28 @@ def main(argv: List[str] | None = None) -> None:
     setup_logging()
     if argv is None:
         argv = []
-    positions = Path(cfg_get("POSITIONS_FILE", "positions.json"))
-    export_dir = Path(cfg_get("EXPORT_DIR", "exports"))
-    metrics_file = None
-    if len(argv) >= 1:
-        positions = Path(argv[0])
-    if len(argv) >= 2:
-        export_dir = Path(argv[1])
-    if len(argv) >= 3:
-        metrics_file = Path(argv[2])
-    if not positions.exists():
-        logger.error(f"Positions file not found: {positions}")
-        return
-    metrics = None
-    if metrics_file and metrics_file.exists():
-        try:
-            raw = json.loads(metrics_file.read_text())
-            metrics = {sym: SimpleNamespace(**vals) for sym, vals in raw.items()}
-        except Exception as exc:
-            logger.warning(f"Kan metrics niet laden: {exc}")
-    else:
-        try:
-            raw_positions = json.loads(positions.read_text())
-            symbols = {p.get("symbol") for p in raw_positions if p.get("symbol")}
-            metrics = load_latest_summaries(symbols)
-        except Exception as exc:
-            logger.warning(f"Volatiliteitsdata niet beschikbaar: {exc}")
-            metrics = None
+    positions_arg = argv[0] if len(argv) >= 1 else None
+    export_arg = argv[1] if len(argv) >= 2 else None
+    metrics_arg = argv[2] if len(argv) >= 3 else None
 
-    proposals = generate_proposals(
-        str(positions),
-        str(export_dir),
-        metrics=metrics,
-    )
-    if not proposals:
+    try:
+        result = generate_proposal_overview(
+            positions_path=positions_arg,
+            export_dir=export_arg,
+            metrics_path=metrics_arg,
+        )
+    except ProposalGenerationError as exc:
+        logger.error(str(exc))
+        return
+
+    for warning in result.warnings:
+        logger.warning(warning)
+
+    if not result.proposals:
         logger.warning("Geen strategievoorstellen gevonden.")
         return
-    for sym, items in proposals.items():
+
+    for sym, items in result.proposals.items():
         logger.info(f"=== {sym} ===")
         for prop in items:
             imp = prop["impact"]

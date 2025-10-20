@@ -1,27 +1,13 @@
-"""Trade management helper to show exit triggers for open positions.
-
-This module loads positions and journal data, enriches the strategies with
-PnL/DTE metrics and applies exit rules.  For each strategy a status is printed
-indicating whether management is required and which triggers fired.
-"""
+"""Trade management helper to show exit triggers for open positions."""
 
 from __future__ import annotations
 
-from typing import Iterable, List
-
 from tabulate import tabulate
 
-from tomic.analysis.strategy import group_strategies
 from tomic.analysis.exit_rules import extract_exit_rules, generate_exit_alerts
+from tomic.analysis.strategy import group_strategies
 from tomic.config import get as cfg_get
-from tomic.journal.utils import load_json
-
-
-def _filter_exit_alerts(alerts: Iterable[str]) -> List[str]:
-    """Return only alerts related to exit rule triggers."""
-
-    relevant = ["exitniveau", "PnL", "DTE ≤ exitdrempel", "dagen in trade"]
-    return [a for a in alerts if any(key in a for key in relevant)]
+from tomic.services.trade_management_service import build_management_summary
 
 
 def main() -> None:
@@ -30,53 +16,46 @@ def main() -> None:
     positions_file = cfg_get("POSITIONS_FILE", "positions.json")
     journal_file = cfg_get("JOURNAL_FILE", "journal.json")
 
-    positions = load_json(positions_file)
-    if not isinstance(positions, list):
-        positions = []
+    summaries = build_management_summary(
+        positions_file=positions_file,
+        journal_file=journal_file,
+        grouper=group_strategies,
+        exit_rule_loader=extract_exit_rules,
+        alert_generator=generate_exit_alerts,
+    )
 
-    journal = load_json(journal_file)
-    if not isinstance(journal, list):
-        journal = []
+    print("=== 📊 TRADE MANAGEMENT ===")
+    if not summaries:
+        print("Geen strategieën gevonden.")
+        return
 
-    strategies = group_strategies(positions, journal)
-    exit_rules = extract_exit_rules(journal_file)
+    headers = [
+        "#",
+        "symbol",
+        "strategy",
+        "spot",
+        "unrealizedPnL",
+        "days_to_expiry",
+        "exit_trigger",
+        "status",
+    ]
 
     rows: list[list[object]] = []
-    for idx, strat in enumerate(strategies, start=1):
-        key = (strat.get("symbol"), strat.get("expiry"))
-        rule = exit_rules.get(key)
-        generate_exit_alerts(strat, rule)
-
-        alerts = _filter_exit_alerts(strat.get("alerts", []))
-        status = "⚠️ Beheer nodig" if alerts else "✅ Houden"
-        exit_trigger = " | ".join(alerts) if alerts else "geen trigger"
-
+    for idx, summary in enumerate(summaries, start=1):
         rows.append(
             [
                 idx,
-                strat.get("symbol"),
-                strat.get("type"),
-                strat.get("spot"),
-                strat.get("unrealizedPnL"),
-                strat.get("days_to_expiry"),
-                exit_trigger,
-                status,
+                summary.symbol,
+                summary.strategy,
+                summary.spot,
+                summary.unrealized_pnl,
+                summary.days_to_expiry,
+                summary.exit_trigger,
+                summary.status,
             ]
         )
 
-    print("=== 📊 TRADE MANAGEMENT ===")
-    if rows:
-        headers = [
-            "#",
-            "symbol",
-            "strategy",
-            "spot",
-            "unrealizedPnL",
-            "days_to_expiry",
-            "exit_trigger",
-            "status",
-        ]
-        print(tabulate(rows, headers=headers, tablefmt="plain"))
+    print(tabulate(rows, headers=headers, tablefmt="plain"))
 
 
 if __name__ == "__main__":

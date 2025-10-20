@@ -1,58 +1,28 @@
 """Interactive helper to close a trade in the journal."""
 
-from datetime import datetime
-from typing import Any, Dict
+from __future__ import annotations
+
+from typing import Dict
 
 from tomic.logutils import logger
-
 from tomic.logutils import setup_logging
-from tomic.journal.service import (
-    load_journal,
-    update_trade,
-    is_valid_trade_id,
+
+from tomic.journal.close_service import (
+    TradeClosureError,
+    TradeClosureInput,
+    close_trade as close_trade_service,
+    list_open_trades,
 )
 from .common import prompt
 
 
-def sluit_trade_af(trade: Dict[str, Any]) -> None:
-    """Interactively enter exit details for ``trade``."""
-    logger.info(
-        f"\n🔚 Trade afsluiten: {trade['TradeID']} - {trade['Symbool']} - {trade['Type']}"
-    )
+def load_journal() -> list[Dict[str, object]]:
+    """Compatibility shim used by tests to stub journal data."""
 
-    # DatumUit en DaysInTrade
-    datum_uit = prompt("📆 DatumUit (YYYY-MM-DD): ")
-    try:
-        d_in = datetime.strptime(trade["DatumIn"], "%Y-%m-%d")
-        d_out = datetime.strptime(datum_uit, "%Y-%m-%d")
-        trade["DatumUit"] = datum_uit
-        trade["DaysInTrade"] = (d_out - d_in).days
-        logger.info(f"📅 DaysInTrade berekend: {trade['DaysInTrade']} dagen")
-    except Exception:
-        logger.error("⚠️ Ongeldige datum. Sla DaysInTrade over.")
-        trade["DatumUit"] = datum_uit
+    return list_open_trades()
 
-    # ExitPrice met EntryPrice ter referentie
-    try:
-        entry_price = trade.get("EntryPrice", "?")
-        exit_price_input = prompt(f"💰 Exitprijs (de entry prijs was: {entry_price}): ")
-        trade["ExitPrice"] = float(exit_price_input)
-    except ValueError:
-        logger.error("❌ Ongeldige prijs.")
 
-    # Resultaat
-    try:
-        trade["Resultaat"] = float(prompt("📉 Resultaat ($): "))
-    except ValueError:
-        logger.error("❌ Ongeldig bedrag.")
-
-    # Return on Margin
-    try:
-        trade["ReturnOnMargin"] = float(prompt("📊 Return on Margin (%): "))
-    except ValueError:
-        logger.error("❌ Ongeldige waarde.")
-
-    # Evaluatie
+def _collect_evaluatie() -> str:
     print("\n🧠 Evaluatie:")
     print("Zeg iets over:")
     print(
@@ -63,43 +33,75 @@ def sluit_trade_af(trade: Dict[str, Any]) -> None:
     )
     print("Typ '.' op een lege regel om te stoppen:")
 
-    lijnen = []
+    lijnen: list[str] = []
     while True:
         regel = prompt("> ")
         if regel.strip() == ".":
             break
         lijnen.append(regel)
-    trade["Evaluatie"] = "\n".join(lijnen)
+    return "\n".join(lijnen)
 
-    trade["Status"] = "Gesloten"
-    logger.info("✅ Trade gemarkeerd als gesloten.")
+
+def _vraag_exit_details(trade: Dict[str, object]) -> TradeClosureInput:
+    logger.info(
+        f"\n🔚 Trade afsluiten: {trade['TradeID']} - {trade.get('Symbool')} - {trade.get('Type')}"
+    )
+
+    datum_uit = prompt("📆 DatumUit (YYYY-MM-DD): ")
+    entry_price = trade.get("EntryPrice", "?")
+    exit_price_input = prompt(f"💰 Exitprijs (de entry prijs was: {entry_price}): ")
+    resultaat = prompt("📉 Resultaat ($): ")
+    return_on_margin = prompt("📊 Return on Margin (%): ")
+    evaluatie = _collect_evaluatie()
+
+    return TradeClosureInput(
+        datum_uit=datum_uit,
+        exit_price=exit_price_input or None,
+        resultaat=resultaat or None,
+        return_on_margin=return_on_margin or None,
+        evaluatie=evaluatie or None,
+    )
 
 
 def main() -> None:
     """Interactive wrapper to close a trade from ``journal.json``."""
+
     setup_logging()
     logger.info("🚀 Trade afsluiten")
-    journal = load_journal()
-    if not journal:
+
+    open_trades = load_journal()
+    if not open_trades:
+        logger.warning("Geen open trades gevonden.")
         return
 
     print("\n📋 Open trades:")
-    open_trades = [t for t in journal if t.get("Status") == "Open"]
     for t in open_trades:
-        print(f"- {t['TradeID']}: {t['Symbool']} - {t['Type']}")
+        print(f"- {t['TradeID']}: {t.get('Symbool')} - {t.get('Type')}")
 
     keuze = prompt("\nVoer TradeID in om af te sluiten: ")
-    if not is_valid_trade_id(keuze):
-        logger.error("❌ Ongeldige TradeID.")
+    gekozen_trade = next(
+        (t for t in open_trades if str(t.get("TradeID")) == keuze),
+        None,
+    )
+    if not gekozen_trade:
+        logger.error("❌ TradeID niet gevonden of niet open.")
         return
 
-    trade = next((t for t in journal if t["TradeID"] == keuze), None)
-    if not trade:
-        logger.error("❌ TradeID niet gevonden.")
+    sluit_trade_af(gekozen_trade)
+
+
+def sluit_trade_af(trade: Dict[str, object]) -> None:
+    """Collect exit details for ``trade`` and persist the closure."""
+
+    details = _vraag_exit_details(trade)
+    trade_id = str(trade.get("TradeID"))
+
+    try:
+        close_trade_service(trade_id, details)
+    except TradeClosureError as exc:
+        logger.error(f"❌ Afsluiten mislukt: {exc}")
         return
 
-    sluit_trade_af(trade)
-    update_trade(trade["TradeID"], trade)
     logger.success("✅ Trade afgesloten")
 
 
