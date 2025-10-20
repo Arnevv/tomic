@@ -237,6 +237,7 @@ def test_run_market_scan_selects_candidate(
 
     scan_service.run_market_scan.assert_called_once()
     assert scan_service.run_market_scan.call_args.kwargs["top_n"] == 3
+    assert scan_service.run_market_scan.call_args.kwargs["refresh_quotes"] is True
     show_details.assert_called_once_with(session, proposal)
     assert session.symbol == "SPY"
     assert session.strategy == "short_put"
