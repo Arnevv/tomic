@@ -436,7 +436,15 @@ def _iter_exchanges(settings: VixConfig) -> list[str]:
 
 def _is_invalid_exchange_error(message: str) -> bool:
     lowered = message.lower()
-    return "error 200" in lowered and "ib error" in lowered
+    if "destination or exchange selected is invalid" in lowered:
+        return True
+    if "ib error" not in lowered:
+        return False
+    if "error 200" in lowered:
+        return True
+    if re.search(r"\berror\s+\d+\s*:\s*200\b", lowered):
+        return True
+    return False
 
 
 def _fetch_vix_from_ibkr_sync(settings: VixConfig) -> _VixFetcherResult:
