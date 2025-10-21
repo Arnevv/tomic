@@ -42,6 +42,7 @@ class StrategyProposal:
     margin: Optional[float] = None
     max_profit: Optional[float] = None
     max_loss: Optional[float] = None
+    risk_reward: Optional[float] = None
     breakevens: Optional[List[float]] = None
     score: Optional[float] = None
     fallback: Optional[str] = None
