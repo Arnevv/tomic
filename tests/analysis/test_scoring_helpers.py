@@ -152,6 +152,7 @@ def test_compute_proposal_metrics(monkeypatch):
     assert score == 105.0
     assert reasons == []
     assert proposal.margin == 100.0
+    assert math.isclose(proposal.risk_reward or 0.0, 2.0)
 
 
 def test_calculate_score_additional_metrics(monkeypatch):
@@ -233,3 +234,60 @@ def test_calculate_score_additional_metrics(monkeypatch):
     assert proposal.breakeven_distances["percent"] and math.isclose(
         proposal.breakeven_distances["percent"][0], 1.5
     )
+
+
+def test_compute_proposal_metrics_rejects_low_risk_reward(monkeypatch):
+    legs = [
+        {
+            "type": "C",
+            "strike": 100,
+            "expiry": "2025-01-01",
+            "mid": 2.0,
+            "model": 2.0,
+            "delta": 0.2,
+            "edge": 0.1,
+            "volume": 500,
+            "open_interest": 1000,
+            "position": -1,
+        },
+        {
+            "type": "C",
+            "strike": 105,
+            "expiry": "2025-01-01",
+            "mid": 1.5,
+            "model": 1.5,
+            "delta": 0.05,
+            "edge": 0.05,
+            "volume": 500,
+            "open_interest": 1000,
+            "position": 1,
+        },
+    ]
+
+    proposal = StrategyProposal(legs=legs)
+    crit = load_criteria().model_copy()
+
+    monkeypatch.setattr(
+        scoring,
+        "heuristic_risk_metrics",
+        lambda l, cb: {"max_profit": 100.0, "max_loss": -400.0},
+    )
+    monkeypatch.setattr(scoring, "calculate_margin", lambda *a, **k: 500.0)
+    monkeypatch.setattr(scoring, "calculate_rom", lambda mp, margin: 2.0)
+    monkeypatch.setattr(scoring, "calculate_ev", lambda pos, mp, ml: 5.0)
+    monkeypatch.setattr(scoring, "_bs_estimate_missing", lambda _l: None)
+    monkeypatch.setattr(scoring, "check_liquidity", lambda *a, **k: (True, []))
+    monkeypatch.setattr(scoring, "load_criteria", lambda: crit)
+    monkeypatch.setattr(
+        scoring,
+        "cfg_get",
+        lambda name, default=None: {"default": {"min_risk_reward": 1.0}}
+        if name == "STRATEGY_CONFIG"
+        else {},
+    )
+
+    score, reasons = scoring.compute_proposal_metrics("iron_condor", proposal, legs, crit, spot=100)
+
+    assert score is None
+    assert any(detail.category == ReasonCategory.RR_BELOW_MIN for detail in reasons)
+    assert math.isclose(proposal.risk_reward or 0.0, 0.25)

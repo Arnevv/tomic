@@ -112,6 +112,26 @@ def _collect_leg_values(legs: List[Dict[str, Any]], keys: Tuple[str, ...]) -> Li
     return values
 
 
+def _resolve_min_risk_reward(strategy_name: str) -> float:
+    cfg = cfg_get("STRATEGY_CONFIG") or {}
+    strat_cfg = cfg.get("strategies", {}).get(strategy_name, {})
+    default_cfg = cfg.get("default", {})
+
+    for source in (strat_cfg, default_cfg):
+        raw_value = source.get("min_risk_reward") if isinstance(source, Mapping) else None
+        if raw_value is None:
+            continue
+        try:
+            return float(raw_value)
+        except (TypeError, ValueError):  # pragma: no cover - defensive
+            logger.debug("[%s] Ongeldige min_risk_reward-configuratie: %r", strategy_name, raw_value)
+    fallback = RULES.strategy.acceptance.min_risk_reward
+    try:
+        return float(fallback)
+    except (TypeError, ValueError):  # pragma: no cover - defensive
+        return 0.0
+
+
 def _normalized_mid_source(leg: Mapping[str, Any]) -> str:
     source = str(leg.get("mid_source") or "").strip().lower()
     fallback = str(leg.get("mid_fallback") or "").strip().lower()
@@ -749,6 +769,11 @@ def compute_proposal_metrics(
     risk = heuristic_risk_metrics(legs, cost_basis)
     proposal.max_profit = risk.get("max_profit")
     proposal.max_loss = risk.get("max_loss")
+    rr_initial = risk.get("risk_reward")
+    try:
+        proposal.risk_reward = float(rr_initial) if rr_initial is not None else None
+    except (TypeError, ValueError):
+        proposal.risk_reward = None
     proposal.profit_estimated = False
     proposal.scenario_info = None
 
@@ -789,6 +814,32 @@ def compute_proposal_metrics(
             logger.info(f"[SCENARIO] {strategy_name}: profit estimate at {label} {proposal.max_profit}")
         else:
             proposal.scenario_info = {"error": err or "no scenario defined"}
+
+    profit_val = _safe_float(proposal.max_profit)
+    loss_val = _safe_float(proposal.max_loss)
+    risk_reward = None
+    if profit_val is not None and loss_val not in (None, 0.0):
+        risk = abs(loss_val)
+        if risk > 0:
+            risk_reward = profit_val / risk
+    proposal.risk_reward = risk_reward
+
+    min_rr = _resolve_min_risk_reward(strategy_name)
+    if min_rr > 0 and risk_reward is not None and risk_reward < min_rr:
+        message = f"risk/reward onvoldoende ({risk_reward:.2f} < {min_rr:.2f})"
+        _add_reason(
+            make_reason(
+                ReasonCategory.RR_BELOW_MIN,
+                "RR_TOO_LOW",
+                message,
+                data={
+                    "risk_reward": round(risk_reward, 4),
+                    "min_risk_reward": round(min_rr, 4),
+                },
+            )
+        )
+        logger.info(f"[❌ voorstel afgewezen] {strategy_name} — reason: risk/reward onvoldoende")
+        return _finalize(None)
 
     proposal.rom = calculate_rom(proposal.max_profit, margin) if proposal.max_profit is not None and margin else None
     if proposal.rom is None:

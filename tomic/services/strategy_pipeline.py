@@ -67,6 +67,7 @@ class StrategyProposal:
     margin: float | None = None
     max_profit: float | None = None
     max_loss: float | None = None
+    risk_reward: float | None = None
     breakevens: list[float] | None = None
     fallback: str | None = None
     profit_estimated: bool = False
