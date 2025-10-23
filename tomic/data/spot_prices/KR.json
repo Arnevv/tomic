@@ -8811,5 +8811,12 @@
     "close": 67.6,
     "volume": 5955097.0,
     "atr": null
+  },
+  {
+    "symbol": "KR",
+    "date": "2025-10-22",
+    "close": 68.6,
+    "volume": 6625783.0,
+    "atr": null
   }
 ]

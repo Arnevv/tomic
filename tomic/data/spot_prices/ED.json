@@ -8811,5 +8811,12 @@
     "close": 101.56,
     "volume": 1116724.0,
     "atr": null
+  },
+  {
+    "symbol": "ED",
+    "date": "2025-10-22",
+    "close": 101.94,
+    "volume": 1508990.0,
+    "atr": null
   }
 ]

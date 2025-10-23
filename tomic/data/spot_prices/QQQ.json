@@ -8811,5 +8811,12 @@
     "close": 611.38,
     "volume": 44519384.0,
     "atr": null
+  },
+  {
+    "symbol": "QQQ",
+    "date": "2025-10-22",
+    "close": 605.49,
+    "volume": 61523848.0,
+    "atr": null
   }
 ]
