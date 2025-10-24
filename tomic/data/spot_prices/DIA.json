@@ -8818,5 +8818,12 @@
     "close": 465.78,
     "volume": 7597216.0,
     "atr": null
+  },
+  {
+    "symbol": "DIA",
+    "date": "2025-10-23",
+    "close": 467.29,
+    "volume": 5137744.0,
+    "atr": null
   }
 ]

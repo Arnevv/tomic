@@ -8818,5 +8818,12 @@
     "close": 167.23,
     "volume": 5275236.0,
     "atr": null
+  },
+  {
+    "symbol": "MMM",
+    "date": "2025-10-23",
+    "close": 171.6,
+    "volume": 4778278.0,
+    "atr": null
   }
 ]

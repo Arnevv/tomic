@@ -8818,5 +8818,12 @@
     "close": 26.31,
     "volume": 25417020.0,
     "atr": null
+  },
+  {
+    "symbol": "HAL",
+    "date": "2025-10-23",
+    "close": 27.22,
+    "volume": 20214462.0,
+    "atr": null
   }
 ]
