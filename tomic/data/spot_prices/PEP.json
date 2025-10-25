@@ -8825,5 +8825,12 @@
     "close": 151.51,
     "volume": 6091400.0,
     "atr": null
+  },
+  {
+    "symbol": "PEP",
+    "date": "2025-10-24",
+    "close": 151.55,
+    "volume": 3579782.0,
+    "atr": null
   }
 ]
