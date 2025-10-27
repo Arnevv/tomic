@@ -10,6 +10,7 @@ from threading import BoundedSemaphore, Lock
 from typing import Any, Callable, Mapping, Sequence
 
 from ..logutils import logger
+from ..utils import resolve_symbol
 from .ib_marketdata import SnapshotResult, fetch_quote_snapshot
 from .proposal_details import ProposalCore, build_proposal_core
 from .strategy_pipeline import StrategyProposal
@@ -394,10 +395,7 @@ def build_proposal_from_entry(entry: Mapping[str, Any]) -> StrategyProposal | No
     symbol_hint = _extract_entry_symbol(entry)
     if symbol_hint:
         for leg in normalized_legs:
-            if not any(
-                leg.get(key)
-                for key in ("symbol", "underlying", "ticker", "root", "root_symbol")
-            ):
+            if resolve_symbol([leg]) is None:
                 leg["symbol"] = symbol_hint
 
     allowed_fields = {field.name for field in fields(StrategyProposal) if field.init}
@@ -545,26 +543,28 @@ def _infer_symbol(
     proposal: StrategyProposal | None,
     entry: Mapping[str, Any],
 ) -> str | None:
-    if proposal and proposal.legs:
-        for leg in proposal.legs:
-            if not isinstance(leg, Mapping):
-                continue
-            for key in ("symbol", "underlying", "ticker", "root", "root_symbol"):
-                value = leg.get(key)
-                if isinstance(value, str) and value.strip():
-                    return value.strip().upper()
-    return _extract_entry_symbol(entry)
+    proposal_symbol = resolve_symbol(proposal.legs if proposal else None)
+    if proposal_symbol:
+        return proposal_symbol
+    entry_legs = entry.get("legs") if isinstance(entry, Mapping) else None
+    return resolve_symbol(
+        entry_legs if isinstance(entry_legs, Sequence) else None,
+        fallback=_extract_entry_symbol(entry),
+    )
 
 
 def _extract_entry_symbol(entry: Mapping[str, Any]) -> str | None:
-    symbol = entry.get("symbol") if isinstance(entry, Mapping) else None
-    if isinstance(symbol, str) and symbol.strip():
-        return symbol.strip().upper()
+    symbol = None
+    if isinstance(entry, Mapping):
+        symbol = resolve_symbol(None, fallback=entry.get("symbol"))
+    if symbol:
+        return symbol
     meta = entry.get("meta") if isinstance(entry, Mapping) else None
     if isinstance(meta, Mapping):
-        raw_symbol = meta.get("symbol") or meta.get("underlying")
-        if isinstance(raw_symbol, str) and raw_symbol.strip():
-            return raw_symbol.strip().upper()
+        return resolve_symbol(
+            None,
+            fallback=meta.get("symbol") or meta.get("underlying"),
+        )
     return None
 
 

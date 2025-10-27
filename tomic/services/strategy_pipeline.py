@@ -8,7 +8,6 @@ from datetime import date, datetime
 from pathlib import Path
 from typing import Any, Callable, Mapping, MutableMapping, Sequence
 
-from ..bs_calculator import black_scholes
 from ..metrics import calculate_edge, calculate_ev, calculate_pos, calculate_rom
 from ..strategy.models import StrategyContext, StrategyProposal
 from ..strategy_candidates import generate_strategy_candidates
@@ -17,7 +16,9 @@ from .utils import resolve_config_getter
 from ..loader import load_strike_config
 from ..logutils import combo_symbol_context, logger
 from ..mid_resolver import MidResolver, build_mid_resolver
-from ..utils import get_option_mid_price, normalize_leg
+from ..utils import get_option_mid_price, normalize_leg, resolve_symbol
+from ..helpers.numeric import safe_float
+from ..helpers.bs_utils import estimate_model_price
 from ..helpers.dateutils import parse_date
 from ..helpers.strategy_config import (
     canonical_strategy_name,
@@ -454,10 +455,8 @@ class StrategyPipeline:
 
     def _build_filter_config(self, rules: Mapping[str, Any]) -> FilterConfig:
         def _float(val: Any, default: float | None = None) -> float | None:
-            try:
-                return float(val)
-            except Exception:
-                return default
+            parsed = safe_float(val)
+            return parsed if parsed is not None else default
 
         delta_range = (
             rules.get("delta_range")
@@ -489,16 +488,11 @@ class StrategyPipeline:
     def _apply_symbol_defaults(self, leg: MutableMapping[str, Any]) -> None:
         """Ensure that legs contain the underlying ticker information."""
 
-        symbol = (
-            leg.get("symbol")
-            or leg.get("underlying")
-            or leg.get("ticker")
-            or (self.last_context.symbol if self.last_context else None)
-        )
+        fallback = self.last_context.symbol if self.last_context else None
+        symbol = resolve_symbol([leg], fallback=fallback)
         if symbol:
-            symbol_str = str(symbol).upper()
-            leg["symbol"] = symbol_str
-            leg.setdefault("underlying", symbol_str)
+            leg["symbol"] = symbol
+            leg.setdefault("underlying", symbol)
 
     def _normalize_proposal_leg(self, leg: Mapping[str, Any]) -> dict[str, Any]:
         normalized = normalize_leg(dict(leg))
@@ -518,10 +512,10 @@ class StrategyPipeline:
             mid = option.get("mid")
             if mid is None:
                 mid, _ = get_option_mid_price(option)
-        mid = self._safe_float(mid)
+        mid = safe_float(mid)
         model = self._extract_model_price(option, spot_price, interest_rate)
         margin = self._extract_margin(option, spot_price)
-        delta = self._safe_float(option.get("delta"))
+        delta = safe_float(option.get("delta"))
 
         pos = calculate_pos(delta) if delta is not None else None
         rom = calculate_rom(mid * 100, margin) if mid is not None and margin is not None else None
@@ -536,9 +530,7 @@ class StrategyPipeline:
             else None
         )
         result = {
-            "symbol": option.get("symbol")
-            or option.get("underlying")
-            or option.get("ticker"),
+            "symbol": resolve_symbol([option]),
             "expiry": option.get("expiry"),
             "strike": option.get("strike"),
             "type": option.get("type"),
@@ -558,51 +550,28 @@ class StrategyPipeline:
         self._apply_symbol_defaults(result)
         return result
 
-    def _safe_float(self, value: Any) -> float | None:
-        try:
-            return float(value)
-        except Exception:
-            return None
-
     def _extract_model_price(
         self, option: Mapping[str, Any], spot_price: float, interest_rate: float
     ) -> float | None:
-        model = self._safe_float(option.get("modelprice"))
+        model = safe_float(option.get("modelprice"))
         if model is not None:
             return model
-        iv = self._safe_float(option.get("iv"))
-        strike = self._safe_float(option.get("strike"))
-        expiry = option.get("expiry")
-        opt_type = str(option.get("type") or option.get("right", "")).upper()[:1]
-        if None in (iv, strike) or not expiry or opt_type not in {"C", "P"}:
+        price = estimate_model_price(
+            option,
+            spot_price=spot_price,
+            interest_rate=interest_rate,
+        )
+        if price is None:
             return None
-        try:
-            exp_date = parse_date(str(expiry))
-            if exp_date is None:
-                return None
-            dte = max((exp_date - datetime.now().date()).days, 0)
-            return round(
-                black_scholes(
-                    opt_type,
-                    float(spot_price),
-                    float(strike),
-                    dte,
-                    float(iv),
-                    interest_rate,
-                    0.0,
-                ),
-                2,
-            )
-        except Exception:
-            return None
+        return round(price, 2)
 
     def _extract_margin(
         self, option: Mapping[str, Any], spot_price: float
     ) -> float | None:
-        margin = self._safe_float(option.get("marginreq"))
+        margin = safe_float(option.get("marginreq"))
         if margin is not None:
             return margin
-        strike = self._safe_float(option.get("strike"))
+        strike = safe_float(option.get("strike"))
         base = float(spot_price) if spot_price else strike
         if base is None:
             return 350.0

@@ -2,11 +2,14 @@
 from __future__ import annotations
 
 import math
+from datetime import datetime
+from typing import Any, Callable, Mapping, Sequence
 
 from ..bs_calculator import black_scholes
-from .dateutils import dte_between_dates
+from .dateutils import dte_between_dates, parse_date
 from ..config import get as cfg_get
 from ..utils import today
+from .numeric import safe_float
 
 
 def estimate_price_delta(leg: dict) -> tuple[float, float]:
@@ -81,4 +84,46 @@ def populate_model_delta(leg: dict) -> dict:
     return leg
 
 
-__all__ = ["estimate_price_delta", "populate_model_delta"]
+def estimate_model_price(
+    option: Mapping[str, Any],
+    *,
+    spot_price: float | None,
+    interest_rate: float | None = None,
+    spot_keys: Sequence[str] = ("spot", "underlying_price", "underlying"),
+    on_error: Callable[[Exception], None] | None = None,
+) -> float | None:
+    """Return theoretical price for ``option`` using Black-Scholes."""
+
+    iv = safe_float(option.get("iv"))
+    strike = safe_float(option.get("strike"))
+    expiry = option.get("expiry") or option.get("expiration")
+    opt_type = str(option.get("type") or option.get("right", "")).upper()[:1]
+    if None in (iv, strike) or not expiry or opt_type not in {"C", "P"}:
+        return None
+
+    spot = safe_float(spot_price, allow_strings=False) if spot_price is not None else None
+    if spot is None:
+        for key in spot_keys:
+            spot = safe_float(option.get(key))
+            if spot is not None:
+                break
+    if spot is None:
+        return None
+
+    exp_date = parse_date(str(expiry))
+    if exp_date is None:
+        return None
+    dte = max((exp_date - datetime.now().date()).days, 0)
+
+    rate = safe_float(interest_rate, allow_strings=False) if interest_rate is not None else None
+    rate = float(rate) if rate is not None else 0.0
+
+    try:
+        return black_scholes(opt_type, float(spot), float(strike), dte, float(iv), rate, 0.0)
+    except Exception as exc:  # pragma: no cover - defensive safety
+        if on_error is not None:
+            on_error(exc)
+        return None
+
+
+__all__ = ["estimate_price_delta", "populate_model_delta", "estimate_model_price"]

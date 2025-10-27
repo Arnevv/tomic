@@ -7,9 +7,10 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Any, Dict, Iterable, Mapping, MutableMapping, Optional
 
-from .bs_calculator import black_scholes
 from .config import get as cfg_get
+from .helpers.bs_utils import estimate_model_price
 from .helpers.dateutils import dte_between_dates, parse_date
+from .helpers.numeric import safe_float
 from .logutils import logger
 from .strategy.reasons import mid_reason_message
 from .utils import get_leg_right, today
@@ -40,18 +41,6 @@ class MidResolution:
             "one_sided": self.one_sided,
             "mid_fallback": self.mid_fallback,
         }
-
-
-def _parse_float(value: Any) -> float | None:
-    try:
-        result = float(value)
-    except (TypeError, ValueError):
-        return None
-    if math.isnan(result):
-        return None
-    return result
-
-
 class MidResolver:
     """Resolve mid prices with hierarchical fallbacks."""
 
@@ -64,7 +53,7 @@ class MidResolver:
         config: Mapping[str, Any] | None = None,
     ) -> None:
         self._raw_chain = [dict(opt) for opt in option_chain]
-        self._spot_price = _parse_float(spot_price)
+        self._spot_price = safe_float(spot_price)
         self._interest_rate = float(interest_rate or 0.0)
         self._config = config or {}
         self._resolutions: list[MidResolution] = [MidResolution() for _ in self._raw_chain]
@@ -155,8 +144,8 @@ class MidResolver:
 
     def _try_true_mid(self, idx: int, option: Mapping[str, Any]) -> None:
         res = self._resolutions[idx]
-        bid = _parse_float(option.get("bid"))
-        ask = _parse_float(option.get("ask"))
+        bid = safe_float(option.get("bid"))
+        ask = safe_float(option.get("ask"))
         if bid is not None and ask is not None and bid > 0 and ask > 0:
             spread = ask - bid
             if spread <= 0:
@@ -199,7 +188,7 @@ class MidResolver:
         base_source = counterpart_res.mid_source or "true"
 
         if base_mid is None:
-            counterpart_close = _parse_float(self._raw_chain[counterpart].get("close"))
+            counterpart_close = safe_float(self._raw_chain[counterpart].get("close"))
             if counterpart_close is not None and counterpart_close > 0:
                 base_mid = counterpart_close
                 base_source = "close"
@@ -207,7 +196,7 @@ class MidResolver:
                 res.mid_reason = res.mid_reason or "parity basis ontbreekt"
                 return
 
-        strike = _parse_float(option.get("strike"))
+        strike = safe_float(option.get("strike"))
         expiry = option.get("expiry") or option.get("expiration")
         if strike is None or not expiry:
             res.mid_reason = res.mid_reason or "parity strike/expiry ontbreekt"
@@ -251,7 +240,7 @@ class MidResolver:
         if res.mid is not None:
             return
 
-        model = _parse_float(option.get("modelprice"))
+        model = safe_float(option.get("modelprice"))
         if model is None:
             model = self._black_scholes(option)
         if model is None:
@@ -266,7 +255,7 @@ class MidResolver:
         res = self._resolutions[idx]
         if res.mid is not None:
             return
-        close = _parse_float(option.get("close"))
+        close = safe_float(option.get("close"))
         if close is None:
             res.mid_reason = res.mid_reason or "close ontbreekt"
             return
@@ -278,11 +267,11 @@ class MidResolver:
     def _spread_ok(self, mid: float, spread: float, option: Mapping[str, Any]) -> tuple[bool, str]:
         if mid <= 0:
             return False, "invalid_mid"
-        underlying = _parse_float(option.get("spot"))
+        underlying = safe_float(option.get("spot"))
         if underlying is None:
             underlying = self._spot_price
         if underlying is None:
-            underlying = _parse_float(option.get("underlying_price"))
+            underlying = safe_float(option.get("underlying_price"))
 
         abs_threshold = self._absolute_threshold(underlying)
         rel_threshold = self._relative_threshold * mid
@@ -307,7 +296,7 @@ class MidResolver:
     def _extract_quote_age(self, option: Mapping[str, Any]) -> float | None:
         for key in ("quote_age_sec", "quote_age", "age", "quote_age_seconds"):
             val = option.get(key)
-            parsed = _parse_float(val)
+            parsed = safe_float(val)
             if parsed is not None:
                 return parsed
         return None
@@ -326,7 +315,7 @@ class MidResolver:
             expiry = option.get("expiry") or option.get("expiration")
             if not expiry:
                 return None
-            strike = _parse_float(option.get("strike"))
+            strike = safe_float(option.get("strike"))
             if strike is None:
                 return None
             right = get_leg_right(option)
@@ -336,7 +325,7 @@ class MidResolver:
 
     def _extract_dte(self, option: Mapping[str, Any], expiry: Any) -> Optional[int]:
         dte_val = option.get("dte")
-        parsed = None if dte_val is None else _parse_float(dte_val)
+        parsed = None if dte_val is None else safe_float(dte_val)
         if parsed is not None:
             return int(parsed)
         dt = parse_date(str(expiry))
@@ -345,35 +334,18 @@ class MidResolver:
         return dte_between_dates(today(), dt)
 
     def _black_scholes(self, option: Mapping[str, Any]) -> float | None:
-        iv = _parse_float(option.get("iv"))
-        strike = _parse_float(option.get("strike"))
-        expiry = option.get("expiry") or option.get("expiration")
-        right = get_leg_right(option)
-        if None in (iv, strike) or not expiry or right not in {"call", "put"}:
+        price = estimate_model_price(
+            option,
+            spot_price=self._spot_price,
+            interest_rate=self._interest_rate,
+            spot_keys=("spot",),
+            on_error=lambda exc: logger.debug(
+                "Black-Scholes failed for %s: %s", option, exc
+            ),
+        )
+        if price is None:
             return None
-        spot = self._spot_price
-        if spot is None:
-            spot = _parse_float(option.get("spot"))
-        if spot is None:
-            return None
-        exp_date = parse_date(str(expiry))
-        if exp_date is None:
-            return None
-        dte = max((exp_date - datetime.now().date()).days, 0)
-        try:
-            val = black_scholes(
-                right[0].upper(),
-                float(spot),
-                float(strike),
-                dte,
-                float(iv),
-                self._interest_rate,
-                0.0,
-            )
-        except Exception as exc:  # pragma: no cover - BS fallback safety
-            logger.debug("Black-Scholes failed for %s: %s", option, exc)
-            return None
-        return round(val, 4)
+        return round(price, 4)
 
 
 def build_mid_resolver(
