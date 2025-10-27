@@ -1,3 +1,5 @@
+import math
+
 import pytest
 
 from tomic.strategies import StrategyName
@@ -13,9 +15,10 @@ import tomic.strategy_candidates as sc
 @pytest.fixture
 def mock_rules(monkeypatch):
     rules = criteria.load_criteria().model_copy()
-    rules.strategy.score_weight_rom = 1.0
-    rules.strategy.score_weight_pos = 2.0
-    rules.strategy.score_weight_ev = 3.0
+    rules.strategy.score_weight_rom = 0.4
+    rules.strategy.score_weight_pos = 0.3
+    rules.strategy.score_weight_ev = 0.2
+    rules.strategy.score_weight_rr = 0.1
     monkeypatch.setattr(criteria, "RULES", rules)
     monkeypatch.setattr(sc, "load_criteria", lambda: rules)
     return rules
@@ -270,21 +273,23 @@ def _build_legs():
     }
 
 
-def test_strategy_scoring_applies_weights(mock_rules):
+def test_strategy_scoring_breakdown(mock_rules):
     legs_by_strategy = _build_legs()
     spot = 100.0
     for strat, legs in legs_by_strategy.items():
         metrics, reasons = _metrics(strat, legs, spot, criteria=mock_rules)
         assert metrics, f"{strat} rejected: {'; '.join(reasons)}"
         proposal = StrategyProposal(legs=legs, **metrics)
-        weights = mock_rules.strategy
-        expected = round(
-            proposal.rom * weights.score_weight_rom
-            + proposal.pos * weights.score_weight_pos
-            + proposal.ev_pct * weights.score_weight_ev,
-            2,
-        )
-        assert proposal.score == expected
+        assert proposal.score is not None
+        assert proposal.score_label in {"A", "B", "C", "D"}
+        breakdown = proposal.score_breakdown
+        assert breakdown is not None
+        total = sum(entry["contribution"] for entry in breakdown)
+        assert math.isclose(total, (proposal.score or 0.0) / 100, rel_tol=1e-4, abs_tol=1e-4)
+        for entry in breakdown:
+            norm = entry["normalized"]
+            if norm is not None:
+                assert 0.0 <= norm <= 1.0
         if strat in POSITIVE_CREDIT_STRATS:
             neg_legs = [dict(l) for l in legs]
             if strat == StrategyName.NAKED_PUT:

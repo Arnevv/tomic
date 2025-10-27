@@ -35,16 +35,22 @@ class StrategyProposal:
     strategy: str | None = None
     legs: list[dict[str, Any]] = field(default_factory=list)
     score: float | None = None
+    score_label: str | None = None
     pos: float | None = None
     ev: float | None = None
     ev_pct: float | None = None
     rom: float | None = None
+    rom_norm: float | None = None
+    pos_norm: float | None = None
+    ev_norm: float | None = None
+    rr_norm: float | None = None
     edge: float | None = None
     credit: float | None = None
     margin: float | None = None
     max_profit: float | None = None
     max_loss: float | None = None
     risk_reward: float | None = None
+    score_breakdown: list[dict[str, Any]] | None = None
     breakevens: list[float] | None = None
     fallback: str | None = None
     profit_estimated: bool = False

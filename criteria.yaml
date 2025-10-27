@@ -28,9 +28,24 @@ strike:
 # 2) STRATEGY SCORING & ACCEPTANCE
 strategy:
   # The following score weights must sum to 1.0
-  score_weight_rom: 0.50
-  score_weight_pos: 0.30
+  score_weight_rom: 0.40
+  score_weight_pos: 0.25
   score_weight_ev:  0.20
+  score_weight_rr:  0.15
+  pos_floor_pct: 50.0
+  pos_span_pct: 50.0
+  rom_cap_pct: 20.0
+  ev_cap_pct: 10.0
+  rr_floor: 1.0
+  rr_linear_cap: 3.0
+  rr_linear_ceiling: 0.85
+  rr_exponent: 0.7
+  rr_log_cap: 8.0
+  rr_log_base: 1.0
+  score_labels:
+    strong_min: 70.0
+    good_min: 55.0
+    borderline_min: 45.0
   acceptance:
     require_positive_credit_for:
       - iron_condor

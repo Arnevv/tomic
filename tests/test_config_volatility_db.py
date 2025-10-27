@@ -14,6 +14,7 @@ def test_default_data_dirs():
 
 def test_default_strategy_settings():
     assert RULES.alerts.nearest_strike_tolerance_percent == 2.0
-    assert RULES.strategy.score_weight_rom == 0.5
-    assert RULES.strategy.score_weight_pos == 0.3
+    assert RULES.strategy.score_weight_rom == 0.4
+    assert RULES.strategy.score_weight_pos == 0.25
     assert RULES.strategy.score_weight_ev == 0.2
+    assert RULES.strategy.score_weight_rr == 0.15

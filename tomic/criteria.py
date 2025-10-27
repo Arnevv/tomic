@@ -48,18 +48,43 @@ class StrategyAcceptanceRules(BaseModel):
     min_risk_reward: float | None = None
 
 
+class ScoreLabelThresholds(BaseModel):
+    """Bounds for translating numeric scores to labels."""
+
+    strong_min: float = 70.0
+    good_min: float = 55.0
+    borderline_min: float = 45.0
+
+
 class StrategyRules(BaseModel):
-    """Weights for evaluating strategy attractiveness."""
+    """Weights and normalization settings for strategy scoring."""
 
     score_weight_rom: float
     score_weight_pos: float
     score_weight_ev: float
+    score_weight_rr: float
+    pos_floor_pct: float = 50.0
+    pos_span_pct: float = 50.0
+    rom_cap_pct: float = 20.0
+    ev_cap_pct: float = 10.0
+    rr_floor: float = 1.0
+    rr_linear_cap: float = 3.0
+    rr_linear_ceiling: float = 0.85
+    rr_exponent: float = 0.7
+    rr_log_cap: float = 8.0
+    rr_log_base: float = 1.0
+    score_labels: ScoreLabelThresholds = ScoreLabelThresholds()
     acceptance: StrategyAcceptanceRules = StrategyAcceptanceRules()
 
     @model_validator(mode="after")
     def _validate_score_weights(self) -> "StrategyRules":
         """Ensure score weights sum to 1.0 within a small tolerance."""
-        total = self.score_weight_rom + self.score_weight_pos + self.score_weight_ev
+        total = (
+            self.score_weight_rom
+            + self.score_weight_pos
+            + self.score_weight_ev
+            + self.score_weight_rr
+        )
         if not math.isclose(total, 1.0, abs_tol=1e-6):
             raise ValueError("score weights must sum to 1.0")
         return self
