@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from datetime import date
 from typing import Any, Callable, Mapping, Sequence
 
+from ..core.pricing import resolve_option_mid
 from ..helpers.dateutils import normalize_earnings_context
 from ..helpers.numeric import safe_float
 from ..logutils import logger
@@ -243,15 +244,20 @@ class PortfolioService:
             }
         else:
             summary = {}
-            for leg in getattr(proposal, "legs", []):
-                source = str(leg.get("mid_source") or "").strip()
-                if not source:
-                    source = str(leg.get("mid_fallback") or "").strip()
-                if source == "parity":
-                    source = "parity_true"
-                if not source:
-                    source = "true"
-                summary[source] = summary.get(source, 0) + 1
+        for leg in getattr(proposal, "legs", []):
+            source = str(leg.get("mid_source") or "").strip()
+            fallback = str(leg.get("mid_fallback") or "").strip()
+            if not source:
+                if fallback:
+                    source = fallback
+                else:
+                    quote = resolve_option_mid(leg)
+                    source = quote.mid_source or quote.mid_fallback or ""
+            if source == "parity":
+                source = "parity_true"
+            if not source:
+                source = "true"
+            summary[source] = summary.get(source, 0) + 1
         for key in ("true", "parity_true", "parity_close", "model", "close"):
             summary.setdefault(key, 0)
 

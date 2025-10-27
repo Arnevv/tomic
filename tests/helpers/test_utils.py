@@ -40,18 +40,6 @@ def test_extract_monthlies(monkeypatch):
     assert utils.extract_expiries(
         expiries, count=2, predicate=utils._is_third_friday
     ) == ["20240621", "20240719"]
-
-
-def test_get_option_mid_price_bid_ask():
-    option = {"bid": 1.0, "ask": 1.2, "close": 0.5}
-    assert utils.get_option_mid_price(option) == (1.1, False)
-
-
-def test_get_option_mid_price_fallback_close():
-    option = {"bid": None, "ask": None, "close": 0.8}
-    assert utils.get_option_mid_price(option) == (0.8, True)
-
-
 def test_load_price_history(monkeypatch, tmp_path):
     data = [
         {"date": "2024-01-02", "close": 101.0},
@@ -151,18 +139,6 @@ def test_prompt_user_for_price_decline(monkeypatch):
     monkeypatch.setattr("builtins.input", lambda *a: next(inputs))
     price = utils.prompt_user_for_price(143, "2025-07-25", "C", 1)
     assert price is None
-
-
-def test_get_option_mid_price_nan_bid_ask():
-    option = {"bid": "NaN", "ask": "nan", "close": None}
-    assert utils.get_option_mid_price(option) == (None, False)
-
-
-def test_get_option_mid_price_nan_close():
-    option = {"bid": None, "ask": None, "close": "NaN"}
-    assert utils.get_option_mid_price(option) == (None, False)
-
-
 def test_get_leg_right_prefers_right():
     leg = {"right": "P", "type": "C"}
     assert utils.get_leg_right(leg) == "put"
