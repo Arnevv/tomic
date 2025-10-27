@@ -31,11 +31,11 @@ from tomic.services.chain_processing import (
     load_and_prepare_chain,
     resolve_spot_price as resolve_chain_spot_price,
 )
+from tomic.services.chain_sources import ChainSourceDecision, ChainSourceError
 from tomic.services.market_scan_service import (
     MarketScanError,
     MarketScanRequest,
     MarketScanService,
-    select_chain_source,
 )
 from tomic.services.portfolio_service import CandidateRankingError
 from tomic.services.strategy_pipeline import StrategyProposal
@@ -374,27 +374,33 @@ def run_market_scan(
         print("⚠️ Geen symbolen om te scannen.")
         return
 
-    def _select_existing_chain_dir() -> Path | None:
-        while True:
-            raw = prompt_fn(
-                "Map met bestaande optionchains (enter om opnieuw te downloaden): "
-            )
-            if not raw:
-                return None
-            candidate = Path(raw).expanduser()
-            if candidate.exists() and candidate.is_dir():
-                return candidate
-            print(f"❌ Map niet gevonden: {raw}")
+    source_choice = getattr(session, "chain_source", "polygon")
 
-    existing_chain_dir = _select_existing_chain_dir()
-    if existing_chain_dir:
-        try:
-            display_path = existing_chain_dir.resolve()
-        except Exception:  # pragma: no cover - filesystem edge cases
-            display_path = existing_chain_dir
-        print(f"📂 Gebruik bestaande optionchains uit: {display_path}")
+    existing_chain_dir: Path | None = None
+    if source_choice == "polygon":
+        def _select_existing_chain_dir() -> Path | None:
+            while True:
+                raw = prompt_fn(
+                    "Map met bestaande optionchains (enter om opnieuw te downloaden): "
+                )
+                if not raw:
+                    return None
+                candidate = Path(raw).expanduser()
+                if candidate.exists() and candidate.is_dir():
+                    return candidate
+                print(f"❌ Map niet gevonden: {raw}")
+
+        existing_chain_dir = _select_existing_chain_dir()
+        if existing_chain_dir:
+            try:
+                display_path = existing_chain_dir.resolve()
+            except Exception:  # pragma: no cover - filesystem edge cases
+                display_path = existing_chain_dir
+            print(f"📂 Gebruik bestaande optionchains uit: {display_path}")
+        else:
+            print("🔍 Markt scan via Polygon gestart…")
     else:
-        print("🔍 Markt scan via Polygon gestart…")
+        print("🔍 Markt scan via TWS gestart…")
 
     refresh_quotes = prompt_yes_no_fn(
         "Informatie van TWS ophalen y / n: ",
@@ -446,12 +452,24 @@ def run_market_scan(
         refresh_snapshot=portfolio_services.refresh_proposal_from_ib,
     )
 
-    def _chain_source(symbol: str) -> Path | None:
-        return select_chain_source(
-            symbol,
-            existing_dir=existing_chain_dir,
-            fetch_chain=services.export.fetch_polygon_chain,
-        )
+    decision_cache: dict[str, ChainSourceDecision] = {}
+
+    def _chain_source(symbol: str) -> ChainSourceDecision | None:
+        cached = decision_cache.get(symbol)
+        if cached is not None:
+            return cached
+        try:
+            decision = services.export.resolve_chain_source(
+                symbol,
+                source=source_choice,
+                existing_dir=existing_chain_dir,
+            )
+        except ChainSourceError as exc:
+            logger.warning("Geen chain beschikbaar voor %s: %s", symbol, exc)
+            print(f"⚠️ {exc}")
+            return None
+        decision_cache[symbol] = decision
+        return decision
 
     try:
         candidates = scan_service.run_market_scan(

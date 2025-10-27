@@ -20,6 +20,7 @@ from .chain_processing import (
     load_and_prepare_chain,
     resolve_spot_price,
 )
+from .chain_sources import ChainSourceDecision
 from .market_snapshot_service import ScanRow
 from .portfolio_service import Candidate, PortfolioService
 from .strategy_pipeline import (
@@ -81,7 +82,7 @@ class MarketScanService:
         self,
         requests: Sequence[MarketScanRequest],
         *,
-        chain_source: Callable[[str], Path | None],
+        chain_source: Callable[[str], ChainSourceDecision | Path | None],
         top_n: int | None = None,
         refresh_quotes: bool = False,
     ) -> list[Candidate]:
@@ -109,15 +110,29 @@ class MarketScanService:
             prepared = prepared_cache.get(symbol)
             spot_resolution = spot_cache.get(symbol)
             if prepared is None:
-                chain_path = chain_source(symbol)
-                if chain_path is None:
+                source_info = chain_source(symbol)
+                if source_info is None:
                     logger.info("Skipping %s – no option chain source found", symbol)
                     continue
+                if isinstance(source_info, ChainSourceDecision):
+                    decision = source_info
+                else:
+                    chain_path = Path(source_info)
+                    decision = ChainSourceDecision(
+                        symbol=symbol,
+                        source="polygon",
+                        path=chain_path,
+                        source_provenance=str(chain_path),
+                        schema_version=None,
+                    )
                 try:
                     prepared = load_and_prepare_chain(
-                        chain_path,
+                        decision.path,
                         self._chain_config,
                         apply_interpolation=self._apply_interpolation,
+                        source=decision.source,
+                        source_provenance=decision.source_provenance,
+                        schema_version=decision.schema_version,
                     )
                 except ChainPreparationError as exc:
                     logger.warning("Failed to prepare chain for %s: %s", symbol, exc)
@@ -231,47 +246,9 @@ class MarketScanService:
         )
 
 
-def select_chain_source(
-    symbol: str,
-    *,
-    existing_dir: Path | None = None,
-    fetch_chain: Callable[[str], Path | None] | None = None,
-    patterns: Sequence[str] | None = None,
-) -> Path | None:
-    """Return the most recent option chain for ``symbol``.
-
-    The helper first looks for an existing CSV inside ``existing_dir`` using a
-    small set of filename patterns.  When no file is found and ``fetch_chain``
-    is provided the callable is used as a fallback to fetch a fresh chain.
-    """
-
-    search_patterns = list(patterns or (
-        f"{symbol.upper()}_*-optionchainpolygon.csv",
-        f"option_chain_{symbol.upper()}_*.csv",
-        f"{symbol.upper()}_*-optionchain.csv",
-    ))
-
-    if existing_dir is not None:
-        matches: list[Path] = []
-        for pattern in search_patterns:
-            try:
-                matches.extend(existing_dir.rglob(pattern))
-            except Exception as exc:  # pragma: no cover - filesystem edge cases
-                logger.warning("Failed to search %s for chains: %s", existing_dir, exc)
-                matches.clear()
-                break
-        if matches:
-            return max(matches, key=lambda path: path.stat().st_mtime)
-
-    if fetch_chain is None:
-        return None
-    return fetch_chain(symbol)
-
-
 __all__ = [
     "MarketScanError",
     "MarketScanRequest",
     "MarketScanService",
-    "select_chain_source",
 ]
 

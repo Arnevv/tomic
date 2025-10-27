@@ -1,5 +1,4 @@
 import importlib
-from datetime import datetime
 from pathlib import Path
 
 
@@ -13,18 +12,10 @@ def test_fetch_polygon_chain_returns_path(monkeypatch, tmp_path):
         lambda name, default=None: str(tmp_path) if name == "EXPORT_DIR" else default,
     )
 
-    # fixed datetime
-    class FakeDT(datetime):
-        @classmethod
-        def now(cls):
-            return datetime(2024, 1, 2)
-
-    monkeypatch.setattr(services, "datetime", FakeDT)
-
     created = []
 
     def fake_fetch(symbol):
-        d = tmp_path / FakeDT.now().strftime("%Y%m%d")
+        d = tmp_path / "20240102"
         d.mkdir(exist_ok=True)
         f = d / f"{symbol}_123-optionchainpolygon.csv"
         f.write_text("data")
