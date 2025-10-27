@@ -339,6 +339,7 @@ def run_market_scan(
     *,
     tabulate_fn: Callable[..., str],
     prompt_fn: PromptFn,
+    prompt_yes_no_fn: PromptYesNoFn,
     show_proposal_details: ShowProposalDetailsFn,
     refresh_spot_price_fn: RefreshSpotFn,
     load_spot_from_metrics_fn: LoadSpotFromMetricsFn,
@@ -394,6 +395,11 @@ def run_market_scan(
         print(f"📂 Gebruik bestaande optionchains uit: {display_path}")
     else:
         print("🔍 Markt scan via Polygon gestart…")
+
+    refresh_quotes = prompt_yes_no_fn(
+        "Informatie van TWS ophalen y / n: ",
+        False,
+    )
 
     pipeline = services.get_pipeline()
     config_data = cfg.get("STRATEGY_CONFIG") or {}
@@ -452,7 +458,7 @@ def run_market_scan(
             scan_requests,
             chain_source=_chain_source,
             top_n=top_n,
-            refresh_quotes=True,
+            refresh_quotes=refresh_quotes,
         )
     except MarketScanError as exc:
         logger.exception("Market scan pipeline failed")

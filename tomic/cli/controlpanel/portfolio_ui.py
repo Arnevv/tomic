@@ -442,6 +442,7 @@ def show_market_info(session: ControlPanelSession, services: ControlPanelService
                 recs,
                 tabulate_fn=tabulate,
                 prompt_fn=prompt,
+                prompt_yes_no_fn=prompt_yes_no,
                 show_proposal_details=_show_proposal_details,
                 refresh_spot_price_fn=refresh_spot_price,
                 load_spot_from_metrics_fn=load_spot_from_metrics,
