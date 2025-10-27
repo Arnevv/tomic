@@ -15,7 +15,7 @@ from ..strike_selector import FilterConfig, StrikeSelector, filter_by_expiry
 from .utils import resolve_config_getter
 from ..loader import load_strike_config
 from ..logutils import combo_symbol_context, logger
-from ..mid_resolver import MidResolver, build_mid_resolver
+from ..mid_resolver import MidResolver, MidUsageSummary, build_mid_resolver
 from ..utils import get_option_mid_price, normalize_leg, resolve_symbol
 from ..helpers.numeric import safe_float
 from ..helpers.bs_utils import estimate_model_price
@@ -31,6 +31,7 @@ from ..strategy.reasons import (
     dedupe_reasons,
     make_reason,
 )
+from ..strategy.reason_engine import ReasonEngine
 
 
 ConfigGetter = Callable[[str, Any | None], Any]
@@ -143,6 +144,7 @@ class StrategyPipeline:
         self._load_strike_config = strike_config_loader
         self._price_getter = price_getter
         self._mid_resolver: MidResolver | None = None
+        self._reason_engine = ReasonEngine()
 
         self.last_context: StrategyContext | None = None
         self.last_selected: list[MutableMapping[str, Any]] = []
@@ -624,37 +626,27 @@ class StrategyPipeline:
         converted.reasons = list(getattr(proposal, "reasons", []) or [])
         converted.needs_refresh = bool(getattr(proposal, "needs_refresh", False))
         if converted.legs:
-            raw_summary = getattr(proposal, "fallback_summary", None)
-            fallback_summary: dict[str, int]
-            if isinstance(raw_summary, Mapping):
-                fallback_summary = {
-                    str(source): int(raw_summary.get(source, 0) or 0)
-                    for source in raw_summary
-                }
+            if self._mid_resolver is not None:
+                summary = self._mid_resolver.summarize_legs(converted.legs)
             else:
-                fallback_summary = {
-                    source: 0
-                    for source in ("true", "parity_true", "parity_close", "model", "close")
-                }
-                for leg in converted.legs:
-                    source = str(leg.get("mid_source") or "")
-                    if not source:
-                        source = str(leg.get("mid_fallback") or "")
-                    if source == "parity":
-                        source = "parity_true"
-                    if not source:
-                        source = "true"
-                    fallback_summary[source] = fallback_summary.get(source, 0) + 1
-            for key in ("true", "parity_true", "parity_close", "model", "close"):
-                fallback_summary.setdefault(key, 0)
-
-            spread_rejects = 0
-            for leg in converted.legs:
-                if str(leg.get("spread_flag")) == "too_wide":
-                    spread_rejects += 1
-            converted.fallback_summary = fallback_summary
-            converted.spread_rejects_n = spread_rejects
-            preview_sources = {k for k in ("parity_close", "model", "close") if fallback_summary.get(k, 0)}
-            if preview_sources:
-                converted.needs_refresh = True
+                summary = MidUsageSummary.from_legs(converted.legs)
+            evaluation = self._reason_engine.evaluate(
+                summary,
+                existing_reasons=converted.reasons,
+                needs_refresh=converted.needs_refresh,
+            )
+            converted.fallback_summary = dict(evaluation.fallback_summary)
+            converted.spread_rejects_n = summary.spread_too_wide_count
+            converted.needs_refresh = evaluation.needs_refresh
+            converted.mid_status = evaluation.status
+            converted.mid_status_tags = evaluation.tags
+            converted.preview_sources = evaluation.preview_sources
+            converted.fallback_limit_exceeded = evaluation.fallback_limit_exceeded
+            converted.reasons = list(evaluation.reasons)
+            if evaluation.preview_sources:
+                converted.fallback = ",".join(evaluation.preview_sources)
+            else:
+                converted.fallback = None
+        else:
+            converted.mid_status_tags = (converted.mid_status,)
         return converted

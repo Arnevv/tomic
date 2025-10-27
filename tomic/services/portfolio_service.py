@@ -158,6 +158,14 @@ class PortfolioService:
             except Exception:
                 dte_summary = None
 
+            mid_sources = self._mid_sources(proposal)
+            mid_status = getattr(proposal, "mid_status", None)
+            if not isinstance(mid_status, str) and mid_sources:
+                mid_status = mid_sources[0]
+            if not mid_status:
+                mid_status = "tradable"
+            needs_refresh = bool(getattr(proposal, "needs_refresh", False))
+
             ranked.append(
                 Candidate(
                     symbol=row.symbol,
@@ -222,6 +230,10 @@ class PortfolioService:
 
     @staticmethod
     def _mid_sources(proposal: StrategyProposal) -> tuple[str, ...]:
+        tags = getattr(proposal, "mid_status_tags", None)
+        if isinstance(tags, (list, tuple)) and tags:
+            return tuple(str(tag) for tag in tags)
+
         summary_raw = getattr(proposal, "fallback_summary", None)
         summary: dict[str, int]
         if isinstance(summary_raw, Mapping):

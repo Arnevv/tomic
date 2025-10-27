@@ -16,13 +16,14 @@ from ..helpers.dateutils import parse_date
 from ..utils import normalize_leg, get_leg_qty, get_leg_right, today
 from ..logutils import logger
 from ..config import get as cfg_get
+from ..mid_resolver import MidUsageSummary
 from ..strategy.reasons import (
     ReasonCategory,
     ReasonDetail,
     dedupe_reasons,
     make_reason,
-    reason_from_mid_source,
 )
+from ..strategy.reason_engine import ReasonEngine
 
 if TYPE_CHECKING:
     from tomic.strategy_candidates import StrategyProposal
@@ -32,6 +33,8 @@ POSITIVE_CREDIT_STRATS = set(RULES.strategy.acceptance.require_positive_credit_f
 
 _VALID_MID_SOURCES = {"true", "parity_true", "parity_close", "model", "close"}
 _PREVIEW_SOURCES = {"parity_close", "model", "close"}
+
+_REASON_ENGINE = ReasonEngine()
 
 
 def _safe_float(value: Any) -> float | None:
@@ -203,20 +206,6 @@ def _resolve_min_risk_reward(
         return float(fallback)
     except (TypeError, ValueError):  # pragma: no cover - defensive
         return 0.0
-
-
-def _normalized_mid_source(leg: Mapping[str, Any]) -> str:
-    source = str(leg.get("mid_source") or "").strip().lower()
-    fallback = str(leg.get("mid_fallback") or "").strip().lower()
-    if source == "parity":
-        source = "parity_true"
-    if fallback == "parity":
-        fallback = "parity_true"
-    if source:
-        return source
-    if fallback:
-        return fallback
-    return "true"
 
 
 def _infer_leg_dte(leg: Mapping[str, Any]) -> Optional[int]:
@@ -755,10 +744,6 @@ def compute_proposal_metrics(
     missing_mid: List[str] = []
     credits: List[float] = []
     debits: List[float] = []
-    fallback_summary: dict[str, int] = {}
-    preview_sources: set[str] = set()
-    preview_short_legs = 0
-    preview_long_legs = 0
 
     for leg in legs:
         mid = leg.get("mid")
@@ -775,17 +760,6 @@ def compute_proposal_metrics(
                 credits.append(mid_val * qty)
             elif pos > 0:
                 debits.append(mid_val * qty)
-        source = _normalized_mid_source(leg)
-        fallback_summary[source] = fallback_summary.get(source, 0) + 1
-        if source in _PREVIEW_SOURCES:
-            preview_sources.add(source)
-            if pos < 0:
-                preview_short_legs += 1
-            elif pos > 0:
-                preview_long_legs += 1
-
-    for valid_source in _VALID_MID_SOURCES:
-        fallback_summary.setdefault(valid_source, 0)
 
     if missing_mid:
         logger.info(
@@ -809,9 +783,6 @@ def compute_proposal_metrics(
             return
         reasons.append(detail)
         seen_codes.add(detail.code)
-
-    for source in sorted(preview_sources):
-        _add_reason(reason_from_mid_source(source))
 
     credit_short = sum(credits)
     debit_long = sum(debits)
@@ -978,12 +949,14 @@ def compute_proposal_metrics(
 
     proposal.breakevens = calculate_breakevens(strategy_name, legs, net_credit * 100)
 
+    summary = MidUsageSummary.from_legs(legs, fallback_allowed=fallback_allowed)
+
     _, penalty_detail, needs_refresh = _preview_penalty(
         strategy_name,
-        fallback_summary,
-        preview_sources=preview_sources,
-        short_preview_legs=preview_short_legs,
-        long_preview_legs=preview_long_legs,
+        summary.fallback_summary,
+        preview_sources=summary.preview_sources,
+        short_preview_legs=summary.preview_short_legs,
+        long_preview_legs=summary.preview_long_legs,
         total_legs=len(legs),
         fallback_count=fallback_count,
         fallback_allowed=fallback_allowed,
@@ -992,12 +965,25 @@ def compute_proposal_metrics(
     )
     if penalty_detail:
         _add_reason(penalty_detail)
-    proposal.fallback_summary = dict(sorted(fallback_summary.items()))
     proposal.needs_refresh = needs_refresh
-    if preview_sources:
-        proposal.fallback = ",".join(sorted(preview_sources))
+
+    evaluation = _REASON_ENGINE.evaluate(
+        summary,
+        existing_reasons=reasons,
+        needs_refresh=proposal.needs_refresh,
+    )
+    proposal.fallback_summary = dict(evaluation.fallback_summary)
+    proposal.needs_refresh = evaluation.needs_refresh
+    proposal.mid_status = evaluation.status
+    proposal.mid_status_tags = evaluation.tags
+    proposal.preview_sources = evaluation.preview_sources
+    proposal.fallback_limit_exceeded = evaluation.fallback_limit_exceeded
+    proposal.spread_rejects_n = summary.spread_too_wide_count
+    if evaluation.preview_sources:
+        proposal.fallback = ",".join(evaluation.preview_sources)
     else:
         proposal.fallback = None
+    reasons = list(evaluation.reasons)
 
     labels = strat_cfg.score_labels
     score_val = proposal.score or 0.0
