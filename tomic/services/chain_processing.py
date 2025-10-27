@@ -16,7 +16,7 @@ import pandas as pd
 
 from tomic import config as cfg
 from tomic.helpers.config import load_dte_range
-from tomic.helpers.csv_utils import normalize_european_number_format
+from tomic.helpers.csv_norm import dataframe_to_records, normalize_chain_dataframe
 from tomic.helpers.price_utils import ClosePriceSnapshot
 from tomic.helpers.interpolation import interpolate_missing_fields
 from tomic.helpers.quality_check import calculate_csv_quality
@@ -56,6 +56,8 @@ class ChainPreparationConfig:
     )
     interpolation_suffix: str = "_interpolated"
     date_format: str = "%Y-%m-%d"
+    date_columns: Sequence[str] = ("expiry",)
+    column_aliases: Mapping[str, str] = field(default_factory=dict)
 
     @classmethod
     def from_app_config(cls) -> "ChainPreparationConfig":
@@ -162,18 +164,13 @@ def load_and_prepare_chain(
     except Exception as exc:  # pragma: no cover - depends on pandas internals
         raise ChainPreparationError(f"Fout bij laden van chain: {exc}") from exc
 
-    df.columns = [c.lower() for c in df.columns]
-    df = normalize_european_number_format(df, config.columns_to_normalize)
-
-    if "expiry" not in df.columns and "expiration" in df.columns:
-        df = df.rename(columns={"expiration": "expiry"})
-    elif "expiry" in df.columns and "expiration" in df.columns:
-        df = df.drop(columns=["expiration"])
-
-    if "expiry" in df.columns:
-        df["expiry"] = pd.to_datetime(df["expiry"], errors="coerce").dt.strftime(
-            config.date_format
-        )
+    df = normalize_chain_dataframe(
+        df,
+        decimal_columns=config.columns_to_normalize,
+        column_aliases=config.column_aliases,
+        date_columns=config.date_columns,
+        date_format=config.date_format,
+    )
 
     quality = calculate_csv_quality(df)
     source_path = path
@@ -192,7 +189,7 @@ def load_and_prepare_chain(
         logger.info("Interpolation completed successfully")
         logger.info(f"Interpolated CSV saved to {interpolated_path}")
 
-    records = [normalize_leg(rec) for rec in df.to_dict(orient="records")]
+    records = [normalize_leg(rec) for rec in dataframe_to_records(df)]
 
     logger.info(f"Loaded {len(df)} rows from {path}")
     logger.info(f"CSV loaded from {path} with quality {quality:.1f}%")
