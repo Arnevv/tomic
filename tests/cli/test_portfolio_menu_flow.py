@@ -208,6 +208,12 @@ def test_run_market_scan_selects_candidate(
     def prompt_fn(message: str) -> str:
         return next(prompt_values)
 
+    prompt_yes_no_calls: list[tuple[str, bool]] = []
+
+    def prompt_yes_no_fn(message: str, default: bool) -> bool:
+        prompt_yes_no_calls.append((message, default))
+        return True
+
     tabulate_calls = []
 
     def tabulate_fn(rows, **kwargs):
@@ -228,6 +234,7 @@ def test_run_market_scan_selects_candidate(
         ],
         tabulate_fn=tabulate_fn,
         prompt_fn=prompt_fn,
+        prompt_yes_no_fn=prompt_yes_no_fn,
         show_proposal_details=show_details,
         refresh_spot_price_fn=mock.Mock(return_value=105.0),
         load_spot_from_metrics_fn=mock.Mock(return_value=None),
@@ -238,7 +245,61 @@ def test_run_market_scan_selects_candidate(
     scan_service.run_market_scan.assert_called_once()
     assert scan_service.run_market_scan.call_args.kwargs["top_n"] == 3
     assert scan_service.run_market_scan.call_args.kwargs["refresh_quotes"] is True
+    assert prompt_yes_no_calls == [("Informatie van TWS ophalen y / n: ", False)]
     show_details.assert_called_once_with(session, proposal)
     assert session.symbol == "SPY"
     assert session.strategy == "short_put"
     assert len(tabulate_calls) >= 1
+
+
+def test_run_market_scan_skips_ib_refresh(
+    services: ControlPanelServices, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    session = ControlPanelSession()
+
+    config_values = {
+        "MARKET_SCAN_TOP_N": 3,
+        "STRATEGY_CONFIG": {"dummy": True},
+        "INTEREST_RATE": 0.05,
+    }
+
+    monkeypatch.setattr(menu_flow.cfg, "get", lambda key, default=None: config_values.get(key, default))
+    monkeypatch.setattr(
+        menu_flow.ChainPreparationConfig,
+        "from_app_config",
+        classmethod(lambda cls: SimpleNamespace()),
+    )
+
+    scan_service = mock.Mock()
+    monkeypatch.setattr(menu_flow, "MarketScanService", mock.Mock(return_value=scan_service))
+    scan_service.run_market_scan.return_value = []
+
+    def prompt_fn(message: str) -> str:
+        return ""
+
+    def prompt_yes_no_fn(message: str, default: bool) -> bool:
+        return False
+
+    def tabulate_fn(rows, **kwargs):
+        return "table"
+
+    menu_flow.run_market_scan(
+        session,
+        services,
+        [
+            {
+                "symbol": "SPY",
+                "strategy": "Short Put",
+            }
+        ],
+        tabulate_fn=tabulate_fn,
+        prompt_fn=prompt_fn,
+        prompt_yes_no_fn=prompt_yes_no_fn,
+        show_proposal_details=mock.Mock(),
+        refresh_spot_price_fn=mock.Mock(return_value=105.0),
+        load_spot_from_metrics_fn=mock.Mock(return_value=None),
+        load_latest_close_fn=mock.Mock(return_value=(None, None)),
+        spot_from_chain_fn=mock.Mock(return_value=None),
+    )
+
+    assert scan_service.run_market_scan.call_args.kwargs["refresh_quotes"] is False
