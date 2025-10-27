@@ -18,6 +18,7 @@ from ..metrics import (
 from ..analysis.strategy import heuristic_risk_metrics
 from ..criteria import CriteriaConfig, RULES, load_criteria
 from ..helpers.dateutils import parse_date
+from ..helpers.numeric import safe_float
 from ..utils import normalize_leg, get_leg_qty, get_leg_right, today
 from ..logutils import logger
 from ..config import get as cfg_get
@@ -574,11 +575,8 @@ def calculate_breakevens(
 
 
 def _parse_mid_value(raw_mid: Any) -> tuple[bool, float | None]:
-    try:
-        mid_val = float(raw_mid)
-    except (TypeError, ValueError):
-        return False, None
-    if math.isnan(mid_val):
+    mid_val = safe_float(raw_mid, accept_nan=False)
+    if mid_val is None:
         return False, None
     return True, mid_val
 

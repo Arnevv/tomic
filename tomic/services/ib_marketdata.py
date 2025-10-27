@@ -36,7 +36,7 @@ from tomic.services._config import cfg_value
 from tomic.services._id_sequence import IncrementingIdMixin
 from tomic.services.portfolio_service import PortfolioService
 from tomic.services.strategy_pipeline import StrategyProposal
-from tomic.utils import get_leg_qty, get_leg_right, normalize_leg
+from tomic.utils import get_leg_qty, get_leg_right, normalize_leg, resolve_symbol
 
 
 _GENERIC_TICKS = "100,101,104,106"
@@ -62,16 +62,10 @@ def _parse_expiry(value: str | None) -> str:
 
 
 def _normalize_symbol(leg: Mapping[str, Any]) -> str:
-    symbol = (
-        leg.get("symbol")
-        or leg.get("underlying")
-        or leg.get("ticker")
-        or leg.get("root")
-        or leg.get("root_symbol")
-    )
-    if not symbol:
+    symbol = resolve_symbol([leg])
+    if symbol is None:
         raise ValueError("Leg mist onderliggende ticker")
-    return str(symbol).upper()
+    return symbol
 
 
 def _loggable_leg_payload(leg: Mapping[str, Any]) -> dict[str, Any]:
