@@ -138,8 +138,13 @@ def exit_force_exit_config() -> dict[str, Any]:
 
     enabled_default = _coerce_bool(cfg_value("EXIT_FORCE_EXIT_ENABLED", False), False)
     enabled = _coerce_bool(force_raw.get("enabled"), enabled_default)
+    market_default = _coerce_bool(
+        cfg_value("EXIT_FORCE_EXIT_MARKET_ORDER", False),
+        False,
+    )
+    market_order = _coerce_bool(force_raw.get("market_order"), market_default)
 
-    return {"enabled": enabled}
+    return {"enabled": enabled, "market_order": market_order}
 
 
 __all__ = [
