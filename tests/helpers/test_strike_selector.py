@@ -1,8 +1,10 @@
 import importlib
 from unittest.mock import Mock
 
+import pytest
+
 from tomic import strike_selector as ss
-from tomic.criteria import StrikeCriteria, load_criteria
+from tomic.criteria import load_criteria
 
 
 # Helper to reload module with provided config
@@ -37,6 +39,36 @@ def _make_option(**attrs):
 def test_default_config_used_if_strategy_missing(monkeypatch):
     selector = _reload_with(monkeypatch)
     assert selector.config == ss.load_filter_config(load_criteria())
+
+
+@pytest.mark.parametrize(
+    "rules, expected_delta, expected_dte",
+    [
+        ({"delta_range": [-0.35, 0.2], "dte_range": [20, 45]}, (-0.35, 0.2), (20, 45)),
+        (
+            {"short_delta_range": [-0.30, -0.18], "dte_range": [25, 50]},
+            (-0.30, -0.18),
+            (25, 50),
+        ),
+        (
+            {"short_delta_range": [0.15, 0.35], "dte_range": [30, 55]},
+            (0.15, 0.35),
+            (30, 55),
+        ),
+    ],
+)
+def test_load_filter_config_applies_rule_ranges(rules, expected_delta, expected_dte):
+    base = load_criteria()
+    cfg = ss.load_filter_config(base, rules)
+    assert cfg.delta_range == expected_delta
+    assert cfg.dte_range == expected_dte
+
+
+def test_load_filter_config_defaults_to_criteria():
+    base = load_criteria()
+    cfg = ss.load_filter_config(base, {})
+    assert cfg.delta_range == (base.strike.delta_min, base.strike.delta_max)
+    assert cfg.dte_range == ss.DEFAULT_DTE_RANGE
 
 
 def test_filter_by_delta_range(monkeypatch):
