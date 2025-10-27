@@ -327,7 +327,7 @@ def update_next_earnings(
         )
         normalized = _dedupe_preserve_order(normalized)
 
-        if normalized == before_state and removed == 0:
+        if normalized == before_state:
             continue
 
         updated[symbol] = normalized

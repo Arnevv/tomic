@@ -55,6 +55,21 @@ def test_replace_and_insert_logic() -> None:
     assert change_map["TSLA"]["action"] == "created_symbol"
 
 
+def test_no_change_when_csv_matches_existing_future() -> None:
+    today = date(2025, 10, 1)
+    json_data = {
+        "AAPL": ["2025-10-30", "2026-01-15"],
+    }
+    csv_map = {
+        "AAPL": "2025-10-30",
+    }
+
+    updated, changes = update_next_earnings(json_data, csv_map, today=today, dry_run=True)
+
+    assert updated["AAPL"] == ["2025-10-30", "2026-01-15"]
+    assert changes == []
+
+
 def test_cli_dry_run_and_confirm_write(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
