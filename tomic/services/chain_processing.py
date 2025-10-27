@@ -76,6 +76,9 @@ class PreparedChain:
     records: list[dict]
     quality: float
     interpolation_applied: bool = False
+    source: str | None = None
+    source_provenance: str | None = None
+    schema_version: str | None = None
 
 
 @dataclass(slots=True)
@@ -145,6 +148,9 @@ def load_and_prepare_chain(
     config: ChainPreparationConfig,
     *,
     apply_interpolation: bool = False,
+    source: str | None = None,
+    source_provenance: str | None = None,
+    schema_version: str | None = None,
 ) -> PreparedChain:
     """Load, normalise and optionally interpolate an option chain CSV."""
 
@@ -198,6 +204,9 @@ def load_and_prepare_chain(
         records=records,
         quality=quality,
         interpolation_applied=interpolation_applied,
+        source=source,
+        source_provenance=source_provenance,
+        schema_version=schema_version,
     )
 
 

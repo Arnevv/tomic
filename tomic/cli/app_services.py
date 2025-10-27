@@ -6,6 +6,7 @@ from typing import Callable
 
 from tomic import config as cfg
 from tomic.cli import services as cli_services
+from tomic.services.chain_sources import ChainSourceDecision
 from tomic.services.market_snapshot_service import MarketSnapshotService
 from tomic.services.portfolio_service import PortfolioService
 from tomic.services.strategy_pipeline import StrategyPipeline
@@ -18,6 +19,7 @@ class ExportServices:
     export_chain: Callable[..., Path | None]
     fetch_polygon_chain: Callable[..., Path | None]
     find_latest_chain: Callable[..., Path | None]
+    resolve_chain_source: Callable[..., ChainSourceDecision]
     git_commit: Callable[..., bool]
 
 
@@ -56,6 +58,7 @@ def create_controlpanel_services(
         export_chain=cli_services.export_chain,
         fetch_polygon_chain=cli_services.fetch_polygon_chain,
         find_latest_chain=cli_services.find_latest_chain,
+        resolve_chain_source=cli_services.resolve_chain_decision,
         git_commit=cli_services.git_commit,
     )
 

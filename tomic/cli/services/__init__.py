@@ -1,12 +1,20 @@
 from __future__ import annotations
 
 import subprocess
-from datetime import datetime
 from pathlib import Path
+from typing import cast
 
 from tomic import config as cfg
 from tomic.api.market_export import ExportResult, export_option_chain
 from tomic.providers.polygon_iv import fetch_polygon_option_chain
+from tomic.services.chain_sources import (
+    ChainSourceDecision,
+    ChainSourceError,
+    ChainSourceName,
+    PolygonFileAdapter,
+    TwsLiveAdapter,
+    resolve_chain_source,
+)
 from .earnings_alpha import update_alpha_earnings
 from .iv_polygon import fetch_polygon_iv_data
 from .price_history_ib import fetch_ib_daily_prices
@@ -39,22 +47,71 @@ def find_latest_chain(symbol: str, base: Path | None = None) -> Path | None:
     return max(chains, key=lambda p: p.stat().st_mtime)
 
 
-def export_chain(symbol: str) -> Path | None:
+def _export_chain_via_tws(symbol: str) -> Path | None:
     res = export_option_chain(symbol, return_status=True)
     if isinstance(res, ExportResult) and not res.ok:
         return None
     return find_latest_chain(symbol)
 
 
-def fetch_polygon_chain(symbol: str) -> Path | None:
-    fetch_polygon_option_chain(symbol)
-    base = Path(cfg.get("EXPORT_DIR", "exports"))
-    date_dir = base / datetime.now().strftime("%Y%m%d")
-    pattern = f"{symbol.upper()}_*-optionchainpolygon.csv"
-    files = list(date_dir.glob(pattern)) if date_dir.exists() else []
-    if not files:
+def export_chain(symbol: str) -> Path | None:
+    try:
+        decision = resolve_chain_decision(symbol, source="tws")
+    except ChainSourceError:
         return None
-    return max(files, key=lambda f: f.stat().st_mtime)
+    return decision.path
+
+
+def fetch_polygon_chain(symbol: str) -> Path | None:
+    try:
+        decision = resolve_chain_decision(symbol, source="polygon")
+    except ChainSourceError:
+        return None
+    return decision.path
+
+
+def _polygon_adapter() -> PolygonFileAdapter:
+    export_dir = Path(cfg.get("EXPORT_DIR", "exports"))
+    schema_version = cfg.get("POLYGON_CHAIN_SCHEMA_VERSION")
+    schema_str = str(schema_version) if schema_version else "polygon.v1"
+    return PolygonFileAdapter(
+        export_dir=export_dir,
+        fetcher=fetch_polygon_option_chain,
+        schema_version=schema_str,
+    )
+
+
+def _tws_adapter() -> TwsLiveAdapter:
+    schema_version = cfg.get("TWS_CHAIN_SCHEMA_VERSION")
+    schema_str = str(schema_version) if schema_version else "tws.v1"
+    return TwsLiveAdapter(exporter=_export_chain_via_tws, schema_version=schema_str)
+
+
+def resolve_chain_decision(
+    symbol: str,
+    *,
+    source: str,
+    existing_dir: Path | str | None = None,
+) -> ChainSourceDecision:
+    choice = source.strip().lower()
+    if choice not in {"polygon", "tws"}:
+        raise ChainSourceError(f"Onbekende chain-bron: {source!r}")
+
+    polygon = _polygon_adapter()
+    tws = _tws_adapter()
+    resolved_dir: Path | None
+    if existing_dir is None or isinstance(existing_dir, Path):
+        resolved_dir = existing_dir if isinstance(existing_dir, Path) else None
+    else:
+        resolved_dir = Path(existing_dir)
+
+    return resolve_chain_source(
+        symbol,
+        source=cast(ChainSourceName, choice),
+        polygon=polygon,
+        tws=tws,
+        existing_dir=resolved_dir,
+    )
 
 
 def git_commit(message: str, *dirs: Path | str) -> bool:
@@ -89,6 +146,7 @@ __all__ = [
     "fetch_iv30d",
     "find_latest_chain",
     "fetch_polygon_chain",
+    "resolve_chain_decision",
     "git_commit",
     "update_alpha_earnings",
 ]

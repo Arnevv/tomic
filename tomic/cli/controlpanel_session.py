@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any, Iterable, Mapping
+from typing import Any, Iterable, Literal, Mapping
 
 from tomic.helpers.numeric import safe_float
 
@@ -20,6 +20,7 @@ class ControlPanelSession:
     evaluated_trades: list[Any] = field(default_factory=list)
     combo_evaluations: list[Any] = field(default_factory=list)
     combo_evaluation_summary: Any | None = None
+    chain_source: Literal["polygon", "tws"] = "polygon"
 
     def clear_combo_results(self) -> None:
         self.combo_evaluations.clear()

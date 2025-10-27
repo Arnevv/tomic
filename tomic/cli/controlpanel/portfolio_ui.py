@@ -560,6 +560,7 @@ def _process_exported_chain(session: ControlPanelSession, services: ControlPanel
     if not symbol:
         print("⚠️ Geen strategie geselecteerd")
         return
+    session.chain_source = "tws"
     path = services.export.export_chain(str(symbol))
     if not path:
         print("⚠️ Geen chain gevonden")
@@ -573,6 +574,7 @@ def _process_polygon_chain(session: ControlPanelSession, services: ControlPanelS
     if not symbol:
         print("⚠️ Geen strategie geselecteerd")
         return
+    session.chain_source = "polygon"
     path = services.export.fetch_polygon_chain(str(symbol))
     if not path:
         print("⚠️ Geen polygon chain gevonden")
