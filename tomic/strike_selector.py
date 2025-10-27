@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any, Callable, Dict, List, Optional, Tuple
+from typing import Any, Callable, Dict, List, Mapping, Optional, Sequence, Tuple
 import os
 import csv
 
@@ -10,6 +10,36 @@ from .helpers.dateutils import filter_by_dte
 from .helpers.numeric import safe_float
 from .logutils import logger
 from .criteria import CriteriaConfig, load_criteria
+
+
+DEFAULT_DTE_RANGE: Tuple[int, int] = (0, 365)
+
+
+def _is_range(candidate: Any) -> bool:
+    return isinstance(candidate, Sequence) and not isinstance(candidate, (str, bytes))
+
+
+def _as_float(value: Any, fallback: float) -> float:
+    parsed = safe_float(value)
+    return parsed if parsed is not None else fallback
+
+
+def _as_optional_float(value: Any, fallback: float | None) -> float | None:
+    parsed = safe_float(value)
+    return parsed if parsed is not None else fallback
+
+
+def _as_int(value: Any, fallback: int) -> int:
+    parsed = safe_float(value)
+    if parsed is None:
+        try:
+            return int(value)  # type: ignore[arg-type]
+        except Exception:
+            return fallback
+    try:
+        return int(parsed)
+    except Exception:
+        return fallback
 
 
 @dataclass
@@ -26,6 +56,8 @@ class FilterConfig:
     skew_max: float
     term_min: float
     term_max: float
+    dte_min: int = DEFAULT_DTE_RANGE[0]
+    dte_max: int = DEFAULT_DTE_RANGE[1]
     max_gamma: Optional[float] = None
     max_vega: Optional[float] = None
     min_theta: Optional[float] = None
@@ -39,6 +71,7 @@ class FilterConfig:
             f"EV>={self.min_ev}",
             f"skew={self.skew_min}..{self.skew_max}",
             f"term={self.term_min}..{self.term_max}",
+            f"dte={self.dte_min}..{self.dte_max}",
         ]
         if self.max_gamma is not None:
             parts.append(f"gamma<={self.max_gamma}")
@@ -48,26 +81,74 @@ class FilterConfig:
             parts.append(f"theta>={self.min_theta}")
         return " ".join(parts)
 
+    @property
+    def delta_range(self) -> Tuple[float, float]:
+        return self.delta_min, self.delta_max
 
-def load_filter_config(criteria: CriteriaConfig | None = None) -> FilterConfig:
-    """Return filter config derived from :class:`CriteriaConfig`."""
+    @property
+    def dte_range(self) -> Tuple[int, int]:
+        return int(self.dte_min), int(self.dte_max)
+
+
+def load_filter_config(
+    criteria: CriteriaConfig | None = None,
+    rules: Mapping[str, Any] | None = None,
+) -> FilterConfig:
+    """Return filter config derived from :class:`CriteriaConfig` and rules."""
 
     crit = criteria or load_criteria()
-    s = crit.strike
+    strike_rules = crit.strike
+    rule_data: Mapping[str, Any] = rules or {}
+
+    delta_values: Sequence[Any] | None = None
+    candidate = rule_data.get("delta_range")
+    if _is_range(candidate):
+        delta_values = candidate  # type: ignore[assignment]
+    elif _is_range(rule_data.get("short_delta_range")):
+        delta_values = rule_data["short_delta_range"]  # type: ignore[index]
+
+    dte_values: Sequence[Any] | None = None
+    if _is_range(rule_data.get("dte_range")):
+        dte_values = rule_data["dte_range"]  # type: ignore[index]
+
+    delta_min = (
+        _as_float(delta_values[0], strike_rules.delta_min)
+        if delta_values and len(delta_values) >= 1
+        else strike_rules.delta_min
+    )
+    delta_max = (
+        _as_float(delta_values[1], strike_rules.delta_max)
+        if delta_values and len(delta_values) >= 2
+        else strike_rules.delta_max
+    )
+
+    dte_min = (
+        _as_int(dte_values[0], DEFAULT_DTE_RANGE[0])
+        if dte_values and len(dte_values) >= 1
+        else DEFAULT_DTE_RANGE[0]
+    )
+    dte_max = (
+        _as_int(dte_values[1], DEFAULT_DTE_RANGE[1])
+        if dte_values and len(dte_values) >= 2
+        else DEFAULT_DTE_RANGE[1]
+    )
+
     return FilterConfig(
-        delta_min=s.delta_min,
-        delta_max=s.delta_max,
-        min_rom=s.min_rom,
-        min_edge=s.min_edge,
-        min_pos=s.min_pos,
-        min_ev=s.min_ev,
-        skew_min=s.skew_min,
-        skew_max=s.skew_max,
-        term_min=s.term_min,
-        term_max=s.term_max,
-        max_gamma=safe_float(s.max_gamma),
-        max_vega=safe_float(s.max_vega),
-        min_theta=safe_float(s.min_theta),
+        delta_min=delta_min,
+        delta_max=delta_max,
+        min_rom=_as_float(rule_data.get("min_rom"), strike_rules.min_rom),
+        min_edge=_as_float(rule_data.get("min_edge"), strike_rules.min_edge),
+        min_pos=_as_float(rule_data.get("min_pos"), strike_rules.min_pos),
+        min_ev=_as_float(rule_data.get("min_ev"), strike_rules.min_ev),
+        skew_min=_as_float(rule_data.get("skew_min"), strike_rules.skew_min),
+        skew_max=_as_float(rule_data.get("skew_max"), strike_rules.skew_max),
+        term_min=_as_float(rule_data.get("term_min"), strike_rules.term_min),
+        term_max=_as_float(rule_data.get("term_max"), strike_rules.term_max),
+        dte_min=dte_min,
+        dte_max=dte_max,
+        max_gamma=_as_optional_float(rule_data.get("max_gamma"), safe_float(strike_rules.max_gamma)),
+        max_vega=_as_optional_float(rule_data.get("max_vega"), safe_float(strike_rules.max_vega)),
+        min_theta=_as_optional_float(rule_data.get("min_theta"), safe_float(strike_rules.min_theta)),
     )
 def filter_by_expiry(
     options: List[Dict[str, Any]],

@@ -11,7 +11,12 @@ from typing import Any, Callable, Mapping, MutableMapping, Sequence
 from ..metrics import calculate_edge, calculate_ev, calculate_pos, calculate_rom
 from ..strategy.models import StrategyContext, StrategyProposal
 from ..strategy_candidates import generate_strategy_candidates
-from ..strike_selector import FilterConfig, StrikeSelector, filter_by_expiry
+from ..strike_selector import (
+    FilterConfig,
+    StrikeSelector,
+    filter_by_expiry,
+    load_filter_config,
+)
 from .utils import resolve_config_getter
 from ..loader import load_strike_config
 from ..logutils import combo_symbol_context, logger
@@ -167,9 +172,10 @@ class StrategyPipeline:
         self.last_context = context
         canonical_strategy = self._canonical_strategy(context.strategy)
         rules = self._load_rules(canonical_strategy, context.config)
-        dte_range = self._determine_dte_range(context, rules)
+        filter_config = load_filter_config(criteria=context.criteria, rules=rules)
+        dte_range = self._determine_dte_range(context, filter_config)
         selector = self._selector_factory(
-            config=self._build_filter_config(rules),
+            config=filter_config,
             criteria=context.criteria,
         )
         resolver_cfg = self._config_getter("MID_RESOLVER", {})
@@ -271,15 +277,11 @@ class StrategyPipeline:
             return {}
 
     def _determine_dte_range(
-        self, context: StrategyContext, rules: Mapping[str, Any]
+        self, context: StrategyContext, config: FilterConfig
     ) -> tuple[int, int]:
         if context.dte_range is not None:
             return context.dte_range
-        dte_range = rules.get("dte_range") or [0, 365]
-        try:
-            return int(dte_range[0]), int(dte_range[1])
-        except Exception:
-            return 0, 365
+        return config.dte_range
 
     def _as_bool(self, value: Any) -> bool | None:
         if isinstance(value, bool):
@@ -454,38 +456,6 @@ class StrategyPipeline:
             return (earnings_date - date.today()).days
         except Exception:
             return None
-
-    def _build_filter_config(self, rules: Mapping[str, Any]) -> FilterConfig:
-        def _float(val: Any, default: float | None = None) -> float | None:
-            parsed = safe_float(val)
-            return parsed if parsed is not None else default
-
-        delta_range = (
-            rules.get("delta_range")
-            or rules.get("short_delta_range")
-            or [-1.0, 1.0]
-        )
-        delta_min = _float(delta_range[0], -1.0) if isinstance(delta_range, (list, tuple)) else -1.0
-        delta_max = (
-            _float(delta_range[1], 1.0)
-            if isinstance(delta_range, (list, tuple)) and len(delta_range) > 1
-            else 1.0
-        )
-        return FilterConfig(
-            delta_min=delta_min,
-            delta_max=delta_max,
-            min_rom=_float(rules.get("min_rom"), 0.0) or 0.0,
-            min_edge=_float(rules.get("min_edge"), 0.0) or 0.0,
-            min_pos=_float(rules.get("min_pos"), 0.0) or 0.0,
-            min_ev=_float(rules.get("min_ev"), 0.0) or 0.0,
-            skew_min=_float(rules.get("skew_min"), float("-inf")) or float("-inf"),
-            skew_max=_float(rules.get("skew_max"), float("inf")) or float("inf"),
-            term_min=_float(rules.get("term_min"), float("-inf")) or float("-inf"),
-            term_max=_float(rules.get("term_max"), float("inf")) or float("inf"),
-            max_gamma=_float(rules.get("max_gamma")),
-            max_vega=_float(rules.get("max_vega")),
-            min_theta=_float(rules.get("min_theta")),
-        )
 
     def _apply_symbol_defaults(self, leg: MutableMapping[str, Any]) -> None:
         """Ensure that legs contain the underlying ticker information."""

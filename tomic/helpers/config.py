@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
-from typing import Any, Callable, Mapping, Sequence, Tuple
+from typing import Any, Callable, Mapping, Tuple
 
+from ..loader import load_strike_config
+from ..strike_selector import load_filter_config
 from .strategy_config import canonical_strategy_name
 
 
@@ -26,34 +28,21 @@ def load_dte_range(
         except Exception:  # pragma: no cover - defensive guard
             resolved_rules = None
 
-    raw_range: Sequence[Any] | None = None
-    if isinstance(resolved_rules, Mapping):
-        candidate = resolved_rules.get("dte_range")
-        if isinstance(candidate, Sequence):
-            raw_range = candidate
-
-    if raw_range is None:
-        strategies_cfg = base_config.get("strategies") if isinstance(base_config, Mapping) else None
-        if isinstance(strategies_cfg, Mapping):
-            for name in (canonical_strategy_name(strategy), strategy):
-                strat_cfg = strategies_cfg.get(name)
-                if isinstance(strat_cfg, Mapping):
-                    candidate = strat_cfg.get("dte_range")
-                    if isinstance(candidate, Sequence):
-                        raw_range = candidate
-                        break
-        if raw_range is None and isinstance(base_config.get("default"), Mapping):
-            candidate = base_config["default"].get("dte_range")  # type: ignore[index]
-            if isinstance(candidate, Sequence):
-                raw_range = candidate
-
-    if isinstance(raw_range, Sequence) and len(raw_range) >= 2:
+    if resolved_rules is None:
         try:
-            return int(raw_range[0]), int(raw_range[1])
+            resolved_rules = load_strike_config(
+                canonical_strategy_name(strategy), dict(base_config)
+            )
         except Exception:  # pragma: no cover - defensive guard
-            return default
+            resolved_rules = {}
 
-    return default
+    rules_mapping = dict(resolved_rules or {})
+    config_range = load_filter_config(rules=rules_mapping).dte_range
+
+    if "dte_range" not in rules_mapping:
+        return int(default[0]), int(default[1])
+
+    return config_range
 
 
 __all__ = ["load_dte_range"]
