@@ -7,11 +7,19 @@ from datetime import date, datetime
 from pathlib import Path
 from typing import Any, Callable, Iterable, Mapping, Sequence
 
+from ..helpers.dateutils import normalize_earnings_context
 from ..journal.utils import load_json
 from ..logutils import logger
 from ..utils import today
 from ._percent import normalize_percent
-from .strategy_pipeline import StrategyContext, StrategyPipeline, StrategyProposal
+from .strategy_pipeline import (
+    PipelineRunError,
+    PipelineRunResult,
+    StrategyPipeline,
+    StrategyProposal,
+    run as run_strategy_pipeline,
+)
+from .utils import resolve_config_getter
 
 
 ConfigGetter = Callable[[str, Any | None], Any]
@@ -99,14 +107,6 @@ class MarketSnapshotError(RuntimeError):
     """Raised when snapshot loading or scanning fails."""
 
 
-def _resolve_config_getter(config: Mapping[str, Any] | ConfigGetter | None) -> ConfigGetter:
-    if callable(config):
-        return config  # type: ignore[return-value]
-    if hasattr(config, "get"):
-        return lambda key, default=None: config.get(key, default)  # type: ignore[arg-type]
-    if isinstance(config, Mapping):
-        return lambda key, default=None: config.get(key, default)
-    return lambda _key, default=None: default
 def _parse_latest(data: Sequence[Mapping[str, Any]]) -> Mapping[str, Any] | None:
     if not data:
         return None
@@ -168,13 +168,11 @@ def _read_metrics(
     if summary is None or hv is None or spot is None:
         return None
 
-    earnings_date = _parse_earnings(symbol, earnings, today_fn=today_fn)
-    days_until: int | None = None
-    if earnings_date is not None:
-        try:
-            days_until = (earnings_date - today_fn()).days
-        except Exception:
-            days_until = None
+    earnings_date, days_until = normalize_earnings_context(
+        _parse_earnings(symbol, earnings, today_fn=today_fn),
+        None,
+        today_fn,
+    )
 
     return MarketSnapshotRow(
         symbol=symbol,
@@ -204,7 +202,7 @@ class MarketSnapshotService:
         loader: Callable[[Path], Any] = load_json,
         today_fn: Callable[[], date] = today,
     ) -> None:
-        self._get = _resolve_config_getter(config)
+        self._get = resolve_config_getter(config)
         self._loader = loader
         self._today = today_fn
 
@@ -270,24 +268,30 @@ class MarketSnapshotService:
             if not isinstance(request, ScanRequest):
                 logger.warning("Skipping invalid scan request: %r", request)
                 continue
-            context = StrategyContext(
-                symbol=request.symbol,
-                strategy=request.strategy,
-                option_chain=list(request.option_chain),
-                spot_price=float(request.spot_price or 0.0),
-                atr=float(request.atr or 0.0),
-                config=dict(request.config or {}),
-                interest_rate=float(request.interest_rate),
-                dte_range=request.dte_range,
-                interactive_mode=bool(request.interactive_mode),
-                next_earnings=request.next_earnings,
-            )
             try:
-                proposals, _ = pipeline.build_proposals(context)
-            except Exception as exc:  # pragma: no cover - pipeline level failure
-                raise MarketSnapshotError(f"pipeline execution failed for {request.symbol}") from exc
+                run_result: PipelineRunResult = run_strategy_pipeline(
+                    pipeline,
+                    symbol=request.symbol,
+                    strategy=request.strategy,
+                    option_chain=list(request.option_chain),
+                    spot_price=float(request.spot_price or 0.0),
+                    atr=float(request.atr or 0.0),
+                    config=dict(request.config or {}),
+                    interest_rate=float(request.interest_rate),
+                    dte_range=request.dte_range,
+                    interactive_mode=bool(request.interactive_mode),
+                    next_earnings=request.next_earnings,
+                )
+            except PipelineRunError as exc:
+                raise MarketSnapshotError(str(exc)) from exc
 
-            for proposal in proposals:
+            if not run_result.filtered_chain:
+                logger.info(
+                    "No contracts after DTE filter for %s/%s", request.symbol, request.strategy
+                )
+                continue
+
+            for proposal in run_result.proposals:
                 results.append(
                     ScanRow(
                         symbol=request.symbol,

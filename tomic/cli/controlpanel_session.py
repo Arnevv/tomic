@@ -3,6 +3,8 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any, Iterable, Mapping
 
+from tomic.helpers.numeric import safe_float
+
 
 @dataclass
 class ControlPanelSession:
@@ -36,7 +38,7 @@ class ControlPanelSession:
             self.strategy = str(strategy).strip() if strategy else None
         if "spot_price" in mapping or "spot" in mapping:
             spot_val = mapping.get("spot_price", mapping.get("spot"))
-            self.spot_price = _to_float_or_none(spot_val)
+            self.spot_price = safe_float(spot_val)
         if "next_earnings" in mapping:
             next_earnings = mapping.get("next_earnings")
             self.next_earnings = str(next_earnings) if next_earnings else None
@@ -46,12 +48,3 @@ class ControlPanelSession:
                 self.days_until_earnings = int(days) if days is not None else None
             except (TypeError, ValueError):
                 self.days_until_earnings = None
-
-
-def _to_float_or_none(value: Any) -> float | None:
-    try:
-        if value is None:
-            return None
-        return float(value)
-    except (TypeError, ValueError):
-        return None

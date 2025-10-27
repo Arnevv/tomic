@@ -3,11 +3,12 @@
 from __future__ import annotations
 
 from collections import defaultdict
-from datetime import date, datetime
+from datetime import date
 from typing import Any, Dict, List, Tuple
 
 from tomic import config as cfg
 from tomic.cli.volatility_recommender import recommend_strategies
+from tomic.helpers.dateutils import normalize_earnings_context
 from tomic.helpers.strategy_config import (
     canonical_strategy_name,
     coerce_int,
@@ -93,27 +94,11 @@ def build_market_overview(
             "skew": r[11],
         }
         symbol = r[0]
-        earnings_date: date | None = None
-        if len(r) > 12:
-            raw_earnings = r[12]
-            if isinstance(raw_earnings, str) and raw_earnings:
-                try:
-                    earnings_date = datetime.strptime(raw_earnings, "%Y-%m-%d").date()
-                except Exception:
-                    earnings_date = None
-        days_until: int | None = None
-        if len(r) > 13:
-            raw_days = r[13]
-            if isinstance(raw_days, (int, float)):
-                try:
-                    days_until = int(raw_days)
-                except Exception:
-                    days_until = None
-        if days_until is None and earnings_date is not None:
-            try:
-                days_until = (earnings_date - date.today()).days
-            except Exception:
-                days_until = None
+        earnings_date, days_until = normalize_earnings_context(
+            r[12] if len(r) > 12 else None,
+            r[13] if len(r) > 13 else None,
+            date.today,
+        )
         matches = recommend_strategies(metrics)
         for rec in matches:
             crit = ", ".join(rec.get("criteria", []))
@@ -149,7 +134,7 @@ def build_market_overview(
                     "criteria": crit,
                     "term_m1_m2": r[9],
                     "term_m1_m3": r[10],
-                    "next_earnings": r[12],
+                    "next_earnings": earnings_date.isoformat() if earnings_date else r[12],
                     "days_until_earnings": days_until,
                     "iv_rank": r[7],
                     "iv_percentile": r[8],

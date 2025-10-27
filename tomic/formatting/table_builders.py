@@ -9,6 +9,7 @@ import math
 from typing import Any, Callable, Iterable, Mapping, Sequence
 
 from tomic.helpers.dateutils import parse_date
+from tomic.helpers.numeric import safe_float
 from tomic.reporting.rejections import reason_label
 from tomic.services.pipeline_refresh import Rejection
 from tomic.services.portfolio_service import Factsheet
@@ -71,11 +72,8 @@ def sanitize(value: Any, placeholder: str = PLACEHOLDER) -> str:
 
 
 def _to_float(value: Any) -> float | None:
-    if value is None:
-        return None
-    try:
-        number = float(value)
-    except (TypeError, ValueError):
+    number = safe_float(value)
+    if number is None:
         return None
     if math.isnan(number) or math.isinf(number):
         return None

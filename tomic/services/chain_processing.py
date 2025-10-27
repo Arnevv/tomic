@@ -15,6 +15,7 @@ from typing import Callable, Iterable, Mapping, Sequence
 import pandas as pd
 
 from tomic import config as cfg
+from tomic.helpers.config import load_dte_range
 from tomic.helpers.csv_utils import normalize_european_number_format
 from tomic.helpers.price_utils import ClosePriceSnapshot
 from tomic.helpers.interpolation import interpolate_missing_fields
@@ -22,12 +23,14 @@ from tomic.helpers.quality_check import calculate_csv_quality
 from tomic.loader import load_strike_config
 from tomic.logutils import logger
 from tomic.services.strategy_pipeline import (
+    PipelineRunError,
+    PipelineRunResult,
     RejectionSummary,
     StrategyContext,
     StrategyPipeline,
     StrategyProposal,
+    run as run_strategy_pipeline,
 )
-from tomic.strike_selector import filter_by_expiry
 from tomic.utils import normalize_leg
 
 
@@ -104,12 +107,11 @@ class ChainEvaluationConfig:
         config_data: Mapping[str, object] = cfg.get("STRATEGY_CONFIG") or {}
         interest_rate = float(cfg.get("INTEREST_RATE", 0.05))
         export_dir = Path(cfg.get("EXPORT_DIR", "exports"))
-        rules = load_strike_config(strategy, config_data) if config_data else {}
-        dte_range = rules.get("dte_range") or [0, 365]
-        try:
-            dte_tuple = (int(dte_range[0]), int(dte_range[1]))
-        except Exception:  # pragma: no cover - defensive fall-back
-            dte_tuple = (0, 365)
+        dte_tuple = load_dte_range(
+            strategy,
+            config_data,
+            loader=load_strike_config,
+        )
 
         return cls(
             symbol=symbol,
@@ -309,24 +311,30 @@ def evaluate_chain(
     """Evaluate a prepared option chain using the configured pipeline."""
 
     expiry_counts_before = _count_by_expiry(prepared.records)
-    filtered_chain = filter_by_expiry(list(prepared.records), config.dte_range)
+    try:
+        run_result: PipelineRunResult = run_strategy_pipeline(
+            pipeline,
+            symbol=config.symbol,
+            strategy=config.strategy,
+            option_chain=list(prepared.records),
+            spot_price=float(config.spot_price or 0.0),
+            atr=config.atr,
+            config=config.strategy_config or {},
+            interest_rate=config.interest_rate,
+            dte_range=config.dte_range,
+            interactive_mode=config.interactive_mode,
+            debug_path=config.export_dir / config.debug_filename,
+        )
+    except PipelineRunError as exc:
+        raise ChainPreparationError(str(exc)) from exc
+
+    filtered_chain = run_result.filtered_chain
     expiry_counts_after = _count_by_expiry(filtered_chain)
     skipped = tuple(exp for exp in expiry_counts_before if exp not in expiry_counts_after)
 
-    context = StrategyContext(
-        symbol=config.symbol,
-        strategy=config.strategy,
-        option_chain=filtered_chain,
-        spot_price=float(config.spot_price or 0.0),
-        atr=config.atr,
-        config=config.strategy_config or {},
-        interest_rate=config.interest_rate,
-        dte_range=config.dte_range,
-        interactive_mode=config.interactive_mode,
-        debug_path=config.export_dir / config.debug_filename,
-    )
-
-    proposals, summary = pipeline.build_proposals(context)
+    proposals = run_result.proposals
+    summary = run_result.summary
+    context = run_result.context
     filter_preview = RejectionSummary(
         by_filter=dict(summary.by_filter),
         by_reason=dict(summary.by_reason),

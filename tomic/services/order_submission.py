@@ -32,25 +32,19 @@ except Exception:  # pragma: no cover
 
 from tomic.api.base_client import BaseIBApp
 from tomic.api.ib_connection import connect_ib
+from tomic.helpers.dateutils import normalize_expiry_code
+from tomic.helpers.numeric import safe_float
 from tomic.logutils import logger
 from tomic.metrics import calculate_credit
 from tomic.models import OptionContract
 from tomic.services._config import cfg_value
 from tomic.services.strategy_pipeline import StrategyProposal
-from tomic.utils import get_leg_qty, get_leg_right, normalize_leg
+from tomic.utils import get_leg_qty, get_leg_right, get_option_mid_price, normalize_leg
 
 
 log = logger
 def _expiry(leg: dict) -> str:
-    expiry = leg.get("expiry")
-    if not expiry:
-        raise ValueError("expiry ontbreekt voor leg")
-    digits = "".join(ch for ch in str(expiry) if ch.isdigit())
-    if len(digits) == 6:
-        digits = "20" + digits
-    if len(digits) != 8:
-        raise ValueError(f"onbekend expiry formaat: {expiry}")
-    return digits
+    return normalize_expiry_code(leg.get("expiry"))
 
 
 def _leg_symbol(leg: dict, *, fallback: str | None = None) -> str:
@@ -65,42 +59,17 @@ def _leg_action(position: float) -> str:
 
 
 def _leg_price(leg: dict) -> float | None:
-    for key in ("mid", "last", "ask", "bid"):
-        value = leg.get(key)
-        try:
-            if value is not None:
-                return round(float(value), 4)
-        except Exception:
-            continue
+    price, _ = get_option_mid_price(leg)
+    if price is not None:
+        return round(price, 4)
     return None
-
-
-def _as_float(value: Any) -> float | None:
-    try:
-        if value is None:
-            return None
-        return float(value)
-    except Exception:
-        return None
 
 
 def _leg_mid_price(leg: dict) -> float | None:
     """Return best available mid price for ``leg``."""
 
-    mid = _as_float(leg.get("mid"))
-    if mid is not None:
-        return mid
-    bid = _as_float(leg.get("bid"))
-    ask = _as_float(leg.get("ask"))
-    if bid is not None and ask is not None:
-        return (bid + ask) / 2
-    last = _as_float(leg.get("last"))
-    if last is not None:
-        return last
-    close = _as_float(leg.get("close"))
-    if close is not None:
-        return close
-    return None
+    price, _used_close = get_option_mid_price(leg)
+    return price
 
 
 def _combo_mid_credit(legs: Sequence[dict]) -> float | None:
@@ -164,12 +133,12 @@ def _normalize_leg_summary(leg: dict) -> _LegSummary:
     if position == 0:
         position = -float(get_leg_qty(leg))
     qty = int(get_leg_qty(leg))
-    bid = _as_float(leg.get("bid"))
-    ask = _as_float(leg.get("ask"))
+    bid = safe_float(leg.get("bid"))
+    ask = safe_float(leg.get("ask"))
     min_tick = leg.get("minTick")
     if min_tick in (None, ""):
         min_tick = leg.get("min_tick")
-    min_tick_value = _as_float(min_tick)
+    min_tick_value = safe_float(min_tick)
     return _LegSummary(
         strike=strike,
         expiry=expiry,

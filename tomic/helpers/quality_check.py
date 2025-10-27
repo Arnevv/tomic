@@ -6,7 +6,7 @@ from dataclasses import dataclass
 
 import pandas as pd
 
-from tomic.helpers.csv_utils import parse_euro_float
+from tomic.helpers.numeric import safe_float
 
 
 def _is_na(value: object) -> bool:
@@ -50,24 +50,6 @@ def _has_value(value: object) -> bool:
     return True
 
 
-def _to_float(value: object) -> float | None:
-    """Return ``value`` as float when possible."""
-
-    if isinstance(value, (int, float)):
-        if _is_na(value):
-            return None
-        return float(value)
-    if isinstance(value, str):
-        candidate = parse_euro_float(value)
-        if candidate is not None:
-            return candidate
-        try:
-            return float(value.strip()) if value.strip() else None
-        except ValueError:
-            return None
-    return None
-
-
 def _coverage_score(df: pd.DataFrame) -> float:
     """Return percentage of populated required fields."""
 
@@ -90,8 +72,8 @@ def _pricing_score(df: pd.DataFrame) -> float:
     considered = 0
     valid = 0
     for _, row in df.iterrows():
-        bid = _to_float(row.get("bid"))
-        ask = _to_float(row.get("ask"))
+        bid = safe_float(row.get("bid"))
+        ask = safe_float(row.get("ask"))
         if bid is None or ask is None:
             continue
         considered += 1
@@ -125,7 +107,7 @@ def _greeks_score(df: pd.DataFrame) -> float:
             if not _has_value(val):
                 missing = True
                 break
-            number = _to_float(val)
+            number = safe_float(val)
             if number is None:
                 missing = True
                 break
