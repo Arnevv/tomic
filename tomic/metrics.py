@@ -4,11 +4,159 @@ from __future__ import annotations
 """Utility functions for option metrics calculations."""
 
 from math import inf
-from typing import Optional, Iterable, Any, Dict, List
+from typing import Any, Dict, Iterable, Iterator, List, Mapping, Optional, Protocol, Tuple
 
-from .utils import get_leg_right, get_leg_qty
+from .core import LegView
+from .helpers.numeric import safe_float
+from .utils import get_leg_right, get_leg_qty, get_option_mid_price
 from .logutils import logger
 from .config import get as cfg_get
+
+
+ResolverReturn = Tuple[float | None, str | None, float | None]
+
+
+class PriceResolver(Protocol):
+    """Protocol describing callables capable of resolving leg mid prices."""
+
+    def __call__(self, leg: Mapping[str, Any]) -> ResolverReturn:
+        ...
+
+
+PriceResolverLike = PriceResolver | type[PriceResolver] | None
+LegLike = LegView | Mapping[str, Any]
+
+
+def _ensure_resolver(resolver: PriceResolverLike) -> PriceResolver:
+    if resolver is None:
+        return MidPriceResolver()
+    if isinstance(resolver, type):
+        return resolver()
+    return resolver
+
+
+def _normalized_mid_source(raw: Any) -> str | None:
+    if not isinstance(raw, str):
+        return None
+    value = raw.strip().lower()
+    if not value:
+        return None
+    if value == "parity":
+        return "parity_true"
+    return value
+
+
+class MidPriceResolver:
+    """Resolve mid price data using leg quotes and fallbacks."""
+
+    def __call__(self, leg: Mapping[str, Any]) -> ResolverReturn:
+        return self.resolve(leg)
+
+    def resolve(self, leg: Mapping[str, Any]) -> ResolverReturn:
+        price, used_close = get_option_mid_price(leg)
+        leg_source = _normalized_mid_source(leg.get("mid_source"))
+        fallback_source = _normalized_mid_source(leg.get("mid_fallback"))
+        source = leg_source or fallback_source
+        if used_close and source in {None, "true"}:
+            source = "close"
+        quote_age = safe_float(leg.get("quote_age_sec"))
+        return price, source, quote_age
+
+
+def _option_direction(leg: Mapping[str, Any]) -> int:
+    """Return +1 for long legs and -1 for short legs."""
+
+    action = str(leg.get("action", "")).upper()
+    if action in {"BUY", "LONG"}:
+        return 1
+    if action in {"SELL", "SHORT"}:
+        return -1
+    pos = leg.get("position")
+    if pos is not None:
+        try:
+            return 1 if float(pos) > 0 else -1
+        except Exception:
+            return 1
+    return 1
+
+
+def get_signed_position(leg: Mapping[str, Any]) -> float:
+    """Return signed quantity for ``leg`` using best available signals."""
+
+    position = leg.get("position")
+    if position not in (None, ""):
+        try:
+            return float(position)
+        except (TypeError, ValueError):
+            logger.debug("[metrics] Ignoring non-numeric position %r", position)
+
+    for key in ("qty", "quantity"):
+        raw_qty = leg.get(key)
+        if raw_qty in (None, ""):
+            continue
+        try:
+            qty_val = abs(float(raw_qty))
+        except (TypeError, ValueError):
+            logger.debug("[metrics] Ignoring non-numeric %s value %r", key, raw_qty)
+            continue
+        direction = _option_direction(leg)
+        return direction * qty_val
+
+    try:
+        qty = get_leg_qty(leg)
+    except Exception:
+        qty = 1.0
+    direction = _option_direction(leg)
+    return direction * qty
+
+
+def iter_leg_views(
+    legs: Iterable[LegLike], *, price_resolver: PriceResolverLike = MidPriceResolver
+) -> Iterator[LegView]:
+    """Yield :class:`LegView` objects for ``legs`` using ``price_resolver``."""
+
+    resolver = _ensure_resolver(price_resolver)
+    for leg in legs:
+        if isinstance(leg, LegView):
+            yield leg
+            continue
+        if not isinstance(leg, Mapping):
+            continue
+
+        strike = safe_float(leg.get("strike"))
+        right = get_leg_right(leg) or None
+        expiry_raw = leg.get("expiry") or leg.get("expiration")
+        expiry = str(expiry_raw).strip() if isinstance(expiry_raw, str) else None
+        if expiry == "":
+            expiry = None
+
+        signed_position = get_signed_position(leg)
+        abs_qty = abs(signed_position) if signed_position else 0.0
+        if abs_qty == 0:
+            try:
+                abs_qty = float(get_leg_qty(leg))
+            except Exception:
+                abs_qty = 0.0
+
+        mid, resolved_source, resolved_quote_age = resolver(leg)
+        quote_age = resolved_quote_age
+        if quote_age is None:
+            quote_age = safe_float(leg.get("quote_age"))
+
+        leg_source = _normalized_mid_source(leg.get("mid_source"))
+        fallback_source = _normalized_mid_source(leg.get("mid_fallback"))
+        mid_source = resolved_source or leg_source or fallback_source
+
+        yield LegView(
+            strike=strike,
+            right=right,
+            expiry=expiry,
+            signed_position=signed_position,
+            abs_qty=abs_qty,
+            mid=mid,
+            mid_source=mid_source,
+            quote_age=quote_age,
+        )
 
 
 def calculate_edge(theoretical: float, mid_price: float) -> float:
@@ -23,18 +171,17 @@ def calculate_rom(max_profit: float, margin: float) -> Optional[float]:
     return (max_profit / margin) * 100
 
 
-def calculate_credit(legs: Iterable[dict]) -> float:
-    """Return net credit in dollars for ``legs``."""
+def calculate_credit(
+    legs: Iterable[LegLike], *, price_resolver: PriceResolverLike = MidPriceResolver
+) -> float:
+    """Return net credit in dollars for ``legs`` using consistent pricing."""
 
     credit = 0.0
-    for leg in legs:
-        try:
-            price = float(leg.get("mid", 0) or 0)
-        except Exception:
+    for view in iter_leg_views(legs, price_resolver=price_resolver):
+        if view.mid is None or view.abs_qty <= 0 or view.signed_position == 0:
             continue
-        qty = get_leg_qty(leg)
-        direction = 1 if leg.get("position", 0) > 0 else -1
-        credit -= direction * price * qty
+        direction = 1 if view.signed_position > 0 else -1
+        credit -= direction * view.mid * view.abs_qty
     return credit * 100
 
 
@@ -47,19 +194,6 @@ def calculate_ev(pos: float, max_profit: float, max_loss: float) -> float:
     """Return expected value given probability of success and payoff values."""
     prob = pos / 100
     return prob * max_profit + (1 - prob) * max_loss
-
-
-def _option_direction(leg: dict) -> int:
-    """Return +1 for long legs and -1 for short legs."""
-    action = str(leg.get("action", "")).upper()
-    if action in {"BUY", "LONG"}:
-        return 1
-    if action in {"SELL", "SHORT"}:
-        return -1
-    pos = leg.get("position")
-    if pos is not None:
-        return 1 if pos > 0 else -1
-    return 1
 
 
 def calculate_payoff_at_spot(
@@ -254,6 +388,9 @@ __all__ = [
     "calculate_pos",
     "calculate_ev",
     "calculate_credit",
+    "get_signed_position",
+    "iter_leg_views",
+    "MidPriceResolver",
     "calculate_payoff_at_spot",
     "estimate_scenario_profit",
     "calculate_margin",

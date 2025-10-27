@@ -2,6 +2,7 @@ import math
 import pytest
 from tomic.analysis.metrics import historical_volatility, average_true_range
 from tomic.metrics import (
+    MidPriceResolver,
     calculate_edge,
     calculate_rom,
     calculate_pos,
@@ -10,6 +11,8 @@ from tomic.metrics import (
     calculate_margin,
     calculate_payoff_at_spot,
     estimate_scenario_profit,
+    get_signed_position,
+    iter_leg_views,
 )
 from tomic.strategies import StrategyName
 
@@ -105,6 +108,42 @@ def test_calculate_credit_and_margin_condor():
     assert math.isclose(credit, 224.0)
     margin = calculate_margin(StrategyName.IRON_CONDOR, legs, net_cashflow=credit / 100)
     assert math.isclose(margin, 276.0)
+
+
+def test_get_signed_position_prefers_explicit_position():
+    leg = {"position": "-2", "qty": "5", "action": "BUY"}
+    assert math.isclose(get_signed_position(leg), -2.0)
+
+
+def test_get_signed_position_from_qty_and_action():
+    leg = {"qty": "3", "action": "SELL"}
+    assert math.isclose(get_signed_position(leg), -3.0)
+
+
+def test_calculate_credit_handles_qty_zero_and_missing_position():
+    legs = [
+        {"type": "call", "mid": 1.25, "qty": "2", "action": "SELL"},
+        {"type": "call", "mid": 0.55, "quantity": "1", "action": "BUY"},
+        {"type": "put", "mid": 0.0, "qty": 1, "action": "BUY"},
+        {"type": "put", "mid": 1.5, "qty": 0, "action": "SELL"},
+    ]
+    credit = calculate_credit(legs)
+    assert math.isclose(credit, (1.25 * 2 - 0.55) * 100)
+
+
+def test_iter_leg_views_normalizes_sources():
+    leg = {
+        "type": "call",
+        "strike": 100,
+        "expiry": "20240119",
+        "position": -1,
+        "mid": 1.1,
+        "mid_fallback": "Parity",
+        "quote_age_sec": "5",
+    }
+    view = next(iter_leg_views([leg], price_resolver=MidPriceResolver()))
+    assert view.mid_source == "parity_true"
+    assert math.isclose(view.quote_age or 0.0, 5.0)
 
 
 def test_calculate_payoff_at_spot_naked_put():
