@@ -1,15 +1,70 @@
+import math
 import os
+import re
 from datetime import datetime, date
 from pathlib import Path
-import math
-import re
-from typing import Any, Callable, Mapping, Literal, Optional, TypedDict
+from typing import Any, Callable, Mapping, Literal, Optional, Sequence, TypedDict
 
 from tomic.config import get as cfg_get
 from tomic.journal.utils import load_json
 from tomic.logutils import logger
 from tomic.helpers.csv_utils import parse_euro_float
 from tomic.helpers.numeric import safe_float
+
+
+_SYMBOL_CANDIDATE_KEYS: tuple[str, ...] = (
+    "symbol",
+    "underlying",
+    "ticker",
+    "root",
+    "root_symbol",
+)
+
+
+def _normalize_symbol(value: Any) -> str | None:
+    if isinstance(value, str):
+        trimmed = value.strip()
+        if trimmed:
+            return trimmed.upper()
+    return None
+
+
+def resolve_symbol(
+    legs: Sequence[Mapping[str, Any]] | None,
+    *,
+    fallback: Any = None,
+    keys: Sequence[str] = _SYMBOL_CANDIDATE_KEYS,
+) -> str | None:
+    """Return normalized underlying symbol for ``legs`` or ``fallback``.
+
+    Parameters
+    ----------
+    legs:
+        Iterable of option legs searched in order for candidate symbol fields.
+    fallback:
+        Optional symbol candidate used when no symbol could be extracted from
+        ``legs``. When supplied, it is normalized using the same semantics as
+        leg values.
+    keys:
+        Ordered collection of dictionary keys checked on each leg. The first
+        non-empty value determines the symbol.
+    """
+
+    normalized = _normalize_symbol(fallback)
+    if normalized:
+        return normalized
+
+    if not legs:
+        return None
+
+    for leg in legs:
+        if not isinstance(leg, Mapping):
+            continue
+        for key in keys:
+            normalized = _normalize_symbol(leg.get(key))
+            if normalized:
+                return normalized
+    return None
 
 
 class OptionLeg(TypedDict, total=False):

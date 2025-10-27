@@ -7,18 +7,10 @@ from datetime import date, datetime
 from typing import Any, Mapping, MutableMapping, Sequence
 
 from ..helpers.dateutils import normalize_earnings_context, parse_date
+from ..helpers.numeric import safe_float
 from ..logutils import logger, normalize_reason
+from ..utils import resolve_symbol
 from .strategy_pipeline import StrategyProposal
-
-
-def _safe_float(value: Any) -> float | None:
-    try:
-        number = float(value)
-    except (TypeError, ValueError):
-        return None
-    if number != number:  # NaN check without importing math
-        return None
-    return number
 
 
 def _first_expiry(legs: Sequence[Mapping[str, Any]]) -> str | None:
@@ -26,20 +18,6 @@ def _first_expiry(legs: Sequence[Mapping[str, Any]]) -> str | None:
         expiry = leg.get("expiry")
         if isinstance(expiry, str) and expiry:
             return expiry
-    return None
-
-
-def _normalize_symbol(
-    symbol: str | None,
-    legs: Sequence[Mapping[str, Any]],
-) -> str | None:
-    if isinstance(symbol, str) and symbol.strip():
-        return symbol.strip().upper()
-    for leg in legs:
-        for key in ("symbol", "underlying", "ticker", "root", "root_symbol"):
-            value = leg.get(key)
-            if isinstance(value, str) and value.strip():
-                return value.strip().upper()
     return None
 
 
@@ -82,13 +60,13 @@ def build_proposal_core(
     expiry = _first_expiry(legs)
     strikes: list[float | None] = []
     for leg in legs:
-        strikes.append(_safe_float(leg.get("strike")))
+        strikes.append(safe_float(leg.get("strike")))
 
     totals: dict[str, float | None] = {}
     for greek in ("delta", "gamma", "vega", "theta"):
         values: list[float] = []
         for leg in legs:
-            val = _safe_float(leg.get(greek))
+            val = safe_float(leg.get(greek))
             if val is not None:
                 values.append(val)
         totals[greek] = sum(values) if values else None
@@ -109,7 +87,7 @@ def build_proposal_core(
         if isinstance(raw_meta, Mapping):
             pricing_meta.update(raw_meta)
 
-    resolved_symbol = _normalize_symbol(symbol, legs)
+    resolved_symbol = resolve_symbol(legs, fallback=symbol)
 
     strategy_value = proposal.strategy if hasattr(proposal, "strategy") else None
     if not isinstance(strategy_value, str):
@@ -233,9 +211,9 @@ def _compute_earnings_summary(
 
 
 def _build_leg_vm(leg: Mapping[str, Any]) -> ProposalLegVM:
-    bid = _safe_float(leg.get("bid"))
-    ask = _safe_float(leg.get("ask"))
-    mid = _safe_float(leg.get("mid"))
+    bid = safe_float(leg.get("bid"))
+    ask = safe_float(leg.get("ask"))
+    mid = safe_float(leg.get("mid"))
     warnings: list[str] = []
     if bid is None or ask is None:
         warnings.append(
@@ -267,24 +245,24 @@ def _build_leg_vm(leg: Mapping[str, Any]) -> ProposalLegVM:
 
     return ProposalLegVM(
         expiry=leg.get("expiry"),
-        strike=_safe_float(leg.get("strike")),
+        strike=safe_float(leg.get("strike")),
         option_type=leg.get("type"),
         position=position,
         bid=bid,
         ask=ask,
         mid=mid,
-        iv=_safe_float(leg.get("iv")),
-        delta=_safe_float(leg.get("delta")),
-        gamma=_safe_float(leg.get("gamma")),
-        vega=_safe_float(leg.get("vega")),
-        theta=_safe_float(leg.get("theta")),
+        iv=safe_float(leg.get("iv")),
+        delta=safe_float(leg.get("delta")),
+        gamma=safe_float(leg.get("gamma")),
+        vega=safe_float(leg.get("vega")),
+        theta=safe_float(leg.get("theta")),
         warnings=tuple(warnings),
     )
 
 
 def _calculate_risk_reward(proposal: StrategyProposal) -> float | None:
-    profit = _safe_float(proposal.max_profit)
-    loss = _safe_float(proposal.max_loss)
+    profit = safe_float(proposal.max_profit)
+    loss = safe_float(proposal.max_loss)
     if profit is None or loss in (None, 0.0):
         return None
     risk = abs(loss)
@@ -298,7 +276,7 @@ def _collect_breakevens(proposal: StrategyProposal) -> tuple[float, ...]:
     if not proposal.breakevens:
         return tuple(values)
     for value in proposal.breakevens:
-        val = _safe_float(value)
+        val = safe_float(value)
         if val is not None:
             values.append(val)
     return tuple(values)
@@ -374,15 +352,15 @@ def build_proposal_viewmodel(
         )
 
     summary = ProposalSummaryVM(
-        credit=_safe_float(proposal.credit),
-        margin=_safe_float(proposal.margin),
-        max_profit=_safe_float(proposal.max_profit),
-        max_loss=_safe_float(proposal.max_loss),
+        credit=safe_float(proposal.credit),
+        margin=safe_float(proposal.margin),
+        max_profit=safe_float(proposal.max_profit),
+        max_loss=safe_float(proposal.max_loss),
         breakevens=_collect_breakevens(proposal),
-        pos=_safe_float(proposal.pos),
-        ev=_safe_float(proposal.ev),
-        rom=_safe_float(proposal.rom),
-        score=_safe_float(proposal.score),
+        pos=safe_float(proposal.pos),
+        ev=safe_float(proposal.ev),
+        rom=safe_float(proposal.rom),
+        score=safe_float(proposal.score),
         risk_reward=_calculate_risk_reward(proposal),
         profit_estimated=bool(getattr(proposal, "profit_estimated", False)),
         scenario_label=(
@@ -395,13 +373,13 @@ def build_proposal_viewmodel(
             if isinstance(getattr(proposal, "scenario_info", None), MutableMapping)
             else None
         ),
-        iv_rank=_safe_float(getattr(proposal, "iv_rank", None)),
-        iv_percentile=_safe_float(getattr(proposal, "iv_percentile", None)),
-        hv20=_safe_float(getattr(proposal, "hv20", None)),
-        hv30=_safe_float(getattr(proposal, "hv30", None)),
-        hv90=_safe_float(getattr(proposal, "hv90", None)),
-        hv252=_safe_float(getattr(proposal, "hv252", None)),
-        edge=_safe_float(getattr(proposal, "edge", None)),
+        iv_rank=safe_float(getattr(proposal, "iv_rank", None)),
+        iv_percentile=safe_float(getattr(proposal, "iv_percentile", None)),
+        hv20=safe_float(getattr(proposal, "hv20", None)),
+        hv30=safe_float(getattr(proposal, "hv30", None)),
+        hv90=safe_float(getattr(proposal, "hv90", None)),
+        hv252=safe_float(getattr(proposal, "hv252", None)),
+        edge=safe_float(getattr(proposal, "edge", None)),
         greeks=core.greeks,
     )
 
