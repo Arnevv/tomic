@@ -18,11 +18,8 @@ from tomic.services.chain_processing import (
     PreparedChain,
     load_and_prepare_chain,
 )
-from tomic.services.strategy_pipeline import (
-    PipelineRunError,
-    StrategyPipeline,
-    run as run_strategy_pipeline,
-)
+from tomic.services.pipeline_runner import PipelineRunContext, run_pipeline
+from tomic.services.strategy_pipeline import PipelineRunError, StrategyPipeline
 from tomic.strategy.models import StrategyProposal
 from tomic.strategies import StrategyName
 
@@ -97,18 +94,19 @@ def _run_strategy_pipeline(
     """Execute the shared strategy pipeline and return proposals."""
 
     strategy_name = strategy.value if isinstance(strategy, StrategyName) else strategy
+    context = PipelineRunContext(
+        pipeline=ctx.pipeline,
+        symbol=ctx.symbol,
+        strategy=strategy_name,
+        option_chain=ctx.chain,
+        spot_price=ctx.spot_price,
+        atr=ctx.atr,
+        config=ctx.strategy_config,
+        interest_rate=ctx.interest_rate,
+        next_earnings=ctx.next_earnings,
+    )
     try:
-        result = run_strategy_pipeline(
-            ctx.pipeline,
-            symbol=ctx.symbol,
-            strategy=strategy_name,
-            option_chain=ctx.chain,
-            spot_price=ctx.spot_price,
-            atr=ctx.atr,
-            config=ctx.strategy_config,
-            interest_rate=ctx.interest_rate,
-            next_earnings=ctx.next_earnings,
-        )
+        result = run_pipeline(context)
     except PipelineRunError as exc:
         logger.warning(
             "Pipeline mislukt voor %s/%s: %s", ctx.symbol, strategy_name, exc

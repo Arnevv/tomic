@@ -12,12 +12,12 @@ from ..journal.utils import load_json
 from ..logutils import logger
 from ..utils import today
 from ._percent import normalize_percent
+from .pipeline_runner import PipelineRunContext, run_pipeline
 from .strategy_pipeline import (
     PipelineRunError,
     PipelineRunResult,
     StrategyPipeline,
     StrategyProposal,
-    run as run_strategy_pipeline,
 )
 from .utils import resolve_config_getter
 
@@ -268,20 +268,21 @@ class MarketSnapshotService:
             if not isinstance(request, ScanRequest):
                 logger.warning("Skipping invalid scan request: %r", request)
                 continue
+            context = PipelineRunContext(
+                pipeline=pipeline,
+                symbol=request.symbol,
+                strategy=request.strategy,
+                option_chain=list(request.option_chain),
+                spot_price=float(request.spot_price or 0.0),
+                atr=float(request.atr or 0.0),
+                config=dict(request.config or {}),
+                interest_rate=float(request.interest_rate),
+                dte_range=request.dte_range,
+                interactive_mode=bool(request.interactive_mode),
+                next_earnings=request.next_earnings,
+            )
             try:
-                run_result: PipelineRunResult = run_strategy_pipeline(
-                    pipeline,
-                    symbol=request.symbol,
-                    strategy=request.strategy,
-                    option_chain=list(request.option_chain),
-                    spot_price=float(request.spot_price or 0.0),
-                    atr=float(request.atr or 0.0),
-                    config=dict(request.config or {}),
-                    interest_rate=float(request.interest_rate),
-                    dte_range=request.dte_range,
-                    interactive_mode=bool(request.interactive_mode),
-                    next_earnings=request.next_earnings,
-                )
+                run_result = run_pipeline(context)
             except PipelineRunError as exc:
                 raise MarketSnapshotError(str(exc)) from exc
 

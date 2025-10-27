@@ -1,14 +1,25 @@
 from pathlib import Path
+from types import SimpleNamespace
 
 import pandas as pd
 import pytest
 
 from tomic.services.chain_processing import (
+    ChainPreparationError,
     ChainPreparationConfig,
+    ChainEvaluationConfig,
     PreparedChain,
+    evaluate_chain,
     load_and_prepare_chain,
 )
-from tomic.services.strategy_pipeline import RejectionSummary, run as run_strategy_pipeline
+from tomic.services.pipeline_runner import PipelineRunContext, run_pipeline
+from tomic.services.strategy_pipeline import (
+    PipelineRunError,
+    PipelineRunResult,
+    RejectionSummary,
+    StrategyContext,
+    StrategyProposal,
+)
 
 
 if not hasattr(pd, "DataFrame") or isinstance(pd.DataFrame, type(object)):
@@ -97,8 +108,8 @@ def test_load_and_prepare_chain_integrates_with_pipeline(tmp_path):
     prepared = load_and_prepare_chain(csv_path, config)
 
     pipeline = _DummyPipeline()
-    result = run_strategy_pipeline(
-        pipeline,
+    context = PipelineRunContext(
+        pipeline=pipeline,
         symbol="AAA",
         strategy="iron_condor",
         option_chain=prepared.records,
@@ -107,6 +118,7 @@ def test_load_and_prepare_chain_integrates_with_pipeline(tmp_path):
         config={},
         interest_rate=0.01,
     )
+    result = run_pipeline(context)
 
     assert result.context.symbol == "AAA"
     assert pipeline.last_context is result.context
@@ -115,3 +127,87 @@ def test_load_and_prepare_chain_integrates_with_pipeline(tmp_path):
     assert record["bid"] == pytest.approx(1.10)
     assert record["delta"] == pytest.approx(0.40)
     assert record["expiry"] == "2024-01-19"
+
+
+def test_evaluate_chain_builds_pipeline_context(monkeypatch, tmp_path):
+    contexts = []
+
+    def fake_run(context):
+        contexts.append(context)
+        strategy_context = StrategyContext(
+            symbol=context.symbol,
+            strategy=str(context.strategy),
+            option_chain=list(context.option_chain),
+            spot_price=context.spot_price,
+            atr=context.atr,
+            config=context.config,
+            interest_rate=context.interest_rate,
+            dte_range=context.dte_range,
+            interactive_mode=context.interactive_mode,
+            criteria=context.criteria,
+            next_earnings=context.next_earnings,
+            debug_path=context.debug_path,
+        )
+        proposal = StrategyProposal(strategy=str(context.strategy), legs=[{"id": 1}])
+        return PipelineRunResult(
+            context=strategy_context,
+            proposals=[proposal],
+            summary=RejectionSummary(),
+            filtered_chain=list(context.option_chain),
+        )
+
+    monkeypatch.setattr("tomic.services.chain_processing.run_pipeline", fake_run)
+
+    prepared = SimpleNamespace(records=[{"expiry": "2024-01-19"}, {"expiry": "2024-02-16"}])
+    config = ChainEvaluationConfig(
+        symbol="AAA",
+        strategy="iron_condor",
+        strategy_config={"foo": "bar"},
+        interest_rate=0.02,
+        export_dir=tmp_path,
+        dte_range=(10, 25),
+        spot_price=123.4,
+        atr=1.2,
+        interactive_mode=True,
+        debug_filename="chain.csv",
+    )
+
+    pipeline = object()
+    result = evaluate_chain(prepared, pipeline, config)
+
+    assert len(contexts) == 1
+    ctx = contexts[0]
+    assert ctx.pipeline is pipeline
+    assert ctx.symbol == "AAA"
+    assert ctx.strategy == "iron_condor"
+    assert list(ctx.option_chain) == list(prepared.records)
+    assert ctx.spot_price == pytest.approx(123.4)
+    assert ctx.atr == pytest.approx(1.2)
+    assert ctx.config == {"foo": "bar"}
+    assert ctx.interest_rate == pytest.approx(0.02)
+    assert ctx.dte_range == (10, 25)
+    assert ctx.interactive_mode is True
+    assert ctx.debug_path == tmp_path / "chain.csv"
+    assert result.proposals and result.proposals[0].strategy == "iron_condor"
+
+
+def test_evaluate_chain_translates_pipeline_error(monkeypatch, tmp_path):
+    def fake_run(_context):
+        raise PipelineRunError("boom")
+
+    monkeypatch.setattr("tomic.services.chain_processing.run_pipeline", fake_run)
+
+    prepared = SimpleNamespace(records=[{"expiry": "2024-01-19"}])
+    config = ChainEvaluationConfig(
+        symbol="AAA",
+        strategy="iron_condor",
+        strategy_config={},
+        interest_rate=0.01,
+        export_dir=tmp_path,
+        dte_range=(10, 20),
+        spot_price=100.0,
+        atr=1.0,
+    )
+
+    with pytest.raises(ChainPreparationError):
+        evaluate_chain(prepared, object(), config)
