@@ -1,6 +1,7 @@
 import importlib
 import json
 from datetime import datetime, date
+from zoneinfo import ZoneInfo
 from types import SimpleNamespace
 
 from tomic.helpers.price_utils import ClosePriceSnapshot
@@ -11,78 +12,179 @@ def test_fetch_prices_polygon_main(monkeypatch):
     mod = importlib.import_module("tomic.cli.fetch_prices_polygon")
 
     monkeypatch.setattr(mod, "setup_logging", lambda: None)
+    calls: list[list[str] | None] = []
     monkeypatch.setattr(
         mod,
-        "request_bars",
-        lambda client, sym: (
-            [
-                {
-                    "symbol": sym,
-                    "date": "2024-01-01",
-                    "close": 1.23,
-                    "volume": 100,
-                    "atr": None,
-                }
-            ],
-            True,
-        ),
+        "fetch_polygon_price_history",
+        lambda symbols=None, *, run_volstats=True: calls.append(symbols) or [],
     )
 
-    class FakeClient:
-        def connect(self):
-            pass
-
-        def disconnect(self):
-            pass
-
-    monkeypatch.setattr(mod, "PolygonClient", lambda: FakeClient())
-
-    captured = []
-    monkeypatch.setattr(mod, "merge_price_data", lambda f, recs: (captured.extend(recs), len(recs))[1])
-
-    meta_store = {}
-    monkeypatch.setattr(mod, "load_price_meta", lambda: meta_store.copy())
-    monkeypatch.setattr(mod, "save_price_meta", lambda m: meta_store.update(m))
-
-    called = []
-    monkeypatch.setattr(mod, "compute_volstats_polygon_main", lambda syms: called.append(syms))
-
-    monkeypatch.setattr(mod, "sleep", lambda s: None)
-
     mod.main(["ABC"])
-    assert captured
-    assert captured[0]["close"] == 1.23
-    assert called and called[0] == ["ABC"]
-    assert "day_ABC" in meta_store
+    assert calls == [["ABC"]]
 
 
-def test_fetch_prices_polygon_no_data(monkeypatch):
-    mod = importlib.import_module("tomic.cli.fetch_prices_polygon")
+def test_fetch_polygon_price_history_stores_data(monkeypatch, tmp_path):
+    svc = importlib.import_module("tomic.cli.services.price_history_polygon")
 
-    monkeypatch.setattr(mod, "setup_logging", lambda: None)
-    monkeypatch.setattr(mod, "request_bars", lambda client, sym: ([], True))
+    class FakeRateLimiter:
+        def __init__(self, *_args, **_kwargs):
+            pass
+
+        def wait(self) -> None:
+            pass
+
+        def record(self) -> None:
+            pass
+
+        def time_until_ready(self) -> float:
+            return 0.0
+
+    monkeypatch.setattr(svc, "RateLimiter", FakeRateLimiter)
+
+    base_dir = tmp_path / "prices"
+    base_dir.mkdir()
+    meta_file = tmp_path / "meta.json"
+    meta_file.write_text("{}")
+
+    def cfg_stub(name, default=None):
+        if name == "PRICE_HISTORY_DIR":
+            return str(base_dir)
+        if name == "PRICE_META_FILE":
+            return str(meta_file)
+        if name == "DEFAULT_SYMBOLS":
+            return []
+        if name == "POLYGON_SLEEP_BETWEEN":
+            return 0
+        if name == "POLYGON_REQUESTS_PER_MINUTE":
+            return 5
+        return default
+
+    monkeypatch.setattr(svc, "cfg_get", cfg_stub)
 
     class FakeClient:
-        def connect(self):
+        def connect(self) -> None:
             pass
 
-        def disconnect(self):
+        def disconnect(self) -> None:
             pass
 
-    monkeypatch.setattr(mod, "PolygonClient", lambda: FakeClient())
+    monkeypatch.setattr(svc, "PolygonClient", lambda: FakeClient())
 
-    captured = []
-    monkeypatch.setattr(mod, "merge_price_data", lambda f, recs: (captured.extend(recs), 0)[1])
+    records = [
+        {
+            "symbol": "ABC",
+            "date": "2024-01-01",
+            "close": 1.23,
+            "volume": 100,
+            "atr": None,
+        }
+    ]
+    monkeypatch.setattr(svc, "request_bars", lambda client, sym: (records, True))
 
-    meta_store = {}
-    monkeypatch.setattr(mod, "load_price_meta", lambda: meta_store.copy())
-    monkeypatch.setattr(mod, "save_price_meta", lambda m: meta_store.update(m))
+    captured: list[list[dict]] = []
 
-    monkeypatch.setattr(mod, "compute_volstats_polygon_main", lambda syms: None)
+    def merge_stub(file, recs):
+        captured.append(recs)
+        return len(recs)
 
-    monkeypatch.setattr(mod, "sleep", lambda s: None)
+    monkeypatch.setattr(svc, "merge_price_data", merge_stub)
 
-    mod.main(["XYZ"])
+    meta_store: dict[str, str] = {}
+    monkeypatch.setattr(svc, "load_price_meta", lambda: meta_store.copy())
+    monkeypatch.setattr(svc, "save_price_meta", lambda m: meta_store.update(m))
+
+    monkeypatch.setattr(svc, "sleep", lambda s: None)
+
+    volstats_calls: list[list[str]] = []
+    monkeypatch.setattr(
+        svc,
+        "compute_polygon_volatility_stats",
+        lambda syms: volstats_calls.append(syms),
+    )
+
+    fixed_now = datetime(2024, 1, 1, 12, tzinfo=ZoneInfo("America/New_York"))
+
+    class FakeDatetime(datetime):
+        @classmethod
+        def now(cls, tz=None):
+            return fixed_now
+
+    monkeypatch.setattr(svc, "datetime", FakeDatetime)
+
+    processed = svc.fetch_polygon_price_history(["ABC"])
+
+    assert processed == ["ABC"]
+    assert captured and captured[0][0]["close"] == 1.23
+    assert volstats_calls == [["ABC"]]
+    assert meta_store["day_ABC"].startswith("2024-01-01T12:00:00")
+
+
+def test_fetch_polygon_price_history_no_data(monkeypatch, tmp_path):
+    svc = importlib.import_module("tomic.cli.services.price_history_polygon")
+
+    class FakeRateLimiter:
+        def __init__(self, *_args, **_kwargs):
+            pass
+
+        def wait(self) -> None:
+            pass
+
+        def record(self) -> None:
+            pass
+
+        def time_until_ready(self) -> float:
+            return 0.0
+
+    monkeypatch.setattr(svc, "RateLimiter", FakeRateLimiter)
+
+    base_dir = tmp_path / "prices"
+    base_dir.mkdir()
+    meta_file = tmp_path / "meta.json"
+    meta_file.write_text("{}")
+
+    def cfg_stub(name, default=None):
+        if name == "PRICE_HISTORY_DIR":
+            return str(base_dir)
+        if name == "PRICE_META_FILE":
+            return str(meta_file)
+        if name == "DEFAULT_SYMBOLS":
+            return []
+        if name == "POLYGON_SLEEP_BETWEEN":
+            return 0
+        if name == "POLYGON_REQUESTS_PER_MINUTE":
+            return 5
+        return default
+
+    monkeypatch.setattr(svc, "cfg_get", cfg_stub)
+
+    class FakeClient:
+        def connect(self) -> None:
+            pass
+
+        def disconnect(self) -> None:
+            pass
+
+    monkeypatch.setattr(svc, "PolygonClient", lambda: FakeClient())
+
+    monkeypatch.setattr(svc, "request_bars", lambda client, sym: ([], True))
+
+    captured: list[list[dict]] = []
+    monkeypatch.setattr(
+        svc,
+        "merge_price_data",
+        lambda f, recs: (captured.extend(recs), 0)[1],
+    )
+
+    meta_store: dict[str, str] = {}
+    monkeypatch.setattr(svc, "load_price_meta", lambda: meta_store.copy())
+    monkeypatch.setattr(svc, "save_price_meta", lambda m: meta_store.update(m))
+
+    monkeypatch.setattr(svc, "sleep", lambda s: None)
+    monkeypatch.setattr(svc, "compute_polygon_volatility_stats", lambda syms: None)
+
+    processed = svc.fetch_polygon_price_history(["XYZ"])
+
+    assert processed == []
     assert not captured
     assert meta_store == {}
 
@@ -193,37 +295,66 @@ def test_incomplete_day_triggers_refetch(monkeypatch, tmp_path):
     assert requested is True
 
 
-def test_no_new_workday_skips_sleep(monkeypatch):
-    mod = importlib.import_module("tomic.cli.fetch_prices_polygon")
+def test_no_new_workday_skips_sleep(monkeypatch, tmp_path):
+    svc = importlib.import_module("tomic.cli.services.price_history_polygon")
 
-    monkeypatch.setattr(mod, "setup_logging", lambda: None)
-    monkeypatch.setattr(mod, "request_bars", lambda client, sym: ([], False))
+    class FakeRateLimiter:
+        def __init__(self, *_args, **_kwargs):
+            pass
+
+        def wait(self) -> None:
+            pass
+
+        def record(self) -> None:
+            pass
+
+        def time_until_ready(self) -> float:
+            return 0.0
+
+    monkeypatch.setattr(svc, "RateLimiter", FakeRateLimiter)
+
+    base_dir = tmp_path / "prices"
+    base_dir.mkdir()
+    meta_file = tmp_path / "meta.json"
+    meta_file.write_text("{}")
+
+    def cfg_stub(name, default=None):
+        if name == "PRICE_HISTORY_DIR":
+            return str(base_dir)
+        if name == "PRICE_META_FILE":
+            return str(meta_file)
+        if name == "DEFAULT_SYMBOLS":
+            return []
+        if name == "POLYGON_SLEEP_BETWEEN":
+            return 0
+        if name == "POLYGON_REQUESTS_PER_MINUTE":
+            return 1
+        return default
+
+    monkeypatch.setattr(svc, "cfg_get", cfg_stub)
 
     class FakeClient:
-        def connect(self):
+        def connect(self) -> None:
             pass
 
-        def disconnect(self):
+        def disconnect(self) -> None:
             pass
 
-    monkeypatch.setattr(mod, "PolygonClient", lambda: FakeClient())
+    monkeypatch.setattr(svc, "PolygonClient", lambda: FakeClient())
 
-    sleep_calls = []
-    monkeypatch.setattr(mod, "sleep", lambda s: sleep_calls.append(s))
+    monkeypatch.setattr(svc, "request_bars", lambda client, sym: ([], False))
 
-    meta_store = {}
-    monkeypatch.setattr(mod, "load_price_meta", lambda: meta_store.copy())
-    monkeypatch.setattr(mod, "save_price_meta", lambda m: meta_store.update(m))
+    sleep_calls: list[float] = []
+    monkeypatch.setattr(svc, "sleep", lambda s: sleep_calls.append(s))
 
-    monkeypatch.setattr(mod, "compute_volstats_polygon_main", lambda syms: None)
+    meta_store: dict[str, str] = {}
+    monkeypatch.setattr(svc, "load_price_meta", lambda: meta_store.copy())
+    monkeypatch.setattr(svc, "save_price_meta", lambda m: meta_store.update(m))
 
-    monkeypatch.setattr(
-        mod,
-        "cfg_get",
-        lambda name, default=None: 1 if name == "POLYGON_REQUESTS_PER_MINUTE" else default,
-    )
+    monkeypatch.setattr(svc, "compute_polygon_volatility_stats", lambda syms: None)
 
-    mod.main(["AAA", "BBB"])
+    processed = svc.fetch_polygon_price_history(["AAA", "BBB"])
+
+    assert processed == []
     assert sleep_calls == []
     assert meta_store == {}
-

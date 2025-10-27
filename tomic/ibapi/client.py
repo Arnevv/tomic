@@ -3582,7 +3582,7 @@ class EClient(object):
 
         self.sendMsg(OUT.CANCEL_HISTORICAL_DATA, msg)
 
-    # Note that formatData parameter affects intraday bars only
+    # Note that formatData parameter affects sub-day bars only
     # 1-day bars always return with date in YYYYMMDD format
 
     def reqHeadTimeStamp(
