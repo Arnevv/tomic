@@ -10,6 +10,7 @@ def test_strategy_score_weights_must_sum_to_one():
             score_weight_rom=0.6,
             score_weight_pos=0.3,
             score_weight_ev=0.2,
+            score_weight_rr=0.1,
         )
 
 

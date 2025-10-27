@@ -17,6 +17,21 @@ strategy:
   score_weight_rom: 0.5
   score_weight_pos: 0.3
   score_weight_ev: 0.2
+  score_weight_rr: 0.0
+  pos_floor_pct: 50
+  pos_span_pct: 50
+  rom_cap_pct: 20
+  ev_cap_pct: 10
+  rr_floor: 1
+  rr_linear_cap: 2
+  rr_linear_ceiling: 0.9
+  rr_exponent: 0.7
+  rr_log_cap: 5
+  rr_log_base: 1.0
+  score_labels:
+    strong_min: 70
+    good_min: 55
+    borderline_min: 45
   acceptance:
     require_positive_credit_for: []
 market_data:

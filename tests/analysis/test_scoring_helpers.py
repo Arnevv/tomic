@@ -1,8 +1,6 @@
 import math
 import pytest
 
-import pytest
-
 from tomic.analysis import scoring
 from tomic.criteria import load_criteria
 from tomic.strategy_candidates import StrategyProposal
@@ -139,20 +137,26 @@ def test_compute_proposal_metrics(monkeypatch):
     ]
     proposal = StrategyProposal(legs=legs)
     crit = load_criteria().model_copy()
-    crit.strategy.score_weight_rom = 1
-    crit.strategy.score_weight_pos = 1
-    crit.strategy.score_weight_ev = 1
-
-    monkeypatch.setattr(scoring, "heuristic_risk_metrics", lambda l, cb: {"max_profit": 200.0, "max_loss": -50.0})
+    monkeypatch.setattr(
+        scoring,
+        "heuristic_risk_metrics",
+        lambda l, cb: {"max_profit": 200.0, "max_loss": -50.0, "risk_reward": 4.0},
+    )
     monkeypatch.setattr(scoring, "calculate_margin", lambda s, l, net_cashflow=0.0: 100.0)
     monkeypatch.setattr(scoring, "calculate_rom", lambda mp, margin: 10.0)
     monkeypatch.setattr(scoring, "calculate_ev", lambda pos, mp, ml: 5.0)
 
     score, reasons = scoring.compute_proposal_metrics("naked_put", proposal, legs, crit, spot=100)
-    assert score == 105.0
+    assert math.isclose(score or 0.0, 57.84, rel_tol=1e-3)
     assert reasons == []
     assert proposal.margin == 100.0
     assert math.isclose(proposal.risk_reward or 0.0, 2.0)
+    assert math.isclose(proposal.rom_norm or 0.0, 0.5)
+    assert math.isclose(proposal.pos_norm or 0.0, 0.8)
+    assert math.isclose(proposal.ev_norm or 0.0, 0.5)
+    assert math.isclose(proposal.rr_norm or 0.0, 0.5228, rel_tol=1e-3)
+    assert proposal.score_breakdown is not None
+    assert proposal.score_label == "B"
 
 
 def test_calculate_score_additional_metrics(monkeypatch):
@@ -201,7 +205,7 @@ def test_calculate_score_additional_metrics(monkeypatch):
     monkeypatch.setattr(
         scoring,
         "heuristic_risk_metrics",
-        lambda l, cb: {"max_profit": 200.0, "max_loss": -50.0},
+        lambda l, cb: {"max_profit": 200.0, "max_loss": -50.0, "risk_reward": 4.0},
     )
     monkeypatch.setattr(scoring, "calculate_margin", lambda *a, **k: 100.0)
     monkeypatch.setattr(scoring, "calculate_rom", lambda mp, margin: 10.0)
@@ -234,6 +238,8 @@ def test_calculate_score_additional_metrics(monkeypatch):
     assert proposal.breakeven_distances["percent"] and math.isclose(
         proposal.breakeven_distances["percent"][0], 1.5
     )
+    assert proposal.score_breakdown
+    assert proposal.score_label in {"A", "B", "C", "D"}
 
 
 def test_compute_proposal_metrics_rejects_low_risk_reward(monkeypatch):

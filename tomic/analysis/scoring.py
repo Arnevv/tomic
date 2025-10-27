@@ -44,6 +44,69 @@ def _safe_float(value: Any) -> float | None:
     return val
 
 
+def _clamp(value: float, minimum: float = 0.0, maximum: float = 1.0) -> float:
+    return max(minimum, min(maximum, value))
+
+
+def _normalize_ratio(value: float | None, cap: float) -> float | None:
+    if value is None or cap <= 0:
+        return None
+    return _clamp(value / cap)
+
+
+def _normalize_pos(value: float | None, floor: float, span: float) -> float | None:
+    if value is None or span <= 0:
+        return None
+    return _clamp((value - floor) / span)
+
+
+def _normalize_risk_reward(value: float | None, criteria_cfg: CriteriaConfig) -> float | None:
+    if value is None:
+        return None
+    rr_floor = float(criteria_cfg.strategy.rr_floor)
+    if value <= rr_floor:
+        return 0.0
+
+    linear_cap = max(float(criteria_cfg.strategy.rr_linear_cap), rr_floor)
+    linear_ceiling = _clamp(float(criteria_cfg.strategy.rr_linear_ceiling), 0.0, 1.0)
+    exponent = float(criteria_cfg.strategy.rr_exponent)
+    rr_log_cap = max(float(criteria_cfg.strategy.rr_log_cap), linear_cap)
+    log_base = max(float(criteria_cfg.strategy.rr_log_base), 0.0)
+
+    if linear_cap <= rr_floor:
+        linear_component = 0.0
+    else:
+        ratio = (min(value, linear_cap) - rr_floor) / (linear_cap - rr_floor)
+        ratio = max(0.0, ratio)
+        try:
+            linear_component = ratio**exponent
+        except Exception:
+            linear_component = ratio
+        linear_component = _clamp(linear_component) * linear_ceiling
+
+    if value <= linear_cap or rr_log_cap <= linear_cap:
+        return linear_component
+
+    excess = min(value, rr_log_cap) - linear_cap
+    log_range = rr_log_cap - linear_cap
+    if log_range <= 0:
+        return linear_component
+
+    if log_base > 0:
+        numerator = math.log1p(excess * log_base)
+        denominator = math.log1p(log_range * log_base)
+    else:
+        numerator = math.log1p(excess)
+        denominator = math.log1p(log_range)
+
+    if denominator <= 0:
+        log_component = 1.0
+    else:
+        log_component = _clamp(numerator / denominator)
+
+    return _clamp(linear_ceiling + (1.0 - linear_ceiling) * log_component)
+
+
 def _max_credit_for_strategy(strategy: str, legs: List[Dict[str, Any]]) -> float | None:
     strat = strategy.lower()
     if strat == "short_put_spread":
@@ -457,6 +520,8 @@ def _preview_penalty(
         "penalty_per_leg": per_leg,
         "penalty_severity": round(severity, 4),
         "penalty_cap": max_penalty if max_penalty > 0 else None,
+        "estimated_penalty": penalty,
+        "score_impact": 0.0,
         "fallback_limit_count": fallback_count,
         "fallback_limit_allowed": fallback_allowed,
         "fallback_limit_reason": fallback_reason,
@@ -464,8 +529,9 @@ def _preview_penalty(
     data = {key: value for key, value in data.items() if value not in (None, [])}
 
     message = (
-        f"score verlaagd met {penalty:.2f} door preview mids"
-        f" ({preview_leg_count}/{total_legs})"
+        f"preview mids gebruikt voor {preview_leg_count}/{total_legs} legs"
+        if total_legs
+        else "preview mids gebruikt"
     )
     limit_message = fallback_warning or fallback_reason
     if limit_message:
@@ -867,33 +933,52 @@ def compute_proposal_metrics(
     )
     proposal.ev_pct = (proposal.ev / margin) * 100 if proposal.ev is not None and margin else None
 
-    rom_w = float(crit.strategy.score_weight_rom)
-    pos_w = float(crit.strategy.score_weight_pos)
-    ev_w = float(crit.strategy.score_weight_ev)
-
-    score_val = 0.0
-    if proposal.rom is not None:
-        score_val += proposal.rom * rom_w
-    if proposal.pos is not None:
-        score_val += proposal.pos * pos_w
-    if proposal.ev_pct is not None:
-        score_val += proposal.ev_pct * ev_w
-
-    proposal.breakevens = calculate_breakevens(strategy_name, legs, net_credit * 100)
-
-    if (proposal.ev_pct is not None and proposal.ev_pct <= 0 and not proposal.profit_estimated) or score_val < 0:
+    if proposal.ev_pct is not None and proposal.ev_pct < 0 and not proposal.profit_estimated:
         _add_reason(
             make_reason(
                 ReasonCategory.EV_BELOW_MIN,
                 "EV_TOO_LOW",
-                "negatieve EV of score",
+                "negatieve EV",
             )
         )
-        logger.info(
-            f"[❌ voorstel afgewezen] {strategy_name} — reason: EV/score te laag"
-        )
+        logger.info(f"[❌ voorstel afgewezen] {strategy_name} — reason: EV negatief")
         return _finalize(None)
-    penalty, penalty_detail, needs_refresh = _preview_penalty(
+
+    strat_cfg = crit.strategy
+    proposal.rom_norm = _normalize_ratio(proposal.rom, strat_cfg.rom_cap_pct)
+    proposal.pos_norm = _normalize_pos(proposal.pos, strat_cfg.pos_floor_pct, strat_cfg.pos_span_pct)
+    proposal.ev_norm = _normalize_ratio(proposal.ev_pct, strat_cfg.ev_cap_pct)
+    proposal.rr_norm = _normalize_risk_reward(proposal.risk_reward, crit)
+
+    components: list[dict[str, Any]] = []
+    total = 0.0
+    entries = [
+        ("rom", proposal.rom, proposal.rom_norm, float(strat_cfg.score_weight_rom)),
+        ("pos", proposal.pos, proposal.pos_norm, float(strat_cfg.score_weight_pos)),
+        ("ev", proposal.ev_pct, proposal.ev_norm, float(strat_cfg.score_weight_ev)),
+        ("rr", proposal.risk_reward, proposal.rr_norm, float(strat_cfg.score_weight_rr)),
+    ]
+    for name, raw_value, normalized, weight in entries:
+        normalized_val = 0.0 if normalized is None else float(normalized)
+        contribution = normalized_val * weight
+        total += contribution
+        components.append(
+            {
+                "component": name,
+                "raw": raw_value,
+                "normalized": None if normalized is None else round(normalized_val, 4),
+                "weight": weight,
+                "contribution": round(contribution, 6),
+            }
+        )
+
+    total = _clamp(total, 0.0, 1.0)
+    proposal.score_breakdown = components
+    proposal.score = round(total * 100.0, 2)
+
+    proposal.breakevens = calculate_breakevens(strategy_name, legs, net_credit * 100)
+
+    _, penalty_detail, needs_refresh = _preview_penalty(
         strategy_name,
         fallback_summary,
         preview_sources=preview_sources,
@@ -907,16 +992,23 @@ def compute_proposal_metrics(
     )
     if penalty_detail:
         _add_reason(penalty_detail)
-    if penalty > 0:
-        score_val = max(score_val - penalty, 0.0)
-
-    proposal.score = round(score_val, 2)
     proposal.fallback_summary = dict(sorted(fallback_summary.items()))
     proposal.needs_refresh = needs_refresh
     if preview_sources:
         proposal.fallback = ",".join(sorted(preview_sources))
     else:
         proposal.fallback = None
+
+    labels = strat_cfg.score_labels
+    score_val = proposal.score or 0.0
+    if score_val >= labels.strong_min:
+        proposal.score_label = "A"
+    elif score_val >= labels.good_min:
+        proposal.score_label = "B"
+    elif score_val >= labels.borderline_min:
+        proposal.score_label = "C"
+    else:
+        proposal.score_label = "D"
     return _finalize(proposal.score)
 
 
