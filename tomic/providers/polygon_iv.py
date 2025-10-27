@@ -7,12 +7,17 @@ from zoneinfo import ZoneInfo
 from pathlib import Path
 from typing import Any, Dict, List
 from tomic.utils import today
-from tomic.utils import _is_third_friday, load_price_history
+from tomic.utils import _is_third_friday
 import json
-from time import sleep
+import time
 import csv
 
-from tomic.analysis.metrics import historical_volatility
+from tomic.cli.services.vol_helpers import (
+    _get_closes,
+    iv_percentile,
+    iv_rank,
+    rolling_hv,
+)
 
 from tomic.integrations.polygon.client import PolygonClient
 
@@ -22,61 +27,12 @@ from tomic.infrastructure.storage import load_json, update_json_file
 from tomic.infrastructure.throttling import RateLimiter
 from tomic.helpers.price_utils import _load_latest_close
 
+sleep = time.sleep
+
 
 # ---------------------------------------------------------------------------
 # Utility helpers
 # ---------------------------------------------------------------------------
-
-
-
-
-def _get_closes(symbol: str) -> list[float]:
-    """Return list of closing prices sorted by date for ``symbol``."""
-    data = load_price_history(symbol)
-    closes: list[float] = []
-    for rec in data:
-        try:
-            closes.append(float(rec.get("close", 0)))
-        except Exception:
-            continue
-    return closes
-
-
-def _rolling_hv(closes: list[float], window: int) -> list[float]:
-    """Return list of HV values for a rolling ``window``."""
-    series: list[float] = []
-    for i in range(window, len(closes) + 1):
-        hv = historical_volatility(closes[i - window : i], window=window)
-        if hv is not None:
-            series.append(hv)
-    return series
-
-
-def _valid_numbers(series: list[float]) -> list[float] | None:
-    """Return numeric values from ``series`` or ``None`` when absent."""
-    nums = [s for s in series if isinstance(s, (int, float))]
-    return nums or None
-
-
-def _iv_rank(value: float, series: list[float]) -> float | None:
-    nums = _valid_numbers(series)
-    if nums is None:
-        return None
-    lo = min(nums)
-    hi = max(nums)
-    if hi == lo:
-        return None
-    return (value - lo) / (hi - lo)
-
-
-def _iv_percentile(value: float, series: list[float]) -> float | None:
-    nums = _valid_numbers(series)
-    if nums is None:
-        return None
-    count = sum(1 for hv in nums if hv < value)
-    return count / len(nums)
-
-
 # ---------------------------------------------------------------------------
 # Expiry planning
 # ---------------------------------------------------------------------------
@@ -126,7 +82,7 @@ class SnapshotFetcher:
         next_path: str | None = path
         first = True
         self.client.connect()
-        page_limiter = RateLimiter(1, 0.2, sleep=sleep)
+        page_limiter = RateLimiter(1, 0.2, sleep=time.sleep)
         try:
             while next_path:
                 if not first:
@@ -164,7 +120,7 @@ class SnapshotFetcher:
         logger.info(f"{symbol} {expiry}: {len(options)} contracts")
         delay_ms = int(cfg_get("POLYGON_DELAY_SNAPSHOT_MS", 200))
         if delay_ms > 0:
-            sleep(delay_ms / 1000)
+            time.sleep(delay_ms / 1000)
         return options
 
 
@@ -860,18 +816,18 @@ def fetch_polygon_iv30d(symbol: str) -> Dict[str, float | None] | None:
     else:
         logger.debug(f"skew unavailable: call_iv={call_iv} put_iv={put_iv}")
 
-    iv_rank = None
-    iv_percentile = None
+    iv_rank_value = None
+    iv_percentile_value = None
     closes = _get_closes(symbol)
-    hv_series = _rolling_hv(closes, 30)
+    hv_series = rolling_hv(closes, 30)
     if atm_iv is not None:
         scaled_iv = atm_iv * 100
-        iv_rank = _iv_rank(scaled_iv, hv_series)
-        iv_percentile = _iv_percentile(scaled_iv, hv_series)
-        if isinstance(iv_rank, (int, float)) and iv_rank > 1:
-            iv_rank /= 100
-        if isinstance(iv_percentile, (int, float)) and iv_percentile > 1:
-            iv_percentile /= 100
+        iv_rank_value = iv_rank(scaled_iv, hv_series)
+        iv_percentile_value = iv_percentile(scaled_iv, hv_series)
+        if isinstance(iv_rank_value, (int, float)) and iv_rank_value > 1:
+            iv_rank_value /= 100
+        if isinstance(iv_percentile_value, (int, float)) and iv_percentile_value > 1:
+            iv_percentile_value /= 100
     else:
         logger.debug("Cannot compute IV rank without ATM IV")
 
@@ -879,8 +835,8 @@ def fetch_polygon_iv30d(symbol: str) -> Dict[str, float | None] | None:
     daily_iv_data = {
         "date": today_str,
         "atm_iv": atm_iv,
-        "iv_rank (HV)": iv_rank,
-        "iv_percentile (HV)": iv_percentile,
+        "iv_rank (HV)": iv_rank_value,
+        "iv_percentile (HV)": iv_percentile_value,
         "term_m1_m2": term_m1_m2,
         "term_m1_m3": term_m1_m3,
         "skew": skew,
@@ -902,8 +858,8 @@ def fetch_polygon_iv30d(symbol: str) -> Dict[str, float | None] | None:
         "skew": skew,
         "term_m1_m2": term_m1_m2,
         "term_m1_m3": term_m1_m3,
-        "iv_rank (HV)": iv_rank,
-        "iv_percentile (HV)": iv_percentile,
+        "iv_rank (HV)": iv_rank_value,
+        "iv_percentile (HV)": iv_percentile_value,
     }
 
 

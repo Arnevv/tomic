@@ -2,9 +2,12 @@ from __future__ import annotations
 """Price-related helper utilities."""
 
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Any, Iterator
 
+from tomic.config import get as cfg_get  # re-exported for monkeypatching in tests
 from tomic.helpers.price_meta import load_price_meta
+from tomic.journal.utils import load_json
 from tomic.logutils import logger
 from tomic.utils import load_price_history
 
@@ -50,6 +53,17 @@ def _load_latest_close(
 
     logger.debug(f"Loading close price for {symbol}")
     data = load_price_history(symbol)
+    if not data:
+        base = cfg_get("PRICE_HISTORY_DIR")
+        if base:
+            path = Path(base) / f"{symbol}.json"
+            try:
+                raw = load_json(path)
+            except Exception:
+                raw = None
+            if isinstance(raw, list):
+                raw.sort(key=lambda rec: rec.get("date", ""))
+                data = raw
     meta_source: str | None = None
     fetched_at: str | None = None
     baseline_active = False

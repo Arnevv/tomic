@@ -12,19 +12,7 @@ from tomic.config import get as cfg_get
 from tomic.helpers.price_utils import _load_latest_close
 from tomic.journal.utils import update_json_file
 from tomic.logutils import logger
-from tomic.utils import load_price_history
-from .vol_helpers import iv_percentile, iv_rank, rolling_hv
-
-
-def _get_closes(symbol: str) -> list[float]:
-    data = load_price_history(symbol)
-    closes: list[float] = []
-    for rec in data:
-        try:
-            closes.append(float(rec.get("close", 0)))
-        except Exception:
-            continue
-    return closes
+from .vol_helpers import _get_closes, iv_percentile, iv_rank, rolling_hv
 
 
 def fetch_iv30d(symbol: str) -> float | None:

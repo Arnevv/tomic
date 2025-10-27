@@ -4,9 +4,32 @@ from __future__ import annotations
 
 from typing import List
 
+from tomic.config import get as cfg_get  # re-exported for monkeypatching in tests
 from tomic.logutils import setup_logging
 
-from .services.volatility import compute_volatility_stats
+from .services import volatility as _vol_service
+
+fetch_iv30d = _vol_service.fetch_iv30d
+historical_volatility = _vol_service.historical_volatility
+update_json_file = _vol_service.update_json_file
+_get_closes = _vol_service._get_closes
+logger = _vol_service.logger
+
+
+def _sync_overrides() -> None:
+    """Propagate patched helpers to the underlying service module."""
+
+    _vol_service.cfg_get = cfg_get
+    _vol_service.fetch_iv30d = fetch_iv30d
+    _vol_service.historical_volatility = historical_volatility
+    _vol_service.update_json_file = update_json_file
+    _vol_service._get_closes = _get_closes
+    _vol_service.logger = logger
+
+
+def compute_volatility_stats(symbols: List[str] | None = None) -> list[str]:
+    _sync_overrides()
+    return _vol_service.compute_volatility_stats(symbols)
 
 
 def main(argv: List[str] | None = None) -> None:
