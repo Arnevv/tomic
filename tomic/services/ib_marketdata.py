@@ -10,6 +10,8 @@ from datetime import datetime
 from pprint import pformat
 from typing import Any, Callable, Mapping
 
+from tomic.helpers.dateutils import normalize_expiry_code
+
 try:  # pragma: no cover - optional dependency during tests
     from ibapi.ticktype import TickTypeEnum
 except Exception:  # pragma: no cover
@@ -56,14 +58,7 @@ def _store_numeric(target: dict[str, Any], key: str, value: Any) -> bool:
 
 
 def _parse_expiry(value: str | None) -> str:
-    if not value:
-        raise ValueError("Missing expiry")
-    digits = "".join(ch for ch in str(value) if ch.isdigit())
-    if len(digits) == 6:  # YYMMDD -> prefix 20
-        digits = "20" + digits
-    if len(digits) != 8:
-        raise ValueError(f"Unsupported expiry format: {value}")
-    return digits
+    return normalize_expiry_code(value)
 
 
 def _normalize_symbol(leg: Mapping[str, Any]) -> str:

@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
-import re
 from typing import Optional
 
+from tomic.helpers.numeric import safe_float
 from tomic.logutils import logger
 
 
@@ -13,19 +13,10 @@ def to_float(value: object) -> Optional[float]:
 
     if value is None:
         return None
-    if isinstance(value, (int, float)):
-        return float(value)
-    if isinstance(value, str):
-        cleaned = value.strip()
-        cleaned = re.sub(r"[^0-9,.-]", "", cleaned)
-        cleaned = cleaned.replace(",", ".")
-        try:
-            return float(cleaned)
-        except ValueError:
-            logger.debug(f"Failed numeric conversion for value '{value}'")
-            return None
-    logger.debug(f"Unsupported type for numeric conversion: {type(value)}")
-    return None
+    number = safe_float(value)
+    if number is None:
+        logger.debug(f"Failed numeric conversion for value '{value}'")
+    return number
 
 
 __all__ = ["to_float"]

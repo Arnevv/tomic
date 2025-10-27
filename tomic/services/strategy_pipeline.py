@@ -10,8 +10,10 @@ from typing import Any, Callable, Mapping, MutableMapping, Sequence
 
 from ..bs_calculator import black_scholes
 from ..metrics import calculate_edge, calculate_ev, calculate_pos, calculate_rom
+from ..strategy.models import StrategyContext, StrategyProposal
 from ..strategy_candidates import generate_strategy_candidates
-from ..strike_selector import FilterConfig, StrikeSelector
+from ..strike_selector import FilterConfig, StrikeSelector, filter_by_expiry
+from .utils import resolve_config_getter
 from ..loader import load_strike_config
 from ..logutils import combo_symbol_context, logger
 from ..mid_resolver import MidResolver, build_mid_resolver
@@ -34,68 +36,90 @@ ConfigGetter = Callable[[str, Any | None], Any]
 
 
 @dataclass
-class StrategyContext:
-    """Input parameters for :class:`StrategyPipeline`."""
-
-    symbol: str
-    strategy: str
-    option_chain: Sequence[MutableMapping[str, Any]]
-    spot_price: float
-    atr: float = 0.0
-    config: Mapping[str, Any] | None = None
-    interest_rate: float = 0.05
-    dte_range: tuple[int, int] | None = None
-    interactive_mode: bool = False
-    criteria: Any | None = None
-    next_earnings: date | None = None
-    debug_path: Path | None = None
-
-
-@dataclass
-class StrategyProposal:
-    """Resulting proposal exposed to the CLI layer."""
-
-    strategy: str
-    legs: list[dict[str, Any]] = field(default_factory=list)
-    score: float | None = None
-    pos: float | None = None
-    ev: float | None = None
-    ev_pct: float | None = None
-    rom: float | None = None
-    edge: float | None = None
-    credit: float | None = None
-    margin: float | None = None
-    max_profit: float | None = None
-    max_loss: float | None = None
-    risk_reward: float | None = None
-    breakevens: list[float] | None = None
-    fallback: str | None = None
-    profit_estimated: bool = False
-    scenario_info: dict[str, Any] | None = None
-    fallback_summary: dict[str, int] | None = None
-    spread_rejects_n: int = 0
-    atr: float | None = None
-    iv_rank: float | None = None
-    iv_percentile: float | None = None
-    hv20: float | None = None
-    hv30: float | None = None
-    hv90: float | None = None
-    dte: dict[str, Any] | None = None
-    wing_width: dict[str, float] | None = None
-    wing_symmetry: bool | None = None
-    breakeven_distances: dict[str, list[float]] | None = None
-    credit_capped: bool = False
-    reasons: list[ReasonDetail] = field(default_factory=list)
-    needs_refresh: bool = False
-
-
-@dataclass
 class RejectionSummary:
     """Aggregated rejection information."""
 
     by_filter: dict[str, int] = field(default_factory=dict)
     by_reason: dict[str, int] = field(default_factory=dict)
     by_strategy: dict[str, list[ReasonDetail]] = field(default_factory=dict)
+
+
+@dataclass(frozen=True)
+class PipelineRunResult:
+    """Container returned by :func:`run` for downstream consumers."""
+
+    context: StrategyContext
+    proposals: list[StrategyProposal]
+    summary: RejectionSummary
+    filtered_chain: list[MutableMapping[str, Any]]
+
+
+class PipelineRunError(RuntimeError):
+    """Raised when a helper managed pipeline run fails."""
+
+
+def run(
+    pipeline: "StrategyPipeline",
+    *,
+    symbol: str,
+    strategy: str,
+    option_chain: Sequence[Mapping[str, Any]] | Sequence[MutableMapping[str, Any]],
+    spot_price: float,
+    atr: float = 0.0,
+    config: Mapping[str, Any] | None = None,
+    interest_rate: float = 0.05,
+    dte_range: tuple[int, int] | None = None,
+    interactive_mode: bool = False,
+    criteria: Any | None = None,
+    next_earnings: date | None = None,
+    debug_path: Path | None = None,
+) -> PipelineRunResult:
+    """Execute ``pipeline`` with shared context construction and guards."""
+
+    if pipeline is None:
+        raise PipelineRunError("pipeline is required")
+
+    try:
+        records = list(option_chain)
+    except TypeError as exc:  # pragma: no cover - defensive guard
+        raise PipelineRunError("option_chain must be iterable") from exc
+
+    if dte_range is not None:
+        try:
+            filtered_chain = filter_by_expiry(list(records), dte_range)
+        except Exception as exc:
+            raise PipelineRunError("failed to filter option chain by DTE range") from exc
+    else:
+        filtered_chain = list(records)
+
+    context = StrategyContext(
+        symbol=symbol,
+        strategy=strategy,
+        option_chain=filtered_chain,
+        spot_price=float(spot_price or 0.0),
+        atr=float(atr or 0.0),
+        config=dict(config or {}),
+        interest_rate=float(interest_rate),
+        dte_range=dte_range,
+        interactive_mode=bool(interactive_mode),
+        criteria=criteria,
+        next_earnings=next_earnings,
+        debug_path=debug_path,
+    )
+
+    try:
+        proposals, summary = pipeline.build_proposals(context)
+    except Exception as exc:  # pragma: no cover - pipeline level failure
+        raise PipelineRunError(
+            f"pipeline execution failed for {symbol}/{strategy}"
+        ) from exc
+
+    return PipelineRunResult(
+        context=context,
+        proposals=list(proposals),
+        summary=summary,
+        filtered_chain=list(filtered_chain),
+    )
 
 
 class StrategyPipeline:
@@ -111,7 +135,7 @@ class StrategyPipeline:
         strike_config_loader: Callable[[str, Mapping[str, Any]], Mapping[str, Any]] = load_strike_config,
         price_getter: Callable[[Mapping[str, Any]], tuple[float | None, str | None]] | None = None,
     ) -> None:
-        self._config_getter = self._resolve_config_getter(config)
+        self._config_getter = resolve_config_getter(config)
         self._market_provider = market_provider
         self._selector_factory = strike_selector_factory
         self._strategy_generator = strategy_generator
@@ -231,17 +255,6 @@ class StrategyPipeline:
     # ------------------------------------------------------------------
     # Internal helpers
     # ------------------------------------------------------------------
-    def _resolve_config_getter(
-        self, config: Mapping[str, Any] | ConfigGetter | None
-    ) -> ConfigGetter:
-        if callable(config):
-            return config  # type: ignore[return-value]
-        if hasattr(config, "get"):
-            return lambda key, default=None: config.get(key, default)  # type: ignore[arg-type]
-        if isinstance(config, Mapping):
-            return lambda key, default=None: config.get(key, default)
-        return lambda _key, default=None: default
-
     def _canonical_strategy(self, strategy: str) -> str:
         return canonical_strategy_name(strategy)
 

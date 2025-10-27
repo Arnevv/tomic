@@ -9,6 +9,7 @@ from tomic.config import get as cfg_get
 from tomic.journal.utils import load_json
 from tomic.logutils import logger
 from tomic.helpers.csv_utils import parse_euro_float
+from tomic.helpers.numeric import safe_float
 
 
 class OptionLeg(TypedDict, total=False):
@@ -126,24 +127,35 @@ def latest_close_date(symbol: str) -> str | None:
     return _load_latest_close(symbol, return_date_only=True)
 
 
-def get_option_mid_price(option: dict) -> tuple[float | None, bool]:
+def get_option_mid_price(option: Mapping[str, Any] | dict) -> tuple[float | None, bool]:
     """Return midpoint price for ``option`` and whether close was used."""
 
-    try:
-        bid = float(option.get("bid"))
-        ask = float(option.get("ask"))
-        if not math.isnan(bid) and not math.isnan(ask) and bid > 0 and ask > 0:
-            return (bid + ask) / 2, False
-    except Exception:
-        pass
-    close = option.get("close")
-    try:
-        val = float(close) if close is not None else None
-        if val is None or math.isnan(val):
-            return None, False
-        return val, True
-    except Exception:
-        return None, False
+    if isinstance(option, Mapping):
+        data = option
+    else:  # pragma: no cover - defensive fallback for legacy call sites
+        try:
+            data = dict(option)
+        except Exception:
+            data = {}
+
+    mid = safe_float(data.get("mid"))
+    if mid is not None and mid > 0:
+        return mid, False
+
+    bid = safe_float(data.get("bid"))
+    ask = safe_float(data.get("ask"))
+    if bid is not None and ask is not None and bid > 0 and ask > 0 and ask >= bid:
+        return (bid + ask) / 2, False
+
+    last = safe_float(data.get("last"))
+    if last is not None and last > 0:
+        return last, False
+
+    close = safe_float(data.get("close"))
+    if close is not None and close > 0:
+        return close, True
+
+    return None, False
 
 
 def prompt_user_for_price(

@@ -1,12 +1,14 @@
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Any, Dict, List, Optional
 from datetime import date, datetime
 import math
 
 from .analysis.scoring import calculate_score, calculate_breakevens
+from .criteria import load_criteria
 from .helpers.dateutils import parse_date
+from .strategy.models import StrategyProposal
 from .utils import (
     get_option_mid_price,
     normalize_right,
@@ -26,42 +28,6 @@ from .strategy.reasons import ReasonDetail, dedupe_reasons, normalize_reason
 POSITIVE_CREDIT_STRATS = set(
     RULES.strategy.acceptance.require_positive_credit_for
 )
-
-
-@dataclass
-class StrategyProposal:
-    """Container for a generated option strategy."""
-
-    legs: List[Dict[str, Any]] = field(default_factory=list)
-    pos: Optional[float] = None
-    ev: Optional[float] = None
-    ev_pct: Optional[float] = None
-    rom: Optional[float] = None
-    edge: Optional[float] = None
-    credit: Optional[float] = None
-    margin: Optional[float] = None
-    max_profit: Optional[float] = None
-    max_loss: Optional[float] = None
-    risk_reward: Optional[float] = None
-    breakevens: Optional[List[float]] = None
-    score: Optional[float] = None
-    fallback: Optional[str] = None
-    profit_estimated: bool = False
-    scenario_info: Optional[Dict[str, Any]] = None
-    fallback_summary: Optional[Dict[str, int]] = None
-    spread_rejects_n: int = 0
-    atr: Optional[float] = None
-    iv_rank: Optional[float] = None
-    iv_percentile: Optional[float] = None
-    hv20: Optional[float] = None
-    hv30: Optional[float] = None
-    hv90: Optional[float] = None
-    dte: Optional[Dict[str, Any]] = None
-    wing_width: Optional[Dict[str, float]] = None
-    wing_symmetry: Optional[bool] = None
-    breakeven_distances: Optional[Dict[str, List[float]]] = None
-    reasons: List[ReasonDetail] = field(default_factory=list)
-    needs_refresh: bool = False
 
 
 @dataclass
@@ -245,8 +211,13 @@ def _metrics(
     atr: float | None = None,
 ) -> tuple[Optional[Dict[str, Any]], list[str]]:
     proposal = StrategyProposal(legs=legs)
+    crit_source = criteria or load_criteria()
+    crit_obj = crit_source.model_copy(deep=True)
+    # Scenario metrics are used for quick diagnostics rather than trade gating,
+    # therefore they should ignore any global minimum risk/reward thresholds.
+    crit_obj.strategy.acceptance.min_risk_reward = 0.0
     score, reasons = calculate_score(
-        strategy, proposal, spot, criteria=criteria, atr=atr
+        strategy, proposal, spot, criteria=crit_obj, atr=atr
     )
     if score is None:
         return None, reasons

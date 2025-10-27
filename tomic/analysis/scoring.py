@@ -112,7 +112,17 @@ def _collect_leg_values(legs: List[Dict[str, Any]], keys: Tuple[str, ...]) -> Li
     return values
 
 
-def _resolve_min_risk_reward(strategy_name: str) -> float:
+def _resolve_min_risk_reward(
+    strategy_name: str, crit: CriteriaConfig | None = None
+) -> float:
+    if crit is not None:
+        try:
+            value = float(crit.strategy.acceptance.min_risk_reward)
+        except (TypeError, ValueError):
+            value = None
+        else:
+            return value
+
     cfg = cfg_get("STRATEGY_CONFIG") or {}
     strat_cfg = cfg.get("strategies", {}).get(strategy_name, {})
     default_cfg = cfg.get("default", {})
@@ -824,7 +834,7 @@ def compute_proposal_metrics(
             risk_reward = profit_val / risk
     proposal.risk_reward = risk_reward
 
-    min_rr = _resolve_min_risk_reward(strategy_name)
+    min_rr = _resolve_min_risk_reward(strategy_name, crit)
     if min_rr > 0 and risk_reward is not None and risk_reward < min_rr:
         message = f"risk/reward onvoldoende ({risk_reward:.2f} < {min_rr:.2f})"
         _add_reason(

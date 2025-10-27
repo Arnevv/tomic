@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from datetime import date, datetime
 from typing import Any, Mapping, MutableMapping, Sequence
 
-from ..helpers.dateutils import parse_date
+from ..helpers.dateutils import normalize_earnings_context, parse_date
 from ..logutils import logger, normalize_reason
 from .strategy_pipeline import StrategyProposal
 
@@ -190,16 +190,6 @@ class ProposalVM:
     reasons: tuple[Any, ...]
     credit_capped: bool
     has_missing_edge: bool
-
-
-def _normalize_days(value: Any) -> int | None:
-    try:
-        days = int(value)
-    except Exception:
-        return None
-    return days
-
-
 def _parse_earnings_date(value: Any) -> date | None:
     if isinstance(value, date):
         return value
@@ -218,22 +208,13 @@ def _compute_earnings_summary(
     earnings_ctx: Mapping[str, Any] | None,
     legs: Sequence[Mapping[str, Any]],
 ) -> EarningsVM:
-    next_date = None
-    days_until = None
+    raw_date = None
+    raw_days = None
     if isinstance(earnings_ctx, Mapping):
-        next_date = _parse_earnings_date(
-            earnings_ctx.get("next_earnings_date")
-            or earnings_ctx.get("next_earnings")
-        )
-        days_until = _normalize_days(
-            earnings_ctx.get("days_until_earnings")
-            or earnings_ctx.get("earnings_dte")
-        )
-    if days_until is None and next_date is not None:
-        try:
-            days_until = (next_date - date.today()).days
-        except Exception:
-            days_until = None
+        raw_date = earnings_ctx.get("next_earnings_date") or earnings_ctx.get("next_earnings")
+        raw_days = earnings_ctx.get("days_until_earnings") or earnings_ctx.get("earnings_dte")
+
+    next_date, days_until = normalize_earnings_context(raw_date, raw_days, date.today)
 
     expiry_value = _first_expiry(legs)
     expiry_date = _parse_earnings_date(expiry_value)

@@ -7,10 +7,10 @@ from datetime import date
 from pathlib import Path
 from typing import Any, Callable, Iterable, Mapping, Sequence
 
+from ..helpers.config import load_dte_range
 from ..helpers.price_utils import ClosePriceSnapshot
 from ..loader import load_strike_config
 from ..logutils import logger
-from ..strike_selector import filter_by_expiry
 from ..utils import latest_atr
 from .chain_processing import (
     ChainPreparationConfig,
@@ -22,7 +22,13 @@ from .chain_processing import (
 )
 from .market_snapshot_service import ScanRow
 from .portfolio_service import Candidate, PortfolioService
-from .strategy_pipeline import StrategyContext, StrategyPipeline, StrategyProposal
+from .strategy_pipeline import (
+    PipelineRunError,
+    PipelineRunResult,
+    StrategyPipeline,
+    StrategyProposal,
+    run as run_strategy_pipeline,
+)
 
 
 @dataclass(frozen=True)
@@ -146,31 +152,28 @@ class MarketScanService:
 
             for req in entries:
                 dte_range = self._resolve_dte_range(req.strategy)
-                filtered_chain = filter_by_expiry(list(prepared.records), dte_range)
-                if not filtered_chain:
+                try:
+                    run_result: PipelineRunResult = run_strategy_pipeline(
+                        self._pipeline,
+                        symbol=symbol,
+                        strategy=req.strategy,
+                        option_chain=list(prepared.records),
+                        spot_price=spot_price,
+                        atr=atr_value,
+                        config=self._strategy_config,
+                        interest_rate=self._interest_rate,
+                        dte_range=dte_range,
+                        interactive_mode=False,
+                        next_earnings=req.next_earnings,
+                    )
+                except PipelineRunError as exc:
+                    raise MarketScanError(str(exc)) from exc
+
+                if not run_result.filtered_chain:
                     logger.info("No contracts after DTE filter for %s/%s", symbol, req.strategy)
                     continue
 
-                context = StrategyContext(
-                    symbol=symbol,
-                    strategy=req.strategy,
-                    option_chain=filtered_chain,
-                    spot_price=spot_price,
-                    atr=atr_value,
-                    config=self._strategy_config,
-                    interest_rate=self._interest_rate,
-                    dte_range=dte_range,
-                    interactive_mode=False,
-                    next_earnings=req.next_earnings,
-                )
-                try:
-                    proposals, _summary = self._pipeline.build_proposals(context)
-                except Exception as exc:  # pragma: no cover - pipeline layer failure
-                    raise MarketScanError(
-                        f"pipeline execution failed for {symbol}/{req.strategy}"
-                    ) from exc
-
-                for proposal in proposals:
+                for proposal in run_result.proposals:
                     scan_rows.append(
                         ScanRow(
                             symbol=symbol,
@@ -221,14 +224,11 @@ class MarketScanService:
         return self._portfolio.rank_candidates(scan_rows, rules)
 
     def _resolve_dte_range(self, strategy: str) -> tuple[int, int]:
-        rules = load_strike_config(strategy, self._strategy_config)
-        dte_range = rules.get("dte_range") if isinstance(rules, Mapping) else None
-        if not isinstance(dte_range, Sequence) or len(dte_range) < 2:
-            return (0, 365)
-        try:
-            return (int(dte_range[0]), int(dte_range[1]))
-        except Exception:
-            return (0, 365)
+        return load_dte_range(
+            strategy,
+            self._strategy_config,
+            loader=load_strike_config,
+        )
 
 
 def select_chain_source(

@@ -7,20 +7,9 @@ import csv
 
 from .utils import today
 from .helpers.dateutils import filter_by_dte
+from .helpers.numeric import safe_float
 from .logutils import logger
 from .criteria import CriteriaConfig, load_criteria
-
-
-def _as_float(value: Any) -> Optional[float]:
-    """Return ``value`` as ``float`` if possible."""
-    if isinstance(value, (int, float)):
-        return float(value)
-    if value is None:
-        return None
-    try:
-        return float(str(value))
-    except ValueError:
-        return None
 
 
 @dataclass
@@ -76,9 +65,9 @@ def load_filter_config(criteria: CriteriaConfig | None = None) -> FilterConfig:
         skew_max=s.skew_max,
         term_min=s.term_min,
         term_max=s.term_max,
-        max_gamma=_as_float(s.max_gamma),
-        max_vega=_as_float(s.max_vega),
-        min_theta=_as_float(s.min_theta),
+        max_gamma=safe_float(s.max_gamma),
+        max_vega=safe_float(s.max_vega),
+        min_theta=safe_float(s.min_theta),
     )
 def filter_by_expiry(
     options: List[Dict[str, Any]],
@@ -210,7 +199,7 @@ class StrikeSelector:
         return True, ""
 
     def _delta_filter(self, option: Dict[str, Any]) -> Tuple[bool, str]:
-        delta = _as_float(option.get("delta") or option.get("Delta"))
+        delta = safe_float(option.get("delta") or option.get("Delta"))
         if delta is None:
             return True, ""
         if delta < self.config.delta_min or delta > self.config.delta_max:
@@ -221,7 +210,7 @@ class StrikeSelector:
         return True, ""
 
     def _rom_filter(self, option: Dict[str, Any]) -> Tuple[bool, str]:
-        rom = _as_float(option.get("rom"))
+        rom = safe_float(option.get("rom"))
         if rom is None:
             return True, ""
         if rom < self.config.min_rom:
@@ -229,7 +218,7 @@ class StrikeSelector:
         return True, ""
 
     def _edge_filter(self, option: Dict[str, Any]) -> Tuple[bool, str]:
-        edge = _as_float(option.get("edge"))
+        edge = safe_float(option.get("edge"))
         if edge is None:
             return True, ""
         if edge < self.config.min_edge:
@@ -237,7 +226,7 @@ class StrikeSelector:
         return True, ""
 
     def _pos_filter(self, option: Dict[str, Any]) -> Tuple[bool, str]:
-        pos = _as_float(option.get("pos"))
+        pos = safe_float(option.get("pos"))
         if pos is None:
             return True, ""
         if pos < self.config.min_pos:
@@ -245,7 +234,7 @@ class StrikeSelector:
         return True, ""
 
     def _ev_filter(self, option: Dict[str, Any]) -> Tuple[bool, str]:
-        ev = _as_float(option.get("ev"))
+        ev = safe_float(option.get("ev"))
         if ev is None:
             return True, ""
         if ev < self.config.min_ev:
@@ -253,7 +242,7 @@ class StrikeSelector:
         return True, ""
 
     def _skew_filter(self, option: Dict[str, Any]) -> Tuple[bool, str]:
-        skew = _as_float(option.get("skew"))
+        skew = safe_float(option.get("skew"))
         if skew is None:
             return True, ""
         if skew < self.config.skew_min or skew > self.config.skew_max:
@@ -264,7 +253,7 @@ class StrikeSelector:
         return True, ""
 
     def _term_filter(self, option: Dict[str, Any]) -> Tuple[bool, str]:
-        term = _as_float(option.get("term_m1_m3"))
+        term = safe_float(option.get("term_m1_m3"))
         if term is None:
             return True, ""
         if term < self.config.term_min or term > self.config.term_max:
@@ -275,7 +264,7 @@ class StrikeSelector:
         return True, ""
 
     def _greek_filter(self, option: Dict[str, Any]) -> Tuple[bool, str]:
-        gamma = _as_float(option.get("gamma") or option.get("Gamma"))
+        gamma = safe_float(option.get("gamma") or option.get("Gamma"))
         if (
             self.config.max_gamma is not None
             and gamma is not None
@@ -283,7 +272,7 @@ class StrikeSelector:
         ):
             return False, f"gamma {gamma:+.2f} > {self.config.max_gamma}"
 
-        vega = _as_float(option.get("vega") or option.get("Vega"))
+        vega = safe_float(option.get("vega") or option.get("Vega"))
         if (
             self.config.max_vega is not None
             and vega is not None
@@ -291,7 +280,7 @@ class StrikeSelector:
         ):
             return False, f"vega {vega:+.2f} > {self.config.max_vega}"
 
-        theta = _as_float(option.get("theta") or option.get("Theta"))
+        theta = safe_float(option.get("theta") or option.get("Theta"))
         if (
             self.config.min_theta is not None
             and theta is not None

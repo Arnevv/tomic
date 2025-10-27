@@ -3,9 +3,11 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import date, datetime
+from datetime import date
 from typing import Any, Callable, Mapping, Sequence
 
+from ..helpers.dateutils import normalize_earnings_context
+from ..helpers.numeric import safe_float
 from ..logutils import logger
 from ..reporting import to_float, format_dtes
 from ..services.strategy_pipeline import StrategyProposal
@@ -78,28 +80,11 @@ class PortfolioService:
 
         symbol = str(record.get("symbol", ""))
         strategy = record.get("strategy")
-        raw_next = record.get("next_earnings")
-        earnings_date: date | None = None
-        if isinstance(raw_next, date):
-            earnings_date = raw_next
-        elif isinstance(raw_next, str) and raw_next:
-            try:
-                earnings_date = datetime.strptime(raw_next, "%Y-%m-%d").date()
-            except Exception:
-                earnings_date = None
-
-        raw_days = record.get("days_until_earnings")
-        days_until: int | None = None
-        if isinstance(raw_days, (int, float)):
-            try:
-                days_until = int(raw_days)
-            except Exception:
-                days_until = None
-        if days_until is None and earnings_date is not None:
-            try:
-                days_until = (earnings_date - self._today()).days
-            except Exception:
-                days_until = None
+        earnings_date, days_until = normalize_earnings_context(
+            record.get("next_earnings"),
+            record.get("days_until_earnings"),
+            self._today,
+        )
 
         return Factsheet(
             symbol=symbol,
@@ -157,16 +142,15 @@ class PortfolioService:
             mid_sources = self._mid_sources(proposal)
             needs_refresh = bool(getattr(proposal, "needs_refresh", False) or ("needs_refresh" in mid_sources))
             mid_status = mid_sources[0] if mid_sources else "tradable"
-            next_earn = row.next_earnings
-            if isinstance(next_earn, str):
-                try:
-                    next_earn = datetime.strptime(next_earn, "%Y-%m-%d").date()
-                except Exception:
-                    next_earn = None
+            next_earn, _ = normalize_earnings_context(
+                getattr(row, "next_earnings", None),
+                getattr(row, "days_until_earnings", None),
+                self._today,
+            )
 
             iv_rank = normalize_percent(metrics.get("iv_rank"))
             iv_pct = normalize_percent(metrics.get("iv_percentile"))
-            skew_value = self._as_float(metrics.get("skew"))
+            skew_value = safe_float(metrics.get("skew"))
 
             dte_summary = None
             try:
@@ -179,8 +163,8 @@ class PortfolioService:
                     symbol=row.symbol,
                     strategy=row.strategy,
                     proposal=proposal,
-                    score=self._as_float(proposal.score),
-                    ev=self._as_float(proposal.ev),
+                    score=safe_float(proposal.score),
+                    ev=safe_float(proposal.ev),
                     risk_reward=risk_reward,
                     dte_summary=dte_summary,
                     iv_rank=iv_rank,
@@ -276,20 +260,6 @@ class PortfolioService:
             details.append("quotes")
         tags.extend(details)
         return tuple(tags)
-
-    @staticmethod
-    def _as_float(value: Any) -> float | None:
-        try:
-            if value is None:
-                return None
-            if isinstance(value, (int, float)):
-                return float(value)
-            if isinstance(value, str) and value:
-                return float(value)
-        except Exception:
-            return None
-        return None
-
 
 __all__ = [
     "Candidate",

@@ -8,6 +8,7 @@ import re
 from typing import Any, Iterable, Mapping, Sequence
 
 from tomic.helpers.dateutils import parse_date
+from tomic.helpers.numeric import safe_float
 from tomic.logutils import logger, normalize_reason
 from tomic.reporting._formatting import format_leg_position
 from tomic.strategy.reasons import (
@@ -259,12 +260,7 @@ def reason_label(value: ReasonLike | ReasonDetail | None) -> str:
 
 
 def to_float(value: Any) -> float | None:
-    try:
-        if value is None:
-            return None
-        return float(value)
-    except (TypeError, ValueError):
-        return None
+    return safe_float(value)
 
 
 def format_money(value: Any) -> str:
