@@ -39,6 +39,7 @@ from tomic.metrics import calculate_credit
 from tomic.models import OptionContract
 from tomic.services._config import cfg_value
 from tomic.services.strategy_pipeline import StrategyProposal
+from tomic.strategy.reasons import reason_from_mid_source
 from tomic.utils import get_leg_qty, get_leg_right, get_option_mid_price, normalize_leg
 
 
@@ -47,7 +48,6 @@ _COMBO_SPREAD_ABS_THRESHOLD = 0.30
 _COMBO_SPREAD_REL_THRESHOLD = 0.08
 _COMBO_MAX_QUOTE_AGE_SEC = 5.0
 _REPRICER_WAIT_SECONDS = 10.0
-_PREVIEW_SOURCES = {"parity_true", "parity_close", "model", "close"}
 def _expiry(leg: dict) -> str:
     return normalize_expiry_code(leg.get("expiry"))
 
@@ -339,7 +339,7 @@ def _evaluate_tradeability(
             return False, f"stale_quote_leg{idx}"
     for idx, leg in enumerate(legs, start=1):
         source = (leg.mid_source or "").strip().lower()
-        if source in _PREVIEW_SOURCES:
+        if reason_from_mid_source(source) is not None:
             return False, f"mid_source_leg{idx}={source}"
     return True, f"(spread={combo_quote.width:.2f} ≤ {threshold:.2f})"
 

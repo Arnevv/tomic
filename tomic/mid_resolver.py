@@ -12,7 +12,7 @@ from .helpers.bs_utils import estimate_model_price
 from .helpers.dateutils import dte_between_dates, parse_date
 from .helpers.numeric import safe_float
 from .logutils import logger
-from .strategy.reasons import mid_reason_message
+from .strategy.reasons import mid_reason_message, reason_from_mid_source
 from .utils import get_leg_right, today
 
 
@@ -40,6 +40,132 @@ class MidResolution:
             "quote_age_sec": self.quote_age_sec,
             "one_sided": self.one_sided,
             "mid_fallback": self.mid_fallback,
+        }
+
+
+@dataclass(slots=True)
+class MidUsageSummary:
+    """Aggregated mid resolution statistics for a group of legs."""
+
+    leg_count: int
+    fallback_summary: dict[str, int]
+    preview_sources: tuple[str, ...]
+    preview_leg_count: int
+    preview_short_legs: int
+    preview_long_legs: int
+    one_sided_count: int
+    spread_too_wide_count: int
+    missing_mid_count: int
+    fallback_allowed: int
+
+    @classmethod
+    def from_legs(
+        cls,
+        legs: Iterable[Mapping[str, Any]],
+        *,
+        resolver: "MidResolver | None" = None,
+        fallback_allowed: int | None = None,
+    ) -> "MidUsageSummary":
+        totals: dict[str, int] = {}
+        preview_sources: set[str] = set()
+        preview_short = 0
+        preview_long = 0
+        one_sided = 0
+        spread_wide = 0
+        missing_mid = 0
+        leg_count = 0
+
+        def _normalized_source(raw: Any, fallback: Any = None) -> str:
+            value = str(raw).strip().lower() if isinstance(raw, str) else ""
+            if not value:
+                value = str(fallback).strip().lower() if isinstance(fallback, str) else ""
+            if value == "parity":
+                value = "parity_true"
+            return value or "true"
+
+        for leg in legs:
+            if not isinstance(leg, Mapping):
+                continue
+            leg_count += 1
+            resolution = resolver.resolution_for(leg) if resolver else None
+
+            res_source = resolution.mid_source if resolution else None
+            res_fallback = resolution.mid_fallback if resolution else None
+            source = _normalized_source(leg.get("mid_source"), leg.get("mid_fallback"))
+            if source == "true" and resolution is not None:
+                source = _normalized_source(res_source, res_fallback)
+            totals[source] = totals.get(source, 0) + 1
+
+            preview_detail = reason_from_mid_source(source)
+            if preview_detail is not None:
+                preview_sources.add(source)
+                pos = safe_float(leg.get("position"))
+                if pos is not None:
+                    if pos < 0:
+                        preview_short += 1
+                    elif pos > 0:
+                        preview_long += 1
+
+            one_sided_flag = bool(leg.get("one_sided"))
+            if resolution is not None:
+                one_sided_flag = one_sided_flag or bool(resolution.one_sided)
+            if one_sided_flag:
+                one_sided += 1
+
+            spread_flag = leg.get("spread_flag") or (resolution.spread_flag if resolution else None)
+            if isinstance(spread_flag, str) and spread_flag.strip().lower() == "too_wide":
+                spread_wide += 1
+
+            mid_value = leg.get("mid")
+            mid_float = safe_float(mid_value)
+            has_mid_signal = mid_value is not None or bool(leg.get("mid_source") or leg.get("mid_fallback"))
+            if resolution is not None:
+                if resolution.mid is not None and mid_float is None:
+                    mid_float = resolution.mid
+                if any((resolution.mid_source, resolution.mid_fallback, resolution.mid)):
+                    has_mid_signal = True
+            if has_mid_signal and mid_float is None:
+                missing_mid += 1
+
+        for source in MID_SOURCES:
+            totals.setdefault(source, 0)
+
+        if fallback_allowed is None and resolver is not None:
+            fallback_allowed = resolver.max_fallback_legs(leg_count)
+
+        preview_source_list = tuple(sorted(preview_sources))
+
+        summary = cls(
+            leg_count=leg_count,
+            fallback_summary=dict(sorted(totals.items())),
+            preview_sources=preview_source_list,
+            preview_leg_count=sum(totals.get(src, 0) for src in preview_source_list),
+            preview_short_legs=preview_short,
+            preview_long_legs=preview_long,
+            one_sided_count=one_sided,
+            spread_too_wide_count=spread_wide,
+            missing_mid_count=missing_mid,
+            fallback_allowed=fallback_allowed or 0,
+        )
+        return summary
+
+    @property
+    def fallback_count(self) -> int:
+        trusted = {"true", "parity_true"}
+        return sum(count for source, count in self.fallback_summary.items() if source not in trusted)
+
+    def as_dict(self) -> dict[str, Any]:
+        return {
+            "leg_count": self.leg_count,
+            "fallback_summary": dict(self.fallback_summary),
+            "preview_sources": list(self.preview_sources),
+            "preview_leg_count": self.preview_leg_count,
+            "preview_short_legs": self.preview_short_legs,
+            "preview_long_legs": self.preview_long_legs,
+            "one_sided_count": self.one_sided_count,
+            "spread_too_wide_count": self.spread_too_wide_count,
+            "missing_mid_count": self.missing_mid_count,
+            "fallback_allowed": self.fallback_allowed,
         }
 class MidResolver:
     """Resolve mid prices with hierarchical fallbacks."""
@@ -109,6 +235,17 @@ class MidResolver:
         if idx is None:
             return MidResolution()
         return self._resolutions[idx]
+
+    def summarize_legs(
+        self, legs: Iterable[Mapping[str, Any]], *, fallback_allowed: int | None = None
+    ) -> MidUsageSummary:
+        """Return aggregated mid usage statistics for ``legs``."""
+
+        return MidUsageSummary.from_legs(
+            legs,
+            resolver=self,
+            fallback_allowed=fallback_allowed,
+        )
 
     def max_fallback_legs(self, leg_count: int) -> int:
         if self._max_fallback_per_4 <= 0:
@@ -365,5 +502,11 @@ def build_mid_resolver(
     )
 
 
-__all__ = ["MidResolver", "MidResolution", "build_mid_resolver", "MID_SOURCES"]
+__all__ = [
+    "MidResolver",
+    "MidResolution",
+    "MidUsageSummary",
+    "build_mid_resolver",
+    "MID_SOURCES",
+]
 

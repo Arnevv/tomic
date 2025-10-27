@@ -113,6 +113,10 @@ def test_build_proposals_generates_results(sample_option):
         "close": 0,
     }
     assert prop.spread_rejects_n == 0
+    assert prop.mid_status == "tradable"
+    assert prop.mid_status_tags == ("tradable", "true:1")
+    assert prop.preview_sources == ()
+    assert prop.needs_refresh is False
     assert "iron_condor" in summary.by_strategy
     reasons = summary.by_strategy["iron_condor"]
     assert len(reasons) == 1

@@ -72,6 +72,10 @@ class StrategyProposal:
     needs_refresh: bool = False
     order_preview_only: bool = False
     tradeability_notes: str | None = None
+    mid_status: str = "tradable"
+    mid_status_tags: tuple[str, ...] = field(default_factory=tuple)
+    preview_sources: tuple[str, ...] = field(default_factory=tuple)
+    fallback_limit_exceeded: bool = False
 
 
 __all__ = ["StrategyContext", "StrategyProposal"]
