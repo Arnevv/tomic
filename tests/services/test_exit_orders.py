@@ -1,0 +1,103 @@
+import pytest
+
+from tomic.services.exit_orders import ExitOrderPlan, build_exit_order_plan
+from tomic.services.trade_management_service import StrategyExitIntent
+
+
+@pytest.fixture
+def sample_intent_credit():
+    strategy = {
+        "symbol": "XYZ",
+        "expiry": "20240119",
+        "legs": [
+            {"strike": 100.0, "right": "call", "position": -1},
+            {"strike": 105.0, "right": "call", "position": 1},
+        ],
+    }
+    legs = [
+        {
+            "conId": 1001,
+            "symbol": "XYZ",
+            "expiry": "20240119",
+            "strike": 100.0,
+            "right": "C",
+            "position": -1,
+            "bid": 1.1,
+            "ask": 1.2,
+            "minTick": 0.01,
+            "quote_age_sec": 0.5,
+            "mid_source": "true",
+        },
+        {
+            "conId": 1002,
+            "symbol": "XYZ",
+            "expiry": "20240119",
+            "strike": 105.0,
+            "right": "C",
+            "position": 1,
+            "bid": 0.55,
+            "ask": 0.65,
+            "minTick": 0.01,
+            "quote_age_sec": 0.5,
+            "mid_source": "true",
+        },
+    ]
+    return StrategyExitIntent(strategy=strategy, legs=legs, exit_rules=None)
+
+
+def test_build_exit_order_plan_credit(sample_intent_credit):
+    plan = build_exit_order_plan(sample_intent_credit)
+    assert isinstance(plan, ExitOrderPlan)
+    assert plan.action == "BUY"
+    assert plan.quantity == 1
+    assert abs(plan.limit_price - 0.55) < 1e-9
+    assert abs(plan.nbbo.bid - 0.45) < 1e-9
+    assert abs(plan.nbbo.ask - 0.65) < 1e-9
+    assert plan.tradeability.startswith("(spread=")
+    assert abs(plan.per_combo_credit - 55.0) < 1e-9
+
+
+def test_build_exit_order_plan_debit():
+    strategy = {"symbol": "ABC", "expiry": "20240315"}
+    legs = [
+        {
+            "conId": 2001,
+            "symbol": "ABC",
+            "expiry": "20240315",
+            "strike": 95.0,
+            "right": "P",
+            "position": 1,
+            "bid": 0.9,
+            "ask": 1.1,
+            "minTick": 0.05,
+            "quote_age_sec": 0.5,
+            "mid_source": "true",
+        }
+    ]
+    intent = StrategyExitIntent(strategy=strategy, legs=legs, exit_rules=None)
+    plan = build_exit_order_plan(intent)
+    assert plan.action == "SELL"
+    assert abs(plan.limit_price - 1.0) < 1e-9
+    assert abs(plan.per_combo_credit + 100.0) < 1e-9
+    assert abs(plan.nbbo.bid - 0.9) < 1e-9
+    assert abs(plan.nbbo.ask - 1.1) < 1e-9
+
+
+def test_build_exit_order_plan_requires_nbbo():
+    strategy = {"symbol": "NOP", "expiry": "20240119"}
+    legs = [
+        {
+            "conId": 3001,
+            "symbol": "NOP",
+            "expiry": "20240119",
+            "strike": 50.0,
+            "right": "C",
+            "position": -1,
+            "bid": None,
+            "ask": 1.0,
+            "minTick": 0.01,
+        }
+    ]
+    intent = StrategyExitIntent(strategy=strategy, legs=legs, exit_rules=None)
+    with pytest.raises(ValueError, match="NBBO"):
+        build_exit_order_plan(intent)
