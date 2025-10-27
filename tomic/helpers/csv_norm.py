@@ -35,15 +35,19 @@ def _apply_column_aliases(
     }
     rename_map: dict[str, str] = {}
     drop_columns: list[str] = []
+    # Track canonical targets that already have a column assigned so that we keep the
+    # first occurrence and drop subsequent alias matches.
+    assigned_targets: set[str] = set(df.columns)
 
     for column in list(df.columns):
         target = normalized_aliases.get(column)
         if not target:
             continue
-        if target in df.columns and target != column:
+        if target in assigned_targets and target != column:
             drop_columns.append(column)
         else:
             rename_map[column] = target
+            assigned_targets.add(target)
 
     if drop_columns:
         df = df.drop(columns=drop_columns)

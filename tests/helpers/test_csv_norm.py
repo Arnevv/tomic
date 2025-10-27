@@ -55,3 +55,24 @@ def test_normalize_chain_dataframe_drops_duplicate_alias_columns():
     assert list(normalized.columns) == ["expiry", "bid"]
     # Original expiry column should win when both are present
     assert normalized.loc[0, "expiry"] == "2024-01-19"
+
+
+def test_normalize_chain_dataframe_prefers_first_alias_when_no_canonical_column():
+    df = pd.DataFrame(
+        {
+            "exp": ["2024-01-19"],
+            "expiry_date": ["2024-02-16"],
+            "ask": [1.5],
+        }
+    )
+
+    normalized = normalize_chain_dataframe(
+        df,
+        column_aliases={"exp": "expiry", "expiry_date": "expiry"},
+        date_columns=("expiry",),
+        date_format="%Y-%m-%d",
+    )
+
+    assert list(normalized.columns) == ["expiry", "ask"]
+    # First alias should be preserved
+    assert normalized.loc[0, "expiry"] == "2024-01-19"
