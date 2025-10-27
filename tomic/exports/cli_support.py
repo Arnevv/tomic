@@ -439,8 +439,16 @@ def refresh_spot_price(
     else:
         meta = load_price_meta()
     now = datetime.now()
-    meta_key = f"spot_{sym}"
-    ts_str = meta.get(meta_key)
+    meta_entry = meta.get(sym)
+    ts_str = None
+    if isinstance(meta_entry, Mapping):
+        ts_str = (
+            meta_entry.get("fetched_at")
+            or meta_entry.get("timestamp")
+            or meta_entry.get("last_fetch")
+        )
+    elif isinstance(meta_entry, str):
+        ts_str = meta_entry
     if spot_file.exists() and ts_str:
         try:
             ts = datetime.fromisoformat(ts_str)
@@ -473,7 +481,12 @@ def refresh_spot_price(
         return None
 
     save_json({"price": float(price), "timestamp": now.isoformat()}, spot_file)
-    meta[meta_key] = now.isoformat()
+    if not isinstance(meta_entry, Mapping):
+        meta_entry = {}
+    meta_entry = dict(meta_entry)
+    meta_entry["fetched_at"] = now.isoformat()
+    meta_entry.setdefault("source", "polygon")
+    meta[sym] = meta_entry
     if price_meta_file is not None:
         save_json(meta, price_meta_file)
     else:

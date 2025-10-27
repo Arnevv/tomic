@@ -632,9 +632,21 @@ def test_process_chain_refreshes_spot_price(monkeypatch, tmp_path):
 
     monkeypatch.setattr(mod.cfg, "get", cfg_get)
 
-    meta_store: dict[str, str] = {}
-    monkeypatch.setattr(mod, "load_price_meta", lambda: meta_store.copy())
-    monkeypatch.setattr(mod, "save_price_meta", lambda m: meta_store.update(m))
+    meta_store: dict[str, dict[str, str]] = {}
+
+    def load_meta():
+        return {k: v.copy() for k, v in meta_store.items()}
+
+    def save_meta(meta):
+        meta_store.clear()
+        for key, value in meta.items():
+            if isinstance(value, dict):
+                meta_store[key] = value.copy()
+            else:
+                meta_store[key] = value
+
+    monkeypatch.setattr(mod, "load_price_meta", load_meta)
+    monkeypatch.setattr(mod, "save_price_meta", save_meta)
 
     real_dt = datetime
     class DummyDateTime:
@@ -696,7 +708,8 @@ def test_process_chain_refreshes_spot_price(monkeypatch, tmp_path):
         reason.message for reasons in by_strategy.values() for reason in reasons
     }
     assert {"r1", "r2"}.issubset(combined)
-    assert "spot_AAA" in meta_store
+    assert "AAA" in meta_store
+    assert "fetched_at" in meta_store["AAA"]
 
     spot_path = tmp_path / "AAA_spot.json"
     assert spot_path.exists(), "spot cache should use _spot.json suffix"
