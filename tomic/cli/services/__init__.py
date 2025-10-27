@@ -1,12 +1,12 @@
 from __future__ import annotations
 
+import importlib
 import subprocess
 from pathlib import Path
-from typing import cast
+from typing import TYPE_CHECKING, cast
 
 from tomic import config as cfg
 from tomic.api.market_export import ExportResult, export_option_chain
-from tomic.providers.polygon_iv import fetch_polygon_option_chain
 from tomic.services.chain_sources import (
     ChainSourceDecision,
     ChainSourceError,
@@ -15,15 +15,57 @@ from tomic.services.chain_sources import (
     TwsLiveAdapter,
     resolve_chain_source,
 )
-from .earnings_alpha import update_alpha_earnings
-from .iv_polygon import fetch_polygon_iv_data
-from .price_history_ib import fetch_ib_daily_prices
-from .price_history_polygon import fetch_polygon_price_history
-from .volatility import (
-    compute_polygon_volatility_stats,
-    compute_volatility_stats,
-    fetch_iv30d,
-)
+
+if TYPE_CHECKING:  # pragma: no cover - import hints only
+    from .earnings_alpha import update_alpha_earnings
+    from .iv_polygon import fetch_polygon_iv_data
+    from .price_history_ib import fetch_ib_daily_prices
+    from .price_history_polygon import fetch_polygon_price_history
+    from .volatility import (
+        compute_polygon_volatility_stats,
+        compute_volatility_stats,
+        fetch_iv30d,
+    )
+    from tomic.providers.polygon_iv import fetch_polygon_option_chain
+
+
+_LAZY_ATTRS = {
+    "update_alpha_earnings": "tomic.cli.services.earnings_alpha",
+    "fetch_polygon_iv_data": "tomic.cli.services.iv_polygon",
+    "fetch_ib_daily_prices": "tomic.cli.services.price_history_ib",
+    "fetch_polygon_price_history": "tomic.cli.services.price_history_polygon",
+    "compute_polygon_volatility_stats": "tomic.cli.services.volatility",
+    "compute_volatility_stats": "tomic.cli.services.volatility",
+    "fetch_iv30d": "tomic.cli.services.volatility",
+    "fetch_polygon_option_chain": "tomic.providers.polygon_iv",
+}
+
+
+def __getattr__(name: str):
+    module_name = _LAZY_ATTRS.get(name)
+    if not module_name:
+        raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+    module = importlib.import_module(module_name)
+    attr = getattr(module, name)
+    globals()[name] = attr
+    return attr
+
+
+__all__ = [
+    "update_alpha_earnings",
+    "fetch_polygon_iv_data",
+    "fetch_ib_daily_prices",
+    "fetch_polygon_price_history",
+    "compute_polygon_volatility_stats",
+    "compute_volatility_stats",
+    "fetch_iv30d",
+    "fetch_polygon_option_chain",
+    "find_latest_chain",
+    "export_chain",
+    "fetch_polygon_chain",
+    "resolve_chain_decision",
+    "git_commit",
+]
 
 
 def _latest_export_dir(base: Path) -> Path | None:
@@ -71,6 +113,8 @@ def fetch_polygon_chain(symbol: str) -> Path | None:
 
 
 def _polygon_adapter() -> PolygonFileAdapter:
+    from tomic.providers.polygon_iv import fetch_polygon_option_chain
+
     export_dir = Path(cfg.get("EXPORT_DIR", "exports"))
     schema_version = cfg.get("POLYGON_CHAIN_SCHEMA_VERSION")
     schema_str = str(schema_version) if schema_version else "polygon.v1"

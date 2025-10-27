@@ -8,7 +8,7 @@ from time import sleep
 from typing import List, Any
 
 from tomic.analysis.metrics import historical_volatility
-from tomic.cli.services.vol_helpers import iv_percentile, iv_rank, rolling_hv
+from tomic.cli.services.vol_helpers import _get_closes, iv_percentile, iv_rank, rolling_hv
 from tomic.config import get as cfg_get
 from tomic.infrastructure.storage import update_json_file
 from tomic.infrastructure.throttling import RateLimiter
@@ -16,19 +16,6 @@ from tomic.logutils import logger, setup_logging
 from tomic.providers.polygon_iv import fetch_polygon_iv30d
 from tomic.integrations.polygon.client import PolygonClient
 from tomic.helpers.price_utils import _load_latest_close
-from tomic.utils import load_price_history
-
-
-def _get_closes(symbol: str) -> list[float]:
-    """Return list of close prices for ``symbol`` sorted by date."""
-    data = load_price_history(symbol)
-    closes: list[float] = []
-    for rec in data:
-        try:
-            closes.append(float(rec.get("close", 0)))
-        except Exception:
-            continue
-    return closes
 
 
 
