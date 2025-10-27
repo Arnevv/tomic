@@ -23,12 +23,12 @@ from .chain_processing import (
 from .chain_sources import ChainSourceDecision
 from .market_snapshot_service import ScanRow
 from .portfolio_service import Candidate, PortfolioService
+from .pipeline_runner import PipelineRunContext, run_pipeline
 from .strategy_pipeline import (
     PipelineRunError,
     PipelineRunResult,
     StrategyPipeline,
     StrategyProposal,
-    run as run_strategy_pipeline,
 )
 
 
@@ -167,20 +167,21 @@ class MarketScanService:
 
             for req in entries:
                 dte_range = self._resolve_dte_range(req.strategy)
+                context = PipelineRunContext(
+                    pipeline=self._pipeline,
+                    symbol=symbol,
+                    strategy=req.strategy,
+                    option_chain=list(prepared.records),
+                    spot_price=spot_price,
+                    atr=atr_value,
+                    config=self._strategy_config,
+                    interest_rate=self._interest_rate,
+                    dte_range=dte_range,
+                    interactive_mode=False,
+                    next_earnings=req.next_earnings,
+                )
                 try:
-                    run_result: PipelineRunResult = run_strategy_pipeline(
-                        self._pipeline,
-                        symbol=symbol,
-                        strategy=req.strategy,
-                        option_chain=list(prepared.records),
-                        spot_price=spot_price,
-                        atr=atr_value,
-                        config=self._strategy_config,
-                        interest_rate=self._interest_rate,
-                        dte_range=dte_range,
-                        interactive_mode=False,
-                        next_earnings=req.next_earnings,
-                    )
+                    run_result = run_pipeline(context)
                 except PipelineRunError as exc:
                     raise MarketScanError(str(exc)) from exc
 

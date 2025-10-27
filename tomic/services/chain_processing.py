@@ -22,6 +22,7 @@ from tomic.helpers.interpolation import interpolate_missing_fields
 from tomic.helpers.quality_check import calculate_csv_quality
 from tomic.loader import load_strike_config
 from tomic.logutils import logger
+from tomic.services.pipeline_runner import PipelineRunContext, run_pipeline
 from tomic.services.strategy_pipeline import (
     PipelineRunError,
     PipelineRunResult,
@@ -29,7 +30,6 @@ from tomic.services.strategy_pipeline import (
     StrategyContext,
     StrategyPipeline,
     StrategyProposal,
-    run as run_strategy_pipeline,
 )
 from tomic.utils import normalize_leg
 
@@ -317,20 +317,21 @@ def evaluate_chain(
     """Evaluate a prepared option chain using the configured pipeline."""
 
     expiry_counts_before = _count_by_expiry(prepared.records)
+    context = PipelineRunContext(
+        pipeline=pipeline,
+        symbol=config.symbol,
+        strategy=config.strategy,
+        option_chain=list(prepared.records),
+        spot_price=float(config.spot_price or 0.0),
+        atr=config.atr,
+        config=config.strategy_config or {},
+        interest_rate=config.interest_rate,
+        dte_range=config.dte_range,
+        interactive_mode=config.interactive_mode,
+        debug_path=config.export_dir / config.debug_filename,
+    )
     try:
-        run_result: PipelineRunResult = run_strategy_pipeline(
-            pipeline,
-            symbol=config.symbol,
-            strategy=config.strategy,
-            option_chain=list(prepared.records),
-            spot_price=float(config.spot_price or 0.0),
-            atr=config.atr,
-            config=config.strategy_config or {},
-            interest_rate=config.interest_rate,
-            dte_range=config.dte_range,
-            interactive_mode=config.interactive_mode,
-            debug_path=config.export_dir / config.debug_filename,
-        )
+        run_result = run_pipeline(context)
     except PipelineRunError as exc:
         raise ChainPreparationError(str(exc)) from exc
 

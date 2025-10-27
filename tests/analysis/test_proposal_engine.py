@@ -1,11 +1,22 @@
 from types import SimpleNamespace
 
+import pytest
+
+from datetime import date
+
 from tomic.analysis.proposal_engine import (
+    _StrategyContext,
+    _run_strategy_pipeline,
     generate_proposals,
     suggest_strategies,
 )
 from tomic.criteria import RULES
-from tomic.strategy.models import StrategyProposal
+from tomic.services.strategy_pipeline import (
+    PipelineRunError,
+    PipelineRunResult,
+    RejectionSummary,
+)
+from tomic.strategy.models import StrategyContext, StrategyProposal
 from tomic.strategies import StrategyName
 
 
@@ -157,4 +168,80 @@ def test_generate_proposals_aggregates_pipeline(monkeypatch):
 
     assert "XYZ" in proposals
     assert proposals["XYZ"][0]["strategy"] == "short_call_spread"
+
+
+def test__run_strategy_pipeline_builds_context(monkeypatch):
+    contexts = []
+
+    def fake_run(context):
+        contexts.append(context)
+        strategy_context = StrategyContext(
+            symbol=context.symbol,
+            strategy=str(context.strategy),
+            option_chain=list(context.option_chain),
+            spot_price=context.spot_price,
+            atr=context.atr,
+            config=context.config,
+            interest_rate=context.interest_rate,
+            dte_range=context.dte_range,
+            interactive_mode=context.interactive_mode,
+            criteria=context.criteria,
+            next_earnings=context.next_earnings,
+            debug_path=context.debug_path,
+        )
+        proposal = StrategyProposal(strategy=str(context.strategy), legs=[{"id": 1}])
+        return PipelineRunResult(
+            context=strategy_context,
+            proposals=[proposal],
+            summary=RejectionSummary(),
+            filtered_chain=list(context.option_chain),
+        )
+
+    monkeypatch.setattr("tomic.analysis.proposal_engine.run_pipeline", fake_run)
+
+    ctx = _StrategyContext(
+        pipeline=object(),
+        symbol="AAA",
+        chain=[{"expiry": "2024-01-19"}],
+        spot_price=101.0,
+        atr=1.5,
+        strategy_config={"foo": "bar"},
+        interest_rate=0.02,
+        next_earnings=date(2024, 6, 1),
+    )
+
+    proposals = _run_strategy_pipeline(ctx, StrategyName.IRON_CONDOR)
+
+    assert len(contexts) == 1
+    run_ctx = contexts[0]
+    assert run_ctx.symbol == "AAA"
+    assert run_ctx.strategy == "iron_condor"
+    assert list(run_ctx.option_chain) == [{"expiry": "2024-01-19"}]
+    assert run_ctx.spot_price == 101.0
+    assert run_ctx.atr == 1.5
+    assert run_ctx.config == {"foo": "bar"}
+    assert run_ctx.interest_rate == 0.02
+    assert run_ctx.next_earnings == date(2024, 6, 1)
+    assert proposals and proposals[0].strategy == "iron_condor"
+
+
+def test__run_strategy_pipeline_returns_empty_on_error(monkeypatch):
+    monkeypatch.setattr(
+        "tomic.analysis.proposal_engine.run_pipeline",
+        lambda context: (_ for _ in ()).throw(PipelineRunError("boom")),
+    )
+
+    ctx = _StrategyContext(
+        pipeline=object(),
+        symbol="AAA",
+        chain=[{"expiry": "2024-01-19"}],
+        spot_price=101.0,
+        atr=1.5,
+        strategy_config={},
+        interest_rate=0.02,
+    )
+
+    proposals = _run_strategy_pipeline(ctx, "iron_condor")
+
+    assert proposals == []
 
