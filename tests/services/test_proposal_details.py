@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import math
+from dataclasses import replace
 from datetime import date
 
 import pytest
@@ -110,3 +111,14 @@ def test_build_proposal_viewmodel_without_nan(sample_refresh_result: RefreshResu
     assert vm.accepted is True
     assert vm.earnings.next_earnings == date(2025, 1, 10)
     assert vm.earnings.occurs_before_expiry is False
+
+
+def test_build_proposal_viewmodel_marks_missing_quotes_pending(
+    sample_refresh_result: RefreshResult,
+) -> None:
+    candidate = replace(sample_refresh_result.accepted[0], missing_quotes=["195"], accepted=True)
+
+    vm = build_proposal_viewmodel(candidate, None)
+
+    assert vm.accepted is None
+    assert "⚠️ Geen verse quotes voor: 195" in vm.warnings

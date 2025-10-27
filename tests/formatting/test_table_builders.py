@@ -425,6 +425,16 @@ def test_proposal_summary_table_includes_scenario_details():
     assert ["Scenario fout", "no scenario defined", "—"] in rows
 
 
+def test_proposal_summary_table_marks_metrics_when_quotes_missing():
+    vm = _build_vm("AAA", "2024-07-19", (100.0,))
+    vm = replace(vm, accepted=None)
+
+    headers, rows = proposal_summary_table(vm, spec=PROPOSAL_SUMMARY_SPEC)
+
+    assert headers == ["Metric", "Value", "Details"]
+    assert rows[0] == ["Bron", "Metrics", "—"]
+
+
 def test_proposal_earnings_table_formats_values():
     vm = _build_vm("AAA", "2024-07-19", (100.0,))
     earnings = EarningsVM(date(2024, 7, 10), 5, 2, True)

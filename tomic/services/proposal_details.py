@@ -339,9 +339,11 @@ def build_proposal_viewmodel(
         reasons = _normalize_reasons(getattr(candidate, "reasons", ()))
         missing_quotes = tuple(getattr(candidate, "missing_quotes", ()))
         accepted = getattr(candidate, "accepted", None)
+        if accepted and missing_quotes:
+            accepted = None
         if accepted is None:
             name = candidate.__class__.__name__
-            if name == "Proposal":
+            if name == "Proposal" and not missing_quotes:
                 accepted = True
             elif name == "Rejection":
                 accepted = False
