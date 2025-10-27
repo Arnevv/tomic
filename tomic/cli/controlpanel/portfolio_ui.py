@@ -436,6 +436,8 @@ def show_market_info(session: ControlPanelSession, services: ControlPanelService
     while True:
         sel = prompt("Selectie (0 om terug, 999 voor scan): ")
         if sel == "999":
+            if not prompt_yes_no("📡 Scan uitvoeren?"):
+                continue
             portfolio_run_market_scan(
                 session,
                 services,
