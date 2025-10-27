@@ -21,18 +21,17 @@ Feature	Beschrijving
 Installeer vereisten
 pip install -r requirements.txt
 
-Start TWS / IB Gateway
+Synchroniseer sluitingsdata
+python tomic/cli/fetch_prices.py
 
-Zorg dat TWS actief is op poort 7497 voor paper trading of 7496 voor live trading.
-
-Test de verbinding
-python tests/test_ib_connection.py
+Controleer datasetkwaliteit
+python tomic/cli/csv_quality_check.py path/to/option_chain.csv
 
 Run control panel (interactief)
 python tomic/cli/controlpanel.py
 
 📁 DATA & MARKTDATA
-1. OptionChain ophalen via TWS API
+1. OptionChain importeren (CSV)
 2. OptionChain ophalen via Polygon API
 3. Controleer CSV-kwaliteit
 4. Run GitHub Action lokaal
@@ -43,7 +42,7 @@ python tomic/cli/controlpanel.py
 
 Wat doet elk item?
 Optie Beschrijving
-1. OptionChain ophalen via TWS API    Interactief bulk-exportscript voor één symbool via TWS API (option_lookup_bulk). Wordt je standaardweg voor deep dive chains.
+1. OptionChain importeren (CSV)    Importeert een eerder geëxporteerde option chain (bijv. van Polygon of een interne batch) en normaliseert de data voor EOD-gebruik.
 2. OptionChain ophalen via Polygon API    Roept fetch_polygon_option_chain(symbol) aan en slaat option chain info op (nu nog in ontwikkeling).
 3. Controleer CSV-kwaliteit    Valideert een lokaal CSV-bestand met chaindata: kolommen, lege velden, duplicaten enz.
 4. Run GitHub Action lokaal    Start fetch_prices_polygon en commit/pusht wijzigingen.
@@ -66,7 +65,7 @@ Optie Beschrijving
 3. Laatst opgehaalde portfolio tonen    Gebruik eerder opgeslagen portfolio-data.
 4. Toon portfolio greeks    Laat delta, gamma, vega en theta van je posities zien.
 5. Toon marktinformatie    Geeft IV- en HV-metrics weer voor je standaard-symbolen en toont de eerstvolgende earningsdatum. Voer 999 in om een Polygon-scan te starten die alle symbolen scoort en de topresultaten toont (aantal instelbaar via MARKET_SCAN_TOP_N).
-6. Chainbron kiezen    Selecteer een option chain via TWS, Polygon of een eigen CSV.
+6. Chainbron kiezen    Selecteer een option chain via Polygon of een eigen CSV-export.
 
 Kies je voor **Chainbron kiezen**, dan kun je eerst bepalen waar de keten vandaan
 komt. Na het laden filtert de *StrikeSelector* op DTE, delta en overige regels
@@ -74,32 +73,21 @@ uit `strike_selection_rules.yaml`. Voor de overblijvende opties worden edge,
 ROM, EV en PoS berekend. De top vijf wordt getoond en je kunt de complete lijst
 exporteren.
 
-### IB orderflow: refresh → recalculatie → concept-order
+### EOD-analyseflow: close → scoring → review
 
-Het control panel begeleidt je nu door drie duidelijke stappen zodra je een
-voorstel bekijkt:
+Het controlpanel werkt nu volledig op end-of-day data en begeleidt je door drie
+duidelijke stappen zodra je een voorstel bekijkt:
 
-1. **Marktdata-refresh** – standaard vraagt de CLI of je actuele bid/ask/last en
-   Greeks via IB wilt ophalen. In `config.yaml` stel je host, poort en de
-   afzonderlijke client-id's in (`IB_HOST`, `IB_PORT`, `IB_LIVE_PORT`,
-   `IB_MARKETDATA_CLIENT_ID`). In *fetch_only*-modus (`IB_FETCH_ONLY=true`)
-   wordt deze stap automatisch uitgevoerd zonder verdere prompts.
-2. **Herberekening** – na de refresh worden ROM, PoS, EV, max loss, scenario's
-   en acceptance criteria opnieuw doorgerekend met de verse quotes. Wanneer de
-   acceptatieregels niet meer gehaald worden, stopt de flow en toont de CLI de
+1. **Close-refresh** – de CLI laadt de meest recente sluitingsprijzen uit
+   `PRICE_HISTORY_DIR` en vult ontbrekende mids aan met close-data. Config voor
+   live TWS-verbindingen is niet langer nodig.
+2. **Herberekening** – ROM, PoS, EV, max loss, scenario's en acceptance
+   criteria worden opnieuw doorgerekend op basis van deze sluitingsdata. Wanneer
+   de acceptatieregels niet meer gehaald worden, stopt de flow en toont de CLI de
    onderliggende redenen.
-3. **Concept-order** – alleen wanneer de criteria nog geldig zijn, verschijnt de
-   vraag *"Order naar IB sturen?"*. De ordervertaling gebruikt `DEFAULT_ORDER_TYPE`
-   (bijvoorbeeld `LMT`), `DEFAULT_TIME_IN_FORCE` (zoals `DAY`) en optioneel een
-   `IB_ACCOUNT_ALIAS`. Orders worden altijd met `Transmit=False` verstuurd zodat
-   ze als concept in TWS/Gateway verschijnen. Elke structuur wordt tevens
-   gelogd als `order_submission_<timestamp>.json` in dezelfde exportmap als de
-   CSV/JSON-output.
-
-Gebruik `IB_PAPER_MODE` om automatisch de juiste poort (paper of live) te
-kiezen en `IB_ORDER_CLIENT_ID` voor een dedicated order-client. Zet
-`IB_FETCH_ONLY=true` wanneer je uitsluitend de marktdata-refresh wilt draaien
-zonder orders te plaatsen.
+3. **Review & export** – alleen wanneer de criteria nog geldig zijn, verschijnt
+   de vraag of je het voorstel wilt bewaren. In plaats van concept-orders naar
+   TWS te sturen maak je nu een CSV/JSON-export en werk je je journal bij.
 
 Exports worden geplaatst onder `exports/tradecandidates/YYYYMMDD/` met de naam
 `trade_candidates_<symbol>_<strategy>_<expiry>_<HHMMSS>.csv`.
@@ -133,10 +121,12 @@ validate <pad/naar/criteria.yaml> --reload`.
 Bij onvoldoende volume of open interest toont de log nu per strike ook volume,
 open interest en expiratie in de vorm `strike [volume, open interest, expiry]`.
 
-⏳ Verbindingstips
-Wacht na het verbinden tot de callback `nextValidId()` is aangeroepen voordat
-je verzoeken naar TWS stuurt. Pas dan is de client klaar om orders of
-marktdata-opvragingen te verwerken.
+⏳ Data-verversing
+Plan een dagelijkse job (of gebruik `tomic/cli/fetch_prices.py`) om sluitingsdata
+en IV-samenvattingen op te halen voordat je voorstellen beoordeelt. Wanneer de
+bestanden jonger zijn dan één handelsdag blijft de UI in "preview"-modus; oudere
+data wordt expliciet als verouderd gelabeld zodat je weet dat een nieuwe close-run
+nodig is.
 
 📂 Projectstructuur
 tomic/
@@ -220,157 +210,42 @@ Extra opties in `config.yaml`:
 Voor strategie-specifieke instellingen gebruik je `config/strategies.yaml`. Hier kun je per strategie of voor alle strategieën via `default` extra opties zetten. `allow_unpriced_wings: true` zorgt er bijvoorbeeld voor dat long-legs zonder `mid`, `model` of `delta` toch geaccepteerd worden.
 
 
-Stappenplan Data Ophalen – Technische Documentatie
-1. Invoer van symbool
-Valideer symbool via:
-symbol.replace(".", "").isalnum()
-Log: ✅ [stap 1]
-Functie: export_option_chain()
+EOD-dataflow – Technische Documentatie
+1. **Symboolinvoer**
+   - Valideer tickers via `symbol.replace(".", "").isalnum()` voordat je
+     bestanden aanmaakt.
+   - Alle stappen loggen een ✅ met het symbool zodat je runs kunt auditen.
 
-2. Initialiseren van client en verbinden met IB
-Client: OptionChainClient(symbol)
-Verbinding via start_app():
-Host, port en client ID uit config (IB_HOST, IB_PORT, IB_CLIENT_ID)
-Timeout connectie: 5s
-Bepaal marktstatus:
-reqContractDetails() → wacht maximaal 5s
-reqCurrentTime() → wacht maximaal 5s
-Marktstatus via is_market_open() met liquidHours en ZoneInfo(timeZoneId)
-Succesvolle marketdata type wordt ingesteld:
+2. **Close- en spotdata laden**
+   - `tomic/helpers/price_utils._load_latest_close` zoekt in
+     `PRICE_HISTORY_DIR` en retourneert `(prijs, datum, bron)`.
+   - Bij ontbrekende data wordt een duidelijke fout gelogd zodat je de
+     fetch-scripts opnieuw kunt draaien (`tomic/cli/fetch_prices.py`).
 
-reqMarketDataType(1) indien open, anders reqMarketDataType(2)
+3. **Optieketen prepareren**
+   - `tomic/services/chain_processing.load_and_prepare_chain` normaliseert
+     CSV-ketens, houdt de `close`-kolom intact en markeert elke optie met
+     `mid_source="close"` wanneer alleen sluitingsdata beschikbaar is.
+   - Fallback-strikes worden gesampled rond spot met behulp van de
+     configuratie (`FIRST_EXPIRY_MIN_DTE`, `STRIKE_RANGE`, enz.).
 
-Methode: _init_market()
+4. **MidResolver & scoring**
+   - `tomic/mid_resolver.MidResolver` vult mids op basis van close, parity en
+     modellogica. Omdat er geen intraday refresh meer is, blijven alle
+     voorstellen in "preview" totdat er een nieuwe close-run draait.
+   - `tomic/analysis/scoring.validate_leg_metrics` accepteert voorstellen die
+     voldoen aan de criteria en geeft anders een reden terug.
 
-3. Spot price ophalen
-reqMktData() op STK-contract
+5. **Portfolio- en marktsnapshots**
+   - `tomic/services/market_snapshot_service.MarketSnapshotService` combineert
+     IV-samenvattingen, HV-reeksen en earnings-data tot één factsheet.
+   - Portfolio-overzichten gebruiken dezelfde close-data en tonen badges zodra
+     datasets ouder zijn dan één handelsdag.
 
-Wacht op eerste tick (TickTypeEnum.LAST, CLOSE, etc.)
-
-Timeout: SPOT_TIMEOUT (default: 10s, uit config)
-
-Bij geen tick: fallback via fetch_volatility_metrics()
-
-Snapshot indien markt gesloten (use_snapshot = True)
-
-Eventuele fallbackprijs wordt gelogd en opgeslagen
-
-4. ContractDetails ophalen voor de underlying
-reqContractDetails() op STK-contract
-
-Timeout: 10s (hardcoded in details_event.wait(10))
-
-Output: conId, tradingClass, primaryExchange (gebruikt in latere contracten)
-
-Logging: ✅ [stap 4] ConId: ...
-
-5. Optieparameters ophalen (reqSecDefOptParams())
-Methode: securityDefinitionOptionParameter()
-
-Vereisten: spotprijs moet beschikbaar zijn
-
-Filters op:
-
-FIRST_EXPIRY_MIN_DTE (default: 15, uit config)
-
-AMOUNT_REGULARS, AMOUNT_WEEKLIES
-
-STRIKE_RANGE of STRIKE_STDDEV_MULTIPLIER indien IV beschikbaar
-
-Timeout: wacht tot params_event of option_params_complete
-(OPTION_PARAMS_TIMEOUT, default 20s)
-
-Fallback bij ontbreken IV: gebruik van ±STRIKE_RANGE
-
-6. Selectie van relevante expiries en strikes
-Expiries verdeeld in:
-
-Maandelijks: _is_third_friday()
-
-Weeklies: _is_weekly()
-
-Strikes:
-
-Rond spotprijs
-
-Afstand obv STRIKE_STDDEV_MULTIPLIER × stddev (indien IV beschikbaar)
-
-Logging:
-
-✅ [stap 6] Geselecteerde strikes/expiries
-
-expected_contracts = len(expiries) × len(strikes) × 2
-
-7. Opbouw van optiecontracten + contractdetails
-Elke combinatie expiry × strike × {Call, Put} → OptionContract
-
-Per contract: reqContractDetails()
-
-Retries: CONTRACT_DETAILS_RETRIES (default: 4)
-
-Timeout: CONTRACT_DETAILS_TIMEOUT (default: 10s)
-
-Maximaal MAX_CONCURRENT_REQUESTS tegelijk (default: 5)
-
-Bij mislukking: gelogd als ❌, fallback = skip
-
-Methode: _request_option_data()
-
-8. Callback op contractDetails voor elke optie
-Zodra contract is ontvangen:
-
-reqMktData() met marketDataType gelijk aan stap 3
-
-Bij gesloten markt: USE_HISTORICAL_IV_WHEN_CLOSED=True → fetch_historical_option_data() voor IV en close
-
-Bid/ask/Greeks gestart indien live
-
-Logging: ✅ [stap 8] reqMktData sent ...
-
-9. Ontvangen van market data (Greeks, bid/ask)
-Ticks verzameld in: tickPrice, tickOptionComputation, tickGeneric
-
-Vereiste velden:
-
-Open: bid, ask, iv, delta, gamma, vega, theta
-
-Gesloten: alleen iv en close uit historische data
-
-Filtering:
-
-Contracts met delta buiten DELTA_MIN/DELTA_MAX worden ongeldig verklaard
-
-Retries bij incomplete data:
-
-Max: OPTION_DATA_RETRIES (default: 5)
-
-Timeout per poging: BID_ASK_TIMEOUT (default: 20s)
-
-Wacht tussen retries: OPTION_RETRY_WAIT
-Strikte timeboxing: OPTION_MAX_MARKETDATA_TIME (default 60s) als laatste fallback
-
-10. Exporteren van CSV’s en disconnect
-Disconnect vóór het schrijven naar disk
-
-CSV-bestanden:
-option_chain_<symbol>_<timestamp>.csv
-other_data_<symbol>_<timestamp>.csv met o.a. IV Rank, HV30, ATR14, VIX
-
-Snapshot-export via Polygon:
-fetch_polygon_option_chain() kiest expiries met AMOUNT_REGULARS en
-AMOUNT_WEEKLIES en negeert opties waarvan delta buiten DELTA_MIN/DELTA_MAX valt.
-
-Berekening parity deviation op eerste expiry
-
-Exporteer ook bij incomplete data
-
-Functies: _write_option_chain(), _write_metrics_csv()
-
-11. (Fallback) Term structure berekenen
-Als term_m1_m2 of term_m1_m3 ontbreekt in Barchart scrape, dan:
-Berekening met gemiddelde IV’s rond spot (±TERM_STRIKE_WINDOW, default: 5)
-Per expiry → mean IV → bereken M1-M2 en M1-M3
-Functie: compute_iv_term_structure()
+6. **Exports & journaling**
+   - CSV/JSON-exports landen onder `exports/tradecandidates/YYYYMMDD/`.
+   - `tomic/journal` gebruikt dezelfde EOD-metadata om entries van context te
+     voorzien (spot, IV, earnings, acceptance-resultaat).
 
 ✅ Tests
 Run alle basistests met:

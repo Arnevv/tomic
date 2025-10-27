@@ -1,43 +1,72 @@
-# Architectuurwijzigingen voor close + TWS-bid/ask stroom
+# EOD-architectuur voor close-gedreven scoring
 
-Deze notitie beschrijft welke componenten in de huidige Tomic-stack we moeten uitbreiden om **close-data als baseline** te gebruiken, terwijl we TWS snapshots inzetten zodra live bid/ask beschikbaar komt. Het doel is tweeledig: voorstellen blijven zichtbaar bij gesloten markten én we maken meteen duidelijk dat scores op previewkwaliteit gebaseerd zijn totdat een TWS-refresh loopt. De afspraken hieronder leggen één beslispad vast: *MidResolver labelt, Scoring beslist, CLI visualiseert*.
+Deze notitie beschrijft hoe de huidige Tomic-stack volledig op sluitingsdata
+(End-Of-Day) draait. Live TWS-snapshots en intraday-refreshes zijn verwijderd:
+voorstellen blijven gebaseerd op de meest recente close totdat een nieuwe batch
+wordt binnengehaald. De beslisflow blijft: *MidResolver labelt, Scoring beslist,
+CLI visualiseert*.
 
 ## 1. Baseline spot- en close-data
-- **Close ophalen en dateren.** `tomic/helpers/price_utils._load_latest_close` levert nu al een tuple `(prijs, datum)` terug. Deze functie is de bron voor fallback-spotprijzen wanneer realtime quotes ontbreken; we moeten de returnwaarde uitbreiden met een expliciete bron/timestamp zodat downstream logica de leeftijd kan tonen.【F:tomic/helpers/price_utils.py†L1-L41】
-- **Metadata rond close-fetches.** `tomic/helpers/price_meta.load_price_meta` bewaakt wanneer er voor het laatst bars zijn opgehaald. Zodra we closes als baseline promoten, moet dit bestand aangeven dat de close momenteel als “primary mid seed” dient. Zo kan de scan-service zien of de baseline al overeenkomt met de meest recente handelsdag.【F:tomic/helpers/price_meta.py†L1-L39】
-- **Spot-resolutie voor scans.** `tomic/services/chain_processing.resolve_spot_price` bepaalt in welke volgorde we spotprijzen proberen: TWS refresh, metrics-cache, close en desnoods de keten zelf. Dit is het ankerpunt om expliciet te loggen wanneer we op een close fallbacken en om het onderscheid tussen “live” en “close” aan de UI door te geven.【F:tomic/services/chain_processing.py†L201-L230】
-- **Gebruik binnen de marktscan.** `tomic/services/market_scan_service.MarketScanService.run_market_scan` groepeert symbolen, laadt één keer de optieketen en hergebruikt dezelfde close/spot-waardes voor alle strategieën. Hier kunnen we toevoegen dat elke `ScanRow` een vlag meekrijgt zodra de spot uit `_load_latest_close` komt, zodat het controlpanel meteen de previewstatus toont.【F:tomic/services/market_scan_service.py†L70-L177】
+- **Close ophalen en dateren.** `tomic/helpers/price_utils._load_latest_close`
+  levert `(prijs, datum, bron)` zodat downstream logica altijd weet dat de data
+  uit een EOD-run komt.【F:tomic/helpers/price_utils.py†L1-L41】
+- **Metadata rond close-fetches.** `tomic/helpers/price_meta.load_price_meta`
+  bewaakt wanneer er voor het laatst bars zijn opgehaald en markeert de huidige
+  close als primaire bron.【F:tomic/helpers/price_meta.py†L1-L39】
+- **Spot-resolutie voor scans.** `tomic/services/chain_processing.resolve_spot_price`
+  probeert eerst de meest recente close en logt expliciet dat de bron `close`
+  is. Er wordt niet meer doorgeschakeld naar TWS.【F:tomic/services/chain_processing.py†L201-L230】
+- **Gebruik binnen de marktscan.** `tomic/services/market_scan_service.MarketScanService.run_market_scan`
+  hergebruikt dezelfde close/spot-waardes voor alle strategieën en markeert
+  elke `ScanRow` als preview zolang alleen sluitingsdata beschikbaar is.【F:tomic/services/market_scan_service.py†L70-L177】
 
 ## 2. Option-chain normalisatie & mid-metadata
-- **Ketenvoorbereiding.** `tomic/services/chain_processing.load_and_prepare_chain` verzorgt het normaliseren van CSV-ketens voordat de pipeline ze ziet. Een logregel of veld kan benadrukken dat alle `close` kolommen behouden moeten blijven omdat `MidResolver` ze als laatste redmiddel gebruikt.【F:tomic/services/chain_processing.py†L61-L199】
-- **MidResolver als centrale waarheid.** `tomic/mid_resolver.MidResolver` verrijkt elke optie met `mid`, `mid_source`, `mid_reason`, `spread_flag` en optioneel `mid_fallback`. Het algoritme probeert achtereenvolgens echte bid/ask, put-call parity, modelprijzen en ten slotte de close. Hierdoor hebben we één plaats om de bronlabeling en refresh-behoefte te beheren. De resolver labelt dus alleen; beslissingen over acceptatie of afwijzing vallen buiten deze laag.【F:tomic/mid_resolver.py†L1-L312】
-- **Reason-mapper als helper.** Een aparte helper (`tomic/strategy/reason_mapper.py`) vertaalt elke `mid_reason` naar een UI-samenvatting en top-level categorie. Zowel `StrategyPipeline` als het controlpanel gebruiken dezelfde mapping, zodat “Top reason” nooit naar “Overig” terugvalt zolang er labels zijn.【F:tomic/strategy/reasons.py†L121-L147】
+- **Ketenvoorbereiding.** `tomic/services/chain_processing.load_and_prepare_chain`
+  normaliseert CSV-ketens en behoudt de `close`-kolom zodat `MidResolver`
+  deze als mid kan gebruiken.【F:tomic/services/chain_processing.py†L61-L199】
+- **MidResolver als centrale waarheid.** `tomic/mid_resolver.MidResolver`
+  labelt elke leg met `mid`, `mid_source`, `mid_reason` en zet `mid_source`
+  standaard op `close` als er geen andere bron is.【F:tomic/mid_resolver.py†L1-L312】
+- **Reason-mapper als helper.** `tomic/strategy/reasons.reason_from_mid_source`
+  vertaalt de bron naar een UI-label zodat "Preview (close)" overal
+  consistent getoond wordt.【F:tomic/strategy/reasons.py†L121-L147】
 
 ## 3. Strategie-scoringspijplijn
-- **MidResolver integratie.** `tomic/services/strategy_pipeline.StrategyPipeline.build_proposals` bouwt eerst een `MidResolver` en werkt met de verrijkte keten. Dit is de juiste plaats om voorstellen met preview-mids een zachte penalty of label te geven in plaats van ze af te wijzen.【F:tomic/services/strategy_pipeline.py†L1-L214】
-- **Samenvattingen van bronnen.** Tijdens `_convert_proposal` wordt `fallback_summary` opgebouwd en tellen we hoeveel legs per bron zijn gebruikt. Deze data voedt het controlpanel zodat gebruikers zien of een setup volledig op closes draait.【F:tomic/services/strategy_pipeline.py†L595-L659】
-- **Config-gedreven fallback-limieten.** De scoringlaag bepaalt of een voorstel door mag. Eén configuratie-entry (bijv. `scoring.mid_preview.max_preview_ratio`) regelt hoeveel previewlegs zijn toegestaan. `MidResolver` labelt slechts (zodat we later daadwerkelijke bid/asks kunnen ophalen en score opnieuw kunnen berekenen), terwijl `_fallback_limit_ok` en `validate_leg_metrics` de limiet toepassen. Zo staat er maar op één plek een harde grens.【F:tomic/analysis/scoring.py†L268-L479】
-- **Uitleg bij redenen.** `tomic/strategy/reasons.reason_from_mid_source` vertaalt elke bron naar een `ReasonDetail` met categorie `PREVIEW_QUALITY`. Door deze reden door te geven aan de UI blijft duidelijk dat een voorstel nog een TWS-refresh nodig heeft.【F:tomic/strategy/reasons.py†L121-L147】
-- **Controlpanel-weergave.** `tomic/services/portfolio_service.PortfolioService._mid_sources` vat alle `mid_source` waarden samen per voorstel. Het panel toont slechts drie publicatiestaten: `tradable` (voldoende true bid/ask), `advisory` (close/parity basis) en `rejected` (inhoudelijke breach). Een badge “needs refresh” geeft aan dat een TWS-refresh wenselijk is.【F:tomic/services/portfolio_service.py†L141-L235】
+- **Close-first scoring.** `tomic/services/strategy_pipeline.StrategyPipeline.build_proposals`
+  werkt uitsluitend met de verrijkte keten vanuit `MidResolver`; intraday
+  refreshes bestaan niet meer.【F:tomic/services/strategy_pipeline.py†L1-L214】
+- **Samenvattingen van bronnen.** Tijdens `_convert_proposal` wordt
+  `fallback_summary` opgebouwd met uitsluitend close-bronnen zodat het panel
+  ziet dat een setup een nieuwe close-run nodig heeft.【F:tomic/services/strategy_pipeline.py†L595-L659】
+- **Config-gedreven validatie.** `tomic/analysis/scoring.validate_leg_metrics`
+  controleert of close-data voldoet aan de acceptance-regels en vermeldt in de
+  log wanneer een leg te oud is.【F:tomic/analysis/scoring.py†L268-L479】
+- **Controlpanel-weergave.** `tomic/services/portfolio_service.PortfolioService._mid_sources`
+  vat de `mid_source`-waarden samen en presenteert enkel `preview` of `rejected`
+  badges; `tradable` bestaat niet meer zonder live quotes.【F:tomic/services/portfolio_service.py†L141-L235】
 
-## 4. TWS-refresh & herwaardering
-- **Snapshot toepassen.** `tomic/services/ib_marketdata.IBMarketDataService._apply_snapshot` overschrijft mids, verwijdert fallback-tags en markeert de bron als `true` zodra een IB-quote binnenkomt. Hier kunnen we de delta tussen close en live loggen en eventueel een herwaarderingstrigger sturen.【F:tomic/services/ib_marketdata.py†L520-L585】
-- **Handmatige refresh.** `tomic/services/ib_marketdata.fetch_quote_snapshot` biedt een entrypoint om één voorstel interactief te updaten – precies wat we nodig hebben wanneer de gebruiker vanuit het panel op een individuele leg klikt.【F:tomic/services/ib_marketdata.py†L587-L605】
-- **Batch-refresh (bijvoorbeeld optie 999).** `tomic/services/pipeline_refresh.refresh_pipeline` verwerkt een lijst aan afgewezen of preview-voorstellen, voert `fetch_quote_snapshot` uit (eventueel parallel) en schrijft de uitkomst weg met behoud van de oorspronkelijke index. Rate-limits, timeouts en retry-instellingen komen uit één gedeelde config zodat alle batchprocessen dezelfde throttling hanteren en IB-errors vermijden.【F:tomic/services/pipeline_refresh.py†L1-L200】
+## 4. Governance & monitoring
+- **Rejection dashboards.** `StrategyPipeline` bewaart `last_rejections` en
+  `last_evaluated` zodat dashboards kunnen tonen hoeveel voorstellen op
+  close-data bleven hangen.【F:tomic/services/strategy_pipeline.py†L215-L365】
+- **Mid-bron rapportage.** De `Candidate` uit `PortfolioService.rank_candidates`
+  bevat `mid_sources` en `score` zodat rapportages duidelijk maken dat de bron
+  `close` is.【F:tomic/services/portfolio_service.py†L141-L235】
+- **Logging voor audits.** `tomic/analysis/scoring.validate_leg_metrics` logt
+  expliciet wanneer mids uit close komen en welke criteria ze misten.【F:tomic/analysis/scoring.py†L405-L479】
 
-## 5. Governance & monitoring
-- **Rejection dashboards.** `StrategyPipeline` bewaart `last_rejections` en `last_evaluated`, waarmee we kunnen tellen hoeveel voorstellen in de “preview” staat blijven hangen. Dit voedt dashboards of alerts zodra de markten openen maar mids niet ververst zijn.【F:tomic/services/strategy_pipeline.py†L215-L365】
-- **Mid-bron rapportage.** De `Candidate` die uit `PortfolioService.rank_candidates` komt bevat `mid_sources`, `score`, en `bid_ask_pct`. Daarmee kunnen we eenvoudig signaleren hoeveel actieve voorstellen nog op `close` draaien en welke eerst een IB-refresh moeten krijgen.【F:tomic/services/portfolio_service.py†L141-L235】
-- **Logging voor audits.** De mid-validatie in `tomic/analysis/scoring.validate_leg_metrics` logt expliciet wanneer mids ontbreken of uit fallback komen. Na elke refresh herberekenen we EV/RR/score, loggen we de delta (`oud → nieuw`) en controleren we tegen één configurabele `close_dev_pct`. Een grote afwijking triggert een waarschuwing in plaats van een directe reject.【F:tomic/analysis/scoring.py†L405-L479】
+## 5. Testfocus
+- **Unit-tests.** Bevestigen dat close als standaardbron fungeert en dat
+  voorstellen met alleen EOD-data geen extra refresh proberen te starten.
+- **Integratietests.** Scenario's waarin voorstellen uitsluitend op close-data
+  draaien blijven groen, zelfs zonder IB-sessies.
+- **Regression.** "Top reason" rapporteert altijd dat een voorstel in preview
+  staat zolang `mid_source="close"` is.
 
-## 6. Testfocus
-- **Unit-tests.** Verzeker dat er geen harde reject meer plaatsvindt op `mid_source`, maar wel een penalty op de score wanneer previewdata gebruikt wordt.
-- **Integratietests.** Scenario waarin een voorstel van `advisory` naar `tradable` gaat na een TWS-refresh blijft groen.
-- **Regression.** Controleer dat de “Top reason” nooit “Overig” meldt zodra `MidResolver` labels beschikbaar stelt.
-
-## 7. Actiepunten uit het mini-plan
-1. **MidResolver:** beperkt tot labelen (`mid_source`, `mid_reason`), inclusief reuse van de centrale reason-mapper.
-2. **Scoringlaag:** haalt de harde rejects op midbron eruit, voegt een lichte penalty toe en markeert voorstellen met previewmids als `advisory`.
-3. **CLI/controlpanel:** toont een “needs refresh”-badge die een TWS-refresh triggert en daarna automatische herwaardering + delta-logging uitvoert.
-
-Met deze actuele verwijzingen kunnen we gericht wijzigingen plannen: close-data promoten tot officiële baseline, previewvoorstellen zichtbaar houden met duidelijke labeling en vervolgens via `fetch_quote_snapshot` of `refresh_pipeline` snel opschalen naar echte TWS-mids zodra de markt opent.
+## 6. Actiepunten
+1. **MidResolver:** houdt alleen close- en model-bronnen over; verwijder oude
+   TWS-refresh hooks.
+2. **Scoringlaag:** vertrouwt volledig op close-data en toont strengere waarschuwingen
+   wanneer datasets ouder zijn dan één handelsdag.
+3. **CLI/controlpanel:** benadrukt dat exports preview-kwaliteit hebben tot een
+   nieuwe EOD-run heeft gedraaid.

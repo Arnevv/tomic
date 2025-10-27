@@ -29,7 +29,16 @@ def test_fetch_single_option_documentation_writes_csv(tmp_path, monkeypatch):
 def test_dataexporter_menu_invokes_new_scripts(monkeypatch):
     mod = importlib.import_module("tomic.cli.controlpanel")
     called = []
-    monkeypatch.setattr(mod, "run_module", lambda name, *a: called.append(name))
+
+    def _record(name, *a):
+        called.append(name)
+
+    monkeypatch.setattr("tomic.cli.module_runner.run_module", _record, raising=True)
+    monkeypatch.setattr(
+        "tomic.cli.controlpanel.portfolio_ui.run_module",
+        _record,
+        raising=True,
+    )
     # intercept polygon API call
     polygon_called = []
     import tomic.cli.services as services
