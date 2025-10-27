@@ -9,8 +9,8 @@ from .analysis.scoring import calculate_score, calculate_breakevens
 from .criteria import load_criteria
 from .helpers.dateutils import parse_date
 from .strategy.models import StrategyProposal
+from .core.pricing import resolve_option_mid
 from .utils import (
-    get_option_mid_price,
     normalize_right,
     get_leg_right,
 )
@@ -93,9 +93,9 @@ def _options_by_strike(
             expiry = str(opt.get("expiry"))
         except Exception:
             continue
-        mid, _ = get_option_mid_price(opt)
+        quote = resolve_option_mid(opt)
         try:
-            mid_val = float(mid) if mid is not None else math.nan
+            mid_val = float(quote.mid) if quote.mid is not None else math.nan
         except Exception:
             mid_val = math.nan
         if math.isnan(mid_val):

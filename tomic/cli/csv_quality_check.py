@@ -7,7 +7,7 @@ from typing import Any, Dict, List, Set
 
 from tomic.logutils import logger
 from tomic.logutils import setup_logging
-from tomic.utils import get_option_mid_price
+from tomic.core.pricing import resolve_option_mid
 from tomic.helpers.csv_utils import parse_euro_float
 from .common import prompt
 
@@ -71,9 +71,9 @@ def analyze_csv(path: str) -> Dict[str, Any]:
 
             # partial scoring per field
             price_source_valid = False
-            price, _ = get_option_mid_price(
+            price = resolve_option_mid(
                 {"bid": bid_val or None, "ask": ask_val or None, "close": close_val or None}
-            )
+            ).mid
             if price is not None:
                 row_score += 2
                 price_source_valid = True

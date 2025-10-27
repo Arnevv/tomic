@@ -25,7 +25,8 @@ import pandas as pd
 from dataclasses import dataclass
 
 from tomic.logutils import logger, log_result
-from tomic.utils import get_option_mid_price, normalize_leg
+from tomic.core.pricing import resolve_option_mid
+from tomic.utils import normalize_leg
 import asyncio
 import threading
 from tomic.api.market_client import (
@@ -202,12 +203,12 @@ def _write_option_chain(
             and put.get("bid") is not None
             and put.get("ask") is not None
         ):
-            call_mid, _ = get_option_mid_price(
+            call_mid = resolve_option_mid(
                 {"bid": call.get("bid"), "ask": call.get("ask")}
-            )
-            put_mid, _ = get_option_mid_price(
+            ).mid
+            put_mid = resolve_option_mid(
                 {"bid": put.get("bid"), "ask": put.get("ask")}
-            )
+            ).mid
             try:
                 if call_mid is None or put_mid is None:
                     raise ValueError("invalid mid")

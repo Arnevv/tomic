@@ -182,37 +182,6 @@ def latest_close_date(symbol: str) -> str | None:
     return _load_latest_close(symbol, return_date_only=True)
 
 
-def get_option_mid_price(option: Mapping[str, Any] | dict) -> tuple[float | None, bool]:
-    """Return midpoint price for ``option`` and whether close was used."""
-
-    if isinstance(option, Mapping):
-        data = option
-    else:  # pragma: no cover - defensive fallback for legacy call sites
-        try:
-            data = dict(option)
-        except Exception:
-            data = {}
-
-    mid = safe_float(data.get("mid"))
-    if mid is not None and mid > 0:
-        return mid, False
-
-    bid = safe_float(data.get("bid"))
-    ask = safe_float(data.get("ask"))
-    if bid is not None and ask is not None and bid > 0 and ask > 0 and ask >= bid:
-        return (bid + ask) / 2, False
-
-    last = safe_float(data.get("last"))
-    if last is not None and last > 0:
-        return last, False
-
-    close = safe_float(data.get("close"))
-    if close is not None and close > 0:
-        return close, True
-
-    return None, False
-
-
 def prompt_user_for_price(
     strike: float | str,
     expiry: str | None,
@@ -361,17 +330,31 @@ def build_leg(quote: Mapping[str, Any], side: Literal["long", "short"]) -> Optio
 
     mid_source = leg.get("mid_source")
     if leg.get("mid") in (None, "", 0, "0"):
-        mid, used_close = get_option_mid_price(leg)
-        leg["mid"] = mid
+        from tomic.core.pricing import resolve_option_mid as _resolve_option_mid
+
+        quote = _resolve_option_mid(leg)
+        leg["mid"] = quote.mid
+        mid_source = quote.mid_source or mid_source
         if leg.get("mid_from_parity"):
             if mid_source in {"parity_close", "close"}:
                 leg["mid_fallback"] = "parity_close"
             else:
                 leg["mid_fallback"] = "parity_true"
-        elif used_close:
-            leg["mid_fallback"] = "close"
+        elif quote.mid_fallback:
+            leg["mid_fallback"] = quote.mid_fallback
         elif mid_source in {"parity_true", "parity_close", "model", "close"}:
             leg["mid_fallback"] = mid_source
+        if quote.mid_reason:
+            leg["mid_reason"] = quote.mid_reason
+        if quote.spread_flag:
+            leg["spread_flag"] = quote.spread_flag
+        if quote.quote_age_sec is not None:
+            leg["quote_age_sec"] = quote.quote_age_sec
+        leg["one_sided"] = bool(leg.get("one_sided")) or bool(quote.one_sided)
+        if quote.interest_rate is not None:
+            leg.setdefault("interest_rate", quote.interest_rate)
+        if quote.interest_rate_source is not None:
+            leg.setdefault("interest_rate_source", quote.interest_rate_source)
     else:
         if mid_source in {"parity_true", "parity_close", "model", "close"}:
             leg["mid_fallback"] = mid_source

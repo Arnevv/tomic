@@ -7,8 +7,9 @@ from math import inf
 from typing import Any, Dict, Iterable, Iterator, List, Mapping, Optional, Protocol, Tuple
 
 from .core import LegView
+from .core.pricing import MidPricingContext, MidService
 from .helpers.numeric import safe_float
-from .utils import get_leg_right, get_leg_qty, get_option_mid_price
+from .utils import get_leg_right, get_leg_qty
 from .logutils import logger
 from .config import get as cfg_get
 
@@ -47,20 +48,35 @@ def _normalized_mid_source(raw: Any) -> str | None:
 
 
 class MidPriceResolver:
-    """Resolve mid price data using leg quotes and fallbacks."""
+    """Resolve mid price data using :class:`~tomic.core.pricing.MidService`."""
+
+    def __init__(
+        self,
+        *,
+        context: MidPricingContext | None = None,
+        service: MidService | None = None,
+    ) -> None:
+        self._context = context
+        self._service = service or MidService()
 
     def __call__(self, leg: Mapping[str, Any]) -> ResolverReturn:
         return self.resolve(leg)
 
     def resolve(self, leg: Mapping[str, Any]) -> ResolverReturn:
-        price, used_close = get_option_mid_price(leg)
-        leg_source = _normalized_mid_source(leg.get("mid_source"))
-        fallback_source = _normalized_mid_source(leg.get("mid_fallback"))
-        source = leg_source or fallback_source
-        if used_close and source in {None, "true"}:
-            source = "close"
-        quote_age = safe_float(leg.get("quote_age_sec"))
-        return price, source, quote_age
+        if self._context is not None:
+            quote = self._context.quote_for(leg)
+        else:
+            quote = self._service.quote_option(leg)
+        source = quote.mid_source
+        if source is None:
+            source = _normalized_mid_source(leg.get("mid_source"))
+        if source is None:
+            fallback = _normalized_mid_source(leg.get("mid_fallback"))
+            source = fallback
+        quote_age = quote.quote_age_sec
+        if quote_age is None:
+            quote_age = safe_float(leg.get("quote_age_sec"))
+        return quote.mid, source, quote_age
 
 
 def _option_direction(leg: Mapping[str, Any]) -> int:
@@ -176,8 +192,39 @@ def calculate_credit(
 ) -> float:
     """Return net credit in dollars for ``legs`` using consistent pricing."""
 
+    legs_seq = list(legs)
+
+    resolver_obj: PriceResolver
+    if isinstance(price_resolver, MidPriceResolver):
+        resolver_obj = price_resolver
+    elif price_resolver in (None, MidPriceResolver):
+        raw_options = [leg for leg in legs_seq if isinstance(leg, Mapping)]
+        context = None
+        service = MidService()
+
+        if raw_options:
+            spot_hint = next(
+                (
+                    safe_float(opt.get(key))
+                    for opt in raw_options
+                    for key in ("spot", "underlying_price")
+                    if safe_float(opt.get(key)) is not None
+                ),
+                None,
+            )
+            try:
+                context = service.build_context(
+                    raw_options,
+                    spot_price=spot_hint,
+                )
+            except Exception:  # pragma: no cover - fallback to heuristic resolver
+                context = None
+        resolver_obj = MidPriceResolver(context=context, service=service)
+    else:
+        resolver_obj = _ensure_resolver(price_resolver)
+
     credit = 0.0
-    for view in iter_leg_views(legs, price_resolver=price_resolver):
+    for view in iter_leg_views(legs_seq, price_resolver=resolver_obj):
         if view.mid is None or view.abs_qty <= 0 or view.signed_position == 0:
             continue
         direction = 1 if view.signed_position > 0 else -1

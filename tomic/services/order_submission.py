@@ -36,11 +36,12 @@ from tomic.helpers.dateutils import normalize_expiry_code
 from tomic.helpers.numeric import safe_float
 from tomic.logutils import logger
 from tomic.metrics import MidPriceResolver, calculate_credit, get_signed_position, iter_leg_views
+from tomic.core.pricing import resolve_option_mid
 from tomic.models import OptionContract
 from tomic.services._config import cfg_value
 from tomic.services.strategy_pipeline import StrategyProposal
 from tomic.strategy.reasons import ReasonCategory, reason_from_mid_source
-from tomic.utils import get_leg_qty, get_leg_right, get_option_mid_price, normalize_leg
+from tomic.utils import get_leg_qty, get_leg_right, normalize_leg
 
 
 log = logger
@@ -64,17 +65,16 @@ def _leg_action(position: float) -> str:
 
 
 def _leg_price(leg: dict) -> float | None:
-    price, _ = get_option_mid_price(leg)
-    if price is not None:
-        return round(price, 4)
+    quote = resolve_option_mid(leg)
+    if quote.mid is not None:
+        return round(quote.mid, 4)
     return None
 
 
 def _leg_mid_price(leg: dict) -> float | None:
     """Return best available mid price for ``leg``."""
 
-    price, _used_close = get_option_mid_price(leg)
-    return price
+    return resolve_option_mid(leg).mid
 
 
 def _combo_mid_credit(legs: Sequence[dict]) -> float | None:

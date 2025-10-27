@@ -20,8 +20,9 @@ from ..strike_selector import (
 from .utils import resolve_config_getter
 from ..loader import load_strike_config
 from ..logutils import combo_symbol_context, logger
-from ..mid_resolver import MidResolver, MidUsageSummary, build_mid_resolver
-from ..utils import get_option_mid_price, normalize_leg, resolve_symbol
+from ..core.pricing import MidPricingContext, MidService, resolve_option_mid
+from ..mid_resolver import MidUsageSummary
+from ..utils import normalize_leg, resolve_symbol
 from ..helpers.numeric import safe_float
 from ..helpers.bs_utils import estimate_model_price
 from ..helpers.dateutils import parse_date
@@ -148,7 +149,8 @@ class StrategyPipeline:
         self._strategy_generator = strategy_generator
         self._load_strike_config = strike_config_loader
         self._price_getter = price_getter
-        self._mid_resolver: MidResolver | None = None
+        self._mid_service = MidService()
+        self._mid_context: MidPricingContext | None = None
         self._reason_engine = ReasonEngine()
 
         self.last_context: StrategyContext | None = None
@@ -170,6 +172,7 @@ class StrategyPipeline:
             "StrategyPipeline.build_proposals symbol=%s strategy=%s", context.symbol, context.strategy
         )
         self.last_context = context
+        self._mid_context = None
         canonical_strategy = self._canonical_strategy(context.strategy)
         rules = self._load_rules(canonical_strategy, context.config)
         filter_config = load_filter_config(criteria=context.criteria, rules=rules)
@@ -179,13 +182,13 @@ class StrategyPipeline:
             criteria=context.criteria,
         )
         resolver_cfg = self._config_getter("MID_RESOLVER", {})
-        self._mid_resolver = build_mid_resolver(
+        self._mid_context = self._mid_service.build_context(
             context.option_chain,
             spot_price=context.spot_price,
             interest_rate=context.interest_rate,
             config=resolver_cfg,
         )
-        resolved_chain = self._mid_resolver.enrich_chain()
+        resolved_chain = self._mid_context.enrich_chain()
 
         selected, by_reason, by_filter = selector.select(
             list(resolved_chain),
@@ -475,15 +478,15 @@ class StrategyPipeline:
         self, option: MutableMapping[str, Any], spot_price: float, interest_rate: float
     ) -> dict[str, Any]:
         option = dict(option)
-        resolution = self._mid_resolver.resolution_for(option) if self._mid_resolver else None
-        if resolution and resolution.mid is not None:
-            mid = resolution.mid
+        quote = self._mid_context.quote_for(option) if self._mid_context else None
+        if quote and quote.mid is not None:
+            mid = quote.mid
         elif self._price_getter is not None:
             mid, _ = self._price_getter(option)
         else:
             mid = option.get("mid")
             if mid is None:
-                mid, _ = get_option_mid_price(option)
+                mid = resolve_option_mid(option).mid
         mid = safe_float(mid)
         model = self._extract_model_price(option, spot_price, interest_rate)
         margin = self._extract_margin(option, spot_price)
@@ -515,8 +518,8 @@ class StrategyPipeline:
             "edge": edge,
             "ev": ev,
         }
-        if resolution:
-            result.update(resolution.as_dict())
+        if quote:
+            result.update(quote.as_dict())
         self._apply_symbol_defaults(result)
         normalize_leg(result)
         self._apply_symbol_defaults(result)
@@ -596,8 +599,8 @@ class StrategyPipeline:
         converted.reasons = list(getattr(proposal, "reasons", []) or [])
         converted.needs_refresh = bool(getattr(proposal, "needs_refresh", False))
         if converted.legs:
-            if self._mid_resolver is not None:
-                summary = self._mid_resolver.summarize_legs(converted.legs)
+            if self._mid_context is not None:
+                summary = self._mid_context.summarize_legs(converted.legs)
             else:
                 summary = MidUsageSummary.from_legs(converted.legs)
             evaluation = self._reason_engine.evaluate(
