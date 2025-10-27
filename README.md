@@ -36,11 +36,10 @@ python tomic/cli/controlpanel.py
 2. OptionChain ophalen via Polygon API
 3. Controleer CSV-kwaliteit
 4. Run GitHub Action lokaal
-5. Run GitHub Action lokaal - intraday
-6. Backfill historical_volatility obv spotprices
-7. Fetch Earnings
+5. Backfill historical_volatility obv spotprices
+6. Fetch Earnings
 
-8. Terug
+7. Terug
 
 Wat doet elk item?
 Optie Beschrijving
@@ -48,10 +47,9 @@ Optie Beschrijving
 2. OptionChain ophalen via Polygon API    Roept fetch_polygon_option_chain(symbol) aan en slaat option chain info op (nu nog in ontwikkeling).
 3. Controleer CSV-kwaliteit    Valideert een lokaal CSV-bestand met chaindata: kolommen, lege velden, duplicaten enz.
 4. Run GitHub Action lokaal    Start fetch_prices_polygon en commit/pusht wijzigingen.
-5. Run GitHub Action lokaal - intraday    Start fetch_intraday_polygon en commit/pusht wijzigingen.
-6. Backfill historical_volatility obv spotprices    Berekent HV op basis van lokale spotprijzen.
-7. Fetch Earnings    Haalt earnings data op via Alpha Vantage API.
-8. Terug    Keert terug naar het hoofdmenu.
+5. Backfill historical_volatility obv spotprices    Berekent HV op basis van lokale spotprijzen.
+6. Fetch Earnings    Haalt earnings data op via Alpha Vantage API.
+7. Terug    Keert terug naar het hoofdmenu.
 
 📊 ANALYSE & STRATEGIE
 1. Trading Plan

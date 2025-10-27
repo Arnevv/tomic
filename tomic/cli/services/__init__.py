@@ -8,7 +8,6 @@ from tomic import config as cfg
 from tomic.api.market_export import ExportResult, export_option_chain
 from tomic.providers.polygon_iv import fetch_polygon_option_chain
 from .earnings_alpha import update_alpha_earnings
-from .intraday_polygon import fetch_polygon_intraday_prices
 from .iv_polygon import fetch_polygon_iv_data
 from .price_history_ib import fetch_ib_daily_prices
 from .price_history_polygon import fetch_polygon_price_history
@@ -84,7 +83,6 @@ __all__ = [
     "export_chain",
     "fetch_ib_daily_prices",
     "fetch_polygon_price_history",
-    "fetch_polygon_intraday_prices",
     "fetch_polygon_iv_data",
     "compute_volatility_stats",
     "compute_polygon_volatility_stats",
