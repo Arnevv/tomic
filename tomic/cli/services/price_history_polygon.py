@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import datetime
 from pathlib import Path
 from time import sleep
-from typing import Sequence
+from typing import Mapping, Sequence
 from zoneinfo import ZoneInfo
 
 from tomic.config import get as cfg_get
@@ -43,6 +43,8 @@ def fetch_polygon_price_history(symbols: Sequence[str] | None = None, *, run_vol
     stored: list[str] = []
     processed: list[str] = []
     previous_requested = False
+    meta = load_price_meta()
+    meta_updated = False
     try:
         for idx, sym in enumerate(target_symbols):
             if max_syms is not None and idx >= max_syms:
@@ -67,15 +69,23 @@ def fetch_polygon_price_history(symbols: Sequence[str] | None = None, *, run_vol
             merge_price_data(file, records)
             stored.append(sym)
             processed.append(sym)
-            meta = load_price_meta()
-            meta[f"day_{sym}"] = datetime.now(ZoneInfo("America/New_York")).isoformat()
-            save_price_meta(meta)
+            entry = meta.get(sym)
+            if not isinstance(entry, Mapping):
+                entry = {}
+            entry = dict(entry)
+            entry["fetched_at"] = datetime.now(ZoneInfo("America/New_York")).isoformat()
+            entry.setdefault("source", "polygon-history")
+            meta[sym] = entry
+            meta_updated = True
             if requested:
                 per_minute_limiter.record()
                 between_limiter.record()
             previous_requested = requested
     finally:
         client.disconnect()
+
+    if meta_updated:
+        save_price_meta(meta)
 
     if stored:
         logger.success(f"✅ Historische prijzen opgeslagen voor {len(stored)} symbolen")

@@ -89,9 +89,21 @@ def test_fetch_polygon_price_history_stores_data(monkeypatch, tmp_path):
 
     monkeypatch.setattr(svc, "merge_price_data", merge_stub)
 
-    meta_store: dict[str, str] = {}
-    monkeypatch.setattr(svc, "load_price_meta", lambda: meta_store.copy())
-    monkeypatch.setattr(svc, "save_price_meta", lambda m: meta_store.update(m))
+    meta_store: dict[str, dict[str, str]] = {}
+
+    def load_meta():
+        return {k: v.copy() for k, v in meta_store.items()}
+
+    def save_meta(meta):
+        meta_store.clear()
+        for key, value in meta.items():
+            if isinstance(value, dict):
+                meta_store[key] = value.copy()
+            else:
+                meta_store[key] = value
+
+    monkeypatch.setattr(svc, "load_price_meta", load_meta)
+    monkeypatch.setattr(svc, "save_price_meta", save_meta)
 
     monkeypatch.setattr(svc, "sleep", lambda s: None)
 
@@ -116,7 +128,8 @@ def test_fetch_polygon_price_history_stores_data(monkeypatch, tmp_path):
     assert processed == ["ABC"]
     assert captured and captured[0][0]["close"] == 1.23
     assert volstats_calls == [["ABC"]]
-    assert meta_store["day_ABC"].startswith("2024-01-01T12:00:00")
+    assert "ABC" in meta_store
+    assert meta_store["ABC"]["fetched_at"].startswith("2024-01-01T12:00:00")
 
 
 def test_fetch_polygon_price_history_no_data(monkeypatch, tmp_path):
@@ -175,9 +188,21 @@ def test_fetch_polygon_price_history_no_data(monkeypatch, tmp_path):
         lambda f, recs: (captured.extend(recs), 0)[1],
     )
 
-    meta_store: dict[str, str] = {}
-    monkeypatch.setattr(svc, "load_price_meta", lambda: meta_store.copy())
-    monkeypatch.setattr(svc, "save_price_meta", lambda m: meta_store.update(m))
+    meta_store: dict[str, dict[str, str]] = {}
+
+    def load_meta():
+        return {k: v.copy() for k, v in meta_store.items()}
+
+    def save_meta(meta):
+        meta_store.clear()
+        for key, value in meta.items():
+            if isinstance(value, dict):
+                meta_store[key] = value.copy()
+            else:
+                meta_store[key] = value
+
+    monkeypatch.setattr(svc, "load_price_meta", load_meta)
+    monkeypatch.setattr(svc, "save_price_meta", save_meta)
 
     monkeypatch.setattr(svc, "sleep", lambda s: None)
     monkeypatch.setattr(svc, "compute_polygon_volatility_stats", lambda syms: None)
@@ -267,7 +292,9 @@ def test_incomplete_day_triggers_refetch(monkeypatch, tmp_path):
     (price_dir / "ABC.json").write_text(json.dumps([{ "date": "2024-01-02", "close": 1.0 }]))
 
     meta_file = tmp_path / "meta.json"
-    meta_file.write_text(json.dumps({"day_ABC": "2024-01-02T15:00:00-05:00"}))
+    meta_file.write_text(
+        json.dumps({"ABC": {"fetched_at": "2024-01-02T15:00:00-05:00"}})
+    )
 
     cfg_lambda = lambda name, default=None: (
         str(price_dir)
@@ -347,9 +374,21 @@ def test_no_new_workday_skips_sleep(monkeypatch, tmp_path):
     sleep_calls: list[float] = []
     monkeypatch.setattr(svc, "sleep", lambda s: sleep_calls.append(s))
 
-    meta_store: dict[str, str] = {}
-    monkeypatch.setattr(svc, "load_price_meta", lambda: meta_store.copy())
-    monkeypatch.setattr(svc, "save_price_meta", lambda m: meta_store.update(m))
+    meta_store: dict[str, dict[str, str]] = {}
+
+    def load_meta():
+        return {k: v.copy() for k, v in meta_store.items()}
+
+    def save_meta(meta):
+        meta_store.clear()
+        for key, value in meta.items():
+            if isinstance(value, dict):
+                meta_store[key] = value.copy()
+            else:
+                meta_store[key] = value
+
+    monkeypatch.setattr(svc, "load_price_meta", load_meta)
+    monkeypatch.setattr(svc, "save_price_meta", save_meta)
 
     monkeypatch.setattr(svc, "compute_polygon_volatility_stats", lambda syms: None)
 

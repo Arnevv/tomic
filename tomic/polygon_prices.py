@@ -6,6 +6,7 @@ from datetime import datetime, timedelta, date, time as dt_time
 from pathlib import Path
 from zoneinfo import ZoneInfo
 from types import SimpleNamespace
+from typing import Mapping
 
 try:  # pragma: no cover - optional dependency
     import holidays  # type: ignore
@@ -79,7 +80,16 @@ def request_bars(client: PolygonClient, symbol: str) -> tuple[list[dict], bool]:
     end_dt = latest_trading_day()
     _, last_date = _load_latest_close(symbol)
     meta = load_price_meta()
-    ts_str = meta.get(f"day_{symbol}")
+    meta_entry = meta.get(symbol)
+    ts_str = None
+    if isinstance(meta_entry, Mapping):
+        ts_str = (
+            meta_entry.get("fetched_at")
+            or meta_entry.get("timestamp")
+            or meta_entry.get("last_fetch")
+        )
+    elif isinstance(meta_entry, str):
+        ts_str = meta_entry
     if last_date and ts_str:
         try:
             tz = ZoneInfo("America/New_York")
