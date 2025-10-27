@@ -27,6 +27,10 @@ def test_prepare_order_instructions(monkeypatch):
                 "type": "put",
                 "position": -1,
                 "conId": 101,
+                "bid": 1.5,
+                "ask": 1.6,
+                "quote_age_sec": 1.0,
+                "mid_source": "true",
             },
             {
                 "symbol": "AAA",
@@ -35,10 +39,14 @@ def test_prepare_order_instructions(monkeypatch):
                 "type": "put",
                 "position": 1,
                 "conId": 102,
+                "bid": 0.7,
+                "ask": 0.8,
+                "quote_age_sec": 1.0,
+                "mid_source": "true",
             },
         ],
     )
-    proposal.credit = 100.0
+    proposal.credit = 80.0
     instructions = prepare_order_instructions(
         proposal,
         symbol="AAA",
@@ -56,6 +64,43 @@ def test_prepare_order_instructions(monkeypatch):
     assert combo_legs and len(combo_legs) == 2
     assert getattr(combo_legs[0], "ratio", None) == 1
     assert getattr(instr.contract, "symbol", None) == "AAA"
+
+
+def test_prepare_order_blocks_preview_mid(monkeypatch):
+    monkeypatch.setattr(order_submission, "Order", lambda: types.SimpleNamespace())
+    proposal = StrategyProposal(
+        strategy="short_put_spread",
+        legs=[
+            {
+                "symbol": "AAA",
+                "expiry": "20240119",
+                "strike": 100.0,
+                "type": "put",
+                "position": -1,
+                "conId": 301,
+                "bid": 1.5,
+                "ask": 1.6,
+                "quote_age_sec": 1.0,
+                "mid_source": "model",
+            },
+            {
+                "symbol": "AAA",
+                "expiry": "20240119",
+                "strike": 95.0,
+                "type": "put",
+                "position": 1,
+                "conId": 302,
+                "bid": 0.7,
+                "ask": 0.8,
+                "quote_age_sec": 1.0,
+                "mid_source": "model",
+            },
+        ],
+    )
+    proposal.credit = 80.0
+
+    with pytest.raises(ValueError):
+        prepare_order_instructions(proposal, symbol="AAA")
 
 
 def test_validate_instructions_credit_direction_ok():
@@ -95,6 +140,10 @@ def test_bag_contract_excludes_disallowed_fields(monkeypatch):
                 "type": "call",
                 "position": -1,
                 "conId": 201,
+                "bid": 2.0,
+                "ask": 2.1,
+                "quote_age_sec": 1.0,
+                "mid_source": "true",
             },
             {
                 "symbol": "HD",
@@ -103,10 +152,14 @@ def test_bag_contract_excludes_disallowed_fields(monkeypatch):
                 "type": "call",
                 "position": 1,
                 "conId": 202,
+                "bid": 1.1,
+                "ask": 1.2,
+                "quote_age_sec": 1.0,
+                "mid_source": "true",
             },
         ],
     )
-    proposal.credit = 120.0
+    proposal.credit = 90.0
     instructions = prepare_order_instructions(proposal, symbol="HD")
     assert len(instructions) == 1
     payload = order_submission._serialize_instruction(instructions[0])
@@ -157,6 +210,10 @@ def test_place_orders_uses_parent_child(monkeypatch):
                 "type": "put",
                 "position": -1,
                 "conId": 401,
+                "bid": 1.6,
+                "ask": 1.7,
+                "quote_age_sec": 1.0,
+                "mid_source": "true",
             },
             {
                 "symbol": "AAA",
@@ -165,10 +222,14 @@ def test_place_orders_uses_parent_child(monkeypatch):
                 "type": "put",
                 "position": 1,
                 "conId": 402,
+                "bid": 0.8,
+                "ask": 0.9,
+                "quote_age_sec": 1.0,
+                "mid_source": "true",
             },
         ],
     )
-    proposal.credit = 100.0
+    proposal.credit = 80.0
     instructions = prepare_order_instructions(proposal, symbol="AAA")
 
     class DummyApp(order_submission.OrderPlacementApp):
@@ -189,7 +250,11 @@ def test_place_orders_uses_parent_child(monkeypatch):
 
         def wait_for_order_handshake(self, order_ids, *, timeout: float = 3.0):  # type: ignore[override]
             for order_id in order_ids:
-                self._order_events[order_id] = {"status": "Submitted"}
+                self._order_events[order_id] = {
+                    "status": "Filled",
+                    "filled": 1.0,
+                    "remaining": 0.0,
+                }
 
     dummy = DummyApp()
     monkeypatch.setattr(order_submission, "connect_ib", lambda **kwargs: kwargs.get("app"))
@@ -223,6 +288,10 @@ def test_combo_limit_price_divides_by_quantity(monkeypatch):
                 "type": "put",
                 "position": -2,
                 "conId": 501,
+                "bid": 1.6,
+                "ask": 1.7,
+                "quote_age_sec": 1.0,
+                "mid_source": "true",
             },
             {
                 "symbol": "AAA",
@@ -231,16 +300,20 @@ def test_combo_limit_price_divides_by_quantity(monkeypatch):
                 "type": "put",
                 "position": 2,
                 "conId": 502,
+                "bid": 0.8,
+                "ask": 0.9,
+                "quote_age_sec": 1.0,
+                "mid_source": "true",
             },
         ],
     )
-    proposal.credit = 200.0
+    proposal.credit = 160.0
     instructions = prepare_order_instructions(proposal, symbol="AAA", order_type="LMT")
     assert len(instructions) == 1
     instr = instructions[0]
     assert getattr(instr.order, "totalQuantity", None) == 2
     assert getattr(instr.order, "orderType", None) == "LMT"
-    assert getattr(instr.order, "lmtPrice", None) == 1.0
+    assert getattr(instr.order, "lmtPrice", None) == 0.8
 
 
 def test_combo_mid_credit_converts_to_per_share_limit(monkeypatch):
@@ -261,7 +334,11 @@ def test_combo_mid_credit_converts_to_per_share_limit(monkeypatch):
                 "type": "call",
                 "position": -1,
                 "conId": 1101,
-                "mid": 8.0,
+                "mid": 7.35,
+                "bid": 7.3,
+                "ask": 7.4,
+                "quote_age_sec": 1.0,
+                "mid_source": "true",
             },
             {
                 "symbol": "GLD",
@@ -270,7 +347,11 @@ def test_combo_mid_credit_converts_to_per_share_limit(monkeypatch):
                 "type": "put",
                 "position": -1,
                 "conId": 1102,
-                "mid": 8.0,
+                "mid": 7.35,
+                "bid": 7.3,
+                "ask": 7.4,
+                "quote_age_sec": 1.0,
+                "mid_source": "true",
             },
             {
                 "symbol": "GLD",
@@ -279,7 +360,11 @@ def test_combo_mid_credit_converts_to_per_share_limit(monkeypatch):
                 "type": "call",
                 "position": 1,
                 "conId": 1103,
-                "mid": 2.75,
+                "mid": 2.6,
+                "bid": 2.59,
+                "ask": 2.61,
+                "quote_age_sec": 1.0,
+                "mid_source": "true",
             },
             {
                 "symbol": "GLD",
@@ -288,7 +373,11 @@ def test_combo_mid_credit_converts_to_per_share_limit(monkeypatch):
                 "type": "put",
                 "position": 1,
                 "conId": 1104,
-                "mid": 2.75,
+                "mid": 2.6,
+                "bid": 2.59,
+                "ask": 2.61,
+                "quote_age_sec": 1.0,
+                "mid_source": "true",
             },
         ],
     )
@@ -319,6 +408,10 @@ def test_combo_credit_width_guard(monkeypatch):
                 "position": -1,
                 "conId": 1111,
                 "mid": 8.0,
+                "bid": 7.9,
+                "ask": 8.1,
+                "quote_age_sec": 1.0,
+                "mid_source": "true",
             },
             {
                 "symbol": "GLD",
@@ -328,6 +421,10 @@ def test_combo_credit_width_guard(monkeypatch):
                 "position": -1,
                 "conId": 1112,
                 "mid": 8.0,
+                "bid": 7.9,
+                "ask": 8.1,
+                "quote_age_sec": 1.0,
+                "mid_source": "true",
             },
             {
                 "symbol": "GLD",
@@ -337,6 +434,10 @@ def test_combo_credit_width_guard(monkeypatch):
                 "position": 1,
                 "conId": 1113,
                 "mid": 2.75,
+                "bid": 2.7,
+                "ask": 2.8,
+                "quote_age_sec": 1.0,
+                "mid_source": "true",
             },
             {
                 "symbol": "GLD",
@@ -346,6 +447,10 @@ def test_combo_credit_width_guard(monkeypatch):
                 "position": 1,
                 "conId": 1114,
                 "mid": 2.75,
+                "bid": 2.7,
+                "ask": 2.8,
+                "quote_age_sec": 1.0,
+                "mid_source": "true",
             },
         ],
     )
@@ -367,6 +472,8 @@ def _iron_fly_legs(min_tick: float = 0.05) -> list[dict[str, Any]]:
             "bid": 1.0,
             "ask": 1.05,
             "minTick": min_tick,
+            "quote_age_sec": 1.0,
+            "mid_source": "true",
         },
         {
             "symbol": "AAA",
@@ -378,6 +485,8 @@ def _iron_fly_legs(min_tick: float = 0.05) -> list[dict[str, Any]]:
             "bid": 2.6,
             "ask": 2.65,
             "minTick": min_tick,
+            "quote_age_sec": 1.0,
+            "mid_source": "true",
         },
         {
             "symbol": "AAA",
@@ -389,6 +498,8 @@ def _iron_fly_legs(min_tick: float = 0.05) -> list[dict[str, Any]]:
             "bid": 2.6,
             "ask": 2.65,
             "minTick": min_tick,
+            "quote_age_sec": 1.0,
+            "mid_source": "true",
         },
         {
             "symbol": "AAA",
@@ -400,6 +511,8 @@ def _iron_fly_legs(min_tick: float = 0.05) -> list[dict[str, Any]]:
             "bid": 1.0,
             "ask": 1.05,
             "minTick": min_tick,
+            "quote_age_sec": 1.0,
+            "mid_source": "true",
         },
     ]
 
@@ -414,6 +527,10 @@ def _wide_call_vertical(min_tick: float = 0.01) -> list[dict[str, Any]]:
             "position": -1,
             "conId": 9201,
             "minTick": min_tick,
+            "bid": 4.8,
+            "ask": 4.9,
+            "quote_age_sec": 1.0,
+            "mid_source": "true",
         },
         {
             "symbol": "AAA",
@@ -423,6 +540,10 @@ def _wide_call_vertical(min_tick: float = 0.01) -> list[dict[str, Any]]:
             "position": 1,
             "conId": 9202,
             "minTick": min_tick,
+            "bid": 0.3,
+            "ask": 0.35,
+            "quote_age_sec": 1.0,
+            "mid_source": "true",
         },
     ]
 
@@ -450,11 +571,11 @@ def test_credit_on_width_cap_succeeds(monkeypatch):
 
     monkeypatch.setattr(order_submission, "Order", DummyOrder)
     proposal = StrategyProposal(strategy="iron_fly", legs=_iron_fly_legs())
-    proposal.credit = 490.0
+    proposal.credit = 320.0
     instructions = prepare_order_instructions(proposal, symbol="AAA")
     assert len(instructions) == 1
     order = instructions[0].order
-    assert math.isclose(getattr(order, "lmtPrice", None) or 0.0, 4.9, rel_tol=1e-4)
+    assert math.isclose(getattr(order, "lmtPrice", None) or 0.0, 3.2, rel_tol=1e-4)
 
 
 def test_credit_below_width_cap_succeeds(monkeypatch):
@@ -466,11 +587,11 @@ def test_credit_below_width_cap_succeeds(monkeypatch):
 
     monkeypatch.setattr(order_submission, "Order", DummyOrder)
     proposal = StrategyProposal(strategy="iron_fly", legs=_iron_fly_legs())
-    proposal.credit = 450.0
+    proposal.credit = 320.0
     instructions = prepare_order_instructions(proposal, symbol="AAA")
     assert len(instructions) == 1
     order = instructions[0].order
-    assert math.isclose(getattr(order, "lmtPrice", None) or 0.0, 4.5, rel_tol=1e-4)
+    assert math.isclose(getattr(order, "lmtPrice", None) or 0.0, 3.2, rel_tol=1e-4)
 
 
 def test_iron_structure_rejects_reversed_wings(monkeypatch):
@@ -501,10 +622,10 @@ def test_contract_credit_converts_to_limit_price(monkeypatch):
     monkeypatch.setattr(order_submission, "Order", DummyOrder)
     legs = _wide_call_vertical()
     proposal = StrategyProposal(strategy="call_credit_spread", legs=legs)
-    proposal.credit = 1050.0
+    proposal.credit = 453.0
     instructions = prepare_order_instructions(proposal, symbol="AAA")
     order = instructions[0].order
-    assert math.isclose(getattr(order, "lmtPrice", None) or 0.0, 10.5, rel_tol=1e-4)
+    assert math.isclose(getattr(order, "lmtPrice", None) or 0.0, 4.53, rel_tol=1e-4)
 
 
 def test_scale_guard_detects_bad_conversion():
@@ -526,7 +647,7 @@ def test_combo_scale_guard_detects_mismatch(monkeypatch):
     proposal = StrategyProposal(strategy="call_credit_spread", legs=_wide_call_vertical())
     proposal.credit = 1050.0
 
-    with pytest.raises(ValueError, match="verkeerde schaal"):
+    with pytest.raises(ValueError, match="wijkt teveel af"):
         prepare_order_instructions(proposal, symbol="AAA")
 
 
@@ -548,6 +669,10 @@ def test_combo_with_more_than_two_legs_omits_non_guaranteed(monkeypatch):
                 "type": "call",
                 "position": -1,
                 "conId": 601,
+                "bid": 2.0,
+                "ask": 2.05,
+                "quote_age_sec": 1.0,
+                "mid_source": "true",
             },
             {
                 "symbol": "AAA",
@@ -556,6 +681,10 @@ def test_combo_with_more_than_two_legs_omits_non_guaranteed(monkeypatch):
                 "type": "call",
                 "position": 1,
                 "conId": 602,
+                "bid": 1.0,
+                "ask": 1.05,
+                "quote_age_sec": 1.0,
+                "mid_source": "true",
             },
             {
                 "symbol": "AAA",
@@ -564,6 +693,10 @@ def test_combo_with_more_than_two_legs_omits_non_guaranteed(monkeypatch):
                 "type": "put",
                 "position": -1,
                 "conId": 603,
+                "bid": 2.2,
+                "ask": 2.25,
+                "quote_age_sec": 1.0,
+                "mid_source": "true",
             },
             {
                 "symbol": "AAA",
@@ -572,10 +705,14 @@ def test_combo_with_more_than_two_legs_omits_non_guaranteed(monkeypatch):
                 "type": "put",
                 "position": 1,
                 "conId": 604,
+                "bid": 0.8,
+                "ask": 0.85,
+                "quote_age_sec": 1.0,
+                "mid_source": "true",
             },
         ],
     )
-    proposal.credit = 150.0
+    proposal.credit = 240.0
     instructions = prepare_order_instructions(proposal, symbol="AAA")
     assert len(instructions) == 1
     order = instructions[0].order
@@ -670,7 +807,7 @@ def test_place_orders_retries_after_10043(monkeypatch, caplog):
                     entry["status"] = "ApiPending"
                     self.error(orderId, 0, 10043, "NonGuaranteed combos not allowed")
                 else:
-                    entry["status"] = "Submitted"
+                    entry.update({"status": "Filled", "filled": 1.0, "remaining": 0.0})
 
             def wait_for_order_handshake(self, order_ids, *, timeout: float = 3.0):  # type: ignore[override]
                 return super().wait_for_order_handshake(order_ids, timeout=timeout)
