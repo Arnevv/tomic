@@ -102,6 +102,33 @@ def test_build_exit_intents_returns_raw_legs_and_rules(
     assert legs[1]["ask"] == 0.65
 
 
+def test_build_exit_intents_matches_exit_rules_with_expiry_variants(
+    sample_positions, sample_journal, aggregated_strategies
+):
+    loader_payloads = {
+        "positions.json": copy.deepcopy(sample_positions),
+        "journal.json": copy.deepcopy(sample_journal),
+    }
+
+    def loader(path):
+        return loader_payloads[path]
+
+    exit_rules = {("XYZ", "20240119"): {"target_profit_pct": 50}}
+
+    intents = build_exit_intents(
+        positions_file="positions.json",
+        journal_file="journal.json",
+        grouper=lambda positions, journal: copy.deepcopy(aggregated_strategies),
+        exit_rule_loader=lambda path: exit_rules,
+        loader=loader,
+    )
+
+    assert len(intents) == 1
+    intent = intents[0]
+    assert isinstance(intent, StrategyExitIntent)
+    assert intent.exit_rules == {"target_profit_pct": 50}
+
+
 def test_build_exit_intents_fetches_quotes_when_missing():
     positions = [
         {
