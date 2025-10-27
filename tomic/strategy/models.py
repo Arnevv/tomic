@@ -64,6 +64,8 @@ class StrategyProposal:
     credit_capped: bool = False
     reasons: list[ReasonDetail] = field(default_factory=list)
     needs_refresh: bool = False
+    order_preview_only: bool = False
+    tradeability_notes: str | None = None
 
 
 __all__ = ["StrategyContext", "StrategyProposal"]

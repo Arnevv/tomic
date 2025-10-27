@@ -43,6 +43,11 @@ from tomic.utils import get_leg_qty, get_leg_right, get_option_mid_price, normal
 
 
 log = logger
+_COMBO_SPREAD_ABS_THRESHOLD = 0.30
+_COMBO_SPREAD_REL_THRESHOLD = 0.08
+_COMBO_MAX_QUOTE_AGE_SEC = 5.0
+_REPRICER_WAIT_SECONDS = 10.0
+_PREVIEW_SOURCES = {"parity_true", "parity_close", "model", "close"}
 def _expiry(leg: dict) -> str:
     return normalize_expiry_code(leg.get("expiry"))
 
@@ -100,6 +105,14 @@ def _block_order(reason: str, advice: str) -> None:
 
 
 @dataclass
+class ComboQuote:
+    bid: float
+    ask: float
+    mid: float
+    width: float
+
+
+@dataclass
 class _LegSummary:
     strike: float
     expiry: str
@@ -109,6 +122,9 @@ class _LegSummary:
     bid: float | None
     ask: float | None
     min_tick: float | None
+    quote_age_sec: float | None
+    mid_source: str | None
+    one_sided: bool = False
 
     @property
     def is_long(self) -> bool:
@@ -139,6 +155,10 @@ def _normalize_leg_summary(leg: dict) -> _LegSummary:
     if min_tick in (None, ""):
         min_tick = leg.get("min_tick")
     min_tick_value = safe_float(min_tick)
+    quote_age = safe_float(leg.get("quote_age_sec"))
+    mid_source_raw = str(leg.get("mid_source") or leg.get("mid_fallback") or "").strip()
+    mid_source = mid_source_raw or None
+    one_sided = bool(leg.get("one_sided"))
     return _LegSummary(
         strike=strike,
         expiry=expiry,
@@ -148,6 +168,9 @@ def _normalize_leg_summary(leg: dict) -> _LegSummary:
         bid=bid,
         ask=ask,
         min_tick=min_tick_value,
+        quote_age_sec=quote_age,
+        mid_source=mid_source,
+        one_sided=one_sided,
     )
 
 
@@ -238,6 +261,194 @@ def _collect_min_tick(legs: Sequence[_LegSummary]) -> float | None:
     if not values:
         return None
     return min(value for value in values if value > 0)
+
+
+def _combo_leg_ratio(leg: _LegSummary, combo_quantity: int) -> int:
+    qty = abs(int(getattr(leg, "qty", 0) or 0))
+    if qty <= 0:
+        return 1
+    if combo_quantity <= 0:
+        return qty
+    ratio = qty // combo_quantity
+    if ratio <= 0:
+        ratio = 1
+    return ratio
+
+
+def _compute_combo_nbbo(
+    legs: Sequence[_LegSummary],
+    combo_quantity: int,
+    *,
+    min_tick: float | None,
+) -> ComboQuote | None:
+    if not legs:
+        return None
+    combo_bid = 0.0
+    combo_ask = 0.0
+    for leg in legs:
+        if leg.bid is None or leg.ask is None:
+            return None
+        if leg.bid <= 0 or leg.ask <= 0:
+            return None
+        if leg.one_sided:
+            return None
+        ratio = _combo_leg_ratio(leg, combo_quantity)
+        if leg.is_short:
+            combo_bid += leg.bid * ratio
+            combo_ask += leg.ask * ratio
+        else:
+            combo_bid -= leg.ask * ratio
+            combo_ask -= leg.bid * ratio
+    bid_val = abs(combo_bid)
+    ask_val = abs(combo_ask)
+    low, high = sorted((bid_val, ask_val))
+    width = high - low
+    if not math.isfinite(width):
+        return None
+    mid_raw = (low + high) / 2
+    if not math.isfinite(mid_raw) or mid_raw <= 0:
+        return None
+    mid = _round_to_tick(mid_raw, min_tick=min_tick)
+    if mid <= 0:
+        return None
+    return ComboQuote(bid=low, ask=high, mid=mid, width=width)
+
+
+def _evaluate_tradeability(
+    legs: Sequence[_LegSummary],
+    combo_quote: ComboQuote,
+) -> tuple[bool, str]:
+    for idx, leg in enumerate(legs, start=1):
+        if leg.bid is None or leg.ask is None or leg.bid <= 0 or leg.ask <= 0:
+            return False, f"leg{idx}_missing_bid_ask"
+        if leg.one_sided:
+            return False, f"leg{idx}_one_sided"
+    if combo_quote.width < 0:
+        return False, "combo_width_negative"
+    if combo_quote.mid <= 0:
+        return False, "combo_mid_non_positive"
+    threshold = max(
+        _COMBO_SPREAD_ABS_THRESHOLD,
+        combo_quote.mid * _COMBO_SPREAD_REL_THRESHOLD,
+    )
+    if combo_quote.width > threshold + 1e-9:
+        return False, f"combo_spread_wide={combo_quote.width:.2f}>{threshold:.2f}"
+    for idx, leg in enumerate(legs, start=1):
+        age = leg.quote_age_sec
+        if age is None or age > _COMBO_MAX_QUOTE_AGE_SEC:
+            return False, f"stale_quote_leg{idx}"
+    for idx, leg in enumerate(legs, start=1):
+        source = (leg.mid_source or "").strip().lower()
+        if source in _PREVIEW_SOURCES:
+            return False, f"mid_source_leg{idx}={source}"
+    return True, f"(spread={combo_quote.width:.2f} ≤ {threshold:.2f})"
+
+
+def _orders_active_without_fill(app: OrderPlacementApp, order_ids: Sequence[int]) -> bool:
+    if not order_ids:
+        return False
+    active_statuses = {"Submitted", "PreSubmitted"}
+    for order_id in order_ids:
+        event = getattr(app, "_order_events", {}).get(order_id)
+        if not isinstance(event, dict):
+            return False
+        status = str(event.get("status") or "").strip()
+        if status not in active_statuses:
+            return False
+        filled = safe_float(event.get("filled"))
+        if filled not in (None, 0):
+            return False
+        remaining = safe_float(event.get("remaining"))
+        if remaining == 0:
+            return False
+    return True
+
+
+def _reprice_single_instruction(instr: OrderInstruction) -> bool:
+    if not instr.legs:
+        return False
+    order = instr.order
+    try:
+        combo_quantity = int(getattr(order, "totalQuantity", 0) or 0)
+    except Exception:
+        combo_quantity = 0
+    if combo_quantity <= 0:
+        combo_quantity = 1
+    _, combo_width, summaries = _evaluate_combo_structure(instr.legs)
+    min_tick = instr.min_tick
+    if not min_tick:
+        min_tick = _collect_min_tick(summaries)
+    nbbo = _compute_combo_nbbo(summaries, combo_quantity, min_tick=min_tick)
+    if nbbo is None:
+        log.info("[repricer] skipped (nbbo_unavailable)")
+        return False
+    ok, gate_message = _evaluate_tradeability(summaries, nbbo)
+    if not ok:
+        log.info(f"[repricer] gate failed ({gate_message}) -> skip repricing")
+        return False
+    tick = min_tick or 0.01
+    if tick <= 0:
+        tick = 0.01
+    current_limit = safe_float(getattr(order, "lmtPrice", None))
+    if current_limit is None or current_limit <= 0:
+        return False
+    epsilon = max(0.05, 2 * tick)
+    width_cap = None
+    if combo_width is not None:
+        width_cap = max(combo_width - epsilon, 0.0)
+    action = str(getattr(order, "action", "") or "").upper()
+    if action == "BUY":
+        candidate = max(current_limit - tick, nbbo.bid)
+        if width_cap is not None and candidate > width_cap and width_cap >= nbbo.bid:
+            candidate = width_cap
+        if candidate >= current_limit - 1e-9:
+            return False
+    else:
+        candidate = min(current_limit + tick, nbbo.ask)
+        if width_cap is not None and candidate > width_cap:
+            candidate = width_cap
+        if candidate <= current_limit + 1e-9:
+            return False
+    new_limit = _round_to_tick(candidate, min_tick=min_tick)
+    if new_limit <= 0 or abs(new_limit - current_limit) < tick / 2:
+        return False
+    order.lmtPrice = new_limit
+    instr.combo_quote = nbbo
+    instr.min_tick = min_tick
+    instr.combo_width = combo_width
+    instr.epsilon = epsilon
+    log.info(f"[repricer] 10s no fill → new limit={new_limit:.2f}")
+    return True
+
+
+def _attempt_reprice_if_needed(
+    app: OrderPlacementApp,
+    instructions: Sequence[OrderInstruction],
+    placed_ids: Sequence[int],
+) -> bool:
+    if not instructions or not placed_ids:
+        return False
+    if not _orders_active_without_fill(app, placed_ids):
+        return False
+    wait_time = max(_REPRICER_WAIT_SECONDS, 0)
+    if wait_time:
+        log.info("[repricer] waiting %ss for fill before adjusting", int(wait_time))
+        time.sleep(wait_time)
+    if not _orders_active_without_fill(app, placed_ids):
+        log.info("[repricer] skip repricer; order updated during wait")
+        return False
+    updated = False
+    for instr in instructions:
+        if _reprice_single_instruction(instr):
+            updated = True
+    if not updated:
+        return False
+    for order_id in placed_ids:
+        try:
+            app.cancelOrder(order_id)
+        except Exception:  # pragma: no cover - defensive
+            logger.debug("Kon order niet annuleren tijdens repricer", exc_info=True)
+    return True
 
 
 def _compute_worst_case_credit(
@@ -417,6 +628,10 @@ class OrderInstruction:
     order: Order
     legs: list[dict]
     credit_per_combo: float | None = None
+    combo_quote: ComboQuote | None = None
+    min_tick: float | None = None
+    combo_width: float | None = None
+    epsilon: float | None = None
 
 
 def _validate_instructions(instructions: Sequence[OrderInstruction]) -> None:
@@ -838,6 +1053,32 @@ class OrderSubmissionService:
         epsilon = 0.05
         if min_tick and min_tick > 0:
             epsilon = max(0.05, 2 * min_tick)
+        combo_quote = _compute_combo_nbbo(
+            leg_summaries,
+            combo_quantity,
+            min_tick=min_tick,
+        )
+        if combo_quote is None:
+            proposal.order_preview_only = True
+            proposal.tradeability_notes = "combo_nbbo_unavailable"
+            log.info("[nbbo] unavailable -> proposal advisory only")
+            raise ValueError("combo heeft geen betrouwbare NBBO")
+        log.info(
+            "[nbbo] bid=%.2f mid=%.2f ask=%.2f width=%.2f",
+            combo_quote.bid,
+            combo_quote.mid,
+            combo_quote.ask,
+            combo_quote.width,
+        )
+        gate_ok, gate_message = _evaluate_tradeability(leg_summaries, combo_quote)
+        if not gate_ok:
+            proposal.order_preview_only = True
+            proposal.tradeability_notes = gate_message
+            log.info(f"[gate] failed ({gate_message}) -> proposal advisory only")
+            raise ValueError(f"combo niet verhandelbaar: {gate_message}")
+        proposal.order_preview_only = False
+        proposal.tradeability_notes = gate_message
+        log.info(f"[gate] ok {gate_message}")
         order = Order()
         order.totalQuantity = combo_quantity
         net_credit = proposal.credit
@@ -861,8 +1102,7 @@ class OrderSubmissionService:
             credit_reference = per_combo_mid_credit
         if credit_reference is None:
             _block_order("missing_credit", "combo mist (mid) credit informatie")
-        raw_price = abs(float(credit_reference)) / 100.0
-        net_price = round(raw_price, 4)
+        net_price = combo_quote.mid
         price_capped = False
         if combo_width is not None:
             width_cap = combo_width - epsilon
@@ -883,6 +1123,14 @@ class OrderSubmissionService:
             net_price = _round_to_tick(capped_to, min_tick=min_tick)
         if net_price <= 0:
             _block_order("tick_rounding_underflow", "limit price valt naar nul na afronding")
+        if credit_reference is not None:
+            credit_price = abs(float(credit_reference)) / 100.0
+            allowed_diff = max(min_tick or 0.01, epsilon if combo_width is not None else 0.05)
+            if abs(credit_price - net_price) > allowed_diff + 1e-9:
+                _block_order(
+                    "credit_limit_mismatch",
+                    f"limit {net_price:.2f} wijkt teveel af van credit {credit_price:.2f}",
+                )
         order.orderType = "LMT"
         order.algoStrategy = ""
         order.algoParams = []
@@ -938,6 +1186,10 @@ class OrderSubmissionService:
                 order=order,
                 legs=list(legs),
                 credit_per_combo=credit_reference,
+                combo_quote=combo_quote,
+                min_tick=min_tick,
+                combo_width=combo_width,
+                epsilon=epsilon,
             )
         ]
 
@@ -959,6 +1211,7 @@ class OrderSubmissionService:
 
         retry_info: dict[str, Any] | None = None
         directed_retry_done = False
+        repricer_done = False
 
         attempt = 0
         while True:
@@ -1117,6 +1370,21 @@ class OrderSubmissionService:
                     except Exception:
                         logger.debug("Kon app niet disconnecten na IB fout", exc_info=True)
                     continue
+
+                if not repricer_done:
+                    if _attempt_reprice_if_needed(app, instructions, placed_ids):
+                        repricer_done = True
+                        retry_info = {
+                            "reason": "repricer_adjustment",
+                            "old_ids": tuple(placed_ids),
+                        }
+                        try:
+                            app.disconnect()
+                        except Exception:
+                            logger.debug(
+                                "Kon app niet disconnecten na repricer", exc_info=True
+                            )
+                        continue
 
                 if retry_info:
                     old_ids = retry_info.get("old_ids", ())
