@@ -206,6 +206,25 @@ Extra opties in `config.yaml`:
   markt open is.
 - `IV_TRACKING_DELTAS`: lijst van deltawaarden voor IV-historie (default `[0.25, 0.5]`).
 - `IV_EXPIRY_LOOKAHEAD_DAYS`: doelen voor expiries in dagen (default `[0, 30, 60]`).
+- `EXIT_ORDER_OPTIONS`: configureer de exit-flow zonder de entry-tuning aan te
+  passen. Je kunt hiermee ruimere spreads toestaan of fallback-mids accepteren
+  tijdens forced exits.
+
+  ```yaml
+  EXIT_ORDER_OPTIONS:
+    spread:
+      absolute: 0.45        # absolute drempel voor exit-combo spread
+      relative: 0.15        # relatieve drempel (× combo-mid)
+      max_quote_age: 10     # accepteer quotes tot 10 seconden oud
+    repricer:
+      enabled: true         # herprijs exit-orders na wachttijd
+      wait_seconds: 5       # wachttijd voordat repricer actief wordt
+    fallback:
+      allow_preview: true   # accepteer preview/fallback mids voor exits
+      allowed_sources: [close, model]
+    force_exit:
+      enabled: false        # override spread/quote checks tijdens force-exit
+  ```
 
 Voor strategie-specifieke instellingen gebruik je `config/strategies.yaml`. Hier kun je per strategie of voor alle strategieën via `default` extra opties zetten. `allow_unpriced_wings: true` zorgt er bijvoorbeeld voor dat long-legs zonder `mid`, `model` of `delta` toch geaccepteerd worden.
 

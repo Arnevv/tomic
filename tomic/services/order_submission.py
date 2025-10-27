@@ -8,7 +8,7 @@ from dataclasses import dataclass
 from decimal import Decimal, ROUND_HALF_UP
 from pathlib import Path
 from pprint import pformat
-from typing import Any, Sequence
+from typing import Any, Iterable, Mapping, Sequence
 
 import math
 
@@ -39,7 +39,7 @@ from tomic.metrics import MidPriceResolver, calculate_credit, get_signed_positio
 from tomic.models import OptionContract
 from tomic.services._config import cfg_value
 from tomic.services.strategy_pipeline import StrategyProposal
-from tomic.strategy.reasons import reason_from_mid_source
+from tomic.strategy.reasons import ReasonCategory, reason_from_mid_source
 from tomic.utils import get_leg_qty, get_leg_right, get_option_mid_price, normalize_leg
 
 
@@ -309,7 +309,48 @@ def _compute_combo_nbbo(
 def _evaluate_tradeability(
     legs: Sequence[_LegSummary],
     combo_quote: ComboQuote,
+    *,
+    spread: Mapping[str, Any] | None = None,
+    max_quote_age: float | None = None,
+    allow_fallback: bool = False,
+    allowed_fallback_sources: Iterable[str] | None = None,
+    force: bool = False,
 ) -> tuple[bool, str]:
+    """Validate whether the NBBO snapshot is tradeable."""
+
+    def _safe_float(value: Any) -> float | None:
+        try:
+            return float(value)
+        except (TypeError, ValueError):
+            return None
+
+    absolute_threshold = _COMBO_SPREAD_ABS_THRESHOLD
+    relative_threshold = _COMBO_SPREAD_REL_THRESHOLD
+    if isinstance(spread, Mapping):
+        abs_candidate = _safe_float(spread.get("absolute"))
+        rel_candidate = _safe_float(spread.get("relative"))
+        if abs_candidate is not None:
+            absolute_threshold = max(0.0, abs_candidate)
+        if rel_candidate is not None:
+            relative_threshold = max(0.0, rel_candidate)
+
+    threshold_candidates: list[float] = []
+    abs_value = _safe_float(absolute_threshold)
+    if abs_value is not None:
+        threshold_candidates.append(max(0.0, abs_value))
+    rel_value = _safe_float(relative_threshold)
+    if rel_value is not None:
+        threshold_candidates.append(max(0.0, combo_quote.mid * rel_value))
+    spread_threshold = max(threshold_candidates) if threshold_candidates else None
+
+    max_age = _COMBO_MAX_QUOTE_AGE_SEC if max_quote_age is None else max(0.0, float(max_quote_age))
+    allowed_sources = {
+        str(source).strip().lower()
+        for source in (allowed_fallback_sources or [])
+        if str(source).strip()
+    }
+    forced_reasons: list[str] = []
+    fallback_notes: list[str] = []
     for idx, leg in enumerate(legs, start=1):
         if leg.bid is None or leg.ask is None or leg.bid <= 0 or leg.ask <= 0:
             return False, f"leg{idx}_missing_bid_ask"
@@ -319,21 +360,63 @@ def _evaluate_tradeability(
         return False, "combo_width_negative"
     if combo_quote.mid <= 0:
         return False, "combo_mid_non_positive"
-    threshold = max(
-        _COMBO_SPREAD_ABS_THRESHOLD,
-        combo_quote.mid * _COMBO_SPREAD_REL_THRESHOLD,
-    )
-    if combo_quote.width > threshold + 1e-9:
-        return False, f"combo_spread_wide={combo_quote.width:.2f}>{threshold:.2f}"
+    if spread_threshold is not None and combo_quote.width > spread_threshold + 1e-9:
+        failure = f"combo_spread_wide={combo_quote.width:.2f}>{spread_threshold:.2f}"
+        if force:
+            forced_reasons.append(failure)
+        else:
+            return False, failure
     for idx, leg in enumerate(legs, start=1):
         age = leg.quote_age_sec
-        if age is None or age > _COMBO_MAX_QUOTE_AGE_SEC:
-            return False, f"stale_quote_leg{idx}"
+        if age is None or age > max_age:
+            failure = f"stale_quote_leg{idx}"
+            if force:
+                forced_reasons.append(failure)
+            else:
+                return False, failure
     for idx, leg in enumerate(legs, start=1):
         source = (leg.mid_source or "").strip().lower()
-        if reason_from_mid_source(source) is not None:
-            return False, f"mid_source_leg{idx}={source}"
-    return True, f"(spread={combo_quote.width:.2f} ≤ {threshold:.2f})"
+        reason = reason_from_mid_source(source or None)
+        if reason is None:
+            continue
+        if allow_fallback and reason.category == ReasonCategory.PREVIEW_QUALITY:
+            if allowed_sources and source not in allowed_sources:
+                failure = f"mid_source_leg{idx}={source or 'unknown'}"
+                if force:
+                    forced_reasons.append(failure)
+                else:
+                    return False, failure
+            else:
+                note_source = source or reason.data.get("mid_source") or "unknown"
+                fallback_notes.append(f"fallback_leg{idx}={note_source}")
+                continue
+        failure = (
+            f"mid_missing_leg{idx}"
+            if reason.category == ReasonCategory.MISSING_DATA
+            else f"mid_source_leg{idx}={source or 'unknown'}"
+        )
+        if force:
+            forced_reasons.append(failure)
+        else:
+            return False, failure
+
+    threshold_note = None
+    if spread_threshold is not None:
+        threshold_note = f"(spread={combo_quote.width:.2f} ≤ {spread_threshold:.2f})"
+    else:
+        threshold_note = f"(spread={combo_quote.width:.2f})"
+
+    parts: list[str] = []
+    if forced_reasons:
+        parts.append(f"forced_exit: {', '.join(forced_reasons)}")
+    if threshold_note:
+        parts.append(threshold_note)
+    if fallback_notes:
+        parts.append(", ".join(fallback_notes))
+    message = " | ".join(parts) if parts else threshold_note
+    if not message:
+        message = "tradeability_ok"
+    return True, message
 
 
 def _orders_active_without_fill(app: OrderPlacementApp, order_ids: Sequence[int]) -> bool:

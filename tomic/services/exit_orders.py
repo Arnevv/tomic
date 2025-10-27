@@ -18,6 +18,7 @@ from .order_submission import (
     _guard_limit_price_scale,
     _normalize_leg_summary,
 )
+from ._config import exit_fallback_config, exit_force_exit_config, exit_spread_config
 from .trade_management_service import StrategyExitIntent
 
 
@@ -115,7 +116,19 @@ def build_exit_order_plan(intent: ExitIntent) -> ExitOrderPlan:
     if combo_quote is None:
         raise ValueError("combo mist betrouwbare NBBO")
 
-    tradeable, tradeability_message = _evaluate_tradeability(summaries, combo_quote)
+    spread_cfg = exit_spread_config()
+    fallback_cfg = exit_fallback_config()
+    force_cfg = exit_force_exit_config()
+
+    tradeable, tradeability_message = _evaluate_tradeability(
+        summaries,
+        combo_quote,
+        spread=spread_cfg,
+        max_quote_age=spread_cfg.get("max_quote_age"),
+        allow_fallback=bool(fallback_cfg.get("allow_preview", False)),
+        allowed_fallback_sources=fallback_cfg.get("allowed_sources"),
+        force=bool(force_cfg.get("enabled", False)),
+    )
     if not tradeable:
         raise ValueError(f"combo niet verhandelbaar: {tradeability_message}")
 

@@ -101,3 +101,107 @@ def test_build_exit_order_plan_requires_nbbo():
     intent = StrategyExitIntent(strategy=strategy, legs=legs, exit_rules=None)
     with pytest.raises(ValueError, match="NBBO"):
         build_exit_order_plan(intent)
+
+
+def test_exit_order_plan_allows_configured_fallback(monkeypatch):
+    from tomic.services import exit_orders
+
+    strategy = {"symbol": "LMN", "expiry": "20240119"}
+    legs = [
+        {
+            "conId": 4001,
+            "symbol": "LMN",
+            "expiry": "20240119",
+            "strike": 150.0,
+            "right": "C",
+            "position": -1,
+            "bid": 2.05,
+            "ask": 2.15,
+            "minTick": 0.01,
+            "quote_age_sec": 1.0,
+            "mid_source": "close",
+        },
+        {
+            "conId": 4002,
+            "symbol": "LMN",
+            "expiry": "20240119",
+            "strike": 155.0,
+            "right": "C",
+            "position": 1,
+            "bid": 1.45,
+            "ask": 1.55,
+            "minTick": 0.01,
+            "quote_age_sec": 1.0,
+            "mid_source": "close",
+        },
+    ]
+    intent = StrategyExitIntent(strategy=strategy, legs=legs, exit_rules=None)
+
+    monkeypatch.setattr(
+        exit_orders,
+        "exit_spread_config",
+        lambda: {"absolute": 0.30, "relative": 0.08, "max_quote_age": 5.0},
+    )
+    monkeypatch.setattr(
+        exit_orders,
+        "exit_fallback_config",
+        lambda: {"allow_preview": True, "allowed_sources": {"close"}},
+    )
+    monkeypatch.setattr(exit_orders, "exit_force_exit_config", lambda: {"enabled": False})
+
+    plan = build_exit_order_plan(intent)
+    assert "fallback_leg1=close" in plan.tradeability
+
+
+def test_exit_order_plan_force_exit_overrides_gate(monkeypatch):
+    from tomic.services import exit_orders
+
+    strategy = {"symbol": "PQR", "expiry": "20240119"}
+    legs = [
+        {
+            "conId": 5001,
+            "symbol": "PQR",
+            "expiry": "20240119",
+            "strike": 100.0,
+            "right": "P",
+            "position": -1,
+            "bid": 1.05,
+            "ask": 1.15,
+            "minTick": 0.01,
+            "quote_age_sec": 20.0,
+            "mid_source": "true",
+        },
+        {
+            "conId": 5002,
+            "symbol": "PQR",
+            "expiry": "20240119",
+            "strike": 95.0,
+            "right": "P",
+            "position": 1,
+            "bid": 0.55,
+            "ask": 0.65,
+            "minTick": 0.01,
+            "quote_age_sec": 20.0,
+            "mid_source": "true",
+        },
+    ]
+    intent = StrategyExitIntent(strategy=strategy, legs=legs, exit_rules=None)
+
+    monkeypatch.setattr(
+        exit_orders,
+        "exit_spread_config",
+        lambda: {"absolute": 0.30, "relative": 0.08, "max_quote_age": 5.0},
+    )
+    monkeypatch.setattr(
+        exit_orders,
+        "exit_fallback_config",
+        lambda: {"allow_preview": False, "allowed_sources": set()},
+    )
+
+    monkeypatch.setattr(exit_orders, "exit_force_exit_config", lambda: {"enabled": False})
+    with pytest.raises(ValueError, match="stale_quote_leg1"):
+        build_exit_order_plan(intent)
+
+    monkeypatch.setattr(exit_orders, "exit_force_exit_config", lambda: {"enabled": True})
+    plan = build_exit_order_plan(intent)
+    assert plan.tradeability.startswith("forced_exit:")
