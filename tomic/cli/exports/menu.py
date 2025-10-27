@@ -112,22 +112,6 @@ def build_export_menu(
         except Exception:
             print("❌ Git-commando mislukt")
 
-    def run_intraday_action() -> None:
-        try:
-            run_module("tomic.cli.fetch_intraday_polygon")
-        except Exception:
-            print("❌ Ophalen van intraday prijzen mislukt")
-            return
-        try:
-            changed = services.export.git_commit(
-                "Update intraday prices",
-                Path("tomic/data/spot_prices"),
-            )
-            if not changed:
-                print("No changes to commit")
-        except Exception:
-            print("❌ Git-commando mislukt")
-
     def fetch_earnings() -> None:
         try:
             run_module("tomic.cli.fetch_earnings_alpha")
@@ -226,7 +210,6 @@ def build_export_menu(
     menu.add("OptionChain ophalen via Polygon API", polygon_chain)
     menu.add("Controleer CSV-kwaliteit", csv_check)
     menu.add("Run GitHub Action lokaal", run_github_action)
-    menu.add("Run GitHub Action lokaal - intraday", run_intraday_action)
     menu.add(
         "Backfill historical_volatility obv spotprices",
         lambda: run_module("tomic.scripts.backfill_hv"),
