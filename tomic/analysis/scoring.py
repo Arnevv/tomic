@@ -1,14 +1,19 @@
 from __future__ import annotations
 
-from typing import Any, Dict, Iterable, List, Mapping, Optional, Tuple, TYPE_CHECKING
+from typing import Any, Dict, Iterable, List, Mapping, Optional, Sequence, Tuple, TYPE_CHECKING
 import math
 
+from ..core import LegView
 from ..metrics import (
+    MidPriceResolver,
+    calculate_credit,
+    calculate_ev,
     calculate_margin,
     calculate_pos,
     calculate_rom,
-    calculate_ev,
     estimate_scenario_profit,
+    get_signed_position,
+    iter_leg_views,
 )
 from ..analysis.strategy import heuristic_risk_metrics
 from ..criteria import CriteriaConfig, RULES, load_criteria
@@ -132,7 +137,7 @@ def _find_leg(
     for leg in legs:
         if get_leg_right(leg) != right:
             continue
-        position = float(leg.get("position") or leg.get("qty") or 0)
+        position = get_signed_position(leg)
         if short and position < 0:
             return leg
         if not short and position > 0:
@@ -234,8 +239,8 @@ def _compute_wing_metrics(legs: List[Dict[str, Any]]) -> tuple[Dict[str, float] 
         for leg in legs:
             if get_leg_right(leg) != right:
                 continue
-            pos_val = _safe_float(leg.get("position"))
-            if pos_val is None or _safe_float(leg.get("strike")) is None:
+            pos_val = get_signed_position(leg)
+            if pos_val == 0 or _safe_float(leg.get("strike")) is None:
                 continue
             if pos_val < 0:
                 short_legs.append(leg)
@@ -359,10 +364,11 @@ def _bs_estimate_missing(legs: List[Dict[str, Any]]) -> None:
 
 
 def _fallback_limit_ok(
-    strategy_name: str, legs: List[Dict[str, Any]]
+    strategy_name: str, legs: Sequence[Dict[str, Any] | LegView]
 ) -> tuple[bool, int, int, str | None]:
     limit_per_four = int(cfg_get("MID_FALLBACK_MAX_PER_4", 2) or 0)
-    leg_count = len(legs)
+    leg_views = list(iter_leg_views(legs, price_resolver=MidPriceResolver))
+    leg_count = len(leg_views)
     if leg_count == 0:
         return True, 0, 0, None
     if limit_per_four <= 0:
@@ -372,41 +378,33 @@ def _fallback_limit_ok(
 
     strat_label = getattr(strategy_name, "value", strategy_name)
 
-    def _source(leg: Mapping[str, Any]) -> str:
-        source = str(leg.get("mid_source") or leg.get("mid_fallback") or "")
-        if source == "parity":
+    def _source(view: LegView) -> str:
+        value = (view.mid_source or "").strip().lower()
+        if value == "parity":
             return "parity_true"
-        return source
+        return value
 
-    def _is_long(leg: Mapping[str, Any]) -> bool:
-        try:
-            return float(leg.get("position") or 0) > 0
-        except Exception:
-            return False
+    def _is_long(view: LegView) -> bool:
+        return view.signed_position > 0
 
     fallback_sources = {"model", "close", "parity_close"}
     long_fallbacks = [
-        leg for leg in legs if _is_long(leg) and _source(leg) in fallback_sources
+        view for view in leg_views if _is_long(view) and _source(view) in fallback_sources
     ]
     short_fallbacks = [
-        leg for leg in legs if not _is_long(leg) and _source(leg) in fallback_sources
+        view for view in leg_views if not _is_long(view) and _source(view) in fallback_sources
     ]
     total_fallbacks = len(long_fallbacks) + len(short_fallbacks)
 
     def _warn_short_fallbacks() -> None:
         if not short_fallbacks:
             return
-        for leg in short_fallbacks:
-            try:
-                strike = leg.get("strike")
-                expiry = leg.get("expiry")
-                right = get_leg_right(leg).upper()
-            except Exception:  # pragma: no cover - defensive logging
-                strike = leg.get("strike")
-                expiry = leg.get("expiry")
-                right = str(leg.get("type") or "?").upper()
+        for view in short_fallbacks:
+            strike = view.strike
+            expiry = view.expiry
+            right = (view.right or "?").upper()
             logger.warning(
-                f"[{strat_label}] ⚠️ short leg fallback via {_source(leg)} — "
+                f"[{strat_label}] ⚠️ short leg fallback via {_source(view)} — "
                 f"{right} {strike} {expiry}"
             )
 
@@ -435,10 +433,12 @@ def _fallback_limit_ok(
 
     if strat_label == "calendar":
         allowed = min(allowed, 1) if allowed else 0
-        long_fallback_legs = [leg for leg in legs if _is_long(leg) and _source(leg) in fallback_sources]
+        long_fallback_legs = [
+            view for view in leg_views if _is_long(view) and _source(view) in fallback_sources
+        ]
         _warn_short_fallbacks()
         long_count = len(long_fallback_legs)
-        if any(_source(leg) == "model" for leg in long_fallback_legs):
+        if any(_source(view) == "model" for view in long_fallback_legs):
             return False, long_count, allowed, "calendar long leg vereist parity of close"
         if long_count > allowed:
             reason = "te veel fallback-legs op long hedge"
@@ -447,11 +447,11 @@ def _fallback_limit_ok(
 
     if strat_label == "naked_put":
         allowed = min(allowed, 1) if allowed else 0
-        for leg in legs:
-            if _source(leg) in fallback_sources:
+        for view in leg_views:
+            if _source(view) in fallback_sources:
                 logger.info(
                     "[naked_put] short leg fallback geaccepteerd via %s",
-                    _source(leg),
+                    _source(view),
                 )
         return total_fallbacks <= allowed, total_fallbacks, allowed, None
 
@@ -548,21 +548,17 @@ def calculate_breakevens(
     strategy = getattr(strategy, "value", strategy)
     credit_ps = credit / 100.0
     if strategy in {"short_put_spread", "short_call_spread"}:
-        short = [l for l in legs if l.get("position") < 0][0]
+        short = [l for l in legs if get_signed_position(l) < 0][0]
         strike = float(short.get("strike"))
         if strategy == "short_put_spread":
             return [strike - credit_ps]
         return [strike + credit_ps]
     if strategy in {"iron_condor", "atm_iron_butterfly"}:
         short_put = [
-            l
-            for l in legs
-            if l.get("position") < 0 and get_leg_right(l) == "put"
+            l for l in legs if get_signed_position(l) < 0 and get_leg_right(l) == "put"
         ]
         short_call = [
-            l
-            for l in legs
-            if l.get("position") < 0 and get_leg_right(l) == "call"
+            l for l in legs if get_signed_position(l) < 0 and get_leg_right(l) == "call"
         ]
         if short_put and short_call:
             sp = float(short_put[0].get("strike"))
@@ -726,13 +722,13 @@ def compute_proposal_metrics(
     short_deltas = [
         abs(leg.get("delta", 0))
         for leg in legs
-        if leg.get("position", 0) < 0 and leg.get("delta") is not None
+        if get_signed_position(leg) < 0 and leg.get("delta") is not None
     ]
     proposal.pos = calculate_pos(sum(short_deltas) / len(short_deltas)) if short_deltas else None
 
     short_edges: List[float] = []
     for leg in legs:
-        if leg.get("position", 0) < 0:
+        if get_signed_position(leg) < 0:
             try:
                 edge_val = float(leg.get("edge"))
             except Exception:
@@ -741,25 +737,12 @@ def compute_proposal_metrics(
                 short_edges.append(edge_val)
     proposal.edge = round(sum(short_edges) / len(short_edges), 2) if short_edges else None
 
-    missing_mid: List[str] = []
-    credits: List[float] = []
-    debits: List[float] = []
+    leg_views = list(iter_leg_views(legs, price_resolver=MidPriceResolver))
 
-    for leg in legs:
-        mid = leg.get("mid")
-        try:
-            mid_val = float(mid) if mid is not None else math.nan
-        except Exception:
-            mid_val = math.nan
-        qty = get_leg_qty(leg)
-        pos = float(leg.get("position") or 0)
-        if math.isnan(mid_val):
+    missing_mid: List[str] = []
+    for leg, view in zip(legs, leg_views):
+        if view.mid is None:
             missing_mid.append(str(leg.get("strike")))
-        else:
-            if pos < 0:
-                credits.append(mid_val * qty)
-            elif pos > 0:
-                debits.append(mid_val * qty)
 
     if missing_mid:
         logger.info(
@@ -784,9 +767,7 @@ def compute_proposal_metrics(
         reasons.append(detail)
         seen_codes.add(detail.code)
 
-    credit_short = sum(credits)
-    debit_long = sum(debits)
-    net_credit = credit_short - debit_long
+    net_credit = calculate_credit(leg_views, price_resolver=None) / 100.0
 
     theoretical_cap = _max_credit_for_strategy(strategy_name, legs)
     credit_capped = False

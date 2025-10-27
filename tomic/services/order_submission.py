@@ -35,7 +35,7 @@ from tomic.api.ib_connection import connect_ib
 from tomic.helpers.dateutils import normalize_expiry_code
 from tomic.helpers.numeric import safe_float
 from tomic.logutils import logger
-from tomic.metrics import calculate_credit
+from tomic.metrics import MidPriceResolver, calculate_credit, get_signed_position, iter_leg_views
 from tomic.models import OptionContract
 from tomic.services._config import cfg_value
 from tomic.services.strategy_pipeline import StrategyProposal
@@ -80,20 +80,12 @@ def _leg_mid_price(leg: dict) -> float | None:
 def _combo_mid_credit(legs: Sequence[dict]) -> float | None:
     """Return combo mid credit per contract in dollars if prices are available."""
 
-    total = 0.0
-    any_leg = False
-    for leg in legs:
-        price = _leg_mid_price(leg)
-        if price is None:
-            return None
-        qty = get_leg_qty(leg)
-        position = float(leg.get("position") or leg.get("qty") or leg.get("quantity") or 0)
-        direction = 1 if position > 0 else -1
-        total -= direction * price * qty
-        any_leg = True
-    if not any_leg:
+    leg_views = list(iter_leg_views(legs, price_resolver=MidPriceResolver))
+    if not leg_views:
         return None
-    return total * 100
+    if any(view.mid is None for view in leg_views):
+        return None
+    return calculate_credit(leg_views, price_resolver=None)
 
 
 def _block_order(reason: str, advice: str) -> None:
@@ -145,9 +137,9 @@ def _normalize_leg_summary(leg: dict) -> _LegSummary:
         raise ValueError(f"ongeldige strike waarde: {strike_raw}") from exc
     expiry = _expiry(leg)
     right = get_leg_right(leg)
-    position = float(leg.get("position") or leg.get("qty") or leg.get("quantity") or 0)
-    if position == 0:
-        position = -float(get_leg_qty(leg))
+    signed_position = get_signed_position(leg)
+    if signed_position == 0:
+        signed_position = -float(get_leg_qty(leg))
     qty = int(get_leg_qty(leg))
     bid = safe_float(leg.get("bid"))
     ask = safe_float(leg.get("ask"))
@@ -155,15 +147,15 @@ def _normalize_leg_summary(leg: dict) -> _LegSummary:
     if min_tick in (None, ""):
         min_tick = leg.get("min_tick")
     min_tick_value = safe_float(min_tick)
-    quote_age = safe_float(leg.get("quote_age_sec"))
-    mid_source_raw = str(leg.get("mid_source") or leg.get("mid_fallback") or "").strip()
-    mid_source = mid_source_raw or None
+    leg_view = next(iter_leg_views([leg], price_resolver=MidPriceResolver()), None)
+    quote_age = leg_view.quote_age if leg_view else safe_float(leg.get("quote_age_sec"))
+    mid_source = leg_view.mid_source if leg_view else None
     one_sided = bool(leg.get("one_sided"))
     return _LegSummary(
         strike=strike,
         expiry=expiry,
         right=right,
-        position=position,
+        position=signed_position,
         qty=qty,
         bid=bid,
         ask=ask,
@@ -964,7 +956,7 @@ class OrderSubmissionService:
             right = get_leg_right(leg)
             if right not in {"call", "put"}:
                 raise ValueError("onbekend optietype")
-            position = float(leg.get("position") or leg.get("qty") or 0)
+            position = get_signed_position(leg)
             if position == 0:
                 position = -qty
             leg_con_id = leg.get("conId") or leg.get("con_id")
