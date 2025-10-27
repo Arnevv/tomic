@@ -1,381 +1,306 @@
-"""Generate strategy proposals based on portfolio Greeks and option chain CSVs."""
+"""Portfolio level strategy suggestions backed by the strategy pipeline."""
 
 from __future__ import annotations
 
-import csv
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Dict, Iterable, List, Optional
+from typing import Any, Iterable, Mapping, MutableMapping, Sequence
 
+from tomic import config as cfg
 from tomic.analysis.greeks import compute_greeks_by_symbol
-from tomic.analysis.strategy import heuristic_risk_metrics
-from tomic.helpers.csv_utils import parse_euro_float
-from tomic.helpers.dateutils import filter_by_dte
+from tomic.criteria import RULES
+from tomic.helpers.numeric import safe_float
 from tomic.journal.utils import load_json
 from tomic.logutils import logger
-from tomic.metrics import calculate_margin, estimate_scenario_profit
-from tomic.utils import get_option_mid_price, normalize_right, today
-from ..criteria import RULES
-from ..config import _load_yaml
-from ..loader import load_strike_config
-
-_BASE = Path(__file__).resolve().parent.parent
-_STRIKE_RULES = (
-    _load_yaml(_BASE / "strike_selection_rules.yaml")
-    if (_BASE / "strike_selection_rules.yaml").exists()
-    else {}
+from tomic.services.chain_processing import (
+    ChainPreparationConfig,
+    ChainPreparationError,
+    PreparedChain,
+    load_and_prepare_chain,
 )
+from tomic.services.strategy_pipeline import (
+    PipelineRunError,
+    StrategyPipeline,
+    run as run_strategy_pipeline,
+)
+from tomic.strategy.models import StrategyProposal
+from tomic.strategies import StrategyName
 
 
-@dataclass
-class Leg:
-    expiry: str
-    type: str
-    strike: float
-    delta: float
-    gamma: float
-    vega: float
-    theta: float
-    bid: float = 0.0
-    ask: float = 0.0
-    position: int = 0
+@dataclass(frozen=True)
+class _StrategyContext:
+    """Context passed to the pipeline runner."""
+
+    pipeline: StrategyPipeline
+    symbol: str
+    chain: Sequence[MutableMapping[str, Any]]
+    spot_price: float
+    atr: float
+    strategy_config: Mapping[str, Any]
+    interest_rate: float
+    next_earnings: Any | None = None
 
 
-def _parse_float(value: str | None) -> Optional[float]:
-    return parse_euro_float(value)
-
-
-def load_chain_csv(path: str) -> List[Leg]:
-    """Parse option chain CSV into a list of ``Leg`` records."""
-    legs: List[Leg] = []
-    with open(path, newline="", encoding="utf-8") as f:
-        reader = csv.DictReader(f)
-        for row in reader:
-            try:
-                option_type = normalize_right(row.get("Type", ""))
-                legs.append(
-                    Leg(
-                        expiry=row.get("Expiry", ""),
-                        type=option_type,
-                        strike=float(row.get("Strike", 0) or 0),
-                        delta=_parse_float(row.get("Delta")) or 0.0,
-                        gamma=_parse_float(row.get("Gamma")) or 0.0,
-                        vega=_parse_float(row.get("Vega")) or 0.0,
-                        theta=_parse_float(row.get("Theta")) or 0.0,
-                        bid=_parse_float(row.get("Bid")) or 0.0,
-                        ask=_parse_float(row.get("Ask")) or 0.0,
-                    )
-                )
-            except Exception:
-                continue
-    return legs
-
-
-def _sum_greeks(legs: Iterable[Leg]) -> Dict[str, float]:
-    totals = {"Delta": 0.0, "Gamma": 0.0, "Vega": 0.0, "Theta": 0.0}
-    for leg in legs:
-        mult = leg.position or 0
-        totals["Delta"] += leg.delta * mult
-        totals["Gamma"] += leg.gamma * mult
-        totals["Vega"] += leg.vega * mult
-        totals["Theta"] += leg.theta * mult
-    return totals
-
-
-def _find_chain_file(directory: Path, symbol: str) -> Optional[Path]:
+def _find_chain_file(directory: Path, symbol: str) -> Path | None:
     pattern = f"option_chain_{symbol}_"
     candidates = sorted(directory.glob(f"*{pattern}*.csv"))
     return candidates[-1] if candidates else None
 
 
-def _mid_price(leg: Leg) -> float:
-    price, _ = get_option_mid_price({"bid": leg.bid, "ask": leg.ask, "close": None})
-    return price or 0.0
+def _load_chain_for_symbol(
+    chain_dir: Path,
+    symbol: str,
+    config: ChainPreparationConfig,
+) -> PreparedChain | None:
+    """Return prepared option chain for ``symbol`` or ``None`` if unavailable."""
 
+    chain_path = _find_chain_file(chain_dir, symbol)
+    if not chain_path:
+        logger.warning("Geen chain gevonden voor %s in %s", symbol, chain_dir)
+        return None
 
-def _cost_basis(legs: Iterable[Leg]) -> float:
-    cost = 0.0
-    for leg in legs:
-        price = _mid_price(leg)
-        cost += price if leg.position > 0 else -price
-    return cost * 100
-
-
-def _calc_metrics(strategy: str, legs: List[Leg], spot_price: float) -> Dict[str, Any]:
-    """Return margin and risk metrics for ``strategy`` with ``legs``."""
-
-    cb = _cost_basis(legs)
-    legs_dict = [
-        {
-            "strike": leg.strike,
-            "type": leg.type,
-            "position": leg.position,
-            "mid": _mid_price(leg),
-        }
-        for leg in legs
-    ]
-
-    credit = -cb if cb < 0 else 0.0
-    debit = cb if cb > 0 else 0.0
-    net_cashflow = credit / 100 if credit else -debit / 100
     try:
-        margin = calculate_margin(
-            strategy,
-            legs_dict,
-            net_cashflow=net_cashflow,
+        prepared = load_and_prepare_chain(chain_path, config)
+    except ChainPreparationError as exc:
+        logger.warning("Chain kan niet geladen worden voor %s: %s", symbol, exc)
+        return None
+
+    if prepared.quality < config.min_quality:
+        logger.warning(
+            "Chainkwaliteit %.1f%% lager dan drempel %.1f%% voor %s",
+            prepared.quality,
+            config.min_quality,
+            symbol,
         )
-    except Exception as exc:  # pragma: no cover - defensive fallback
-        logger.warning(f"calculate_margin failed for {strategy}: {exc}")
-        margin = 350.0
+        return None
 
-    risk = heuristic_risk_metrics(legs_dict, cb)
-    max_profit = risk.get("max_profit")
-    max_loss = risk.get("max_loss")
-    rr = risk.get("risk_reward")
-    profit_estimated = False
-    scenario_info: Optional[Dict[str, Any]] = None
+    return prepared
 
-    if max_profit is None or max_profit <= 0:
-        scenarios, err = estimate_scenario_profit(legs_dict, spot_price, strategy)
-        if scenarios:
-            preferred = next(
-                (s for s in scenarios if s.get("preferred_move")), scenarios[0]
-            )
-            pnl = preferred.get("pnl")
-            max_profit = abs(pnl) if pnl is not None else None
-            scenario_info = preferred
-            profit_estimated = True
-            label = preferred.get("scenario_label")
-            logger.info(
-                f"[SCENARIO] {strategy}: profit estimate at {label} {max_profit}"
-            )
-        else:
-            scenario_info = {"error": err or "no scenario defined"}
 
-    rom = None
-    if max_profit is not None and margin:
-        rom = (max_profit / margin) * 100
+def _extract_metric(metrics: Any | None, name: str) -> Any:
+    if metrics is None:
+        return None
+    if isinstance(metrics, Mapping):
+        return metrics.get(name)
+    return getattr(metrics, name, None)
 
+
+def _extract_float(metrics: Any | None, name: str) -> float | None:
+    value = _extract_metric(metrics, name)
+    return safe_float(value)
+
+
+def _run_strategy_pipeline(
+    ctx: _StrategyContext,
+    strategy: StrategyName | str,
+) -> list[StrategyProposal]:
+    """Execute the shared strategy pipeline and return proposals."""
+
+    strategy_name = strategy.value if isinstance(strategy, StrategyName) else strategy
+    try:
+        result = run_strategy_pipeline(
+            ctx.pipeline,
+            symbol=ctx.symbol,
+            strategy=strategy_name,
+            option_chain=ctx.chain,
+            spot_price=ctx.spot_price,
+            atr=ctx.atr,
+            config=ctx.strategy_config,
+            interest_rate=ctx.interest_rate,
+            next_earnings=ctx.next_earnings,
+        )
+    except PipelineRunError as exc:
+        logger.warning(
+            "Pipeline mislukt voor %s/%s: %s", ctx.symbol, strategy_name, exc
+        )
+        return []
+    return list(result.proposals)
+
+
+def _leg_multiplier(leg: Mapping[str, Any]) -> float:
+    for key in ("position", "qty", "quantity"):
+        value = safe_float(leg.get(key))
+        if value is not None:
+            return value
+    return 0.0
+
+
+def _sum_greeks(legs: Iterable[Mapping[str, Any]]) -> dict[str, float]:
+    totals = {"Delta": 0.0, "Gamma": 0.0, "Vega": 0.0, "Theta": 0.0}
+    for leg in legs:
+        mult = _leg_multiplier(leg)
+        for field, label in (
+            ("delta", "Delta"),
+            ("gamma", "Gamma"),
+            ("vega", "Vega"),
+            ("theta", "Theta"),
+        ):
+            value = safe_float(leg.get(field))
+            if value is None:
+                continue
+            totals[label] += value * mult
+    return totals
+
+
+def _format_proposal(
+    proposal: StrategyProposal,
+    *,
+    reason: str,
+) -> dict[str, Any]:
+    impact = _sum_greeks(proposal.legs)
     return {
-        "ROM": rom,
-        "RR": rr,
-        "max_profit": max_profit,
-        "max_loss": max_loss,
-        "margin": margin,
-        "profit_estimated": profit_estimated,
-        "scenario_info": scenario_info,
+        "strategy": proposal.strategy,
+        "legs": [dict(leg) for leg in proposal.legs],
+        "impact": impact,
+        "score": proposal.score,
+        "score_label": proposal.score_label,
+        "reason": reason,
+        "ROM": proposal.rom,
+        "RR": proposal.risk_reward,
+        "margin": proposal.margin,
+        "max_profit": proposal.max_profit,
+        "max_loss": proposal.max_loss,
+        "credit": proposal.credit,
+        "profit_estimated": proposal.profit_estimated,
+        "scenario_info": dict(proposal.scenario_info or {}),
     }
 
 
-def _filter_chain_by_dte(chain: List[Leg], strategy: str) -> List[Leg]:
-    """Return ``chain`` filtered to the strategy's DTE range."""
-
-    rules = load_strike_config(strategy, _STRIKE_RULES)
-    dte_range = rules.get("dte_range")
-    if not dte_range:
-        return chain
-    filtered = filter_by_dte(chain, lambda leg: leg.expiry, dte_range)
-    return filtered or chain
-
-
-def _make_vertical(chain: List[Leg], bullish: bool) -> Optional[List[Leg]]:
-    calls = [c for c in chain if c.type == "call"]
-    puts = [p for p in chain if p.type == "put"]
-    if bullish:
-        group = calls
-    else:
-        group = puts
-    if len(group) < 2:
-        return None
-    group.sort(key=lambda x: x.strike)
-    short = group[0]
-    long = group[1]
-    return [
-        Leg(**{**short.__dict__, "position": -1}),
-        Leg(**{**long.__dict__, "position": 1}),
-    ]
-
-
-def _make_condor(chain: List[Leg]) -> Optional[List[Leg]]:
-    calls = [c for c in chain if c.type == "call"]
-    puts = [p for p in chain if p.type == "put"]
-    if len(calls) < 2 or len(puts) < 2:
-        return None
-    calls.sort(key=lambda x: x.strike)
-    puts.sort(key=lambda x: x.strike)
-    legs = [
-        Leg(**{**calls[0].__dict__, "position": -1}),
-        Leg(**{**calls[1].__dict__, "position": 1}),
-        Leg(**{**puts[-1].__dict__, "position": -1}),
-        Leg(**{**puts[-2].__dict__, "position": 1}),
-    ]
-    return legs
-
-
-def _make_calendar(chain: List[Leg], spot: Optional[float] = None) -> Optional[List[Leg]]:
-    """Return a simple calendar spread if possible.
-
-    Iterate over all available strikes (optionally ordered by distance to the
-    underlying spot price) and look for the first strike that is listed in at
-    least two different expiries.  Build legs based on that strike so that a
-    calendar is suggested whenever such a strike exists anywhere in the chain.
-    """
-
-    if len(chain) < 2:
+def _select_best(proposals: Sequence[StrategyProposal]) -> StrategyProposal | None:
+    candidates = [p for p in proposals if p.legs]
+    if not candidates:
         return None
 
-    # Group legs by strike and type while keeping only one leg per expiry
-    grouped: Dict[tuple[float, str], Dict[str, Leg]] = {}
-    for leg in chain:
-        key = (leg.strike, leg.type)
-        grouped.setdefault(key, {})
-        grouped[key].setdefault(leg.expiry, leg)
+    def _score_key(proposal: StrategyProposal) -> tuple[bool, float, float]:
+        score = proposal.score if proposal.score is not None else float("-inf")
+        rom = proposal.rom if proposal.rom is not None else float("-inf")
+        return (proposal.score is not None, score, rom)
 
-    def sort_key(key: tuple[float, str]) -> float:
-        strike, _ = key
-        return abs(strike - spot) if spot is not None else strike
-
-    # Iterate over strikes (closest to spot if provided) and build first
-    # calendar we encounter.
-    for key in sorted(grouped.keys(), key=sort_key):
-        legs_by_expiry = grouped[key]
-        if len(legs_by_expiry) < 2:
-            continue
-        # Sort by expiry and take the first two expiries for the spread
-        candidates = sorted(legs_by_expiry.values(), key=lambda l: l.expiry)[:2]
-        short_leg, long_leg = candidates[0], candidates[1]
-        return [
-            Leg(**{**short_leg.__dict__, "position": -1}),
-            Leg(**{**long_leg.__dict__, "position": 1}),
-        ]
-
-    # No strike exists with multiple expiries
-    return None
+    return max(candidates, key=_score_key)
 
 
-def _tomic_score(after: Dict[str, float]) -> float:
-    score = 100.0
-    score -= abs(after.get("Delta", 0.0)) * 0.5
-    score -= abs(after.get("Vega", 0.0)) * 0.2
-    if after.get("Theta", 0.0) < 0:
-        score += after["Theta"] * 1.0
-    score -= abs(after.get("Gamma", 0.0)) * 0.1
-    return round(max(score, 0.0), 1)
+def _condor_gate_allows(metrics: Any | None, vix: float | None) -> bool:
+    gate = RULES.portfolio.condor_gates
+    iv_rank = _extract_float(metrics, "iv_rank")
+    iv_pct = _extract_float(metrics, "iv_percentile")
+
+    if gate.iv_rank_min is not None and iv_rank is not None and iv_rank < gate.iv_rank_min:
+        return False
+    if gate.iv_rank_max is not None and iv_rank is not None and iv_rank > gate.iv_rank_max:
+        return False
+    if (
+        gate.iv_percentile_min is not None
+        and iv_pct is not None
+        and iv_pct < gate.iv_percentile_min
+    ):
+        return False
+    if (
+        gate.iv_percentile_max is not None
+        and iv_pct is not None
+        and iv_pct > gate.iv_percentile_max
+    ):
+        return False
+    if gate.vix_min is not None and vix is not None and vix < gate.vix_min:
+        return False
+    if gate.vix_max is not None and vix is not None and vix > gate.vix_max:
+        return False
+    return True
+
+
+def _calendar_gate_allows(metrics: Any | None, vix: float | None) -> bool:
+    gate = RULES.portfolio.calendar_gates
+    iv_rank = _extract_float(metrics, "iv_rank")
+    iv_pct = _extract_float(metrics, "iv_percentile")
+    term = _extract_float(metrics, "term_m1_m3")
+
+    if gate.iv_rank_min is not None and iv_rank is not None and iv_rank < gate.iv_rank_min:
+        return False
+    if gate.iv_rank_max is not None and iv_rank is not None and iv_rank > gate.iv_rank_max:
+        return False
+    if (
+        gate.iv_percentile_min is not None
+        and iv_pct is not None
+        and iv_pct < gate.iv_percentile_min
+    ):
+        return False
+    if (
+        gate.iv_percentile_max is not None
+        and iv_pct is not None
+        and iv_pct > gate.iv_percentile_max
+    ):
+        return False
+    if gate.term_m1_m3_min is not None and term is not None and term < gate.term_m1_m3_min:
+        return False
+    if gate.term_m1_m3_max is not None and term is not None and term > gate.term_m1_m3_max:
+        return False
+    if gate.vix_min is not None and vix is not None and vix < gate.vix_min:
+        return False
+    if gate.vix_max is not None and vix is not None and vix > gate.vix_max:
+        return False
+    return True
 
 
 def suggest_strategies(
     symbol: str,
-    chain: List[Leg],
-    exposure: Dict[str, float],
+    chain: Sequence[MutableMapping[str, Any]],
+    exposure: Mapping[str, float],
     *,
+    pipeline: StrategyPipeline,
     spot_price: float,
-    metrics: Optional[Any] = None,
-    vix: Optional[float] = None,
-) -> List[Dict[str, Any]]:
-    """Return a list of strategy proposals for ``symbol``."""
-    suggestions: List[Dict[str, Any]] = []
-    iv_rank = getattr(metrics, "iv_rank", None) if metrics else None
-    iv_pct = getattr(metrics, "iv_percentile", None) if metrics else None
-    term_m1_m3 = getattr(metrics, "term_m1_m3", None)
+    atr: float = 0.0,
+    strategy_config: Mapping[str, Any] | None = None,
+    interest_rate: float = 0.05,
+    metrics: Any | None = None,
+    vix: float | None = None,
+    next_earnings: Any | None = None,
+) -> list[dict[str, Any]]:
+    """Return portfolio suggestions driven by the strategy pipeline."""
 
-    port = RULES.portfolio
-    condor_gate = port.condor_gates
-    calendar_gate = port.calendar_gates
+    ctx = _StrategyContext(
+        pipeline=pipeline,
+        symbol=symbol,
+        chain=list(chain),
+        spot_price=float(spot_price or 0.0),
+        atr=float(atr or 0.0),
+        strategy_config=dict(strategy_config or {}),
+        interest_rate=float(interest_rate or 0.0),
+        next_earnings=next_earnings,
+    )
 
-    if abs(exposure.get("Delta", 0.0)) > 25:
-        bullish = exposure["Delta"] < 0
-        legs = _make_vertical(chain, bullish)
-        if legs:
-            impact = _sum_greeks(legs)
-            after = {k: exposure.get(k, 0.0) + impact[k] for k in impact}
-            risk = _calc_metrics("vertical spread", legs, spot_price)
+    suggestions: list[dict[str, Any]] = []
+    delta = float(exposure.get("Delta", 0.0) or 0.0)
+    vega = float(exposure.get("Vega", 0.0) or 0.0)
+
+    if abs(delta) > 25:
+        strategy = (
+            StrategyName.SHORT_CALL_SPREAD if delta > 0 else StrategyName.SHORT_PUT_SPREAD
+        )
+        proposals = _run_strategy_pipeline(ctx, strategy)
+        best = _select_best(proposals)
+        if best:
+            best.strategy = best.strategy or strategy.value
             suggestions.append(
-                {
-                    "strategy": "Vertical",
-                    "legs": [leg.__dict__ for leg in legs],
-                    "impact": impact,
-                    "score": _tomic_score(after),
-                    "reason": "Delta-balancering",
-                    "ROM": risk.get("ROM"),
-                    "RR": risk.get("RR"),
-                    "margin": risk.get("margin"),
-                    "max_profit": risk.get("max_profit"),
-                    "max_loss": risk.get("max_loss"),
-                    "profit_estimated": risk.get("profit_estimated"),
-                    "scenario_info": risk.get("scenario_info"),
-                }
+                _format_proposal(best, reason="Delta-balancering")
             )
-    if exposure.get("Vega", 0.0) > port.vega_to_condor:
-        legs = _make_condor(_filter_chain_by_dte(chain, "iron_condor"))
-        if legs and not (
-            (condor_gate.iv_rank_min is not None and iv_rank is not None and iv_rank < condor_gate.iv_rank_min)
-            or (condor_gate.iv_percentile_min is not None and iv_pct is not None and iv_pct < condor_gate.iv_percentile_min)
-            or (condor_gate.vix_max is not None and vix is not None and vix > condor_gate.vix_max)
-        ):
-            impact = _sum_greeks(legs)
-            after = {k: exposure.get(k, 0.0) + impact[k] for k in impact}
-            risk = _calc_metrics("iron_condor", legs, spot_price)
-            rom = risk.get("ROM")
-            rr = risk.get("RR")
-            if metrics or vix is not None:
-                if rom is not None and rom < 10:
-                    risk_ok = False
-                elif rr is not None and rr < 1.0:
-                    risk_ok = False
-                else:
-                    risk_ok = True
-            else:
-                risk_ok = True
-            if risk_ok:
-                suggestions.append(
-                    {
-                        "strategy": "iron_condor",
-                        "legs": [leg.__dict__ for leg in legs],
-                        "impact": impact,
-                        "score": _tomic_score(after),
-                        "reason": "Vega verlagen",
-                        "ROM": rom,
-                        "RR": rr,
-                        "margin": risk.get("margin"),
-                        "max_profit": risk.get("max_profit"),
-                        "max_loss": risk.get("max_loss"),
-                        "profit_estimated": risk.get("profit_estimated"),
-                        "scenario_info": risk.get("scenario_info"),
-                    }
-                )
-    if exposure.get("Vega", 0.0) < port.vega_to_calendar:
-        legs = _make_calendar(_filter_chain_by_dte(chain, "calendar"), spot_price)
-        if legs and not (
-            (calendar_gate.iv_rank_max is not None and iv_rank is not None and iv_rank > calendar_gate.iv_rank_max)
-            or (calendar_gate.iv_percentile_max is not None and iv_pct is not None and iv_pct > calendar_gate.iv_percentile_max)
-            or (calendar_gate.term_m1_m3_min is not None and term_m1_m3 is not None and term_m1_m3 <= calendar_gate.term_m1_m3_min)
-            or (calendar_gate.vix_min is not None and vix is not None and vix < calendar_gate.vix_min)
-        ):
-            impact = _sum_greeks(legs)
-            after = {k: exposure.get(k, 0.0) + impact[k] for k in impact}
-            risk = _calc_metrics("calendar", legs, spot_price)
-            rom = risk.get("ROM")
-            if metrics or vix is not None:
-                risk_ok = rom is None or rom >= 10
-            else:
-                risk_ok = True
-            if risk_ok:
-                suggestions.append(
-                    {
-                        "strategy": "calendar",
-                        "legs": [leg.__dict__ for leg in legs],
-                        "impact": impact,
-                        "score": _tomic_score(after),
-                        "reason": "Vega verhogen",
-                        "ROM": rom,
-                        "RR": risk.get("RR"),
-                        "margin": risk.get("margin"),
-                        "max_profit": risk.get("max_profit"),
-                        "max_loss": risk.get("max_loss"),
-                        "profit_estimated": risk.get("profit_estimated"),
-                        "scenario_info": risk.get("scenario_info"),
-                    }
-                )
+
+    if vega > RULES.portfolio.vega_to_condor and _condor_gate_allows(metrics, vix):
+        proposals = _run_strategy_pipeline(ctx, StrategyName.IRON_CONDOR)
+        best = _select_best(proposals)
+        if best:
+            best.strategy = best.strategy or StrategyName.IRON_CONDOR.value
+            suggestions.append(
+                _format_proposal(best, reason="Vega verlagen")
+            )
+
+    if vega < RULES.portfolio.vega_to_calendar and _calendar_gate_allows(metrics, vix):
+        proposals = _run_strategy_pipeline(ctx, StrategyName.CALENDAR)
+        best = _select_best(proposals)
+        if best:
+            best.strategy = best.strategy or StrategyName.CALENDAR.value
+            suggestions.append(
+                _format_proposal(best, reason="Vega verhogen")
+            )
+
     return suggestions
 
 
@@ -383,43 +308,55 @@ def generate_proposals(
     positions_file: str,
     chain_dir: str,
     *,
-    metrics: Optional[Dict[str, Any]] = None,
-    vix: Optional[float] = None,
-) -> Dict[str, List[Dict[str, Any]]]:
+    metrics: Mapping[str, Any] | None = None,
+    vix: float | None = None,
+) -> dict[str, list[dict[str, Any]]]:
     """Combine portfolio Greeks with chain data and return proposals."""
+
     positions = load_json(positions_file)
     open_positions = [p for p in positions if p.get("position")]
     exposures = compute_greeks_by_symbol(open_positions)
-    result: Dict[str, List[Dict[str, Any]]] = {}
+
+    pipeline = StrategyPipeline(config=cfg.get)
+    chain_config = ChainPreparationConfig.from_app_config()
+    strategy_config = cfg.get("STRATEGY_CONFIG", {}) or {}
+    interest_rate = safe_float(cfg.get("INTEREST_RATE", 0.05)) or 0.05
+
+    result: dict[str, list[dict[str, Any]]] = {}
+    base_dir = Path(chain_dir)
+
     for sym, greeks in exposures.items():
         if sym == "TOTAL":
             continue
-        dir_path = Path(chain_dir)
-        chain_path = _find_chain_file(dir_path, sym)
-        if not chain_path:
+
+        prepared = _load_chain_for_symbol(base_dir, sym, chain_config)
+        if prepared is None or not prepared.records:
             continue
-        chain = load_chain_csv(str(chain_path))
-        m = metrics.get(sym) if metrics else None
-        spot = None
-        if m is not None:
-            spot = getattr(m, "spot_price", None)
-            if spot is None and isinstance(m, dict):
-                spot = m.get("spot_price")
-        props = suggest_strategies(
+
+        metrics_obj = metrics.get(sym) if metrics else None
+        spot = _extract_float(metrics_obj, "spot_price")
+        atr = _extract_float(metrics_obj, "atr")
+        next_earnings = _extract_metric(metrics_obj, "next_earnings")
+
+        proposals = suggest_strategies(
             sym,
-            chain,
+            prepared.records,
             greeks,
-            spot_price=spot if spot is not None else 0.0,
-            metrics=m,
+            pipeline=pipeline,
+            spot_price=spot or prepared.records[0].get("underlying_price", 0.0) or 0.0,
+            atr=atr or 0.0,
+            strategy_config=strategy_config,
+            interest_rate=interest_rate,
+            metrics=metrics_obj,
             vix=vix,
+            next_earnings=next_earnings,
         )
-        if props:
-            result[sym] = props
+
+        if proposals:
+            result[sym] = proposals
+
     return result
 
 
-__all__ = [
-    "load_chain_csv",
-    "suggest_strategies",
-    "generate_proposals",
-]
+__all__ = ["generate_proposals", "suggest_strategies"]
+

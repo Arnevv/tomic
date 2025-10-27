@@ -1,152 +1,160 @@
-from pathlib import Path
-import math
+from types import SimpleNamespace
+
 from tomic.analysis.proposal_engine import (
-    Leg,
-    load_chain_csv,
+    generate_proposals,
     suggest_strategies,
 )
-from tomic.helpers.dateutils import filter_by_dte
+from tomic.criteria import RULES
+from tomic.strategy.models import StrategyProposal
+from tomic.strategies import StrategyName
 
 
-def make_chain_csv(path: Path) -> None:
-    rows = [
-        [
-            "Expiry",
-            "Type",
-            "Strike",
-            "Bid",
-            "Ask",
-            "IV",
-            "Delta",
-            "Gamma",
-            "Vega",
-            "Theta",
-            "Volume",
-            "OpenInterest",
-            "ParityDeviation",
-        ],
-        ["20250101", "call", "100", "1", "1.2", "0.2", "0.4", "0.1", "0.2", "-0.05", "10", "100", ""],
-        ["20250101", "C", "105", "0.5", "0.7", "0.18", "0.3", "0.08", "0.15", "-0.04", "5", "50", ""],
-        ["20250101", "put", "95", "0.6", "0.8", "0.22", "-0.3", "0.09", "0.18", "-0.06", "8", "80", ""],
-        ["20250101", "P", "90", "0.4", "0.6", "0.25", "-0.2", "0.07", "0.16", "-0.05", "7", "70", ""],
+def _make_proposal(strategy: str) -> StrategyProposal:
+    legs = [
+        {
+            "delta": -0.2,
+            "gamma": 0.01,
+            "vega": -0.4,
+            "theta": 0.05,
+            "position": -1,
+        },
+        {
+            "delta": 0.1,
+            "gamma": -0.005,
+            "vega": 0.15,
+            "theta": 0.02,
+            "position": 1,
+        },
     ]
-    with open(path, "w", newline="") as f:
-        for row in rows:
-            f.write(",".join(row) + "\n")
-
-
-def make_calendar_chain_csv(path: Path) -> None:
-    rows = [
-        [
-            "Expiry",
-            "Type",
-            "Strike",
-            "Bid",
-            "Ask",
-            "IV",
-            "Delta",
-            "Gamma",
-            "Vega",
-            "Theta",
-            "Volume",
-            "OpenInterest",
-            "ParityDeviation",
-        ],
-        [
-            "20991231",
-            "call",
-            "100",
-            "1",
-            "1.2",
-            "0.2",
-            "0.4",
-            "0.1",
-            "0.2",
-            "-0.05",
-            "10",
-            "100",
-            "",
-        ],
-        [
-            "21000115",
-            "call",
-            "100",
-            "1.5",
-            "1.7",
-            "0.22",
-            "0.35",
-            "0.09",
-            "0.18",
-            "-0.04",
-            "5",
-            "50",
-            "",
-        ],
-    ]
-    with open(path, "w", newline="") as f:
-        for row in rows:
-            f.write(",".join(row) + "\n")
-
-
-def test_load_chain_csv(tmp_path: Path) -> None:
-    path = tmp_path / "chain.csv"
-    make_chain_csv(path)
-    legs = load_chain_csv(str(path))
-    assert len(legs) == 4
-    assert legs[0].type == "call"
-    assert legs[2].delta == -0.3
-
-
-def test_suggest_vertical(tmp_path: Path) -> None:
-    path = tmp_path / "chain.csv"
-    make_chain_csv(path)
-    chain = load_chain_csv(str(path))
-    exposure = {"Delta": 40, "Theta": 0, "Vega": 0, "Gamma": 0}
-    props = suggest_strategies("XYZ", chain, exposure, spot_price=100.0)
-    assert any(p["strategy"] == "Vertical" for p in props)
-
-
-def test_suggest_condor(tmp_path: Path) -> None:
-    path = tmp_path / "chain.csv"
-    make_chain_csv(path)
-    chain = load_chain_csv(str(path))
-    exposure = {"Delta": 0, "Theta": 0, "Vega": 80, "Gamma": 0}
-    props = suggest_strategies("XYZ", chain, exposure, spot_price=100.0)
-    assert any(p["strategy"] == "iron_condor" for p in props)
-
-
-def test_condor_margin(tmp_path: Path) -> None:
-    path = tmp_path / "chain.csv"
-    make_chain_csv(path)
-    chain = load_chain_csv(str(path))
-    exposure = {"Delta": 0, "Theta": 0, "Vega": 80, "Gamma": 0}
-    props = suggest_strategies("XYZ", chain, exposure, spot_price=100.0)
-    condor = next(p for p in props if p["strategy"] == "iron_condor")
-    assert math.isclose(condor["margin"], 430.0)
-    assert math.isclose(
-        condor["ROM"], condor["max_profit"] / condor["margin"] * 100
+    return StrategyProposal(
+        strategy=strategy,
+        legs=legs,
+        score=75.0,
+        rom=12.5,
+        risk_reward=1.8,
+        margin=450.0,
+        max_profit=150.0,
+        max_loss=-80.0,
+        credit=1.5,
+        profit_estimated=False,
+        scenario_info={"preferred_move": "flat"},
     )
 
 
-def test_calendar_profit_estimation(tmp_path: Path) -> None:
-    path = tmp_path / "chain.csv"
-    make_calendar_chain_csv(path)
-    chain = load_chain_csv(str(path))
-    exposure = {"Delta": 0, "Theta": 0, "Vega": -80, "Gamma": 0}
-    props = suggest_strategies("XYZ", chain, exposure, spot_price=100.0)
-    cal = next(p for p in props if p["strategy"] == "calendar")
-    assert cal["profit_estimated"] is True
-    assert cal["scenario_info"]["preferred_move"] == "flat"
-    assert isinstance(cal["max_profit"], float)
-    assert cal["ROM"] is not None
+def test_suggest_strategies_picks_vertical(monkeypatch):
+    recorded = []
+
+    def fake_run(ctx, strategy):  # type: ignore[unused-arg]
+        recorded.append(strategy)
+        return [_make_proposal(str(strategy))]
+
+    monkeypatch.setattr("tomic.analysis.proposal_engine._run_strategy_pipeline", fake_run)
+    pipeline = object()
+    exposure = {"Delta": 60.0, "Vega": 0.0}
+    chain = [{"expiry": "2025-01-01"}]
+
+    result = suggest_strategies(
+        "XYZ",
+        chain,
+        exposure,
+        pipeline=pipeline,  # type: ignore[arg-type]
+        spot_price=100.0,
+        strategy_config={},
+        interest_rate=0.05,
+    )
+
+    assert recorded == [StrategyName.SHORT_CALL_SPREAD]
+    assert result[0]["strategy"] == "short_call_spread"
+    assert result[0]["reason"] == "Delta-balancering"
+    assert result[0]["impact"]["Delta"] != 0.0
+    assert result[0]["score"] == 75.0
 
 
-def test_filter_by_dte_with_leg(monkeypatch):
-    monkeypatch.setenv("TOMIC_TODAY", "2024-06-01")
-    legs = [
-        Leg(expiry="20240614", type="call", strike=100, delta=0, gamma=0, vega=0, theta=0),
-        Leg(expiry="20240621", type="put", strike=90, delta=0, gamma=0, vega=0, theta=0),
-        Leg(expiry="20240719", type="call", strike=110, delta=0, gamma=0, vega=0, theta=0),
-    ]
-    res = filter_by_dte(legs, lambda l: l.expiry, (10, 20))
-    assert {l.expiry for l in res} == {"20240614", "20240621"}
+def test_suggest_strategies_respects_condor_gate(monkeypatch):
+    called = []
+
+    def fake_run(ctx, strategy):  # type: ignore[unused-arg]
+        called.append(strategy)
+        return [_make_proposal("iron_condor")]
+
+    monkeypatch.setattr("tomic.analysis.proposal_engine._run_strategy_pipeline", fake_run)
+
+    metrics = SimpleNamespace(iv_rank=0.0)
+    exposure = {"Delta": 0.0, "Vega": RULES.portfolio.vega_to_condor + 10}
+    chain = [{"expiry": "2025-01-01"}]
+
+    result = suggest_strategies(
+        "XYZ",
+        chain,
+        exposure,
+        pipeline=object(),  # type: ignore[arg-type]
+        spot_price=100.0,
+        strategy_config={},
+        interest_rate=0.05,
+        metrics=metrics,
+    )
+
+    # iv_rank below minimum should block the condor suggestion
+    assert called == []
+    assert result == []
+
+
+def test_suggest_strategies_respects_calendar_gate(monkeypatch):
+    called = []
+
+    def fake_run(ctx, strategy):  # type: ignore[unused-arg]
+        called.append(strategy)
+        return [_make_proposal("calendar")]
+
+    monkeypatch.setattr("tomic.analysis.proposal_engine._run_strategy_pipeline", fake_run)
+
+    metrics = SimpleNamespace(iv_rank=5.0)
+    exposure = {"Delta": 0.0, "Vega": RULES.portfolio.vega_to_calendar - 10}
+    chain = [{"expiry": "2025-01-01"}]
+
+    result = suggest_strategies(
+        "XYZ",
+        chain,
+        exposure,
+        pipeline=object(),  # type: ignore[arg-type]
+        spot_price=100.0,
+        strategy_config={},
+        interest_rate=0.05,
+        metrics=metrics,
+    )
+
+    # iv_rank above maximum should block the calendar suggestion
+    assert called == []
+    assert result == []
+
+
+def test_generate_proposals_aggregates_pipeline(monkeypatch):
+    positions = [{"symbol": "XYZ", "position": 1}]
+    exposures = {"XYZ": {"Delta": 60.0, "Vega": 0.0}}
+
+    monkeypatch.setattr(
+        "tomic.analysis.proposal_engine.load_json",
+        lambda path: positions,
+    )
+    monkeypatch.setattr(
+        "tomic.analysis.proposal_engine.compute_greeks_by_symbol",
+        lambda records: exposures,
+    )
+    monkeypatch.setattr(
+        "tomic.analysis.proposal_engine._load_chain_for_symbol",
+        lambda _dir, _sym, _cfg: SimpleNamespace(records=[{"expiry": "2025-01-01"}], quality=100),
+    )
+    monkeypatch.setattr(
+        "tomic.analysis.proposal_engine.StrategyPipeline",
+        lambda *a, **k: object(),
+    )
+    monkeypatch.setattr(
+        "tomic.analysis.proposal_engine._run_strategy_pipeline",
+        lambda ctx, strategy: [_make_proposal(str(strategy))],
+    )
+
+    proposals = generate_proposals("positions.json", "chains")
+
+    assert "XYZ" in proposals
+    assert proposals["XYZ"][0]["strategy"] == "short_call_spread"
+
