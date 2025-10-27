@@ -471,8 +471,29 @@ def build_exit_intents(
         raw_leg_copies: list[MutableMapping[str, Any]] = [dict(leg) for leg in raw_legs_source]
         _enrich_strategy_leg_quotes(strategy, raw_leg_copies, quote_fetcher=quote_fetcher)
 
-        rule_key = (strategy.get("symbol"), strategy.get("expiry"))
-        rule = exit_rules.get(rule_key)
+        rule: Mapping[str, Any] | None = None
+        expiry_candidates = _expiry_variants(strategy.get("expiry"))
+        if not expiry_candidates:
+            expiry_candidates = {strategy.get("expiry")}
+
+        symbol_candidates: list[Any] = []
+        for key in ("symbol", "underlying"):
+            value = strategy.get(key)
+            if value and value not in symbol_candidates:
+                symbol_candidates.append(value)
+
+        for symbol_candidate in symbol_candidates:
+            for expiry_candidate in expiry_candidates:
+                candidate_key = (symbol_candidate, expiry_candidate)
+                if candidate_key in exit_rules:
+                    rule = exit_rules[candidate_key]
+                    break
+            if rule is not None:
+                break
+
+        if rule is None:
+            rule_key = (strategy.get("symbol"), strategy.get("expiry"))
+            rule = exit_rules.get(rule_key)
         intents.append(
             StrategyExitIntent(
                 strategy=strategy,
