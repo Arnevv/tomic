@@ -18,7 +18,7 @@ from ..strike_selector import (
     load_filter_config,
 )
 from .utils import resolve_config_getter
-from ..loader import load_strike_config
+from ..core.config.strike_selection import load_strategy_rules
 from ..logutils import combo_symbol_context, logger
 from ..core.pricing import MidPricingContext, MidService, resolve_option_mid
 from ..core.pricing.mid_tags import MidTagSnapshot
@@ -141,7 +141,7 @@ class StrategyPipeline:
         *,
         strike_selector_factory: Callable[..., StrikeSelector] = StrikeSelector,
         strategy_generator: Callable[..., tuple[Sequence[Any], list[ReasonDetail]]] = generate_strategy_candidates,
-        strike_config_loader: Callable[[str, Mapping[str, Any]], Mapping[str, Any]] = load_strike_config,
+        strike_config_loader: Callable[[str, Mapping[str, Any]], Mapping[str, Any]] = load_strategy_rules,
         price_getter: Callable[[Mapping[str, Any]], tuple[float | None, str | None]] | None = None,
     ) -> None:
         self._config_getter = resolve_config_getter(config)

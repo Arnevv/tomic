@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Any, Callable, Mapping, Tuple
 
-from ..loader import load_strike_config
+from ..core.config.strike_selection import load_strategy_rules
 from ..strike_selector import load_filter_config
 from .strategy_config import canonical_strategy_name
 
@@ -30,7 +30,7 @@ def load_dte_range(
 
     if resolved_rules is None:
         try:
-            resolved_rules = load_strike_config(
+            resolved_rules = load_strategy_rules(
                 canonical_strategy_name(strategy), dict(base_config)
             )
         except Exception:  # pragma: no cover - defensive guard
