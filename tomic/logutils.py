@@ -12,9 +12,8 @@ from typing import Any, Callable, Iterator, Optional, TypeVar, TYPE_CHECKING
 
 if TYPE_CHECKING:  # pragma: no cover - type hints only
     from collections.abc import Iterable, Mapping, Sequence
+    from tomic.core.pricing.mid_tags import MidTagSnapshot
     from tomic.reporting import EvaluationSummary
-
-from tomic.core.pricing.mid_tags import MidTagSnapshot
 from tomic.strategy.reasons import (
     ReasonDetail,
     ReasonLike,
@@ -283,7 +282,13 @@ def log_combo_evaluation(
 
     extra_parts: list[str] = []
     mid_meta = extra_data.get("mid")
-    if isinstance(mid_meta, MidTagSnapshot):
+    _MidTagSnapshot: type[Any] | None
+    try:
+        from tomic.core.pricing.mid_tags import MidTagSnapshot as _MidTagSnapshot
+    except Exception:  # pragma: no cover - optional dependency/circular guard
+        _MidTagSnapshot = None
+
+    if _MidTagSnapshot and isinstance(mid_meta, _MidTagSnapshot):
         if mid_meta.tags:
             extra_parts.append(f"mid_tags={','.join(mid_meta.tags)}")
         counter_parts = [
