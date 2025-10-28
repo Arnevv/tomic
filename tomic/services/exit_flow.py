@@ -13,7 +13,11 @@ from uuid import uuid4
 from tomic.config import get as cfg_get
 from tomic.logutils import logger
 
-from ._config import exit_force_exit_config, exit_price_ladder_config
+from ._config import (
+    exit_force_exit_config,
+    exit_price_ladder_config,
+    exit_spread_config,
+)
 from .exit_fallback import (
     build_vertical_execution_candidates,
     detect_fallback_reason,
@@ -182,6 +186,21 @@ def execute_exit_flow(
         )
 
     base_limit = _safe_float(plan.limit_price)
+
+    policy = exit_spread_config()
+    combo_mid = _safe_float(getattr(plan.nbbo, "mid", None)) or 0.0
+    combo_spread = _safe_float(getattr(plan.nbbo, "width", None)) or 0.0
+    allow_abs = _safe_float(policy.get("absolute")) or 0.0
+    rel_cfg = policy.get("relative")
+    rel_value = _safe_float(rel_cfg) or 0.0
+    allow_rel = rel_value * combo_mid
+    allow = max(allow_abs, allow_rel)
+
+    logger.info(
+        f"[exit-policy] mid={combo_mid:.2f} spread={combo_spread:.2f} "
+        f"abs_limit={allow_abs:.2f} rel_cfg={rel_cfg} rel_limit={allow_rel:.2f} "
+        f"used_allow={allow:.2f} source=EXIT_ORDER_OPTIONS.spread"
+    )
 
     if cfg.fetch_only:
         if base_limit is not None:
