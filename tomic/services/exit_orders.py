@@ -7,6 +7,7 @@ from dataclasses import dataclass
 from types import SimpleNamespace
 from typing import Any, Iterable, Mapping, Sequence
 
+from tomic.logutils import logger
 from tomic.metrics import calculate_credit
 from tomic.utils import get_leg_qty
 
@@ -23,6 +24,15 @@ from .trade_management_service import StrategyExitIntent
 
 
 ExitIntent = StrategyExitIntent
+
+
+def _safe_float(value: Any) -> float | None:
+    try:
+        if value is None:
+            return None
+        return float(value)
+    except (TypeError, ValueError):
+        return None
 
 
 @dataclass(frozen=True)
@@ -130,6 +140,23 @@ def build_exit_order_plan(intent: ExitIntent) -> ExitOrderPlan:
         force=bool(force_cfg.get("enabled", False)),
     )
     if not tradeable:
+        combo_mid = _safe_float(getattr(combo_quote, "mid", None)) or 0.0
+        combo_spread = _safe_float(getattr(combo_quote, "width", None)) or 0.0
+        allow_abs = _safe_float(spread_cfg.get("absolute")) or 0.0
+        rel_cfg = spread_cfg.get("relative")
+        rel_value = _safe_float(rel_cfg) or 0.0
+        allow_rel = rel_value * combo_mid
+        allow = max(allow_abs, allow_rel)
+        logger.info(
+            "[exit-policy] mid=%.2f spread=%.2f abs_limit=%.2f rel_cfg=%s rel_limit=%.2f "
+            "used_allow=%.2f source=EXIT_ORDER_OPTIONS.spread",
+            combo_mid,
+            combo_spread,
+            allow_abs,
+            rel_cfg,
+            allow_rel,
+            allow,
+        )
         raise ValueError(f"combo niet verhandelbaar: {tradeability_message}")
 
     net_credit = calculate_credit(legs)
