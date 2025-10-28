@@ -1,4 +1,5 @@
 import copy
+import math
 
 import pytest
 
@@ -172,3 +173,77 @@ def test_build_exit_intents_fetches_quotes_when_missing():
     assert intent.legs[0]["bid"] == 0.45
     assert intent.legs[0]["ask"] == 0.6
     assert intent.legs[0]["minTick"] == 0.05
+
+
+def test_build_exit_intents_freshens_quotes_even_when_present():
+    positions = [
+        {
+            "conId": 3001,
+            "symbol": "DEF",
+            "lastTradeDate": "20240315",
+            "strike": 110.0,
+            "right": "C",
+            "position": -1,
+            "bid": 1.2,
+            "ask": 1.3,
+            "minTick": 0.01,
+        }
+    ]
+    journal = [
+        {
+            "TradeID": "trade-3",
+            "Symbool": "DEF",
+            "Expiry": "2024-03-15",
+            "Legs": [{"conId": 3001}],
+        }
+    ]
+
+    loader_payloads = {
+        "positions.json": copy.deepcopy(positions),
+        "journal.json": copy.deepcopy(journal),
+    }
+
+    def loader(path):
+        return loader_payloads[path]
+
+    aggregated = [
+        {
+            "trade_id": "trade-3",
+            "symbol": "DEF",
+            "expiry": "2024-03-15",
+            "type": "single",
+            "legs": [
+                {"conId": 3001, "strike": 110.0, "position": -1, "right": "call"}
+            ],
+        }
+    ]
+
+    calls: list[tuple[dict, list[dict]]] = []
+
+    def quote_fetcher(strategy, legs):
+        calls.append((strategy, legs))
+        enriched = []
+        for leg in legs:
+            updated = dict(leg)
+            updated["bid"] = (leg.get("bid") or 1.2) + 0.01
+            updated["ask"] = (leg.get("ask") or 1.3) + 0.01
+            updated["minTick"] = 0.01
+            enriched.append(updated)
+        return enriched
+
+    intents = build_exit_intents(
+        positions_file="positions.json",
+        journal_file="journal.json",
+        grouper=lambda positions, journal: copy.deepcopy(aggregated),
+        exit_rule_loader=lambda path: {},
+        loader=loader,
+        quote_fetcher=quote_fetcher,
+        freshen_attempts=2,
+        freshen_wait_s=0.0,
+    )
+
+    assert len(intents) == 1
+    assert calls, "quote_fetcher should run when freshen_attempts > 0"
+    leg = intents[0].strategy["legs"][0]
+    assert math.isclose(leg["bid"], 1.21, rel_tol=1e-9)
+    assert math.isclose(leg["ask"], 1.31, rel_tol=1e-9)

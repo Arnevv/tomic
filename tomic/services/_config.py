@@ -6,8 +6,8 @@ from typing import Any, Iterable, Mapping
 from tomic.config import get as cfg_get
 
 
-_DEFAULT_EXIT_SPREAD_ABSOLUTE = 0.30
-_DEFAULT_EXIT_SPREAD_RELATIVE = 0.08
+_DEFAULT_EXIT_SPREAD_ABSOLUTE = 0.50
+_DEFAULT_EXIT_SPREAD_RELATIVE = 0.12
 _DEFAULT_EXIT_MAX_QUOTE_AGE = 5.0
 _DEFAULT_EXIT_REPRICER_WAIT = 10.0
 
@@ -144,7 +144,52 @@ def exit_force_exit_config() -> dict[str, Any]:
     )
     market_order = _coerce_bool(force_raw.get("market_order"), market_default)
 
-    return {"enabled": enabled, "market_order": market_order}
+    limit_cap_raw = _as_mapping(force_raw.get("limit_cap"))
+    limit_cap: dict[str, Any] | None = None
+    cap_type = str(limit_cap_raw.get("type") or "").strip().lower()
+    cap_value = _coerce_float(limit_cap_raw.get("value"), 0.0)
+    if cap_type in {"absolute", "bps"} and cap_value > 0:
+        limit_cap = {"type": cap_type, "value": cap_value}
+
+    return {"enabled": enabled, "market_order": market_order, "limit_cap": limit_cap}
+
+
+def exit_price_ladder_config() -> dict[str, Any]:
+    """Return configuration for incremental exit price adjustments."""
+
+    options = _as_mapping(cfg_value("EXIT_ORDER_OPTIONS", {}))
+    ladder_raw = _as_mapping(options.get("price_ladder"))
+
+    enabled = _coerce_bool(ladder_raw.get("enabled"), False)
+
+    raw_steps = ladder_raw.get("steps", []) or []
+    steps: list[float] = []
+    for value in raw_steps:
+        try:
+            steps.append(float(value))
+        except (TypeError, ValueError):
+            continue
+
+    if "step_wait_seconds" in ladder_raw:
+        wait_seconds = _coerce_float(ladder_raw.get("step_wait_seconds"), 0.0)
+    elif "step_wait_s" in ladder_raw:
+        wait_seconds = _coerce_float(ladder_raw.get("step_wait_s"), 0.0)
+    elif "step_wait_ms" in ladder_raw:
+        wait_seconds = _coerce_float(ladder_raw.get("step_wait_ms"), 0.0) / 1000.0
+    else:
+        wait_seconds = 0.0
+
+    if "max_duration_seconds" in ladder_raw:
+        max_duration = _coerce_float(ladder_raw.get("max_duration_seconds"), 0.0)
+    else:
+        max_duration = _coerce_float(ladder_raw.get("max_duration_s"), 0.0)
+
+    return {
+        "enabled": enabled,
+        "steps": steps,
+        "step_wait_seconds": max(0.0, wait_seconds),
+        "max_duration_seconds": max(0.0, max_duration),
+    }
 
 
 __all__ = [
@@ -153,4 +198,5 @@ __all__ = [
     "exit_repricer_config",
     "exit_fallback_config",
     "exit_force_exit_config",
+    "exit_price_ladder_config",
 ]
