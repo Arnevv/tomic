@@ -6,8 +6,6 @@ from pathlib import Path
 from typing import Any, Callable, Mapping, Literal, Optional, Sequence, TypedDict
 
 from tomic.config import get as cfg_get
-from tomic.journal.utils import load_json
-from tomic.logutils import logger
 from tomic.helpers.csv_utils import parse_euro_float
 from tomic.helpers.numeric import safe_float
 
@@ -167,6 +165,8 @@ def load_price_history(symbol: str) -> list[dict]:
 
     base = Path(cfg_get("PRICE_HISTORY_DIR", "tomic/data/spot_prices"))
     path = base / f"{symbol}.json"
+    from tomic.journal.utils import load_json
+
     data = load_json(path)
     if isinstance(data, list):
         data.sort(key=lambda r: r.get("date", ""))

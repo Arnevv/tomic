@@ -348,3 +348,9 @@ def summarize_evaluations(
 
     return _summarize(evaluations)
 
+def _as_mid_tag_snapshot(value: Any):
+    try:
+        from tomic.core.pricing.mid_tags import MidTagSnapshot
+    except Exception:
+        return None
+    return value if isinstance(value, MidTagSnapshot) else None
