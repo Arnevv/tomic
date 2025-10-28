@@ -36,7 +36,7 @@ from tomic.helpers.dateutils import normalize_expiry_code
 from tomic.helpers.numeric import safe_float
 from tomic.logutils import logger
 from tomic.metrics import MidPriceResolver, calculate_credit, get_signed_position, iter_leg_views
-from tomic.core.pricing import resolve_option_mid
+from tomic.core.pricing import SpreadPolicy, resolve_option_mid
 from tomic.models import OptionContract
 from tomic.services._config import cfg_value
 from tomic.services.strategy_pipeline import StrategyProposal
@@ -45,9 +45,28 @@ from tomic.utils import get_leg_qty, get_leg_right, normalize_leg
 
 
 log = logger
-_COMBO_SPREAD_ABS_THRESHOLD = 0.30
-_COMBO_SPREAD_REL_THRESHOLD = 0.08
 _COMBO_MAX_QUOTE_AGE_SEC = 5.0
+
+
+def _load_default_spread_policy() -> SpreadPolicy:
+    raw_policy = cfg_value("SPREAD_POLICY", {})
+    policy_cfg = raw_policy if isinstance(raw_policy, Mapping) else {}
+    absolute_default = cfg_value(
+        "MID_SPREAD_ABSOLUTE",
+        [
+            {"max_underlying": 50.0, "threshold": 0.10},
+            {"max_underlying": 200.0, "threshold": 0.20},
+            {"max_underlying": None, "threshold": 0.50},
+        ],
+    )
+    return SpreadPolicy(
+        policy_cfg,
+        default_relative=cfg_value("MID_SPREAD_RELATIVE", 0.12),
+        default_absolute=absolute_default,
+    )
+
+
+_DEFAULT_SPREAD_POLICY = _load_default_spread_policy()
 _REPRICER_WAIT_SECONDS = 10.0
 def _expiry(leg: dict) -> str:
     return normalize_expiry_code(leg.get("expiry"))
@@ -117,6 +136,7 @@ class _LegSummary:
     quote_age_sec: float | None
     mid_source: str | None
     one_sided: bool = False
+    underlying_price: float | None = None
 
     @property
     def is_long(self) -> bool:
@@ -151,6 +171,13 @@ def _normalize_leg_summary(leg: dict) -> _LegSummary:
     quote_age = leg_view.quote_age if leg_view else safe_float(leg.get("quote_age_sec"))
     mid_source = leg_view.mid_source if leg_view else None
     one_sided = bool(leg.get("one_sided"))
+    underlying_raw = (
+        leg.get("underlying_price")
+        or leg.get("underlyingPrice")
+        or leg.get("spot")
+        or leg.get("underlying")
+    )
+    underlying_price = safe_float(underlying_raw)
     return _LegSummary(
         strike=strike,
         expiry=expiry,
@@ -163,6 +190,7 @@ def _normalize_leg_summary(leg: dict) -> _LegSummary:
         quote_age_sec=quote_age,
         mid_source=mid_source,
         one_sided=one_sided,
+        underlying_price=underlying_price,
     )
 
 
@@ -255,6 +283,17 @@ def _collect_min_tick(legs: Sequence[_LegSummary]) -> float | None:
     return min(value for value in values if value > 0)
 
 
+def _collect_underlying_price(legs: Sequence[_LegSummary]) -> float | None:
+    for leg in legs:
+        value = getattr(leg, "underlying_price", None)
+        if value not in (None, ""):
+            try:
+                return float(value)
+            except (TypeError, ValueError):
+                continue
+    return None
+
+
 def _combo_leg_ratio(leg: _LegSummary, combo_quantity: int) -> int:
     qty = abs(int(getattr(leg, "qty", 0) or 0))
     if qty <= 0:
@@ -311,37 +350,15 @@ def _evaluate_tradeability(
     combo_quote: ComboQuote,
     *,
     spread: Mapping[str, Any] | None = None,
+    spread_policy: SpreadPolicy | None = None,
     max_quote_age: float | None = None,
     allow_fallback: bool = False,
     allowed_fallback_sources: Iterable[str] | None = None,
     force: bool = False,
+    policy_context: Mapping[str, Any] | None = None,
+    underlying_price: float | None = None,
 ) -> tuple[bool, str]:
     """Validate whether the NBBO snapshot is tradeable."""
-
-    def _safe_float(value: Any) -> float | None:
-        try:
-            return float(value)
-        except (TypeError, ValueError):
-            return None
-
-    absolute_threshold = _COMBO_SPREAD_ABS_THRESHOLD
-    relative_threshold = _COMBO_SPREAD_REL_THRESHOLD
-    if isinstance(spread, Mapping):
-        abs_candidate = _safe_float(spread.get("absolute"))
-        rel_candidate = _safe_float(spread.get("relative"))
-        if abs_candidate is not None:
-            absolute_threshold = max(0.0, abs_candidate)
-        if rel_candidate is not None:
-            relative_threshold = max(0.0, rel_candidate)
-
-    threshold_candidates: list[float] = []
-    abs_value = _safe_float(absolute_threshold)
-    if abs_value is not None:
-        threshold_candidates.append(max(0.0, abs_value))
-    rel_value = _safe_float(relative_threshold)
-    if rel_value is not None:
-        threshold_candidates.append(max(0.0, combo_quote.mid * rel_value))
-    spread_threshold = max(threshold_candidates) if threshold_candidates else None
 
     max_age = _COMBO_MAX_QUOTE_AGE_SEC if max_quote_age is None else max(0.0, float(max_quote_age))
     allowed_sources = {
@@ -351,6 +368,21 @@ def _evaluate_tradeability(
     }
     forced_reasons: list[str] = []
     fallback_notes: list[str] = []
+    policy = spread_policy or _DEFAULT_SPREAD_POLICY
+    context = dict(policy_context or {})
+    context.setdefault("leg_count", len(legs))
+    context.setdefault("source", "order_submission")
+    context.setdefault("width", combo_quote.width)
+    if underlying_price is None:
+        underlying_price = _collect_underlying_price(legs)
+    decision = policy.evaluate(
+        spread=combo_quote.width,
+        mid=combo_quote.mid,
+        underlying=underlying_price,
+        context=context,
+        overrides=spread,
+    )
+
     for idx, leg in enumerate(legs, start=1):
         if leg.bid is None or leg.ask is None or leg.bid <= 0 or leg.ask <= 0:
             return False, f"leg{idx}_missing_bid_ask"
@@ -360,8 +392,12 @@ def _evaluate_tradeability(
         return False, "combo_width_negative"
     if combo_quote.mid <= 0:
         return False, "combo_mid_non_positive"
-    if spread_threshold is not None and combo_quote.width > spread_threshold + 1e-9:
-        failure = f"combo_spread_wide={combo_quote.width:.2f}>{spread_threshold:.2f}"
+    if not decision.accepted:
+        threshold = decision.threshold
+        if threshold is not None:
+            failure = f"combo_spread_wide={combo_quote.width:.2f}>{threshold:.2f}"
+        else:
+            failure = f"combo_spread_wide={combo_quote.width:.2f}"
         if force:
             forced_reasons.append(failure)
         else:
@@ -400,9 +436,8 @@ def _evaluate_tradeability(
         else:
             return False, failure
 
-    threshold_note = None
-    if spread_threshold is not None:
-        threshold_note = f"(spread={combo_quote.width:.2f} ≤ {spread_threshold:.2f})"
+    if decision.threshold is not None:
+        threshold_note = f"(spread={combo_quote.width:.2f} ≤ {decision.threshold:.2f})"
     else:
         threshold_note = f"(spread={combo_quote.width:.2f})"
 
@@ -411,6 +446,8 @@ def _evaluate_tradeability(
         parts.append(f"forced_exit: {', '.join(forced_reasons)}")
     if threshold_note:
         parts.append(threshold_note)
+    if decision.rule:
+        parts.append(f"rule={decision.rule}")
     if fallback_notes:
         parts.append(", ".join(fallback_notes))
     message = " | ".join(parts) if parts else threshold_note
@@ -457,7 +494,13 @@ def _reprice_single_instruction(instr: OrderInstruction) -> bool:
     if nbbo is None:
         log.info("[repricer] skipped (nbbo_unavailable)")
         return False
-    ok, gate_message = _evaluate_tradeability(summaries, nbbo)
+    ok, gate_message = _evaluate_tradeability(
+        summaries,
+        nbbo,
+        spread_policy=getattr(instr, "spread_policy", None),
+        policy_context=getattr(instr, "policy_context", None),
+        underlying_price=getattr(instr, "underlying_price", None),
+    )
     if not ok:
         log.info(f"[repricer] gate failed ({gate_message}) -> skip repricing")
         return False
@@ -707,6 +750,12 @@ class OrderInstruction:
     min_tick: float | None = None
     combo_width: float | None = None
     epsilon: float | None = None
+    spread_policy: SpreadPolicy | None = None
+    policy_context: Mapping[str, Any] | None = None
+    underlying_price: float | None = None
+    strategy: str | None = None
+    structure: str | None = None
+    symbol: str | None = None
 
 
 def _validate_instructions(instructions: Sequence[OrderInstruction]) -> None:
@@ -1017,8 +1066,14 @@ class OrderPlacementApp(BaseIBApp):
 class OrderSubmissionService:
     """Translate and submit strategy proposals as IB concept orders."""
 
-    def __init__(self, *, app_factory: type[OrderPlacementApp] = OrderPlacementApp) -> None:
+    def __init__(
+        self,
+        *,
+        app_factory: type[OrderPlacementApp] = OrderPlacementApp,
+        spread_policy: SpreadPolicy | None = None,
+    ) -> None:
         self._app_factory = app_factory
+        self._spread_policy = spread_policy or _DEFAULT_SPREAD_POLICY
 
     # ------------------------------------------------------------------
     def build_instructions(
@@ -1145,7 +1200,21 @@ class OrderSubmissionService:
             combo_quote.ask,
             combo_quote.width,
         )
-        gate_ok, gate_message = _evaluate_tradeability(leg_summaries, combo_quote)
+        policy_context = {
+            "structure": structure,
+            "strategy": proposal.strategy,
+            "symbol": getattr(combo_contract, "symbol", None),
+            "leg_count": len(leg_summaries),
+            "width": combo_quote.width,
+        }
+        underlying_price = _collect_underlying_price(leg_summaries)
+        gate_ok, gate_message = _evaluate_tradeability(
+            leg_summaries,
+            combo_quote,
+            spread_policy=self._spread_policy,
+            policy_context=policy_context,
+            underlying_price=underlying_price,
+        )
         if not gate_ok:
             proposal.order_preview_only = True
             proposal.tradeability_notes = gate_message
@@ -1265,6 +1334,12 @@ class OrderSubmissionService:
                 min_tick=min_tick,
                 combo_width=combo_width,
                 epsilon=epsilon,
+                spread_policy=self._spread_policy,
+                policy_context=policy_context,
+                underlying_price=underlying_price,
+                strategy=proposal.strategy,
+                structure=structure,
+                symbol=getattr(combo_contract, "symbol", None),
             )
         ]
 

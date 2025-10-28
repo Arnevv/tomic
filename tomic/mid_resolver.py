@@ -13,6 +13,7 @@ from .core.pricing.mid_tags import (
     TRUSTED_SOURCES,
     normalize_mid_source,
 )
+from .core.pricing.spread_policy import SpreadPolicy
 from .helpers.bs_utils import estimate_model_price
 from .helpers.dateutils import dte_between_dates, parse_date
 from .helpers.numeric import safe_float
@@ -199,15 +200,28 @@ class MidResolver:
             )
         )
 
-        spread_cfg = self._config.get("spread_thresholds") or {}
-        self._relative_threshold = float(spread_cfg.get("relative", cfg_get("MID_SPREAD_RELATIVE", 0.12)))
-        self._absolute_buckets = spread_cfg.get("absolute") or cfg_get(
-            "MID_SPREAD_ABSOLUTE",
-            [
-                {"max_underlying": 50.0, "threshold": 0.10},
-                {"max_underlying": 200.0, "threshold": 0.20},
-                {"max_underlying": None, "threshold": 0.50},
-            ],
+        default_policy_cfg = cfg_get("SPREAD_POLICY", {})
+        combined_policy: dict[str, Any] = {}
+        if isinstance(default_policy_cfg, Mapping):
+            combined_policy.update(default_policy_cfg)
+        override_policy = (
+            self._config.get("spread_policy")
+            or self._config.get("spread_thresholds")
+            or {}
+        )
+        if isinstance(override_policy, Mapping):
+            combined_policy.update(override_policy)
+        self._spread_policy = SpreadPolicy(
+            combined_policy,
+            default_relative=cfg_get("MID_SPREAD_RELATIVE", 0.12),
+            default_absolute=cfg_get(
+                "MID_SPREAD_ABSOLUTE",
+                [
+                    {"max_underlying": 50.0, "threshold": 0.10},
+                    {"max_underlying": 200.0, "threshold": 0.20},
+                    {"max_underlying": None, "threshold": 0.50},
+                ],
+            ),
         )
 
         self._key_to_index: dict[tuple[Any, ...], int] = {}
@@ -418,25 +432,17 @@ class MidResolver:
         if underlying is None:
             underlying = safe_float(option.get("underlying_price"))
 
-        abs_threshold = self._absolute_threshold(underlying)
-        rel_threshold = self._relative_threshold * mid
-        if spread <= abs_threshold:
-            return True, "abs"
-        if spread <= rel_threshold:
-            return True, "rel"
-        return False, "too_wide"
-
-    def _absolute_threshold(self, underlying: float | None) -> float:
-        price = underlying or 0.0
-        for bucket in self._absolute_buckets:
-            try:
-                limit = bucket.get("max_underlying")
-                threshold = float(bucket.get("threshold"))
-            except Exception:
-                continue
-            if limit is None or price <= float(limit):
-                return threshold
-        return 0.50
+        decision = self._spread_policy.evaluate(
+            spread=spread,
+            mid=mid,
+            underlying=underlying,
+            context={
+                "symbol": option.get("symbol") or option.get("underlyingSymbol"),
+                "right": get_leg_right(option),
+                "source": "mid_resolver",
+            },
+        )
+        return decision.accepted, decision.reason
 
     def _extract_quote_age(self, option: Mapping[str, Any]) -> float | None:
         for key in ("quote_age_sec", "quote_age", "age", "quote_age_seconds"):

@@ -138,6 +138,28 @@ class AppConfig(BaseModel):
         {"max_underlying": None, "threshold": 0.50},
     ]
     MID_FALLBACK_MAX_PER_4: int = 4
+    SPREAD_POLICY: Dict[str, Any] = {
+        "relative": 0.12,
+        "absolute": [
+            {"max_underlying": 50.0, "threshold": 0.10},
+            {"max_underlying": 200.0, "threshold": 0.20},
+            {"max_underlying": None, "threshold": 0.50},
+        ],
+        "exceptions": [
+            {
+                "name": "vertical_combo",
+                "match": {"structure": "vertical"},
+                "relative": 0.08,
+                "absolute": 0.30,
+            },
+            {
+                "name": "iron_combo",
+                "match": {"structure": ["iron_condor", "iron_fly"]},
+                "relative": 0.10,
+                "absolute": 0.35,
+            },
+        ],
+    }
 
     # Historical and market data settings ---------------------------------
     HIST_DURATION: str = "1 D"
