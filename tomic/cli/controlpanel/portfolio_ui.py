@@ -707,6 +707,10 @@ def run_portfolio_menu(
         "Trademanagement (controleer exitcriteria)",
         partial(_run_trade_management_module, session, services),
     )
+    menu.add(
+        "Controleer exitcriteria en exit intent",
+        partial(run_module, "tomic.cli.exit_flow"),
+    )
     menu.add("Toon marktinformatie", partial(show_market_info, session, services))
     menu.add("Earnings-informatie", partial(show_earnings_info, session, services))
     menu.run()
