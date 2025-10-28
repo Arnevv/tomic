@@ -1,105 +1,620 @@
 {
-  "AAPL": "2025-08-14T08:16:26.730925",
-  "ABBV": "2025-08-03T13:45:50.878257-04:00",
-  "AEP": "",
-  "AMD": "2025-08-16T21:35:46.793851",
-  "AMGN": "2025-08-16T15:22:22.082203-04:00",
-  "AMT": "2025-08-16T21:36:16.634240",
-  "AMZN": "2025-08-16T15:22:45.456604-04:00",
-  "AVB": "2025-08-16T15:22:56.906170-04:00",
-  "AXP": "",
-  "BA": "",
-  "BAC": "2025-08-16T15:23:11.588507-04:00",
-  "BIIB": "2025-08-16T15:23:23.035911-04:00",
-  "BMY": "",
-  "C": "",
-  "CAT": "2025-08-16T15:23:34.770158-04:00",
-  "CCI": "2025-08-16T15:23:46.186796-04:00",
-  "CL": "",
-  "COP": "2025-08-16T15:23:57.641169-04:00",
-  "COST": "",
-  "CRM": "",
-  "CVS": "",
-  "CVX": "",
-  "D": "",
-  "DE": "",
-  "DIA": "",
-  "DLR": "",
-  "DUK": "2025-08-16T15:24:11.832283-04:00",
-  "DVN": "2025-08-16T15:24:23.272086-04:00",
-  "ED": "",
-  "EEM": "",
-  "EOG": "",
-  "EQIX": "2025-08-16T15:24:35.000354-04:00",
-  "EQR": "2025-08-16T15:24:46.420545-04:00",
-  "ESS": "",
-  "EXC": "",
-  "GE": "",
-  "GILD": "",
-  "GLD": "",
-  "GOOGL": "",
-  "GS": "",
-  "HAL": "",
-  "HD": "",
-  "HON": "",
-  "INTC": "2025-08-14T14:16:38.073578",
-  "IWM": "",
-  "JPM": "",
-  "KMB": "",
-  "KO": "",
-  "KR": "",
-  "LMT": "",
-  "LOW": "",
-  "LULU": "",
-  "MA": "",
-  "MCD": "",
-  "META": "",
-  "MMM": "",
-  "MO": "",
-  "MRK": "",
-  "MS": "",
-  "MSFT": "2025-08-14T14:09:00.328046",
-  "MU": "",
-  "NEE": "",
-  "NFLX": "",
-  "NKE": "",
-  "NOC": "",
-  "NVDA": "",
-  "O": "2025-08-16T15:25:12.121587-04:00",
-  "ORCL": "2025-08-14T14:25:49.167185",
-  "OXY": "",
-  "PEG": "2025-08-16T15:25:23.872798-04:00",
-  "PEP": "",
-  "PFE": "",
-  "PG": "",
-  "PLD": "2025-08-16T15:25:35.306422-04:00",
-  "PM": "",
-  "PXD": "",
-  "QQQ": "",
-  "ROST": "",
-  "SBUX": "",
-  "SCHW": "",
-  "SLB": "",
-  "SLV": "",
-  "SO": "",
-  "SPG": "",
-  "SPY": "",
-  "SRE": "2025-08-16T15:25:58.139485-04:00",
-  "TGT": "",
-  "TLT": "",
-  "TSLA": "",
-  "UNH": "",
-  "UNP": "",
-  "UPS": "",
-  "USO": "",
-  "V": "",
-  "VLO": "",
-  "VTR": "2025-08-16T15:26:12.374590-04:00",
-  "WELL": "2025-08-16T15:26:24.086884-04:00",
-  "WFC": "",
-  "WMT": "",
-  "XEL": "",
-  "XLE": "2025-08-16T15:26:35.531804-04:00",
-  "XLF": "2025-08-16T15:26:47.281454-04:00",
-  "XOM": ""
+  "AAPL": {
+    "fetched_at": "2025-08-14T08:16:26.730925",
+    "source": null,
+    "baseline_active": false,
+    "baseline_as_of": null
+  },
+  "ABBV": {
+    "fetched_at": "2025-08-03T13:45:50.878257-04:00",
+    "source": null,
+    "baseline_active": false,
+    "baseline_as_of": null
+  },
+  "AEP": {
+    "fetched_at": null,
+    "source": null,
+    "baseline_active": false,
+    "baseline_as_of": null
+  },
+  "AMD": {
+    "fetched_at": "2025-08-16T21:35:46.793851",
+    "source": null,
+    "baseline_active": false,
+    "baseline_as_of": null
+  },
+  "AMGN": {
+    "fetched_at": "2025-08-16T15:22:22.082203-04:00",
+    "source": null,
+    "baseline_active": false,
+    "baseline_as_of": null
+  },
+  "AMT": {
+    "fetched_at": "2025-08-16T21:36:16.634240",
+    "source": null,
+    "baseline_active": false,
+    "baseline_as_of": null
+  },
+  "AMZN": {
+    "fetched_at": "2025-08-16T15:22:45.456604-04:00",
+    "source": null,
+    "baseline_active": false,
+    "baseline_as_of": null
+  },
+  "AVB": {
+    "fetched_at": "2025-08-16T15:22:56.906170-04:00",
+    "source": null,
+    "baseline_active": false,
+    "baseline_as_of": null
+  },
+  "AXP": {
+    "fetched_at": null,
+    "source": null,
+    "baseline_active": false,
+    "baseline_as_of": null
+  },
+  "BA": {
+    "fetched_at": null,
+    "source": null,
+    "baseline_active": false,
+    "baseline_as_of": null
+  },
+  "BAC": {
+    "fetched_at": "2025-08-16T15:23:11.588507-04:00",
+    "source": null,
+    "baseline_active": false,
+    "baseline_as_of": null
+  },
+  "BIIB": {
+    "fetched_at": "2025-08-16T15:23:23.035911-04:00",
+    "source": null,
+    "baseline_active": false,
+    "baseline_as_of": null
+  },
+  "BMY": {
+    "fetched_at": null,
+    "source": null,
+    "baseline_active": false,
+    "baseline_as_of": null
+  },
+  "C": {
+    "fetched_at": null,
+    "source": null,
+    "baseline_active": false,
+    "baseline_as_of": null
+  },
+  "CAT": {
+    "fetched_at": "2025-08-16T15:23:34.770158-04:00",
+    "source": null,
+    "baseline_active": false,
+    "baseline_as_of": null
+  },
+  "CCI": {
+    "fetched_at": "2025-08-16T15:23:46.186796-04:00",
+    "source": null,
+    "baseline_active": false,
+    "baseline_as_of": null
+  },
+  "CL": {
+    "fetched_at": null,
+    "source": null,
+    "baseline_active": false,
+    "baseline_as_of": null
+  },
+  "COP": {
+    "fetched_at": "2025-08-16T15:23:57.641169-04:00",
+    "source": null,
+    "baseline_active": false,
+    "baseline_as_of": null
+  },
+  "COST": {
+    "fetched_at": null,
+    "source": null,
+    "baseline_active": false,
+    "baseline_as_of": null
+  },
+  "CRM": {
+    "fetched_at": null,
+    "source": null,
+    "baseline_active": false,
+    "baseline_as_of": null
+  },
+  "CVS": {
+    "fetched_at": null,
+    "source": null,
+    "baseline_active": false,
+    "baseline_as_of": null
+  },
+  "CVX": {
+    "fetched_at": null,
+    "source": null,
+    "baseline_active": false,
+    "baseline_as_of": null
+  },
+  "D": {
+    "fetched_at": null,
+    "source": null,
+    "baseline_active": false,
+    "baseline_as_of": null
+  },
+  "DE": {
+    "fetched_at": null,
+    "source": null,
+    "baseline_active": false,
+    "baseline_as_of": null
+  },
+  "DIA": {
+    "fetched_at": null,
+    "source": null,
+    "baseline_active": false,
+    "baseline_as_of": null
+  },
+  "DLR": {
+    "fetched_at": "2025-10-27T20:15:00.132605",
+    "source": null,
+    "baseline_active": false,
+    "baseline_as_of": null
+  },
+  "DUK": {
+    "fetched_at": "2025-08-16T15:24:11.832283-04:00",
+    "source": null,
+    "baseline_active": false,
+    "baseline_as_of": null
+  },
+  "DVN": {
+    "fetched_at": "2025-08-16T15:24:23.272086-04:00",
+    "source": null,
+    "baseline_active": false,
+    "baseline_as_of": null
+  },
+  "ED": {
+    "fetched_at": null,
+    "source": null,
+    "baseline_active": false,
+    "baseline_as_of": null
+  },
+  "EEM": {
+    "fetched_at": null,
+    "source": null,
+    "baseline_active": false,
+    "baseline_as_of": null
+  },
+  "EOG": {
+    "fetched_at": null,
+    "source": null,
+    "baseline_active": false,
+    "baseline_as_of": null
+  },
+  "EQIX": {
+    "fetched_at": "2025-08-16T15:24:35.000354-04:00",
+    "source": null,
+    "baseline_active": false,
+    "baseline_as_of": null
+  },
+  "EQR": {
+    "fetched_at": "2025-08-16T15:24:46.420545-04:00",
+    "source": null,
+    "baseline_active": false,
+    "baseline_as_of": null
+  },
+  "ESS": {
+    "fetched_at": null,
+    "source": null,
+    "baseline_active": false,
+    "baseline_as_of": null
+  },
+  "EXC": {
+    "fetched_at": null,
+    "source": null,
+    "baseline_active": false,
+    "baseline_as_of": null
+  },
+  "GE": {
+    "fetched_at": null,
+    "source": null,
+    "baseline_active": false,
+    "baseline_as_of": null
+  },
+  "GILD": {
+    "fetched_at": null,
+    "source": null,
+    "baseline_active": false,
+    "baseline_as_of": null
+  },
+  "GLD": {
+    "fetched_at": null,
+    "source": null,
+    "baseline_active": false,
+    "baseline_as_of": null
+  },
+  "GOOGL": {
+    "fetched_at": null,
+    "source": null,
+    "baseline_active": false,
+    "baseline_as_of": null
+  },
+  "GS": {
+    "fetched_at": null,
+    "source": null,
+    "baseline_active": false,
+    "baseline_as_of": null
+  },
+  "HAL": {
+    "fetched_at": null,
+    "source": null,
+    "baseline_active": false,
+    "baseline_as_of": null
+  },
+  "HD": {
+    "fetched_at": null,
+    "source": null,
+    "baseline_active": false,
+    "baseline_as_of": null
+  },
+  "HON": {
+    "fetched_at": null,
+    "source": null,
+    "baseline_active": false,
+    "baseline_as_of": null
+  },
+  "INTC": {
+    "fetched_at": "2025-08-14T14:16:38.073578",
+    "source": null,
+    "baseline_active": false,
+    "baseline_as_of": null
+  },
+  "IWM": {
+    "fetched_at": null,
+    "source": null,
+    "baseline_active": false,
+    "baseline_as_of": null
+  },
+  "JPM": {
+    "fetched_at": null,
+    "source": null,
+    "baseline_active": false,
+    "baseline_as_of": null
+  },
+  "KMB": {
+    "fetched_at": null,
+    "source": null,
+    "baseline_active": false,
+    "baseline_as_of": null
+  },
+  "KO": {
+    "fetched_at": null,
+    "source": null,
+    "baseline_active": false,
+    "baseline_as_of": null
+  },
+  "KR": {
+    "fetched_at": null,
+    "source": null,
+    "baseline_active": false,
+    "baseline_as_of": null
+  },
+  "LMT": {
+    "fetched_at": null,
+    "source": null,
+    "baseline_active": false,
+    "baseline_as_of": null
+  },
+  "LOW": {
+    "fetched_at": null,
+    "source": null,
+    "baseline_active": false,
+    "baseline_as_of": null
+  },
+  "LULU": {
+    "fetched_at": null,
+    "source": null,
+    "baseline_active": false,
+    "baseline_as_of": null
+  },
+  "MA": {
+    "fetched_at": null,
+    "source": null,
+    "baseline_active": false,
+    "baseline_as_of": null
+  },
+  "MCD": {
+    "fetched_at": null,
+    "source": null,
+    "baseline_active": false,
+    "baseline_as_of": null
+  },
+  "META": {
+    "fetched_at": null,
+    "source": null,
+    "baseline_active": false,
+    "baseline_as_of": null
+  },
+  "MMM": {
+    "fetched_at": null,
+    "source": null,
+    "baseline_active": false,
+    "baseline_as_of": null
+  },
+  "MO": {
+    "fetched_at": null,
+    "source": null,
+    "baseline_active": false,
+    "baseline_as_of": null
+  },
+  "MRK": {
+    "fetched_at": null,
+    "source": null,
+    "baseline_active": false,
+    "baseline_as_of": null
+  },
+  "MS": {
+    "fetched_at": null,
+    "source": null,
+    "baseline_active": false,
+    "baseline_as_of": null
+  },
+  "MSFT": {
+    "fetched_at": "2025-08-14T14:09:00.328046",
+    "source": null,
+    "baseline_active": false,
+    "baseline_as_of": null
+  },
+  "MU": {
+    "fetched_at": "2025-10-27T20:15:22.779469",
+    "source": null,
+    "baseline_active": false,
+    "baseline_as_of": null
+  },
+  "NEE": {
+    "fetched_at": null,
+    "source": null,
+    "baseline_active": false,
+    "baseline_as_of": null
+  },
+  "NFLX": {
+    "fetched_at": null,
+    "source": null,
+    "baseline_active": false,
+    "baseline_as_of": null
+  },
+  "NKE": {
+    "fetched_at": null,
+    "source": null,
+    "baseline_active": false,
+    "baseline_as_of": null
+  },
+  "NOC": {
+    "fetched_at": null,
+    "source": null,
+    "baseline_active": false,
+    "baseline_as_of": null
+  },
+  "NVDA": {
+    "fetched_at": null,
+    "source": null,
+    "baseline_active": false,
+    "baseline_as_of": null
+  },
+  "O": {
+    "fetched_at": "2025-08-16T15:25:12.121587-04:00",
+    "source": null,
+    "baseline_active": false,
+    "baseline_as_of": null
+  },
+  "ORCL": {
+    "fetched_at": "2025-08-14T14:25:49.167185",
+    "source": null,
+    "baseline_active": false,
+    "baseline_as_of": null
+  },
+  "OXY": {
+    "fetched_at": null,
+    "source": null,
+    "baseline_active": false,
+    "baseline_as_of": null
+  },
+  "PEG": {
+    "fetched_at": "2025-08-16T15:25:23.872798-04:00",
+    "source": null,
+    "baseline_active": false,
+    "baseline_as_of": null
+  },
+  "PEP": {
+    "fetched_at": null,
+    "source": null,
+    "baseline_active": false,
+    "baseline_as_of": null
+  },
+  "PFE": {
+    "fetched_at": null,
+    "source": null,
+    "baseline_active": false,
+    "baseline_as_of": null
+  },
+  "PG": {
+    "fetched_at": "2025-10-27T20:15:38.163050",
+    "source": null,
+    "baseline_active": false,
+    "baseline_as_of": null
+  },
+  "PLD": {
+    "fetched_at": "2025-08-16T15:25:35.306422-04:00",
+    "source": null,
+    "baseline_active": false,
+    "baseline_as_of": null
+  },
+  "PM": {
+    "fetched_at": "2025-10-27T20:15:53.723253",
+    "source": null,
+    "baseline_active": false,
+    "baseline_as_of": null
+  },
+  "PXD": {
+    "fetched_at": null,
+    "source": null,
+    "baseline_active": false,
+    "baseline_as_of": null
+  },
+  "QQQ": {
+    "fetched_at": null,
+    "source": null,
+    "baseline_active": false,
+    "baseline_as_of": null
+  },
+  "ROST": {
+    "fetched_at": null,
+    "source": null,
+    "baseline_active": false,
+    "baseline_as_of": null
+  },
+  "SBUX": {
+    "fetched_at": null,
+    "source": null,
+    "baseline_active": false,
+    "baseline_as_of": null
+  },
+  "SCHW": {
+    "fetched_at": null,
+    "source": null,
+    "baseline_active": false,
+    "baseline_as_of": null
+  },
+  "SLB": {
+    "fetched_at": null,
+    "source": null,
+    "baseline_active": false,
+    "baseline_as_of": null
+  },
+  "SLV": {
+    "fetched_at": null,
+    "source": null,
+    "baseline_active": false,
+    "baseline_as_of": null
+  },
+  "SO": {
+    "fetched_at": null,
+    "source": null,
+    "baseline_active": false,
+    "baseline_as_of": null
+  },
+  "SPG": {
+    "fetched_at": null,
+    "source": null,
+    "baseline_active": false,
+    "baseline_as_of": null
+  },
+  "SPY": {
+    "fetched_at": null,
+    "source": null,
+    "baseline_active": false,
+    "baseline_as_of": null
+  },
+  "SRE": {
+    "fetched_at": "2025-08-16T15:25:58.139485-04:00",
+    "source": null,
+    "baseline_active": false,
+    "baseline_as_of": null
+  },
+  "TGT": {
+    "fetched_at": null,
+    "source": null,
+    "baseline_active": false,
+    "baseline_as_of": null
+  },
+  "TLT": {
+    "fetched_at": null,
+    "source": null,
+    "baseline_active": false,
+    "baseline_as_of": null
+  },
+  "TSLA": {
+    "fetched_at": null,
+    "source": null,
+    "baseline_active": false,
+    "baseline_as_of": null
+  },
+  "UNH": {
+    "fetched_at": null,
+    "source": null,
+    "baseline_active": false,
+    "baseline_as_of": null
+  },
+  "UNP": {
+    "fetched_at": null,
+    "source": null,
+    "baseline_active": false,
+    "baseline_as_of": null
+  },
+  "UPS": {
+    "fetched_at": null,
+    "source": null,
+    "baseline_active": false,
+    "baseline_as_of": null
+  },
+  "USO": {
+    "fetched_at": null,
+    "source": null,
+    "baseline_active": false,
+    "baseline_as_of": null
+  },
+  "V": {
+    "fetched_at": null,
+    "source": null,
+    "baseline_active": false,
+    "baseline_as_of": null
+  },
+  "VLO": {
+    "fetched_at": null,
+    "source": null,
+    "baseline_active": false,
+    "baseline_as_of": null
+  },
+  "VTR": {
+    "fetched_at": "2025-08-16T15:26:12.374590-04:00",
+    "source": null,
+    "baseline_active": false,
+    "baseline_as_of": null
+  },
+  "WELL": {
+    "fetched_at": "2025-08-16T15:26:24.086884-04:00",
+    "source": null,
+    "baseline_active": false,
+    "baseline_as_of": null
+  },
+  "WFC": {
+    "fetched_at": null,
+    "source": null,
+    "baseline_active": false,
+    "baseline_as_of": null
+  },
+  "WMT": {
+    "fetched_at": null,
+    "source": null,
+    "baseline_active": false,
+    "baseline_as_of": null
+  },
+  "XEL": {
+    "fetched_at": null,
+    "source": null,
+    "baseline_active": false,
+    "baseline_as_of": null
+  },
+  "XLE": {
+    "fetched_at": "2025-08-16T15:26:35.531804-04:00",
+    "source": null,
+    "baseline_active": false,
+    "baseline_as_of": null
+  },
+  "XLF": {
+    "fetched_at": "2025-08-16T15:26:47.281454-04:00",
+    "source": null,
+    "baseline_active": false,
+    "baseline_as_of": null
+  },
+  "XOM": {
+    "fetched_at": null,
+    "source": null,
+    "baseline_active": false,
+    "baseline_as_of": null
+  }
 }
