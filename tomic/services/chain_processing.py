@@ -20,7 +20,7 @@ from tomic.helpers.csv_norm import dataframe_to_records, normalize_chain_datafra
 from tomic.helpers.price_utils import ClosePriceSnapshot
 from tomic.helpers.interpolation import interpolate_missing_fields
 from tomic.helpers.quality_check import calculate_csv_quality
-from tomic.loader import load_strike_config
+from tomic.core.config.strike_selection import load_strategy_rules
 from tomic.logutils import logger
 from tomic.services.pipeline_runner import PipelineRunContext, run_pipeline
 from tomic.services.strategy_pipeline import (
@@ -115,7 +115,7 @@ class ChainEvaluationConfig:
         dte_tuple = load_dte_range(
             strategy,
             config_data,
-            loader=load_strike_config,
+            loader=load_strategy_rules,
         )
 
         return cls(

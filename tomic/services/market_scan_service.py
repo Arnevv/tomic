@@ -9,7 +9,7 @@ from typing import Any, Callable, Iterable, Mapping, Sequence
 
 from ..helpers.config import load_dte_range
 from ..helpers.price_utils import ClosePriceSnapshot
-from ..loader import load_strike_config
+from ..core.config.strike_selection import load_strategy_rules
 from ..logutils import logger
 from ..utils import latest_atr
 from .chain_processing import (
@@ -243,7 +243,7 @@ class MarketScanService:
         return load_dte_range(
             strategy,
             self._strategy_config,
-            loader=load_strike_config,
+            loader=load_strategy_rules,
         )
 
 

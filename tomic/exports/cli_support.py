@@ -24,7 +24,7 @@ from tomic.integrations.polygon.client import PolygonClient
 from tomic.services.strategy_pipeline import StrategyProposal
 from tomic.cli.controlpanel_session import ControlPanelSession
 from tomic.analysis.greeks import compute_portfolio_greeks
-from tomic.loader import load_strike_config
+from tomic.core.config.strike_selection import load_strategy_rules
 from tomic.utils import today
 
 
@@ -70,7 +70,7 @@ def load_acceptance_criteria(strategy: str) -> dict[str, Any]:
     """Return current acceptance criteria for ``strategy``."""
 
     config_data = cfg.get("STRATEGY_CONFIG") or {}
-    rules = load_strike_config(strategy, config_data) if config_data else {}
+    rules = load_strategy_rules(strategy, config_data) if config_data else {}
     try:
         min_rom = (
             float(rules.get("min_rom"))
