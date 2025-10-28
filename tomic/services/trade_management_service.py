@@ -5,6 +5,7 @@ from __future__ import annotations
 from collections import defaultdict
 from collections.abc import MutableMapping
 from dataclasses import dataclass
+import time
 from typing import Any, Callable, Iterable, List, Mapping, Sequence
 
 from tomic.analysis.exit_rules import extract_exit_rules, generate_exit_alerts
@@ -28,6 +29,7 @@ class StrategyManagementSummary:
     """Reduced representation of the management status for a strategy."""
 
     symbol: str | None
+    expiry: str | None
     strategy: str | None
     spot: object
     unrealized_pnl: object
@@ -82,6 +84,7 @@ def build_management_summary(
         summaries.append(
             StrategyManagementSummary(
                 symbol=strat.get("symbol"),
+                expiry=strat.get("expiry"),
                 strategy=strat.get("type"),
                 spot=strat.get("spot"),
                 unrealized_pnl=strat.get("unrealizedPnL"),
@@ -275,6 +278,37 @@ def _match_raw_leg(
     return key_lookup.get(key)
 
 
+def _intent_symbol(intent: StrategyExitIntent) -> str | None:
+    strategy = intent.strategy if isinstance(intent.strategy, Mapping) else None
+    symbol = None
+    if strategy:
+        symbol = strategy.get("symbol") or strategy.get("underlying")
+    if not symbol and intent.legs:
+        first = intent.legs[0]
+        symbol = first.get("symbol") if isinstance(first, Mapping) else None
+    if not symbol:
+        return None
+    text = str(symbol).strip()
+    return text.upper() if text else None
+
+
+def exit_intent_keys(intent: StrategyExitIntent) -> set[tuple[str, str | None]]:
+    """Return normalized symbol/expiry combinations for ``intent``."""
+
+    keys: set[tuple[str, str | None]] = set()
+    symbol = _intent_symbol(intent)
+    if not symbol:
+        return keys
+
+    strategy = intent.strategy if isinstance(intent.strategy, Mapping) else None
+    expiry_value = strategy.get("expiry") if strategy else None
+    variants = _expiry_variants(expiry_value) if expiry_value else set()
+    keys.add((symbol, None))
+    for variant in variants:
+        keys.add((symbol, variant))
+    return keys
+
+
 def _prepare_payload_leg(
     leg: MutableMapping[str, Any],
     strategy: Mapping[str, Any],
@@ -347,6 +381,8 @@ def _enrich_strategy_leg_quotes(
     raw_legs: Sequence[MutableMapping[str, Any]],
     *,
     quote_fetcher: QuoteFetcher | None = None,
+    refresh_attempts: int = 0,
+    refresh_wait: float = 0.0,
 ) -> None:
     legs = strategy.get("legs")
     if not isinstance(legs, list):
@@ -380,32 +416,47 @@ def _enrich_strategy_leg_quotes(
         if not _has_valid_quotes(leg) or not _has_min_tick(leg):
             needs_refresh = True
 
-    if not needs_refresh:
+    attempts_remaining = max(int(refresh_attempts), 0)
+    if not needs_refresh and attempts_remaining <= 0:
         return
 
     fetcher = _resolve_quote_fetcher(quote_fetcher)
     if fetcher is None:
         return
 
-    payload: list[MutableMapping[str, Any]] = [dict(leg) for leg in legs]
-    for idx, payload_leg in enumerate(payload):
-        raw_leg = matched_raw[idx] if idx < len(matched_raw) else None
-        _prepare_payload_leg(payload_leg, strategy, raw_leg)
-
-    refreshed = fetcher(strategy, payload)
-    if not isinstance(refreshed, Sequence):
+    attempts = max(attempts_remaining, 1) if (needs_refresh or attempts_remaining > 0) else 0
+    if attempts <= 0:
         return
 
-    for idx, updated in enumerate(refreshed):
-        if idx >= len(legs):
+    wait_time = max(float(refresh_wait), 0.0)
+
+    for attempt in range(attempts):
+        payload: list[MutableMapping[str, Any]] = [dict(leg) for leg in legs]
+        for idx, payload_leg in enumerate(payload):
+            raw_leg = matched_raw[idx] if idx < len(matched_raw) else None
+            _prepare_payload_leg(payload_leg, strategy, raw_leg)
+
+        refreshed = fetcher(strategy, payload)
+        if isinstance(refreshed, Sequence):
+            for idx, updated in enumerate(refreshed):
+                if idx >= len(legs):
+                    break
+                if not isinstance(updated, Mapping):
+                    continue
+                _copy_missing_fields(legs[idx], updated)
+                for quote_key in ["bid", "ask", "last", "mid", "bidSize", "askSize"]:
+                    if updated.get(quote_key) not in (None, ""):
+                        legs[idx][quote_key] = updated[quote_key]
+                _ensure_min_tick_field(legs[idx], updated)
+                raw_leg = matched_raw[idx]
+                if isinstance(raw_leg, MutableMapping):
+                    _update_raw_leg_quotes(raw_leg, legs[idx])
+
+        if all(_has_valid_quotes(leg) and _has_min_tick(leg) for leg in legs):
             break
-        if not isinstance(updated, Mapping):
-            continue
-        _copy_missing_fields(legs[idx], updated)
-        _ensure_min_tick_field(legs[idx], updated)
-        raw_leg = matched_raw[idx]
-        if isinstance(raw_leg, MutableMapping):
-            _update_raw_leg_quotes(raw_leg, legs[idx])
+
+        if attempt < attempts - 1 and wait_time > 0:
+            time.sleep(wait_time)
 
 
 def build_exit_intents(
@@ -416,6 +467,8 @@ def build_exit_intents(
     exit_rule_loader=extract_exit_rules,
     loader=load_json,
     quote_fetcher: QuoteFetcher | None = None,
+    freshen_attempts: int = 0,
+    freshen_wait_s: float = 0.0,
 ) -> Sequence[StrategyExitIntent]:
     """Return exit governance payload per strategy with raw legs and quotes."""
 
@@ -469,7 +522,13 @@ def build_exit_intents(
                     break
 
         raw_leg_copies: list[MutableMapping[str, Any]] = [dict(leg) for leg in raw_legs_source]
-        _enrich_strategy_leg_quotes(strategy, raw_leg_copies, quote_fetcher=quote_fetcher)
+        _enrich_strategy_leg_quotes(
+            strategy,
+            raw_leg_copies,
+            quote_fetcher=quote_fetcher,
+            refresh_attempts=freshen_attempts,
+            refresh_wait=freshen_wait_s,
+        )
 
         rule_key = (strategy.get("symbol"), strategy.get("expiry"))
         rule = exit_rules.get(rule_key)
@@ -484,10 +543,35 @@ def build_exit_intents(
     return intents
 
 
+def build_exit_alert_index(
+    summaries: Sequence[StrategyManagementSummary],
+) -> set[tuple[str, str | None]]:
+    """Return normalized symbol/expiry keys for summaries with exit alerts."""
+
+    keys: set[tuple[str, str | None]] = set()
+    for summary in summaries:
+        trigger_text = summary.exit_trigger or ""
+        if trigger_text.strip().lower() in {"", "geen trigger"}:
+            continue
+        symbol = summary.symbol
+        if not symbol:
+            continue
+        symbol_key = str(symbol).upper()
+        variants = _expiry_variants(summary.expiry) if summary.expiry else set()
+        if not variants:
+            keys.add((symbol_key, None))
+        else:
+            for variant in variants:
+                keys.add((symbol_key, variant))
+    return keys
+
+
 __all__ = [
     "StrategyManagementSummary",
     "StrategyExitIntent",
     "build_management_summary",
     "build_exit_intents",
+    "build_exit_alert_index",
+    "exit_intent_keys",
 ]
 

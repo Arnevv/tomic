@@ -174,6 +174,83 @@ def test_execute_exit_flow_fallback_success(sample_intent, base_config):
     assert calls == ["primary", "call", "put"]
 
 
+def test_execute_exit_flow_uses_price_ladder(monkeypatch, sample_intent, base_config):
+    base_plan = build_exit_order_plan(sample_intent)
+    base_limit = base_plan.limit_price
+
+    def ladder_config():
+        return {
+            "enabled": True,
+            "steps": [0.05],
+            "step_wait_seconds": 0.0,
+            "max_duration_seconds": 0.0,
+        }
+
+    monkeypatch.setattr("tomic.services.exit_flow.exit_price_ladder_config", ladder_config)
+
+    dispatch_limits: list[float] = []
+
+    def dispatcher(plan):
+        dispatch_limits.append(plan.limit_price)
+        if len(dispatch_limits) == 1:
+            raise RuntimeError("primary failure")
+        return (321,)
+
+    result = execute_exit_flow(sample_intent, config=base_config, dispatcher=dispatcher)
+
+    assert result.status == "success"
+    assert result.reason == "ladder:1"
+    assert result.order_ids == (321,)
+    assert len(dispatch_limits) == 2
+    assert math.isclose(dispatch_limits[0], base_limit)
+    assert dispatch_limits[1] > dispatch_limits[0]
+
+
+def test_price_ladder_respects_limit_cap(monkeypatch, sample_intent, base_config):
+    base_plan = build_exit_order_plan(sample_intent)
+    base_limit = base_plan.limit_price
+
+    monkeypatch.setattr(
+        "tomic.services.exit_flow.exit_price_ladder_config",
+        lambda: {
+            "enabled": True,
+            "steps": [1.0],
+            "step_wait_seconds": 0.0,
+            "max_duration_seconds": 0.0,
+        },
+    )
+
+    monkeypatch.setattr(
+        "tomic.services.exit_flow.exit_force_exit_config",
+        lambda: {
+            "enabled": True,
+            "market_order": False,
+            "limit_cap": {"type": "absolute", "value": 0.02},
+        },
+    )
+
+    dispatch_limits: list[float] = []
+
+    def dispatcher(plan):
+        dispatch_limits.append(plan.limit_price)
+        if len(dispatch_limits) == 1:
+            raise RuntimeError("primary failure")
+        return (654,)
+
+    result = execute_exit_flow(
+        sample_intent,
+        config=base_config,
+        dispatcher=dispatcher,
+        force_exit=True,
+    )
+
+    assert result.status == "success"
+    assert result.reason == "ladder:1"
+    assert len(dispatch_limits) == 2
+    assert math.isclose(dispatch_limits[0], base_limit)
+    assert math.isclose(dispatch_limits[1], base_limit + 0.02, rel_tol=1e-9)
+
+
 def test_execute_exit_flow_plan_failure(base_config):
     strategy = {"symbol": "NOP", "expiry": "20240119"}
     legs = [
