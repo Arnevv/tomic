@@ -119,7 +119,7 @@ def generate(
                     build_leg({**short_opt, "spot": spot}, "short"),
                     build_leg({**long_opt, "spot": spot}, "long"),
                 ]
-                proposal = StrategyProposal(legs=legs)
+                proposal = StrategyProposal(strategy=str(StrategyName.CALENDAR), legs=legs)
                 score, reasons = calculate_score(
                     StrategyName.CALENDAR, proposal, spot, atr=atr
                 )

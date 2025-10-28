@@ -4,6 +4,7 @@ import pytest
 from tomic.analysis import scoring
 from tomic.criteria import load_criteria
 from tomic.strategy_candidates import StrategyProposal
+from tomic.pricing.margin_engine import MarginComputation
 
 
 from tomic.strategy.reasons import ReasonCategory
@@ -87,8 +88,16 @@ def test_validate_leg_metrics_long_missing_allowed(monkeypatch):
 
     proposal = StrategyProposal(legs=legs)
     monkeypatch.setattr(scoring, "check_liquidity", lambda *a, **k: (True, []))
-    monkeypatch.setattr(scoring, "heuristic_risk_metrics", lambda l, cb: {"max_profit": 200.0, "max_loss": -50.0})
-    monkeypatch.setattr(scoring, "calculate_margin", lambda *a, **k: 100.0)
+    margin_result = MarginComputation(
+        strategy="short_put_spread",
+        margin=100.0,
+        max_profit=200.0,
+        max_loss=-50.0,
+        risk_reward=4.0,
+        min_risk_reward=None,
+        meets_min_risk_reward=None,
+    )
+    monkeypatch.setattr(scoring, "compute_margin_and_rr", lambda *a, **k: margin_result)
     monkeypatch.setattr(scoring, "calculate_rom", lambda mp, margin: 10.0)
     monkeypatch.setattr(scoring, "calculate_ev", lambda pos, mp, ml: 5.0)
     monkeypatch.setattr(scoring, "_bs_estimate_missing", lambda _l: None)
@@ -137,12 +146,16 @@ def test_compute_proposal_metrics(monkeypatch):
     ]
     proposal = StrategyProposal(legs=legs)
     crit = load_criteria().model_copy()
-    monkeypatch.setattr(
-        scoring,
-        "heuristic_risk_metrics",
-        lambda l, cb: {"max_profit": 200.0, "max_loss": -50.0, "risk_reward": 4.0},
+    margin_result = MarginComputation(
+        strategy="naked_put",
+        margin=100.0,
+        max_profit=200.0,
+        max_loss=-100.0,
+        risk_reward=2.0,
+        min_risk_reward=None,
+        meets_min_risk_reward=None,
     )
-    monkeypatch.setattr(scoring, "calculate_margin", lambda s, l, net_cashflow=0.0: 100.0)
+    monkeypatch.setattr(scoring, "compute_margin_and_rr", lambda *a, **k: margin_result)
     monkeypatch.setattr(scoring, "calculate_rom", lambda mp, margin: 10.0)
     monkeypatch.setattr(scoring, "calculate_ev", lambda pos, mp, ml: 5.0)
 
@@ -202,12 +215,16 @@ def test_calculate_score_additional_metrics(monkeypatch):
     ]
 
     proposal = StrategyProposal(legs=legs)
-    monkeypatch.setattr(
-        scoring,
-        "heuristic_risk_metrics",
-        lambda l, cb: {"max_profit": 200.0, "max_loss": -50.0, "risk_reward": 4.0},
+    margin_result = MarginComputation(
+        strategy="short_put_spread",
+        margin=100.0,
+        max_profit=200.0,
+        max_loss=-50.0,
+        risk_reward=4.0,
+        min_risk_reward=None,
+        meets_min_risk_reward=None,
     )
-    monkeypatch.setattr(scoring, "calculate_margin", lambda *a, **k: 100.0)
+    monkeypatch.setattr(scoring, "compute_margin_and_rr", lambda *a, **k: margin_result)
     monkeypatch.setattr(scoring, "calculate_rom", lambda mp, margin: 10.0)
     monkeypatch.setattr(scoring, "calculate_ev", lambda pos, mp, ml: 5.0)
 
@@ -273,12 +290,16 @@ def test_compute_proposal_metrics_rejects_low_risk_reward(monkeypatch):
     proposal = StrategyProposal(legs=legs)
     crit = load_criteria().model_copy()
 
-    monkeypatch.setattr(
-        scoring,
-        "heuristic_risk_metrics",
-        lambda l, cb: {"max_profit": 100.0, "max_loss": -400.0},
+    margin_result = MarginComputation(
+        strategy="iron_condor",
+        margin=500.0,
+        max_profit=100.0,
+        max_loss=-400.0,
+        risk_reward=0.25,
+        min_risk_reward=None,
+        meets_min_risk_reward=None,
     )
-    monkeypatch.setattr(scoring, "calculate_margin", lambda *a, **k: 500.0)
+    monkeypatch.setattr(scoring, "compute_margin_and_rr", lambda *a, **k: margin_result)
     monkeypatch.setattr(scoring, "calculate_rom", lambda mp, margin: 2.0)
     monkeypatch.setattr(scoring, "calculate_ev", lambda pos, mp, ml: 5.0)
     monkeypatch.setattr(scoring, "_bs_estimate_missing", lambda _l: None)

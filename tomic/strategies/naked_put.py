@@ -49,7 +49,7 @@ def generate(
                 ):
                     desc = f"short {opt.get('strike')}"
                     leg = build_leg({**opt, "spot": spot}, "short")
-                    proposal = StrategyProposal(legs=[leg])
+                    proposal = StrategyProposal(strategy=str(StrategyName.NAKED_PUT), legs=[leg])
                     score, reasons = calculate_score(
                         StrategyName.NAKED_PUT, proposal, spot, atr=atr
                     )

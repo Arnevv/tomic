@@ -14,14 +14,13 @@ from ..metrics import (
     MidPriceResolver,
     calculate_credit,
     calculate_ev,
-    calculate_margin,
     calculate_pos,
     calculate_rom,
     estimate_scenario_profit,
     get_signed_position,
     iter_leg_views,
 )
-from ..analysis.strategy import heuristic_risk_metrics
+from ..pricing.margin_engine import compute_margin_and_rr
 from ..criteria import CriteriaConfig, RULES, load_criteria
 from ..helpers.dateutils import parse_date
 from ..helpers.numeric import safe_float
@@ -47,6 +46,18 @@ _VALID_MID_SOURCES = set(MID_SOURCE_ORDER)
 _PREVIEW_SOURCES = set(PREVIEW_SOURCES)
 
 _REASON_ENGINE = ReasonEngine()
+
+
+def _resolve_strategy_config(strategy_name: str) -> Mapping[str, Any]:
+    cfg = cfg_get("STRATEGY_CONFIG") or {}
+    default_cfg = cfg.get("default", {}) if isinstance(cfg, Mapping) else {}
+    strat_cfg = cfg.get("strategies", {}).get(strategy_name, {}) if isinstance(cfg, Mapping) else {}
+    merged: dict[str, Any] = {}
+    if isinstance(default_cfg, Mapping):
+        merged.update(default_cfg)
+    if isinstance(strat_cfg, Mapping):
+        merged.update(strat_cfg)
+    return merged
 
 
 def _safe_float(value: Any) -> float | None:
@@ -188,38 +199,6 @@ def _collect_leg_values(legs: List[Dict[str, Any]], keys: Tuple[str, ...]) -> Li
             values.append(val)
             break
     return values
-
-
-def _resolve_min_risk_reward(
-    strategy_name: str, crit: CriteriaConfig | None = None
-) -> float:
-    if crit is not None:
-        try:
-            value = float(crit.strategy.acceptance.min_risk_reward)
-        except (TypeError, ValueError):
-            value = None
-        else:
-            return value
-
-    cfg = cfg_get("STRATEGY_CONFIG") or {}
-    strat_cfg = cfg.get("strategies", {}).get(strategy_name, {})
-    default_cfg = cfg.get("default", {})
-
-    for source in (strat_cfg, default_cfg):
-        raw_value = source.get("min_risk_reward") if isinstance(source, Mapping) else None
-        if raw_value is None:
-            continue
-        try:
-            return float(raw_value)
-        except (TypeError, ValueError):  # pragma: no cover - defensive
-            logger.debug("[%s] Ongeldige min_risk_reward-configuratie: %r", strategy_name, raw_value)
-    fallback = RULES.strategy.acceptance.min_risk_reward
-    try:
-        return float(fallback)
-    except (TypeError, ValueError):  # pragma: no cover - defensive
-        return 0.0
-
-
 def _infer_leg_dte(leg: Mapping[str, Any]) -> Optional[int]:
     for key in ("dte", "days_to_expiry", "DTE"):
         raw = leg.get(key)
@@ -797,22 +776,22 @@ def compute_proposal_metrics(
 
     proposal.credit = net_credit * 100
     proposal.credit_capped = credit_capped
-    cost_basis = -net_credit * 100
-    risk = heuristic_risk_metrics(legs, cost_basis)
-    proposal.max_profit = risk.get("max_profit")
-    proposal.max_loss = risk.get("max_loss")
-    rr_initial = risk.get("risk_reward")
-    try:
-        proposal.risk_reward = float(rr_initial) if rr_initial is not None else None
-    except (TypeError, ValueError):
-        proposal.risk_reward = None
     proposal.profit_estimated = False
     proposal.scenario_info = None
 
-    try:
-        margin = calculate_margin(strategy_name, legs, net_cashflow=net_credit)
-    except Exception:
-        margin = None
+    strategy_cfg = _resolve_strategy_config(strategy_name)
+    computation = compute_margin_and_rr(
+        {
+            "strategy": strategy_name,
+            "legs": legs,
+            "net_cashflow": net_credit,
+        },
+        config=strategy_cfg,
+    )
+    margin = computation.margin
+    proposal.max_profit = computation.max_profit
+    proposal.max_loss = computation.max_loss
+    proposal.risk_reward = computation.risk_reward
 
     if margin is None or (isinstance(margin, float) and math.isnan(margin)):
         _add_reason(
@@ -849,23 +828,39 @@ def compute_proposal_metrics(
 
     profit_val = _safe_float(proposal.max_profit)
     loss_val = _safe_float(proposal.max_loss)
-    risk_reward = None
-    if profit_val is not None and loss_val not in (None, 0.0):
+    if proposal.risk_reward is None and profit_val is not None and loss_val not in (None, 0.0):
         risk = abs(loss_val)
         if risk > 0:
-            risk_reward = profit_val / risk
-    proposal.risk_reward = risk_reward
+            proposal.risk_reward = profit_val / risk
 
-    min_rr = _resolve_min_risk_reward(strategy_name, crit)
-    if min_rr > 0 and risk_reward is not None and risk_reward < min_rr:
-        message = f"risk/reward onvoldoende ({risk_reward:.2f} < {min_rr:.2f})"
+    min_rr = _safe_float(strategy_cfg.get("min_risk_reward"))
+    if crit is not None:
+        try:
+            crit_value = float(crit.strategy.acceptance.min_risk_reward)
+        except (TypeError, ValueError):
+            crit_value = None
+        else:
+            min_rr = crit_value
+    if min_rr is None:
+        try:
+            min_rr = float(RULES.strategy.acceptance.min_risk_reward)
+        except (TypeError, ValueError):  # pragma: no cover - defensive
+            min_rr = 0.0
+    if min_rr is None:
+        min_rr = 0.0
+    if min_rr > 0 and (proposal.risk_reward is None or proposal.risk_reward < min_rr):
+        message = (
+            f"risk/reward onvoldoende ({proposal.risk_reward:.2f} < {min_rr:.2f})"
+            if proposal.risk_reward is not None
+            else f"risk/reward onvoldoende (< {min_rr:.2f})"
+        )
         _add_reason(
             make_reason(
                 ReasonCategory.RR_BELOW_MIN,
                 "RR_TOO_LOW",
                 message,
                 data={
-                    "risk_reward": round(risk_reward, 4),
+                    "risk_reward": round(proposal.risk_reward, 4) if proposal.risk_reward is not None else None,
                     "min_risk_reward": round(min_rr, 4),
                 },
             )
@@ -1046,15 +1041,24 @@ def passes_risk(proposal: "StrategyProposal" | Mapping[str, Any], min_rr: float)
     """Return True if proposal satisfies configured risk/reward."""
     if min_rr <= 0:
         return True
-    mp = getattr(proposal, "max_profit", None)
-    ml = getattr(proposal, "max_loss", None)
-    if mp is None or ml is None or not ml:
-        return True
-    try:
-        rr = mp / abs(ml)
-    except Exception:
-        return True
-    return rr >= min_rr
+    strategy = None
+    if isinstance(proposal, Mapping):
+        strategy = proposal.get("strategy")
+    if strategy is None:
+        strategy = getattr(proposal, "strategy", None)
+    combo = {
+        "strategy": strategy,
+        "legs": proposal.get("legs") if isinstance(proposal, Mapping) else getattr(proposal, "legs", []),
+        "margin": proposal.get("margin") if isinstance(proposal, Mapping) else getattr(proposal, "margin", None),
+        "max_profit": proposal.get("max_profit") if isinstance(proposal, Mapping) else getattr(proposal, "max_profit", None),
+        "max_loss": proposal.get("max_loss") if isinstance(proposal, Mapping) else getattr(proposal, "max_loss", None),
+        "risk_reward": proposal.get("risk_reward") if isinstance(proposal, Mapping) else getattr(proposal, "risk_reward", None),
+        "credit": proposal.get("credit") if isinstance(proposal, Mapping) else getattr(proposal, "credit", None),
+    }
+    result = compute_margin_and_rr(combo, {"min_risk_reward": min_rr})
+    if result.risk_reward is None:
+        return False
+    return result.risk_reward >= min_rr
 
 
 __all__ = ["calculate_score", "calculate_breakevens", "passes_risk"]
