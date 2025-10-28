@@ -596,7 +596,7 @@ def validate_leg_metrics(
         source = _resolve_mid_source(leg)
         source_ok = (not source) or (source in _VALID_MID_SOURCES)
         has_price = has_mid and source_ok
-        leg_type = leg.get("type") or "?"
+        leg_type = leg.get("type") or leg.get("right") or leg.get("secType") or "?"
         strike = leg.get("strike")
         strike_suffix = "" if strike in {None, ""} else str(strike)
         mid_display = mid_val if has_mid else leg.get("mid")
@@ -613,14 +613,16 @@ def validate_leg_metrics(
             missing.append("delta")
         leg["missing_metrics"] = missing
         if missing:
+            strike_display = leg.get("strike", "?")
+            expiry_display = leg.get("expiry") or leg.get("expiration") or "?"
             if allow_unpriced_wings and (leg.get("position", 0) > 0):
                 leg["metrics_ignored"] = True
                 logger.info(
-                    f"[leg-missing-allowed] {leg['type']} {leg['strike']} {leg['expiry']}: {', '.join(missing)}"
+                    f"[leg-missing-allowed] {leg_type} {strike_display} {expiry_display}: {', '.join(missing)}"
                 )
                 continue
             logger.info(
-                f"[leg-missing] {leg['type']} {leg['strike']} {leg['expiry']}: {', '.join(missing)}"
+                f"[leg-missing] {leg_type} {strike_display} {expiry_display}: {', '.join(missing)}"
             )
             missing_fields.update(missing)
     if missing_fields:
