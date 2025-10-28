@@ -7,10 +7,15 @@ from typing import Any
 
 import pytest
 
+from tomic.core.pricing import SpreadPolicy
 from tomic.services import order_submission
 from tomic.services.order_submission import (
     OrderSubmissionService,
     prepare_order_instructions,
+)
+from tests.pricing.test_spread_policy import (
+    SHARED_POLICY_CONFIG,
+    SHARED_SPREAD_SCENARIOS,
 )
 from tomic.services.strategy_pipeline import StrategyProposal
 
@@ -196,6 +201,57 @@ def test_dump_order_log(tmp_path, monkeypatch):
     payload = json.loads(path.read_text())
     assert payload[0]["order"]["orderType"] == "LMT"
     assert payload[0]["legs"][0]["expiry"] == "20240119"
+
+
+@pytest.mark.parametrize("case", SHARED_SPREAD_SCENARIOS, ids=lambda case: case["description"])
+def test_tradeability_aligns_with_shared_policy(case):
+    policy = SpreadPolicy(SHARED_POLICY_CONFIG)
+    width = float(case["spread"])
+    mid = float(case["mid"])
+    bid = max(mid - width / 2, 0.01)
+    ask = mid + width / 2
+    underlying = case.get("underlying")
+    legs = [
+        order_submission._LegSummary(
+            strike=100.0,
+            expiry="20240119",
+            right="call",
+            position=-1.0,
+            qty=1,
+            bid=1.5,
+            ask=1.6,
+            min_tick=0.01,
+            quote_age_sec=1.0,
+            mid_source="true",
+            one_sided=False,
+            underlying_price=underlying,
+        ),
+        order_submission._LegSummary(
+            strike=95.0,
+            expiry="20240119",
+            right="call",
+            position=1.0,
+            qty=1,
+            bid=0.9,
+            ask=1.0,
+            min_tick=0.01,
+            quote_age_sec=1.0,
+            mid_source="true",
+            one_sided=False,
+            underlying_price=underlying,
+        ),
+    ]
+    combo_quote = order_submission.ComboQuote(bid=bid, ask=ask, mid=mid, width=width)
+    context = dict(case.get("context", {}) or {})
+    context.setdefault("symbol", "TST")
+    gate_ok, _ = order_submission._evaluate_tradeability(
+        legs,
+        combo_quote,
+        spread_policy=policy,
+        policy_context=context,
+        underlying_price=underlying,
+    )
+    assert gate_ok is case["expected"]
 
 
 def test_place_orders_uses_parent_child(monkeypatch):

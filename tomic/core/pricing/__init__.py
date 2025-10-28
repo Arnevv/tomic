@@ -6,10 +6,13 @@ from .mid_service import (
     MidService,
     resolve_option_mid,
 )
+from .spread_policy import SpreadDecision, SpreadPolicy
 
 __all__ = [
     "MidPriceQuote",
     "MidPricingContext",
     "MidService",
+    "SpreadDecision",
+    "SpreadPolicy",
     "resolve_option_mid",
 ]
