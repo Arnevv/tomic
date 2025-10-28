@@ -7,6 +7,12 @@ from datetime import date
 from typing import Any, Callable, Mapping, Sequence
 
 from ..core.pricing import resolve_option_mid
+from ..core.pricing.mid_tags import (
+    MID_SOURCE_ORDER,
+    PREVIEW_SOURCES,
+    MidTagSnapshot,
+    normalize_mid_source,
+)
 from ..helpers.dateutils import normalize_earnings_context
 from ..helpers.numeric import safe_float
 from ..logutils import logger
@@ -231,48 +237,49 @@ class PortfolioService:
 
     @staticmethod
     def _mid_sources(proposal: StrategyProposal) -> tuple[str, ...]:
-        tags = getattr(proposal, "mid_status_tags", None)
-        if isinstance(tags, (list, tuple)) and tags:
-            return tuple(str(tag) for tag in tags)
+        snapshot = getattr(proposal, "mid_tags", None)
+        if isinstance(snapshot, MidTagSnapshot) and snapshot.tags:
+            return snapshot.tags
 
-        summary_raw = getattr(proposal, "fallback_summary", None)
-        summary: dict[str, int]
-        if isinstance(summary_raw, Mapping):
-            summary = {
-                str(source): int(summary_raw.get(source, 0) or 0)
-                for source in summary_raw
-            }
+        counters: dict[str, int] = {}
+        if isinstance(snapshot, MidTagSnapshot):
+            counters = {source: count for source, count in snapshot.counter_items()}
         else:
-            summary = {}
-        for leg in getattr(proposal, "legs", []):
-            source = str(leg.get("mid_source") or "").strip()
-            fallback = str(leg.get("mid_fallback") or "").strip()
-            if not source:
-                if fallback:
-                    source = fallback
-                else:
-                    quote = resolve_option_mid(leg)
-                    source = quote.mid_source or quote.mid_fallback or ""
-            if source == "parity":
-                source = "parity_true"
-            if not source:
-                source = "true"
-            summary[source] = summary.get(source, 0) + 1
-        for key in ("true", "parity_true", "parity_close", "model", "close"):
-            summary.setdefault(key, 0)
+            summary_raw = getattr(proposal, "fallback_summary", None)
+            if isinstance(summary_raw, Mapping):
+                counters = {
+                    normalize_mid_source(source) or "true": int(summary_raw.get(source, 0) or 0)
+                    for source in summary_raw
+                }
+        if not counters:
+            for leg in getattr(proposal, "legs", []):
+                quote = resolve_option_mid(leg)
+                chain = (
+                    leg.get("mid_source"),
+                    leg.get("mid_fallback"),
+                    quote.mid_source,
+                    quote.mid_fallback,
+                )
+                source = normalize_mid_source(None, chain) or "true"
+                counters[source] = counters.get(source, 0) + 1
 
-        preview_total = sum(summary.get(src, 0) for src in ("parity_close", "model", "close"))
-        status = "advisory" if preview_total else "tradable"
+        for key in MID_SOURCE_ORDER:
+            counters.setdefault(key, 0)
+
+        preview_total = sum(counters.get(src, 0) for src in PREVIEW_SOURCES)
+        mid_status = getattr(proposal, "mid_status", None)
+        if not isinstance(mid_status, str) or not mid_status:
+            mid_status = "advisory" if preview_total else "tradable"
         needs_refresh = bool(getattr(proposal, "needs_refresh", False) or preview_total > 0)
 
-        tags: list[str] = [status]
+        tags: list[str] = [mid_status]
         if needs_refresh:
             tags.append("needs_refresh")
 
         details = [
             f"{source}:{count}"
-            for source, count in sorted(summary.items())
-            if count > 0
+            for source in MID_SOURCE_ORDER
+            if (count := counters.get(source, 0)) > 0
         ]
         if not details:
             details.append("quotes")

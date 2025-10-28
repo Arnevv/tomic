@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Any, Mapping, MutableMapping, Sequence
 
 from .reasons import ReasonDetail
+from ..core.pricing.mid_tags import MidTagSnapshot
 
 
 @dataclass
@@ -76,6 +77,7 @@ class StrategyProposal:
     mid_status_tags: tuple[str, ...] = field(default_factory=tuple)
     preview_sources: tuple[str, ...] = field(default_factory=tuple)
     fallback_limit_exceeded: bool = False
+    mid_tags: MidTagSnapshot | None = None
 
 
 __all__ = ["StrategyContext", "StrategyProposal"]

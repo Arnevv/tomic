@@ -14,6 +14,7 @@ if TYPE_CHECKING:  # pragma: no cover - type hints only
     from collections.abc import Iterable, Mapping, Sequence
     from tomic.reporting import EvaluationSummary
 
+from tomic.core.pricing.mid_tags import MidTagSnapshot
 from tomic.strategy.reasons import (
     ReasonDetail,
     ReasonLike,
@@ -281,6 +282,18 @@ def log_combo_evaluation(
         extra_data.setdefault("symbol", symbol_hint)
 
     extra_parts: list[str] = []
+    mid_meta = extra_data.get("mid")
+    if isinstance(mid_meta, MidTagSnapshot):
+        if mid_meta.tags:
+            extra_parts.append(f"mid_tags={','.join(mid_meta.tags)}")
+        counter_parts = [
+            f"{source}:{count}"
+            for source, count in mid_meta.counter_items()
+            if count > 0
+        ]
+        if counter_parts:
+            extra_parts.append(f"mid_counts={','.join(counter_parts)}")
+        extra_data["mid"] = mid_meta.as_metadata()
     if extra_data:
         extra_parts.extend(f"{k}={v}" for k, v in extra_data.items())
     if legs:

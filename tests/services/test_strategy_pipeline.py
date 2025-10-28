@@ -7,6 +7,7 @@ import json
 
 import pytest
 
+from tomic.services.portfolio_service import PortfolioService
 from tomic.services.strategy_pipeline import (
     StrategyPipeline,
     StrategyContext,
@@ -115,6 +116,10 @@ def test_build_proposals_generates_results(sample_option):
     assert prop.spread_rejects_n == 0
     assert prop.mid_status == "tradable"
     assert prop.mid_status_tags == ("tradable", "true:1")
+    assert prop.mid_tags is not None
+    assert prop.mid_tags.tags == ("tradable", "true:1")
+    assert prop.mid_tags.counters["true"] == 1
+    assert PortfolioService._mid_sources(prop) == ("tradable", "true:1")
     assert prop.preview_sources == ()
     assert prop.needs_refresh is False
     assert "iron_condor" in summary.by_strategy

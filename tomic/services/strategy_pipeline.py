@@ -21,6 +21,7 @@ from .utils import resolve_config_getter
 from ..loader import load_strike_config
 from ..logutils import combo_symbol_context, logger
 from ..core.pricing import MidPricingContext, MidService, resolve_option_mid
+from ..core.pricing.mid_tags import MidTagSnapshot
 from ..mid_resolver import MidUsageSummary
 from ..utils import normalize_leg, resolve_symbol
 from ..helpers.numeric import safe_float
@@ -613,6 +614,10 @@ class StrategyPipeline:
             converted.needs_refresh = evaluation.needs_refresh
             converted.mid_status = evaluation.status
             converted.mid_status_tags = evaluation.tags
+            converted.mid_tags = MidTagSnapshot(
+                tags=evaluation.tags,
+                counters=dict(evaluation.fallback_summary),
+            )
             converted.preview_sources = evaluation.preview_sources
             converted.fallback_limit_exceeded = evaluation.fallback_limit_exceeded
             converted.reasons = list(evaluation.reasons)
@@ -622,4 +627,8 @@ class StrategyPipeline:
                 converted.fallback = None
         else:
             converted.mid_status_tags = (converted.mid_status,)
+            converted.mid_tags = MidTagSnapshot(
+                tags=converted.mid_status_tags,
+                counters={},
+            )
         return converted

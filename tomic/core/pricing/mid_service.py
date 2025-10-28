@@ -8,6 +8,7 @@ from typing import Iterable, Mapping, MutableMapping, Optional, Sequence
 from ...helpers.numeric import safe_float
 from ...mid_resolver import MidResolver, MidResolution, MidUsageSummary
 from ..data import InterestRateProvider, InterestRateQuote
+from .mid_tags import normalize_mid_source
 
 
 @dataclass(slots=True)
@@ -36,17 +37,6 @@ class MidPriceQuote:
             "interest_rate": self.interest_rate,
             "interest_rate_source": self.interest_rate_source,
         }
-
-
-def _normalized_source(raw: object) -> str | None:
-    if not isinstance(raw, str):
-        return None
-    value = raw.strip().lower()
-    if not value:
-        return None
-    if value == "parity":
-        return "parity_true"
-    return value
 
 
 def _has_resolution_data(resolution: MidResolution | None) -> bool:
@@ -146,8 +136,8 @@ class MidService:
 
 
 def _quote_from_resolution(resolution: MidResolution, *, rate: InterestRateQuote) -> MidPriceQuote:
-    source = _normalized_source(resolution.mid_source)
-    fallback = _normalized_source(resolution.mid_fallback)
+    fallback = normalize_mid_source(resolution.mid_fallback)
+    source = normalize_mid_source(resolution.mid_source, (fallback,))
     return MidPriceQuote(
         mid=resolution.mid,
         mid_source=source,
@@ -163,8 +153,8 @@ def _quote_from_resolution(resolution: MidResolution, *, rate: InterestRateQuote
 
 def _heuristic_quote(leg: Mapping[str, object], *, rate: InterestRateQuote) -> MidPriceQuote:
     mid = safe_float(leg.get("mid"))
-    source = _normalized_source(leg.get("mid_source"))
-    fallback = _normalized_source(leg.get("mid_fallback"))
+    fallback = normalize_mid_source(leg.get("mid_fallback"))
+    source = normalize_mid_source(leg.get("mid_source"), (fallback,))
     spread_flag = None
     reason = None
     quote_age = safe_float(leg.get("quote_age_sec")) or safe_float(leg.get("quote_age"))
