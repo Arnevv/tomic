@@ -50,6 +50,24 @@ def _is_finite_number(value: Any) -> bool:
     return not math.isnan(number)
 
 
+def _is_valid_price(value: Any) -> bool:
+    try:
+        if isinstance(value, bool):
+            return False
+        number = float(value)
+    except (TypeError, ValueError):
+        return False
+    if math.isnan(number):
+        return False
+    return number >= 0.0
+
+
+def _coerce_price(value: Any) -> float | None:
+    if _is_valid_price(value):
+        return float(value)
+    return None
+
+
 def _store_numeric(target: dict[str, Any], key: str, value: Any) -> bool:
     if _is_finite_number(value):
         target[key] = float(value)
@@ -293,7 +311,7 @@ class QuoteSnapshotApp(IncrementingIdMixin, BaseIBApp):
     # ------------------------------------------------------------------
     def tickPrice(self, reqId: int, tickType: int, price: float, attrib: Any) -> None:  # noqa: N802 - IB API
         data = self._data(reqId)
-        numeric = _is_finite_number(price)
+        numeric = _is_valid_price(price)
         if tickType == TickTypeEnum.BID and numeric:
             data["bid"] = float(price)
         elif tickType == TickTypeEnum.ASK and numeric:
@@ -481,8 +499,8 @@ class IBMarketDataService:
                                 delta_log=delta_entries if log_delta else None,
                                 trigger=trigger_label,
                             )
-                            bid_ok = _is_finite_number(snapshot.get("bid"))
-                            ask_ok = _is_finite_number(snapshot.get("ask"))
+                            bid_ok = _is_valid_price(snapshot.get("bid"))
+                            ask_ok = _is_valid_price(snapshot.get("ask"))
                             if bid_ok and ask_ok:
                                 quote_received = True
                                 break
@@ -670,7 +688,14 @@ class IBMarketDataService:
             str(leg.get("mid_source") or leg.get("mid_fallback") or leg.get("mid_reason") or "")
             or None
         )
-        leg.update({k: data[k] for k in ("bid", "ask", "last") if k in data})
+        for key in ("bid", "ask", "last"):
+            if key not in data:
+                continue
+            price_value = _coerce_price(data[key])
+            if price_value is None:
+                leg.pop(key, None)
+            else:
+                leg[key] = price_value
         for greek in ("delta", "gamma", "vega", "theta", "iv"):
             if greek in data:
                 leg[greek] = data[greek]
@@ -678,10 +703,12 @@ class IBMarketDataService:
         bid = leg.get("bid")
         ask = leg.get("ask")
         mid = None
-        if isinstance(bid, (int, float)) and isinstance(ask, (int, float)) and ask > 0:
+        if isinstance(bid, (int, float)) and bid >= 0 and isinstance(ask, (int, float)) and ask > 0:
             mid = (float(bid) + float(ask)) / 2
-        elif isinstance(leg.get("last"), (int, float)):
-            mid = float(leg["last"])
+        else:
+            last = leg.get("last")
+            if isinstance(last, (int, float)) and last >= 0:
+                mid = float(last)
         if mid is not None:
             rounded_mid = round(mid, 4)
             leg["mid"] = rounded_mid
@@ -738,10 +765,16 @@ class IBMarketDataService:
                     logger.debug("Failed to log refresh delta", exc_info=True)
         else:
             leg["missing_edge"] = True
-            leg.pop("mid_refresh_timestamp", None)
-            leg.pop("mid_refresh_trigger", None)
-            leg.pop("mid_previous", None)
-            leg.pop("mid_delta", None)
+            for field in (
+                "mid",
+                "mid_source",
+                "mid_reason",
+                "mid_refresh_timestamp",
+                "mid_refresh_trigger",
+                "mid_previous",
+                "mid_delta",
+            ):
+                leg.pop(field, None)
 
         delta = leg.get("delta")
         if isinstance(delta, (int, float)):
