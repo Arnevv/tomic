@@ -4,6 +4,12 @@ from typing import Any, Dict, Iterable, List, Mapping, Optional, Sequence, Tuple
 import math
 
 from ..core import LegView
+from ..core.pricing.mid_tags import (
+    MID_SOURCE_ORDER,
+    MidTagSnapshot,
+    PREVIEW_SOURCES,
+    normalize_mid_source,
+)
 from ..metrics import (
     MidPriceResolver,
     calculate_credit,
@@ -37,8 +43,8 @@ if TYPE_CHECKING:
 POSITIVE_CREDIT_STRATS = set(RULES.strategy.acceptance.require_positive_credit_for)
 
 
-_VALID_MID_SOURCES = {"true", "parity_true", "parity_close", "model", "close"}
-_PREVIEW_SOURCES = {"parity_close", "model", "close"}
+_VALID_MID_SOURCES = set(MID_SOURCE_ORDER)
+_PREVIEW_SOURCES = set(PREVIEW_SOURCES)
 
 _REASON_ENGINE = ReasonEngine()
 
@@ -380,10 +386,7 @@ def _fallback_limit_ok(
     strat_label = getattr(strategy_name, "value", strategy_name)
 
     def _source(view: LegView) -> str:
-        value = (view.mid_source or "").strip().lower()
-        if value == "parity":
-            return "parity_true"
-        return value
+        return normalize_mid_source(view.mid_source) or ""
 
     def _is_long(view: LegView) -> bool:
         return view.signed_position > 0
@@ -582,10 +585,13 @@ def _parse_mid_value(raw_mid: Any) -> tuple[bool, float | None]:
 
 
 def _resolve_mid_source(leg: Mapping[str, Any]) -> str:
-    source = str(leg.get("mid_fallback") or leg.get("mid_source") or "").strip().lower()
-    if source == "parity":
-        source = "parity_true"
-    return source
+    return (
+        normalize_mid_source(
+            leg.get("mid_source"),
+            (leg.get("mid_fallback"),),
+        )
+        or ""
+    )
 
 
 def validate_leg_metrics(
@@ -955,6 +961,10 @@ def compute_proposal_metrics(
     proposal.needs_refresh = evaluation.needs_refresh
     proposal.mid_status = evaluation.status
     proposal.mid_status_tags = evaluation.tags
+    proposal.mid_tags = MidTagSnapshot(
+        tags=evaluation.tags,
+        counters=dict(evaluation.fallback_summary),
+    )
     proposal.preview_sources = evaluation.preview_sources
     proposal.fallback_limit_exceeded = evaluation.fallback_limit_exceeded
     proposal.spread_rejects_n = summary.spread_too_wide_count

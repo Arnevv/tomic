@@ -8,6 +8,7 @@ from typing import Any, Dict, Iterable, Iterator, List, Mapping, Optional, Proto
 
 from .core import LegView
 from .core.pricing import MidPricingContext, MidService
+from .core.pricing.mid_tags import normalize_mid_source
 from .helpers.numeric import safe_float
 from .utils import get_leg_right, get_leg_qty
 from .logutils import logger
@@ -36,17 +37,6 @@ def _ensure_resolver(resolver: PriceResolverLike) -> PriceResolver:
     return resolver
 
 
-def _normalized_mid_source(raw: Any) -> str | None:
-    if not isinstance(raw, str):
-        return None
-    value = raw.strip().lower()
-    if not value:
-        return None
-    if value == "parity":
-        return "parity_true"
-    return value
-
-
 class MidPriceResolver:
     """Resolve mid price data using :class:`~tomic.core.pricing.MidService`."""
 
@@ -67,12 +57,10 @@ class MidPriceResolver:
             quote = self._context.quote_for(leg)
         else:
             quote = self._service.quote_option(leg)
-        source = quote.mid_source
-        if source is None:
-            source = _normalized_mid_source(leg.get("mid_source"))
-        if source is None:
-            fallback = _normalized_mid_source(leg.get("mid_fallback"))
-            source = fallback
+        source = normalize_mid_source(
+            quote.mid_source,
+            (quote.mid_fallback, leg.get("mid_source"), leg.get("mid_fallback")),
+        )
         quote_age = quote.quote_age_sec
         if quote_age is None:
             quote_age = safe_float(leg.get("quote_age_sec"))
@@ -159,9 +147,10 @@ def iter_leg_views(
         if quote_age is None:
             quote_age = safe_float(leg.get("quote_age"))
 
-        leg_source = _normalized_mid_source(leg.get("mid_source"))
-        fallback_source = _normalized_mid_source(leg.get("mid_fallback"))
-        mid_source = resolved_source or leg_source or fallback_source
+        mid_source = normalize_mid_source(
+            resolved_source,
+            (leg.get("mid_source"), leg.get("mid_fallback")),
+        )
 
         yield LegView(
             strike=strike,

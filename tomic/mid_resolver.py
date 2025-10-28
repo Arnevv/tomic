@@ -8,6 +8,11 @@ from datetime import datetime
 from typing import Any, Dict, Iterable, Mapping, MutableMapping, Optional
 
 from .config import get as cfg_get
+from .core.pricing.mid_tags import (
+    MID_SOURCE_ORDER,
+    TRUSTED_SOURCES,
+    normalize_mid_source,
+)
 from .helpers.bs_utils import estimate_model_price
 from .helpers.dateutils import dte_between_dates, parse_date
 from .helpers.numeric import safe_float
@@ -16,7 +21,7 @@ from .strategy.reasons import mid_reason_message, reason_from_mid_source
 from .utils import get_leg_right, today
 
 
-MID_SOURCES = ("true", "parity_true", "parity_close", "model", "close")
+MID_SOURCES = MID_SOURCE_ORDER
 
 
 @dataclass(slots=True)
@@ -75,25 +80,25 @@ class MidUsageSummary:
         missing_mid = 0
         leg_count = 0
 
-        def _normalized_source(raw: Any, fallback: Any = None) -> str:
-            value = str(raw).strip().lower() if isinstance(raw, str) else ""
-            if not value:
-                value = str(fallback).strip().lower() if isinstance(fallback, str) else ""
-            if value == "parity":
-                value = "parity_true"
-            return value or "true"
-
         for leg in legs:
             if not isinstance(leg, Mapping):
                 continue
             leg_count += 1
             resolution = resolver.resolution_for(leg) if resolver else None
 
-            res_source = resolution.mid_source if resolution else None
-            res_fallback = resolution.mid_fallback if resolution else None
-            source = _normalized_source(leg.get("mid_source"), leg.get("mid_fallback"))
-            if source == "true" and resolution is not None:
-                source = _normalized_source(res_source, res_fallback)
+            leg_source = normalize_mid_source(leg.get("mid_source"))
+            leg_fallback = normalize_mid_source(leg.get("mid_fallback"))
+            source = leg_source or leg_fallback or "true"
+
+            if resolution is not None:
+                res_source = normalize_mid_source(
+                    resolution.mid_source,
+                    (resolution.mid_fallback,),
+                )
+                if source == "true":
+                    replacement = normalize_mid_source(None, (res_source, "true"))
+                    if replacement:
+                        source = replacement
             totals[source] = totals.get(source, 0) + 1
 
             preview_detail = reason_from_mid_source(source)
@@ -127,7 +132,7 @@ class MidUsageSummary:
             if has_mid_signal and mid_float is None:
                 missing_mid += 1
 
-        for source in MID_SOURCES:
+        for source in MID_SOURCE_ORDER:
             totals.setdefault(source, 0)
 
         if fallback_allowed is None and resolver is not None:
@@ -151,8 +156,11 @@ class MidUsageSummary:
 
     @property
     def fallback_count(self) -> int:
-        trusted = {"true", "parity_true"}
-        return sum(count for source, count in self.fallback_summary.items() if source not in trusted)
+        return sum(
+            count
+            for source, count in self.fallback_summary.items()
+            if source not in TRUSTED_SOURCES
+        )
 
     def as_dict(self) -> dict[str, Any]:
         return {
