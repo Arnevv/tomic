@@ -386,7 +386,7 @@ def generate_short_vertical(
                 build_leg({**short_opt, "spot": spot}, "short"),
                 build_leg({**long_opt, "spot": spot}, "long"),
             ]
-            proposal = StrategyProposal(legs=legs)
+            proposal = StrategyProposal(strategy=str(strategy_name), legs=legs)
             score, reasons = calculate_score(strategy_name, proposal, spot, atr=atr)
             reason_messages = _reason_messages(reasons)
             if score is not None and passes_risk(proposal, min_rr):
@@ -602,7 +602,7 @@ def generate_wing_spread(
                     build_leg({**sp_opt, "spot": spot}, "short"),
                     build_leg({**lp_opt, "spot": spot}, "long"),
                 ]
-                proposal = StrategyProposal(legs=legs)
+                proposal = StrategyProposal(strategy=str(strategy_name), legs=legs)
                 score, reasons = (score_func or _calculate_score)(
                     strategy_name, proposal, spot, atr=atr
                 )
@@ -750,7 +750,7 @@ def generate_wing_spread(
                     build_leg({**sp_opt, "spot": spot}, "short"),
                     build_leg({**lp_opt, "spot": spot}, "long"),
                 ]
-                proposal = StrategyProposal(legs=legs)
+                proposal = StrategyProposal(strategy=str(strategy_name), legs=legs)
                 score, reasons = (score_func or _calculate_score)(
                     strategy_name, proposal, spot, atr=atr
                 )
@@ -986,7 +986,7 @@ def generate_ratio_like(
                 build_leg({**long_opt, "spot": spot}, "long"),
             ]
             legs[1]["position"] = 2
-            proposal = StrategyProposal(legs=legs)
+            proposal = StrategyProposal(strategy=str(strategy_name), legs=legs)
             score, reasons = calculate_score(strategy_name, proposal, spot, atr=atr)
             reason_messages = _reason_messages(reasons)
             if score is not None and passes_risk(proposal, min_rr):

@@ -210,7 +210,7 @@ def _metrics(
     criteria: CriteriaConfig | None = None,
     atr: float | None = None,
 ) -> tuple[Optional[Dict[str, Any]], list[str]]:
-    proposal = StrategyProposal(legs=legs)
+    proposal = StrategyProposal(strategy=str(strategy), legs=legs)
     crit_source = criteria or load_criteria()
     crit_obj = crit_source.model_copy(deep=True)
     # Scenario metrics are used for quick diagnostics rather than trade gating,

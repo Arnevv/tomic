@@ -2,7 +2,10 @@ from bisect import bisect_left
 from datetime import datetime, date, timedelta
 from typing import Callable, Iterable, List, Optional, Tuple, TypeVar, Union
 
-from tomic.utils import today
+def _utils_today() -> date:
+    from tomic.utils import today as _today
+
+    return _today()
 
 
 DateLike = Union[str, date]
@@ -76,7 +79,7 @@ def dte_between_dates(start: DateLike, end: DateLike) -> Optional[int]:
     s = parse_date(start)
     e = parse_date(end)
     if s is None:
-        s = today()
+        s = _utils_today()
     if s is None or e is None:
         return None
     return (e - s).days
@@ -90,7 +93,7 @@ def filter_by_dte(
     """Return items from ``iterable`` with DTE within ``dte_range``."""
 
     min_dte, max_dte = dte_range
-    today_date = today()
+    today_date = _utils_today()
     selected: List[T] = []
     for item in iterable:
         d = dte_between_dates(today_date, key_func(item))
@@ -112,7 +115,7 @@ def normalize_earnings_context(
     ``today_fn`` (defaults to :func:`today`).
     """
 
-    today_value = (today_fn or today)()
+    today_value = (today_fn or _utils_today)()
 
     earnings_date = parse_date(raw_date) if raw_date is not None else None
 

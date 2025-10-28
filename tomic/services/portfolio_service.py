@@ -17,6 +17,7 @@ from ..helpers.dateutils import normalize_earnings_context
 from ..helpers.numeric import safe_float
 from ..logutils import logger
 from ..reporting import to_float, format_dtes
+from ..pricing.margin_engine import compute_margin_and_rr
 from ..services.strategy_pipeline import StrategyProposal
 from ._percent import normalize_percent
 from .market_snapshot_service import ScanRow
@@ -226,6 +227,18 @@ class PortfolioService:
 
     @staticmethod
     def _risk_reward(proposal: StrategyProposal) -> float | None:
+        combo = {
+            "strategy": getattr(proposal, "strategy", None),
+            "legs": getattr(proposal, "legs", []),
+            "margin": getattr(proposal, "margin", None),
+            "max_profit": getattr(proposal, "max_profit", None),
+            "max_loss": getattr(proposal, "max_loss", None),
+            "risk_reward": getattr(proposal, "risk_reward", None),
+            "credit": getattr(proposal, "credit", None),
+        }
+        result = compute_margin_and_rr(combo, None)
+        if result.risk_reward is not None:
+            return result.risk_reward
         profit = to_float(getattr(proposal, "max_profit", None))
         loss = to_float(getattr(proposal, "max_loss", None))
         if profit is None or loss in {None, 0}:
