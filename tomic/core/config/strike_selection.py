@@ -140,11 +140,26 @@ def load_strategy_rules(
 ) -> Mapping[str, Any]:
     """Return resolved rule mapping for ``strategy``.
 
-    The ``_config`` argument is accepted for API compatibility but ignored.
+    Runtime ``_config`` values are merged on top of the cached configuration to
+    honour per-run overrides supplied by callers.
     """
 
     cfg = load()
-    rule = cfg.for_strategy(strategy)
+    data = cfg.for_strategy(strategy).model_dump(exclude_none=True)
+
+    if isinstance(_config, Mapping) and _config:
+        try:
+            runtime_cfg = StrikeSelectionConfig.from_mapping(_config)
+        except Exception:  # pragma: no cover - defensive guard
+            runtime_cfg = None
+        if runtime_cfg is not None:
+            override = runtime_cfg.for_strategy(strategy).model_dump(
+                exclude_none=True
+            )
+            if override:
+                data.update(override)
+
+    rule = StrikeSelectionRule(**data)
     return rule.model_dump(exclude_none=True)
 
 
