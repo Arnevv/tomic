@@ -99,3 +99,38 @@ def test_load_selection_config_with_flat_yaml(tmp_path):
     assert fallback["enabled"] is True
 
 
+def test_load_strategy_rules_honours_runtime_overrides(tmp_path):
+    yaml_path = tmp_path / "strike_selection_rules.yaml"
+    yaml_path.write_text(
+        textwrap.dedent(
+            """
+            default:
+              method: base
+              max_strikes: 2
+            strategies:
+              s1:
+                method: strategy
+                delta_range: [-0.35, -0.2]
+            """
+        )
+    )
+
+    original_path = selection_config._DEFAULT_PATH
+    selection_config._DEFAULT_PATH = yaml_path
+    try:
+        selection_config.reload()
+
+        overrides = {
+            "default": {"max_strikes": 4},
+            "strategies": {"s1": {"delta_range": [-0.4, -0.1]}},
+        }
+
+        rules = selection_config.load_strategy_rules("s1", overrides)
+        assert rules["method"] == "strategy"
+        assert rules["max_strikes"] == 4
+        assert rules["delta_range"] == (-0.4, -0.1)
+    finally:
+        selection_config._DEFAULT_PATH = original_path
+        selection_config.reload()
+
+
