@@ -18,7 +18,7 @@
           },
           {
             "expiry": "20250301",
-            "position": 1,
+            "position": 2,
             "strike": 90.0,
             "type": "put"
           }
@@ -37,7 +37,7 @@
           },
           {
             "expiry": "20250301",
-            "position": 1,
+            "position": 2,
             "strike": 95.0,
             "type": "put"
           }
@@ -56,7 +56,7 @@
           },
           {
             "expiry": "20250301",
-            "position": 1,
+            "position": 2,
             "strike": 95.0,
             "type": "put"
           }
@@ -169,7 +169,7 @@
           },
           {
             "expiry": "20250101",
-            "position": 1,
+            "position": 2,
             "strike": 100.0,
             "type": "call"
           }
@@ -188,7 +188,7 @@
           },
           {
             "expiry": "20250101",
-            "position": 1,
+            "position": 2,
             "strike": 105.0,
             "type": "call"
           }
@@ -207,7 +207,7 @@
           },
           {
             "expiry": "20250101",
-            "position": 1,
+            "position": 2,
             "strike": 105.0,
             "type": "call"
           }
@@ -226,7 +226,7 @@
           },
           {
             "expiry": "20250101",
-            "position": 1,
+            "position": 2,
             "strike": 105.0,
             "type": "call"
           }
@@ -245,7 +245,7 @@
           },
           {
             "expiry": "20250301",
-            "position": 1,
+            "position": 2,
             "strike": 105.0,
             "type": "call"
           }
