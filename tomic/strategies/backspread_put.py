@@ -4,7 +4,7 @@ from typing import Any, Dict, List
 
 from . import StrategyName
 from ..strategy_candidates import StrategyProposal
-from .utils import generate_ratio_like
+from .utils import RatioStrategySpec, ShortLegSpec, generate_ratio_like
 
 
 
@@ -24,10 +24,11 @@ def generate(
         spot,
         atr,
         strategy_name=StrategyName.BACKSPREAD_PUT,
-        option_type="P",
-        delta_range_key="short_put_delta_range",
-        use_expiry_pairs=True,
-        max_pairs=3,
+        spec=RatioStrategySpec(
+            short_leg=ShortLegSpec(option_type="P", delta_range_key="short_put_delta_range"),
+            use_expiry_pairs=True,
+            max_pairs=3,
+        ),
     )
 
 

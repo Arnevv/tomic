@@ -3,13 +3,160 @@
 from __future__ import annotations
 
 import math
-from typing import Sequence, Any, Dict, List, Mapping
+from dataclasses import dataclass
+from typing import Sequence, Any, Dict, List, Mapping, Iterable, Iterator, Tuple, Optional
 
 from tomic.core.data import normalize_chain_records
 from tomic.helpers.dateutils import dte_between_dates, filter_by_dte
 
 from . import StrategyName
 from ..utils import normalize_right, get_leg_right, today
+
+
+@dataclass(slots=True)
+class StrategyContext:
+    """Precomputed context shared by all strategy generators."""
+
+    symbol: str
+    option_chain: List[Dict[str, Any]]
+    config: Dict[str, Any]
+    spot: float
+    atr: float
+    rules: Mapping[str, Any]
+    use_atr: bool
+    min_rr: float
+    prepared_chain: List[Dict[str, Any]]
+
+    def expiries(self) -> List[str]:
+        """Return sorted list of expiries present in the prepared chain."""
+
+        return sorted(
+            {
+                str(record["expiry"])
+                for record in self.prepared_chain
+                if record.get("expiry") is not None
+            }
+        )
+
+
+@dataclass(frozen=True)
+class ShortLegSpec:
+    """Describe how a strategy selects its short leg."""
+
+    option_type: str
+    delta_range_key: str
+
+    @property
+    def normalized_option_type(self) -> str:
+        return self.option_type.upper()
+
+
+@dataclass(frozen=True)
+class WingSpreadSpec:
+    """Parameters specific to wing spread strategies."""
+
+    call_leg: Optional[ShortLegSpec] = None
+    put_leg: Optional[ShortLegSpec] = None
+    centers: Optional[Sequence[float]] = None
+
+
+@dataclass(frozen=True)
+class RatioStrategySpec:
+    """Parameters required for ratio-like strategies."""
+
+    short_leg: ShortLegSpec
+    use_expiry_pairs: bool
+    max_pairs: Optional[int] = None
+
+
+def build_strategy_context(
+    symbol: str,
+    option_chain: List[Dict[str, Any]],
+    config: Dict[str, Any],
+    spot: float,
+    atr: float,
+) -> StrategyContext:
+    """Return a :class:`StrategyContext` with common pre-processing applied."""
+
+    if spot is None:
+        raise ValueError("spot price is required")
+
+    rules = config.get("strike_to_strategy_config", {}) or {}
+    if not isinstance(rules, Mapping):
+        rules = {}
+
+    prepared_chain = prepare_option_chain(option_chain, spot)
+
+    min_rr = float(config.get("min_risk_reward", 0.0))
+    use_atr = bool(rules.get("use_ATR"))
+
+    return StrategyContext(
+        symbol=symbol,
+        option_chain=option_chain,
+        config=config,
+        spot=spot,
+        atr=atr,
+        rules=rules,
+        use_atr=use_atr,
+        min_rr=min_rr,
+        prepared_chain=prepared_chain,
+    )
+
+
+def resolve_delta_range(context: StrategyContext, spec: ShortLegSpec) -> Tuple[float, float] | None:
+    """Return the configured delta range for ``spec`` or ``None`` when invalid."""
+
+    raw = context.rules.get(spec.delta_range_key)
+    if raw is None:
+        return None
+
+    if isinstance(raw, Mapping):
+        raw = list(raw.values())
+
+    try:
+        lower, upper, *_ = list(raw) + [None, None]
+    except TypeError:
+        return None
+
+    if lower is None or upper is None:
+        return None
+
+    try:
+        return float(lower), float(upper)
+    except (TypeError, ValueError):
+        return None
+
+
+def iter_short_candidates(
+    option_chain: Iterable[Dict[str, Any]],
+    *,
+    option_type: str,
+    expiries: Iterable[str] | None = None,
+    delta_range: Tuple[float, float] | None = None,
+) -> Iterator[Dict[str, Any]]:
+    """Yield options matching ``option_type`` and optional filters."""
+
+    leg_right = "call" if option_type.upper() == "C" else "put"
+    expiry_set = set(expiries or []) or None
+
+    for option in option_chain:
+        expiry = option.get("expiry")
+        if expiry is None:
+            continue
+        expiry_str = str(expiry)
+        if expiry_set is not None and expiry_str not in expiry_set:
+            continue
+        if get_leg_right(option) != leg_right:
+            continue
+        if delta_range is not None:
+            delta = option.get("delta")
+            try:
+                delta_value = float(delta)
+            except (TypeError, ValueError):
+                continue
+            if not (delta_range[0] <= delta_value <= delta_range[1]):
+                continue
+        yield option
 
 
 def _reason_messages(reasons: Sequence[Any]) -> list[str]:
@@ -213,15 +360,13 @@ def generate_short_vertical(
     atr: float,
     *,
     strategy_name: "StrategyName",
-    option_type: str,
-    delta_range_key: str,
+    short_leg: ShortLegSpec,
 ) -> tuple[List["StrategyProposal"], list[str]]:
     """Shared generator for short vertical call and put spreads."""
 
     from ..utils import build_leg
     from ..analysis.scoring import calculate_score, passes_risk
     from ..logutils import log_combo_evaluation
-    from ..utils import get_leg_right
     from ..strategy_candidates import (
         StrategyProposal,
         _build_strike_map,
@@ -229,24 +374,16 @@ def generate_short_vertical(
         _find_option,
     )
 
-    rules = config.get("strike_to_strategy_config", {})
-    use_atr = bool(rules.get("use_ATR"))
-    if spot is None:
-        raise ValueError("spot price is required")
-
-    option_chain = prepare_option_chain(option_chain, spot)
-    strike_map = _build_strike_map(option_chain)
+    ctx = build_strategy_context(symbol, option_chain, config, spot, atr)
+    strike_map = _build_strike_map(ctx.prepared_chain)
 
     proposals: List[StrategyProposal] = []
     rejected_reasons: list[str] = []
-    min_rr = float(config.get("min_risk_reward", 0.0))
 
-    target_delta = rules.get("long_leg_distance_points")
-    atr_mult = rules.get("long_leg_atr_multiple")
+    target_delta = ctx.rules.get("long_leg_distance_points")
+    atr_mult = ctx.rules.get("long_leg_atr_multiple")
 
-    leg_right = "call" if option_type == "C" else "put"
-
-    tol_value = rules.get("long_wing_strike_tolerance_percent")
+    tol_value = ctx.rules.get("long_wing_strike_tolerance_percent")
     long_wing_tolerance = float(tol_value) if tol_value is not None else 5.0
 
     strat_label = getattr(strategy_name, "value", strategy_name)
@@ -256,12 +393,17 @@ def generate_short_vertical(
     }:
         logger.info(f"[{strat_label}] short=market/parity, long=fallback ok")
 
+    option_type = short_leg.normalized_option_type
+    delta_range = resolve_delta_range(ctx, short_leg)
+
     if target_delta is not None or atr_mult is not None:
-        candidates = [
-            opt
-            for opt in option_chain
-            if get_leg_right(opt) == leg_right and opt.get("expiry") is not None
-        ]
+        candidates = list(
+            iter_short_candidates(
+                ctx.prepared_chain,
+                option_type=option_type,
+                delta_range=delta_range,
+            )
+        )
         if not candidates:
             rejected_reasons.append("short optie ontbreekt")
         for short_opt in candidates:
@@ -270,9 +412,9 @@ def generate_short_vertical(
                 short_opt,
                 target_delta=target_delta,
                 atr_multiple=atr_mult,
-                atr=atr,
-                use_atr=use_atr,
-                option_chain=option_chain,
+                atr=ctx.atr,
+                use_atr=ctx.use_atr,
+                option_chain=ctx.prepared_chain,
                 expiry=expiry,
                 option_type=option_type,
             )
@@ -336,7 +478,7 @@ def generate_short_vertical(
                 )
                 rejected_reasons.append(reason)
                 continue
-            long_opt = _find_option(option_chain, expiry, long_strike.matched, option_type)
+            long_opt = _find_option(ctx.prepared_chain, expiry, long_strike.matched, option_type)
             if not long_opt:
                 reason = "long optie ontbreekt"
                 log_combo_evaluation(
@@ -350,13 +492,13 @@ def generate_short_vertical(
                 rejected_reasons.append(reason)
                 continue
             legs = [
-                build_leg({**short_opt, "spot": spot}, "short"),
-                build_leg({**long_opt, "spot": spot}, "long"),
+                build_leg({**short_opt, "spot": ctx.spot}, "short"),
+                build_leg({**long_opt, "spot": ctx.spot}, "long"),
             ]
             proposal = StrategyProposal(strategy=str(strategy_name), legs=legs)
-            score, reasons = calculate_score(strategy_name, proposal, spot, atr=atr)
+            score, reasons = calculate_score(strategy_name, proposal, ctx.spot, atr=ctx.atr)
             reason_messages = _reason_messages(reasons)
-            if score is not None and passes_risk(proposal, min_rr):
+            if score is not None and passes_risk(proposal, ctx.min_rr):
                 proposals.append(proposal)
                 log_combo_evaluation(
                     strategy_name,
@@ -399,9 +541,7 @@ def generate_wing_spread(
     atr: float,
     *,
     strategy_name: "StrategyName",
-    centers: Sequence[float] | None = None,
-    call_range: Sequence[float] | None = None,
-    put_range: Sequence[float] | None = None,
+    spec: WingSpreadSpec,
     score_func=None,
 ) -> tuple[List["StrategyProposal"], list[str]]:
     """Generate iron condor or ATM iron butterfly proposals.
@@ -430,25 +570,18 @@ def generate_wing_spread(
         _find_option,
     )
 
-    rules = config.get("strike_to_strategy_config", {})
-    use_atr = bool(rules.get("use_ATR"))
-    if spot is None:
-        raise ValueError("spot price is required")
-
-    option_chain = prepare_option_chain(option_chain, spot)
-    expiries = sorted({str(o.get("expiry")) for o in option_chain if o.get("expiry") is not None})
+    ctx = build_strategy_context(symbol, option_chain, config, spot, atr)
+    expiries = ctx.expiries()
     if not expiries:
         return [], ["geen expiraties beschikbaar"]
-    strike_map = _build_strike_map(option_chain)
+    strike_map = _build_strike_map(ctx.prepared_chain)
 
     proposals: List[StrategyProposal] = []
     rejected_reasons: list[str] = []
-    min_rr = float(config.get("min_risk_reward", 0.0))
-
-    sigma_mult = float(rules.get("wing_sigma_multiple", 1.0))
+    sigma_mult = float(ctx.rules.get("wing_sigma_multiple", 1.0))
     strat_label = getattr(strategy_name, "value", strategy_name)
     long_wing_tolerance = None
-    long_wing_tolerance_val = rules.get("long_wing_strike_tolerance_percent")
+    long_wing_tolerance_val = ctx.rules.get("long_wing_strike_tolerance_percent")
     if long_wing_tolerance_val is not None:
         long_wing_tolerance = float(long_wing_tolerance_val)
     elif strat_label in {
@@ -466,13 +599,16 @@ def generate_wing_spread(
             "[atm_iron_butterfly] short legs: parity ok; long legs: fallback permitted (max 2)"
         )
 
+    call_range = resolve_delta_range(ctx, spec.call_leg) if spec.call_leg else None
+    put_range = resolve_delta_range(ctx, spec.put_leg) if spec.put_leg else None
+
     # Butterfly mode when centers are provided
-    if centers is not None:
+    if spec.centers is not None:
         for expiry in expiries:
             if reached_limit(proposals):
                 break
-            for c_off in centers:
-                center = spot + (c_off * atr if use_atr else c_off)
+            for c_off in spec.centers:
+                center = ctx.spot + (c_off * ctx.atr if ctx.use_atr else c_off)
                 center = _nearest_strike(strike_map, expiry, "C", center).matched
                 desc_base = f"center {center}"
                 if center is None:
@@ -487,8 +623,8 @@ def generate_wing_spread(
                     )
                     rejected_reasons.append(reason)
                     continue
-                sc_opt = _find_option(option_chain, expiry, center, "C")
-                sp_opt = _find_option(option_chain, expiry, center, "P")
+                sc_opt = _find_option(ctx.prepared_chain, expiry, center, "C")
+                sp_opt = _find_option(ctx.prepared_chain, expiry, center, "P")
                 if not sc_opt or not sp_opt:
                     reason = "short opties niet gevonden"
                     log_combo_evaluation(
@@ -504,7 +640,7 @@ def generate_wing_spread(
                     )
                     rejected_reasons.append(reason)
                     continue
-                width = compute_dynamic_width(sc_opt, spot=spot, sigma_multiple=sigma_mult)
+                width = compute_dynamic_width(sc_opt, spot=ctx.spot, sigma_multiple=sigma_mult)
                 if width is None:
                     reason = "breedte niet berekend"
                     log_combo_evaluation(
@@ -551,8 +687,8 @@ def generate_wing_spread(
                     )
                     rejected_reasons.append(reason)
                     continue
-                lc_opt = _find_option(option_chain, expiry, lc_strike, "C")
-                lp_opt = _find_option(option_chain, expiry, lp_strike, "P")
+                lc_opt = _find_option(ctx.prepared_chain, expiry, lc_strike, "C")
+                lp_opt = _find_option(ctx.prepared_chain, expiry, lp_strike, "P")
                 if not all([lc_opt, lp_opt]):
                     reason = "opties niet gevonden"
                     log_combo_evaluation(
@@ -561,17 +697,17 @@ def generate_wing_spread(
                     rejected_reasons.append(reason)
                     continue
                 legs = [
-                    build_leg({**sc_opt, "spot": spot}, "short"),
-                    build_leg({**lc_opt, "spot": spot}, "long"),
-                    build_leg({**sp_opt, "spot": spot}, "short"),
-                    build_leg({**lp_opt, "spot": spot}, "long"),
+                    build_leg({**sc_opt, "spot": ctx.spot}, "short"),
+                    build_leg({**lc_opt, "spot": ctx.spot}, "long"),
+                    build_leg({**sp_opt, "spot": ctx.spot}, "short"),
+                    build_leg({**lp_opt, "spot": ctx.spot}, "long"),
                 ]
                 proposal = StrategyProposal(strategy=str(strategy_name), legs=legs)
                 score, reasons = (score_func or _calculate_score)(
-                    strategy_name, proposal, spot, atr=atr
+                    strategy_name, proposal, ctx.spot, atr=ctx.atr
                 )
                 reason_messages = _reason_messages(reasons)
-                if score is not None and passes_risk(proposal, min_rr):
+                if score is not None and passes_risk(proposal, ctx.min_rr):
                     proposals.append(proposal)
                     log_combo_evaluation(
                         strategy_name,
@@ -601,19 +737,31 @@ def generate_wing_spread(
                 break
     else:
         # Condor mode
+        if call_range is None or put_range is None:
+            rejected_reasons.append("ongeldige delta range")
+            proposals.sort(key=lambda p: p.score or 0, reverse=True)
+            if not proposals:
+                return [], sorted(set(rejected_reasons))
+            return proposals[:MAX_PROPOSALS], sorted(set(rejected_reasons))
         for expiry in expiries:
             if reached_limit(proposals):
                 break
-            shorts_c = [
-                o
-                for o in option_chain
-                if str(o.get("expiry")) == expiry and get_leg_right(o) == "call"
-            ]
-            shorts_p = [
-                o
-                for o in option_chain
-                if str(o.get("expiry")) == expiry and get_leg_right(o) == "put"
-            ]
+            shorts_c = list(
+                iter_short_candidates(
+                    ctx.prepared_chain,
+                    option_type=spec.call_leg.normalized_option_type if spec.call_leg else "C",
+                    expiries=[expiry],
+                    delta_range=call_range,
+                )
+            )
+            shorts_p = list(
+                iter_short_candidates(
+                    ctx.prepared_chain,
+                    option_type=spec.put_leg.normalized_option_type if spec.put_leg else "P",
+                    expiries=[expiry],
+                    delta_range=put_range,
+                )
+            )
             if not shorts_c or not shorts_p:
                 reason = "short optie ontbreekt"
                 log_combo_evaluation(
@@ -643,8 +791,8 @@ def generate_wing_spread(
                     )
                     rejected_reasons.append(reason)
                     continue
-                c_w = compute_dynamic_width(sc_opt, spot=spot, sigma_multiple=sigma_mult)
-                p_w = compute_dynamic_width(sp_opt, spot=spot, sigma_multiple=sigma_mult)
+                c_w = compute_dynamic_width(sc_opt, spot=ctx.spot, sigma_multiple=sigma_mult)
+                p_w = compute_dynamic_width(sp_opt, spot=ctx.spot, sigma_multiple=sigma_mult)
                 if c_w is None or p_w is None:
                     reason = "breedte niet berekend"
                     log_combo_evaluation(
@@ -684,8 +832,8 @@ def generate_wing_spread(
                     )
                     rejected_reasons.append(reason)
                     continue
-                lc_opt = _find_option(option_chain, expiry, lc.matched, "C")
-                lp_opt = _find_option(option_chain, expiry, lp.matched, "P")
+                lc_opt = _find_option(ctx.prepared_chain, expiry, lc.matched, "C")
+                lp_opt = _find_option(ctx.prepared_chain, expiry, lp.matched, "P")
                 if not all([lc_opt, lp_opt]):
                     reason = "opties niet gevonden"
                     log_combo_evaluation(
@@ -699,17 +847,17 @@ def generate_wing_spread(
                     rejected_reasons.append(reason)
                     continue
                 legs = [
-                    build_leg({**sc_opt, "spot": spot}, "short"),
-                    build_leg({**lc_opt, "spot": spot}, "long"),
-                    build_leg({**sp_opt, "spot": spot}, "short"),
-                    build_leg({**lp_opt, "spot": spot}, "long"),
+                    build_leg({**sc_opt, "spot": ctx.spot}, "short"),
+                    build_leg({**lc_opt, "spot": ctx.spot}, "long"),
+                    build_leg({**sp_opt, "spot": ctx.spot}, "short"),
+                    build_leg({**lp_opt, "spot": ctx.spot}, "long"),
                 ]
                 proposal = StrategyProposal(strategy=str(strategy_name), legs=legs)
                 score, reasons = (score_func or _calculate_score)(
-                    strategy_name, proposal, spot, atr=atr
+                    strategy_name, proposal, ctx.spot, atr=ctx.atr
                 )
                 reason_messages = _reason_messages(reasons)
-                if score is not None and passes_risk(proposal, min_rr):
+                if score is not None and passes_risk(proposal, ctx.min_rr):
                     proposals.append(proposal)
                     log_combo_evaluation(
                         strategy_name,
@@ -742,6 +890,7 @@ def generate_wing_spread(
     return proposals[:MAX_PROPOSALS], sorted(set(rejected_reasons))
 
 
+
 def generate_ratio_like(
     symbol: str,
     option_chain: List[Dict[str, Any]],
@@ -750,26 +899,9 @@ def generate_ratio_like(
     atr: float,
     *,
     strategy_name: "StrategyName",
-    option_type: str,
-    delta_range_key: str,
-    use_expiry_pairs: bool,
-    max_pairs: int | None = None,
+    spec: RatioStrategySpec,
 ) -> tuple[List["StrategyProposal"], list[str]]:
-    """Generator shared by ratio-like strategies.
-
-    Parameters
-    ----------
-    strategy_name:
-        Name of the calling strategy.
-    option_type:
-        ``"C"`` for call based strategies or ``"P"`` for put based.
-    delta_range_key:
-        Configuration key locating the short leg delta range.
-    use_expiry_pairs:
-        When ``True`` the long leg is placed in a later expiry.
-    max_pairs:
-        Optional limit of expiry pairs to evaluate.
-    """
+    """Generator shared by ratio-like strategies."""
 
     from ..utils import build_leg
     from ..analysis.scoring import calculate_score, passes_risk
@@ -783,35 +915,31 @@ def generate_ratio_like(
         select_expiry_pairs,
     )
 
-    rules = config.get("strike_to_strategy_config", {})
-    use_atr = bool(rules.get("use_ATR"))
-    if spot is None:
-        raise ValueError("spot price is required")
-
-    option_chain = prepare_option_chain(option_chain, spot)
-    expiries = sorted({str(o.get("expiry")) for o in option_chain if o.get("expiry") is not None})
+    ctx = build_strategy_context(symbol, option_chain, config, spot, atr)
+    expiries = ctx.expiries()
     if not expiries:
         return [], ["geen expiraties beschikbaar"]
-    strike_map = _build_strike_map(option_chain)
+    strike_map = _build_strike_map(ctx.prepared_chain)
 
     proposals: List[StrategyProposal] = []
     rejected_reasons: list[str] = []
-    min_rr = float(config.get("min_risk_reward", 0.0))
 
-    target_delta = rules.get("long_leg_distance_points")
-    atr_mult = rules.get("long_leg_atr_multiple")
+    target_delta = ctx.rules.get("long_leg_distance_points")
+    atr_mult = ctx.rules.get("long_leg_atr_multiple")
 
-    if use_expiry_pairs:
-        min_gap = int(rules.get("expiry_gap_min_days", 0))
+    if spec.use_expiry_pairs:
+        min_gap = int(ctx.rules.get("expiry_gap_min_days", 0))
         pairs = select_expiry_pairs(expiries, min_gap)
-        if max_pairs is not None:
-            pairs = pairs[:max_pairs]
+        if spec.max_pairs is not None:
+            pairs = pairs[: spec.max_pairs]
     else:
         pairs = [(exp, exp) for exp in expiries]
 
+    option_type = spec.short_leg.normalized_option_type
+    delta_range = resolve_delta_range(ctx, spec.short_leg)
     leg_right = "call" if option_type == "C" else "put"
 
-    tol_value = rules.get("long_wing_strike_tolerance_percent")
+    tol_value = ctx.rules.get("long_wing_strike_tolerance_percent")
     long_wing_tolerance = float(tol_value) if tol_value is not None else 5.0
 
     strat_label = getattr(strategy_name, "value", strategy_name)
@@ -825,11 +953,14 @@ def generate_ratio_like(
 
     if target_delta is not None or atr_mult is not None:
         for short_exp, long_exp in pairs:
-            candidates = [
-                opt
-                for opt in option_chain
-                if str(opt.get("expiry")) == short_exp and get_leg_right(opt) == leg_right
-            ]
+            candidates = list(
+                iter_short_candidates(
+                    ctx.prepared_chain,
+                    option_type=option_type,
+                    expiries=[short_exp],
+                    delta_range=delta_range,
+                )
+            )
             if not candidates:
                 reason = "short optie ontbreekt"
                 desc = (
@@ -851,18 +982,16 @@ def generate_ratio_like(
                     short_opt,
                     target_delta=target_delta,
                     atr_multiple=atr_mult,
-                    atr=atr,
-                    use_atr=use_atr,
-                    option_chain=option_chain,
+                    atr=ctx.atr,
+                    use_atr=ctx.use_atr,
+                    option_chain=ctx.prepared_chain,
                     expiry=long_exp,
                     option_type=option_type,
                 )
                 if width is None:
                     reason = "breedte niet berekend"
                     desc = (
-                        f"near {short_exp} far {long_exp}"
-                        if short_exp != long_exp
-                        else f"expiry {short_exp}"
+                        f"target_delta {target_delta}" if target_delta is not None else f"atr_mult {atr_mult}"
                     )
                     log_combo_evaluation(
                         strategy_name,
@@ -881,7 +1010,6 @@ def generate_ratio_like(
                     )
                     rejected_reasons.append(reason)
                     continue
-
                 if option_type == "C":
                     long_strike_target = float(short_opt.get("strike")) + width
                 else:
@@ -893,10 +1021,9 @@ def generate_ratio_like(
                     long_strike_target,
                     tolerance_percent=long_wing_tolerance,
                 )
-                desc_base = (
-                    f"near {short_exp} far {long_exp} " if short_exp != long_exp else ""
+                desc = (
+                    f"near {short_exp} far {long_exp} short {short_opt.get('strike')} long {long_strike.matched}"
                 )
-                desc = f"{desc_base}short {short_opt.get('strike')} long {long_strike.matched}"
                 legs_info = [
                     {
                         "expiry": short_exp,
@@ -908,56 +1035,56 @@ def generate_ratio_like(
                         "expiry": long_exp,
                         "strike": long_strike.matched,
                         "type": option_type,
-                        "position": 2,
+                        "position": 1,
                     },
                 ]
                 if not long_strike.matched:
                     reason = "long strike niet gevonden"
                     log_combo_evaluation(
-                        strategy_name, desc, None, "reject", reason, legs=legs_info
+                        strategy_name,
+                        desc,
+                        None,
+                        "reject",
+                        reason,
+                        legs=legs_info,
                     )
                     rejected_reasons.append(reason)
                     continue
-
-                long_opt = _find_option(option_chain, long_exp, long_strike.matched, option_type)
+                long_opt = _find_option(
+                    ctx.prepared_chain,
+                    long_exp,
+                    long_strike.matched,
+                    option_type,
+                )
                 if not long_opt:
                     reason = "long optie ontbreekt"
                     log_combo_evaluation(
-                        strategy_name, desc, None, "reject", reason, legs=legs_info
+                        strategy_name,
+                        desc,
+                        None,
+                        "reject",
+                        reason,
+                        legs=legs_info,
                     )
                     rejected_reasons.append(reason)
                     continue
-
                 legs = [
-                    build_leg({**short_opt, "spot": spot}, "short"),
-                    build_leg({**long_opt, "spot": spot}, "long"),
+                    build_leg({**short_opt, "spot": ctx.spot}, "short"),
+                    build_leg({**long_opt, "spot": ctx.spot}, "long"),
                 ]
-                legs[1]["position"] = 2
                 proposal = StrategyProposal(strategy=str(strategy_name), legs=legs)
-                score, reasons = calculate_score(strategy_name, proposal, spot, atr=atr)
+                score, reasons = calculate_score(strategy_name, proposal, ctx.spot, atr=ctx.atr)
                 reason_messages = _reason_messages(reasons)
-                if score is not None and passes_risk(proposal, min_rr):
-                    if _validate_ratio(strategy_name.value, legs, proposal.credit or 0.0):
-                        proposals.append(proposal)
-                        log_combo_evaluation(
-                            strategy_name,
-                            desc,
-                            proposal.__dict__,
-                            "pass",
-                            "criteria",
-                            legs=legs,
-                        )
-                    else:
-                        reason = "verkeerde ratio"
-                        log_combo_evaluation(
-                            strategy_name,
-                            desc,
-                            proposal.__dict__,
-                            "reject",
-                            reason,
-                            legs=legs,
-                        )
-                        rejected_reasons.append(reason)
+                if score is not None and passes_risk(proposal, ctx.min_rr):
+                    proposals.append(proposal)
+                    log_combo_evaluation(
+                        strategy_name,
+                        desc,
+                        proposal.__dict__,
+                        "pass",
+                        "criteria",
+                        legs=legs,
+                    )
                 else:
                     reason = "; ".join(reason_messages) if reason_messages else "risk/reward onvoldoende"
                     log_combo_evaluation(
@@ -978,6 +1105,106 @@ def generate_ratio_like(
                 break
     else:
         rejected_reasons.append("ongeldige delta range")
+
+    for short_exp, long_exp in pairs:
+        if reached_limit(proposals):
+            break
+        candidates = list(
+            iter_short_candidates(
+                ctx.prepared_chain,
+                option_type=option_type,
+                expiries=[short_exp],
+                delta_range=delta_range,
+            )
+        )
+        if not candidates:
+            reason = "short optie ontbreekt"
+            desc = (
+                f"near {short_exp} far {long_exp}" if short_exp != long_exp else f"expiry {short_exp}"
+            )
+            log_combo_evaluation(
+                strategy_name,
+                desc,
+                None,
+                "reject",
+                reason,
+                legs=[{"expiry": short_exp}],
+            )
+            rejected_reasons.append(reason)
+            continue
+        for short_opt in candidates:
+            long_opt = _find_option(
+                ctx.prepared_chain,
+                long_exp,
+                short_opt.get("strike"),
+                option_type,
+            )
+            if not long_opt:
+                reason = "long optie ontbreekt"
+                log_combo_evaluation(
+                    strategy_name,
+                    "same strike",
+                    None,
+                    "reject",
+                    reason,
+                    legs=[
+                        {
+                            "expiry": short_exp,
+                            "strike": short_opt.get("strike"),
+                            "type": option_type,
+                            "position": -1,
+                        }
+                    ],
+                )
+                rejected_reasons.append(reason)
+                continue
+            legs = [
+                build_leg({**short_opt, "spot": ctx.spot}, "short"),
+                build_leg({**long_opt, "spot": ctx.spot}, "long"),
+            ]
+            proposal = StrategyProposal(strategy=str(strategy_name), legs=legs)
+            score, reasons = calculate_score(strategy_name, proposal, ctx.spot, atr=ctx.atr)
+            reason_messages = _reason_messages(reasons)
+            if spec.use_expiry_pairs and proposal.credit is not None:
+                strategy_label = getattr(strategy_name, "value", str(strategy_name))
+                if not _validate_ratio(strategy_label, proposal.legs, float(proposal.credit)):
+                    reason = "ratio ongeldig"
+                    log_combo_evaluation(
+                        strategy_name,
+                        "same strike",
+                        proposal.__dict__,
+                        "reject",
+                        reason,
+                        legs=legs,
+                    )
+                    rejected_reasons.append(reason)
+                    continue
+            if score is not None and passes_risk(proposal, ctx.min_rr):
+                proposals.append(proposal)
+                log_combo_evaluation(
+                    strategy_name,
+                    "same strike",
+                    proposal.__dict__,
+                    "pass",
+                    "criteria",
+                    legs=legs,
+                )
+            else:
+                reason = "; ".join(reason_messages) if reason_messages else "risk/reward onvoldoende"
+                log_combo_evaluation(
+                    strategy_name,
+                    "same strike",
+                    proposal.__dict__,
+                    "reject",
+                    reason,
+                    legs=legs,
+                )
+                if reason_messages:
+                    rejected_reasons.extend(reason_messages)
+                else:
+                    rejected_reasons.append("risk/reward onvoldoende")
+            if reached_limit(proposals):
+                break
 
     proposals.sort(key=lambda p: p.score or 0, reverse=True)
     if not proposals:

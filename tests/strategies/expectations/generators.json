@@ -1,0 +1,366 @@
+{
+  "atm_iron_butterfly": {
+    "proposals": [],
+    "reasons": [
+      "short opties niet gevonden"
+    ]
+  },
+  "backspread_put": {
+    "proposals": [
+      {
+        "credit": 1.0,
+        "legs": [
+          {
+            "expiry": "20250101",
+            "position": -1,
+            "strike": 90.0,
+            "type": "put"
+          },
+          {
+            "expiry": "20250301",
+            "position": 1,
+            "strike": 90.0,
+            "type": "put"
+          }
+        ],
+        "score": 1.0,
+        "strategy": "backspread_put"
+      },
+      {
+        "credit": 1.0,
+        "legs": [
+          {
+            "expiry": "20250101",
+            "position": -1,
+            "strike": 95.0,
+            "type": "put"
+          },
+          {
+            "expiry": "20250301",
+            "position": 1,
+            "strike": 95.0,
+            "type": "put"
+          }
+        ],
+        "score": 1.0,
+        "strategy": "backspread_put"
+      },
+      {
+        "credit": 1.0,
+        "legs": [
+          {
+            "expiry": "20250101",
+            "position": -1,
+            "strike": 95.0,
+            "type": "put"
+          },
+          {
+            "expiry": "20250301",
+            "position": 1,
+            "strike": 95.0,
+            "type": "put"
+          }
+        ],
+        "score": 1.0,
+        "strategy": "backspread_put"
+      }
+    ],
+    "reasons": [
+      "long strike niet gevonden"
+    ]
+  },
+  "calendar": {
+    "proposals": [
+      {
+        "credit": 1.0,
+        "legs": [
+          {
+            "expiry": "20250101",
+            "position": -1,
+            "strike": 100.0,
+            "type": "call"
+          },
+          {
+            "expiry": "20250301",
+            "position": 1,
+            "strike": 100.0,
+            "type": "call"
+          }
+        ],
+        "score": 1.0,
+        "strategy": "calendar"
+      }
+    ],
+    "reasons": []
+  },
+  "iron_condor": {
+    "proposals": [],
+    "reasons": [
+      "ontbrekende strikes"
+    ]
+  },
+  "naked_put": {
+    "proposals": [
+      {
+        "credit": 1.0,
+        "legs": [
+          {
+            "expiry": "20250101",
+            "position": -1,
+            "strike": 90.0,
+            "type": "put"
+          }
+        ],
+        "score": 1.0,
+        "strategy": "naked_put"
+      },
+      {
+        "credit": 1.0,
+        "legs": [
+          {
+            "expiry": "20250101",
+            "position": -1,
+            "strike": 95.0,
+            "type": "put"
+          }
+        ],
+        "score": 1.0,
+        "strategy": "naked_put"
+      },
+      {
+        "credit": 1.0,
+        "legs": [
+          {
+            "expiry": "20250301",
+            "position": -1,
+            "strike": 90.0,
+            "type": "put"
+          }
+        ],
+        "score": 1.0,
+        "strategy": "naked_put"
+      },
+      {
+        "credit": 1.0,
+        "legs": [
+          {
+            "expiry": "20250301",
+            "position": -1,
+            "strike": 95.0,
+            "type": "put"
+          }
+        ],
+        "score": 1.0,
+        "strategy": "naked_put"
+      }
+    ],
+    "reasons": []
+  },
+  "ratio_spread": {
+    "proposals": [
+      {
+        "credit": 1.0,
+        "legs": [
+          {
+            "expiry": "20250101",
+            "position": -1,
+            "strike": 100.0,
+            "type": "call"
+          },
+          {
+            "expiry": "20250101",
+            "position": 1,
+            "strike": 100.0,
+            "type": "call"
+          }
+        ],
+        "score": 1.0,
+        "strategy": "ratio_spread"
+      },
+      {
+        "credit": 1.0,
+        "legs": [
+          {
+            "expiry": "20250101",
+            "position": -1,
+            "strike": 100.0,
+            "type": "call"
+          },
+          {
+            "expiry": "20250101",
+            "position": 1,
+            "strike": 105.0,
+            "type": "call"
+          }
+        ],
+        "score": 1.0,
+        "strategy": "ratio_spread"
+      },
+      {
+        "credit": 1.0,
+        "legs": [
+          {
+            "expiry": "20250101",
+            "position": -1,
+            "strike": 105.0,
+            "type": "call"
+          },
+          {
+            "expiry": "20250101",
+            "position": 1,
+            "strike": 105.0,
+            "type": "call"
+          }
+        ],
+        "score": 1.0,
+        "strategy": "ratio_spread"
+      },
+      {
+        "credit": 1.0,
+        "legs": [
+          {
+            "expiry": "20250101",
+            "position": -1,
+            "strike": 105.0,
+            "type": "call"
+          },
+          {
+            "expiry": "20250101",
+            "position": 1,
+            "strike": 105.0,
+            "type": "call"
+          }
+        ],
+        "score": 1.0,
+        "strategy": "ratio_spread"
+      },
+      {
+        "credit": 1.0,
+        "legs": [
+          {
+            "expiry": "20250301",
+            "position": -1,
+            "strike": 100.0,
+            "type": "call"
+          },
+          {
+            "expiry": "20250301",
+            "position": 1,
+            "strike": 105.0,
+            "type": "call"
+          }
+        ],
+        "score": 1.0,
+        "strategy": "ratio_spread"
+      }
+    ],
+    "reasons": []
+  },
+  "short_call_spread": {
+    "proposals": [
+      {
+        "credit": 1.0,
+        "legs": [
+          {
+            "expiry": "20250101",
+            "position": -1,
+            "strike": 100.0,
+            "type": "call"
+          },
+          {
+            "expiry": "20250101",
+            "position": 1,
+            "strike": 105.0,
+            "type": "call"
+          }
+        ],
+        "score": 1.0,
+        "strategy": "short_call_spread"
+      },
+      {
+        "credit": 1.0,
+        "legs": [
+          {
+            "expiry": "20250101",
+            "position": -1,
+            "strike": 105.0,
+            "type": "call"
+          },
+          {
+            "expiry": "20250101",
+            "position": 1,
+            "strike": 105.0,
+            "type": "call"
+          }
+        ],
+        "score": 1.0,
+        "strategy": "short_call_spread"
+      },
+      {
+        "credit": 1.0,
+        "legs": [
+          {
+            "expiry": "20250301",
+            "position": -1,
+            "strike": 100.0,
+            "type": "call"
+          },
+          {
+            "expiry": "20250301",
+            "position": 1,
+            "strike": 105.0,
+            "type": "call"
+          }
+        ],
+        "score": 1.0,
+        "strategy": "short_call_spread"
+      }
+    ],
+    "reasons": []
+  },
+  "short_put_spread": {
+    "proposals": [
+      {
+        "credit": 1.0,
+        "legs": [
+          {
+            "expiry": "20250101",
+            "position": -1,
+            "strike": 95.0,
+            "type": "put"
+          },
+          {
+            "expiry": "20250101",
+            "position": 1,
+            "strike": 90.0,
+            "type": "put"
+          }
+        ],
+        "score": 1.0,
+        "strategy": "short_put_spread"
+      },
+      {
+        "credit": 1.0,
+        "legs": [
+          {
+            "expiry": "20250301",
+            "position": -1,
+            "strike": 95.0,
+            "type": "put"
+          },
+          {
+            "expiry": "20250301",
+            "position": 1,
+            "strike": 90.0,
+            "type": "put"
+          }
+        ],
+        "score": 1.0,
+        "strategy": "short_put_spread"
+      }
+    ],
+    "reasons": [
+      "long strike niet gevonden"
+    ]
+  }
+}

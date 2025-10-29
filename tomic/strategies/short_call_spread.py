@@ -4,7 +4,7 @@ from typing import Any, Dict, List
 
 from . import StrategyName
 from ..strategy_candidates import StrategyProposal
-from .utils import generate_short_vertical
+from .utils import ShortLegSpec, generate_short_vertical
 
 
 def generate(
@@ -23,8 +23,7 @@ def generate(
         spot,
         atr,
         strategy_name=StrategyName.SHORT_CALL_SPREAD,
-        option_type="C",
-        delta_range_key="short_call_delta_range",
+        short_leg=ShortLegSpec(option_type="C", delta_range_key="short_call_delta_range"),
     )
 
 
