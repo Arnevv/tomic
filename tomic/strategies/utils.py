@@ -5,8 +5,7 @@ from __future__ import annotations
 import math
 from typing import Sequence, Any, Dict, List, Mapping
 
-import pandas as pd
-from tomic.helpers.put_call_parity import fill_missing_mid_with_parity
+from tomic.core.data import normalize_chain_records
 from tomic.helpers.dateutils import dte_between_dates, filter_by_dte
 
 from . import StrategyName
@@ -189,19 +188,11 @@ def compute_dynamic_width(
 
 
 def prepare_option_chain(option_chain: List[Dict[str, Any]], spot: float) -> List[Dict[str, Any]]:
-    """Return ``option_chain`` as list of dicts with parity-filled mids."""
+    """Return ``option_chain`` with normalized records and parity mids."""
 
-    if hasattr(pd, "DataFrame") and isinstance(pd.DataFrame, type):
-        try:
-            df_chain = pd.DataFrame(option_chain)
-        except TypeError:
-            return option_chain
-        if spot > 0:
-            if "expiration" not in df_chain.columns and "expiry" in df_chain.columns:
-                df_chain["expiration"] = df_chain["expiry"]
-            df_chain = fill_missing_mid_with_parity(df_chain, spot=spot)
-            option_chain = df_chain.to_dict(orient="records")
-    return option_chain
+    if spot <= 0:
+        return normalize_chain_records(option_chain)
+    return normalize_chain_records(option_chain, spot_price=spot, apply_parity=True)
 
 
 def filter_expiries_by_dte(
