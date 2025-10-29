@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass
 from enum import Enum
 from typing import Any, Mapping, MutableMapping, Sequence
@@ -109,7 +110,21 @@ def _infer_net_credit(obj: Any, legs: Sequence[Mapping[str, Any]]) -> float | No
     return credit / 100.0
 
 
-def _merge_config(profile: StrategyProfile, config: Mapping[str, Any] | None) -> tuple[float | None, RiskModel]:
+def _coerce_min_rr(value: float | None) -> float:
+    """Return a non-negative risk/reward threshold for ``value``."""
+
+    if value is None:
+        return 0.0
+    try:
+        numeric = float(value)
+    except (TypeError, ValueError):
+        return 0.0
+    if math.isnan(numeric) or numeric <= 0:
+        return 0.0
+    return numeric
+
+
+def _merge_config(profile: StrategyProfile, config: Mapping[str, Any] | None) -> tuple[float, RiskModel]:
     min_rr = profile.min_risk_reward
     risk_model = profile.risk_model
     if config:
@@ -122,7 +137,7 @@ def _merge_config(profile: StrategyProfile, config: Mapping[str, Any] | None) ->
                 risk_model = RiskModel(str(cfg_model))
             except ValueError:  # pragma: no cover - defensive
                 pass
-    return min_rr, risk_model
+    return _coerce_min_rr(min_rr), risk_model
 
 
 class MarginEngine:
@@ -237,8 +252,8 @@ class MarginEngine:
             except Exception:  # pragma: no cover - defensive
                 risk_reward = None
 
-        meets_min = None
-        if min_rr is not None and min_rr > 0:
+        meets_min = True
+        if min_rr > 0:
             if risk_reward is None:
                 meets_min = False
             else:

@@ -365,7 +365,7 @@ def generate_short_vertical(
     """Shared generator for short vertical call and put spreads."""
 
     from ..utils import build_leg
-    from ..analysis.scoring import calculate_score, passes_risk
+    from ..analysis.scoring import calculate_score
     from ..logutils import log_combo_evaluation
     from ..strategy_candidates import (
         StrategyProposal,
@@ -498,7 +498,7 @@ def generate_short_vertical(
             proposal = StrategyProposal(strategy=str(strategy_name), legs=legs)
             score, reasons = calculate_score(strategy_name, proposal, ctx.spot, atr=ctx.atr)
             reason_messages = _reason_messages(reasons)
-            if score is not None and passes_risk(proposal, ctx.min_rr):
+            if score is not None:
                 proposals.append(proposal)
                 log_combo_evaluation(
                     strategy_name,
@@ -561,7 +561,7 @@ def generate_wing_spread(
 
     from itertools import islice
     from ..utils import build_leg
-    from ..analysis.scoring import calculate_score as _calculate_score, passes_risk
+    from ..analysis.scoring import calculate_score as _calculate_score
     from ..logutils import log_combo_evaluation
     from ..strategy_candidates import (
         StrategyProposal,
@@ -707,7 +707,7 @@ def generate_wing_spread(
                     strategy_name, proposal, ctx.spot, atr=ctx.atr
                 )
                 reason_messages = _reason_messages(reasons)
-                if score is not None and passes_risk(proposal, ctx.min_rr):
+                if score is not None:
                     proposals.append(proposal)
                     log_combo_evaluation(
                         strategy_name,
@@ -857,7 +857,7 @@ def generate_wing_spread(
                     strategy_name, proposal, ctx.spot, atr=ctx.atr
                 )
                 reason_messages = _reason_messages(reasons)
-                if score is not None and passes_risk(proposal, ctx.min_rr):
+                if score is not None:
                     proposals.append(proposal)
                     log_combo_evaluation(
                         strategy_name,
@@ -904,7 +904,7 @@ def generate_ratio_like(
     """Generator shared by ratio-like strategies."""
 
     from ..utils import build_leg
-    from ..analysis.scoring import calculate_score, passes_risk
+    from ..analysis.scoring import calculate_score
     from ..logutils import log_combo_evaluation
     from ..strategy_candidates import (
         StrategyProposal,
@@ -1075,7 +1075,7 @@ def generate_ratio_like(
                 proposal = StrategyProposal(strategy=str(strategy_name), legs=legs)
                 score, reasons = calculate_score(strategy_name, proposal, ctx.spot, atr=ctx.atr)
                 reason_messages = _reason_messages(reasons)
-                if score is not None and passes_risk(proposal, ctx.min_rr):
+                if score is not None:
                     proposals.append(proposal)
                     log_combo_evaluation(
                         strategy_name,
@@ -1179,7 +1179,7 @@ def generate_ratio_like(
                     )
                     rejected_reasons.append(reason)
                     continue
-            if score is not None and passes_risk(proposal, ctx.min_rr):
+            if score is not None:
                 proposals.append(proposal)
                 log_combo_evaluation(
                     strategy_name,

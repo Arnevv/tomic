@@ -10,7 +10,7 @@ from .utils import (
     reached_limit,
 )
 from ..utils import build_leg
-from ..analysis.scoring import calculate_score, passes_risk
+from ..analysis.scoring import calculate_score
 from ..logutils import log_combo_evaluation, logger
 from ..criteria import RULES
 from ..strategy_candidates import (
@@ -37,7 +37,6 @@ def generate(
 
     proposals: List[StrategyProposal] = []
     rejected_reasons: list[str] = []
-    min_rr = ctx.min_rr
     min_gap = int(ctx.rules.get("expiry_gap_min_days", 0))
     base_strikes = ctx.rules.get("base_strikes_relative_to_spot", [])
     dte_range = ctx.rules.get("dte_range")
@@ -138,18 +137,6 @@ def generate(
                             invalid_nears.add(near)
                     else:
                         local_reasons.append("metrics niet berekend")
-                    continue
-                if not passes_risk(proposal, ctx.min_rr):
-                    reason = "risk/reward onvoldoende"
-                    log_combo_evaluation(
-                        StrategyName.CALENDAR,
-                        desc,
-                        proposal.__dict__,
-                        "reject",
-                        reason,
-                        legs=legs,
-                    )
-                    local_reasons.append(reason)
                     continue
                 local_props.append(proposal)
                 log_combo_evaluation(
