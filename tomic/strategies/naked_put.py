@@ -11,7 +11,7 @@ from .utils import (
     resolve_delta_range,
 )
 from ..utils import build_leg
-from ..analysis.scoring import calculate_score, passes_risk
+from ..analysis.scoring import calculate_score
 from ..logutils import log_combo_evaluation
 from ..strategy_candidates import (
     StrategyProposal,
@@ -60,7 +60,7 @@ def generate(
                     StrategyName.NAKED_PUT, proposal, ctx.spot, atr=ctx.atr
                 )
                 reason_messages = [detail.message for detail in reasons]
-                if score is not None and passes_risk(proposal, ctx.min_rr):
+                if score is not None:
                     proposals.append(proposal)
                     log_combo_evaluation(
                         StrategyName.NAKED_PUT,

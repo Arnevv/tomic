@@ -154,8 +154,9 @@ User/CLI → select symbol & strategy
   `criteria.yaml`. Both feed into `calculate_score()` before any scoring occurs.【F:tomic/analysis/scoring.py†L180-L233】
 * **Risk/reward checks.** `calculate_score()` also verifies credit-positive
   strategies, computes margin, ROM, EV and compares risk/reward against strategy
-  thresholds. `passes_risk()` re-checks `max_profit / |max_loss|` against
-  strategy-specific minimums before the CLI presents a proposal.【F:tomic/analysis/scoring.py†L320-L420】
+  thresholds. The shared margin engine now decides whether proposals satisfy the
+  configured minimum risk/reward once, exposing the result via
+  `meets_min_risk_reward` so every caller observes the same decision.【F:tomic/analysis/scoring.py†L781-L879】
 * **Rejection reasons.** When a combination is rejected, reasons are collected at
   each stage:
   * Strike filtering logs per-filter reasons via `StrikeSelector`.

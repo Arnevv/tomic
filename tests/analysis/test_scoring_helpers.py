@@ -94,8 +94,8 @@ def test_validate_leg_metrics_long_missing_allowed(monkeypatch):
         max_profit=200.0,
         max_loss=-50.0,
         risk_reward=4.0,
-        min_risk_reward=None,
-        meets_min_risk_reward=None,
+        min_risk_reward=0.0,
+        meets_min_risk_reward=True,
     )
     monkeypatch.setattr(scoring, "compute_margin_and_rr", lambda *a, **k: margin_result)
     monkeypatch.setattr(scoring, "calculate_rom", lambda mp, margin: 10.0)
@@ -152,8 +152,8 @@ def test_compute_proposal_metrics(monkeypatch):
         max_profit=200.0,
         max_loss=-100.0,
         risk_reward=2.0,
-        min_risk_reward=None,
-        meets_min_risk_reward=None,
+        min_risk_reward=0.0,
+        meets_min_risk_reward=True,
     )
     monkeypatch.setattr(scoring, "compute_margin_and_rr", lambda *a, **k: margin_result)
     monkeypatch.setattr(scoring, "calculate_rom", lambda mp, margin: 10.0)
@@ -221,8 +221,8 @@ def test_calculate_score_additional_metrics(monkeypatch):
         max_profit=200.0,
         max_loss=-50.0,
         risk_reward=4.0,
-        min_risk_reward=None,
-        meets_min_risk_reward=None,
+        min_risk_reward=0.0,
+        meets_min_risk_reward=True,
     )
     monkeypatch.setattr(scoring, "compute_margin_and_rr", lambda *a, **k: margin_result)
     monkeypatch.setattr(scoring, "calculate_rom", lambda mp, margin: 10.0)
@@ -296,8 +296,8 @@ def test_compute_proposal_metrics_rejects_low_risk_reward(monkeypatch):
         max_profit=100.0,
         max_loss=-400.0,
         risk_reward=0.25,
-        min_risk_reward=None,
-        meets_min_risk_reward=None,
+        min_risk_reward=1.0,
+        meets_min_risk_reward=False,
     )
     monkeypatch.setattr(scoring, "compute_margin_and_rr", lambda *a, **k: margin_result)
     monkeypatch.setattr(scoring, "calculate_rom", lambda mp, margin: 2.0)

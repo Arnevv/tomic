@@ -70,6 +70,29 @@ def _safe_float(value: Any) -> float | None:
     return val
 
 
+def resolve_min_risk_reward(
+    strategy_cfg: Mapping[str, Any], criteria: CriteriaConfig | None
+) -> float:
+    """Determine the effective minimum risk/reward threshold."""
+
+    min_rr = _safe_float(strategy_cfg.get("min_risk_reward"))
+
+    crit_value: float | None = None
+    if criteria is not None:
+        try:
+            crit_value = _safe_float(criteria.strategy.acceptance.min_risk_reward)
+        except AttributeError:  # pragma: no cover - defensive
+            crit_value = None
+    if crit_value is not None:
+        min_rr = crit_value
+
+    if min_rr is None:
+        fallback = _safe_float(getattr(RULES.strategy.acceptance, "min_risk_reward", None))
+        min_rr = fallback if fallback is not None else 0.0
+
+    return max(0.0, float(min_rr))
+
+
 def _clamp(value: float, minimum: float = 0.0, maximum: float = 1.0) -> float:
     return max(minimum, min(maximum, value))
 
@@ -782,13 +805,17 @@ def compute_proposal_metrics(
     proposal.scenario_info = None
 
     strategy_cfg = _resolve_strategy_config(strategy_name)
+    min_rr_threshold = resolve_min_risk_reward(strategy_cfg, crit)
+    engine_config = dict(strategy_cfg)
+    engine_config["min_risk_reward"] = min_rr_threshold
+
     computation = compute_margin_and_rr(
         {
             "strategy": strategy_name,
             "legs": legs,
             "net_cashflow": net_credit,
         },
-        config=strategy_cfg,
+        config=engine_config,
     )
     margin = computation.margin
     proposal.max_profit = computation.max_profit
@@ -835,22 +862,9 @@ def compute_proposal_metrics(
         if risk > 0:
             proposal.risk_reward = profit_val / risk
 
-    min_rr = _safe_float(strategy_cfg.get("min_risk_reward"))
-    if crit is not None:
-        try:
-            crit_value = float(crit.strategy.acceptance.min_risk_reward)
-        except (TypeError, ValueError):
-            crit_value = None
-        else:
-            min_rr = crit_value
-    if min_rr is None:
-        try:
-            min_rr = float(RULES.strategy.acceptance.min_risk_reward)
-        except (TypeError, ValueError):  # pragma: no cover - defensive
-            min_rr = 0.0
-    if min_rr is None:
-        min_rr = 0.0
-    if min_rr > 0 and (proposal.risk_reward is None or proposal.risk_reward < min_rr):
+    min_rr = computation.min_risk_reward or 0.0
+    meets_min = bool(computation.meets_min_risk_reward)
+    if not meets_min:
         message = (
             f"risk/reward onvoldoende ({proposal.risk_reward:.2f} < {min_rr:.2f})"
             if proposal.risk_reward is not None
@@ -1041,7 +1055,8 @@ def calculate_score(
 
 def passes_risk(proposal: "StrategyProposal" | Mapping[str, Any], min_rr: float) -> bool:
     """Return True if proposal satisfies configured risk/reward."""
-    if min_rr <= 0:
+    threshold = _safe_float(min_rr) or 0.0
+    if threshold <= 0:
         return True
     strategy = None
     if isinstance(proposal, Mapping):
@@ -1057,10 +1072,13 @@ def passes_risk(proposal: "StrategyProposal" | Mapping[str, Any], min_rr: float)
         "risk_reward": proposal.get("risk_reward") if isinstance(proposal, Mapping) else getattr(proposal, "risk_reward", None),
         "credit": proposal.get("credit") if isinstance(proposal, Mapping) else getattr(proposal, "credit", None),
     }
-    result = compute_margin_and_rr(combo, {"min_risk_reward": min_rr})
-    if result.risk_reward is None:
-        return False
-    return result.risk_reward >= min_rr
+    result = compute_margin_and_rr(combo, {"min_risk_reward": threshold})
+    return bool(result.meets_min_risk_reward)
 
 
-__all__ = ["calculate_score", "calculate_breakevens", "passes_risk"]
+__all__ = [
+    "calculate_score",
+    "calculate_breakevens",
+    "passes_risk",
+    "resolve_min_risk_reward",
+]
