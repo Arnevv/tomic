@@ -4,9 +4,9 @@ from typing import Any, Dict, List
 # Calendar strategy generator supporting calls and puts.
 from . import StrategyName
 from .utils import (
-    prepare_option_chain,
-    filter_expiries_by_dte,
     MAX_PROPOSALS,
+    build_strategy_context,
+    filter_expiries_by_dte,
     reached_limit,
 )
 from ..utils import build_leg
@@ -28,21 +28,19 @@ def generate(
     spot: float,
     atr: float,
 ) -> tuple[List[StrategyProposal], list[str]]:
-    rules = config.get("strike_to_strategy_config", {})
-    use_atr = bool(rules.get("use_ATR"))
-    expiries = sorted({str(o.get("expiry")) for o in option_chain})
+    ctx = build_strategy_context(symbol, option_chain, config, spot, atr)
+    expiries = ctx.expiries()
     if not expiries:
         return [], ["geen expiraties beschikbaar"]
-    if spot is None:
-        raise ValueError("spot price is required")
-    option_chain = prepare_option_chain(option_chain, spot)
+
+    option_chain = ctx.prepared_chain
 
     proposals: List[StrategyProposal] = []
     rejected_reasons: list[str] = []
-    min_rr = float(config.get("min_risk_reward", 0.0))
-    min_gap = int(rules.get("expiry_gap_min_days", 0))
-    base_strikes = rules.get("base_strikes_relative_to_spot", [])
-    dte_range = rules.get("dte_range")
+    min_rr = ctx.min_rr
+    min_gap = int(ctx.rules.get("expiry_gap_min_days", 0))
+    base_strikes = ctx.rules.get("base_strikes_relative_to_spot", [])
+    dte_range = ctx.rules.get("dte_range")
 
     preferred = str(config.get("preferred_option_type", "C")).upper()[0]
     order = [preferred] + (["P"] if preferred == "C" else ["C"])
@@ -54,7 +52,7 @@ def generate(
         local_reasons: list[str] = []
         by_strike = _options_by_strike(option_chain, option_type)
         for off in base_strikes:
-            strike_target = spot + (off * atr if use_atr else off)
+            strike_target = ctx.spot + (off * ctx.atr if ctx.use_atr else off)
             desc_base = f"{option_type} target {strike_target}"
             if not by_strike:
                 reason = "geen strikes beschikbaar"
@@ -116,12 +114,12 @@ def generate(
                     local_reasons.append(reason)
                     continue
                 legs = [
-                    build_leg({**short_opt, "spot": spot}, "short"),
-                    build_leg({**long_opt, "spot": spot}, "long"),
+                    build_leg({**short_opt, "spot": ctx.spot}, "short"),
+                    build_leg({**long_opt, "spot": ctx.spot}, "long"),
                 ]
                 proposal = StrategyProposal(strategy=str(StrategyName.CALENDAR), legs=legs)
                 score, reasons = calculate_score(
-                    StrategyName.CALENDAR, proposal, spot, atr=atr
+                    StrategyName.CALENDAR, proposal, ctx.spot, atr=ctx.atr
                 )
                 reason_messages = [detail.message for detail in reasons]
                 if score is None:
@@ -141,7 +139,7 @@ def generate(
                     else:
                         local_reasons.append("metrics niet berekend")
                     continue
-                if not passes_risk(proposal, min_rr):
+                if not passes_risk(proposal, ctx.min_rr):
                     reason = "risk/reward onvoldoende"
                     log_combo_evaluation(
                         StrategyName.CALENDAR,
