@@ -153,6 +153,56 @@ def test_exit_order_plan_allows_configured_fallback(monkeypatch):
     assert "fallback_leg1=close" in plan.tradeability
 
 
+def test_exit_order_gate_uses_exit_spread_relative(monkeypatch):
+    from tomic.services import exit_orders
+
+    strategy = {"symbol": "GHI", "expiry": "20240119"}
+    legs = [
+        {
+            "conId": 6001,
+            "symbol": "GHI",
+            "expiry": "20240119",
+            "strike": 100.0,
+            "right": "C",
+            "position": -1,
+            "bid": 1.05,
+            "ask": 1.10,
+            "minTick": 0.01,
+            "quote_age_sec": 0.5,
+            "mid_source": "true",
+        },
+        {
+            "conId": 6002,
+            "symbol": "GHI",
+            "expiry": "20240119",
+            "strike": 105.0,
+            "right": "C",
+            "position": 1,
+            "bid": 0.50,
+            "ask": 0.55,
+            "minTick": 0.01,
+            "quote_age_sec": 0.5,
+            "mid_source": "true",
+        },
+    ]
+    intent = StrategyExitIntent(strategy=strategy, legs=legs, exit_rules=None)
+
+    monkeypatch.setattr(
+        exit_orders,
+        "exit_spread_config",
+        lambda: {"absolute": 0.01, "relative": 0.25, "max_quote_age": 5.0},
+    )
+    monkeypatch.setattr(
+        exit_orders,
+        "exit_fallback_config",
+        lambda: {"allow_preview": False, "allowed_sources": set()},
+    )
+    monkeypatch.setattr(exit_orders, "exit_force_exit_config", lambda: {"enabled": False})
+
+    plan = build_exit_order_plan(intent)
+    assert "(spread=0.10 ≤ 0.14)" in plan.tradeability
+
+
 def test_exit_order_plan_force_exit_overrides_gate(monkeypatch):
     from tomic.services import exit_orders
 

@@ -7,6 +7,7 @@ from dataclasses import dataclass
 from types import SimpleNamespace
 from typing import Any, Iterable, Mapping, Sequence
 
+from tomic.core.pricing import SpreadPolicy
 from tomic.logutils import logger
 from tomic.metrics import calculate_credit
 from tomic.utils import get_leg_qty
@@ -33,6 +34,23 @@ def _safe_float(value: Any) -> float | None:
         return float(value)
     except (TypeError, ValueError):
         return None
+
+
+def _build_exit_spread_policy(spread_cfg: Mapping[str, Any]) -> SpreadPolicy:
+    """Construct a :class:`SpreadPolicy` tied to exit spread configuration."""
+
+    relative = _safe_float(spread_cfg.get("relative"))
+    absolute = _safe_float(spread_cfg.get("absolute"))
+    policy_config: dict[str, Any] = {}
+    if relative is not None:
+        policy_config["relative"] = relative
+    if absolute is not None:
+        policy_config["absolute"] = absolute
+    return SpreadPolicy(
+        policy_config,
+        default_relative=relative,
+        default_absolute=absolute,
+    )
 
 
 @dataclass(frozen=True)
@@ -127,14 +145,15 @@ def build_exit_order_plan(intent: ExitIntent) -> ExitOrderPlan:
         raise ValueError("combo mist betrouwbare NBBO")
 
     spread_cfg = exit_spread_config()
+    spread_policy = _build_exit_spread_policy(spread_cfg)
     fallback_cfg = exit_fallback_config()
     force_cfg = exit_force_exit_config()
 
     tradeable, tradeability_message = _evaluate_tradeability(
         summaries,
         combo_quote,
-        spread=spread_cfg,
-        max_quote_age=spread_cfg.get("max_quote_age"),
+        spread_policy=spread_policy,
+        max_quote_age=_safe_float(spread_cfg.get("max_quote_age")),
         allow_fallback=bool(fallback_cfg.get("allow_preview", False)),
         allowed_fallback_sources=fallback_cfg.get("allowed_sources"),
         force=bool(force_cfg.get("enabled", False)),
