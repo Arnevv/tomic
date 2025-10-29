@@ -16,7 +16,11 @@ import pandas as pd
 
 from tomic import config as cfg
 from tomic.helpers.config import load_dte_range
-from tomic.helpers.csv_norm import dataframe_to_records, normalize_chain_dataframe
+from tomic.core.data import (
+    dataframe_to_records,
+    normalize_chain_dataframe,
+    normalize_chain_records,
+)
 from tomic.helpers.price_utils import ClosePriceSnapshot
 from tomic.helpers.interpolation import interpolate_missing_fields
 from tomic.helpers.quality_check import calculate_csv_quality
@@ -31,7 +35,6 @@ from tomic.services.strategy_pipeline import (
     StrategyPipeline,
     StrategyProposal,
 )
-from tomic.utils import normalize_leg
 
 
 class ChainPreparationError(RuntimeError):
@@ -189,7 +192,7 @@ def load_and_prepare_chain(
         logger.info("Interpolation completed successfully")
         logger.info(f"Interpolated CSV saved to {interpolated_path}")
 
-    records = [normalize_leg(rec) for rec in dataframe_to_records(df)]
+    records = normalize_chain_records(dataframe_to_records(df))
 
     logger.info(f"Loaded {len(df)} rows from {path}")
     logger.info(f"CSV loaded from {path} with quality {quality:.1f}%")
