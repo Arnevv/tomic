@@ -1035,7 +1035,7 @@ def generate_ratio_like(
                         "expiry": long_exp,
                         "strike": long_strike.matched,
                         "type": option_type,
-                        "position": 1,
+                        "position": 2,
                     },
                 ]
                 if not long_strike.matched:
@@ -1068,14 +1068,29 @@ def generate_ratio_like(
                     )
                     rejected_reasons.append(reason)
                     continue
-                legs = [
-                    build_leg({**short_opt, "spot": ctx.spot}, "short"),
-                    build_leg({**long_opt, "spot": ctx.spot}, "long"),
-                ]
+                short_leg = build_leg({**short_opt, "spot": ctx.spot}, "short")
+                long_leg = build_leg({**long_opt, "spot": ctx.spot}, "long")
+                long_leg["position"] = 2
+                legs = [short_leg, long_leg]
                 proposal = StrategyProposal(strategy=str(strategy_name), legs=legs)
                 score, reasons = calculate_score(strategy_name, proposal, ctx.spot, atr=ctx.atr)
                 reason_messages = _reason_messages(reasons)
                 if score is not None and passes_risk(proposal, ctx.min_rr):
+                    strategy_label = getattr(strategy_name, "value", str(strategy_name))
+                    if proposal.credit is not None and not _validate_ratio(
+                        strategy_label, proposal.legs, float(proposal.credit)
+                    ):
+                        reason = "ratio ongeldig"
+                        log_combo_evaluation(
+                            strategy_name,
+                            desc,
+                            proposal.__dict__,
+                            "reject",
+                            reason,
+                            legs=legs,
+                        )
+                        rejected_reasons.append(reason)
+                        continue
                     proposals.append(proposal)
                     log_combo_evaluation(
                         strategy_name,
@@ -1158,16 +1173,18 @@ def generate_ratio_like(
                 )
                 rejected_reasons.append(reason)
                 continue
-            legs = [
-                build_leg({**short_opt, "spot": ctx.spot}, "short"),
-                build_leg({**long_opt, "spot": ctx.spot}, "long"),
-            ]
+            short_leg = build_leg({**short_opt, "spot": ctx.spot}, "short")
+            long_leg = build_leg({**long_opt, "spot": ctx.spot}, "long")
+            long_leg["position"] = 2
+            legs = [short_leg, long_leg]
             proposal = StrategyProposal(strategy=str(strategy_name), legs=legs)
             score, reasons = calculate_score(strategy_name, proposal, ctx.spot, atr=ctx.atr)
             reason_messages = _reason_messages(reasons)
-            if spec.use_expiry_pairs and proposal.credit is not None:
+            if score is not None and passes_risk(proposal, ctx.min_rr):
                 strategy_label = getattr(strategy_name, "value", str(strategy_name))
-                if not _validate_ratio(strategy_label, proposal.legs, float(proposal.credit)):
+                if proposal.credit is not None and not _validate_ratio(
+                    strategy_label, proposal.legs, float(proposal.credit)
+                ):
                     reason = "ratio ongeldig"
                     log_combo_evaluation(
                         strategy_name,
@@ -1179,7 +1196,6 @@ def generate_ratio_like(
                     )
                     rejected_reasons.append(reason)
                     continue
-            if score is not None and passes_risk(proposal, ctx.min_rr):
                 proposals.append(proposal)
                 log_combo_evaluation(
                     strategy_name,
