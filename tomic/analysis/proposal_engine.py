@@ -22,6 +22,7 @@ from tomic.services.pipeline_runner import PipelineRunContext, run_pipeline
 from tomic.services.strategy_pipeline import PipelineRunError, StrategyPipeline
 from tomic.strategy.models import StrategyProposal
 from tomic.strategies import StrategyName
+from tomic.metrics import PROPOSAL_GREEK_SCHEMA, aggregate_greeks
 
 
 @dataclass(frozen=True)
@@ -115,29 +116,12 @@ def _run_strategy_pipeline(
     return list(result.proposals)
 
 
-def _leg_multiplier(leg: Mapping[str, Any]) -> float:
-    for key in ("position", "qty", "quantity"):
-        value = safe_float(leg.get(key))
-        if value is not None:
-            return value
-    return 0.0
-
-
 def _sum_greeks(legs: Iterable[Mapping[str, Any]]) -> dict[str, float]:
-    totals = {"Delta": 0.0, "Gamma": 0.0, "Vega": 0.0, "Theta": 0.0}
-    for leg in legs:
-        mult = _leg_multiplier(leg)
-        for field, label in (
-            ("delta", "Delta"),
-            ("gamma", "Gamma"),
-            ("vega", "Vega"),
-            ("theta", "Theta"),
-        ):
-            value = safe_float(leg.get(field))
-            if value is None:
-                continue
-            totals[label] += value * mult
-    return totals
+    totals = aggregate_greeks(legs, schema=PROPOSAL_GREEK_SCHEMA)
+    return {
+        label.capitalize(): 0.0 if value is None else value
+        for label, value in totals.items()
+    }
 
 
 def _format_proposal(

@@ -12,6 +12,8 @@ from ..core.pricing.mid_tags import (
 )
 from ..metrics import (
     MidPriceResolver,
+    PROPOSAL_GREEK_SCHEMA,
+    aggregate_greeks,
     calculate_credit,
     calculate_ev,
     calculate_pos,
@@ -299,6 +301,10 @@ def _compute_wing_metrics(legs: List[Dict[str, Any]]) -> tuple[Dict[str, float] 
 def _populate_additional_metrics(
     proposal: "StrategyProposal", legs: List[Dict[str, Any]], spot: float | None
 ) -> None:
+    greek_totals = aggregate_greeks(legs, schema=PROPOSAL_GREEK_SCHEMA)
+    proposal.greeks = dict(greek_totals)
+    proposal.greeks_sum = {key.capitalize(): value for key, value in greek_totals.items()}
+
     atr_values = _collect_leg_values(legs, ("ATR14", "atr14", "atr"))
     if getattr(proposal, "atr", None) is None and atr_values:
         proposal.atr = atr_values[0]

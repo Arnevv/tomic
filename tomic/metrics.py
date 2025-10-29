@@ -3,8 +3,9 @@ from __future__ import annotations
 
 """Utility functions for option metrics calculations."""
 
+from dataclasses import dataclass
 from math import inf
-from typing import Any, Dict, Iterable, Iterator, List, Mapping, Optional, Protocol, Tuple
+from typing import Any, Callable, Dict, Iterable, Iterator, List, Mapping, Optional, Protocol, Tuple
 
 from .core import LegView
 from .core.pricing import MidPricingContext, MidService
@@ -112,6 +113,106 @@ def get_signed_position(leg: Mapping[str, Any]) -> float:
         qty = 1.0
     direction = _option_direction(leg)
     return direction * qty
+
+
+def _resolve_leg_value(leg: Any, key: str) -> Any:
+    if isinstance(leg, Mapping):
+        return leg.get(key)
+    return getattr(leg, key, None)
+
+
+@dataclass(frozen=True)
+class GreekFieldSpec:
+    """Specification describing how to extract and scale a single Greek."""
+
+    keys: tuple[str, ...]
+    label: str
+    apply_multiplier: bool = False
+
+
+@dataclass(frozen=True)
+class GreekAggregationSchema:
+    """Schema describing how to aggregate Greeks for a collection of legs."""
+
+    fields: tuple[GreekFieldSpec, ...]
+    quantity_getter: Callable[[Any], float | None]
+    multiplier_getter: Callable[[Any], float | None] | None = None
+    default_multiplier: float = 1.0
+    missing_as_none: bool = True
+
+
+def aggregate_greeks(
+    legs: Iterable[Any],
+    schema: GreekAggregationSchema,
+) -> dict[str, float | None]:
+    """Return aggregated Greeks for ``legs`` using ``schema`` instructions."""
+
+    totals: dict[str, float] = {field.label: 0.0 for field in schema.fields}
+    contributions: dict[str, int] = {field.label: 0 for field in schema.fields}
+
+    for leg in legs:
+        try:
+            qty_raw = schema.quantity_getter(leg)
+        except Exception:
+            qty_raw = None
+        qty = safe_float(qty_raw)
+        if qty in (None, 0.0):
+            continue
+
+        multiplier = schema.default_multiplier
+        if schema.multiplier_getter is not None:
+            try:
+                mult_val = schema.multiplier_getter(leg)
+            except Exception:
+                mult_val = None
+            mult_float = safe_float(mult_val)
+            if mult_float not in (None, 0.0):
+                multiplier = mult_float
+
+        for field in schema.fields:
+            value: float | None = None
+            for key in field.keys:
+                raw_val = _resolve_leg_value(leg, key)
+                if raw_val in (None, ""):
+                    continue
+                coerced = safe_float(raw_val)
+                if coerced is None:
+                    continue
+                value = coerced
+                break
+            if value is None:
+                continue
+
+            weight = qty
+            if field.apply_multiplier:
+                weight *= multiplier
+            totals[field.label] += value * weight
+            contributions[field.label] += 1
+
+    result: dict[str, float | None] = {}
+    for field in schema.fields:
+        if contributions[field.label] == 0 and schema.missing_as_none:
+            result[field.label] = None
+        else:
+            result[field.label] = totals[field.label]
+    return result
+
+
+def _proposal_multiplier_getter(leg: Any) -> float | None:
+    raw = _resolve_leg_value(leg, "multiplier")
+    return safe_float(raw)
+
+
+PROPOSAL_GREEK_SCHEMA = GreekAggregationSchema(
+    fields=(
+        GreekFieldSpec(("delta", "Delta"), "delta"),
+        GreekFieldSpec(("gamma", "Gamma"), "gamma"),
+        GreekFieldSpec(("vega", "Vega"), "vega"),
+        GreekFieldSpec(("theta", "Theta"), "theta"),
+    ),
+    quantity_getter=get_signed_position,
+    multiplier_getter=_proposal_multiplier_getter,
+)
 
 
 def iter_leg_views(
@@ -430,4 +531,8 @@ __all__ = [
     "calculate_payoff_at_spot",
     "estimate_scenario_profit",
     "calculate_margin",
+    "aggregate_greeks",
+    "GreekAggregationSchema",
+    "GreekFieldSpec",
+    "PROPOSAL_GREEK_SCHEMA",
 ]
