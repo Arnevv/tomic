@@ -57,6 +57,8 @@ class StrategyProposal:
     profit_estimated: bool = False
     scenario_info: dict[str, Any] | None = None
     fallback_summary: dict[str, int] | None = None
+    greeks: dict[str, float | None] | None = None
+    greeks_sum: dict[str, float | None] | None = None
     spread_rejects_n: int = 0
     atr: float | None = None
     iv_rank: float | None = None

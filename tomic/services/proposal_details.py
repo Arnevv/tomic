@@ -11,6 +11,7 @@ from ..helpers.numeric import safe_float
 from ..logutils import logger, normalize_reason
 from ..pricing.margin_engine import compute_margin_and_rr
 from ..utils import resolve_symbol
+from ..metrics import PROPOSAL_GREEK_SCHEMA, aggregate_greeks
 from .strategy_pipeline import StrategyProposal
 
 
@@ -63,14 +64,7 @@ def build_proposal_core(
     for leg in legs:
         strikes.append(safe_float(leg.get("strike")))
 
-    totals: dict[str, float | None] = {}
-    for greek in ("delta", "gamma", "vega", "theta"):
-        values: list[float] = []
-        for leg in legs:
-            val = safe_float(leg.get(greek))
-            if val is not None:
-                values.append(val)
-        totals[greek] = sum(values) if values else None
+    totals = aggregate_greeks(legs, schema=PROPOSAL_GREEK_SCHEMA)
 
     pricing_meta: dict[str, Any] = {
         "credit": proposal.credit,
