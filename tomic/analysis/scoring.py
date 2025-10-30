@@ -62,34 +62,24 @@ def _resolve_strategy_config(strategy_name: str) -> Mapping[str, Any]:
     return merged
 
 
-def _safe_float(value: Any) -> float | None:
-    try:
-        val = float(value)
-    except (TypeError, ValueError):
-        return None
-    if math.isnan(val):
-        return None
-    return val
-
-
 def resolve_min_risk_reward(
     strategy_cfg: Mapping[str, Any], criteria: CriteriaConfig | None
 ) -> float:
     """Determine the effective minimum risk/reward threshold."""
 
-    min_rr = _safe_float(strategy_cfg.get("min_risk_reward"))
+    min_rr = safe_float(strategy_cfg.get("min_risk_reward"))
 
     crit_value: float | None = None
     if criteria is not None:
         try:
-            crit_value = _safe_float(criteria.strategy.acceptance.min_risk_reward)
+            crit_value = safe_float(criteria.strategy.acceptance.min_risk_reward)
         except AttributeError:  # pragma: no cover - defensive
             crit_value = None
     if crit_value is not None:
         min_rr = crit_value
 
     if min_rr is None:
-        fallback = _safe_float(getattr(RULES.strategy.acceptance, "min_risk_reward", None))
+        fallback = safe_float(getattr(RULES.strategy.acceptance, "min_risk_reward", None))
         min_rr = fallback if fallback is not None else 0.0
 
     return max(0.0, float(min_rr))
@@ -193,8 +183,8 @@ def _vertical_width(legs: List[Dict[str, Any]], right: str) -> float | None:
     long_leg = _find_leg(legs, right, short=False)
     if not short_leg or not long_leg:
         return None
-    short_strike = _safe_float(short_leg.get("strike"))
-    long_strike = _safe_float(long_leg.get("strike"))
+    short_strike = safe_float(short_leg.get("strike"))
+    long_strike = safe_float(long_leg.get("strike"))
     if short_strike is None or long_strike is None:
         return None
     if right == "put":
@@ -218,7 +208,7 @@ def _collect_leg_values(legs: List[Dict[str, Any]], keys: Tuple[str, ...]) -> Li
             canonical = str(raw_key).lower().replace("_", "")
             if canonical not in targets:
                 continue
-            val = _safe_float(raw_value)
+            val = safe_float(raw_value)
             if val is None:
                 continue
             values.append(val)
@@ -229,7 +219,7 @@ def _infer_leg_dte(leg: Mapping[str, Any]) -> Optional[int]:
         raw = leg.get(key)
         if raw in (None, ""):
             continue
-        val = _safe_float(raw)
+        val = safe_float(raw)
         if val is None:
             continue
         return int(round(val))
@@ -251,7 +241,7 @@ def _compute_wing_metrics(legs: List[Dict[str, Any]]) -> tuple[Dict[str, float] 
             if get_leg_right(leg) != right:
                 continue
             pos_val = get_signed_position(leg)
-            if pos_val == 0 or _safe_float(leg.get("strike")) is None:
+            if pos_val == 0 or safe_float(leg.get("strike")) is None:
                 continue
             if pos_val < 0:
                 short_legs.append(leg)
@@ -261,13 +251,13 @@ def _compute_wing_metrics(legs: List[Dict[str, Any]]) -> tuple[Dict[str, float] 
             continue
         distances: List[float] = []
         long_strikes = [
-            _safe_float(l.get("strike"))
+            safe_float(l.get("strike"))
             for l in long_legs
-            if _safe_float(l.get("strike")) is not None
+            if safe_float(l.get("strike")) is not None
         ]
         long_strikes = [v for v in long_strikes if v is not None]
         for short in short_legs:
-            short_strike = _safe_float(short.get("strike"))
+            short_strike = safe_float(short.get("strike"))
             if short_strike is None:
                 continue
             candidates: List[float] = []
@@ -355,10 +345,10 @@ def _populate_additional_metrics(
 
     distances: List[float] = []
     percents: List[float] = []
-    spot_val = _safe_float(spot)
+    spot_val = safe_float(spot)
     if spot_val not in (None, 0):
         for be in getattr(proposal, "breakevens", []) or []:
-            be_val = _safe_float(be)
+            be_val = safe_float(be)
             if be_val is None:
                 continue
             diff = abs(be_val - spot_val)
@@ -861,8 +851,8 @@ def compute_proposal_metrics(
         else:
             proposal.scenario_info = {"error": err or "no scenario defined"}
 
-    profit_val = _safe_float(proposal.max_profit)
-    loss_val = _safe_float(proposal.max_loss)
+    profit_val = safe_float(proposal.max_profit)
+    loss_val = safe_float(proposal.max_loss)
     if proposal.risk_reward is None and profit_val is not None and loss_val not in (None, 0.0):
         risk = abs(loss_val)
         if risk > 0:
@@ -1061,7 +1051,7 @@ def calculate_score(
 
 def passes_risk(proposal: "StrategyProposal" | Mapping[str, Any], min_rr: float) -> bool:
     """Return True if proposal satisfies configured risk/reward."""
-    threshold = _safe_float(min_rr) or 0.0
+    threshold = safe_float(min_rr) or 0.0
     if threshold <= 0:
         return True
     strategy = None
