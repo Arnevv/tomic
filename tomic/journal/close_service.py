@@ -11,6 +11,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Any, Dict, Iterable, List
 
+from tomic.helpers.numeric import safe_float
 from tomic.logutils import logger
 
 from .service import is_valid_trade_id, load_journal, update_trade
@@ -41,17 +42,6 @@ def list_open_trades(path: str | None = None) -> List[Dict[str, Any]]:
 
     journal = load_journal(path) if path is not None else load_journal()
     return [trade for trade in journal if trade.get("Status") == "Open"]
-
-
-def _safe_float(value: str | None) -> float | None:
-    if value is None:
-        return None
-    try:
-        return float(value)
-    except (TypeError, ValueError):
-        return None
-
-
 def _parse_days_in_trade(datum_in: str | None, datum_uit: str) -> int | None:
     if not datum_in:
         return None
@@ -97,19 +87,19 @@ def close_trade(
     else:
         logger.warning("Could not determine DaysInTrade", extra={"trade": trade_id})
 
-    exit_price = _safe_float(details.exit_price)
+    exit_price = safe_float(details.exit_price)
     if exit_price is not None:
         updates["ExitPrice"] = exit_price
     elif details.exit_price:
         logger.warning("ExitPrice niet gezet door ongeldige invoer", extra={"trade": trade_id})
 
-    result = _safe_float(details.resultaat)
+    result = safe_float(details.resultaat)
     if result is not None:
         updates["Resultaat"] = result
     elif details.resultaat:
         logger.warning("Resultaat niet gezet door ongeldige invoer", extra={"trade": trade_id})
 
-    rom = _safe_float(details.return_on_margin)
+    rom = safe_float(details.return_on_margin)
     if rom is not None:
         updates["ReturnOnMargin"] = rom
     elif details.return_on_margin:

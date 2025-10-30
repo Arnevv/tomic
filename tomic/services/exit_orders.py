@@ -8,6 +8,7 @@ from types import SimpleNamespace
 from typing import Any, Iterable, Mapping, Sequence
 
 from tomic.core.pricing import SpreadPolicy
+from tomic.helpers.numeric import safe_float
 from tomic.logutils import logger
 from tomic.metrics import calculate_credit
 from tomic.utils import get_leg_qty
@@ -27,20 +28,11 @@ from .trade_management_service import StrategyExitIntent
 ExitIntent = StrategyExitIntent
 
 
-def _safe_float(value: Any) -> float | None:
-    try:
-        if value is None:
-            return None
-        return float(value)
-    except (TypeError, ValueError):
-        return None
-
-
 def _build_exit_spread_policy(spread_cfg: Mapping[str, Any]) -> SpreadPolicy:
     """Construct a :class:`SpreadPolicy` tied to exit spread configuration."""
 
-    relative = _safe_float(spread_cfg.get("relative"))
-    absolute = _safe_float(spread_cfg.get("absolute"))
+    relative = safe_float(spread_cfg.get("relative"))
+    absolute = safe_float(spread_cfg.get("absolute"))
     policy_config: dict[str, Any] = {}
     if relative is not None:
         policy_config["relative"] = relative
@@ -153,17 +145,17 @@ def build_exit_order_plan(intent: ExitIntent) -> ExitOrderPlan:
         summaries,
         combo_quote,
         spread_policy=spread_policy,
-        max_quote_age=_safe_float(spread_cfg.get("max_quote_age")),
+        max_quote_age=safe_float(spread_cfg.get("max_quote_age")),
         allow_fallback=bool(fallback_cfg.get("allow_preview", False)),
         allowed_fallback_sources=fallback_cfg.get("allowed_sources"),
         force=bool(force_cfg.get("enabled", False)),
     )
     if not tradeable:
-        combo_mid = _safe_float(getattr(combo_quote, "mid", None)) or 0.0
-        combo_spread = _safe_float(getattr(combo_quote, "width", None)) or 0.0
-        allow_abs = _safe_float(spread_cfg.get("absolute")) or 0.0
+        combo_mid = safe_float(getattr(combo_quote, "mid", None)) or 0.0
+        combo_spread = safe_float(getattr(combo_quote, "width", None)) or 0.0
+        allow_abs = safe_float(spread_cfg.get("absolute")) or 0.0
         rel_cfg = spread_cfg.get("relative")
-        rel_value = _safe_float(rel_cfg) or 0.0
+        rel_value = safe_float(rel_cfg) or 0.0
         allow_rel = rel_value * combo_mid
         allow = max(allow_abs, allow_rel)
         logger.info(

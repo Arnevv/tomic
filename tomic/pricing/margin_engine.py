@@ -7,6 +7,7 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import Any, Mapping, MutableMapping, Sequence
 
+from ..helpers.numeric import safe_float
 from ..strategies import StrategyName
 
 
@@ -39,19 +40,6 @@ class MarginComputation:
     risk_reward: float | None
     min_risk_reward: float | None
     meets_min_risk_reward: bool | None
-
-
-def _safe_float(value: Any) -> float | None:
-    try:
-        if value is None:
-            return None
-        if isinstance(value, bool):  # pragma: no cover - defensive
-            return float(value)
-        return float(value)
-    except (TypeError, ValueError):
-        return None
-
-
 def _extract_mapping(obj: Any) -> Mapping[str, Any] | None:
     if isinstance(obj, Mapping):
         return obj
@@ -92,13 +80,13 @@ def _coerce_legs(obj: Any) -> list[dict[str, Any]]:
 
 def _infer_net_credit(obj: Any, legs: Sequence[Mapping[str, Any]]) -> float | None:
     for key in ("net_cashflow", "net_credit"):
-        val = _safe_float(_get(obj, key))
+        val = safe_float(_get(obj, key))
         if val is not None:
             return val
-    credit_total = _safe_float(_get(obj, "credit"))
+    credit_total = safe_float(_get(obj, "credit"))
     if credit_total is not None:
         return credit_total / 100.0
-    debit_total = _safe_float(_get(obj, "debit"))
+    debit_total = safe_float(_get(obj, "debit"))
     if debit_total is not None:
         return -debit_total / 100.0
     try:
@@ -128,7 +116,7 @@ def _merge_config(profile: StrategyProfile, config: Mapping[str, Any] | None) ->
     min_rr = profile.min_risk_reward
     risk_model = profile.risk_model
     if config:
-        cfg_min = _safe_float(config.get("min_risk_reward"))
+        cfg_min = safe_float(config.get("min_risk_reward"))
         if cfg_min is not None:
             min_rr = cfg_min
         cfg_model = config.get("risk_model")
@@ -209,7 +197,7 @@ class MarginEngine:
 
         net_credit = _infer_net_credit(combination, legs)
 
-        margin = _safe_float(_get(combination, "margin"))
+        margin = safe_float(_get(combination, "margin"))
         if margin is None:
             try:
                 from ..metrics import calculate_margin as _calculate_margin
@@ -218,9 +206,9 @@ class MarginEngine:
             except Exception:
                 margin = None
 
-        max_profit = _safe_float(_get(combination, "max_profit"))
-        max_loss = _safe_float(_get(combination, "max_loss"))
-        risk_reward = _safe_float(_get(combination, "risk_reward"))
+        max_profit = safe_float(_get(combination, "max_profit"))
+        max_loss = safe_float(_get(combination, "max_loss"))
+        risk_reward = safe_float(_get(combination, "risk_reward"))
 
         if (max_profit is None or max_loss is None or risk_reward is None) and legs:
             cost_basis = (-net_credit * 100) if net_credit is not None else None
@@ -231,11 +219,11 @@ class MarginEngine:
             else:
                 metrics = {}
             if max_profit is None:
-                max_profit = _safe_float(metrics.get("max_profit"))
+                max_profit = safe_float(metrics.get("max_profit"))
             if max_loss is None:
-                max_loss = _safe_float(metrics.get("max_loss"))
+                max_loss = safe_float(metrics.get("max_loss"))
             if risk_reward is None:
-                risk_reward = _safe_float(metrics.get("risk_reward"))
+                risk_reward = safe_float(metrics.get("risk_reward"))
 
         if risk_model == RiskModel.CREDIT:
             if net_credit is not None and net_credit > 0:

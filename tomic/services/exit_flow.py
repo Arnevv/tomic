@@ -11,6 +11,7 @@ from typing import Any, Callable, Iterable, Mapping, Sequence
 from uuid import uuid4
 
 from tomic.config import get as cfg_get
+from tomic.helpers.numeric import safe_float
 from tomic.logutils import logger
 
 from ._config import (
@@ -185,14 +186,14 @@ def execute_exit_flow(
             forced=forced,
         )
 
-    base_limit = _safe_float(plan.limit_price)
+    base_limit = safe_float(plan.limit_price)
 
     policy = exit_spread_config()
-    combo_mid = _safe_float(getattr(plan.nbbo, "mid", None)) or 0.0
-    combo_spread = _safe_float(getattr(plan.nbbo, "width", None)) or 0.0
-    allow_abs = _safe_float(policy.get("absolute")) or 0.0
+    combo_mid = safe_float(getattr(plan.nbbo, "mid", None)) or 0.0
+    combo_spread = safe_float(getattr(plan.nbbo, "width", None)) or 0.0
+    allow_abs = safe_float(policy.get("absolute")) or 0.0
     rel_cfg = policy.get("relative")
-    rel_value = _safe_float(rel_cfg) or 0.0
+    rel_value = safe_float(rel_cfg) or 0.0
     allow_rel = rel_value * combo_mid
     allow = max(allow_abs, allow_rel)
 
@@ -367,7 +368,7 @@ def _execute_fallback(
             )
             continue
 
-        limit_value = _safe_float(candidate.plan.limit_price)
+        limit_value = safe_float(candidate.plan.limit_price)
         if limit_value is not None:
             limit_prices.append(limit_value)
 
@@ -413,7 +414,7 @@ def _resolve_limit_cap(mid: float | None, config: Mapping[str, Any] | None) -> f
     if mid is None or not isinstance(config, Mapping):
         return None
     cap_type = str(config.get("type") or "").strip().lower()
-    cap_value = _safe_float(config.get("value"))
+    cap_value = safe_float(config.get("value"))
     if cap_value is None or cap_value <= 0:
         return None
     if cap_type == "absolute":
@@ -436,13 +437,13 @@ def _apply_price_offset(
         return None
 
     nbbo = plan.nbbo
-    mid = _safe_float(nbbo.mid)
+    mid = safe_float(nbbo.mid)
     if mid is None:
         return None
 
     candidate = mid + delta
-    bid = _safe_float(nbbo.bid)
-    ask = _safe_float(nbbo.ask)
+    bid = safe_float(nbbo.bid)
+    ask = safe_float(nbbo.ask)
     if bid is not None:
         candidate = max(candidate, bid)
     if ask is not None:
@@ -453,7 +454,7 @@ def _apply_price_offset(
         if cap_value is not None:
             candidate = max(mid - cap_value, min(mid + cap_value, candidate))
 
-    min_tick = _safe_float(plan.min_tick)
+    min_tick = safe_float(plan.min_tick)
     if min_tick and min_tick > 0:
         candidate = round(candidate / min_tick) * min_tick
 
@@ -485,9 +486,9 @@ def _dispatch_with_price_ladder(
         except (TypeError, ValueError):
             continue
 
-    wait_seconds = _safe_float(ladder_cfg.get("step_wait_seconds")) or 0.0
+    wait_seconds = safe_float(ladder_cfg.get("step_wait_seconds")) or 0.0
     wait_seconds = max(wait_seconds, 0.0)
-    max_duration = _safe_float(ladder_cfg.get("max_duration_seconds")) or 0.0
+    max_duration = safe_float(ladder_cfg.get("max_duration_seconds")) or 0.0
     max_duration = max(max_duration, 0.0)
 
     attempts: list[ExitAttemptResult] = []
@@ -520,7 +521,7 @@ def _dispatch_with_price_ladder(
             )
             continue
 
-        price = _safe_float(candidate_plan.limit_price)
+        price = safe_float(candidate_plan.limit_price)
         normalized_price = round(price, 4) if price is not None else None
         if normalized_price is not None:
             if normalized_price in seen_prices:
@@ -667,17 +668,6 @@ def _unique_ints(values: Iterable[int]) -> tuple[int, ...]:
         if ivalue not in seen:
             seen.append(ivalue)
     return tuple(seen)
-
-
-def _safe_float(value: Any) -> float | None:
-    try:
-        if value is None:
-            return None
-        return float(value)
-    except (TypeError, ValueError):
-        return None
-
-
 def _intent_strategy(intent: ExitIntent) -> Mapping[str, Any]:
     strategy = intent.strategy
     if isinstance(strategy, Mapping):
