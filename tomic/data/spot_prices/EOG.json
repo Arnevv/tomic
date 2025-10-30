@@ -8846,5 +8846,12 @@
     "close": 105.9,
     "volume": 3064644.0,
     "atr": null
+  },
+  {
+    "symbol": "EOG",
+    "date": "2025-10-29",
+    "close": 106,
+    "volume": 3740134.0,
+    "atr": null
   }
 ]
