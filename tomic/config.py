@@ -50,6 +50,9 @@ class AppConfig(BaseModel):
 
     DEFAULT_SYMBOLS: List[str] = []
 
+    # Allow tuning of the exit flow through ``config.yaml``.
+    EXIT_ORDER_OPTIONS: Dict[str, Any] = {}
+
     VIX_PRICE_POLICY: str = "last_known"
     VIX_EXCHANGES: List[str] = ["CBOE", "CBOEIND"]
     VIX_RTH_TIMEOUT_MS: int = 1500
