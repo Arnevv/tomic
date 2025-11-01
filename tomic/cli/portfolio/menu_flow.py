@@ -37,7 +37,7 @@ from tomic.services.market_scan_service import (
     MarketScanRequest,
     MarketScanService,
 )
-from tomic.services.portfolio_service import CandidateRankingError
+from tomic.services.portfolio_service import Candidate, CandidateRankingError
 from tomic.services.strategy_pipeline import StrategyProposal
 from tomic.utils import latest_atr
 
@@ -377,35 +377,7 @@ def run_market_scan(
     source_choice = getattr(session, "chain_source", "polygon")
 
     existing_chain_dir: Path | None = None
-    if source_choice == "polygon":
-        def _select_existing_chain_dir() -> Path | None:
-            while True:
-                raw = prompt_fn(
-                    "Map met bestaande optionchains (enter om opnieuw te downloaden): "
-                )
-                if not raw:
-                    return None
-                candidate = Path(raw).expanduser()
-                if candidate.exists() and candidate.is_dir():
-                    return candidate
-                print(f"❌ Map niet gevonden: {raw}")
-
-        existing_chain_dir = _select_existing_chain_dir()
-        if existing_chain_dir:
-            try:
-                display_path = existing_chain_dir.resolve()
-            except Exception:  # pragma: no cover - filesystem edge cases
-                display_path = existing_chain_dir
-            print(f"📂 Gebruik bestaande optionchains uit: {display_path}")
-        else:
-            print("🔍 Markt scan via Polygon gestart…")
-    else:
-        print("🔍 Markt scan via TWS gestart…")
-
-    refresh_quotes = prompt_yes_no_fn(
-        "Informatie van TWS ophalen y / n: ",
-        False,
-    )
+    _ = prompt_yes_no_fn  # keep reference for compatibility
 
     pipeline = services.get_pipeline()
     config_data = cfg.get("STRATEGY_CONFIG") or {}
@@ -471,33 +443,104 @@ def run_market_scan(
         decision_cache[symbol] = decision
         return decision
 
-    try:
-        candidates = scan_service.run_market_scan(
-            scan_requests,
-            chain_source=_chain_source,
-            top_n=top_n,
-            refresh_quotes=refresh_quotes,
-        )
-    except MarketScanError as exc:
-        logger.exception("Market scan pipeline failed")
-        print(f"❌ Markt scan mislukt: {exc}")
-        return
-    except CandidateRankingError as exc:
-        logger.exception("Candidate ranking failed")
-        print(f"❌ Rangschikking van voorstellen mislukt: {exc}")
-        return
+    def _select_existing_chain_dir() -> Path | None:
+        while True:
+            raw = prompt_fn(
+                "Map met bestaande optionchains (enter om opnieuw te downloaden): "
+            )
+            if not raw:
+                return None
+            candidate = Path(raw).expanduser()
+            if candidate.exists() and candidate.is_dir():
+                return candidate
+            print(f"❌ Map niet gevonden: {raw}")
 
+    def _prepare_chain_source(reprompt: bool) -> None:
+        nonlocal existing_chain_dir
+        if source_choice != "polygon":
+            if reprompt:
+                print("🔍 Markt scan via TWS gestart…")
+            return
+        if reprompt:
+            existing_chain_dir = _select_existing_chain_dir()
+            if existing_chain_dir:
+                try:
+                    display_path = existing_chain_dir.resolve()
+                except Exception:  # pragma: no cover - filesystem edge cases
+                    display_path = existing_chain_dir
+                print(f"📂 Gebruik bestaande optionchains uit: {display_path}")
+            else:
+                print("🔍 Markt scan via Polygon gestart…")
+
+    def _perform_scan(*, refresh_quotes: bool, reprompt_dir: bool) -> list[Candidate] | None:
+        _prepare_chain_source(reprompt_dir)
+        if refresh_quotes:
+            print("📡 TWS-data ophalen voor alle rijen…")
+        try:
+            candidates = scan_service.run_market_scan(
+                scan_requests,
+                chain_source=_chain_source,
+                top_n=top_n,
+                refresh_quotes=refresh_quotes,
+            )
+        except MarketScanError as exc:
+            logger.exception("Market scan pipeline failed")
+            print(f"❌ Markt scan mislukt: {exc}")
+            return None
+        except CandidateRankingError as exc:
+            logger.exception("Candidate ranking failed")
+            print(f"❌ Rangschikking van voorstellen mislukt: {exc}")
+            return None
+
+        if not candidates:
+            print("⚠️ Geen voorstellen gevonden tijdens scan.")
+            return []
+
+        return candidates
+
+    candidates = _perform_scan(refresh_quotes=False, reprompt_dir=True)
     if not candidates:
-        print("⚠️ Geen voorstellen gevonden tijdens scan.")
         return
 
-    table_spec = build_market_scan_table(candidates)
-    _print_table(tabulate_fn, table_spec)
+    action_help = (
+        "\nActies:\n"
+        "[nummer]  → Details voor één rij\n"
+        "998       → TWS-data ophalen voor alle getoonde rijen\n"
+        "999       → Nieuwe Polygon-scan\n"
+        "0         → Terug naar Volatility Snapshot Aanbevelingen"
+    )
 
     while True:
-        sel = prompt_fn("Selectie scan (0 om terug): ")
+        print("\n📋 Polygon Scan Trade Candidates")
+        table_spec = build_market_scan_table(candidates)
+        _print_table(tabulate_fn, table_spec)
+        print(action_help)
+
+        sel = prompt_fn("Keuze: ")
         if sel in {"", "0"}:
             break
+        if sel == "998":
+            if not prompt_yes_no_fn(
+                "Informatie van TWS ophalen voor alle rijen?",
+                False,
+            ):
+                continue
+            refreshed = _perform_scan(refresh_quotes=True, reprompt_dir=False)
+            if refreshed:
+                candidates = refreshed
+            elif refreshed is None:
+                continue
+            else:
+                return
+            continue
+        if sel == "999":
+            refreshed = _perform_scan(refresh_quotes=False, reprompt_dir=True)
+            if refreshed:
+                candidates = refreshed
+                continue
+            if refreshed is None:
+                continue
+            return
         try:
             idx = int(sel) - 1
             chosen = candidates[idx]
@@ -513,7 +556,6 @@ def run_market_scan(
         )
         show_proposal_details(session, chosen.proposal)
         print()
-        _print_table(tabulate_fn, table_spec)
 
 
 def show_market_overview(

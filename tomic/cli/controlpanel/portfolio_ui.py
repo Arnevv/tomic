@@ -431,13 +431,20 @@ def show_market_info(session: ControlPanelSession, services: ControlPanelService
         print("⚠️ Geen aanbevelingen beschikbaar.")
         return
 
+    print("\n📋 Volatility Snapshot Aanbevelingen")
     portfolio_show_market_overview(tabulate, table_rows)
 
+    selection_help = (
+        "\nSelectie maken:\n"
+        "[nummer]  → Details voor één rij\n"
+        "999       → Nieuwe Polygon-scan\n"
+        "0         → Terug naar hoofdmenu"
+    )
+    print(selection_help)
+
     while True:
-        sel = prompt("Selectie (0 om terug, 999 voor scan): ")
+        sel = prompt("Keuze: ")
         if sel == "999":
-            if not prompt_yes_no("📡 Scan uitvoeren?"):
-                continue
             portfolio_run_market_scan(
                 session,
                 services,
@@ -451,6 +458,7 @@ def show_market_info(session: ControlPanelSession, services: ControlPanelService
                 load_latest_close_fn=portfolio_services.load_latest_close,
                 spot_from_chain_fn=spot_from_chain,
             )
+            print(selection_help)
             continue
         if sel in {"", "0"}:
             break
