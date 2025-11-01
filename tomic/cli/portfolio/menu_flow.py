@@ -473,6 +473,8 @@ def run_market_scan(
                 print("🔍 Markt scan via Polygon gestart…")
 
     def _perform_scan(*, refresh_quotes: bool, reprompt_dir: bool) -> list[Candidate] | None:
+        if reprompt_dir:
+            decision_cache.clear()
         _prepare_chain_source(reprompt_dir)
         if refresh_quotes:
             print("📡 TWS-data ophalen voor alle rijen…")
