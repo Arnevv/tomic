@@ -17,7 +17,6 @@ from tomic.services.chain_sources import (
 )
 
 if TYPE_CHECKING:  # pragma: no cover - import hints only
-    from .earnings_alpha import update_alpha_earnings
     from .iv_polygon import fetch_polygon_iv_data
     from .price_history_ib import fetch_ib_daily_prices
     from .price_history_polygon import fetch_polygon_price_history
@@ -30,7 +29,6 @@ if TYPE_CHECKING:  # pragma: no cover - import hints only
 
 
 _LAZY_ATTRS = {
-    "update_alpha_earnings": "tomic.cli.services.earnings_alpha",
     "fetch_polygon_iv_data": "tomic.cli.services.iv_polygon",
     "fetch_ib_daily_prices": "tomic.cli.services.price_history_ib",
     "fetch_polygon_price_history": "tomic.cli.services.price_history_polygon",
@@ -49,23 +47,6 @@ def __getattr__(name: str):
     attr = getattr(module, name)
     globals()[name] = attr
     return attr
-
-
-__all__ = [
-    "update_alpha_earnings",
-    "fetch_polygon_iv_data",
-    "fetch_ib_daily_prices",
-    "fetch_polygon_price_history",
-    "compute_polygon_volatility_stats",
-    "compute_volatility_stats",
-    "fetch_iv30d",
-    "fetch_polygon_option_chain",
-    "find_latest_chain",
-    "export_chain",
-    "fetch_polygon_chain",
-    "resolve_chain_decision",
-    "git_commit",
-]
 
 
 def _latest_export_dir(base: Path) -> Path | None:
@@ -192,5 +173,4 @@ __all__ = [
     "fetch_polygon_chain",
     "resolve_chain_decision",
     "git_commit",
-    "update_alpha_earnings",
 ]

@@ -112,12 +112,6 @@ def build_export_menu(
         except Exception:
             print("❌ Git-commando mislukt")
 
-    def fetch_earnings() -> None:
-        try:
-            run_module("tomic.cli.fetch_earnings_alpha")
-        except Exception:
-            print("❌ Earnings ophalen mislukt")
-
     def _format_changes_table(changes: list[dict[str, object]]) -> str:
         rows = []
         for idx, change in enumerate(changes, start=1):
@@ -216,7 +210,6 @@ def build_export_menu(
     )
     menu.add("ATR Calculator", lambda: run_module("tomic.cli.atr_calculator"))
     menu.add("IV backfill", lambda: run_module("tomic.cli.iv_backfill_flow"))
-    menu.add("Fetch Earnings", fetch_earnings)
     menu.add("Import nieuwe earning dates van MarketChameleon", import_market_chameleon_earnings)
     return menu
 
