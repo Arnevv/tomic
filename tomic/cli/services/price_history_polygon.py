@@ -32,9 +32,7 @@ def fetch_polygon_price_history(symbols: Sequence[str] | None = None, *, run_vol
     except (TypeError, ValueError):
         max_syms = None
     sleep_between = float(cfg_get("POLYGON_SLEEP_BETWEEN", 1.2))
-    max_per_minute = int(cfg_get("POLYGON_REQUESTS_PER_MINUTE", 5))
 
-    per_minute_limiter = RateLimiter(max_per_minute, 60.0, sleep=sleep)
     between_limiter = RateLimiter(1, sleep_between, sleep=sleep)
 
     base_dir = Path(cfg_get("PRICE_HISTORY_DIR", "tomic/data/spot_prices"))
@@ -51,18 +49,11 @@ def fetch_polygon_price_history(symbols: Sequence[str] | None = None, *, run_vol
                 break
             if previous_requested:
                 between_limiter.wait()
-            delay = per_minute_limiter.time_until_ready()
-            if delay > 0:
-                logger.info(
-                    f"⌛ Rate limit: sleeping {delay:.1f}s to stay under {max_per_minute}/min"
-                )
-                sleep(delay)
 
             records, requested = request_bars(client, sym)
             if not records:
                 previous_requested = requested
                 if requested:
-                    per_minute_limiter.record()
                     between_limiter.record()
                 continue
             file = base_dir / f"{sym}.json"
@@ -78,7 +69,6 @@ def fetch_polygon_price_history(symbols: Sequence[str] | None = None, *, run_vol
             meta[sym] = entry
             meta_updated = True
             if requested:
-                per_minute_limiter.record()
                 between_limiter.record()
             previous_requested = requested
     finally:
