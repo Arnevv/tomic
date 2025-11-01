@@ -1,4 +1,3 @@
-import math
 import os
 import re
 from datetime import datetime, date
@@ -7,7 +6,6 @@ from typing import Any, Callable, Mapping, Literal, Optional, Sequence, TypedDic
 
 from tomic.config import get as cfg_get
 from tomic.helpers.csv_utils import parse_euro_float
-from tomic.helpers.numeric import safe_float
 
 
 _SYMBOL_CANDIDATE_KEYS: tuple[str, ...] = (
@@ -258,10 +256,11 @@ def latest_atr(symbol: str) -> float | None:
     data = load_price_history(symbol)
     for rec in reversed(data):
         atr = rec.get("atr")
+        if atr is None:
+            continue
         try:
-            if atr is not None:
-                return float(atr)
-        except Exception:
+            return float(atr)
+        except (TypeError, ValueError):
             continue
     return None
 
@@ -329,6 +328,10 @@ def build_leg(quote: Mapping[str, Any], side: Literal["long", "short"]) -> Optio
     leg["position"] = 1 if side == "long" else -1
 
     mid_source = leg.get("mid_source")
+    keep_one_sided = "one_sided" in leg
+    existing_one_sided = bool(leg.get("one_sided"))
+    combined_one_sided = existing_one_sided
+
     if leg.get("mid") in (None, "", 0, "0"):
         from tomic.core.pricing import resolve_option_mid as _resolve_option_mid
 
@@ -350,7 +353,7 @@ def build_leg(quote: Mapping[str, Any], side: Literal["long", "short"]) -> Optio
             leg["spread_flag"] = quote.spread_flag
         if quote.quote_age_sec is not None:
             leg["quote_age_sec"] = quote.quote_age_sec
-        leg["one_sided"] = bool(leg.get("one_sided")) or bool(quote.one_sided)
+        combined_one_sided = existing_one_sided or bool(quote.one_sided)
         if quote.interest_rate is not None:
             leg.setdefault("interest_rate", quote.interest_rate)
         if quote.interest_rate_source is not None:
@@ -358,17 +361,12 @@ def build_leg(quote: Mapping[str, Any], side: Literal["long", "short"]) -> Optio
     else:
         if mid_source in {"parity_true", "parity_close", "model", "close"}:
             leg["mid_fallback"] = mid_source
+        combined_one_sided = existing_one_sided
 
     if mid_source:
         leg["mid_source"] = mid_source
-    if "mid_reason" in leg:
-        leg["mid_reason"] = leg.get("mid_reason")
-    if "spread_flag" in leg:
-        leg["spread_flag"] = leg.get("spread_flag")
-    if "quote_age_sec" in leg:
-        leg["quote_age_sec"] = leg.get("quote_age_sec")
-    if "one_sided" in leg:
-        leg["one_sided"] = bool(leg.get("one_sided"))
+    if combined_one_sided or keep_one_sided:
+        leg["one_sided"] = combined_one_sided
 
     from .helpers.bs_utils import populate_model_delta
 

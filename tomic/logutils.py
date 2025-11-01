@@ -256,10 +256,10 @@ def log_combo_evaluation(
     max_loss = metrics.get("max_loss") if metrics else None
     ev = metrics.get("ev") if metrics else None
     rr = None
-    try:
-        rr = reward / abs(max_loss) if reward is not None and max_loss else None
-    except Exception:
-        rr = None
+    if isinstance(reward, (int, float)) and isinstance(max_loss, (int, float)):
+        loss = abs(max_loss)
+        if loss:
+            rr = reward / loss
 
     pos_str = f"{round(pos, 1)}%" if isinstance(pos, (float, int)) else "n/a"
     rr_str = f"{round(rr, 2)}" if isinstance(rr, (float, int)) else "n/a"
