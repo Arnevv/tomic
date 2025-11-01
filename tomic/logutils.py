@@ -14,11 +14,7 @@ if TYPE_CHECKING:  # pragma: no cover - type hints only
     from collections.abc import Iterable, Mapping, Sequence
     from tomic.core.pricing.mid_tags import MidTagSnapshot
     from tomic.reporting import EvaluationSummary
-from tomic.strategy.reasons import (
-    ReasonDetail,
-    ReasonLike,
-    normalize_reason as _normalize_reason,
-)
+from tomic.strategy.reasons import ReasonLike, normalize_reason as _normalize_reason
 
 
 def _format_result(result: Any, max_length: int = 200) -> str:
@@ -208,12 +204,6 @@ def get_captured_combo_evaluations() -> list[dict[str, Any]]:
     return list(captured) if captured is not None else []
 
 
-def normalize_reason(raw_reason: ReasonLike) -> ReasonDetail:
-    """Proxy to :func:`tomic.strategy.reasons.normalize_reason`."""
-
-    return _normalize_reason(raw_reason)
-
-
 def trace_calls(func: Callable[..., T]) -> Callable[..., T]:
     """Trace all function calls triggered by ``func`` and log their results."""
 
@@ -317,7 +307,7 @@ def log_combo_evaluation(
             extra_parts.append(f"{label}={strike}{typ}")
     extra_str = " | " + " | ".join(extra_parts) if extra_parts else ""
 
-    detail = normalize_reason(reason)
+    detail = _normalize_reason(reason)
     logger.info(
         f"[{strategy}] {desc} — PoS {pos_str}, RR {rr_str}, EV {ev_str} — {result.upper()} ({detail.message}){extra_str}"
     )
@@ -348,9 +338,3 @@ def summarize_evaluations(
 
     return _summarize(evaluations)
 
-def _as_mid_tag_snapshot(value: Any):
-    try:
-        from tomic.core.pricing.mid_tags import MidTagSnapshot
-    except Exception:
-        return None
-    return value if isinstance(value, MidTagSnapshot) else None
