@@ -398,12 +398,15 @@ def _execute_fallback(
 
         if ids:
             order_ids.extend(ids)
+        status = "success" if ids else "failed"
+        attempt_reason = None if ids else "no_order_ids"
         attempts.append(
             ExitAttemptResult(
                 stage=stage,
-                status="success" if ids else "success",
+                status=status,
                 limit_price=limit_value,
                 order_ids=ids,
+                reason=attempt_reason,
             )
         )
 
