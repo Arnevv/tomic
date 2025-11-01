@@ -9,12 +9,13 @@ from typing import Any, Iterable, Mapping, Sequence
 
 from tomic.helpers.dateutils import parse_date
 from tomic.helpers.numeric import safe_float
-from tomic.logutils import logger, normalize_reason
+from tomic.logutils import logger
 from tomic.reporting._formatting import format_leg_position
 from tomic.strategy.reasons import (
     ReasonCategory,
     ReasonDetail,
     ReasonLike,
+    normalize_reason,
     category_label,
     category_priority,
 )

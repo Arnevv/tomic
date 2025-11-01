@@ -7,7 +7,7 @@ from typing import Any, Callable, Iterable, Mapping, MutableMapping, Sequence
 from tomic.cli.common import prompt, prompt_yes_no
 from tomic.cli.controlpanel_session import ControlPanelSession
 from tomic.cli.app_services import ControlPanelServices
-from tomic.logutils import logger, normalize_reason
+from tomic.logutils import logger
 from tomic.reporting import (
     ReasonAggregator,
     build_rejection_table as _reporting_build_rejection_table,
@@ -30,7 +30,7 @@ from tomic.services.proposal_details import (
     build_proposal_viewmodel,
 )
 from tomic.services.strategy_pipeline import RejectionSummary, StrategyProposal
-from tomic.strategy.reasons import ReasonDetail
+from tomic.strategy.reasons import ReasonDetail, normalize_reason
 from tomic.criteria import load_criteria
 from tomic.formatting import PROPOSALS_SPEC, proposals_table, sort_records
 

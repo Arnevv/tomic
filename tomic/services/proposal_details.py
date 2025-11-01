@@ -8,10 +8,11 @@ from typing import Any, Mapping, MutableMapping, Sequence
 
 from ..helpers.dateutils import normalize_earnings_context, parse_date
 from ..helpers.numeric import safe_float
-from ..logutils import logger, normalize_reason
+from ..logutils import logger
 from ..pricing.margin_engine import compute_margin_and_rr
 from ..utils import resolve_symbol
 from ..metrics import PROPOSAL_GREEK_SCHEMA, aggregate_greeks
+from ..strategy.reasons import normalize_reason
 from .strategy_pipeline import StrategyProposal
 
 

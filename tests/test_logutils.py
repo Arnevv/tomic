@@ -1,7 +1,7 @@
 import tomic.logutils as logutils
 from tomic.core.pricing.mid_tags import MidTagSnapshot
-from tomic.logutils import _LoggerProxy, log_combo_evaluation, normalize_reason
-from tomic.strategy.reasons import ReasonCategory
+from tomic.logutils import _LoggerProxy, log_combo_evaluation
+from tomic.strategy.reasons import ReasonCategory, normalize_reason
 
 
 def test_normalize_reason_exact_and_casefold():
