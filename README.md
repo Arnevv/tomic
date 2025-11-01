@@ -31,24 +31,28 @@ Run control panel (interactief)
 python tomic/cli/controlpanel.py
 
 📁 DATA & MARKTDATA
-1. OptionChain importeren (CSV)
+1. OptionChain ophalen via TWS API
 2. OptionChain ophalen via Polygon API
 3. Controleer CSV-kwaliteit
 4. Run GitHub Action lokaal
 5. Backfill historical_volatility obv spotprices
-6. Fetch Earnings
+6. ATR Calculator
+7. IV backfill
+8. Import nieuwe earning dates van MarketChameleon
 
-7. Terug
+9. Terug
 
 Wat doet elk item?
 Optie Beschrijving
-1. OptionChain importeren (CSV)    Importeert een eerder geëxporteerde option chain (bijv. van Polygon of een interne batch) en normaliseert de data voor EOD-gebruik.
+1. OptionChain ophalen via TWS API    Start de bulk-export via de TWS API en slaat de keten lokaal op.
 2. OptionChain ophalen via Polygon API    Roept fetch_polygon_option_chain(symbol) aan en slaat option chain info op (nu nog in ontwikkeling).
 3. Controleer CSV-kwaliteit    Valideert een lokaal CSV-bestand met chaindata: kolommen, lege velden, duplicaten enz.
 4. Run GitHub Action lokaal    Start fetch_prices_polygon en commit/pusht wijzigingen.
 5. Backfill historical_volatility obv spotprices    Berekent HV op basis van lokale spotprijzen.
-6. Fetch Earnings    Haalt earnings data op via Alpha Vantage API.
-7. Terug    Keert terug naar het hoofdmenu.
+6. ATR Calculator    Opent de ATR-calculator voor snelle volatiliteitschecks.
+7. IV backfill    Start de IV-backfill flow om ontbrekende implied-volatility-data bij te werken.
+8. Import nieuwe earning dates van MarketChameleon    Importeert een MarketChameleon-CSV en werkt earnings_dates.json bij na een dry-run.
+9. Terug    Keert terug naar het hoofdmenu.
 
 📊 ANALYSE & STRATEGIE
 1. Trading Plan

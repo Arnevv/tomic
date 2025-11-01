@@ -87,7 +87,6 @@ class AppConfig(BaseModel):
     IB_FETCH_ONLY: bool = False
     DATA_PROVIDER: str = "ib"
     POLYGON_API_KEY: str = ""
-    ALPHAVANTAGE_API_KEY: str = ""
     LOG_LEVEL: str = "INFO"
     INTEREST_RATE: float = 0.05
     # Default venues for retrieving market data
@@ -175,10 +174,6 @@ class AppConfig(BaseModel):
     POLYGON_DELAY_SNAPSHOT_MS: int = 200
     MAX_SYMBOLS_PER_RUN: int | None = None
     POLYGON_API_KEYS: List[str] = []
-
-    # Alpha Vantage API tuning
-    ALPHAVANTAGE_SLEEP_BETWEEN: float = 12.0
- 
 
 class StrategyScenario(BaseModel):
     """Scenario configuration for portfolio strategies."""
