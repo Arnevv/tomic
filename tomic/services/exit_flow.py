@@ -197,7 +197,7 @@ def execute_exit_flow(
     allow_rel = rel_value * combo_mid
     allow = max(allow_abs, allow_rel)
 
-    logger.info(
+    logger.debug(
         f"[exit-policy] mid={combo_mid:.2f} spread={combo_spread:.2f} "
         f"abs_limit={allow_abs:.2f} rel_cfg={rel_cfg} rel_limit={allow_rel:.2f} "
         f"used_allow={allow:.2f} source=EXIT_ORDER_OPTIONS.spread"
@@ -336,7 +336,7 @@ def _execute_fallback(
         cancel_on_no_fill=False,
     )
     candidates = build_vertical_execution_candidates(intent)
-    logger.info(
+    logger.debug(
         "[exit-fallback] executing %d verticals (reason=%s)",
         len(candidates),
         reason.value,
@@ -351,7 +351,7 @@ def _execute_fallback(
         stage = f"fallback:{candidate.wing}"
         repricer_state = step_lookup.get(candidate.wing, "skip")
         if candidate.plan is None:
-            logger.info(
+            logger.debug(
                 "[exit-fallback][%s] gate=fail repricer=%s skip=%s",
                 candidate.wing,
                 repricer_state,
@@ -372,7 +372,7 @@ def _execute_fallback(
         if limit_value is not None:
             limit_prices.append(limit_value)
 
-        logger.info(
+        logger.debug(
             "[exit-fallback][%s] gate=ok(%s) repricer=%s skip=-",
             candidate.wing,
             candidate.gate_message or "tradeability_ok",
