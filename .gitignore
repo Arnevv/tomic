@@ -19,6 +19,9 @@ exports/
 !tests/exports/**
 !tomic/cli/exports/
 !tomic/cli/exports/**
+# Herintroduceer geen Python cachemappen binnen exports
+tomic/exports/__pycache__/
+tomic/cli/exports/__pycache__/
 *.csv
 
 # Backups
