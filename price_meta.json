@@ -30,7 +30,7 @@
     "baseline_as_of": null
   },
   "AMT": {
-    "fetched_at": "2025-08-16T21:36:16.634240",
+    "fetched_at": "2025-10-30T19:10:40.312423",
     "source": null,
     "baseline_active": false,
     "baseline_as_of": null
@@ -72,7 +72,7 @@
     "baseline_as_of": null
   },
   "BMY": {
-    "fetched_at": null,
+    "fetched_at": "2025-11-01T14:04:38.509859",
     "source": null,
     "baseline_active": false,
     "baseline_as_of": null
@@ -96,7 +96,7 @@
     "baseline_as_of": null
   },
   "CL": {
-    "fetched_at": null,
+    "fetched_at": "2025-11-01T14:04:52.132083",
     "source": null,
     "baseline_active": false,
     "baseline_as_of": null
@@ -150,7 +150,7 @@
     "baseline_as_of": null
   },
   "DLR": {
-    "fetched_at": "2025-10-27T20:15:00.132605",
+    "fetched_at": "2025-10-31T20:53:10.390259",
     "source": null,
     "baseline_active": false,
     "baseline_as_of": null
@@ -168,7 +168,7 @@
     "baseline_as_of": null
   },
   "ED": {
-    "fetched_at": null,
+    "fetched_at": "2025-10-28T21:08:42.257690",
     "source": null,
     "baseline_active": false,
     "baseline_as_of": null
@@ -216,7 +216,7 @@
     "baseline_as_of": null
   },
   "GILD": {
-    "fetched_at": null,
+    "fetched_at": "2025-11-01T14:05:06.470486",
     "source": null,
     "baseline_active": false,
     "baseline_as_of": null
@@ -228,7 +228,7 @@
     "baseline_as_of": null
   },
   "GOOGL": {
-    "fetched_at": null,
+    "fetched_at": "2025-11-01T14:05:27.538777",
     "source": null,
     "baseline_active": false,
     "baseline_as_of": null
@@ -258,7 +258,7 @@
     "baseline_as_of": null
   },
   "INTC": {
-    "fetched_at": "2025-08-14T14:16:38.073578",
+    "fetched_at": "2025-10-30T19:10:56.422711",
     "source": null,
     "baseline_active": false,
     "baseline_as_of": null
@@ -276,7 +276,7 @@
     "baseline_as_of": null
   },
   "KMB": {
-    "fetched_at": null,
+    "fetched_at": "2025-11-01T14:05:42.122370",
     "source": null,
     "baseline_active": false,
     "baseline_as_of": null
@@ -294,7 +294,7 @@
     "baseline_as_of": null
   },
   "LMT": {
-    "fetched_at": null,
+    "fetched_at": "2025-11-01T14:06:03.692618",
     "source": null,
     "baseline_active": false,
     "baseline_as_of": null
@@ -342,7 +342,7 @@
     "baseline_as_of": null
   },
   "MRK": {
-    "fetched_at": null,
+    "fetched_at": "2025-10-31T20:54:06.660044",
     "source": null,
     "baseline_active": false,
     "baseline_as_of": null
@@ -360,7 +360,7 @@
     "baseline_as_of": null
   },
   "MU": {
-    "fetched_at": "2025-10-27T20:15:22.779469",
+    "fetched_at": "2025-11-01T14:06:23.191455",
     "source": null,
     "baseline_active": false,
     "baseline_as_of": null
@@ -420,7 +420,7 @@
     "baseline_as_of": null
   },
   "PEP": {
-    "fetched_at": null,
+    "fetched_at": "2025-10-31T20:54:24.615288",
     "source": null,
     "baseline_active": false,
     "baseline_as_of": null
@@ -432,7 +432,7 @@
     "baseline_as_of": null
   },
   "PG": {
-    "fetched_at": "2025-10-27T20:15:38.163050",
+    "fetched_at": "2025-11-01T14:06:36.375195",
     "source": null,
     "baseline_active": false,
     "baseline_as_of": null
@@ -444,7 +444,7 @@
     "baseline_as_of": null
   },
   "PM": {
-    "fetched_at": "2025-10-27T20:15:53.723253",
+    "fetched_at": "2025-11-01T14:06:49.580827",
     "source": null,
     "baseline_active": false,
     "baseline_as_of": null
@@ -468,7 +468,7 @@
     "baseline_as_of": null
   },
   "SBUX": {
-    "fetched_at": null,
+    "fetched_at": "2025-10-30T19:11:49.439219",
     "source": null,
     "baseline_active": false,
     "baseline_as_of": null
