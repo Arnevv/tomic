@@ -23,6 +23,7 @@ from tomic.services.pipeline_refresh import (
     Rejection as RefreshRejection,
 )
 from tomic.services.market_snapshot_service import MarketSnapshot, MarketSnapshotRow
+from tomic.services.chain_sources import ChainSourceDecision
 
 
 def test_show_market_info(monkeypatch, tmp_path):
@@ -128,11 +129,11 @@ def test_show_market_info(monkeypatch, tmp_path):
             "2030-01-01",
         ]
     ]
-    monkeypatch.setattr(
-        mod,
-        "build_market_overview",
-        lambda rows: ([rec], table_rows, {"earnings_filtered": {}}),
-    )
+    def fake_build(rows):
+        return [rec], table_rows, {"earnings_filtered": {}}
+
+    monkeypatch.setattr(mod, "build_market_overview", fake_build)
+    monkeypatch.setattr(mod.portfolio, "build_market_overview", fake_build)
 
     prints = []
     monkeypatch.setattr(builtins, "print", lambda *a, **k: prints.append(" ".join(str(x) for x in a)))
@@ -228,20 +229,32 @@ def test_market_info_polygon_scan(monkeypatch, tmp_path):
             "2030-01-01",
         ]
     ]
-    monkeypatch.setattr(
-        mod,
-        "build_market_overview",
-        lambda rows: ([rec], table_rows, {"earnings_filtered": {}}),
-    )
+    def fake_build(rows):
+        return [rec], table_rows, {"earnings_filtered": {}}
+
+    monkeypatch.setattr(mod, "build_market_overview", fake_build)
+    monkeypatch.setattr(mod.portfolio, "build_market_overview", fake_build)
 
     prints: list[str] = []
     fetch_calls: list[str] = []
 
-    def fake_fetch(symbol):
-        fetch_calls.append(symbol)
-        return tmp_path / "AAA_scan-optionchainpolygon.csv"
+    menu_flow = importlib.import_module("tomic.cli.portfolio.menu_flow")
 
-    monkeypatch.setattr(mod.services, "fetch_polygon_chain", fake_fetch)
+    def fake_resolve(symbol, *, source, existing_dir=None):
+        if source != "polygon":
+            raise AssertionError("unexpected source")
+        path = tmp_path / "AAA_scan-optionchainpolygon.csv"
+        fetch_calls.append(symbol)
+        return ChainSourceDecision(
+            symbol=symbol,
+            source="polygon",
+            path=path,
+            source_provenance=str(path),
+            schema_version="polygon.v1",
+        )
+
+    monkeypatch.setattr(mod.services, "resolve_chain_decision", fake_resolve)
+    monkeypatch.setattr(mod._CONTEXT.services.export, "resolve_chain_source", fake_resolve)
 
     captured: dict[str, object] = {}
 
@@ -282,6 +295,7 @@ def test_market_info_polygon_scan(monkeypatch, tmp_path):
             ]
 
     monkeypatch.setattr(mod, "MarketScanService", DummyScanService)
+    monkeypatch.setattr(menu_flow, "MarketScanService", DummyScanService)
 
     def _menu_run(self):
         for desc, handler in self.items:
@@ -293,7 +307,7 @@ def test_market_info_polygon_scan(monkeypatch, tmp_path):
 
     monkeypatch.setattr(builtins, "print", lambda *a, **k: prints.append(" ".join(str(x) for x in a)))
 
-    inputs = iter(["999", "", "", "0"])
+    inputs = iter(["999", "", "998", "y", "0", "0"])
     monkeypatch.setattr(builtins, "input", lambda *a: next(inputs))
 
     mod.run_portfolio_menu()
@@ -302,7 +316,7 @@ def test_market_info_polygon_scan(monkeypatch, tmp_path):
     assert captured["init"].get("refresh_snapshot") is mod.portfolio_services.refresh_proposal_from_ib
     assert captured["top_n"] == 2
     assert captured["refresh_quotes"] is True
-    assert captured["paths"] == [tmp_path / "AAA_scan-optionchainpolygon.csv"]
+    assert [p.path for p in captured["paths"]] == [tmp_path / "AAA_scan-optionchainpolygon.csv"]
     assert any("Bid/Ask%" in line for line in prints), prints
     assert any("12.34" in line for line in prints), prints
     assert any("close" in line for line in prints), prints
@@ -390,11 +404,11 @@ def test_market_info_polygon_scan_existing_dir(monkeypatch, tmp_path):
             "2030-01-01",
         ]
     ]
-    monkeypatch.setattr(
-        mod,
-        "build_market_overview",
-        lambda rows: ([rec], table_rows, {"earnings_filtered": {}}),
-    )
+    def fake_build(rows):
+        return [rec], table_rows, {"earnings_filtered": {}}
+
+    monkeypatch.setattr(mod, "build_market_overview", fake_build)
+    monkeypatch.setattr(mod.portfolio, "build_market_overview", fake_build)
 
     existing_dir = tmp_path / "chains"
     existing_dir.mkdir()
@@ -404,11 +418,25 @@ def test_market_info_polygon_scan_existing_dir(monkeypatch, tmp_path):
     prints: list[str] = []
     fetch_calls: list[str] = []
 
-    def fake_fetch(symbol):
-        fetch_calls.append(symbol)
-        raise AssertionError("fetch should not be called when using existing dir")
+    menu_flow = importlib.import_module("tomic.cli.portfolio.menu_flow")
 
-    monkeypatch.setattr(mod.services, "fetch_polygon_chain", fake_fetch)
+    def fake_resolve(symbol, *, source, existing_dir=None):
+        if source != "polygon":
+            raise AssertionError("unexpected source")
+        if existing_dir:
+            path = Path(existing_dir) / "AAA_existing-optionchainpolygon.csv"
+            return ChainSourceDecision(
+                symbol=symbol,
+                source="polygon",
+                path=path,
+                source_provenance=str(path),
+                schema_version="polygon.v1",
+            )
+        fetch_calls.append(symbol)
+        raise AssertionError("unexpected fetch without existing dir")
+
+    monkeypatch.setattr(mod.services, "resolve_chain_decision", fake_resolve)
+    monkeypatch.setattr(mod._CONTEXT.services.export, "resolve_chain_source", fake_resolve)
 
     captured: dict[str, object] = {}
 
@@ -449,6 +477,7 @@ def test_market_info_polygon_scan_existing_dir(monkeypatch, tmp_path):
             ]
 
     monkeypatch.setattr(mod, "MarketScanService", DummyScanService)
+    monkeypatch.setattr(menu_flow, "MarketScanService", DummyScanService)
 
     def _menu_run(self):
         for desc, handler in self.items:
@@ -459,14 +488,14 @@ def test_market_info_polygon_scan_existing_dir(monkeypatch, tmp_path):
     monkeypatch.setattr(mod.Menu, "run", _menu_run)
 
     monkeypatch.setattr(builtins, "print", lambda *a, **k: prints.append(" ".join(str(x) for x in a)))
-    inputs = iter(["999", str(existing_dir), "", "0"])
+    inputs = iter(["999", str(existing_dir), "998", "y", "0", "0"])
     monkeypatch.setattr(builtins, "input", lambda *a: next(inputs))
 
     mod.run_portfolio_menu()
 
     assert fetch_calls == []
     assert captured["init"].get("refresh_snapshot") is mod.portfolio_services.refresh_proposal_from_ib
-    assert captured["paths"] == [csv_path]
+    assert [p.path for p in captured["paths"]] == [csv_path]
     assert captured["refresh_quotes"] is True
     assert any("Bid/Ask%" in line for line in prints), prints
     assert any("12.34" in line for line in prints), prints
