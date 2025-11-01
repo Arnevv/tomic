@@ -168,7 +168,7 @@ def test_run_all_passes_flags(monkeypatch, tmp_path):
 def test_run_all_uses_defaults(monkeypatch, tmp_path):
     config_mod = importlib.import_module("tomic.config")
     (tmp_path / "config").mkdir()
-    (tmp_path / "config" / "symbols.yaml").write_text("- A\n- B\n")
+    (tmp_path / "config.yaml").write_text("DEFAULT_SYMBOLS:\n  - A\n  - B\n")
     monkeypatch.setattr(config_mod, "_BASE_DIR", tmp_path)
     config_mod.reload()
     config_mod.CONFIG.EXPORT_DIR = str(tmp_path)

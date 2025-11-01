@@ -150,18 +150,21 @@ Belangrijke mappen in `config.yaml`:
 - `EARNINGS_DATES_FILE`
 
 🔣 Symbolenbeheer
-De standaard symbolen voor scripts en tests staan in `config/symbols.yaml`. Dit
-bestand bevat een eenvoudige YAML-lijst met tickers:
+Definieer de standaard symbolen voor scripts en tests via de sleutel
+`DEFAULT_SYMBOLS` in `config.yaml`. Een beknopt voorbeeld:
 
 ```yaml
-- AAPL
-- MSFT
-- SPY
+DEFAULT_SYMBOLS:
+  - AAPL
+  - MSFT
+  - SPY
 ```
 
-Functies die `cfg_get("DEFAULT_SYMBOLS")` aanroepen vallen terug op deze lijst.
-Pas het bestand handmatig aan of gebruik `tomic.config.save_symbols()` om de
-inhoud programmatic te wijzigen.
+Functies die `cfg_get("DEFAULT_SYMBOLS")` aanroepen lezen nu rechtstreeks uit
+`config.yaml`. Gebruik `tomic.config.save_symbols()` om de lijst
+programmatic bij te werken. Voor oudere installaties zonder `config.yaml`
+blijft `config/symbols.yaml` als fallback ondersteund, maar nieuwe wijzigingen
+moeten in `config.yaml` plaatsvinden.
 
 Het bestand `earnings_dates.json` bevat verwachte earnings per symbool. De optie "Toon marktinformatie" gebruikt dit om de eerstvolgende datum te tonen.
 Het bestand `tomic/data/earnings_data.json` bevat enkel metadata (bijv. laatste fetch-tijdstempel per symbool) en is niet nodig voor runtime-functies.
