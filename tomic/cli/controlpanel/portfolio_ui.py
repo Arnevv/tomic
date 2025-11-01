@@ -458,6 +458,7 @@ def show_market_info(session: ControlPanelSession, services: ControlPanelService
                 load_latest_close_fn=portfolio_services.load_latest_close,
                 spot_from_chain_fn=spot_from_chain,
             )
+            portfolio_show_market_overview(tabulate, table_rows)
             print(selection_help)
             continue
         if sel in {"", "0"}:
