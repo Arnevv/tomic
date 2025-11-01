@@ -7,6 +7,7 @@ from dataclasses import dataclass
 from types import SimpleNamespace
 from typing import Any, Iterable, Mapping, Sequence
 
+from tomic.analysis.scoring import validate_exit_tradability
 from tomic.core.pricing import SpreadPolicy
 from tomic.helpers.numeric import safe_float
 from tomic.logutils import logger
@@ -128,6 +129,22 @@ def build_exit_order_plan(intent: ExitIntent) -> ExitOrderPlan:
         source_legs = []
 
     legs = _normalize_legs(source_legs, symbol=symbol, expiry=expiry)
+
+    strat_name: str = "exit"
+    if isinstance(strategy, Mapping):
+        name_candidate = strategy.get("type") or strategy.get("strategy")
+        if isinstance(name_candidate, str) and name_candidate.strip():
+            strat_name = name_candidate.strip()
+
+    exit_ok, exit_reasons = validate_exit_tradability(strat_name, legs)
+    if not exit_ok:
+        message = exit_reasons[0].message if exit_reasons else "niet verhandelbaar"
+        logger.info(
+            "[exit-metrics] %s afgewezen -> %s",
+            strat_name,
+            message,
+        )
+        raise ValueError(f"combo niet verhandelbaar: {message}")
 
     summaries = [_normalize_leg_summary(leg) for leg in legs]
     combo_quantity = _infer_combo_quantity(legs)
