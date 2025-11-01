@@ -131,7 +131,14 @@ def request_bars(client: PolygonClient, symbol: str) -> tuple[list[dict], bool]:
         next_expected = _next_trading_day(last_dt)
         if next_expected > end_dt:
             logger.info(
-                f"⏭️ {symbol}: laatste data is van {last_date}, geen nieuwe werkdag beschikbaar."
+                (
+                    "⏭️ %s: laatste data is van %s; "
+                    "volgende handelsdag %s valt na %s, niets te doen."
+                ),
+                symbol,
+                last_date,
+                next_expected,
+                end_dt,
             )
             return [], requested
         from_date = next_expected.strftime("%Y-%m-%d")
