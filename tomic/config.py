@@ -259,12 +259,8 @@ def _load_yaml(path: Path) -> Dict[str, Any]:
     return content or {}
 
 
-def _load_symbols() -> List[str]:
-    """Load default symbols from ``config/symbols.yaml``.
-
-    Returns an empty list if the file does not exist and raises a
-    ``ValueError`` if the YAML content is not a simple list of symbols.
-    """
+def _load_legacy_symbols() -> List[str]:
+    """Load legacy default symbols from ``config/symbols.yaml``."""
 
     path = _BASE_DIR / "config" / "symbols.yaml"
     if not path.exists():
@@ -333,7 +329,12 @@ def load_config() -> AppConfig:
     # Support lowercase ``vix`` section in YAML configuration files
     if "vix" in data and "VIX" not in data:
         cfg["VIX"] = data["vix"]
-    cfg["DEFAULT_SYMBOLS"] = _load_symbols()
+
+    configured_symbols = data.get("DEFAULT_SYMBOLS")
+    if isinstance(configured_symbols, list):
+        cfg["DEFAULT_SYMBOLS"] = [str(s) for s in configured_symbols]
+    else:
+        cfg["DEFAULT_SYMBOLS"] = _load_legacy_symbols()
 
     # Environment variables override file values
     env_keys = {k: v for k, v in os.environ.items() if k in cfg}
@@ -360,17 +361,33 @@ def save_config(config: AppConfig, path: Path | None = None) -> None:
 
 
 def save_symbols(symbols: List[str], path: Path | None = None) -> None:
-    """Persist default symbols to a YAML file and update CONFIG."""
+    """Persist default symbols to ``config.yaml`` and update CONFIG."""
     if path is None:
-        path = _BASE_DIR / "config" / "symbols.yaml"
+        env_path = os.environ.get("TOMIC_CONFIG")
+        path = Path(env_path) if env_path else _BASE_DIR / "config.yaml"
+
+    if path.suffix not in {".yaml", ".yml"}:
+        raise ValueError("Symbol configuration must be stored in a YAML file")
+
+    existing: Dict[str, Any] = {}
+    if path.exists():
+        data = _load_yaml(path)
+        if isinstance(data, dict):
+            existing = dict(data)
+
     try:
         import yaml  # type: ignore
     except Exception as exc:  # pragma: no cover - optional dependency
         raise RuntimeError("PyYAML required for YAML config") from exc
+
+    symbol_list = [str(s) for s in symbols]
+    existing["DEFAULT_SYMBOLS"] = symbol_list
+
     with open(path, "w", encoding="utf-8") as f:
-        yaml.safe_dump([str(s) for s in symbols], f)
+        yaml.safe_dump(existing, f)
+
     with LOCK:
-        CONFIG.DEFAULT_SYMBOLS = [str(s) for s in symbols]
+        CONFIG.DEFAULT_SYMBOLS = symbol_list
 
 
 CONFIG = load_config()
