@@ -8803,69 +8803,69 @@
     "date": "2025-10-20",
     "close": 91.53,
     "volume": 4885740.0,
-    "atr": null
+    "atr": 1.1021428571428586
   },
   {
     "symbol": "TGT",
     "date": "2025-10-21",
     "close": 94.4,
     "volume": 7767740.0,
-    "atr": null
+    "atr": 1.267142857142859
   },
   {
     "symbol": "TGT",
     "date": "2025-10-22",
     "close": 94.02,
     "volume": 4971778.0,
-    "atr": null
+    "atr": 1.2678571428571448
   },
   {
     "symbol": "TGT",
     "date": "2025-10-23",
     "close": 94.25,
     "volume": 4832381.0,
-    "atr": null
+    "atr": 1.250000000000002
   },
   {
     "symbol": "TGT",
     "date": "2025-10-24",
     "close": 94.26,
     "volume": 5458173.0,
-    "atr": null
+    "atr": 1.2457142857142876
   },
   {
     "symbol": "TGT",
     "date": "2025-10-27",
     "close": 97.77,
     "volume": 9999566.0,
-    "atr": null
+    "atr": 1.4742857142857153
   },
   {
     "symbol": "TGT",
     "date": "2025-10-28",
     "close": 97.11,
     "volume": 7958139.0,
-    "atr": null
+    "atr": 1.442142857142858
   },
   {
     "symbol": "TGT",
     "date": "2025-10-29",
     "close": 94.12,
     "volume": 6123597.0,
-    "atr": null
+    "atr": 1.5642857142857147
   },
   {
     "symbol": "TGT",
     "date": "2025-10-30",
     "close": 92.92,
     "volume": 5630360.0,
-    "atr": null
+    "atr": 1.3950000000000011
   },
   {
     "symbol": "TGT",
     "date": "2025-10-31",
     "close": 92.72,
     "volume": 7084456.0,
-    "atr": null
+    "atr": 1.2800000000000011
   }
 ]

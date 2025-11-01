@@ -8803,69 +8803,69 @@
     "date": "2025-10-20",
     "close": 349.48,
     "volume": 3464664.0,
-    "atr": null
+    "atr": 5.511428571428581
   },
   {
     "symbol": "AXP",
     "date": "2025-10-21",
     "close": 355.22,
     "volume": 2657717.0,
-    "atr": null
+    "atr": 5.6642857142857235
   },
   {
     "symbol": "AXP",
     "date": "2025-10-22",
     "close": 352,
     "volume": 2708576.0,
-    "atr": null
+    "atr": 5.757142857142867
   },
   {
     "symbol": "AXP",
     "date": "2025-10-23",
     "close": 354.93,
     "volume": 1891791.0,
-    "atr": null
+    "atr": 5.949285714285724
   },
   {
     "symbol": "AXP",
     "date": "2025-10-24",
     "close": 357.56,
     "volume": 2397010.0,
-    "atr": null
+    "atr": 6.012142857142867
   },
   {
     "symbol": "AXP",
     "date": "2025-10-27",
     "close": 361.67,
     "volume": 2179487.0,
-    "atr": null
+    "atr": 6.01857142857144
   },
   {
     "symbol": "AXP",
     "date": "2025-10-28",
     "close": 361.03,
     "volume": 1416318.0,
-    "atr": null
+    "atr": 5.767857142857155
   },
   {
     "symbol": "AXP",
     "date": "2025-10-29",
     "close": 358.22,
     "volume": 1839788.0,
-    "atr": null
+    "atr": 5.924285714285722
   },
   {
     "symbol": "AXP",
     "date": "2025-10-30",
     "close": 358.88,
     "volume": 2044612.0,
-    "atr": null
+    "atr": 5.387142857142862
   },
   {
     "symbol": "AXP",
     "date": "2025-10-31",
     "close": 360.73,
     "volume": 2155412.0,
-    "atr": null
+    "atr": 5.02928571428572
   }
 ]

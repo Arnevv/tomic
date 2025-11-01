@@ -8803,69 +8803,69 @@
     "date": "2025-10-20",
     "close": 262.24,
     "volume": 90577844.0,
-    "atr": null
+    "atr": 2.8607142857142827
   },
   {
     "symbol": "AAPL",
     "date": "2025-10-21",
     "close": 262.77,
     "volume": 46687120.0,
-    "atr": null
+    "atr": 2.8399999999999954
   },
   {
     "symbol": "AAPL",
     "date": "2025-10-22",
     "close": 258.45,
     "volume": 45005957.0,
-    "atr": null
+    "atr": 3.0285714285714227
   },
   {
     "symbol": "AAPL",
     "date": "2025-10-23",
     "close": 259.58,
     "volume": 32743338.0,
-    "atr": null
+    "atr": 3.0457142857142805
   },
   {
     "symbol": "AAPL",
     "date": "2025-10-24",
     "close": 262.82,
     "volume": 38247864.0,
-    "atr": null
+    "atr": 3.182142857142854
   },
   {
     "symbol": "AAPL",
     "date": "2025-10-27",
     "close": 268.81,
     "volume": 44885239.0,
-    "atr": null
+    "atr": 3.594999999999999
   },
   {
     "symbol": "AAPL",
     "date": "2025-10-28",
     "close": 269,
     "volume": 41528079.0,
-    "atr": null
+    "atr": 3.4957142857142856
   },
   {
     "symbol": "AAPL",
     "date": "2025-10-29",
     "close": 269.7,
     "volume": 51074415.0,
-    "atr": null
+    "atr": 3.2585714285714267
   },
   {
     "symbol": "AAPL",
     "date": "2025-10-30",
     "close": 271.4,
     "volume": 69945562.0,
-    "atr": null
+    "atr": 2.7535714285714272
   },
   {
     "symbol": "AAPL",
     "date": "2025-10-31",
     "close": 270.37,
     "volume": 87262953.0,
-    "atr": null
+    "atr": 2.6564285714285694
   }
 ]

@@ -8803,69 +8803,69 @@
     "date": "2025-10-20",
     "close": 240.56,
     "volume": 56740526.0,
-    "atr": null
+    "atr": 10.089285714285712
   },
   {
     "symbol": "AMD",
     "date": "2025-10-21",
     "close": 238.03,
     "volume": 47116473.0,
-    "atr": null
+    "atr": 10.11142857142857
   },
   {
     "symbol": "AMD",
     "date": "2025-10-22",
     "close": 230.23,
     "volume": 59659945.0,
-    "atr": null
+    "atr": 10.26
   },
   {
     "symbol": "AMD",
     "date": "2025-10-23",
     "close": 234.99,
     "volume": 39017355.0,
-    "atr": null
+    "atr": 10.23857142857143
   },
   {
     "symbol": "AMD",
     "date": "2025-10-24",
     "close": 252.92,
     "volume": 71208415.0,
-    "atr": null
+    "atr": 8.730714285714283
   },
   {
     "symbol": "AMD",
     "date": "2025-10-27",
     "close": 259.67,
     "volume": 65611401.0,
-    "atr": null
+    "atr": 8.655714285714286
   },
   {
     "symbol": "AMD",
     "date": "2025-10-28",
     "close": 258.01,
     "volume": 47445107.0,
-    "atr": null
+    "atr": 7.056428571428573
   },
   {
     "symbol": "AMD",
     "date": "2025-10-29",
     "close": 264.33,
     "volume": 49327204.0,
-    "atr": null
+    "atr": 7.317142857142857
   },
   {
     "symbol": "AMD",
     "date": "2025-10-30",
     "close": 254.84,
     "volume": 45225235.0,
-    "atr": null
+    "atr": 6.71
   },
   {
     "symbol": "AMD",
     "date": "2025-10-31",
     "close": 256.12,
     "volume": 34445536.0,
-    "atr": null
+    "atr": 6.692857142857144
   }
 ]

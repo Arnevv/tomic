@@ -8803,69 +8803,69 @@
     "date": "2025-10-20",
     "close": 86.91,
     "volume": 5455474.0,
-    "atr": null
+    "atr": 0.8385714285714272
   },
   {
     "symbol": "UPS",
     "date": "2025-10-21",
     "close": 88.06,
     "volume": 6181301.0,
-    "atr": null
+    "atr": 0.8599999999999994
   },
   {
     "symbol": "UPS",
     "date": "2025-10-22",
     "close": 87.08,
     "volume": 5257630.0,
-    "atr": null
+    "atr": 0.8449999999999999
   },
   {
     "symbol": "UPS",
     "date": "2025-10-23",
     "close": 87.03,
     "volume": 5764068.0,
-    "atr": null
+    "atr": 0.7621428571428562
   },
   {
     "symbol": "UPS",
     "date": "2025-10-24",
     "close": 87.22,
     "volume": 5255825.0,
-    "atr": null
+    "atr": 0.7642857142857135
   },
   {
     "symbol": "UPS",
     "date": "2025-10-27",
     "close": 89.22,
     "volume": 12012796.0,
-    "atr": null
+    "atr": 0.8614285714285705
   },
   {
     "symbol": "UPS",
     "date": "2025-10-28",
     "close": 96.36,
     "volume": 30026706.0,
-    "atr": null
+    "atr": 1.3521428571428566
   },
   {
     "symbol": "UPS",
     "date": "2025-10-29",
     "close": 97.4,
     "volume": 10786410.0,
-    "atr": null
+    "atr": 1.3571428571428572
   },
   {
     "symbol": "UPS",
     "date": "2025-10-30",
     "close": 95.06,
     "volume": 10071253.0,
-    "atr": null
+    "atr": 1.3521428571428575
   },
   {
     "symbol": "UPS",
     "date": "2025-10-31",
     "close": 96.42,
     "volume": 7304743.0,
-    "atr": null
+    "atr": 1.4271428571428575
   }
 ]

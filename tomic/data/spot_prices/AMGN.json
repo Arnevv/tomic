@@ -8803,69 +8803,69 @@
     "date": "2025-10-20",
     "close": 303.33,
     "volume": 1613503.0,
-    "atr": null
+    "atr": 3.3092857142857173
   },
   {
     "symbol": "AMGN",
     "date": "2025-10-21",
     "close": 301.14,
     "volume": 1533308.0,
-    "atr": null
+    "atr": 2.3014285714285734
   },
   {
     "symbol": "AMGN",
     "date": "2025-10-22",
     "close": 295.98,
     "volume": 1698684.0,
-    "atr": null
+    "atr": 2.5914285714285694
   },
   {
     "symbol": "AMGN",
     "date": "2025-10-23",
     "close": 292.89,
     "volume": 1496366.0,
-    "atr": null
+    "atr": 2.7771428571428567
   },
   {
     "symbol": "AMGN",
     "date": "2025-10-24",
     "close": 291.76,
     "volume": 1376249.0,
-    "atr": null
+    "atr": 2.5885714285714294
   },
   {
     "symbol": "AMGN",
     "date": "2025-10-27",
     "close": 291.16,
     "volume": 1794719.0,
-    "atr": null
+    "atr": 2.529999999999997
   },
   {
     "symbol": "AMGN",
     "date": "2025-10-28",
     "close": 292.09,
     "volume": 2217546.0,
-    "atr": null
+    "atr": 2.530714285714278
   },
   {
     "symbol": "AMGN",
     "date": "2025-10-29",
     "close": 291.77,
     "volume": 2823867.0,
-    "atr": null
+    "atr": 2.4957142857142776
   },
   {
     "symbol": "AMGN",
     "date": "2025-10-30",
     "close": 292,
     "volume": 2058058.0,
-    "atr": null
+    "atr": 2.133571428571421
   },
   {
     "symbol": "AMGN",
     "date": "2025-10-31",
     "close": 298.43,
     "volume": 2687615.0,
-    "atr": null
+    "atr": 2.430357142857137
   }
 ]

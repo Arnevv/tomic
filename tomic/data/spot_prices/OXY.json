@@ -8803,69 +8803,69 @@
     "date": "2025-10-20",
     "close": 41.03,
     "volume": 8810669.0,
-    "atr": null
+    "atr": 0.7357142857142865
   },
   {
     "symbol": "OXY",
     "date": "2025-10-21",
     "close": 40.91,
     "volume": 8551957.0,
-    "atr": null
+    "atr": 0.710714285714287
   },
   {
     "symbol": "OXY",
     "date": "2025-10-22",
     "close": 41.73,
     "volume": 11051816.0,
-    "atr": null
+    "atr": 0.5200000000000011
   },
   {
     "symbol": "OXY",
     "date": "2025-10-23",
     "close": 42.88,
     "volume": 13813335.0,
-    "atr": null
+    "atr": 0.557857142857144
   },
   {
     "symbol": "OXY",
     "date": "2025-10-24",
     "close": 42.57,
     "volume": 7213222.0,
-    "atr": null
+    "atr": 0.5407142857142873
   },
   {
     "symbol": "OXY",
     "date": "2025-10-27",
     "close": 42.3,
     "volume": 7546075.0,
-    "atr": null
+    "atr": 0.5550000000000017
   },
   {
     "symbol": "OXY",
     "date": "2025-10-28",
     "close": 40.83,
     "volume": 13298167.0,
-    "atr": null
+    "atr": 0.639285714285716
   },
   {
     "symbol": "OXY",
     "date": "2025-10-29",
     "close": 40.58,
     "volume": 10864290.0,
-    "atr": null
+    "atr": 0.620000000000002
   },
   {
     "symbol": "OXY",
     "date": "2025-10-30",
     "close": 40.7,
     "volume": 9547176.0,
-    "atr": null
+    "atr": 0.4592857142857163
   },
   {
     "symbol": "OXY",
     "date": "2025-10-31",
     "close": 41.2,
     "volume": 7211388.0,
-    "atr": null
+    "atr": 0.4757142857142875
   }
 ]

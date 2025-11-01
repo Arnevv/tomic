@@ -8803,69 +8803,69 @@
     "date": "2025-10-20",
     "close": 106.4,
     "volume": 3635115.0,
-    "atr": null
+    "atr": 0.941428571428572
   },
   {
     "symbol": "EOG",
     "date": "2025-10-21",
     "close": 106.04,
     "volume": 4253884.0,
-    "atr": null
+    "atr": 0.9064285714285713
   },
   {
     "symbol": "EOG",
     "date": "2025-10-22",
     "close": 106.21,
     "volume": 5150881.0,
-    "atr": null
+    "atr": 0.8564285714285711
   },
   {
     "symbol": "EOG",
     "date": "2025-10-23",
     "close": 108.08,
     "volume": 4603220.0,
-    "atr": null
+    "atr": 0.9592857142857147
   },
   {
     "symbol": "EOG",
     "date": "2025-10-24",
     "close": 106.38,
     "volume": 3132519.0,
-    "atr": null
+    "atr": 1.0535714285714295
   },
   {
     "symbol": "EOG",
     "date": "2025-10-27",
     "close": 106.78,
     "volume": 3795878.0,
-    "atr": null
+    "atr": 1.0821428571428586
   },
   {
     "symbol": "EOG",
     "date": "2025-10-28",
     "close": 105.9,
     "volume": 3064644.0,
-    "atr": null
+    "atr": 1.1414285714285728
   },
   {
     "symbol": "EOG",
     "date": "2025-10-29",
     "close": 106,
     "volume": 3740134.0,
-    "atr": null
+    "atr": 1.0471428571428578
   },
   {
     "symbol": "EOG",
     "date": "2025-10-30",
     "close": 105.46,
     "volume": 3698314.0,
-    "atr": null
+    "atr": 0.8107142857142863
   },
   {
     "symbol": "EOG",
     "date": "2025-10-31",
     "close": 105.84,
     "volume": 3965029.0,
-    "atr": null
+    "atr": 0.7200000000000009
   }
 ]

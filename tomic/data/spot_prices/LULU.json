@@ -8803,69 +8803,69 @@
     "date": "2025-10-20",
     "close": 172.43,
     "volume": 5104662.0,
-    "atr": null
+    "atr": 2.1685714285714295
   },
   {
     "symbol": "LULU",
     "date": "2025-10-21",
     "close": 181.39,
     "volume": 6689283.0,
-    "atr": null
+    "atr": 2.7828571428571416
   },
   {
     "symbol": "LULU",
     "date": "2025-10-22",
     "close": 178.29,
     "volume": 3626280.0,
-    "atr": null
+    "atr": 2.9592857142857127
   },
   {
     "symbol": "LULU",
     "date": "2025-10-23",
     "close": 179.06,
     "volume": 2638154.0,
-    "atr": null
+    "atr": 2.8278571428571433
   },
   {
     "symbol": "LULU",
     "date": "2025-10-24",
     "close": 178.17,
     "volume": 2609003.0,
-    "atr": null
+    "atr": 2.786428571428573
   },
   {
     "symbol": "LULU",
     "date": "2025-10-27",
     "close": 181.39,
     "volume": 5185499.0,
-    "atr": null
+    "atr": 2.948571428571429
   },
   {
     "symbol": "LULU",
     "date": "2025-10-28",
     "close": 179.98,
     "volume": 3799803.0,
-    "atr": null
+    "atr": 2.931428571428571
   },
   {
     "symbol": "LULU",
     "date": "2025-10-29",
     "close": 170.3,
     "volume": 5153724.0,
-    "atr": null
+    "atr": 3.527142857142855
   },
   {
     "symbol": "LULU",
     "date": "2025-10-30",
     "close": 168.02,
     "volume": 2836741.0,
-    "atr": null
+    "atr": 3.2635714285714266
   },
   {
     "symbol": "LULU",
     "date": "2025-10-31",
     "close": 170.54,
     "volume": 2990808.0,
-    "atr": null
+    "atr": 3.2764285714285677
   }
 ]

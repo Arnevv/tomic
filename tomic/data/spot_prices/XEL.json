@@ -8803,69 +8803,69 @@
     "date": "2025-10-20",
     "close": 81.28,
     "volume": 4000753.0,
-    "atr": null
+    "atr": 0.5364285714285728
   },
   {
     "symbol": "XEL",
     "date": "2025-10-21",
     "close": 80.64,
     "volume": 1888119.0,
-    "atr": null
+    "atr": 0.557857142857144
   },
   {
     "symbol": "XEL",
     "date": "2025-10-22",
     "close": 80.69,
     "volume": 3561859.0,
-    "atr": null
+    "atr": 0.5107142857142861
   },
   {
     "symbol": "XEL",
     "date": "2025-10-23",
     "close": 80.41,
     "volume": 4188283.0,
-    "atr": null
+    "atr": 0.48357142857142826
   },
   {
     "symbol": "XEL",
     "date": "2025-10-24",
     "close": 80.39,
     "volume": 2909922.0,
-    "atr": null
+    "atr": 0.43214285714285694
   },
   {
     "symbol": "XEL",
     "date": "2025-10-27",
     "close": 80.69,
     "volume": 3627700.0,
-    "atr": null
+    "atr": 0.39285714285714285
   },
   {
     "symbol": "XEL",
     "date": "2025-10-28",
     "close": 79.82,
     "volume": 4134643.0,
-    "atr": null
+    "atr": 0.45500000000000035
   },
   {
     "symbol": "XEL",
     "date": "2025-10-29",
     "close": 79.69,
     "volume": 4253783.0,
-    "atr": null
+    "atr": 0.42214285714285793
   },
   {
     "symbol": "XEL",
     "date": "2025-10-30",
     "close": 81.59,
     "volume": 9263602.0,
-    "atr": null
+    "atr": 0.5342857142857156
   },
   {
     "symbol": "XEL",
     "date": "2025-10-31",
     "close": 81.17,
     "volume": 6202390.0,
-    "atr": null
+    "atr": 0.509285714285715
   }
 ]

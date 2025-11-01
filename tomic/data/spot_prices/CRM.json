@@ -8803,69 +8803,69 @@
     "date": "2025-10-20",
     "close": 254.28,
     "volume": 9962113.0,
-    "atr": null
+    "atr": 4.961428571428568
   },
   {
     "symbol": "CRM",
     "date": "2025-10-21",
     "close": 263.41,
     "volume": 13353997.0,
-    "atr": null
+    "atr": 5.519999999999998
   },
   {
     "symbol": "CRM",
     "date": "2025-10-22",
     "close": 256.64,
     "volume": 9369099.0,
-    "atr": null
+    "atr": 5.775714285714287
   },
   {
     "symbol": "CRM",
     "date": "2025-10-23",
     "close": 255.05,
     "volume": 6089940.0,
-    "atr": null
+    "atr": 5.783571428571427
   },
   {
     "symbol": "CRM",
     "date": "2025-10-24",
     "close": 254.83,
     "volume": 5490252.0,
-    "atr": null
+    "atr": 5.412142857142856
   },
   {
     "symbol": "CRM",
     "date": "2025-10-27",
     "close": 255.47,
     "volume": 4942205.0,
-    "atr": null
+    "atr": 5.0264285714285695
   },
   {
     "symbol": "CRM",
     "date": "2025-10-28",
     "close": 254.26,
     "volume": 6435316.0,
-    "atr": null
+    "atr": 5.063571428571428
   },
   {
     "symbol": "CRM",
     "date": "2025-10-29",
     "close": 251.46,
     "volume": 7902054.0,
-    "atr": null
+    "atr": 4.913571428571426
   },
   {
     "symbol": "CRM",
     "date": "2025-10-30",
     "close": 256.65,
     "volume": 7770748.0,
-    "atr": null
+    "atr": 5.023571428571423
   },
   {
     "symbol": "CRM",
     "date": "2025-10-31",
     "close": 260.41,
     "volume": 6878187.0,
-    "atr": null
+    "atr": 4.787142857142856
   }
 ]

@@ -8803,69 +8803,69 @@
     "date": "2025-10-20",
     "close": 86.02,
     "volume": 15774949.0,
-    "atr": null
+    "atr": 1.6114285714285685
   },
   {
     "symbol": "WFC",
     "date": "2025-10-21",
     "close": 84.76,
     "volume": 20090982.0,
-    "atr": null
+    "atr": 1.490714285714283
   },
   {
     "symbol": "WFC",
     "date": "2025-10-22",
     "close": 83.88,
     "volume": 18952227.0,
-    "atr": null
+    "atr": 1.5271428571428547
   },
   {
     "symbol": "WFC",
     "date": "2025-10-23",
     "close": 84.46,
     "volume": 14152878.0,
-    "atr": null
+    "atr": 1.5564285714285688
   },
   {
     "symbol": "WFC",
     "date": "2025-10-24",
     "close": 86.41,
     "volume": 14009648.0,
-    "atr": null
+    "atr": 1.6942857142857122
   },
   {
     "symbol": "WFC",
     "date": "2025-10-27",
     "close": 87.01,
     "volume": 11681451.0,
-    "atr": null
+    "atr": 1.7049999999999983
   },
   {
     "symbol": "WFC",
     "date": "2025-10-28",
     "close": 86.9,
     "volume": 13196301.0,
-    "atr": null
+    "atr": 1.6121428571428555
   },
   {
     "symbol": "WFC",
     "date": "2025-10-29",
     "close": 86,
     "volume": 16437592.0,
-    "atr": null
+    "atr": 1.6649999999999991
   },
   {
     "symbol": "WFC",
     "date": "2025-10-30",
     "close": 85.99,
     "volume": 14827575.0,
-    "atr": null
+    "atr": 1.5035714285714283
   },
   {
     "symbol": "WFC",
     "date": "2025-10-31",
     "close": 86.97,
     "volume": 14774825.0,
-    "atr": null
+    "atr": 1.480714285714286
   }
 ]

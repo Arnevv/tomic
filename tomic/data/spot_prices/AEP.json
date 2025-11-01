@@ -8803,69 +8803,69 @@
     "date": "2025-10-20",
     "close": 117.82,
     "volume": 2989081.0,
-    "atr": null
+    "atr": 0.740000000000001
   },
   {
     "symbol": "AEP",
     "date": "2025-10-21",
     "close": 117.43,
     "volume": 2395473.0,
-    "atr": null
+    "atr": 0.75
   },
   {
     "symbol": "AEP",
     "date": "2025-10-22",
     "close": 117.27,
     "volume": 2461396.0,
-    "atr": null
+    "atr": 0.710714285714287
   },
   {
     "symbol": "AEP",
     "date": "2025-10-23",
     "close": 116.18,
     "volume": 2284445.0,
-    "atr": null
+    "atr": 0.7457142857142856
   },
   {
     "symbol": "AEP",
     "date": "2025-10-24",
     "close": 115.98,
     "volume": 1888317.0,
-    "atr": null
+    "atr": 0.6457142857142861
   },
   {
     "symbol": "AEP",
     "date": "2025-10-27",
     "close": 116.39,
     "volume": 2811286.0,
-    "atr": null
+    "atr": 0.4964285714285716
   },
   {
     "symbol": "AEP",
     "date": "2025-10-28",
     "close": 115.11,
     "volume": 3890060.0,
-    "atr": null
+    "atr": 0.585714285714286
   },
   {
     "symbol": "AEP",
     "date": "2025-10-29",
     "close": 122.11,
     "volume": 9568207.0,
-    "atr": null
+    "atr": 0.9942857142857144
   },
   {
     "symbol": "AEP",
     "date": "2025-10-30",
     "close": 121.89,
     "volume": 4430015.0,
-    "atr": null
+    "atr": 1.000714285714285
   },
   {
     "symbol": "AEP",
     "date": "2025-10-31",
     "close": 120.26,
     "volume": 4518331.0,
-    "atr": null
+    "atr": 1.0999999999999983
   }
 ]

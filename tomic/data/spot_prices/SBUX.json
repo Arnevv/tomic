@@ -8803,69 +8803,69 @@
     "date": "2025-10-20",
     "close": 84.53,
     "volume": 7678187.0,
-    "atr": null
+    "atr": 1.3221428571428564
   },
   {
     "symbol": "SBUX",
     "date": "2025-10-21",
     "close": 85.9,
     "volume": 8261963.0,
-    "atr": null
+    "atr": 1.4057142857142861
   },
   {
     "symbol": "SBUX",
     "date": "2025-10-22",
     "close": 85.5,
     "volume": 5285690.0,
-    "atr": null
+    "atr": 1.26857142857143
   },
   {
     "symbol": "SBUX",
     "date": "2025-10-23",
     "close": 85.44,
     "volume": 4564783.0,
-    "atr": null
+    "atr": 1.2514285714285731
   },
   {
     "symbol": "SBUX",
     "date": "2025-10-24",
     "close": 86.09,
     "volume": 5844499.0,
-    "atr": null
+    "atr": 0.990000000000002
   },
   {
     "symbol": "SBUX",
     "date": "2025-10-27",
     "close": 87.22,
     "volume": 7164350.0,
-    "atr": null
+    "atr": 1.0121428571428592
   },
   {
     "symbol": "SBUX",
     "date": "2025-10-28",
     "close": 85.43,
     "volume": 11544615.0,
-    "atr": null
+    "atr": 1.0507142857142873
   },
   {
     "symbol": "SBUX",
     "date": "2025-10-29",
     "close": 84.17,
     "volume": 13877353.0,
-    "atr": null
+    "atr": 1.1221428571428587
   },
   {
     "symbol": "SBUX",
     "date": "2025-10-30",
     "close": 83.15,
     "volume": 18336729.0,
-    "atr": null
+    "atr": 1.1007142857142864
   },
   {
     "symbol": "SBUX",
     "date": "2025-10-31",
     "close": 80.87,
     "volume": 13597005.0,
-    "atr": null
+    "atr": 1.1514285714285717
   }
 ]

@@ -8803,69 +8803,69 @@
     "date": "2025-10-20",
     "close": 82.48,
     "volume": 5703386.0,
-    "atr": null
+    "atr": 0.6592857142857136
   },
   {
     "symbol": "CVS",
     "date": "2025-10-21",
     "close": 83.04,
     "volume": 6220173.0,
-    "atr": null
+    "atr": 0.5935714285714278
   },
   {
     "symbol": "CVS",
     "date": "2025-10-22",
     "close": 82.01,
     "volume": 6360874.0,
-    "atr": null
+    "atr": 0.6257142857142851
   },
   {
     "symbol": "CVS",
     "date": "2025-10-23",
     "close": 81.07,
     "volume": 6025574.0,
-    "atr": null
+    "atr": 0.6900000000000007
   },
   {
     "symbol": "CVS",
     "date": "2025-10-24",
     "close": 81.93,
     "volume": 5642391.0,
-    "atr": null
+    "atr": 0.7050000000000024
   },
   {
     "symbol": "CVS",
     "date": "2025-10-27",
     "close": 82.45,
     "volume": 6129010.0,
-    "atr": null
+    "atr": 0.7221428571428591
   },
   {
     "symbol": "CVS",
     "date": "2025-10-28",
     "close": 82.2,
     "volume": 9852353.0,
-    "atr": null
+    "atr": 0.7264285714285735
   },
   {
     "symbol": "CVS",
     "date": "2025-10-29",
     "close": 80.6,
     "volume": 14782545.0,
-    "atr": null
+    "atr": 0.8271428571428591
   },
   {
     "symbol": "CVS",
     "date": "2025-10-30",
     "close": 76.69,
     "volume": 14123317.0,
-    "atr": null
+    "atr": 1.0235714285714295
   },
   {
     "symbol": "CVS",
     "date": "2025-10-31",
     "close": 78.15,
     "volume": 9680686.0,
-    "atr": null
+    "atr": 1.0892857142857164
   }
 ]

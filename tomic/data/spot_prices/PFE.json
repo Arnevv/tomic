@@ -8803,69 +8803,69 @@
     "date": "2025-10-20",
     "close": 24.69,
     "volume": 35852208.0,
-    "atr": null
+    "atr": 0.4107142857142862
   },
   {
     "symbol": "PFE",
     "date": "2025-10-21",
     "close": 24.85,
     "volume": 40723089.0,
-    "atr": null
+    "atr": 0.29857142857142904
   },
   {
     "symbol": "PFE",
     "date": "2025-10-22",
     "close": 24.72,
     "volume": 48651129.0,
-    "atr": null
+    "atr": 0.29857142857142904
   },
   {
     "symbol": "PFE",
     "date": "2025-10-23",
     "close": 24.67,
     "volume": 34216819.0,
-    "atr": null
+    "atr": 0.28142857142857153
   },
   {
     "symbol": "PFE",
     "date": "2025-10-24",
     "close": 24.76,
     "volume": 27422911.0,
-    "atr": null
+    "atr": 0.2207142857142857
   },
   {
     "symbol": "PFE",
     "date": "2025-10-27",
     "close": 24.77,
     "volume": 34978468.0,
-    "atr": null
+    "atr": 0.20999999999999983
   },
   {
     "symbol": "PFE",
     "date": "2025-10-28",
     "close": 24.5,
     "volume": 50143259.0,
-    "atr": null
+    "atr": 0.18714285714285697
   },
   {
     "symbol": "PFE",
     "date": "2025-10-29",
     "close": 24.29,
     "volume": 65425479.0,
-    "atr": null
+    "atr": 0.1707142857142855
   },
   {
     "symbol": "PFE",
     "date": "2025-10-30",
     "close": 24.29,
     "volume": 157441881.0,
-    "atr": null
+    "atr": 0.13785714285714284
   },
   {
     "symbol": "PFE",
     "date": "2025-10-31",
     "close": 24.65,
     "volume": 132765340.0,
-    "atr": null
+    "atr": 0.1599999999999999
   }
 ]

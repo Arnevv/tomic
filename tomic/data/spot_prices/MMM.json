@@ -8803,69 +8803,69 @@
     "date": "2025-10-20",
     "close": 154.78,
     "volume": 4229881.0,
-    "atr": null
+    "atr": 1.797142857142857
   },
   {
     "symbol": "MMM",
     "date": "2025-10-21",
     "close": 166.64,
     "volume": 7301224.0,
-    "atr": null
+    "atr": 2.585714285714285
   },
   {
     "symbol": "MMM",
     "date": "2025-10-22",
     "close": 167.23,
     "volume": 5275236.0,
-    "atr": null
+    "atr": 2.4278571428571416
   },
   {
     "symbol": "MMM",
     "date": "2025-10-23",
     "close": 171.6,
     "volume": 4778278.0,
-    "atr": null
+    "atr": 2.7299999999999978
   },
   {
     "symbol": "MMM",
     "date": "2025-10-24",
     "close": 168.5,
     "volume": 3612118.0,
-    "atr": null
+    "atr": 2.7564285714285695
   },
   {
     "symbol": "MMM",
     "date": "2025-10-27",
     "close": 168.4,
     "volume": 2922637.0,
-    "atr": null
+    "atr": 2.720714285714284
   },
   {
     "symbol": "MMM",
     "date": "2025-10-28",
     "close": 166.83,
     "volume": 2447387.0,
-    "atr": null
+    "atr": 2.784999999999999
   },
   {
     "symbol": "MMM",
     "date": "2025-10-29",
     "close": 164.63,
     "volume": 3162456.0,
-    "atr": null
+    "atr": 2.719285714285714
   },
   {
     "symbol": "MMM",
     "date": "2025-10-30",
     "close": 166.45,
     "volume": 2143157.0,
-    "atr": null
+    "atr": 2.554285714285714
   },
   {
     "symbol": "MMM",
     "date": "2025-10-31",
     "close": 166.5,
     "volume": 2095985.0,
-    "atr": null
+    "atr": 2.3900000000000006
   }
 ]

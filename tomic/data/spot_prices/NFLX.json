@@ -8803,69 +8803,69 @@
     "date": "2025-10-20",
     "close": 1238.56,
     "volume": 3985830.0,
-    "atr": null
+    "atr": 16.12857142857144
   },
   {
     "symbol": "NFLX",
     "date": "2025-10-21",
     "close": 1241.35,
     "volume": 6507580.0,
-    "atr": null
+    "atr": 14.326428571428583
   },
   {
     "symbol": "NFLX",
     "date": "2025-10-22",
     "close": 1116.37,
     "volume": 14898191.0,
-    "atr": null
+    "atr": 22.65571428571429
   },
   {
     "symbol": "NFLX",
     "date": "2025-10-23",
     "close": 1113.59,
     "volume": 6849109.0,
-    "atr": null
+    "atr": 22.196428571428573
   },
   {
     "symbol": "NFLX",
     "date": "2025-10-24",
     "close": 1094.69,
     "volume": 6039450.0,
-    "atr": null
+    "atr": 22.832857142857133
   },
   {
     "symbol": "NFLX",
     "date": "2025-10-27",
     "close": 1094.56,
     "volume": 4692630.0,
-    "atr": null
+    "atr": 20.859999999999996
   },
   {
     "symbol": "NFLX",
     "date": "2025-10-28",
     "close": 1102.5,
     "volume": 4020752.0,
-    "atr": null
+    "atr": 19.770714285714284
   },
   {
     "symbol": "NFLX",
     "date": "2025-10-29",
     "close": 1100.41,
     "volume": 3397910.0,
-    "atr": null
+    "atr": 18.718571428571426
   },
   {
     "symbol": "NFLX",
     "date": "2025-10-30",
     "close": 1089,
     "volume": 4199837.0,
-    "atr": null
+    "atr": 18.74857142857143
   },
   {
     "symbol": "NFLX",
     "date": "2025-10-31",
     "close": 1118.86,
     "volume": 6866037.0,
-    "atr": null
+    "atr": 20.80642857142857
   }
 ]

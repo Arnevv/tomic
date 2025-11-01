@@ -8803,69 +8803,69 @@
     "date": "2025-10-20",
     "close": 157.45,
     "volume": 1690805.0,
-    "atr": null
+    "atr": 2.0642857142857127
   },
   {
     "symbol": "ROST",
     "date": "2025-10-21",
     "close": 156.41,
     "volume": 1456812.0,
-    "atr": null
+    "atr": 2.0807142857142833
   },
   {
     "symbol": "ROST",
     "date": "2025-10-22",
     "close": 156.05,
     "volume": 1308839.0,
-    "atr": null
+    "atr": 1.894285714285711
   },
   {
     "symbol": "ROST",
     "date": "2025-10-23",
     "close": 156.66,
     "volume": 1337829.0,
-    "atr": null
+    "atr": 1.6857142857142813
   },
   {
     "symbol": "ROST",
     "date": "2025-10-24",
     "close": 156.75,
     "volume": 1597984.0,
-    "atr": null
+    "atr": 1.664999999999996
   },
   {
     "symbol": "ROST",
     "date": "2025-10-27",
     "close": 160.73,
     "volume": 3811869.0,
-    "atr": null
+    "atr": 1.8121428571428535
   },
   {
     "symbol": "ROST",
     "date": "2025-10-28",
     "close": 160.7,
     "volume": 1534419.0,
-    "atr": null
+    "atr": 1.6942857142857102
   },
   {
     "symbol": "ROST",
     "date": "2025-10-29",
     "close": 158.34,
     "volume": 1507062.0,
-    "atr": null
+    "atr": 1.7171428571428504
   },
   {
     "symbol": "ROST",
     "date": "2025-10-30",
     "close": 158.07,
     "volume": 1620125.0,
-    "atr": null
+    "atr": 1.5742857142857096
   },
   {
     "symbol": "ROST",
     "date": "2025-10-31",
     "close": 158.92,
     "volume": 1755724.0,
-    "atr": null
+    "atr": 1.1307142857142805
   }
 ]

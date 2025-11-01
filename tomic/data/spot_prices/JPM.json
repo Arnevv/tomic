@@ -8803,69 +8803,69 @@
     "date": "2025-10-20",
     "close": 302.36,
     "volume": 6953700.0,
-    "atr": null
+    "atr": 3.7150000000000034
   },
   {
     "symbol": "JPM",
     "date": "2025-10-21",
     "close": 297.09,
     "volume": 7370499.0,
-    "atr": null
+    "atr": 3.7542857142857184
   },
   {
     "symbol": "JPM",
     "date": "2025-10-22",
     "close": 294.11,
     "volume": 8052276.0,
-    "atr": null
+    "atr": 3.741428571428575
   },
   {
     "symbol": "JPM",
     "date": "2025-10-23",
     "close": 294.54,
     "volume": 5436864.0,
-    "atr": null
+    "atr": 3.595000000000007
   },
   {
     "symbol": "JPM",
     "date": "2025-10-24",
     "close": 300.44,
     "volume": 7226777.0,
-    "atr": null
+    "atr": 3.9557142857142935
   },
   {
     "symbol": "JPM",
     "date": "2025-10-27",
     "close": 304.15,
     "volume": 5646131.0,
-    "atr": null
+    "atr": 4.11428571428572
   },
   {
     "symbol": "JPM",
     "date": "2025-10-28",
     "close": 305.36,
     "volume": 6334495.0,
-    "atr": null
+    "atr": 3.9392857142857207
   },
   {
     "symbol": "JPM",
     "date": "2025-10-29",
     "close": 305.51,
     "volume": 7517290.0,
-    "atr": null
+    "atr": 3.842857142857148
   },
   {
     "symbol": "JPM",
     "date": "2025-10-30",
     "close": 309.44,
     "volume": 7513748.0,
-    "atr": null
+    "atr": 3.7921428571428635
   },
   {
     "symbol": "JPM",
     "date": "2025-10-31",
     "close": 311.12,
     "volume": 7720024.0,
-    "atr": null
+    "atr": 3.406428571428575
   }
 ]

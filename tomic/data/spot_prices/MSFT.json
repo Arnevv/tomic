@@ -8803,69 +8803,69 @@
     "date": "2025-10-20",
     "close": 516.79,
     "volume": 14661655.0,
-    "atr": null
+    "atr": 3.4728571428571433
   },
   {
     "symbol": "MSFT",
     "date": "2025-10-21",
     "close": 517.66,
     "volume": 15581666.0,
-    "atr": null
+    "atr": 3.4092857142857156
   },
   {
     "symbol": "MSFT",
     "date": "2025-10-22",
     "close": 520.54,
     "volume": 18987728.0,
-    "atr": null
+    "atr": 3.3314285714285705
   },
   {
     "symbol": "MSFT",
     "date": "2025-10-23",
     "close": 520.56,
     "volume": 14018821.0,
-    "atr": null
+    "atr": 3.2178571428571394
   },
   {
     "symbol": "MSFT",
     "date": "2025-10-24",
     "close": 523.61,
     "volume": 15529878.0,
-    "atr": null
+    "atr": 2.634285714285714
   },
   {
     "symbol": "MSFT",
     "date": "2025-10-27",
     "close": 531.52,
     "volume": 18734173.0,
-    "atr": null
+    "atr": 2.8714285714285666
   },
   {
     "symbol": "MSFT",
     "date": "2025-10-28",
     "close": 542.07,
     "volume": 29983062.0,
-    "atr": null
+    "atr": 3.5628571428571427
   },
   {
     "symbol": "MSFT",
     "date": "2025-10-29",
     "close": 541.55,
     "volume": 36015258.0,
-    "atr": null
+    "atr": 3.4250000000000034
   },
   {
     "symbol": "MSFT",
     "date": "2025-10-30",
     "close": 525.76,
     "volume": 41102862.0,
-    "atr": null
+    "atr": 3.7357142857142867
   },
   {
     "symbol": "MSFT",
     "date": "2025-10-31",
     "close": 517.81,
     "volume": 33999424.0,
-    "atr": null
+    "atr": 4.082857142857149
   }
 ]

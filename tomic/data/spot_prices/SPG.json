@@ -8803,69 +8803,69 @@
     "date": "2025-10-20",
     "close": 178.47,
     "volume": 685320,
-    "atr": null
+    "atr": 1.5557142857142838
   },
   {
     "symbol": "SPG",
     "date": "2025-10-21",
     "close": 178.72,
     "volume": 1073224.0,
-    "atr": null
+    "atr": 1.4371428571428555
   },
   {
     "symbol": "SPG",
     "date": "2025-10-22",
     "close": 179.98,
     "volume": 919674,
-    "atr": null
+    "atr": 1.4735714285714263
   },
   {
     "symbol": "SPG",
     "date": "2025-10-23",
     "close": 178.71,
     "volume": 1168262.0,
-    "atr": null
+    "atr": 1.548571428571425
   },
   {
     "symbol": "SPG",
     "date": "2025-10-24",
     "close": 178.09,
     "volume": 1229454.0,
-    "atr": null
+    "atr": 1.1599999999999966
   },
   {
     "symbol": "SPG",
     "date": "2025-10-27",
     "close": 179.78,
     "volume": 1005018.0,
-    "atr": null
+    "atr": 1.2628571428571393
   },
   {
     "symbol": "SPG",
     "date": "2025-10-28",
     "close": 176.77,
     "volume": 962274,
-    "atr": null
+    "atr": 1.4285714285714246
   },
   {
     "symbol": "SPG",
     "date": "2025-10-29",
     "close": 173.64,
     "volume": 2293403.0,
-    "atr": null
+    "atr": 1.6085714285714252
   },
   {
     "symbol": "SPG",
     "date": "2025-10-30",
     "close": 173.35,
     "volume": 1571983.0,
-    "atr": null
+    "atr": 1.376428571428568
   },
   {
     "symbol": "SPG",
     "date": "2025-10-31",
     "close": 175.76,
     "volume": 1912286.0,
-    "atr": null
+    "atr": 1.4628571428571402
   }
 ]

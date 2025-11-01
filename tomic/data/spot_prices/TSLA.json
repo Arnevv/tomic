@@ -8803,69 +8803,69 @@
     "date": "2025-10-20",
     "close": 447.43,
     "volume": 63664928.0,
-    "atr": null
+    "atr": 12.77214285714285
   },
   {
     "symbol": "TSLA",
     "date": "2025-10-21",
     "close": 442.6,
     "volume": 54405183.0,
-    "atr": null
+    "atr": 12.064285714285708
   },
   {
     "symbol": "TSLA",
     "date": "2025-10-22",
     "close": 438.97,
     "volume": 84011066.0,
-    "atr": null
+    "atr": 10.647857142857138
   },
   {
     "symbol": "TSLA",
     "date": "2025-10-23",
     "close": 448.98,
     "volume": 126702962.0,
-    "atr": null
+    "atr": 10.92214285714285
   },
   {
     "symbol": "TSLA",
     "date": "2025-10-24",
     "close": 433.72,
     "volume": 94951065.0,
-    "atr": null
+    "atr": 10.339285714285706
   },
   {
     "symbol": "TSLA",
     "date": "2025-10-27",
     "close": 452.42,
     "volume": 106109499.0,
-    "atr": null
+    "atr": 10.234999999999989
   },
   {
     "symbol": "TSLA",
     "date": "2025-10-28",
     "close": 460.55,
     "volume": 80182124.0,
-    "atr": null
+    "atr": 10.415714285714273
   },
   {
     "symbol": "TSLA",
     "date": "2025-10-29",
     "close": 461.51,
     "volume": 67971903.0,
-    "atr": null
+    "atr": 10.259285714285701
   },
   {
     "symbol": "TSLA",
     "date": "2025-10-30",
     "close": 440.1,
     "volume": 72361214.0,
-    "atr": null
+    "atr": 10.213571428571413
   },
   {
     "symbol": "TSLA",
     "date": "2025-10-31",
     "close": 456.56,
     "volume": 83131865.0,
-    "atr": null
+    "atr": 9.788571428571414
   }
 ]
