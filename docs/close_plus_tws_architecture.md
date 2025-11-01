@@ -38,9 +38,9 @@ CLI visualiseert*.
 - **Samenvattingen van bronnen.** Tijdens `_convert_proposal` wordt
   `fallback_summary` opgebouwd met uitsluitend close-bronnen zodat het panel
   ziet dat een setup een nieuwe close-run nodig heeft.【F:tomic/services/strategy_pipeline.py†L595-L659】
-- **Config-gedreven validatie.** `tomic/analysis/scoring.validate_leg_metrics`
+- **Config-gedreven validatie.** `tomic/analysis/scoring.validate_entry_quality`
   controleert of close-data voldoet aan de acceptance-regels en vermeldt in de
-  log wanneer een leg te oud is.【F:tomic/analysis/scoring.py†L268-L479】
+  log wanneer een leg te oud is.【F:tomic/analysis/scoring.py†L560-L712】
 - **Controlpanel-weergave.** `tomic/services/portfolio_service.PortfolioService._mid_sources`
   vat de `mid_source`-waarden samen en presenteert enkel `preview` of `rejected`
   badges; `tradable` bestaat niet meer zonder live quotes.【F:tomic/services/portfolio_service.py†L141-L235】
@@ -52,8 +52,10 @@ CLI visualiseert*.
 - **Mid-bron rapportage.** De `Candidate` uit `PortfolioService.rank_candidates`
   bevat `mid_sources` en `score` zodat rapportages duidelijk maken dat de bron
   `close` is.【F:tomic/services/portfolio_service.py†L141-L235】
-- **Logging voor audits.** `tomic/analysis/scoring.validate_leg_metrics` logt
-  expliciet wanneer mids uit close komen en welke criteria ze misten.【F:tomic/analysis/scoring.py†L405-L479】
+- **Logging voor audits.** `tomic/analysis/scoring.validate_entry_quality` logt
+  expliciet wanneer mids uit close komen en welke criteria ze misten. Exits
+  gebruiken `validate_exit_tradability` zodat ontbrekende model/delta-waarden
+  geen blokkade meer vormen.【F:tomic/analysis/scoring.py†L560-L712】【F:tomic/analysis/scoring.py†L714-L788】
 
 ## 5. Testfocus
 - **Unit-tests.** Bevestigen dat close als standaardbron fungeert en dat

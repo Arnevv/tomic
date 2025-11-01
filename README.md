@@ -256,8 +256,10 @@ EOD-dataflow – Technische Documentatie
    - `tomic/mid_resolver.MidResolver` vult mids op basis van close, parity en
      modellogica. Omdat er geen intraday refresh meer is, blijven alle
      voorstellen in "preview" totdat er een nieuwe close-run draait.
-   - `tomic/analysis/scoring.validate_leg_metrics` accepteert voorstellen die
-     voldoen aan de criteria en geeft anders een reden terug.
+  - `tomic/analysis/scoring.validate_entry_quality` accepteert voorstellen die
+    voldoen aan de criteria en geeft anders een reden terug, terwijl
+    `validate_exit_tradability` enkel controleert of bestaande posities
+    verhandelbaar zijn zonder model/delta-vereisten.
 
 5. **Portfolio- en marktsnapshots**
    - `tomic/services/market_snapshot_service.MarketSnapshotService` combineert

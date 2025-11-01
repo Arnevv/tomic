@@ -99,7 +99,7 @@ def test_build_exit_order_plan_requires_nbbo():
         }
     ]
     intent = StrategyExitIntent(strategy=strategy, legs=legs, exit_rules=None)
-    with pytest.raises(ValueError, match="NBBO"):
+    with pytest.raises(ValueError, match="geen quote"):
         build_exit_order_plan(intent)
 
 

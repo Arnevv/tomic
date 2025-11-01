@@ -107,6 +107,39 @@ def test_validate_leg_metrics_long_missing_allowed(monkeypatch):
     assert proposal.legs[1]["metrics_ignored"] is True
 
 
+def test_validate_exit_tradability_requires_quotes():
+    legs = [
+        {
+            "type": "P",
+            "strike": 100,
+            "expiry": "20250101",
+            "conId": 123,
+            "bid": None,
+            "ask": 1.0,
+        }
+    ]
+    ok, reasons = scoring.validate_exit_tradability("naked_put", legs)
+    assert not ok
+    assert reasons[0].code == "EXIT_QUOTES_MISSING"
+    assert reasons[0].message == "niet verhandelbaar (geen quote)"
+
+
+def test_validate_exit_tradability_ignores_model_and_delta():
+    legs = [
+        {
+            "type": "P",
+            "strike": 100,
+            "expiry": "20250101",
+            "conId": 123,
+            "bid": 1.0,
+            "ask": 1.2,
+        }
+    ]
+    ok, reasons = scoring.validate_exit_tradability("naked_put", legs)
+    assert ok
+    assert reasons == []
+
+
 def test_check_liquidity_failure():
     crit = load_criteria().model_copy()
     crit.market_data.min_option_volume = 10

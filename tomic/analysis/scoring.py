@@ -592,10 +592,10 @@ def _resolve_mid_source(leg: Mapping[str, Any]) -> str:
     )
 
 
-def validate_leg_metrics(
+def validate_entry_quality(
     strategy_name: str, legs: List[Dict[str, Any]]
 ) -> Tuple[bool, List[ReasonDetail]]:
-    """Ensure required leg metrics are present."""
+    """Ensure required leg metrics are present for fresh entries."""
     cfg = cfg_get("STRATEGY_CONFIG") or {}
     strat_cfg = cfg.get("strategies", {}).get(strategy_name, {})
     default_cfg = cfg.get("default", {})
@@ -651,6 +651,81 @@ def validate_leg_metrics(
         missing_str = ", ".join(sorted(missing_fields))
         message = f"{missing_str} ontbreken — metrics kunnen niet worden berekend"
         return False, [make_reason(ReasonCategory.MISSING_DATA, "METRICS_MISSING", message)]
+    return True, []
+
+
+def validate_leg_metrics(
+    strategy_name: str, legs: List[Dict[str, Any]]
+) -> Tuple[bool, List[ReasonDetail]]:
+    """Backward compatible wrapper for entry metric validation."""
+
+    return validate_entry_quality(strategy_name, legs)
+
+
+def validate_exit_tradability(
+    strategy_name: str, legs: List[Dict[str, Any]]
+) -> Tuple[bool, List[ReasonDetail]]:
+    """Check whether ``legs`` contain enough data to close an existing combo."""
+
+    missing_contract: list[str] = []
+    missing_quotes: list[str] = []
+    invalid_quotes: list[str] = []
+
+    for idx, leg in enumerate(legs, start=1):
+        normalize_leg(leg)
+        con_id = leg.get("conId") or leg.get("con_id")
+        if con_id in (None, ""):
+            missing_contract.append(f"leg{idx}")
+
+        bid = safe_float(leg.get("bid"))
+        ask = safe_float(leg.get("ask"))
+
+        if bid is None or ask is None:
+            missing_quotes.append(f"leg{idx}")
+            logger.info(
+                f"[exit-metrics] {strategy_name} leg{idx} ontbrekende quotes"
+            )
+            continue
+
+        if bid < 0 or ask < 0 or bid > ask + 1e-9:
+            invalid_quotes.append(f"leg{idx}")
+            logger.info(
+                f"[exit-metrics] {strategy_name} leg{idx} ongeldige quotes bid={bid} ask={ask}"
+            )
+
+    if missing_contract:
+        message = "contractgegevens ontbreken"
+        return False, [
+            make_reason(
+                ReasonCategory.MISSING_DATA,
+                "EXIT_CONTRACT_INCOMPLETE",
+                message,
+                data={"legs": missing_contract},
+            )
+        ]
+
+    if missing_quotes:
+        message = "niet verhandelbaar (geen quote)"
+        return False, [
+            make_reason(
+                ReasonCategory.MISSING_DATA,
+                "EXIT_QUOTES_MISSING",
+                message,
+                data={"legs": missing_quotes},
+            )
+        ]
+
+    if invalid_quotes:
+        message = "niet verhandelbaar (ongeldige quote)"
+        return False, [
+            make_reason(
+                ReasonCategory.MISSING_DATA,
+                "EXIT_QUOTES_INVALID",
+                message,
+                data={"legs": invalid_quotes},
+            )
+        ]
+
     return True, []
 
 
@@ -1025,7 +1100,7 @@ def calculate_score(
             fallback_warning = f"te veel fallback-legs ({fallback_count}/{fallback_allowed} toegestaan)"
         logger.info(f"[{strategy_name}] {fallback_warning}")
 
-    valid, reasons = validate_leg_metrics(strategy_name, legs)
+    valid, reasons = validate_entry_quality(strategy_name, legs)
     if not valid:
         return None, reasons
 
@@ -1077,4 +1152,7 @@ __all__ = [
     "calculate_breakevens",
     "passes_risk",
     "resolve_min_risk_reward",
+    "validate_entry_quality",
+    "validate_exit_tradability",
+    "validate_leg_metrics",
 ]

@@ -148,10 +148,12 @@ User/CLI → select symbol & strategy
   time (`_spread_ok`), tagging legs with `spread_flag="too_wide"` when the
   relative/absolute limits are breached so later stages can reject or display
   them.【F:tomic/mid_resolver.py†L266-L305】
-* **Liquidity & metrics gating.** `validate_leg_metrics()` requires `mid`,
-  `model` and `delta` for every leg unless strategy config enables
-  `allow_unpriced_wings`. `check_liquidity()` enforces minimum volume/OI from
-  `criteria.yaml`. Both feed into `calculate_score()` before any scoring occurs.【F:tomic/analysis/scoring.py†L180-L233】
+* **Liquidity & metrics gating.** `validate_entry_quality()` vereist `mid`,
+  `model` en `delta` voor iedere leg tenzij `allow_unpriced_wings` is ingeschakeld.
+  Voor exits gebruikt de workflow `validate_exit_tradability()` zodat alleen
+  ontbrekende quotes of contractdata een exit blokkeren. `check_liquidity()`
+  handhaaft de minimale volume/OI uit `criteria.yaml`. Beide checks draaien vóór
+  de scoring zelf.【F:tomic/analysis/scoring.py†L560-L712】【F:tomic/analysis/scoring.py†L714-L788】
 * **Risk/reward checks.** `calculate_score()` also verifies credit-positive
   strategies, computes margin, ROM, EV and compares risk/reward against strategy
   thresholds. The shared margin engine now decides whether proposals satisfy the
