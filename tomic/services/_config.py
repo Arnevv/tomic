@@ -134,17 +134,28 @@ def exit_force_exit_config() -> dict[str, Any]:
     """Return forced exit policy configuration."""
 
     options = _as_mapping(cfg_value("EXIT_ORDER_OPTIONS", {}))
-    force_raw = _as_mapping(options.get("force_exit"))
+    force_option = options.get("force_exit")
 
     enabled_default = _coerce_bool(cfg_value("EXIT_FORCE_EXIT_ENABLED", False), False)
-    enabled = _coerce_bool(force_raw.get("enabled"), enabled_default)
     market_default = _coerce_bool(
         cfg_value("EXIT_FORCE_EXIT_MARKET_ORDER", False),
         False,
     )
-    market_order = _coerce_bool(force_raw.get("market_order"), market_default)
 
-    limit_cap_raw = _as_mapping(force_raw.get("limit_cap"))
+    if isinstance(force_option, Mapping):
+        force_raw = force_option
+        enabled = _coerce_bool(force_raw.get("enabled"), enabled_default)
+        market_order = _coerce_bool(force_raw.get("market_order"), market_default)
+        limit_cap_raw = _as_mapping(force_raw.get("limit_cap"))
+    else:
+        force_raw = {}
+        if force_option is None:
+            enabled = enabled_default
+        else:
+            enabled = _coerce_bool(force_option, enabled_default)
+        market_order = market_default
+        limit_cap_raw = {}
+
     limit_cap: dict[str, Any] | None = None
     cap_type = str(limit_cap_raw.get("type") or "").strip().lower()
     cap_value = _coerce_float(limit_cap_raw.get("value"), 0.0)
