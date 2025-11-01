@@ -224,6 +224,7 @@ Extra opties in `config.yaml`:
       allowed_sources: [close, model]
     force_exit:
       enabled: false        # override spread/quote checks tijdens force-exit
+      # Je kunt ook `force_exit: true` instellen voor een snelle toggle zonder extra opties.
   ```
 
 Voor strategie-specifieke instellingen gebruik je `config/strategies.yaml`. Hier kun je per strategie of voor alle strategieën via `default` extra opties zetten. `allow_unpriced_wings: true` zorgt er bijvoorbeeld voor dat long-legs zonder `mid`, `model` of `delta` toch geaccepteerd worden.
