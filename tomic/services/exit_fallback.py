@@ -59,7 +59,7 @@ def detect_fallback_reason(
     else:
         reason = ExitFallbackReason.MANUAL
 
-    logger.info("[exit-fallback] start reason=%s", reason.value)
+    logger.debug("[exit-fallback] start reason=%s", reason.value)
     return reason
 
 

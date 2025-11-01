@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import sys
+from pathlib import Path
 from typing import Iterable
 
 from tomic.logutils import logger, setup_logging
@@ -41,22 +42,192 @@ def _has_alert(intent: StrategyExitIntent, alert_index: set[tuple[str, str | Non
     return bool(keys & alert_index)
 
 
-def _log_summary(intent: StrategyExitIntent, result: ExitFlowResult, log_path) -> None:
+def _intent_label(intent: StrategyExitIntent) -> str:
     strategy = intent.strategy or {}
-    symbol = strategy.get("symbol") or strategy.get("underlying") or "-"
-    expiry = strategy.get("expiry") or "-"
-    order_ids = list(result.order_ids)
-    limit_prices = [round(lp, 4) for lp in result.limit_prices]
-    logger.info(
-        "Exit %s %s status=%s reason=%s order_ids=%s limits=%s log=%s",
-        symbol,
-        expiry,
-        result.status,
-        result.reason or "-",
-        order_ids,
-        limit_prices,
-        log_path,
-    )
+    symbol = strategy.get("symbol") or strategy.get("underlying")
+    expiry = strategy.get("expiry")
+    name = strategy.get("type") or strategy.get("strategy")
+
+    parts = [
+        str(symbol).upper() if symbol else None,
+        str(expiry) if expiry else None,
+        str(name).upper() if name else None,
+    ]
+    return " ".join(part for part in parts if part)
+
+
+def _format_price(value: float | None) -> str | None:
+    if value is None:
+        return None
+    return f"{float(value):.2f}"
+
+
+def _format_order_suffix(order_ids: Iterable[int] | None) -> str:
+    ids = [int(order_id) for order_id in (order_ids or [])]
+    if not ids:
+        return ""
+    if len(ids) == 1:
+        return f" (order #{ids[0]})"
+    return " (orders #" + ", ".join(map(str, ids)) + ")"
+
+
+def _describe_ladder(intent: StrategyExitIntent, result: ExitFlowResult) -> list[str]:
+    attempts = [attempt for attempt in result.attempts if attempt.stage == "primary" or attempt.stage.startswith("ladder:")]
+    if not attempts:
+        return []
+
+    label = _intent_label(intent)
+    prices = [attempt.limit_price for attempt in attempts if attempt.limit_price is not None]
+    price_sequence: str | None = None
+    if prices:
+        formatted = [_format_price(price) or "-" for price in prices]
+        preview = formatted[:3]
+        price_sequence = " → ".join(preview)
+        if len(formatted) > 3:
+            price_sequence += " → …"
+
+    filled_attempt = next((attempt for attempt in attempts if attempt.order_ids), None)
+    if filled_attempt is not None:
+        status = "FILLED"
+        final_price = _format_price(filled_attempt.limit_price)
+        if final_price:
+            status += f" @ {final_price}"
+        status += _format_order_suffix(filled_attempt.order_ids)
+    else:
+        status = result.reason or "failed"
+
+    steps_count = len(prices) if prices else len(attempts)
+    sequence_part = f" @ {price_sequence}" if price_sequence else ""
+    return [f"{label} | Ladder {steps_count} steps{sequence_part} {status}"]
+
+
+def _fallback_reason_label(reason: str | None) -> str:
+    mapping = {
+        "gate_failure": "Gate=FAIL",
+        "main_bag_failure": "Primary=FAIL",
+        "repricer_timeout": "Repricer timeout",
+        "cancel_on_no_fill": "Cancelled",
+        "manual_trigger": "Fallback",
+    }
+    if not reason:
+        return "Fallback"
+    return mapping.get(reason, reason.replace("_", " "))
+
+
+def _describe_fallback(intent: StrategyExitIntent, result: ExitFlowResult) -> list[str]:
+    attempts = [attempt for attempt in result.attempts if attempt.stage.startswith("fallback:")]
+    if not attempts:
+        return []
+
+    label = _intent_label(intent)
+    reason = None
+    if result.reason and result.reason.startswith("fallback:"):
+        reason = result.reason.split(":", 1)[1]
+    lines = [
+        f"{label} | {_fallback_reason_label(reason)} → Fallback: {len(attempts)} verticals"
+    ]
+
+    for attempt in attempts:
+        wing = attempt.stage.split(":", 1)[1] if ":" in attempt.stage else attempt.stage
+        detail: str
+        if attempt.order_ids:
+            price = _format_price(attempt.limit_price)
+            detail = "FILLED"
+            if price:
+                detail += f" @ {price}"
+            detail += _format_order_suffix(attempt.order_ids)
+        elif attempt.status == "skipped":
+            detail = f"gate=FAIL ({attempt.reason or 'skipped'})"
+        elif attempt.reason:
+            detail = f"gate=FAIL ({attempt.reason})"
+        else:
+            detail = attempt.status
+        lines.append(f"{label} | Fallback({wing}) {detail}")
+
+    return lines
+
+
+def _describe_fetch_only(intent: StrategyExitIntent, result: ExitFlowResult) -> list[str]:
+    label = _intent_label(intent)
+    limit = None
+    if result.limit_prices:
+        limit = _format_price(result.limit_prices[-1])
+    limit_part = f" @ {limit}" if limit else ""
+    return [f"{label} | Fetch-only{limit_part}"]
+
+
+def _describe_generic(intent: StrategyExitIntent, result: ExitFlowResult) -> list[str]:
+    label = _intent_label(intent)
+    price = None
+    if result.limit_prices:
+        price = _format_price(result.limit_prices[-1])
+    order_suffix = _format_order_suffix(result.order_ids)
+    reason = result.reason or result.status
+    price_part = f" @ {price}" if price else ""
+    return [f"{label} | {result.status}{price_part}{order_suffix} ({reason})"]
+
+
+def _progress_lines(intent: StrategyExitIntent, result: ExitFlowResult) -> list[str]:
+    if result.status == "fetch_only":
+        return _describe_fetch_only(intent, result)
+
+    lines: list[str] = []
+    lines.extend(_describe_ladder(intent, result))
+    lines.extend(_describe_fallback(intent, result))
+
+    if lines:
+        return lines
+    return _describe_generic(intent, result)
+
+
+def _final_summary_line(intent: StrategyExitIntent, result: ExitFlowResult) -> str:
+    label = _intent_label(intent)
+    if result.status == "success":
+        emoji = "✅"
+        price = None
+        if result.order_ids:
+            attempt = next(
+                (item for item in reversed(result.attempts) if item.order_ids),
+                None,
+            )
+            if attempt and attempt.limit_price is not None:
+                price = _format_price(attempt.limit_price)
+        if not price and result.limit_prices:
+            price = _format_price(result.limit_prices[-1])
+        order_suffix = _format_order_suffix(result.order_ids)
+        price_part = f" @ {price}" if price else ""
+        return f"{emoji} {label}{price_part}{order_suffix}"
+
+    if result.status == "fetch_only":
+        return f"⏭️ {label} | fetch-only"
+
+    reason = result.reason or "failed"
+    return f"⚠️ {label} | failed: {reason}"
+
+
+def _log_progress(intent: StrategyExitIntent, result: ExitFlowResult) -> None:
+    for line in _progress_lines(intent, result):
+        logger.info(line)
+
+
+def _log_final_summary(entries: list[tuple[StrategyExitIntent, ExitFlowResult, Path]]) -> None:
+    if not entries:
+        return
+
+    success = sum(1 for _, result, _ in entries if result.status == "success")
+    failed = sum(1 for _, result, _ in entries if result.status == "failed")
+    skipped = sum(1 for _, result, _ in entries if result.status == "fetch_only")
+
+    logger.info("=== RESULT ===")
+    logger.info("✅ %d closed | ⚠️ %d failed | ⏭️ %d skipped", success, failed, skipped)
+
+    for intent, result, _ in entries:
+        logger.info(_final_summary_line(intent, result))
+
+    log_dirs = sorted({str(path.parent) for _, _, path in entries})
+    if log_dirs:
+        formatted = [directory if directory.endswith("/") else f"{directory}/" for directory in log_dirs]
+        logger.info("Logs: %s", ", ".join(formatted))
 
 
 def main(argv: Iterable[str] | None = None) -> int:
@@ -116,6 +287,7 @@ def main(argv: Iterable[str] | None = None) -> int:
         logger.info("IB_FETCH_ONLY actief → orders worden niet verstuurd.")
 
     exit_code = 0
+    collected: list[tuple[StrategyExitIntent, ExitFlowResult, Path]] = []
     for intent in filtered:
         try:
             result = execute_exit_flow(intent, config=config)
@@ -124,9 +296,11 @@ def main(argv: Iterable[str] | None = None) -> int:
             exit_code = 1
             continue
         log_path = store_exit_flow_result(intent, result, directory=config.log_directory)
-        _log_summary(intent, result, log_path)
+        _log_progress(intent, result)
+        collected.append((intent, result, log_path))
         if result.status == "failed":
             exit_code = 1
+    _log_final_summary(collected)
     return exit_code
 
 
