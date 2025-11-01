@@ -8860,5 +8860,12 @@
     "close": 95.06,
     "volume": 10071253.0,
     "atr": null
+  },
+  {
+    "symbol": "UPS",
+    "date": "2025-10-31",
+    "close": 96.42,
+    "volume": 7304743.0,
+    "atr": null
   }
 ]
