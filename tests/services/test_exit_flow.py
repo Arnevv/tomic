@@ -174,6 +174,31 @@ def test_execute_exit_flow_fallback_success(sample_intent, base_config):
     assert calls == ["primary", "call", "put"]
 
 
+def test_execute_exit_flow_fallback_failure(sample_intent, base_config):
+    calls: list[str] = []
+
+    def dispatcher(plan):
+        if not calls:
+            calls.append("primary")
+            raise RuntimeError("main bag failed")
+        wing = plan.legs[0].get("right")
+        label = "call" if str(wing).lower().startswith("c") else "put"
+        calls.append(label)
+        return tuple()
+
+    result = execute_exit_flow(sample_intent, config=base_config, dispatcher=dispatcher)
+
+    assert result.status == "failed"
+    assert result.reason == "main bag failed"
+    stages = {attempt.stage: attempt for attempt in result.attempts}
+    assert stages["primary"].status == "failed"
+    assert stages["fallback:call"].status == "failed"
+    assert stages["fallback:call"].reason == "no_order_ids"
+    assert stages["fallback:put"].status == "failed"
+    assert stages["fallback:put"].reason == "no_order_ids"
+    assert calls == ["primary", "call", "put"]
+
+
 def test_execute_exit_flow_uses_price_ladder(monkeypatch, sample_intent, base_config):
     base_plan = build_exit_order_plan(sample_intent)
     base_limit = base_plan.limit_price
