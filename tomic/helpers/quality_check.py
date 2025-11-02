@@ -77,16 +77,14 @@ def _pricing_score(df: pd.DataFrame) -> float:
         if bid is None or ask is None:
             continue
         considered += 1
-        if bid <= 0 or ask <= 0:
+        if min(bid, ask) <= 0 or ask < bid:
             continue
-        if ask < bid:
-            continue
-        mid = (bid + ask) / 2
         spread = ask - bid
-        if mid <= 0 or spread <= 0:
+        mid = (bid + ask) / 2
+        if spread <= 0 or mid <= 0:
             continue
         # Guard against extreme or illogical spreads.
-        if spread / mid > 0.75 and spread > 0.05:
+        if spread > 0.05 and (spread / mid) > 0.75:
             continue
         valid += 1
     if considered == 0:
@@ -100,37 +98,30 @@ def _greeks_score(df: pd.DataFrame) -> float:
     considered = 0
     valid = 0
     for _, row in df.iterrows():
-        values: dict[str, float] = {}
-        missing = False
+        parsed: dict[str, float] = {}
         for field in _GREEK_FIELDS:
-            val = row.get(field)
-            if not _has_value(val):
-                missing = True
-                break
-            number = safe_float(val)
+            number = safe_float(row.get(field))
             if number is None:
-                missing = True
                 break
-            values[field] = number
-        if missing:
-            continue
-        considered += 1
-        iv = values["iv"]
-        delta = values["delta"]
-        gamma = values["gamma"]
-        vega = values["vega"]
-        theta = values["theta"]
-        if not (0 < iv < 10):
-            continue
-        if not (-1.05 <= delta <= 1.05):
-            continue
-        if not (-5 <= gamma <= 5):
-            continue
-        if not (-50 <= vega <= 50):
-            continue
-        if not (-25 <= theta <= 25):
-            continue
-        valid += 1
+            parsed[field] = number
+        else:
+            considered += 1
+            iv = parsed["iv"]
+            delta = parsed["delta"]
+            gamma = parsed["gamma"]
+            vega = parsed["vega"]
+            theta = parsed["theta"]
+            if not (0 < iv < 10):
+                continue
+            if not (-1.05 <= delta <= 1.05):
+                continue
+            if not (-5 <= gamma <= 5):
+                continue
+            if not (-50 <= vega <= 50):
+                continue
+            if not (-25 <= theta <= 25):
+                continue
+            valid += 1
     if considered == 0:
         return 0.0
     return (valid / considered) * 100

@@ -11,24 +11,39 @@ logger = logging.getLogger(__name__)
 
 
 def normalize_european_number_format(df: pd.DataFrame, columns: Iterable[str]) -> pd.DataFrame:
-    """Convert European formatted numbers in ``columns`` to floats.
+    """Convert European formatted numbers in ``columns`` to floats."""
 
-    Thousands separators using ``.`` are removed and decimal commas are
-    replaced with ``.`` before casting to ``float``.
-    """
     df = df.copy()
-    normed: list[str] = []
+    normalized: list[str] = []
+
     for col in columns:
-        if col in df.columns:
-            df[col] = df[col].astype(str).apply(
-                lambda x: x.replace(".", "").replace(",", ".") if "," in x else x
+        if col not in df.columns:
+            continue
+
+        original = df[col].copy()
+        series = original.astype(str)
+
+        needs_conversion = series.str.contains(",", na=False)
+        if needs_conversion.any():
+            formatted = series.where(
+                ~needs_conversion,
+                series.str.replace(".", "", regex=False).str.replace(",", ".", regex=False),
             )
-            df[col] = pd.to_numeric(df[col], errors="coerce")
-            normed.append(col)
-    if normed:
+        else:
+            formatted = series
+
+        converted = pd.to_numeric(formatted, errors="coerce")
+        df[col] = converted
+
+        if not converted.equals(original):
+            normalized.append(col)
+
+    if normalized:
         logger.info(
-            f"\U0001F9EA European number format normalization toegepast op kolommen: {normed}"
+            "\U0001F9EA European number format normalization toegepast op kolommen: %s",
+            normalized,
         )
+
     return df
 
 
