@@ -4,9 +4,12 @@ from __future__ import annotations
 
 import argparse
 import sys
+from copy import deepcopy
 from pathlib import Path
-from typing import Iterable
+from typing import Any, Callable, Iterable, Mapping
 
+from tomic.config import get as cfg_get
+from tomic.journal.utils import load_json
 from tomic.logutils import logger, setup_logging
 from tomic.services.exit_flow import (
     ExitFlowConfig,
@@ -24,8 +27,22 @@ from tomic.services.trade_management_service import (
 
 
 def _intent_symbol(intent: StrategyExitIntent) -> str:
+    """Return a normalized symbol label consistent with service logic."""
+
+    keys = exit_intent_keys(intent)
+    if keys:
+        symbol, _ = sorted(keys, key=lambda item: (item[0] or "", item[1] or ""))[0]
+        if symbol:
+            return symbol
+
     strategy = intent.strategy or {}
-    return str(strategy.get("symbol") or strategy.get("underlying") or "-")
+    symbol = strategy.get("symbol") or strategy.get("underlying")
+    if symbol in (None, "") and intent.legs:
+        first = intent.legs[0]
+        if isinstance(first, Mapping):
+            symbol = first.get("symbol")
+    label = str(symbol or "-").strip()
+    return label.upper() if label else "-"
 
 
 def _intent_label(intent: StrategyExitIntent) -> str:
@@ -192,7 +209,10 @@ def _final_summary_line(intent: StrategyExitIntent, result: ExitFlowResult) -> s
 
 
 def _log_progress(intent: StrategyExitIntent, result: ExitFlowResult) -> None:
-    for line in _progress_lines(intent, result):
+    lines = list(dict.fromkeys(_progress_lines(intent, result)))
+    if not lines:
+        return
+    for line in lines:
         logger.info(line)
 
 
@@ -201,7 +221,7 @@ def _log_final_summary(entries: list[tuple[StrategyExitIntent, ExitFlowResult, P
         return
 
     success = failed = skipped = 0
-    summary_lines: list[str] = []
+    summary_lines: dict[str, None] = {}
     log_dirs: set[str] = set()
 
     for intent, result, path in entries:
@@ -212,13 +232,13 @@ def _log_final_summary(entries: list[tuple[StrategyExitIntent, ExitFlowResult, P
             failed += 1
         elif status == "fetch_only":
             skipped += 1
-        summary_lines.append(_final_summary_line(intent, result))
+        summary_lines.setdefault(_final_summary_line(intent, result), None)
         log_dirs.add(str(path.parent))
 
     logger.info("=== RESULT ===")
     logger.info("✅ %d closed | ⚠️ %d failed | ⏭️ %d skipped", success, failed, skipped)
 
-    for line in summary_lines:
+    for line in summary_lines.keys():
         logger.info(line)
 
     if log_dirs:
@@ -227,6 +247,17 @@ def _log_final_summary(entries: list[tuple[StrategyExitIntent, ExitFlowResult, P
             for directory in sorted(log_dirs)
         ]
         logger.info("Logs: %s", ", ".join(formatted))
+
+
+def _cached_loader(loader: Callable[[str], Any]) -> Callable[[str], Any]:
+    cache: dict[str, Any] = {}
+
+    def _load(path: str) -> Any:
+        if path not in cache:
+            cache[path] = loader(path)
+        return deepcopy(cache[path])
+
+    return _load
 
 
 def main(argv: Iterable[str] | None = None) -> int:
@@ -247,17 +278,40 @@ def main(argv: Iterable[str] | None = None) -> int:
     args = parser.parse_args(list(argv) if argv is not None else None)
     symbols = {s.upper() for s in args.symbol or [] if s}
 
+    cached_loader = _cached_loader(load_json)
+
     summaries = build_management_summary(
         positions_file=args.positions,
         journal_file=args.journal,
+        loader=cached_loader,
     )
     alert_index = build_exit_alert_index(summaries)
+
+    def _coerce_int(value: Any, default: int) -> int:
+        try:
+            return int(value)
+        except (TypeError, ValueError):
+            return default
+
+    def _coerce_float(value: Any, default: float) -> float:
+        try:
+            return float(value)
+        except (TypeError, ValueError):
+            return default
+
+    freshen_attempts_default = 3
+    freshen_wait_default = 0.3
+    freshen_attempts_cfg = cfg_get("EXIT_INTENT_FRESHEN_ATTEMPTS", freshen_attempts_default)
+    freshen_wait_cfg = cfg_get("EXIT_INTENT_FRESHEN_WAIT_S", freshen_wait_default)
+    freshen_attempts = max(_coerce_int(freshen_attempts_cfg, freshen_attempts_default), 0)
+    freshen_wait_s = max(_coerce_float(freshen_wait_cfg, freshen_wait_default), 0.0)
 
     intents = build_exit_intents(
         positions_file=args.positions,
         journal_file=args.journal,
-        freshen_attempts=3,
-        freshen_wait_s=0.3,
+        loader=cached_loader,
+        freshen_attempts=freshen_attempts,
+        freshen_wait_s=freshen_wait_s,
     )
 
     filtered: list[StrategyExitIntent] = []
@@ -285,10 +339,11 @@ def main(argv: Iterable[str] | None = None) -> int:
         return 0
 
     if skipped_without_alert:
+        skipped_summary = sorted(dict.fromkeys(filter(None, skipped_without_alert)))
         logger.info(
             "Sla %d intent(s) over zonder actieve exit-alert: %s",
             len(skipped_without_alert),
-            ", ".join(filter(None, skipped_without_alert)),
+            ", ".join(skipped_summary),
         )
 
     config = ExitFlowConfig.from_app_config()
