@@ -5,8 +5,7 @@ from typing import Any, Dict, List, Optional
 from datetime import date, datetime
 import math
 
-from .analysis.scoring import calculate_score, calculate_breakevens
-from .criteria import load_criteria
+from .analysis.scoring import calculate_breakevens, calculate_score
 from .helpers.dateutils import parse_date
 from .strategy.models import StrategyProposal
 from .core.pricing import resolve_option_mid
@@ -301,7 +300,7 @@ def generate_strategy_candidates(
     strat_cfg = normalize_config(
         strat_cfg, {"strike_config": ("strike_to_strategy_config", None)}
     )
-    if "min_risk_reward" not in strat_cfg or strat_cfg["min_risk_reward"] is None:
+    if strat_cfg.get("min_risk_reward") is None:
         strat_cfg["min_risk_reward"] = RULES.strategy.acceptance.min_risk_reward
     strat_cfg["strike_to_strategy_config"] = normalize_config(
         strat_cfg.get("strike_to_strategy_config", {}), strategy=strategy_type
@@ -314,10 +313,7 @@ def generate_strategy_candidates(
         proposals, reasons = result
     else:  # backward compatibility
         proposals, reasons = result, None
-    if reasons is None:
-        reason_list: List[ReasonDetail] = []
-    else:
-        reason_list = dedupe_reasons(reasons)
+    reason_list = dedupe_reasons(reasons) if reasons else []
     return proposals, reason_list
 
 

@@ -2,7 +2,7 @@
 
 import sys
 
-from tomic.logutils import setup_logging, logger, log_result, trace_calls
+from tomic.logutils import log_result, setup_logging, trace_calls
 from .ib_connection import connect_ib  # backwards compat for tests
 
 def _market_export():
@@ -17,13 +17,14 @@ def run(
 ) -> bool:
     setup_logging()
     export = _market_export()
+    normalized = symbol.strip().upper()
     if simple:
         res = export.export_option_chain(
-            symbol.strip().upper(), output_dir, simple=True, return_status=True
+            normalized, output_dir, simple=True, return_status=True
         )
     else:
         res = export.export_market_data(
-            symbol.strip().upper(), output_dir, return_status=True
+            normalized, output_dir, return_status=True
         )
     return not isinstance(res, export.ExportResult) or res.ok
 
@@ -37,13 +38,14 @@ async def run_async(
 
     setup_logging()
     export = _market_export()
+    normalized = symbol.strip().upper()
     if simple:
         res = await export.export_option_chain_async(
-            symbol.strip().upper(), output_dir, simple=True, return_status=True
+            normalized, output_dir, simple=True, return_status=True
         )
     else:
         res = await export.export_market_data_async(
-            symbol.strip().upper(), output_dir, return_status=True
+            normalized, output_dir, return_status=True
         )
     return not isinstance(res, export.ExportResult) or res.ok
 
