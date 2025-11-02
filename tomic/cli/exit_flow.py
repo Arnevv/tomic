@@ -28,20 +28,6 @@ def _intent_symbol(intent: StrategyExitIntent) -> str:
     return str(strategy.get("symbol") or strategy.get("underlying") or "-")
 
 
-def _should_include(intent: StrategyExitIntent, symbols: set[str] | None) -> bool:
-    if not symbols:
-        return True
-    symbol = _intent_symbol(intent).upper()
-    return symbol in symbols
-
-
-def _has_alert(intent: StrategyExitIntent, alert_index: set[tuple[str, str | None]]) -> bool:
-    if not alert_index:
-        return False
-    keys = exit_intent_keys(intent)
-    return bool(keys & alert_index)
-
-
 def _intent_label(intent: StrategyExitIntent) -> str:
     strategy = intent.strategy or {}
     symbol = strategy.get("symbol") or strategy.get("underlying")
@@ -264,11 +250,17 @@ def main(argv: Iterable[str] | None = None) -> int:
     filtered: list[StrategyExitIntent] = []
     skipped_without_alert: list[str] = []
     for intent in intents:
-        if not _should_include(intent, symbols):
+        symbol_label = _intent_symbol(intent)
+        symbol_key = symbol_label.upper()
+        if symbols and symbol_key not in symbols:
             continue
-        if not _has_alert(intent, alert_index):
-            skipped_without_alert.append(_intent_symbol(intent))
+
+        keys = exit_intent_keys(intent)
+        has_alert = bool(alert_index and (keys & alert_index))
+        if not has_alert:
+            skipped_without_alert.append(symbol_label)
             continue
+
         filtered.append(intent)
 
     if not filtered:

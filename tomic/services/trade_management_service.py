@@ -38,6 +38,23 @@ class StrategyManagementSummary:
     status: str
 
 
+def _load_positions_and_journal(
+    positions_file: str | None,
+    journal_file: str | None,
+    loader: Callable[[str], Any],
+) -> tuple[str, str, list[Mapping[str, Any]], list[Mapping[str, Any]]]:
+    positions_path = positions_file or cfg_get("POSITIONS_FILE", "positions.json")
+    journal_path = journal_file or cfg_get("JOURNAL_FILE", "journal.json")
+
+    raw_positions = loader(positions_path)
+    positions = list(raw_positions) if isinstance(raw_positions, list) else []
+
+    raw_journal = loader(journal_path)
+    journal = list(raw_journal) if isinstance(raw_journal, list) else []
+
+    return positions_path, journal_path, positions, journal
+
+
 def build_management_summary(
     positions_file: str | None = None,
     journal_file: str | None = None,
@@ -52,16 +69,11 @@ def build_management_summary(
     Deze functie blijft ongewijzigd ten behoeve van de bestaande CLI-output.
     """
 
-    positions_path = positions_file or cfg_get("POSITIONS_FILE", "positions.json")
-    journal_path = journal_file or cfg_get("JOURNAL_FILE", "journal.json")
-
-    positions = loader(positions_path)
-    if not isinstance(positions, list):
-        positions = []
-
-    journal = loader(journal_path)
-    if not isinstance(journal, list):
-        journal = []
+    positions_path, journal_path, positions, journal = _load_positions_and_journal(
+        positions_file,
+        journal_file,
+        loader,
+    )
 
     strategies = grouper(positions, journal)
     exit_rules_data = exit_rule_loader(journal_path)
@@ -174,6 +186,34 @@ def _collect_raw_leg_groups(
             by_symbol_expiry[(symbol, exp)].append(pos)
 
     return by_trade, by_symbol_expiry
+
+
+def _resolve_raw_legs(
+    strategy: Mapping[str, Any],
+    raw_by_trade: Mapping[Any, list[Mapping[str, Any]]],
+    raw_by_symbol_expiry: Mapping[tuple[str, str], list[Mapping[str, Any]]],
+) -> list[Mapping[str, Any]]:
+    trade_id = strategy.get("trade_id")
+    if trade_id in raw_by_trade:
+        return raw_by_trade.get(trade_id, [])
+
+    symbol = strategy.get("symbol")
+    expiry = strategy.get("expiry")
+    candidates: list[tuple[str, str]] = []
+    if symbol and expiry:
+        for variant in _expiry_variants(expiry):
+            candidates.append((symbol, variant))
+
+    symbol_alt = strategy.get("underlying") or strategy.get("symbol")
+    if symbol_alt and symbol_alt != symbol and expiry:
+        for variant in _expiry_variants(expiry):
+            candidates.append((symbol_alt, variant))
+
+    for candidate in candidates:
+        if candidate in raw_by_symbol_expiry:
+            return raw_by_symbol_expiry[candidate]
+
+    return []
 
 
 _LEG_METADATA_FIELDS = [
@@ -472,22 +512,11 @@ def build_exit_intents(
 ) -> Sequence[StrategyExitIntent]:
     """Return exit governance payload per strategy with raw legs and quotes."""
 
-    positions_path = positions_file or cfg_get("POSITIONS_FILE", "positions.json")
-    journal_path = journal_file or cfg_get("JOURNAL_FILE", "journal.json")
-
-    positions_data = loader(positions_path)
-    positions: list[Mapping[str, Any]]
-    if isinstance(positions_data, list):
-        positions = list(positions_data)
-    else:
-        positions = []
-
-    journal_data = loader(journal_path)
-    journal: list[Mapping[str, Any]]
-    if isinstance(journal_data, list):
-        journal = list(journal_data)
-    else:
-        journal = []
+    positions_path, journal_path, positions, journal = _load_positions_and_journal(
+        positions_file,
+        journal_file,
+        loader,
+    )
 
     strategies = grouper(positions, journal)
     exit_rules_data = exit_rule_loader(journal_path)
@@ -501,25 +530,7 @@ def build_exit_intents(
 
     intents: list[StrategyExitIntent] = []
     for strategy in strategies:
-        trade_id = strategy.get("trade_id")
-        raw_legs_source: list[Mapping[str, Any]] = []
-        if trade_id in raw_by_trade:
-            raw_legs_source = raw_by_trade.get(trade_id, [])
-        else:
-            symbol = strategy.get("symbol")
-            expiry = strategy.get("expiry")
-            candidates: list[tuple[str, str]] = []
-            if symbol and expiry:
-                for variant in _expiry_variants(expiry):
-                    candidates.append((symbol, variant))
-            symbol_alt = strategy.get("underlying") or strategy.get("symbol")
-            if symbol_alt and symbol_alt != symbol:
-                for variant in _expiry_variants(strategy.get("expiry")):
-                    candidates.append((symbol_alt, variant))
-            for candidate in candidates:
-                if candidate in raw_by_symbol_expiry:
-                    raw_legs_source = raw_by_symbol_expiry[candidate]
-                    break
+        raw_legs_source = _resolve_raw_legs(strategy, raw_by_trade, raw_by_symbol_expiry)
 
         raw_leg_copies: list[MutableMapping[str, Any]] = [dict(leg) for leg in raw_legs_source]
         _enrich_strategy_leg_quotes(
