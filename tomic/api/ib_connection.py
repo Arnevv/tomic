@@ -1,12 +1,12 @@
+import os
+import socket
+import sys
 import threading
 import time
-import socket
-from typing import Any, Dict, Optional
+from typing import Any, Dict
+
 from ibapi.client import EClient
 from ibapi.wrapper import EWrapper
-
-import sys
-import os
 
 from tomic.config import get as cfg_get
 
@@ -14,7 +14,9 @@ from tomic.logutils import logger, log_result
 from .client_registry import ACTIVE_CLIENT_IDS
 
 PROTOBUF_PATH = os.path.join(os.path.dirname(__file__), "..", "ibapi", "protobuf")
-sys.path.insert(0, os.path.abspath(PROTOBUF_PATH))
+_PROTOBUF_ABS = os.path.abspath(PROTOBUF_PATH)
+if _PROTOBUF_ABS not in sys.path:
+    sys.path.insert(0, _PROTOBUF_ABS)
 
 class IBClient(EClient, EWrapper):
     def __init__(self) -> None:
