@@ -349,6 +349,14 @@ def exit_intent_keys(intent: StrategyExitIntent) -> set[tuple[str, str | None]]:
     return keys
 
 
+def _intent_sort_key(intent: StrategyExitIntent) -> tuple[str, str, str]:
+    symbol = _intent_symbol(intent) or ""
+    strategy = intent.strategy if isinstance(intent.strategy, Mapping) else None
+    expiry = str(strategy.get("expiry") or "") if strategy else ""
+    name = str(strategy.get("type") or strategy.get("strategy") or "") if strategy else ""
+    return (symbol, expiry, name.upper())
+
+
 def _prepare_payload_leg(
     leg: MutableMapping[str, Any],
     strategy: Mapping[str, Any],
@@ -551,6 +559,7 @@ def build_exit_intents(
             )
         )
 
+    intents.sort(key=_intent_sort_key)
     return intents
 
 

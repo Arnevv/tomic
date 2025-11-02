@@ -2,17 +2,20 @@
 
 from __future__ import annotations
 
-import json
 import time
 from dataclasses import dataclass, replace
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Callable, Iterable, Mapping, Sequence
+from typing import Any, Callable, Iterable, Mapping, Sequence, TypeVar
 from uuid import uuid4
 
 from tomic.config import get as cfg_get
 from tomic.helpers.numeric import safe_float
 from tomic.logutils import logger
+from tomic.infrastructure.storage import save_json
+
+T = TypeVar("T")
+U = TypeVar("U")
 
 from ._config import (
     exit_force_exit_config,
@@ -218,7 +221,7 @@ def execute_exit_flow(
         return ExitFlowResult(
             status="fetch_only",
             reason="fetch_only_mode",
-            limit_prices=_unique_non_null(limit_prices),
+            limit_prices=_unique_values(limit_prices, transform=float, skip_none=True),
             order_ids=tuple(),
             attempts=tuple(attempts),
             forced=forced,
@@ -249,8 +252,8 @@ def execute_exit_flow(
             return ExitFlowResult(
                 status="success",
                 reason=final_stage,
-                limit_prices=_unique_non_null(limit_prices),
-                order_ids=_unique_ints(placed_ids),
+                limit_prices=_unique_values(limit_prices, transform=float, skip_none=True),
+                order_ids=_unique_values(placed_ids, transform=int),
                 attempts=tuple(attempts),
                 forced=forced,
             )
@@ -258,17 +261,16 @@ def execute_exit_flow(
     else:
         if base_limit is not None:
             limit_prices.append(base_limit)
-        try:
-            order_ids = _normalize_order_ids(active_dispatcher(plan))
-        except Exception as exc:  # main bag failed → fallback
-            primary_error = exc
+        order_ids, dispatch_error = _call_dispatcher(active_dispatcher, plan)
+        if dispatch_error is not None:
+            primary_error = dispatch_error
             attempts.append(
                 ExitAttemptResult(
                     stage="primary",
                     status="failed",
                     limit_price=base_limit,
                     order_ids=tuple(),
-                    reason=str(exc),
+                    reason=str(dispatch_error),
                 )
             )
         else:
@@ -288,8 +290,8 @@ def execute_exit_flow(
                 return ExitFlowResult(
                     status="success",
                     reason="primary",
-                    limit_prices=_unique_non_null(limit_prices),
-                    order_ids=_unique_ints(placed_ids),
+                    limit_prices=_unique_values(limit_prices, transform=float, skip_none=True),
+                    order_ids=_unique_values(placed_ids, transform=int),
                     attempts=tuple(attempts),
                     forced=forced,
                 )
@@ -314,8 +316,8 @@ def execute_exit_flow(
     return ExitFlowResult(
         status=status,
         reason=reason,
-        limit_prices=_unique_non_null(limit_prices),
-        order_ids=_unique_ints(placed_ids),
+        limit_prices=_unique_values(limit_prices, transform=float, skip_none=True),
+        order_ids=_unique_values(placed_ids, transform=int),
         attempts=tuple(attempts),
         forced=forced,
     )
@@ -378,12 +380,12 @@ def _execute_fallback(
             candidate.gate_message or "tradeability_ok",
             repricer_state,
         )
-        try:
-            ids = _normalize_order_ids(dispatcher(candidate.plan))
-        except Exception as exc:  # pragma: no cover - defensive logging
-            logger.exception(
+        ids, dispatch_error = _call_dispatcher(dispatcher, candidate.plan)
+        if dispatch_error is not None:  # pragma: no cover - defensive logging
+            logger.error(
                 "[exit-fallback][%s] dispatcher raised an error",
                 candidate.wing,
+                exc_info=dispatch_error,
             )
             attempts.append(
                 ExitAttemptResult(
@@ -391,7 +393,7 @@ def _execute_fallback(
                     status="failed",
                     limit_price=limit_value,
                     order_ids=tuple(),
-                    reason=str(exc),
+                    reason=str(dispatch_error),
                 )
             )
             continue
@@ -541,41 +543,41 @@ def _dispatch_with_price_ladder(
             seen_prices.add(normalized_price)
             limit_prices.append(price)
 
-        try:
-            ids = _normalize_order_ids(dispatcher(candidate_plan))
-        except Exception as exc:  # pragma: no cover - dispatcher failure
-            last_error = exc
+        ids, dispatch_error = _call_dispatcher(dispatcher, candidate_plan)
+        if dispatch_error is not None:
+            last_error = dispatch_error
             attempts.append(
                 ExitAttemptResult(
                     stage=stage,
                     status="failed",
                     limit_price=price,
                     order_ids=tuple(),
-                    reason=str(exc),
+                    reason=str(dispatch_error),
                 )
             )
-        else:
-            if ids:
-                attempts.append(
-                    ExitAttemptResult(
-                        stage=stage,
-                        status="success",
-                        limit_price=price,
-                        order_ids=ids,
-                    )
-                )
-                placed_ids.extend(ids)
-                return attempts, limit_prices, placed_ids, None
+            continue
 
+        if ids:
             attempts.append(
                 ExitAttemptResult(
                     stage=stage,
-                    status="failed",
+                    status="success",
                     limit_price=price,
-                    order_ids=tuple(),
-                    reason="no_order_ids",
+                    order_ids=ids,
                 )
             )
+            placed_ids.extend(ids)
+            return attempts, limit_prices, placed_ids, None
+
+        attempts.append(
+            ExitAttemptResult(
+                stage=stage,
+                status="failed",
+                limit_price=price,
+                order_ids=tuple(),
+                reason="no_order_ids",
+            )
+        )
 
         if idx < len(steps) - 1:
             wait_time = wait_seconds
@@ -634,7 +636,7 @@ def store_exit_flow_result(
         ],
     }
 
-    target.write_text(json.dumps(payload, indent=2, ensure_ascii=False), encoding="utf-8")
+    save_json(payload, target)
     return target
 
 
@@ -654,23 +656,33 @@ def _normalize_order_ids(order_ids: Iterable[Any] | None) -> tuple[int, ...]:
     return tuple(result)
 
 
-def _unique_non_null(values: Iterable[float | None]) -> tuple[float, ...]:
-    seen: list[float] = []
+def _unique_values(
+    values: Iterable[T],
+    *,
+    transform: Callable[[T], U] | None = None,
+    skip_none: bool = False,
+) -> tuple[U | T, ...]:
+    result: list[U | T] = []
     for value in values:
-        if value is None:
+        if skip_none and value is None:
             continue
-        if value not in seen:
-            seen.append(value)
-    return tuple(seen)
+        item: U | T
+        item = transform(value) if transform else value
+        if item in result:
+            continue
+        result.append(item)
+    return tuple(result)
 
 
-def _unique_ints(values: Iterable[int]) -> tuple[int, ...]:
-    seen: list[int] = []
-    for value in values:
-        ivalue = int(value)
-        if ivalue not in seen:
-            seen.append(ivalue)
-    return tuple(seen)
+def _call_dispatcher(
+    dispatcher: Callable[[ExitOrderPlan], Iterable[int]],
+    plan: ExitOrderPlan,
+) -> tuple[tuple[int, ...], Exception | None]:
+    try:
+        ids = _normalize_order_ids(dispatcher(plan))
+    except Exception as exc:  # pragma: no cover - dispatcher failures bubble up
+        return tuple(), exc
+    return ids, None
 def _intent_strategy(intent: ExitIntent) -> Mapping[str, Any]:
     strategy = intent.strategy
     if isinstance(strategy, Mapping):
