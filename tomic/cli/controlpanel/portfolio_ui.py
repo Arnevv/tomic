@@ -5,7 +5,7 @@ import sys
 from pathlib import Path
 import inspect
 from functools import partial
-from typing import Any, Mapping, Sequence
+from typing import Any, Callable, Mapping, Sequence
 
 try:
     from tabulate import tabulate
@@ -81,6 +81,134 @@ from tomic.formatting.table_builders import (
 )
 
 setup_logging(stdout=True)
+
+pd = None  # pragma: no cover - placeholder for tests that monkeypatch pandas
+
+
+def _default_symbols() -> list[str]:
+    raw = cfg.get("DEFAULT_SYMBOLS", []) or []
+    symbols: list[str] = []
+    for value in raw:
+        if not isinstance(value, (str, bytes)):
+            continue
+        cleaned = str(value).strip()
+        if cleaned:
+            symbols.append(cleaned.upper())
+    return symbols
+
+
+def _fetch_vix_value(symbols: Sequence[str]) -> float | None:
+    base_symbol = symbols[0] if symbols else "SPY"
+    try:
+        metrics = fetch_volatility_metrics(base_symbol)
+    except Exception:
+        return None
+    if isinstance(metrics, Mapping):
+        value = metrics.get("vix")
+        if isinstance(value, (int, float)):
+            return float(value)
+    return None
+
+
+def _snapshot_row_mapping(row: object) -> dict[str, Any]:
+    return {
+        "symbol": getattr(row, "symbol", None),
+        "spot": getattr(row, "spot", None),
+        "iv": getattr(row, "iv", None),
+        "hv20": getattr(row, "hv20", None),
+        "hv30": getattr(row, "hv30", None),
+        "hv90": getattr(row, "hv90", None),
+        "hv252": getattr(row, "hv252", None),
+        "iv_rank": getattr(row, "iv_rank", None),
+        "iv_percentile": getattr(row, "iv_percentile", None),
+        "term_m1_m2": getattr(row, "term_m1_m2", None),
+        "term_m1_m3": getattr(row, "term_m1_m3", None),
+        "skew": getattr(row, "skew", None),
+        "next_earnings": getattr(row, "next_earnings", None),
+        "days_until_earnings": getattr(row, "days_until_earnings", None),
+    }
+
+
+def _overview_input(rows: Sequence[object]) -> list[list[Any]]:
+    return [[mapping[key] for key in (
+        "symbol",
+        "spot",
+        "iv",
+        "hv20",
+        "hv30",
+        "hv90",
+        "hv252",
+        "iv_rank",
+        "iv_percentile",
+        "term_m1_m2",
+        "term_m1_m3",
+        "skew",
+        "next_earnings",
+        "days_until_earnings",
+    )] for mapping in (_snapshot_row_mapping(row) for row in rows)]
+
+
+def _format_snapshot_row(mapping: Mapping[str, Any]) -> list[str | Any]:
+    def fmt(val: Any, digits: int) -> str:
+        if isinstance(val, (int, float)):
+            return f"{val:.{digits}f}"
+        return ""
+
+    return [
+        mapping.get("symbol"),
+        mapping.get("spot"),
+        fmt(mapping.get("iv"), 4),
+        fmt(mapping.get("hv20"), 4),
+        fmt(mapping.get("hv30"), 4),
+        fmt(mapping.get("hv90"), 4),
+        fmt(mapping.get("hv252"), 4),
+        fmt(mapping.get("iv_rank"), 2),
+        fmt(mapping.get("iv_percentile"), 2),
+        mapping.get("term_m1_m2"),
+        mapping.get("term_m1_m3"),
+        mapping.get("skew"),
+        mapping.get("next_earnings"),
+    ]
+
+
+def _build_overview(rows: Sequence[list[Any]]) -> tuple[list[Mapping[str, Any]], list[list[str]], Mapping[str, Any]]:
+    try:
+        from tomic.cli import controlpanel as controlpanel_module  # type: ignore
+
+        override = getattr(controlpanel_module, "build_market_overview", None)
+    except Exception:
+        override = None
+    fn = override if callable(override) else build_market_overview
+    return fn(rows)
+
+
+def _handle_market_selection(
+    selection: str,
+    recs: Sequence[Mapping[str, Any]],
+) -> tuple[str, Mapping[str, Any] | None]:
+    if selection == "999":
+        return "scan", None
+    if selection in {"", "0"}:
+        return "exit", None
+    try:
+        idx = int(selection) - 1
+        chosen = recs[idx]
+    except (ValueError, IndexError):
+        print("❌ Ongeldige keuze")
+        return "retry", None
+    return "choose", chosen
+
+
+def _resolve_snapshot_service(services: ControlPanelServices):
+    return MARKET_SNAPSHOT_SERVICE or services.market_snapshot
+
+
+def _load_snapshot(
+    services: ControlPanelServices,
+    symbols: Sequence[str],
+) -> Any:
+    service = _resolve_snapshot_service(services)
+    return service.load_snapshot({"symbols": list(symbols)})
 
 
 STRATEGY_DASHBOARD_MODULE = "tomic.cli.strategy_dashboard"
@@ -169,6 +297,21 @@ def _create_services(session: ControlPanelSession) -> ControlPanelServices:
 
 
 SHOW_REASONS = False
+
+
+def _get_show_reasons(session: ControlPanelSession) -> bool:
+    synced = getattr(session, "_show_reasons_synced", False)
+    current = bool(getattr(session, "show_reasons", SHOW_REASONS))
+    if not synced and current != SHOW_REASONS:
+        return _set_show_reasons(session, SHOW_REASONS)
+    return current
+
+
+def _set_show_reasons(session: ControlPanelSession, value: bool) -> bool:
+    session.show_reasons = bool(value)
+    setattr(session, "_show_reasons_synced", True)
+    globals()["SHOW_REASONS"] = session.show_reasons
+    return session.show_reasons
 
 
 def _show_proposal_details(
@@ -377,40 +520,16 @@ def _print_factsheet(
 
 
 def show_market_info(session: ControlPanelSession, services: ControlPanelServices) -> None:
-    symbols = [s.upper() for s in cfg.get("DEFAULT_SYMBOLS", [])]
+    symbols = _default_symbols()
 
-    vix_value = None
-    try:
-        metrics = fetch_volatility_metrics(symbols[0] if symbols else "SPY")
-        vix_value = metrics.get("vix")
-    except Exception:
-        vix_value = None
-    if isinstance(vix_value, (int, float)):
+    vix_value = _fetch_vix_value(symbols)
+    if vix_value is not None:
         print(f"VIX {vix_value:.2f}")
 
-    snapshot = services.market_snapshot.load_snapshot({"symbols": symbols})
+    snapshot = _load_snapshot(services, symbols)
+    rows = _overview_input(snapshot.rows)
 
-    def _as_overview_row(data: object) -> list[object]:
-        return [
-            getattr(data, "symbol", None),
-            getattr(data, "spot", None),
-            getattr(data, "iv", None),
-            getattr(data, "hv20", None),
-            getattr(data, "hv30", None),
-            getattr(data, "hv90", None),
-            getattr(data, "hv252", None),
-            getattr(data, "iv_rank", None),
-            getattr(data, "iv_percentile", None),
-            getattr(data, "term_m1_m2", None),
-            getattr(data, "term_m1_m3", None),
-            getattr(data, "skew", None),
-            getattr(data, "next_earnings", None),
-            getattr(data, "days_until_earnings", None),
-        ]
-
-    rows = [_as_overview_row(row) for row in snapshot.rows]
-
-    recs, table_rows, meta = build_market_overview(rows)
+    recs, table_rows, meta = _build_overview(rows)
 
     earnings_filtered: dict[str, Sequence[str]] = {}
     if isinstance(meta, dict):
@@ -444,7 +563,8 @@ def show_market_info(session: ControlPanelSession, services: ControlPanelService
 
     while True:
         sel = prompt("Keuze: ")
-        if sel == "999":
+        action, chosen = _handle_market_selection(sel, recs)
+        if action == "scan":
             portfolio_run_market_scan(
                 session,
                 services,
@@ -461,13 +581,9 @@ def show_market_info(session: ControlPanelSession, services: ControlPanelService
             portfolio_show_market_overview(tabulate, table_rows)
             print(selection_help)
             continue
-        if sel in {"", "0"}:
+        if action == "exit":
             break
-        try:
-            idx = int(sel) - 1
-            chosen = recs[idx]
-        except (ValueError, IndexError):
-            print("❌ Ongeldige keuze")
+        if action != "choose" or chosen is None:
             continue
         session.update_from_mapping(chosen)
         symbol_label = session.symbol or "—"
@@ -481,45 +597,16 @@ def show_market_info(session: ControlPanelSession, services: ControlPanelService
 def show_informative_market_info(
     session: ControlPanelSession, services: ControlPanelServices
 ) -> None:
-    symbols = [s.upper() for s in cfg.get("DEFAULT_SYMBOLS", [])]
+    symbols = _default_symbols()
 
-    vix_value = None
-    try:
-        metrics = fetch_volatility_metrics(symbols[0] if symbols else "SPY")
-        vix_value = metrics.get("vix")
-    except Exception:
-        vix_value = None
-    if isinstance(vix_value, (int, float)):
+    vix_value = _fetch_vix_value(symbols)
+    if vix_value is not None:
         print(f"VIX {vix_value:.2f}")
 
-    service = MARKET_SNAPSHOT_SERVICE or services.market_snapshot
-    snapshot = service.load_snapshot({"symbols": symbols})
-
-    def fmt4(val: float | None) -> str:
-        return f"{val:.4f}" if val is not None else ""
-
-    def fmt2(val: float | None) -> str:
-        return f"{val:.2f}" if val is not None else ""
-
-    formatted_rows = []
-    for row in snapshot.rows:
-        formatted_rows.append(
-            [
-                getattr(row, "symbol", None),
-                getattr(row, "spot", None),
-                fmt4(getattr(row, "iv", None)),
-                fmt4(getattr(row, "hv20", None)),
-                fmt4(getattr(row, "hv30", None)),
-                fmt4(getattr(row, "hv90", None)),
-                fmt4(getattr(row, "hv252", None)),
-                fmt2(getattr(row, "iv_rank", None)),
-                fmt2(getattr(row, "iv_percentile", None)),
-                getattr(row, "term_m1_m2", None),
-                getattr(row, "term_m1_m3", None),
-                getattr(row, "skew", None),
-                getattr(row, "next_earnings", None),
-            ]
-        )
+    snapshot = _load_snapshot(services, symbols)
+    formatted_rows = [
+        _format_snapshot_row(_snapshot_row_mapping(row)) for row in snapshot.rows
+    ]
 
     headers = [
         "symbol",
@@ -546,7 +633,8 @@ def _process_chain_with_context(
     path: Path,
     show_reasons: bool,
 ) -> bool:
-    return portfolio_process_chain(
+    _set_show_reasons(session, show_reasons)
+    result = portfolio_process_chain(
         session,
         services,
         path,
@@ -563,43 +651,82 @@ def _process_chain_with_context(
         spot_from_chain_fn=spot_from_chain,
         print_evaluation_overview_fn=_print_evaluation_overview,
     )
+    return _set_show_reasons(session, result)
+
+
+def _run_chain_source(
+    session: ControlPanelSession,
+    services: ControlPanelServices,
+    *,
+    source: str | None,
+    require_symbol: bool,
+    loader: Callable[..., Path | str | None],
+    missing_message: str | None,
+) -> None:
+    symbol_value = session.symbol
+    if require_symbol and not symbol_value:
+        print("⚠️ Geen strategie geselecteerd")
+        return
+
+    symbol_arg = str(symbol_value) if symbol_value else None
+    if source:
+        session.chain_source = source
+
+    try:
+        path_candidate = (
+            loader(symbol_arg) if require_symbol else loader()
+        )
+    except TypeError:
+        path_candidate = loader()
+
+    if not path_candidate:
+        if missing_message:
+            print(missing_message)
+        return
+
+    _process_chain_with_context(
+        session,
+        services,
+        Path(path_candidate),
+        _get_show_reasons(session),
+    )
 
 
 def _process_exported_chain(session: ControlPanelSession, services: ControlPanelServices) -> None:
-    symbol = session.symbol
-    if not symbol:
-        print("⚠️ Geen strategie geselecteerd")
-        return
-    session.chain_source = "tws"
-    path = services.export.export_chain(str(symbol))
-    if not path:
-        print("⚠️ Geen chain gevonden")
-        return
-    global SHOW_REASONS
-    SHOW_REASONS = _process_chain_with_context(session, services, path, SHOW_REASONS)
+    _run_chain_source(
+        session,
+        services,
+        source="tws",
+        require_symbol=True,
+        loader=lambda sym: services.export.export_chain(str(sym)),
+        missing_message="⚠️ Geen chain gevonden",
+    )
 
 
 def _process_polygon_chain(session: ControlPanelSession, services: ControlPanelServices) -> None:
-    symbol = session.symbol
-    if not symbol:
-        print("⚠️ Geen strategie geselecteerd")
-        return
-    session.chain_source = "polygon"
-    path = services.export.fetch_polygon_chain(str(symbol))
-    if not path:
-        print("⚠️ Geen polygon chain gevonden")
-        return
-    global SHOW_REASONS
-    SHOW_REASONS = _process_chain_with_context(session, services, path, SHOW_REASONS)
+    _run_chain_source(
+        session,
+        services,
+        source="polygon",
+        require_symbol=True,
+        loader=lambda sym: services.export.fetch_polygon_chain(str(sym)),
+        missing_message="⚠️ Geen polygon chain gevonden",
+    )
 
 
 def _process_manual_chain(session: ControlPanelSession, services: ControlPanelServices) -> None:
-    path_text = prompt("Pad naar CSV: ")
-    if not path_text:
-        return
-    path = Path(path_text)
-    global SHOW_REASONS
-    SHOW_REASONS = _process_chain_with_context(session, services, path, SHOW_REASONS)
+    def _prompt_path(_: str | None = None) -> Path | str | None:
+        path_text = prompt("Pad naar CSV: ")
+        return path_text or None
+
+    _run_chain_source(
+        session,
+        services,
+        source=None,
+        require_symbol=False,
+        loader=_prompt_path,
+        missing_message=None,
+    )
 
 
 def choose_chain_source(session: ControlPanelSession, services: ControlPanelServices) -> None:
@@ -716,11 +843,11 @@ def run_portfolio_menu(
         "Trademanagement (controleer exitcriteria)",
         partial(_run_trade_management_module, session, services),
     )
+    menu.add("Toon marktinformatie", partial(show_market_info, session, services))
     menu.add(
         "Controleer exitcriteria en exit intent",
         partial(run_module, "tomic.cli.exit_flow"),
     )
-    menu.add("Toon marktinformatie", partial(show_market_info, session, services))
     menu.add("Earnings-informatie", partial(show_earnings_info, session, services))
     menu.run()
 

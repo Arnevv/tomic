@@ -246,10 +246,11 @@ class MarketSnapshotService:
             if row:
                 rows.append(row)
 
-        rows.sort(
-            key=lambda r: (r.iv_percentile if r.iv_percentile is not None else -1),
-            reverse=True,
-        )
+        def _sort_key(row: MarketSnapshotRow) -> tuple[float, str]:
+            percentile = row.iv_percentile if row.iv_percentile is not None else -1.0
+            return (-float(percentile), str(row.symbol or ""))
+
+        rows.sort(key=_sort_key)
 
         return MarketSnapshot(generated_at=self._today(), symbols=list(symbols), rows=rows)
 
