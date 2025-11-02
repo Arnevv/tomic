@@ -200,19 +200,32 @@ def _log_final_summary(entries: list[tuple[StrategyExitIntent, ExitFlowResult, P
     if not entries:
         return
 
-    success = sum(1 for _, result, _ in entries if result.status == "success")
-    failed = sum(1 for _, result, _ in entries if result.status == "failed")
-    skipped = sum(1 for _, result, _ in entries if result.status == "fetch_only")
+    success = failed = skipped = 0
+    summary_lines: list[str] = []
+    log_dirs: set[str] = set()
+
+    for intent, result, path in entries:
+        status = result.status
+        if status == "success":
+            success += 1
+        elif status == "failed":
+            failed += 1
+        elif status == "fetch_only":
+            skipped += 1
+        summary_lines.append(_final_summary_line(intent, result))
+        log_dirs.add(str(path.parent))
 
     logger.info("=== RESULT ===")
     logger.info("✅ %d closed | ⚠️ %d failed | ⏭️ %d skipped", success, failed, skipped)
 
-    for intent, result, _ in entries:
-        logger.info(_final_summary_line(intent, result))
+    for line in summary_lines:
+        logger.info(line)
 
-    log_dirs = sorted({str(path.parent) for _, _, path in entries})
     if log_dirs:
-        formatted = [directory if directory.endswith("/") else f"{directory}/" for directory in log_dirs]
+        formatted = [
+            directory if directory.endswith("/") else f"{directory}/"
+            for directory in sorted(log_dirs)
+        ]
         logger.info("Logs: %s", ", ".join(formatted))
 
 
@@ -249,15 +262,19 @@ def main(argv: Iterable[str] | None = None) -> int:
 
     filtered: list[StrategyExitIntent] = []
     skipped_without_alert: list[str] = []
+    has_symbol_filter = bool(symbols)
+    has_alerts = bool(alert_index)
+
     for intent in intents:
         symbol_label = _intent_symbol(intent)
-        symbol_key = symbol_label.upper()
-        if symbols and symbol_key not in symbols:
+        if has_symbol_filter and symbol_label.upper() not in symbols:
             continue
 
-        keys = exit_intent_keys(intent)
-        has_alert = bool(alert_index and (keys & alert_index))
-        if not has_alert:
+        if not has_alerts:
+            skipped_without_alert.append(symbol_label)
+            continue
+
+        if not (exit_intent_keys(intent) & alert_index):
             skipped_without_alert.append(symbol_label)
             continue
 
