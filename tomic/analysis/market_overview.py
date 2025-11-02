@@ -159,7 +159,13 @@ def build_market_overview(
         "Overig",
     ]
     order_idx = {cat: i for i, cat in enumerate(order)}
-    recs.sort(key=lambda r: (r["symbol"], order_idx.get(r["category"], 99)))
+    recs.sort(
+        key=lambda r: (
+            r["symbol"],
+            order_idx.get(r["category"], 99),
+            r["strategy"],
+        )
+    )
 
     table_rows: List[List[str]] = []
     for idx, rec in enumerate(recs, 1):

@@ -6,19 +6,25 @@ import argparse
 import sys
 from dataclasses import dataclass, fields
 from functools import partial
+from datetime import datetime
 from pathlib import Path
 from types import ModuleType
 from typing import Any, Iterable, Mapping, Sequence
 
+import inspect
+
 from tomic.cli import services as cli_services
 from tomic.cli.app_services import ControlPanelServices
 from tomic.cli.common import Menu, prompt, prompt_yes_no
+from tomic.cli import common as cli_common
 from tomic.cli.controlpanel_session import ControlPanelSession
+from tomic.cli.portfolio import menu_flow as portfolio_menu_flow
 import tomic.cli.rejections.handlers as rejection_handlers
 from tomic.cli.rejections.handlers import (
     build_rejection_summary,
     refresh_rejections,
     show_rejection_detail,
+    _display_rejection_proposal,
 )
 from tomic.logutils import capture_combo_evaluations, summarize_evaluations
 from tomic.reporting import ReasonAggregator, EvaluationSummary, format_reject_reasons
@@ -34,12 +40,28 @@ from tomic.integrations.polygon.client import PolygonClient
 from tomic.services.strategy_pipeline import StrategyProposal, RejectionSummary
 from tomic.core.portfolio import services as portfolio_services
 from tomic.strategy_candidates import generate_strategy_candidates as _generate_strategy_candidates
-from tomic.exports import spot_from_chain
+from tomic.exports import refresh_spot_price, spot_from_chain, load_spot_from_metrics
+from tomic.exports import cli_support as exports_cli_support
 from tomic.cli.module_runner import run_module
 from tomic.scripts.backfill_hv import run_backfill_hv
 from tomic.logutils import summarize_evaluations
 from tomic.reporting import ReasonAggregator
 from tomic.strategy.reasons import ReasonCategory
+from tomic.services.chain_processing import load_and_prepare_chain
+from tomic.strike_selector import filter_by_expiry, StrikeSelector
+from tomic.utils import latest_atr, normalize_leg
+from tomic.core.pricing.mid_service import resolve_option_mid
+from tomic.metrics import calculate_pos, calculate_rom, calculate_edge, calculate_ev
+from tomic.helpers.price_meta import load_price_meta, save_price_meta
+from tomic.helpers.price_utils import _load_latest_close
+from tomic.exports.cli_support import (
+    load_acceptance_criteria as _load_acceptance_criteria_impl,
+    load_portfolio_context as _load_portfolio_context_impl,
+)
+import tomic.services.chain_processing as _chain_processing_module
+from tomic.criteria import load_criteria
+from tomic.helpers.csv_utils import normalize_european_number_format
+from tomic.helpers.quality_check import calculate_csv_quality
 from .menu_config import MenuItem, MenuSection, build_menu
 from . import portfolio
 
@@ -54,11 +76,58 @@ class _ControlPanelModule(ModuleType):
             portfolio.MARKET_SNAPSHOT_SERVICE = value
             if hasattr(_CONTEXT.services, "market_snapshot"):
                 _CONTEXT.services.market_snapshot = value
-        if name == "fetch_volatility_metrics":
-            setattr(portfolio, "fetch_volatility_metrics", value)
+        portfolio_proxy_names = {
+            "fetch_volatility_metrics",
+            "prompt",
+            "prompt_yes_no",
+            "StrikeSelector",
+            "generate_strategy_candidates",
+            "latest_atr",
+            "_load_spot_from_metrics",
+            "_load_latest_close",
+            "normalize_leg",
+            "resolve_option_mid",
+            "calculate_pos",
+            "calculate_rom",
+            "calculate_edge",
+            "calculate_ev",
+            "load_price_meta",
+            "save_price_meta",
+        }
+        if name in portfolio_proxy_names:
+            setattr(portfolio, name, value)
+        if name in {"load_price_meta", "save_price_meta"}:
+            setattr(exports_cli_support, name, value)
+        if name == "datetime":
+            setattr(exports_cli_support, name, value)
+        if name == "prompt":
+            setattr(cli_common, name, value)
+        if name == "prompt_yes_no":
+            setattr(cli_common, name, value)
+        if name == "_display_rejection_proposal":
+            try:
+                params = inspect.signature(value).parameters
+            except (TypeError, ValueError):
+                params = {}
+
+            if len(params) <= 2:
+                def _bridge(session, proposal, symbol_hint, **_kwargs):
+                    return value(proposal, symbol_hint)
+
+                setattr(rejection_handlers, name, _bridge)
+            else:
+                setattr(rejection_handlers, name, value)
+        if name == "load_and_prepare_chain":
+            setattr(portfolio_menu_flow, name, value)
+        if name == "interpolate_missing_fields":
+            setattr(_chain_processing_module, name, value)
         if name == "capture_combo_evaluations":
             globals()[name] = value
             setattr(portfolio_services, "capture_combo_evaluations", value)
+        if name == "refresh_pipeline":
+            setattr(rejection_handlers, "refresh_pipeline", value)
+        if name == "load_criteria":
+            setattr(rejection_handlers, "load_criteria", value)
         super().__setattr__(name, value)
 
 
@@ -219,7 +288,7 @@ def run_controlpanel(
     _sync_state()
 
 
-def _process_chain(path: Path) -> None:
+def _process_chain_impl(path: Path) -> None:
     global SHOW_REASONS
     SHOW_REASONS = portfolio._process_chain_with_context(
         _CONTEXT.session,
@@ -229,6 +298,13 @@ def _process_chain(path: Path) -> None:
     )
     portfolio.SHOW_REASONS = SHOW_REASONS
     _sync_state()
+
+
+_PROCESS_CHAIN_IMPL = _process_chain_impl
+
+
+def _process_chain(path: Path) -> None:
+    return _PROCESS_CHAIN_IMPL(path)
 
 
 def main(argv: list[str] | None = None) -> None:
@@ -281,15 +357,48 @@ PolygonClient = PolygonClient
 refresh_pipeline = refresh_pipeline
 build_proposal_from_entry = build_proposal_from_entry
 spot_from_chain = spot_from_chain
+refresh_spot_price = refresh_spot_price
 _spot_from_chain = spot_from_chain
 POSITIONS_FILE = portfolio_services.POSITIONS_FILE
 normalize_reason = normalize_reason
+load_and_prepare_chain = load_and_prepare_chain
+interpolate_missing_fields = _chain_processing_module.interpolate_missing_fields
+filter_by_expiry = filter_by_expiry
+latest_atr = latest_atr
+_load_spot_from_metrics = load_spot_from_metrics
+_load_latest_close = _load_latest_close
+normalize_leg = normalize_leg
+resolve_option_mid = resolve_option_mid
+calculate_pos = calculate_pos
+calculate_rom = calculate_rom
+calculate_edge = calculate_edge
+calculate_ev = calculate_ev
+load_price_meta = load_price_meta
+save_price_meta = save_price_meta
+datetime = datetime
+pd = getattr(portfolio, "pd", None)
+StrikeSelector = StrikeSelector
+load_criteria = load_criteria
+normalize_european_number_format = normalize_european_number_format
+calculate_csv_quality = calculate_csv_quality
+
+setattr(_chain_processing_module, "filter_by_expiry", filter_by_expiry)
+
+
+def _load_acceptance_criteria(*args, **kwargs):
+    return _load_acceptance_criteria_impl(*args, **kwargs)
+
+
+def _load_portfolio_context(*args, **kwargs):
+    return _load_portfolio_context_impl(*args, **kwargs)
 
 _ORIGINAL_REFRESH_REJECTIONS = refresh_rejections
 setattr(portfolio, "fetch_volatility_metrics", fetch_volatility_metrics)
 setattr(portfolio, "MARKET_SNAPSHOT_SERVICE", MARKET_SNAPSHOT_SERVICE)
 setattr(portfolio, "build_market_overview", build_market_overview)
 setattr(portfolio, "MarketScanService", MarketScanService)
+setattr(rejection_handlers, "refresh_pipeline", refresh_pipeline)
+setattr(rejection_handlers, "load_criteria", load_criteria)
 
 
 def _refresh_reject_entries(
@@ -359,12 +468,14 @@ def _show_rejection_detail(entry: Mapping[str, Any]) -> None:
 
 
 def _generate_with_capture(*args: Any, **kwargs: Any):
-    return portfolio_services.capture_strategy_generation(
+    result = portfolio_services.capture_strategy_generation(
         _CONTEXT.session,
         generate_strategy_candidates,
         *args,
         **kwargs,
     )
+    _sync_state()
+    return result
 
 
 def run_portfolio_menu(
@@ -372,7 +483,7 @@ def run_portfolio_menu(
     services: ControlPanelServices | None = None,
 ) -> None:
     def _process_chain(path: Path) -> None:
-        return globals()["_process_chain"](path)
+        return _process_chain_impl(path)
 
     if session is None:
         session = _CONTEXT.session
