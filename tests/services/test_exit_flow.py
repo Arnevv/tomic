@@ -294,7 +294,7 @@ def test_execute_exit_flow_plan_failure(base_config):
     intent = StrategyExitIntent(strategy=strategy, legs=legs, exit_rules=None)
     result = execute_exit_flow(intent, config=base_config, dispatcher=lambda plan: (1,))
     assert result.status == "failed"
-    assert "nbbo" in result.reason.lower()
+    assert "niet verhandelbaar" in result.reason.lower()
     assert result.order_ids == tuple()
     assert result.limit_prices == tuple()
 

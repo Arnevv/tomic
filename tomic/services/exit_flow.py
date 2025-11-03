@@ -129,6 +129,7 @@ class ExitFlowConfig:
                     account=self.account,
                     order_type=order_type,
                     tif=resolved_tif,
+                    force_exit=force_exit,
                 )
                 order_payload: Any = result
                 if isinstance(result, Sequence) and len(result) == 2:

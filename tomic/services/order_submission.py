@@ -494,10 +494,20 @@ def _reprice_single_instruction(instr: OrderInstruction) -> bool:
     if nbbo is None:
         log.info("[repricer] skipped (nbbo_unavailable)")
         return False
+    spread_overrides = getattr(instr, "spread_overrides", None)
+    max_quote_age = getattr(instr, "max_quote_age", None)
+    allow_fallback = getattr(instr, "allow_fallback", False)
+    allowed_sources = getattr(instr, "allowed_fallback_sources", None)
+    forced = bool(getattr(instr, "force", False))
     ok, gate_message = _evaluate_tradeability(
         summaries,
         nbbo,
+        spread=spread_overrides,
         spread_policy=getattr(instr, "spread_policy", None),
+        max_quote_age=max_quote_age,
+        allow_fallback=bool(allow_fallback),
+        allowed_fallback_sources=allowed_sources,
+        force=forced,
         policy_context=getattr(instr, "policy_context", None),
         underlying_price=getattr(instr, "underlying_price", None),
     )
@@ -756,6 +766,11 @@ class OrderInstruction:
     strategy: str | None = None
     structure: str | None = None
     symbol: str | None = None
+    spread_overrides: Mapping[str, Any] | None = None
+    max_quote_age: float | None = None
+    allow_fallback: bool = False
+    allowed_fallback_sources: Iterable[str] | None = None
+    force: bool = False
 
 
 def _validate_instructions(instructions: Sequence[OrderInstruction]) -> None:
@@ -1068,12 +1083,28 @@ class OrderSubmissionService:
 
     def __init__(
         self,
-        *,
         app_factory: type[OrderPlacementApp] = OrderPlacementApp,
         spread_policy: SpreadPolicy | None = None,
+        *,
+        max_quote_age: float | None = None,
+        allow_fallback: bool | None = None,
+        allowed_fallback_sources: Iterable[str] | None = None,
+        force: bool | None = None,
     ) -> None:
         self._app_factory = app_factory
         self._spread_policy = spread_policy or _DEFAULT_SPREAD_POLICY
+        self._max_quote_age = None if max_quote_age is None else float(max_quote_age)
+        self._allow_fallback = allow_fallback
+        if allowed_fallback_sources is None:
+            self._allowed_fallback_sources: tuple[str, ...] | None = None
+        else:
+            normalized_sources = [
+                str(source).strip().lower()
+                for source in allowed_fallback_sources
+                if str(source).strip()
+            ]
+            self._allowed_fallback_sources = tuple(dict.fromkeys(normalized_sources))
+        self._force = force
 
     # ------------------------------------------------------------------
     def build_instructions(
@@ -1084,6 +1115,11 @@ class OrderSubmissionService:
         account: str | None = None,
         order_type: str | None = None,
         tif: str | None = None,
+        spread_overrides: Mapping[str, Any] | None = None,
+        max_quote_age: float | None = None,
+        allow_fallback: bool | None = None,
+        allowed_fallback_sources: Iterable[str] | None = None,
+        force: bool | None = None,
     ) -> list[OrderInstruction]:
         leg_contracts: list[tuple[dict, Contract, int, str, float | None]] = []
         for leg in proposal.legs:
@@ -1208,10 +1244,34 @@ class OrderSubmissionService:
             "width": combo_quote.width,
         }
         underlying_price = _collect_underlying_price(leg_summaries)
+        if allowed_fallback_sources is None:
+            fallback_sources = self._allowed_fallback_sources
+        else:
+            fallback_sources = tuple(
+                str(source).strip().lower()
+                for source in allowed_fallback_sources
+                if str(source).strip()
+            )
+            if not fallback_sources:
+                fallback_sources = None
+
+        effective_max_quote_age = (
+            max_quote_age if max_quote_age is not None else self._max_quote_age
+        )
+        effective_allow_fallback = (
+            allow_fallback if allow_fallback is not None else self._allow_fallback
+        )
+        effective_force = force if force is not None else self._force
+
         gate_ok, gate_message = _evaluate_tradeability(
             leg_summaries,
             combo_quote,
+            spread=spread_overrides,
             spread_policy=self._spread_policy,
+            max_quote_age=effective_max_quote_age,
+            allow_fallback=bool(effective_allow_fallback),
+            allowed_fallback_sources=fallback_sources,
+            force=bool(effective_force),
             policy_context=policy_context,
             underlying_price=underlying_price,
         )
@@ -1340,6 +1400,11 @@ class OrderSubmissionService:
                 strategy=proposal.strategy,
                 structure=structure,
                 symbol=getattr(combo_contract, "symbol", None),
+                spread_overrides=spread_overrides,
+                max_quote_age=effective_max_quote_age,
+                allow_fallback=bool(effective_allow_fallback),
+                allowed_fallback_sources=fallback_sources,
+                force=bool(effective_force),
             )
         ]
 

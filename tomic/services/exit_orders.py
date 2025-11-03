@@ -29,7 +29,7 @@ from .trade_management_service import StrategyExitIntent
 ExitIntent = StrategyExitIntent
 
 
-def _build_exit_spread_policy(spread_cfg: Mapping[str, Any]) -> SpreadPolicy:
+def build_exit_spread_policy(spread_cfg: Mapping[str, Any]) -> SpreadPolicy:
     """Construct a :class:`SpreadPolicy` tied to exit spread configuration."""
 
     relative = safe_float(spread_cfg.get("relative"))
@@ -154,7 +154,7 @@ def build_exit_order_plan(intent: ExitIntent) -> ExitOrderPlan:
         raise ValueError("combo mist betrouwbare NBBO")
 
     spread_cfg = exit_spread_config()
-    spread_policy = _build_exit_spread_policy(spread_cfg)
+    spread_policy = build_exit_spread_policy(spread_cfg)
     fallback_cfg = exit_fallback_config()
     force_cfg = exit_force_exit_config()
 
@@ -215,4 +215,9 @@ def build_exit_order_plan(intent: ExitIntent) -> ExitOrderPlan:
     )
 
 
-__all__ = ["ExitIntent", "ExitOrderPlan", "build_exit_order_plan"]
+__all__ = [
+    "ExitIntent",
+    "ExitOrderPlan",
+    "build_exit_order_plan",
+    "build_exit_spread_policy",
+]
