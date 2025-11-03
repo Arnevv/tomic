@@ -7,11 +7,18 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import Any, Callable, Iterable, Mapping, Sequence
 
+from tomic.helpers.numeric import safe_float
 from tomic.logutils import logger
 from tomic.strategy.models import StrategyProposal
 from tomic.utils import get_leg_right
 
-from .exit_orders import ExitIntent, ExitOrderPlan, build_exit_order_plan
+from ._config import exit_fallback_config, exit_force_exit_config, exit_spread_config
+from .exit_orders import (
+    ExitIntent,
+    ExitOrderPlan,
+    build_exit_order_plan,
+    build_exit_spread_policy,
+)
 from .order_submission import OrderSubmissionService
 
 
@@ -183,10 +190,27 @@ def default_exit_order_dispatcher(
     order_type: str | None = None,
     tif: str | None = None,
     service: OrderSubmissionService | None = None,
+    force_exit: bool | None = None,
 ):
     """Submit ``plan`` via :class:`OrderSubmissionService` and return placement result."""
 
-    submission = service or OrderSubmissionService()
+    spread_cfg = exit_spread_config()
+    fallback_cfg = exit_fallback_config()
+    force_cfg = exit_force_exit_config()
+
+    spread_policy = build_exit_spread_policy(spread_cfg)
+    allow_fallback = bool(fallback_cfg.get("allow_preview", False))
+    allowed_sources = fallback_cfg.get("allowed_sources")
+    max_quote_age = safe_float(spread_cfg.get("max_quote_age"))
+    forced = force_exit if force_exit is not None else bool(force_cfg.get("enabled", False))
+
+    submission = service or OrderSubmissionService(
+        spread_policy=spread_policy,
+        max_quote_age=max_quote_age,
+        allow_fallback=allow_fallback,
+        allowed_fallback_sources=allowed_sources,
+        force=forced,
+    )
     proposal = _proposal_from_exit_plan(plan)
     symbol = _resolve_symbol(plan) or ""
     instructions = submission.build_instructions(
@@ -195,6 +219,11 @@ def default_exit_order_dispatcher(
         account=account,
         order_type=order_type,
         tif=tif,
+        spread_overrides=spread_cfg,
+        max_quote_age=max_quote_age,
+        allow_fallback=allow_fallback,
+        allowed_fallback_sources=allowed_sources,
+        force=forced,
     )
     return submission.place_orders(
         instructions,
