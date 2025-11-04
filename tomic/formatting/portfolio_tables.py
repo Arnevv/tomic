@@ -7,6 +7,7 @@ from datetime import date
 from typing import Iterable, Mapping, Sequence
 
 from tomic.reporting import format_dtes
+from tomic.services.market_scan_service import ScanFailure
 from tomic.services.portfolio_service import Candidate, Factsheet
 from tomic.services.strategy_pipeline import StrategyProposal
 
@@ -252,6 +253,28 @@ def build_market_scan_table(candidates: Sequence[Candidate]) -> TableSpec:
         "left",
         "left",
     )
+    return TableSpec(headers=headers, rows=rows, colalign=colalign)
+
+
+def build_scan_failure_table(failures: Sequence[ScanFailure]) -> TableSpec:
+    """Return table rows describing scan requests without proposals."""
+
+    rows: list[list[object]] = []
+    for idx, failure in enumerate(failures, 1):
+        reason_text = "; ".join(failure.reasons) if failure.reasons else "—"
+        filter_text = "; ".join(failure.filters) if failure.filters else "—"
+        rows.append(
+            [
+                idx,
+                failure.symbol,
+                failure.strategy,
+                reason_text,
+                filter_text,
+            ]
+        )
+
+    headers = ("Nr", "Symbool", "Strategie", "Redenen", "Filters")
+    colalign = ("right", "left", "left", "left", "left")
     return TableSpec(headers=headers, rows=rows, colalign=colalign)
 
 
