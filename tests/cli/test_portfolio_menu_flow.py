@@ -11,6 +11,8 @@ from tomic.cli.controlpanel_session import ControlPanelSession
 from tomic.cli.portfolio import menu_flow
 from tomic.helpers.price_utils import ClosePriceSnapshot
 from tomic.services.chain_processing import SpotResolution
+from tomic.services.strategy_pipeline import RejectionSummary
+from tomic.strategy.reasons import ReasonCategory, ReasonDetail
 
 
 @pytest.fixture
@@ -20,6 +22,7 @@ def services() -> ControlPanelServices:
         export_chain=lambda *args, **kwargs: None,
         fetch_polygon_chain=lambda symbol: Path(f"{symbol}.csv"),
         find_latest_chain=lambda *args, **kwargs: None,
+        resolve_chain_source=lambda symbol: SimpleNamespace(),
         git_commit=lambda *args, **kwargs: False,
     )
     svc = ControlPanelServices(
@@ -303,3 +306,81 @@ def test_run_market_scan_skips_ib_refresh(
     )
 
     assert scan_service.run_market_scan.call_args.kwargs["refresh_quotes"] is False
+
+
+def test_run_market_scan_prints_failure_table(
+    services: ControlPanelServices,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    session = ControlPanelSession()
+
+    config_values = {
+        "MARKET_SCAN_TOP_N": 3,
+        "STRATEGY_CONFIG": {"dummy": True},
+        "INTEREST_RATE": 0.05,
+    }
+
+    monkeypatch.setattr(menu_flow.cfg, "get", lambda key, default=None: config_values.get(key, default))
+    monkeypatch.setattr(
+        menu_flow.ChainPreparationConfig,
+        "from_app_config",
+        classmethod(lambda cls: SimpleNamespace()),
+    )
+
+    scan_service = mock.Mock()
+    summary = RejectionSummary(
+        by_strategy={
+            "iron_condor": [
+                ReasonDetail(
+                    category=ReasonCategory.LOW_LIQUIDITY,
+                    code="LOW_LIQUIDITY",
+                    message="Onvoldoende volume",
+                )
+            ]
+        },
+        by_reason={"LOW_LIQUIDITY": 1},
+    )
+    scan_service.run_market_scan.return_value = []
+    scan_service.last_scan_results = [
+        SimpleNamespace(
+            symbol="SPY",
+            strategy="iron_condor",
+            metrics={"strategy": "Iron Condor"},
+            summary=summary,
+            proposal_count=0,
+        )
+    ]
+    monkeypatch.setattr(menu_flow, "MarketScanService", mock.Mock(return_value=scan_service))
+
+    def prompt_fn(message: str) -> str:
+        return ""
+
+    def prompt_yes_no_fn(message: str, default: bool) -> bool:
+        return False
+
+    def tabulate_fn(rows, **kwargs):
+        return "table"
+
+    menu_flow.run_market_scan(
+        session,
+        services,
+        [
+            {
+                "symbol": "SPY",
+                "strategy": "Iron Condor",
+            }
+        ],
+        tabulate_fn=tabulate_fn,
+        prompt_fn=prompt_fn,
+        prompt_yes_no_fn=prompt_yes_no_fn,
+        show_proposal_details=mock.Mock(),
+        refresh_spot_price_fn=mock.Mock(return_value=105.0),
+        load_spot_from_metrics_fn=mock.Mock(return_value=None),
+        load_latest_close_fn=mock.Mock(return_value=(None, None)),
+        spot_from_chain_fn=mock.Mock(return_value=None),
+    )
+
+    captured = capsys.readouterr().out
+    assert "Geen voorstellen gevonden tijdens scan" in captured
+    assert "Geen voorstellen per aanbeveling" in captured

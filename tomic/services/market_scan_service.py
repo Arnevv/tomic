@@ -29,6 +29,7 @@ from .strategy_pipeline import (
     PipelineRunResult,
     StrategyPipeline,
     StrategyProposal,
+    RejectionSummary,
 )
 
 
@@ -40,6 +41,17 @@ class MarketScanRequest:
     strategy: str
     metrics: Mapping[str, object]
     next_earnings: date | None = None
+
+
+@dataclass(frozen=True)
+class ScanEvaluation:
+    """Summary describing the outcome of evaluating a single scan request."""
+
+    symbol: str
+    strategy: str
+    metrics: Mapping[str, object]
+    summary: RejectionSummary | None
+    proposal_count: int = 0
 
 
 class MarketScanError(RuntimeError):
@@ -77,6 +89,13 @@ class MarketScanService:
         self._atr_loader = atr_loader or latest_atr
         self._apply_interpolation = apply_interpolation
         self._refresh_snapshot = refresh_snapshot
+        self._last_scan_results: list[ScanEvaluation] = []
+
+    @property
+    def last_scan_results(self) -> list[ScanEvaluation]:
+        """Return evaluations captured during the most recent scan run."""
+
+        return list(self._last_scan_results)
 
     def run_market_scan(
         self,
@@ -105,6 +124,8 @@ class MarketScanService:
         prepared_cache: dict[str, PreparedChain] = {}
         spot_cache: dict[str, SpotResolution] = {}
         atr_cache: dict[str, float] = {}
+
+        self._last_scan_results = []
 
         for symbol, entries in grouped.items():
             prepared = prepared_cache.get(symbol)
@@ -185,8 +206,25 @@ class MarketScanService:
                 except PipelineRunError as exc:
                     raise MarketScanError(str(exc)) from exc
 
+                summary = run_result.summary if isinstance(run_result, PipelineRunResult) else None
+                proposal_count = len(run_result.proposals)
+                self._last_scan_results.append(
+                    ScanEvaluation(
+                        symbol=symbol,
+                        strategy=req.strategy,
+                        metrics=req.metrics,
+                        summary=summary,
+                        proposal_count=proposal_count,
+                    )
+                )
+
                 if not run_result.filtered_chain:
-                    logger.info("No contracts after DTE filter for %s/%s", symbol, req.strategy)
+                    logger.info(
+                        "No contracts after DTE filter for %s/%s", symbol, req.strategy
+                    )
+                    continue
+
+                if not run_result.proposals:
                     continue
 
                 for proposal in run_result.proposals:

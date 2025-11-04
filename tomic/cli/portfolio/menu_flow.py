@@ -19,7 +19,12 @@ from tomic.formatting.portfolio_tables import (
 )
 from tomic.helpers.price_utils import ClosePriceSnapshot
 from tomic.logutils import logger
-from tomic.reporting import EvaluationSummary, format_reject_reasons
+from tomic.reporting import (
+    EvaluationSummary,
+    ReasonAggregator,
+    format_reject_reasons,
+    reason_label,
+)
 from tomic.helpers.dateutils import parse_date
 from tomic.services.chain_processing import (
     ChainEvaluationConfig,
@@ -36,6 +41,7 @@ from tomic.services.market_scan_service import (
     MarketScanError,
     MarketScanRequest,
     MarketScanService,
+    ScanEvaluation,
 )
 from tomic.services.portfolio_service import Candidate, CandidateRankingError
 from tomic.services.strategy_pipeline import StrategyProposal
@@ -80,6 +86,91 @@ def _print_evaluation_overview(
         for breakdown in summary.sorted_expiries():
             print(f"• {breakdown.label}: {breakdown.format_counts()}")
     print(f"Top reason for reject: {format_reject_reasons(summary)}")
+
+
+def _normalize_strategy_label(metrics: Mapping[str, object] | None, fallback: str) -> str:
+    if isinstance(metrics, Mapping):
+        label = metrics.get("strategy")
+        if isinstance(label, str) and label.strip():
+            return label.strip()
+    normalized = fallback.replace("_", " ").strip()
+    return normalized.title() if normalized else fallback
+
+
+def _collect_failure_reasons(
+    evaluation: ScanEvaluation,
+) -> tuple[list[str], list[str]]:
+    summary = evaluation.summary
+    if summary is None:
+        return ([], [])
+
+    aggregator = ReasonAggregator()
+    reason_texts: list[str] = []
+
+    strategy_reasons = []
+    if summary.by_strategy:
+        strategy_reasons = summary.by_strategy.get(evaluation.strategy, []) or []
+
+    if strategy_reasons:
+        for reason in strategy_reasons:
+            aggregator.add_reason(reason)
+            reason_texts.append(reason_label(reason))
+    elif summary.by_reason:
+        aggregator.extend_reason_counts(summary.by_reason)
+        reason_texts.extend(aggregator.by_reason.keys())
+
+    if not reason_texts and summary.by_filter:
+        reason_texts.extend(f"Filter: {name}" for name in summary.by_filter)
+
+    unique_reasons: list[str] = []
+    seen: set[str] = set()
+    for reason in reason_texts:
+        if reason in seen:
+            continue
+        seen.add(reason)
+        unique_reasons.append(reason)
+
+    category_labels: list[str] = []
+    if aggregator.by_category:
+        for category in aggregator.by_category:
+            label = ReasonAggregator.label_for(category)
+            if label not in category_labels:
+                category_labels.append(label)
+
+    return unique_reasons, category_labels
+
+
+def _print_failed_scan_table(
+    tabulate_fn: Callable[..., str],
+    evaluations: Sequence[ScanEvaluation],
+) -> None:
+    if not evaluations:
+        return
+
+    rows: list[list[str]] = []
+    for index, evaluation in enumerate(evaluations, start=1):
+        reasons, categories = _collect_failure_reasons(evaluation)
+        strategy_label = _normalize_strategy_label(evaluation.metrics, evaluation.strategy)
+        reason_text = "\n".join(reasons) if reasons else "—"
+        category_text = "\n".join(categories) if categories else "—"
+        rows.append(
+            [
+                str(index),
+                evaluation.symbol,
+                strategy_label,
+                reason_text,
+                category_text,
+            ]
+        )
+
+    print("📋 Geen voorstellen per aanbeveling:")
+    print(
+        tabulate_fn(
+            rows,
+            headers=["#", "Symbool", "Strategie", "Reden(en)", "Categorieën"],
+            tablefmt="github",
+        )
+    )
 
 
 def process_chain(
@@ -425,6 +516,7 @@ def run_market_scan(
     )
 
     decision_cache: dict[str, ChainSourceDecision] = {}
+    failed_recommendations: list[ScanEvaluation] = []
 
     def _chain_source(symbol: str) -> ChainSourceDecision | None:
         cached = decision_cache.get(symbol)
@@ -472,7 +564,14 @@ def run_market_scan(
             else:
                 print("🔍 Markt scan via Polygon gestart…")
 
+    def _collect_failures() -> list[ScanEvaluation]:
+        entries = getattr(scan_service, "last_scan_results", [])
+        if not isinstance(entries, Sequence):
+            return []
+        return [entry for entry in entries if getattr(entry, "proposal_count", 0) <= 0]
+
     def _perform_scan(*, refresh_quotes: bool, reprompt_dir: bool) -> list[Candidate] | None:
+        nonlocal failed_recommendations
         _prepare_chain_source(reprompt_dir)
         if refresh_quotes:
             print("📡 TWS-data ophalen voor alle rijen…")
@@ -494,27 +593,49 @@ def run_market_scan(
 
         if not candidates:
             print("⚠️ Geen voorstellen gevonden tijdens scan.")
+            failed_recommendations = _collect_failures()
+            if failed_recommendations:
+                _print_failed_scan_table(tabulate_fn, failed_recommendations)
             return []
+
+        failed_recommendations = _collect_failures()
+        if failed_recommendations:
+            print(
+                "ℹ️ Sommige aanbevelingen leverden geen voorstel op. "
+                "Voer '997' in voor details."
+            )
 
         return candidates
 
-    candidates = _perform_scan(refresh_quotes=False, reprompt_dir=True)
+    refresh_initial = prompt_yes_no_fn(
+        "Informatie van TWS ophalen y / n: ",
+        False,
+    )
+    candidates = _perform_scan(refresh_quotes=refresh_initial, reprompt_dir=True)
     if not candidates:
         return
 
-    action_help = (
-        "\nActies:\n"
-        "[nummer]  → Details voor één rij\n"
-        "998       → TWS-data ophalen voor alle getoonde rijen\n"
-        "999       → Nieuwe Polygon-scan\n"
-        "0         → Terug naar Volatility Snapshot Aanbevelingen"
-    )
+    def _action_help() -> str:
+        lines = [
+            "\nActies:\n",
+            "[nummer]  → Details voor één rij\n",
+        ]
+        if failed_recommendations:
+            lines.append("997       → Toon afgewezen aanbevelingen\n")
+        lines.extend(
+            [
+                "998       → TWS-data ophalen voor alle getoonde rijen\n",
+                "999       → Nieuwe Polygon-scan\n",
+                "0         → Terug naar Volatility Snapshot Aanbevelingen",
+            ]
+        )
+        return "".join(lines)
 
     while True:
         print("\n📋 Polygon Scan Trade Candidates")
         table_spec = build_market_scan_table(candidates)
         _print_table(tabulate_fn, table_spec)
-        print(action_help)
+        print(_action_help())
 
         sel = prompt_fn("Keuze: ")
         if sel in {"", "0"}:
@@ -541,6 +662,9 @@ def run_market_scan(
             if refreshed is None:
                 continue
             return
+        if sel == "997" and failed_recommendations:
+            _print_failed_scan_table(tabulate_fn, failed_recommendations)
+            continue
         try:
             idx = int(sel) - 1
             chosen = candidates[idx]

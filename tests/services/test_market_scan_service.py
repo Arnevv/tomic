@@ -17,6 +17,7 @@ from tomic.services.strategy_pipeline import (
     PipelineRunResult,
     RejectionSummary,
 )
+from tomic.strategy.reasons import ReasonCategory, ReasonDetail
 from tomic.strategy.models import StrategyContext, StrategyProposal
 
 
@@ -117,6 +118,13 @@ def test_market_scan_service_builds_pipeline_context(monkeypatch, tmp_path):
     assert ctx.next_earnings == date(2024, 6, 1)
     assert ctx.interactive_mode is False
 
+    evaluations = service.last_scan_results
+    assert len(evaluations) == 1
+    evaluation = evaluations[0]
+    assert evaluation.symbol == "AAA"
+    assert evaluation.strategy == "iron_condor"
+    assert evaluation.proposal_count == 1
+
 
 def test_market_scan_service_translates_pipeline_error(monkeypatch, tmp_path):
     monkeypatch.setattr(
@@ -170,3 +178,97 @@ def test_market_scan_service_translates_pipeline_error(monkeypatch, tmp_path):
             requests,
             chain_source=lambda symbol: chain_path,
         )
+
+
+def test_market_scan_service_tracks_rejections(monkeypatch, tmp_path):
+    def fake_run(context):
+        strategy_context = StrategyContext(
+            symbol=context.symbol,
+            strategy=context.strategy,
+            option_chain=list(context.option_chain),
+            spot_price=context.spot_price,
+            atr=context.atr,
+            config=context.config,
+            interest_rate=context.interest_rate,
+            dte_range=context.dte_range,
+            interactive_mode=context.interactive_mode,
+            criteria=context.criteria,
+            next_earnings=context.next_earnings,
+            debug_path=context.debug_path,
+        )
+        summary = RejectionSummary(
+            by_strategy={
+                context.strategy: [
+                    ReasonDetail(
+                        category=ReasonCategory.LOW_LIQUIDITY,
+                        code="LOW_LIQUIDITY",
+                        message="Onvoldoende volume",
+                    )
+                ]
+            },
+            by_reason={"LOW_LIQUIDITY": 1},
+        )
+        return PipelineRunResult(
+            context=strategy_context,
+            proposals=[],
+            summary=summary,
+            filtered_chain=list(context.option_chain),
+        )
+
+    monkeypatch.setattr("tomic.services.market_scan_service.run_pipeline", fake_run)
+    monkeypatch.setattr(
+        "tomic.services.market_scan_service.load_and_prepare_chain",
+        lambda *args, **kwargs: SimpleNamespace(records=[{"expiry": "2024-01-19"}]),
+    )
+    spot_close = ClosePriceSnapshot(99.0, "2024-05-01", "mock", "2024-05-01T10:00:00", True)
+    monkeypatch.setattr(
+        "tomic.services.market_scan_service.resolve_spot_price",
+        lambda *args, **kwargs: SpotResolution(
+            price=101.0,
+            source="mock",
+            is_live=True,
+            used_close_fallback=False,
+            close=spot_close,
+        ),
+    )
+    monkeypatch.setattr(
+        "tomic.services.market_scan_service.load_dte_range", lambda *args, **kwargs: (10, 25)
+    )
+
+    pipeline = object()
+    service = MarketScanService(
+        pipeline,
+        _PortfolioStub(),
+        interest_rate=0.03,
+        chain_config=ChainPreparationConfig(min_quality=0),
+        refresh_spot_price=lambda symbol: 101.0,
+        load_spot_from_metrics=lambda path, symbol: None,
+        load_latest_close=lambda symbol: spot_close,
+        spot_from_chain=lambda records: 100.0,
+    )
+
+    chain_path = tmp_path / "AAA.csv"
+    chain_path.write_text("symbol,expiry\nAAA,2024-01-19\n")
+
+    requests = [
+        MarketScanRequest(
+            symbol="AAA",
+            strategy="iron_condor",
+            metrics={},
+        )
+    ]
+
+    result = service.run_market_scan(
+        requests,
+        chain_source=lambda symbol: chain_path,
+    )
+
+    assert result == []
+    evaluations = service.last_scan_results
+    assert len(evaluations) == 1
+    evaluation = evaluations[0]
+    assert evaluation.symbol == "AAA"
+    assert evaluation.strategy == "iron_condor"
+    assert evaluation.proposal_count == 0
+    assert evaluation.summary is not None
+    assert evaluation.summary.by_reason["LOW_LIQUIDITY"] == 1
