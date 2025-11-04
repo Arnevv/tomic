@@ -261,12 +261,14 @@ def test_market_info_polygon_scan(monkeypatch, tmp_path):
     class DummyScanService:
         def __init__(self, pipeline, portfolio_service, **kwargs):
             captured["init"] = kwargs
+            self.last_scan_failures = []
 
         def run_market_scan(self, requests, *, chain_source, top_n, refresh_quotes=False):
             captured["requests"] = list(requests)
             captured["top_n"] = top_n
             captured["paths"] = [chain_source(req.symbol) for req in requests]
             captured["refresh_quotes"] = refresh_quotes
+            self.last_scan_failures = []
             proposal = types.SimpleNamespace(
                 score=12.34,
                 ev=45.67,
@@ -443,12 +445,14 @@ def test_market_info_polygon_scan_existing_dir(monkeypatch, tmp_path):
     class DummyScanService:
         def __init__(self, pipeline, portfolio_service, **kwargs):
             captured["init"] = kwargs
+            self.last_scan_failures = []
 
         def run_market_scan(self, requests, *, chain_source, top_n, refresh_quotes=False):
             captured["requests"] = list(requests)
             captured["top_n"] = top_n
             captured["paths"] = [chain_source(req.symbol) for req in requests]
             captured["refresh_quotes"] = refresh_quotes
+            self.last_scan_failures = []
             proposal = types.SimpleNamespace(
                 score=12.34,
                 ev=45.67,

@@ -30,6 +30,8 @@ from .strategy_pipeline import (
     StrategyPipeline,
     StrategyProposal,
 )
+from ..strategy.reasons import ReasonDetail
+from ..reporting.rejections import ReasonAggregator
 
 
 @dataclass(frozen=True)
@@ -40,6 +42,16 @@ class MarketScanRequest:
     strategy: str
     metrics: Mapping[str, object]
     next_earnings: date | None = None
+
+
+@dataclass(frozen=True)
+class ScanFailure:
+    """Summary describing why no proposals were produced for a request."""
+
+    symbol: str
+    strategy: str
+    reasons: tuple[str, ...] = ()
+    filters: tuple[str, ...] = ()
 
 
 class MarketScanError(RuntimeError):
@@ -77,6 +89,69 @@ class MarketScanService:
         self._atr_loader = atr_loader or latest_atr
         self._apply_interpolation = apply_interpolation
         self._refresh_snapshot = refresh_snapshot
+        self._last_scan_failures: list[ScanFailure] = []
+
+    @property
+    def last_scan_failures(self) -> tuple[ScanFailure, ...]:
+        """Return diagnostics for requests without proposals from the last scan."""
+
+        return tuple(self._last_scan_failures)
+
+    def _summarize_failure(
+        self,
+        request: MarketScanRequest,
+        run_result: PipelineRunResult,
+    ) -> ScanFailure | None:
+        summary = run_result.summary
+        if summary is None:
+            return None
+
+        reason_counts = summary.by_reason or {}
+        strat_key = run_result.context.strategy
+        details: Sequence[ReasonDetail] = ()
+        if summary.by_strategy and strat_key in summary.by_strategy:
+            details = summary.by_strategy.get(strat_key, ()) or ()
+
+        reason_labels: list[str] = []
+        seen_codes: set[str] = set()
+        if details:
+            for detail in details:
+                code = detail.code or detail.message or ""
+                if code in seen_codes:
+                    continue
+                seen_codes.add(code)
+                label = detail.message or ReasonAggregator.label_for(detail.category)
+                count = reason_counts.get(code)
+                if count and count > 1:
+                    label = f"{label} ({count})"
+                reason_labels.append(label)
+
+        if not reason_labels and reason_counts:
+            agg = ReasonAggregator()
+            agg.extend_reason_counts(reason_counts)
+            for label, count in agg.by_reason.items():
+                if count and count > 1:
+                    reason_labels.append(f"{label} ({count})")
+                else:
+                    reason_labels.append(label)
+
+        filter_labels: list[str] = []
+        for name, count in sorted((summary.by_filter or {}).items(), key=lambda item: (-item[1], item[0])):
+            label = str(name)
+            if count and count > 1:
+                label = f"{label} ({count})"
+            filter_labels.append(label)
+
+        strategy_label = request.metrics.get("strategy")
+        if not isinstance(strategy_label, str) or not strategy_label.strip():
+            strategy_label = request.strategy
+
+        return ScanFailure(
+            symbol=request.symbol,
+            strategy=strategy_label,
+            reasons=tuple(reason_labels),
+            filters=tuple(filter_labels),
+        )
 
     def run_market_scan(
         self,
@@ -91,6 +166,8 @@ class MarketScanService:
         if not requests:
             return []
 
+        self._last_scan_failures = []
+
         grouped: dict[str, list[MarketScanRequest]] = {}
         for req in requests:
             symbol = req.symbol.upper()
@@ -102,6 +179,7 @@ class MarketScanService:
             return []
 
         scan_rows: list[ScanRow] = []
+        failures: list[ScanFailure] = []
         prepared_cache: dict[str, PreparedChain] = {}
         spot_cache: dict[str, SpotResolution] = {}
         atr_cache: dict[str, float] = {}
@@ -189,7 +267,14 @@ class MarketScanService:
                     logger.info("No contracts after DTE filter for %s/%s", symbol, req.strategy)
                     continue
 
-                for proposal in run_result.proposals:
+                proposals = list(run_result.proposals)
+                if not proposals:
+                    failure = self._summarize_failure(req, run_result)
+                    if failure is not None:
+                        failures.append(failure)
+                    continue
+
+                for proposal in proposals:
                     scan_rows.append(
                         ScanRow(
                             symbol=symbol,
@@ -205,6 +290,8 @@ class MarketScanService:
                             spot_baseline=spot_baseline,
                         )
                     )
+
+        self._last_scan_failures = failures
 
         if not scan_rows:
             return []

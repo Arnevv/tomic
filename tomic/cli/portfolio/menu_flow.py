@@ -15,6 +15,7 @@ from tomic.formatting.portfolio_tables import (
     build_evaluated_trades_table,
     build_market_overview_table,
     build_market_scan_table,
+    build_scan_failure_table,
     build_proposals_table,
 )
 from tomic.helpers.price_utils import ClosePriceSnapshot
@@ -36,6 +37,7 @@ from tomic.services.market_scan_service import (
     MarketScanError,
     MarketScanRequest,
     MarketScanService,
+    ScanFailure,
 )
 from tomic.services.portfolio_service import Candidate, CandidateRankingError
 from tomic.services.strategy_pipeline import StrategyProposal
@@ -472,6 +474,38 @@ def run_market_scan(
             else:
                 print("🔍 Markt scan via Polygon gestart…")
 
+    failure_entries: tuple[ScanFailure, ...] = ()
+
+    def _current_failures() -> tuple[ScanFailure, ...]:
+        failures = getattr(scan_service, "last_scan_failures", ())
+        if isinstance(failures, Sequence):
+            return tuple(failures)
+        return ()
+
+    def _print_failures_table() -> None:
+        if not failure_entries:
+            print("⚠️ Geen afgewezen aanbevelingen om te tonen.")
+            return
+        print("\n📋 Afgewezen aanbevelingen")
+        table_spec = build_scan_failure_table(failure_entries)
+        _print_table(tabulate_fn, table_spec)
+
+    def _action_help() -> str:
+        lines = [
+            "\nActies:",
+            "[nummer]  → Details voor één rij",
+        ]
+        if failure_entries:
+            lines.append("997       → Toon afgewezen aanbevelingen")
+        lines.extend(
+            [
+                "998       → TWS-data ophalen voor alle getoonde rijen",
+                "999       → Nieuwe Polygon-scan",
+                "0         → Terug naar Volatility Snapshot Aanbevelingen",
+            ]
+        )
+        return "\n".join(lines)
+
     def _perform_scan(*, refresh_quotes: bool, reprompt_dir: bool) -> list[Candidate] | None:
         _prepare_chain_source(reprompt_dir)
         if refresh_quotes:
@@ -492,8 +526,12 @@ def run_market_scan(
             print(f"❌ Rangschikking van voorstellen mislukt: {exc}")
             return None
 
+        nonlocal failure_entries
+        failure_entries = _current_failures()
         if not candidates:
             print("⚠️ Geen voorstellen gevonden tijdens scan.")
+            if failure_entries:
+                _print_failures_table()
             return []
 
         return candidates
@@ -502,23 +540,18 @@ def run_market_scan(
     if not candidates:
         return
 
-    action_help = (
-        "\nActies:\n"
-        "[nummer]  → Details voor één rij\n"
-        "998       → TWS-data ophalen voor alle getoonde rijen\n"
-        "999       → Nieuwe Polygon-scan\n"
-        "0         → Terug naar Volatility Snapshot Aanbevelingen"
-    )
-
     while True:
         print("\n📋 Polygon Scan Trade Candidates")
         table_spec = build_market_scan_table(candidates)
         _print_table(tabulate_fn, table_spec)
-        print(action_help)
+        print(_action_help())
 
         sel = prompt_fn("Keuze: ")
         if sel in {"", "0"}:
             break
+        if sel == "997":
+            _print_failures_table()
+            continue
         if sel == "998":
             if not prompt_yes_no_fn(
                 "Informatie van TWS ophalen voor alle rijen?",
@@ -528,11 +561,10 @@ def run_market_scan(
             refreshed = _perform_scan(refresh_quotes=True, reprompt_dir=False)
             if refreshed:
                 candidates = refreshed
+                continue
             elif refreshed is None:
                 continue
-            else:
-                return
-            continue
+            return
         if sel == "999":
             refreshed = _perform_scan(refresh_quotes=False, reprompt_dir=True)
             if refreshed:

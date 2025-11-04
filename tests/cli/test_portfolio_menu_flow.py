@@ -21,6 +21,7 @@ def services() -> ControlPanelServices:
         fetch_polygon_chain=lambda symbol: Path(f"{symbol}.csv"),
         find_latest_chain=lambda *args, **kwargs: None,
         git_commit=lambda *args, **kwargs: False,
+        resolve_chain_source=lambda *args, **kwargs: None,
     )
     svc = ControlPanelServices(
         pipeline_factory=lambda: pipeline_mock,
@@ -175,6 +176,7 @@ def test_run_market_scan_selects_candidate(
     )
 
     scan_service = mock.Mock()
+    scan_service.last_scan_failures = []
     monkeypatch.setattr(menu_flow, "MarketScanService", mock.Mock(return_value=scan_service))
 
     proposal = SimpleNamespace(
@@ -201,9 +203,9 @@ def test_run_market_scan_selects_candidate(
         next_earnings=None,
         spot=105.0,
     )
-    scan_service.run_market_scan.return_value = [candidate]
+    scan_service.run_market_scan.side_effect = [[candidate], [candidate]]
 
-    prompt_values = iter(["", "1", "0"])
+    prompt_values = iter(["", "998", "1", "0"])
 
     def prompt_fn(message: str) -> str:
         return next(prompt_values)
@@ -242,10 +244,12 @@ def test_run_market_scan_selects_candidate(
         spot_from_chain_fn=mock.Mock(return_value=None),
     )
 
-    scan_service.run_market_scan.assert_called_once()
-    assert scan_service.run_market_scan.call_args.kwargs["top_n"] == 3
-    assert scan_service.run_market_scan.call_args.kwargs["refresh_quotes"] is True
-    assert prompt_yes_no_calls == [("Informatie van TWS ophalen y / n: ", False)]
+    assert scan_service.run_market_scan.call_count == 2
+    first_call, second_call = scan_service.run_market_scan.call_args_list
+    assert first_call.kwargs["top_n"] == 3
+    assert first_call.kwargs["refresh_quotes"] is False
+    assert second_call.kwargs["refresh_quotes"] is True
+    assert prompt_yes_no_calls == [("Informatie van TWS ophalen voor alle rijen?", False)]
     show_details.assert_called_once_with(session, proposal)
     assert session.symbol == "SPY"
     assert session.strategy == "short_put"
@@ -271,6 +275,7 @@ def test_run_market_scan_skips_ib_refresh(
     )
 
     scan_service = mock.Mock()
+    scan_service.last_scan_failures = []
     monkeypatch.setattr(menu_flow, "MarketScanService", mock.Mock(return_value=scan_service))
     scan_service.run_market_scan.return_value = []
 
