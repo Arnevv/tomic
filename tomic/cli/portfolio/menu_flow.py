@@ -32,7 +32,11 @@ from tomic.services.chain_processing import (
     load_and_prepare_chain,
     resolve_spot_price as resolve_chain_spot_price,
 )
-from tomic.services.chain_sources import ChainSourceDecision, ChainSourceError
+from tomic.services.chain_sources import (
+    ChainSourceDecision,
+    ChainSourceError,
+    ChainSourceName,
+)
 from tomic.services.market_scan_service import (
     MarketScanError,
     MarketScanRequest,
@@ -427,24 +431,36 @@ def run_market_scan(
         refresh_snapshot=portfolio_services.refresh_proposal_from_ib,
     )
 
-    decision_cache: dict[str, ChainSourceDecision] = {}
+    decision_cache: dict[tuple[ChainSourceName, str], ChainSourceDecision] = {}
 
-    def _chain_source(symbol: str) -> ChainSourceDecision | None:
-        cached = decision_cache.get(symbol)
+    def _resolve_chain(
+        symbol: str,
+        *,
+        source: ChainSourceName,
+    ) -> ChainSourceDecision | None:
+        cache_key = (source, symbol)
+        cached = decision_cache.get(cache_key)
         if cached is not None:
             return cached
+        existing_dir_arg = existing_chain_dir if source == "polygon" else None
         try:
             decision = services.export.resolve_chain_source(
                 symbol,
-                source=source_choice,
-                existing_dir=existing_chain_dir,
+                source=source,
+                existing_dir=existing_dir_arg,
             )
         except ChainSourceError as exc:
             logger.debug("Geen chain beschikbaar voor %s: %s", symbol, exc)
             print(f"⚠️ {exc}")
             return None
-        decision_cache[symbol] = decision
+        decision_cache[cache_key] = decision
         return decision
+
+    def _chain_source(symbol: str) -> ChainSourceDecision | None:
+        return _resolve_chain(symbol, source=source_choice)
+
+    def _tws_chain_source(symbol: str) -> ChainSourceDecision | None:
+        return _resolve_chain(symbol, source="tws")
 
     def _select_existing_chain_dir() -> Path | None:
         while True:
@@ -514,7 +530,7 @@ def run_market_scan(
         try:
             candidates = scan_service.run_market_scan(
                 scan_requests,
-                chain_source=_chain_source,
+                chain_source=_tws_chain_source if refresh_quotes else _chain_source,
                 top_n=top_n,
                 refresh_quotes=refresh_quotes,
             )
