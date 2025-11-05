@@ -347,6 +347,7 @@ def run_market_scan(
     load_spot_from_metrics_fn: LoadSpotFromMetricsFn,
     load_latest_close_fn: LoadLatestCloseFn,
     spot_from_chain_fn: SpotFromChainFn,
+    refresh_only: bool = False,
 ) -> None:
     """Execute a market scan for the provided recommendations."""
 
@@ -439,7 +440,7 @@ def run_market_scan(
                 existing_dir=existing_chain_dir,
             )
         except ChainSourceError as exc:
-            logger.warning("Geen chain beschikbaar voor %s: %s", symbol, exc)
+            logger.debug("Geen chain beschikbaar voor %s: %s", symbol, exc)
             print(f"⚠️ {exc}")
             return None
         decision_cache[symbol] = decision
@@ -535,6 +536,10 @@ def run_market_scan(
             return []
 
         return candidates
+
+    if refresh_only:
+        _perform_scan(refresh_quotes=True, reprompt_dir=True)
+        return
 
     candidates = _perform_scan(refresh_quotes=False, reprompt_dir=True)
     if not candidates:

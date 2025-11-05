@@ -190,7 +190,7 @@ class MarketScanService:
             if prepared is None:
                 source_info = chain_source(symbol)
                 if source_info is None:
-                    logger.info("Skipping %s – no option chain source found", symbol)
+                    logger.debug("Skipping %s – no option chain source found", symbol)
                     continue
                 if isinstance(source_info, ChainSourceDecision):
                     decision = source_info
@@ -213,7 +213,7 @@ class MarketScanService:
                         schema_version=decision.schema_version,
                     )
                 except ChainPreparationError as exc:
-                    logger.warning("Failed to prepare chain for %s: %s", symbol, exc)
+                    logger.debug("Failed to prepare chain for %s: %s", symbol, exc)
                     continue
 
                 spot_resolution = resolve_spot_price(
@@ -225,7 +225,7 @@ class MarketScanService:
                     chain_spot_fallback=self._spot_from_chain,
                 )
                 if not spot_resolution.is_valid:
-                    logger.warning("Skipping %s – unable to resolve valid spot price", symbol)
+                    logger.debug("Skipping %s – unable to resolve valid spot price", symbol)
                     continue
 
                 prepared_cache[symbol] = prepared
@@ -264,7 +264,7 @@ class MarketScanService:
                     raise MarketScanError(str(exc)) from exc
 
                 if not run_result.filtered_chain:
-                    logger.info("No contracts after DTE filter for %s/%s", symbol, req.strategy)
+                    logger.debug("No contracts after DTE filter for %s/%s", symbol, req.strategy)
                     continue
 
                 proposals = list(run_result.proposals)
@@ -299,7 +299,7 @@ class MarketScanService:
         if refresh_quotes:
             refresher = self._refresh_snapshot
             if refresher is None:
-                logger.warning(
+                logger.debug(
                     "Refresh requested but no snapshot refresher configured; skipping"
                 )
             else:
@@ -311,7 +311,7 @@ class MarketScanService:
                             spot_price=row.spot,
                         )
                     except Exception as exc:  # pragma: no cover - defensive logging
-                        logger.warning(
+                        logger.debug(
                             "Quote refresh failed for %s/%s: %s",
                             row.symbol,
                             row.strategy,
