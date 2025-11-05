@@ -352,7 +352,14 @@ def _execute_fallback(
 
     for candidate in candidates:
         stage = f"fallback:{candidate.wing}"
-        repricer_state = step_lookup.get(candidate.wing, "skip")
+        repricer_state = step_lookup.get(candidate.wing)
+        if repricer_state is None:
+            for alias in ("all", "combo", "primary"):
+                if alias in step_lookup:
+                    repricer_state = step_lookup[alias]
+                    break
+        if repricer_state is None:
+            repricer_state = "skip"
         if candidate.plan is None:
             logger.debug(
                 "[exit-fallback][%s] gate=fail repricer=%s skip=%s",

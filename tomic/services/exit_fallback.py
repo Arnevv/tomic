@@ -1,8 +1,7 @@
-"""Helpers to orchestrate exit order fallbacks per vertical wing."""
+"""Helpers to orchestrate exit order fallbacks for exit flows."""
 
 from __future__ import annotations
 
-import copy
 from dataclasses import dataclass
 from enum import Enum
 from typing import Any, Callable, Iterable, Mapping, Sequence
@@ -10,7 +9,6 @@ from typing import Any, Callable, Iterable, Mapping, Sequence
 from tomic.helpers.numeric import safe_float
 from tomic.logutils import logger
 from tomic.strategy.models import StrategyProposal
-from tomic.utils import get_leg_right
 
 from ._config import exit_fallback_config, exit_force_exit_config, exit_spread_config
 from .exit_orders import (
@@ -34,7 +32,7 @@ class ExitFallbackReason(Enum):
 
 @dataclass(frozen=True)
 class VerticalExecutionCandidate:
-    """Container describing a vertical wing candidate for fallback execution."""
+    """Container describing an exit candidate for fallback execution."""
 
     wing: str
     plan: ExitOrderPlan | None
@@ -85,76 +83,36 @@ def _infer_spread_width(legs: Sequence[Mapping[str, Any]]) -> float | None:
     return abs(max(strikes) - min(strikes))
 
 
-def _clone_strategy_with_legs(
-    strategy: Mapping[str, Any] | None,
-    legs: Sequence[Mapping[str, Any]],
-) -> Mapping[str, Any]:
-    base: dict[str, Any] = {}
-    if isinstance(strategy, Mapping):
-        base.update(strategy)
-    base["legs"] = [copy.deepcopy(leg) for leg in legs]
-    return base
-
-
 def build_vertical_execution_candidates(
     intent: ExitIntent,
 ) -> list[VerticalExecutionCandidate]:
-    """Split ``intent`` into vertical wings and build order plans per wing."""
+    """Build a single fallback candidate for the full intent."""
 
-    candidates: list[VerticalExecutionCandidate] = []
     legs_iterable: Iterable[Mapping[str, Any]] = intent.legs or []
-    grouped: dict[str, list[Mapping[str, Any]]] = {"call": [], "put": []}
-    for leg in legs_iterable:
-        wing = get_leg_right(leg)
-        if wing in grouped:
-            grouped[wing].append(dict(leg))
+    full_width = _infer_spread_width(legs_iterable)
 
-    for wing, wing_legs in grouped.items():
-        if len(wing_legs) < 2:
-            candidates.append(
-                VerticalExecutionCandidate(
-                    wing=wing,
-                    plan=None,
-                    width=_infer_spread_width(wing_legs),
-                    gate_message=None,
-                    skip_reason="insufficient_legs",
-                )
+    try:
+        plan = build_exit_order_plan(intent)
+    except ValueError as exc:
+        return [
+            VerticalExecutionCandidate(
+                wing="all",
+                plan=None,
+                width=full_width,
+                gate_message=None,
+                skip_reason=str(exc),
             )
-            continue
+        ]
 
-        wing_intent = ExitIntent(
-            strategy=_clone_strategy_with_legs(intent.strategy, wing_legs),
-            legs=[dict(leg) for leg in wing_legs],
-            exit_rules=intent.exit_rules,
+    width = _infer_spread_width(plan.legs)
+    return [
+        VerticalExecutionCandidate(
+            wing="all",
+            plan=plan,
+            width=width,
+            gate_message=plan.tradeability,
         )
-
-        try:
-            plan = build_exit_order_plan(wing_intent)
-            candidates.append(
-                VerticalExecutionCandidate(
-                    wing=wing,
-                    plan=plan,
-                    width=_infer_spread_width(wing_legs),
-                    gate_message=plan.tradeability,
-                )
-            )
-        except ValueError as exc:  # gate or NBBO failure per wing
-            candidates.append(
-                VerticalExecutionCandidate(
-                    wing=wing,
-                    plan=None,
-                    width=_infer_spread_width(wing_legs),
-                    gate_message=None,
-                    skip_reason=str(exc),
-                )
-            )
-
-    # Sort widest spreads first to reduce riskier wing before narrow wing.
-    return sorted(
-        candidates,
-        key=lambda item: (item.width or 0.0),
-        reverse=True,
-    )
+    ]
 
 
 def _resolve_symbol(plan: ExitOrderPlan) -> str | None:
@@ -233,6 +191,18 @@ def default_exit_order_dispatcher(
     )
 
 
+def _resolve_repricer_state(
+    step_lookup: Mapping[str, str],
+    wing: str,
+) -> str:
+    """Resolve repricer state for a candidate using common aliases."""
+
+    for key in (wing, "all", "combo", "primary"):
+        if key in step_lookup:
+            return step_lookup[key]
+    return "skip"
+
+
 def dispatch_vertical_execution(
     candidates: Sequence[VerticalExecutionCandidate],
     dispatcher: Callable[[ExitOrderPlan], Any],
@@ -252,7 +222,7 @@ def dispatch_vertical_execution(
     step_lookup = {k: v for k, v in (repricer_steps or {}).items()}
 
     for candidate in candidates:
-        repricer_state = step_lookup.get(candidate.wing, "skip")
+        repricer_state = _resolve_repricer_state(step_lookup, candidate.wing)
         if candidate.plan is None:
             logger.info(
                 "[exit-fallback][%s] gate=fail repricer=%s skip=%s",
@@ -293,7 +263,7 @@ class ExitFallbackExecutor:
         cancel_on_no_fill: bool = False,
         repricer_steps: Mapping[str, str] | None = None,
     ) -> list[Any]:
-        """Build wing plans and send them sequentially."""
+        """Build fallback plans and send them sequentially."""
 
         reason = detect_fallback_reason(
             error,
