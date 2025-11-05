@@ -8874,5 +8874,12 @@
     "close": 91.45,
     "volume": 5697563.0,
     "atr": null
+  },
+  {
+    "symbol": "TGT",
+    "date": "2025-11-04",
+    "close": 89.98,
+    "volume": 5062295.0,
+    "atr": null
   }
 ]

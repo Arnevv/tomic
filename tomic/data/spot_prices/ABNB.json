@@ -8608,5 +8608,12 @@
     "close": 126.8,
     "volume": 4053432.0,
     "atr": null
+  },
+  {
+    "symbol": "ABNB",
+    "date": "2025-11-04",
+    "close": 122.35,
+    "volume": 5966125.0,
+    "atr": null
   }
 ]

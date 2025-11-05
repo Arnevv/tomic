@@ -8797,5 +8797,12 @@
     "close": 475.68,
     "volume": 5867647.0,
     "atr": null
+  },
+  {
+    "symbol": "BRK.B",
+    "date": "2025-11-04",
+    "close": 487.66,
+    "volume": 7802754.0,
+    "atr": null
   }
 ]

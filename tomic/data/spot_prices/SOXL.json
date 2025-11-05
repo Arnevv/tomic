@@ -8797,5 +8797,12 @@
     "close": 48.58,
     "volume": 52588169.0,
     "atr": null
+  },
+  {
+    "symbol": "SOXL",
+    "date": "2025-11-04",
+    "close": 42.8,
+    "volume": 87723557.0,
+    "atr": null
   }
 ]

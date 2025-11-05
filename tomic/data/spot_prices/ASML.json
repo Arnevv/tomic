@@ -8797,5 +8797,12 @@
     "close": 1066.82,
     "volume": 867705,
     "atr": null
+  },
+  {
+    "symbol": "ASML",
+    "date": "2025-11-04",
+    "close": 1030.14,
+    "volume": 1734604.0,
+    "atr": null
   }
 ]
