@@ -186,6 +186,8 @@ def _handle_market_selection(
     selection: str,
     recs: Sequence[Mapping[str, Any]],
 ) -> tuple[str, Mapping[str, Any] | None]:
+    if selection == "998":
+        return "refresh", None
     if selection == "999":
         return "scan", None
     if selection in {"", "0"}:
@@ -556,6 +558,7 @@ def show_market_info(session: ControlPanelSession, services: ControlPanelService
     selection_help = (
         "\nSelectie maken:\n"
         "[nummer]  → Details voor één rij\n"
+        "998       → TWS-data ophalen voor alle aanbevelingen\n"
         "999       → Nieuwe Polygon-scan\n"
         "0         → Terug naar hoofdmenu"
     )
@@ -564,6 +567,24 @@ def show_market_info(session: ControlPanelSession, services: ControlPanelService
     while True:
         sel = prompt("Keuze: ")
         action, chosen = _handle_market_selection(sel, recs)
+        if action == "refresh":
+            portfolio_run_market_scan(
+                session,
+                services,
+                recs,
+                tabulate_fn=tabulate,
+                prompt_fn=prompt,
+                prompt_yes_no_fn=prompt_yes_no,
+                show_proposal_details=_show_proposal_details,
+                refresh_spot_price_fn=refresh_spot_price,
+                load_spot_from_metrics_fn=load_spot_from_metrics,
+                load_latest_close_fn=portfolio_services.load_latest_close,
+                spot_from_chain_fn=spot_from_chain,
+                refresh_only=True,
+            )
+            portfolio_show_market_overview(tabulate, table_rows)
+            print(selection_help)
+            continue
         if action == "scan":
             portfolio_run_market_scan(
                 session,

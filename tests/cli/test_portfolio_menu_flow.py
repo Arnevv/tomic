@@ -308,3 +308,57 @@ def test_run_market_scan_skips_ib_refresh(
     )
 
     assert scan_service.run_market_scan.call_args.kwargs["refresh_quotes"] is False
+
+
+def test_run_market_scan_refresh_only(
+    services: ControlPanelServices, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    session = ControlPanelSession()
+    session.chain_source = "tws"
+
+    config_values = {
+        "MARKET_SCAN_TOP_N": 3,
+        "STRATEGY_CONFIG": {"dummy": True},
+        "INTEREST_RATE": 0.05,
+    }
+
+    monkeypatch.setattr(
+        menu_flow.cfg,
+        "get",
+        lambda key, default=None: config_values.get(key, default),
+    )
+    monkeypatch.setattr(
+        menu_flow.ChainPreparationConfig,
+        "from_app_config",
+        classmethod(lambda cls: SimpleNamespace()),
+    )
+
+    scan_service = mock.Mock()
+    scan_service.last_scan_failures = []
+    scan_service.run_market_scan.return_value = []
+    monkeypatch.setattr(menu_flow, "MarketScanService", mock.Mock(return_value=scan_service))
+
+    menu_flow.run_market_scan(
+        session,
+        services,
+        [
+            {
+                "symbol": "SPY",
+                "strategy": "Short Put",
+            }
+        ],
+        tabulate_fn=mock.Mock(return_value="table"),
+        prompt_fn=mock.Mock(return_value=""),
+        prompt_yes_no_fn=mock.Mock(return_value=False),
+        show_proposal_details=mock.Mock(),
+        refresh_spot_price_fn=mock.Mock(return_value=105.0),
+        load_spot_from_metrics_fn=mock.Mock(return_value=None),
+        load_latest_close_fn=mock.Mock(return_value=(None, None)),
+        spot_from_chain_fn=mock.Mock(return_value=None),
+        refresh_only=True,
+    )
+
+    assert scan_service.run_market_scan.call_count == 1
+    kwargs = scan_service.run_market_scan.call_args.kwargs
+    assert kwargs["refresh_quotes"] is True
+    assert kwargs["top_n"] == 3
