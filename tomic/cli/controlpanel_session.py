@@ -22,6 +22,7 @@ class ControlPanelSession:
     combo_evaluation_summary: Any | None = None
     chain_source: Literal["polygon", "tws"] = "polygon"
     show_reasons: bool = False
+    scan_rejections: list[Mapping[str, Any]] = field(default_factory=list)
 
     def clear_combo_results(self) -> None:
         self.combo_evaluations.clear()

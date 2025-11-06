@@ -5,7 +5,7 @@ from __future__ import annotations
 from collections import defaultdict
 from datetime import date
 from pathlib import Path
-from typing import Callable, Iterable, Mapping, Sequence
+from typing import Any, Callable, Iterable, Mapping, Sequence
 
 from tomic import config as cfg
 from tomic.core.portfolio import services as portfolio_services
@@ -58,6 +58,28 @@ LoadLatestCloseFn = Callable[[str], ClosePriceSnapshot]
 RefreshSpotFn = Callable[[str], float | None]
 LoadSpotFromMetricsFn = Callable[[Path, str], float | None]
 SpotFromChainFn = Callable[[Iterable[dict]], float | None]
+
+
+def _refresh_scan_rejections(
+    session: ControlPanelSession,
+    services: ControlPanelServices,
+    entries: Sequence[Mapping[str, object]],
+    *,
+    tabulate_fn: Callable[..., str],
+    prompt_fn: PromptFn,
+    show_proposal_details: ShowProposalDetailsFn | None,
+) -> None:
+    from tomic.cli.rejections.handlers import refresh_rejections
+
+    refresh_rejections(
+        session,
+        services,
+        entries,
+        config=cfg,
+        show_proposal_details=show_proposal_details,
+        tabulate_fn=tabulate_fn,
+        prompt_fn=prompt_fn,
+    )
 
 
 def _print_table(tabulate_fn: Callable[..., str], spec) -> None:
@@ -392,6 +414,8 @@ def run_market_scan(
     prep_config = ChainPreparationConfig.from_app_config()
 
     scan_requests: list[MarketScanRequest] = []
+    request_bindings: list[tuple[int, MarketScanRequest, Mapping[str, Any]]] = []
+    binding_index = 0
     for symbol, symbol_recs in grouped.items():
         for rec in symbol_recs:
             raw_strategy = str(rec.get("strategy") or "")
@@ -412,9 +436,22 @@ def run_market_scan(
                     next_earnings=earnings_date,
                 )
             )
+            request_bindings.append((binding_index, scan_requests[-1], rec))
+            binding_index += 1
 
     if not scan_requests:
         print("⚠️ Geen voorstellen gevonden tijdens scan.")
+        return
+
+    if refresh_only and session.scan_rejections:
+        _refresh_scan_rejections(
+            session,
+            services,
+            session.scan_rejections,
+            tabulate_fn=tabulate_fn,
+            prompt_fn=prompt_fn,
+            show_proposal_details=show_proposal_details,
+        )
         return
 
     scan_service = MarketScanService(
@@ -499,6 +536,42 @@ def run_market_scan(
             return tuple(failures)
         return ()
 
+    def _update_rejection_entries() -> None:
+        nonlocal failure_entries
+        failure_entries = _current_failures()
+        if not failure_entries:
+            session.scan_rejections = []
+            return
+        seen_indexes: set[int] = set()
+        rejection_entries: list[Mapping[str, Any]] = []
+        for failure in failure_entries:
+            failure_symbol = failure.symbol.upper()
+            failure_strategy = failure.strategy
+            for idx, req, original in request_bindings:
+                if req.symbol.upper() != failure_symbol:
+                    continue
+                if req.strategy != failure_strategy:
+                    continue
+                if idx in seen_indexes:
+                    continue
+                entry: dict[str, Any] = dict(original)
+                metrics = entry.get("metrics")
+                if not isinstance(metrics, Mapping):
+                    entry["metrics"] = dict(req.metrics)
+                else:
+                    entry["metrics"] = dict(metrics)
+                entry.setdefault("status", "reject")
+                entry["scan_symbol"] = failure_symbol
+                entry["scan_strategy"] = failure_strategy
+                if failure.reasons:
+                    entry["rejection_reasons"] = list(failure.reasons)
+                if failure.filters:
+                    entry["rejection_filters"] = list(failure.filters)
+                entry["__scan_request_index__"] = idx
+                rejection_entries.append(entry)
+                seen_indexes.add(idx)
+        session.scan_rejections = rejection_entries
+
     def _print_failures_table() -> None:
         if not failure_entries:
             print("⚠️ Geen afgewezen aanbevelingen om te tonen.")
@@ -543,8 +616,7 @@ def run_market_scan(
             print(f"❌ Rangschikking van voorstellen mislukt: {exc}")
             return None
 
-        nonlocal failure_entries
-        failure_entries = _current_failures()
+        _update_rejection_entries()
         if not candidates:
             print("⚠️ Geen voorstellen gevonden tijdens scan.")
             if failure_entries:

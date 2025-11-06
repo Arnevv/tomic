@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Mapping, Sequence
 from types import SimpleNamespace
 from unittest import mock
 
@@ -11,6 +12,7 @@ from tomic.cli.controlpanel_session import ControlPanelSession
 from tomic.cli.portfolio import menu_flow
 from tomic.helpers.price_utils import ClosePriceSnapshot
 from tomic.services.chain_processing import SpotResolution
+from tomic.services.market_scan_service import ScanFailure
 
 
 @pytest.fixture
@@ -362,3 +364,151 @@ def test_run_market_scan_refresh_only(
     kwargs = scan_service.run_market_scan.call_args.kwargs
     assert kwargs["refresh_quotes"] is True
     assert kwargs["top_n"] == 3
+
+
+def test_run_market_scan_stores_scan_failures(
+    services: ControlPanelServices, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    session = ControlPanelSession()
+
+    config_values = {
+        "MARKET_SCAN_TOP_N": 3,
+        "STRATEGY_CONFIG": {"dummy": True},
+        "INTEREST_RATE": 0.05,
+    }
+
+    monkeypatch.setattr(
+        menu_flow.cfg,
+        "get",
+        lambda key, default=None: config_values.get(key, default),
+    )
+    monkeypatch.setattr(
+        menu_flow.ChainPreparationConfig,
+        "from_app_config",
+        classmethod(lambda cls: SimpleNamespace()),
+    )
+
+    scan_service = mock.Mock()
+    failure = ScanFailure(
+        symbol="AAA",
+        strategy="iron_condor",
+        reasons=("insufficient volume",),
+        filters=("liquidity",),
+    )
+    scan_service.last_scan_failures = [failure]
+    scan_service.run_market_scan.return_value = []
+    monkeypatch.setattr(menu_flow, "MarketScanService", mock.Mock(return_value=scan_service))
+
+    recommendation = {
+        "symbol": "AAA",
+        "strategy": "Iron Condor",
+        "metrics": {"score": 1.0},
+        "legs": [
+            {
+                "symbol": "AAA",
+                "expiry": "2025-01-17",
+                "type": "call",
+                "strike": 100,
+                "position": -1,
+            }
+        ],
+    }
+
+    menu_flow.run_market_scan(
+        session,
+        services,
+        [recommendation],
+        tabulate_fn=mock.Mock(return_value="table"),
+        prompt_fn=mock.Mock(return_value=""),
+        prompt_yes_no_fn=mock.Mock(return_value=False),
+        show_proposal_details=mock.Mock(),
+        refresh_spot_price_fn=mock.Mock(return_value=105.0),
+        load_spot_from_metrics_fn=mock.Mock(return_value=None),
+        load_latest_close_fn=mock.Mock(return_value=(None, None)),
+        spot_from_chain_fn=mock.Mock(return_value=None),
+    )
+
+    assert session.scan_rejections
+    entry = session.scan_rejections[0]
+    assert entry["scan_symbol"] == "AAA"
+    assert entry["scan_strategy"] == "iron_condor"
+    assert entry["rejection_reasons"] == ["insufficient volume"]
+    assert entry["rejection_filters"] == ["liquidity"]
+
+
+def test_run_market_scan_refresh_only_uses_rejection_refresh(
+    services: ControlPanelServices, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    session = ControlPanelSession()
+    session.scan_rejections = [
+        {
+            "symbol": "AAA",
+            "strategy": "Iron Condor",
+            "metrics": {"score": 1.0},
+            "legs": [
+                {
+                    "symbol": "AAA",
+                    "expiry": "2025-01-17",
+                    "type": "call",
+                    "strike": 100,
+                    "position": -1,
+                }
+            ],
+        }
+    ]
+
+    config_values = {
+        "MARKET_SCAN_TOP_N": 3,
+        "STRATEGY_CONFIG": {"dummy": True},
+        "INTEREST_RATE": 0.05,
+    }
+
+    monkeypatch.setattr(
+        menu_flow.cfg,
+        "get",
+        lambda key, default=None: config_values.get(key, default),
+    )
+    monkeypatch.setattr(
+        menu_flow.ChainPreparationConfig,
+        "from_app_config",
+        classmethod(lambda cls: SimpleNamespace()),
+    )
+
+    refresh_calls: list[Sequence[Mapping[str, object]]] = []
+
+    def fake_refresh(
+        session_obj: ControlPanelSession,
+        services_obj: ControlPanelServices,
+        entries: Sequence[Mapping[str, object]],
+        *,
+        tabulate_fn,
+        prompt_fn,
+        show_proposal_details,
+    ) -> None:
+        refresh_calls.append(entries)
+
+    monkeypatch.setattr(menu_flow, "_refresh_scan_rejections", fake_refresh)
+    monkeypatch.setattr(menu_flow, "MarketScanService", mock.Mock())
+
+    menu_flow.run_market_scan(
+        session,
+        services,
+        [
+            {
+                "symbol": "AAA",
+                "strategy": "Iron Condor",
+            }
+        ],
+        tabulate_fn=mock.Mock(return_value="table"),
+        prompt_fn=mock.Mock(return_value=""),
+        prompt_yes_no_fn=mock.Mock(return_value=False),
+        show_proposal_details=mock.Mock(),
+        refresh_spot_price_fn=mock.Mock(return_value=105.0),
+        load_spot_from_metrics_fn=mock.Mock(return_value=None),
+        load_latest_close_fn=mock.Mock(return_value=(None, None)),
+        spot_from_chain_fn=mock.Mock(return_value=None),
+        refresh_only=True,
+    )
+
+    assert refresh_calls
+    assert refresh_calls[0] is session.scan_rejections
