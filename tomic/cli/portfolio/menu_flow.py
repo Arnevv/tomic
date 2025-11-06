@@ -536,11 +536,6 @@ def run_market_scan(
             return tuple(failures)
         return ()
 
-    def _normalize_strategy(value: object) -> str:
-        if isinstance(value, str):
-            return value.strip().lower().replace(" ", "_")
-        return ""
-
     def _update_rejection_entries() -> None:
         nonlocal failure_entries
         failure_entries = _current_failures()
@@ -552,29 +547,10 @@ def run_market_scan(
         for failure in failure_entries:
             failure_symbol = failure.symbol.upper()
             failure_strategy = failure.strategy
-            failure_strategy_key = _normalize_strategy(failure_strategy)
             for idx, req, original in request_bindings:
                 if req.symbol.upper() != failure_symbol:
                     continue
-                req_strategy_key = _normalize_strategy(req.strategy)
-                original_strategy = (
-                    str(original.get("strategy"))
-                    if isinstance(original, Mapping)
-                    else ""
-                )
-                original_strategy_key = _normalize_strategy(original_strategy)
-
-                matches_strategy = False
-                if failure_strategy_key:
-                    if failure_strategy_key == req_strategy_key:
-                        matches_strategy = True
-                    elif failure_strategy_key == original_strategy_key:
-                        matches_strategy = True
-                else:
-                    if req_strategy_key == original_strategy_key:
-                        matches_strategy = True
-
-                if not matches_strategy:
+                if req.strategy != failure_strategy:
                     continue
                 if idx in seen_indexes:
                     continue
@@ -586,9 +562,7 @@ def run_market_scan(
                     entry["metrics"] = dict(metrics)
                 entry.setdefault("status", "reject")
                 entry["scan_symbol"] = failure_symbol
-                entry["scan_strategy"] = failure_strategy or original_strategy or req.strategy
-                if original_strategy_key and not entry.get("strategy"):
-                    entry["strategy"] = original_strategy
+                entry["scan_strategy"] = failure_strategy
                 if failure.reasons:
                     entry["rejection_reasons"] = list(failure.reasons)
                 if failure.filters:

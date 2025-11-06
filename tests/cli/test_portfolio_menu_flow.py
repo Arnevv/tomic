@@ -391,7 +391,7 @@ def test_run_market_scan_stores_scan_failures(
     scan_service = mock.Mock()
     failure = ScanFailure(
         symbol="AAA",
-        strategy="Iron Condor",
+        strategy="iron_condor",
         reasons=("insufficient volume",),
         filters=("liquidity",),
     )
@@ -431,7 +431,7 @@ def test_run_market_scan_stores_scan_failures(
     assert session.scan_rejections
     entry = session.scan_rejections[0]
     assert entry["scan_symbol"] == "AAA"
-    assert entry["scan_strategy"] == "Iron Condor"
+    assert entry["scan_strategy"] == "iron_condor"
     assert entry["rejection_reasons"] == ["insufficient volume"]
     assert entry["rejection_filters"] == ["liquidity"]
 
