@@ -8804,5 +8804,12 @@
     "close": 68.28,
     "volume": 28755043.0,
     "atr": null
+  },
+  {
+    "symbol": "GDX",
+    "date": "2025-11-05",
+    "close": 70.67,
+    "volume": 24336387.0,
+    "atr": null
   }
 ]

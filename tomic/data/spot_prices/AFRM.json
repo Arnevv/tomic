@@ -8461,5 +8461,12 @@
     "close": 71.41,
     "volume": 4925953.0,
     "atr": null
+  },
+  {
+    "symbol": "AFRM",
+    "date": "2025-11-05",
+    "close": 71.52,
+    "volume": 5193676.0,
+    "atr": null
   }
 ]

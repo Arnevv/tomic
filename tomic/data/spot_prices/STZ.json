@@ -8804,5 +8804,12 @@
     "close": 129.18,
     "volume": 2129171.0,
     "atr": null
+  },
+  {
+    "symbol": "STZ",
+    "date": "2025-11-05",
+    "close": 130.62,
+    "volume": 1744743.0,
+    "atr": null
   }
 ]

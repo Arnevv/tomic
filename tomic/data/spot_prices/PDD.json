@@ -8804,5 +8804,12 @@
     "close": 133.84,
     "volume": 6283769.0,
     "atr": null
+  },
+  {
+    "symbol": "PDD",
+    "date": "2025-11-05",
+    "close": 136.34,
+    "volume": 4407072.0,
+    "atr": null
   }
 ]

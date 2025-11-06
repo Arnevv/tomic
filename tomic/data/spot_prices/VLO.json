@@ -8881,5 +8881,12 @@
     "close": 169.11,
     "volume": 2188351.0,
     "atr": null
+  },
+  {
+    "symbol": "VLO",
+    "date": "2025-11-05",
+    "close": 170.14,
+    "volume": 1762404.0,
+    "atr": null
   }
 ]

@@ -8881,5 +8881,12 @@
     "close": 577.14,
     "volume": 494371,
     "atr": null
+  },
+  {
+    "symbol": "NOC",
+    "date": "2025-11-05",
+    "close": 570.5,
+    "volume": 535804,
+    "atr": null
   }
 ]
