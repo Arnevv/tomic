@@ -189,13 +189,13 @@ def load_and_prepare_chain(
         interpolated_path = path.with_name(path.stem + config.interpolation_suffix + path.suffix)
         df.to_csv(interpolated_path, index=False)
         interpolation_applied = True
-        logger.info("Interpolation completed successfully")
-        logger.info(f"Interpolated CSV saved to {interpolated_path}")
+        logger.debug("Interpolation completed successfully")
+        logger.debug(f"Interpolated CSV saved to {interpolated_path}")
 
     records = normalize_chain_records(dataframe_to_records(df))
 
-    logger.info(f"Loaded {len(df)} rows from {path}")
-    logger.info(f"CSV loaded from {path} with quality {quality:.1f}%")
+    logger.debug(f"Loaded {len(df)} rows from {path}")
+    logger.debug(f"CSV loaded from {path} with quality {quality:.1f}%")
 
     return PreparedChain(
         path=interpolated_path,

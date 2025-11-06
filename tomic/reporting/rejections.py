@@ -88,7 +88,7 @@ class ReasonAggregator:
         mapped = ", ".join(
             f"{lbl} ({det.category.value})" for det, lbl in zip(details, labels)
         )
-        logger.info(f"[reason-selection] raw={raw_label} -> {mapped}")
+        logger.debug(f"[reason-selection] raw={raw_label} -> {mapped}")
         if strategy:
             self.by_strategy.setdefault(strategy, []).extend(labels)
         return detail

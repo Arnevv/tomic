@@ -38,7 +38,7 @@ def test_metrics_rejects_low_liquidity(monkeypatch):
     logged: list[str] = []
 
     class DummyLogger:
-        def info(self, msg: str, *args: object, **kwargs: object) -> None:
+        def _record(self, msg: str, *args: object) -> None:
             if args:
                 try:
                     formatted = msg % args
@@ -47,6 +47,12 @@ def test_metrics_rejects_low_liquidity(monkeypatch):
             else:
                 formatted = msg
             logged.append(str(formatted))
+
+        def info(self, msg: str, *args: object, **kwargs: object) -> None:
+            self._record(msg, *args)
+
+        def debug(self, msg: str, *args: object, **kwargs: object) -> None:
+            self._record(msg, *args)
 
     import tomic.analysis.scoring as scoring
 

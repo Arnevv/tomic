@@ -156,7 +156,7 @@ def _apply_put_call_parity(
             new_mid = put_mid + spot - discount
             call["mid"] = round(new_mid, 4)
             call["mid_from_parity"] = True
-            logger.info(
+            logger.debug(
                 "[PARITY] Reconstructed mid for call @ %s (expiry %s) using put-call parity",
                 strike,
                 expiry,
@@ -165,7 +165,7 @@ def _apply_put_call_parity(
             new_mid = call_mid - spot + discount
             put["mid"] = round(new_mid, 4)
             put["mid_from_parity"] = True
-            logger.info(
+            logger.debug(
                 "[PARITY] Reconstructed mid for put @ %s (expiry %s) using put-call parity",
                 strike,
                 expiry,

@@ -200,18 +200,18 @@ class StrikeSelector:
         per filter category.
         """
 
-        logger.info(
+        logger.debug(
             f"StrikeSelector start: {len(options)} options, dte_range={dte_range}, config={self.config}"
         )
 
         working = options
         if dte_range is not None:
             working = filter_by_expiry(working, dte_range)
-            logger.info(
+            logger.debug(
                 f"After expiry filter {dte_range}: {len(working)} options remain"
             )
         else:
-            logger.info(f"No expiry filter applied: {len(working)} options")
+            logger.debug(f"No expiry filter applied: {len(working)} options")
 
         selected: List[Dict[str, Any]] = []
         reasons: Dict[str, int] = {}
@@ -235,9 +235,9 @@ class StrikeSelector:
                     row = dict(opt)
                     row["reject_reason"] = reason
                     rejected_rows.append(row)
-        logger.info(f"StrikeSelector result: {len(selected)}/{len(working)} kept")
+        logger.debug(f"StrikeSelector result: {len(selected)}/{len(working)} kept")
         for flt, cnt in by_filter.items():
-            logger.info(f"- {cnt} rejected by {flt} filter")
+            logger.debug(f"- {cnt} rejected by {flt} filter")
 
         if debug_csv and rejected_rows:
             try:
@@ -251,9 +251,9 @@ class StrikeSelector:
 
         if not selected and rejected_rows:
             preview = rejected_rows[:3]
-            logger.info("Top rejected options:")
+            logger.debug("Top rejected options:")
             for row in preview:
-                logger.info(
+                logger.debug(
                     f"- {row.get('expiry')} {row.get('strike')} {row.get('type')}: {row.get('reject_reason')}"
                 )
 

@@ -619,7 +619,7 @@ def validate_entry_quality(
         strike = leg.get("strike")
         strike_suffix = "" if strike in {None, ""} else str(strike)
         mid_display = mid_val if has_mid else leg.get("mid")
-        logger.info(
+        logger.debug(
             f"[mid-check] {strategy_name} leg {leg_type}{strike_suffix} -> has_mid={has_price} "
             f"(value={mid_display}, source={source or '—'}, bid={leg.get('bid')}, "
             f"ask={leg.get('ask')}, close={leg.get('close')}, source_ok={source_ok})"

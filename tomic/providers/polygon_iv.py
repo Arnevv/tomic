@@ -89,7 +89,7 @@ class SnapshotFetcher:
                     page_limiter.wait()
                 params_to_use = params if first else {}
                 if first:
-                    logger.info(f"Requesting snapshot for {symbol} {expiry}")
+                    logger.debug(f"Requesting snapshot for {symbol} {expiry}")
                 payload = self.client._request(next_path, params_to_use)
                 if first:
                     page_limiter.record()
@@ -117,7 +117,7 @@ class SnapshotFetcher:
             logger.warning(f"Polygon request failed for {symbol}: {exc}")
         finally:
             self.client.disconnect()
-        logger.info(f"{symbol} {expiry}: {len(options)} contracts")
+        logger.debug(f"{symbol} {expiry}: {len(options)} contracts")
         delay_ms = int(cfg_get("POLYGON_DELAY_SNAPSHOT_MS", 200))
         if delay_ms > 0:
             time.sleep(delay_ms / 1000)
@@ -895,7 +895,7 @@ def fetch_polygon_option_chain(symbol: str) -> None:
                 continue
             filtered.append(opt)
             kept += 1
-        logger.info(f"Expiry {exp}: {before} -> {kept} after delta filter")
+        logger.debug(f"Expiry {exp}: {before} -> {kept} after delta filter")
 
     _export_option_chain(symbol, filtered)
 

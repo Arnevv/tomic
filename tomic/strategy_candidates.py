@@ -121,7 +121,7 @@ def _nearest_strike(
     right = normalize_right(right)
     strikes = strike_map.get(str(expiry), {}).get(right)
     if not strikes:
-        logger.info(
+        logger.debug(
             f"[nearest_strike] geen strikes voor expiry {expiry} (type={right})"
         )
         return StrikeMatch(target)
@@ -134,12 +134,12 @@ def _nearest_strike(
     diff = abs(nearest - target)
     pct = (diff / target * 100) if target else 0.0
     if pct > tolerance_percent:
-        logger.info(
+        logger.debug(
             f"[nearest_strike] Geen geschikte strike gevonden binnen tolerantie ±{tolerance_percent:.1f}% — fallback geannuleerd"
         )
         return StrikeMatch(target)
 
-    logger.info(
+    logger.debug(
         f"[nearest_strike] target {target} → matched {nearest} for expiry {expiry} (type={right})"
     )
     return StrikeMatch(target, nearest, nearest - target)
