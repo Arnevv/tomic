@@ -83,16 +83,32 @@ def fetch_polygon_chain(symbol: str) -> Path | None:
 
 
 def _polygon_adapter() -> PolygonFileAdapter:
-    from tomic.providers.polygon_iv import fetch_polygon_option_chain
+    fetcher = globals().get("fetch_polygon_option_chain")
+    if fetcher is None:
+        from tomic.providers.polygon_iv import fetch_polygon_option_chain as _fetcher
+
+        fetcher = _fetcher
 
     export_dir = Path(cfg.get("EXPORT_DIR", "exports"))
     schema_version = cfg.get("POLYGON_CHAIN_SCHEMA_VERSION")
     schema_str = str(schema_version) if schema_version else "polygon.v1"
     return PolygonFileAdapter(
         export_dir=export_dir,
-        fetcher=fetch_polygon_option_chain,
+        fetcher=fetcher,
         schema_version=schema_str,
     )
+
+
+class _DisabledTwsAdapter:
+    """Placeholder adapter used now that TWS exports are unsupported."""
+
+    def acquire(self, symbol: str) -> ChainSourceDecision:  # pragma: no cover - guard
+        raise ChainSourceError(
+            "TWS option-chain export is verwijderd. Gebruik Polygon-paden."
+        )
+
+
+_DISABLED_TWS = _DisabledTwsAdapter()
 
 
 def resolve_chain_decision(
@@ -120,6 +136,7 @@ def resolve_chain_decision(
         symbol,
         source=cast(ChainSourceName, choice),
         polygon=polygon,
+        tws=_DISABLED_TWS,
         existing_dir=resolved_dir,
     )
 
