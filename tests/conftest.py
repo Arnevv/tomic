@@ -54,17 +54,30 @@ def stub_external_modules():
     sys.modules["ibapi.client"].EClient = client_stub.EClient
     sys.modules["ibapi.wrapper"].EWrapper = wrapper_stub.EWrapper
 
-    pd_stub = types.ModuleType("pandas")
-    pd_stub.DataFrame = object
-    pd_stub.Series = object
-    pd_stub.concat = lambda frames, ignore_index=False: object()
-    sys.modules["pandas"] = pd_stub
+    try:
+        import pandas  # type: ignore
+    except Exception:  # pragma: no cover - defensive fallback
+        pd_stub = types.ModuleType("pandas")
+        pd_stub.DataFrame = object
+        pd_stub.Series = object
+        pd_stub.concat = lambda frames, ignore_index=False: object()
+        sys.modules["pandas"] = pd_stub
 
     sys.modules.setdefault("google", types.ModuleType("google"))
     sys.modules.setdefault("google.protobuf", types.ModuleType("protobuf"))
-    numpy_stub = types.ModuleType("numpy")
-    numpy_stub.nan = float("nan")
-    sys.modules.setdefault("numpy", numpy_stub)
+
+    try:
+        import numpy  # type: ignore
+    except Exception:  # pragma: no cover - defensive fallback
+        numpy_stub = types.ModuleType("numpy")
+        numpy_stub.nan = float("nan")
+
+        def _isscalar(value):
+            return isinstance(value, (int, float))
+
+        numpy_stub.isscalar = _isscalar
+        sys.modules.setdefault("numpy", numpy_stub)
+
     sys.modules.setdefault("requests", types.ModuleType("requests"))
 
     aiohttp_stub = types.ModuleType("aiohttp")
