@@ -8888,5 +8888,12 @@
     "close": 24.61,
     "volume": 107241127.0,
     "atr": null
+  },
+  {
+    "symbol": "PFE",
+    "date": "2025-11-06",
+    "close": 24.85,
+    "volume": 124136151.0,
+    "atr": null
   }
 ]

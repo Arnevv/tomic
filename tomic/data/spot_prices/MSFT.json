@@ -8888,5 +8888,12 @@
     "close": 507.16,
     "volume": 23023319.0,
     "atr": null
+  },
+  {
+    "symbol": "MSFT",
+    "date": "2025-11-06",
+    "close": 497.1,
+    "volume": 27343956.0,
+    "atr": null
   }
 ]

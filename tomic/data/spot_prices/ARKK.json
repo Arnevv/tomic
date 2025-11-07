@@ -8811,5 +8811,12 @@
     "close": 84.99,
     "volume": 7773147.0,
     "atr": null
+  },
+  {
+    "symbol": "ARKK",
+    "date": "2025-11-06",
+    "close": 80.92,
+    "volume": 11130045.0,
+    "atr": null
   }
 ]

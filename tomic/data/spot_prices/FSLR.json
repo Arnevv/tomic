@@ -8811,5 +8811,12 @@
     "close": 277.39,
     "volume": 3644245.0,
     "atr": null
+  },
+  {
+    "symbol": "FSLR",
+    "date": "2025-11-06",
+    "close": 271.98,
+    "volume": 2336724.0,
+    "atr": null
   }
 ]

@@ -8888,5 +8888,12 @@
     "close": 38.38,
     "volume": 74625699.0,
     "atr": null
+  },
+  {
+    "symbol": "INTC",
+    "date": "2025-11-06",
+    "close": 37.24,
+    "volume": 77595097.0,
+    "atr": null
   }
 ]
