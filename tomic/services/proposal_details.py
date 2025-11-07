@@ -10,7 +10,7 @@ from ..helpers.dateutils import normalize_earnings_context, parse_date
 from ..helpers.numeric import safe_float
 from ..logutils import logger
 from ..pricing.margin_engine import compute_margin_and_rr
-from ..utils import resolve_symbol
+from ..utils import load_price_history, resolve_symbol
 from ..metrics import PROPOSAL_GREEK_SCHEMA, aggregate_greeks
 from ..strategy.reasons import normalize_reason
 from .strategy_pipeline import StrategyProposal
@@ -33,6 +33,45 @@ def _normalize_reasons(reasons: Sequence[Any]) -> tuple[Any, ...]:
             logger.debug("Could not normalize reason", exc_info=True)
             normalized.append(reason)
     return tuple(normalized)
+
+
+def calculate_atr(prices: Sequence[Mapping[str, Any]], period: int = 14) -> float | None:
+    """Return the average true range for ``prices`` over ``period`` entries."""
+
+    try:
+        period_int = int(period)
+    except Exception:
+        period_int = 14
+    period_int = max(1, period_int)
+
+    true_ranges: list[float] = []
+    prev_close: float | None = None
+    for price in prices:
+        close = safe_float(price.get("close"))
+        high = safe_float(price.get("high"))
+        low = safe_float(price.get("low"))
+        if high is None or low is None or close is None:
+            if close is not None:
+                prev_close = close
+            continue
+        if prev_close is None:
+            prev_close = close
+            continue
+        tr = max(high - low, abs(high - prev_close), abs(low - prev_close))
+        if tr is not None:
+            true_ranges.append(tr)
+        prev_close = close
+
+    if true_ranges:
+        window = true_ranges[-period_int:]
+        if window:
+            return sum(window) / len(window)
+
+    for price in reversed(prices):
+        fallback = safe_float(price.get("atr"))
+        if fallback is not None:
+            return fallback
+    return None
 
 
 @dataclass(frozen=True)
@@ -146,6 +185,7 @@ class ProposalSummaryVM:
     hv30: float | None
     hv90: float | None
     hv252: float | None
+    atr: float | None
     edge: float | None
     greeks: Mapping[str, float | None]
 
@@ -359,6 +399,16 @@ def build_proposal_viewmodel(
             "⚠️ Credit afgetopt op theoretisch maximum vanwege ontbrekende bid/ask"
         )
 
+    atr_value = safe_float(getattr(proposal, "atr", None))
+    if atr_value is None and core.symbol:
+        try:
+            price_history = load_price_history(core.symbol)
+        except Exception:
+            price_history = []
+        computed_atr = calculate_atr(price_history)
+        if computed_atr is not None:
+            atr_value = safe_float(computed_atr)
+
     summary = ProposalSummaryVM(
         credit=safe_float(proposal.credit),
         margin=safe_float(proposal.margin),
@@ -387,6 +437,7 @@ def build_proposal_viewmodel(
         hv30=safe_float(getattr(proposal, "hv30", None)),
         hv90=safe_float(getattr(proposal, "hv90", None)),
         hv252=safe_float(getattr(proposal, "hv252", None)),
+        atr=atr_value,
         edge=safe_float(getattr(proposal, "edge", None)),
         greeks=core.greeks,
     )

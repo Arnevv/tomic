@@ -13,7 +13,11 @@ from tomic.services.pipeline_refresh import (
     RefreshSource,
     build_proposal_from_entry,
 )
-from tomic.services.proposal_details import build_proposal_core, build_proposal_viewmodel
+from tomic.services.proposal_details import (
+    calculate_atr,
+    build_proposal_core,
+    build_proposal_viewmodel,
+)
 
 
 @pytest.fixture
@@ -79,7 +83,44 @@ def sample_refresh_result() -> RefreshResult:
     return RefreshResult(accepted=[refresh_proposal], rejections=[], stats=stats)
 
 
-def test_build_proposal_viewmodel_without_nan(sample_refresh_result: RefreshResult) -> None:
+def test_calculate_atr_from_ohlc() -> None:
+    prices = [
+        {"high": 12.0, "low": 10.0, "close": 11.0},
+        {"high": 12.5, "low": 10.5, "close": 11.5},
+        {"high": 13.0, "low": 11.0, "close": 12.0},
+    ]
+
+    value = calculate_atr(prices, period=14)
+
+    assert value is not None
+    assert math.isclose(value, 2.0)
+
+
+def test_calculate_atr_falls_back_to_existing_atr() -> None:
+    prices = [
+        {"close": 100.0, "atr": None},
+        {"close": 101.0, "atr": 1.75},
+        {"close": 102.0, "atr": 1.8},
+    ]
+
+    value = calculate_atr(prices)
+
+    assert value is not None
+    assert math.isclose(value, 1.8)
+
+
+def test_build_proposal_viewmodel_without_nan(
+    sample_refresh_result: RefreshResult, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(
+        "tomic.services.proposal_details.load_price_history",
+        lambda symbol: [
+            {"high": 12.0, "low": 10.0, "close": 11.0},
+            {"high": 12.5, "low": 10.5, "close": 11.5},
+            {"high": 13.0, "low": 11.0, "close": 12.0},
+        ],
+    )
+
     candidate = sample_refresh_result.accepted[0]
     vm = build_proposal_viewmodel(
         candidate,
@@ -103,6 +144,7 @@ def test_build_proposal_viewmodel_without_nan(sample_refresh_result: RefreshResu
         summary.rom,
         summary.score,
         summary.risk_reward,
+        summary.atr,
     ):
         if value is not None:
             assert math.isfinite(value)
@@ -111,6 +153,8 @@ def test_build_proposal_viewmodel_without_nan(sample_refresh_result: RefreshResu
     assert vm.accepted is True
     assert vm.earnings.next_earnings == date(2025, 1, 10)
     assert vm.earnings.occurs_before_expiry is False
+    assert vm.summary.atr is not None
+    assert math.isclose(vm.summary.atr, 2.0)
 
 
 def test_build_proposal_viewmodel_marks_missing_quotes_pending(
