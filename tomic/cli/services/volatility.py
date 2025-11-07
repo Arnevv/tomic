@@ -7,7 +7,6 @@ from pathlib import Path
 from typing import Sequence
 
 from tomic.analysis.metrics import historical_volatility
-from tomic.api.market_client import TermStructureClient, await_market_data, start_app
 from tomic.config import get as cfg_get
 from tomic.helpers.price_utils import _load_latest_close
 from tomic.journal.utils import update_json_file
@@ -17,34 +16,8 @@ from .vol_helpers import _get_closes, iv_percentile, iv_rank, rolling_hv
 
 def fetch_iv30d(symbol: str) -> float | None:
     """Return approximate 30-day implied volatility for ``symbol`` using TWS."""
-    app = TermStructureClient(symbol)
-    start_app(app)
-    try:
-        if not await_market_data(app, symbol):
-            return None
-        if app.spot_price is None:
-            return None
-        ivs_by_expiry: dict[str, list[float]] = {}
-        strike_window = int(cfg_get("TERM_STRIKE_WINDOW", 1))
-        for req_id, rec in app.market_data.items():
-            if req_id in app.invalid_contracts:
-                continue
-            iv = rec.get("iv")
-            strike = rec.get("strike")
-            expiry = rec.get("expiry")
-            if iv is None or strike is None or expiry is None:
-                continue
-            if abs(float(strike) - float(app.spot_price)) <= strike_window:
-                ivs_by_expiry.setdefault(str(expiry), []).append(float(iv))
-        if not ivs_by_expiry:
-            return None
-        first = sorted(ivs_by_expiry.keys())[0]
-        ivs = ivs_by_expiry[first]
-        if not ivs:
-            return None
-        return sum(ivs) / len(ivs)
-    finally:
-        app.disconnect()
+    logger.info("TWS option-chain term structure is verwijderd; geen IV beschikbaar")
+    return None
 
 
 def compute_volatility_stats(symbols: Sequence[str] | None = None) -> list[str]:

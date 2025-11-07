@@ -4,6 +4,8 @@ import builtins
 import sys
 import types
 
+import pytest
+
 
 def test_get_iv_rank_main(monkeypatch):
     mod = importlib.import_module("tomic.analysis.get_iv_rank")
@@ -262,34 +264,19 @@ def test_journal_inspector_main(monkeypatch):
 
 
 def test_getonemarket_run(monkeypatch):
-    export_stub = types.ModuleType("tomic.api.market_export")
-    export_stub.ExportResult = type("ExportResult", (), {})
-    export_stub.export_market_data = lambda sym, out=None, **k: sym
-    monkeypatch.setitem(sys.modules, "tomic.api.market_export", export_stub)
-    rpc_stub = types.ModuleType("tomic.proto.rpc")
-    rpc_stub.submit_task = lambda *a, **k: None
-    monkeypatch.setitem(sys.modules, "tomic.proto.rpc", rpc_stub)
     mod = importlib.reload(importlib.import_module("tomic.api.getonemarket"))
     monkeypatch.setattr(mod, "setup_logging", lambda: None)
-    called = []
 
-    def stub_connect_ib(*a, **k):
-        called.append(True)
-        return types.SimpleNamespace(disconnect=lambda: None, next_valid_id=1)
-
-    monkeypatch.setattr(mod, "connect_ib", stub_connect_ib)
-    assert mod.run("ABC") is True
-    assert not called
+    with pytest.raises(RuntimeError):
+        mod.run("ABC")
 
 
 def test_getallmarkets_run(monkeypatch):
-    export_stub = types.ModuleType("tomic.api.market_export")
-    export_stub.ExportResult = type("ExportResult", (), {})
-    export_stub.export_market_data = lambda sym, out=None, **k: sym
-    monkeypatch.setitem(sys.modules, "tomic.api.market_export", export_stub)
     mod = importlib.reload(importlib.import_module("tomic.api.getallmarkets"))
     monkeypatch.setattr(mod, "connect_ib", lambda *a, **k: types.SimpleNamespace(disconnect=lambda: None))
-    assert mod.run("XYZ") == "XYZ"
+
+    with pytest.raises(RuntimeError):
+        mod.run("XYZ")
 
 
 def test_option_lookup_main_invalid_args(monkeypatch):

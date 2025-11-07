@@ -31,8 +31,7 @@ Run control panel (interactief)
 python tomic/cli/controlpanel.py
 
 📁 DATA & MARKTDATA
-1. OptionChain ophalen via TWS API
-2. OptionChain ophalen via Polygon API
+1. OptionChain ophalen via Polygon API
 3. Controleer CSV-kwaliteit
 4. Run GitHub Action lokaal
 5. Backfill historical_volatility obv spotprices
@@ -44,8 +43,7 @@ python tomic/cli/controlpanel.py
 
 Wat doet elk item?
 Optie Beschrijving
-1. OptionChain ophalen via TWS API    Start de bulk-export via de TWS API en slaat de keten lokaal op.
-2. OptionChain ophalen via Polygon API    Roept fetch_polygon_option_chain(symbol) aan en slaat option chain info op (nu nog in ontwikkeling).
+1. OptionChain ophalen via Polygon API    Roept fetch_polygon_option_chain(symbol) aan en slaat option chain info op (nu nog in ontwikkeling).
 3. Controleer CSV-kwaliteit    Valideert een lokaal CSV-bestand met chaindata: kolommen, lege velden, duplicaten enz.
 4. Run GitHub Action lokaal    Start fetch_prices_polygon en commit/pusht wijzigingen.
 5. Backfill historical_volatility obv spotprices    Berekent HV op basis van lokale spotprijzen.
@@ -53,6 +51,14 @@ Optie Beschrijving
 7. IV backfill    Start de IV-backfill flow om ontbrekende implied-volatility-data bij te werken.
 8. Import nieuwe earning dates van MarketChameleon    Importeert een MarketChameleon-CSV en werkt earnings_dates.json bij na een dry-run.
 9. Terug    Keert terug naar het hoofdmenu.
+
+> ℹ️ De vroegere TWS-optionchain export is verwijderd. Het menu-item geeft nu een melding en verwijst naar de Polygon-werkstroom.
+
+### Waarom TWS-optionchains zijn verwijderd
+
+* De TWS-ketenexport leverde onstabiele resultaten op en blokkeerde de rest van het controlpanel.
+* Polygon-exports zijn nu de standaardbron voor keteninformatie.
+* Via `config.yaml` kun je controleren of de vlag `data_sources.tws_option_chain_enabled` actief is; standaard staat deze op `false` en zelfs wanneer je hem op `true` zet toont de CLI een duidelijke melding dat de TWS-flow is verwijderd.
 
 📊 ANALYSE & STRATEGIE
 1. Trading Plan

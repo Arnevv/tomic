@@ -6,13 +6,11 @@ from pathlib import Path
 from typing import TYPE_CHECKING, cast
 
 from tomic import config as cfg
-from tomic.api.market_export import ExportResult, export_option_chain
 from tomic.services.chain_sources import (
     ChainSourceDecision,
     ChainSourceError,
     ChainSourceName,
     PolygonFileAdapter,
-    TwsLiveAdapter,
     resolve_chain_source,
 )
 
@@ -70,19 +68,10 @@ def find_latest_chain(symbol: str, base: Path | None = None) -> Path | None:
     return max(chains, key=lambda p: p.stat().st_mtime)
 
 
-def _export_chain_via_tws(symbol: str) -> Path | None:
-    res = export_option_chain(symbol, return_status=True)
-    if isinstance(res, ExportResult) and not res.ok:
-        return None
-    return find_latest_chain(symbol)
-
-
 def export_chain(symbol: str) -> Path | None:
-    try:
-        decision = resolve_chain_decision(symbol, source="tws")
-    except ChainSourceError:
-        return None
-    return decision.path
+    raise ChainSourceError(
+        "TWS option-chain export is verwijderd. Gebruik Polygon-paden."
+    )
 
 
 def fetch_polygon_chain(symbol: str) -> Path | None:
@@ -106,12 +95,6 @@ def _polygon_adapter() -> PolygonFileAdapter:
     )
 
 
-def _tws_adapter() -> TwsLiveAdapter:
-    schema_version = cfg.get("TWS_CHAIN_SCHEMA_VERSION")
-    schema_str = str(schema_version) if schema_version else "tws.v1"
-    return TwsLiveAdapter(exporter=_export_chain_via_tws, schema_version=schema_str)
-
-
 def resolve_chain_decision(
     symbol: str,
     *,
@@ -121,9 +104,12 @@ def resolve_chain_decision(
     choice = source.strip().lower()
     if choice not in {"polygon", "tws"}:
         raise ChainSourceError(f"Onbekende chain-bron: {source!r}")
+    if choice == "tws":
+        raise ChainSourceError(
+            "TWS option-chain export is verwijderd. Gebruik Polygon-paden."
+        )
 
     polygon = _polygon_adapter()
-    tws = _tws_adapter()
     resolved_dir: Path | None
     if existing_dir is None or isinstance(existing_dir, Path):
         resolved_dir = existing_dir if isinstance(existing_dir, Path) else None
@@ -134,7 +120,6 @@ def resolve_chain_decision(
         symbol,
         source=cast(ChainSourceName, choice),
         polygon=polygon,
-        tws=tws,
         existing_dir=resolved_dir,
     )
 

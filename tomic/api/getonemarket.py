@@ -3,11 +3,8 @@
 import sys
 
 from tomic.logutils import log_result, setup_logging, trace_calls
-from .ib_connection import connect_ib  # backwards compat for tests
 
-def _market_export():
-    from . import market_export
-    return market_export
+from ._tws_chain_deprecated import removed_tws_chain_entry
 
 
 @trace_calls
@@ -16,17 +13,7 @@ def run(
     symbol: str, output_dir: str | None = None, *, simple: bool = False
 ) -> bool:
     setup_logging()
-    export = _market_export()
-    normalized = symbol.strip().upper()
-    if simple:
-        res = export.export_option_chain(
-            normalized, output_dir, simple=True, return_status=True
-        )
-    else:
-        res = export.export_market_data(
-            normalized, output_dir, return_status=True
-        )
-    return not isinstance(res, export.ExportResult) or res.ok
+    removed_tws_chain_entry()
 
 
 @trace_calls
@@ -37,17 +24,7 @@ async def run_async(
     """Asynchronous entry point for ``getonemarket``."""
 
     setup_logging()
-    export = _market_export()
-    normalized = symbol.strip().upper()
-    if simple:
-        res = await export.export_option_chain_async(
-            normalized, output_dir, simple=True, return_status=True
-        )
-    else:
-        res = await export.export_market_data_async(
-            normalized, output_dir, return_status=True
-        )
-    return not isinstance(res, export.ExportResult) or res.ok
+    removed_tws_chain_entry()
 
 
 if __name__ == "__main__":
