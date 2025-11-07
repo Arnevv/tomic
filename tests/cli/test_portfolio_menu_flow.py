@@ -251,7 +251,9 @@ def test_run_market_scan_selects_candidate(
     assert first_call.kwargs["top_n"] == 3
     assert first_call.kwargs["refresh_quotes"] is False
     assert second_call.kwargs["refresh_quotes"] is True
-    assert prompt_yes_no_calls == [("Informatie van TWS ophalen voor alle rijen?", False)]
+    assert prompt_yes_no_calls == [
+        ("IB snapshot-refresh uitvoeren voor alle rijen?", False)
+    ]
     show_details.assert_called_once_with(session, proposal)
     assert session.symbol == "SPY"
     assert session.strategy == "short_put"

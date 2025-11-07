@@ -577,7 +577,9 @@ def show_market_info(session: ControlPanelSession, services: ControlPanelService
         "0         → Terug naar hoofdmenu",
     ]
     if tws_option_chain_enabled():
-        selection_help_lines.insert(2, "998       → (niet beschikbaar) TWS-data")
+        selection_help_lines.insert(
+            2, "998       → (niet beschikbaar) IB snapshot-refresh"
+        )
     selection_help = "\n".join(selection_help_lines)
     tws_enabled = False
     print(selection_help)
