@@ -48,8 +48,9 @@ from tomic.cli.common import Menu, prompt, prompt_yes_no
 
 
 from tomic import config as cfg
+from tomic.config import tws_option_chain_enabled
 from tomic.core.portfolio import services as portfolio_services
-from tomic.logutils import setup_logging
+from tomic.logutils import logger, setup_logging
 from tomic.analysis.volatility_fetcher import fetch_volatility_metrics
 from tomic.analysis.market_overview import build_market_overview
 from tomic.cli.app_services import ControlPanelServices, create_controlpanel_services
@@ -182,11 +183,25 @@ def _build_overview(rows: Sequence[list[Any]]) -> tuple[list[Mapping[str, Any]],
     return fn(rows)
 
 
+_TWS_DISABLED_MESSAGE = (
+    "TWS option-chain fetch is uitgeschakeld. Gebruik Polygon-marktdata."
+)
+
+
+def _notify_tws_disabled() -> None:
+    logger.info("TWS option-chain fetch attempted while disabled")
+    print(_TWS_DISABLED_MESSAGE)
+
+
 def _handle_market_selection(
     selection: str,
     recs: Sequence[Mapping[str, Any]],
+    *,
+    tws_enabled: bool,
 ) -> tuple[str, Mapping[str, Any] | None]:
     if selection == "998":
+        if not tws_enabled:
+            return "tws_disabled", None
         return "refresh", None
     if selection == "999":
         return "scan", None
@@ -555,18 +570,21 @@ def show_market_info(session: ControlPanelSession, services: ControlPanelService
     print("\n📋 Volatility Snapshot Aanbevelingen")
     portfolio_show_market_overview(tabulate, table_rows)
 
-    selection_help = (
-        "\nSelectie maken:\n"
-        "[nummer]  → Details voor één rij\n"
-        "998       → TWS-data ophalen voor alle aanbevelingen\n"
-        "999       → Nieuwe Polygon-scan\n"
-        "0         → Terug naar hoofdmenu"
-    )
+    selection_help_lines = [
+        "\nSelectie maken:",
+        "[nummer]  → Details voor één rij",
+        "999       → Nieuwe Polygon-scan",
+        "0         → Terug naar hoofdmenu",
+    ]
+    if tws_option_chain_enabled():
+        selection_help_lines.insert(2, "998       → (niet beschikbaar) TWS-data")
+    selection_help = "\n".join(selection_help_lines)
+    tws_enabled = False
     print(selection_help)
 
     while True:
         sel = prompt("Keuze: ")
-        action, chosen = _handle_market_selection(sel, recs)
+        action, chosen = _handle_market_selection(sel, recs, tws_enabled=tws_enabled)
         if action == "refresh":
             portfolio_run_market_scan(
                 session,
@@ -601,6 +619,9 @@ def show_market_info(session: ControlPanelSession, services: ControlPanelService
             )
             portfolio_show_market_overview(tabulate, table_rows)
             print(selection_help)
+            continue
+        if action == "tws_disabled":
+            _notify_tws_disabled()
             continue
         if action == "exit":
             break
@@ -714,14 +735,7 @@ def _run_chain_source(
 
 
 def _process_exported_chain(session: ControlPanelSession, services: ControlPanelServices) -> None:
-    _run_chain_source(
-        session,
-        services,
-        source="tws",
-        require_symbol=True,
-        loader=lambda sym: services.export.export_chain(str(sym)),
-        missing_message="⚠️ Geen chain gevonden",
-    )
+    _notify_tws_disabled()
 
 
 def _process_polygon_chain(session: ControlPanelSession, services: ControlPanelServices) -> None:
@@ -753,7 +767,7 @@ def _process_manual_chain(session: ControlPanelSession, services: ControlPanelSe
 def choose_chain_source(session: ControlPanelSession, services: ControlPanelServices) -> None:
     menu = Menu("Chain ophalen")
     menu.add(
-        "Download nieuwe chain via TWS",
+        "Download nieuwe chain via TWS (uitgeschakeld)",
         partial(_process_exported_chain, session, services),
     )
     menu.add(
@@ -864,7 +878,7 @@ def run_portfolio_menu(
         "Trademanagement (controleer exitcriteria)",
         partial(_run_trade_management_module, session, services),
     )
-    menu.add("Toon marktinformatie", partial(show_market_info, session, services))
+    menu.add("Toon marktinformatie (Polygon)", partial(show_market_info, session, services))
     menu.add(
         "Controleer exitcriteria en exit intent",
         partial(run_module, "tomic.cli.exit_flow"),
@@ -880,4 +894,3 @@ def run_settings_menu(
 
     menu = build_settings_menu(SETTINGS_MENU, session, services)
     menu.run()
-

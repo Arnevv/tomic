@@ -3,16 +3,11 @@
 from __future__ import annotations
 
 import asyncio
-import os
-import sys
-from datetime import datetime
-from typing import Iterable, List
+
+from typing import Iterable
 
 from tomic.logutils import logger, setup_logging
-from tomic.config import get as cfg_get
-from .ib_connection import connect_ib
-
-from .getallmarkets import run, export_combined_csv
+from ._tws_chain_deprecated import removed_tws_chain_entry
 
 
 async def run_async(
@@ -25,14 +20,7 @@ async def run_async(
 ) -> object | None:
     """Run ``tomic.api.getallmarkets.run`` in a background thread."""
 
-    return await asyncio.to_thread(
-        run,
-        symbol,
-        output_dir,
-        fetch_metrics=fetch_metrics,
-        fetch_chains=fetch_chains,
-        client_id=client_id,
-    )
+    removed_tws_chain_entry()
 
 
 async def gather_markets(
@@ -44,29 +32,7 @@ async def gather_markets(
 ) -> list[object]:
     """Fetch data for multiple markets concurrently."""
 
-    base_id = int(cfg_get("IB_CLIENT_ID", 100))
-    tasks = [
-        run_async(
-            sym,
-            output_dir,
-            fetch_metrics=fetch_metrics,
-            fetch_chains=fetch_chains,
-            client_id=base_id + idx,
-        )
-        for idx, sym in enumerate(symbols)
-    ]
-    results: List = list(await asyncio.gather(*tasks))
-
-    if output_dir is None:
-        today_str = datetime.now().strftime("%Y%m%d")
-        output_dir = os.path.join(cfg_get("EXPORT_DIR", "exports"), today_str)
-
-    data_frames = [df for df in results if df is not None]
-    if fetch_metrics and len(data_frames) > 1:
-        unique_markets = {df["Symbol"].iloc[0] for df in data_frames}
-        if len(unique_markets) > 1:
-            export_combined_csv(data_frames, output_dir)
-    return data_frames
+    removed_tws_chain_entry()
 
 
 def main(args: list[str] | None = None) -> None:
@@ -89,35 +55,7 @@ def main(args: list[str] | None = None) -> None:
     parsed = parser.parse_args(args)
 
     setup_logging()
-    try:
-        app = connect_ib()
-        app.disconnect()
-    except Exception:
-        logger.error(
-            "❌ IB Gateway/TWS niet bereikbaar. Controleer of de service draait."
-        )
-        sys.exit(1)
-
-    logger.info("🚀 Start async export")
-
-    symbols = parsed.symbols or cfg_get("DEFAULT_SYMBOLS", [])
-
-    if parsed.only_metrics and parsed.only_chains:
-        fetch_metrics = fetch_chains = True
-    else:
-        fetch_metrics = not parsed.only_chains
-        fetch_chains = not parsed.only_metrics
-
-    asyncio.run(
-        gather_markets(
-            symbols,
-            parsed.output_dir,
-            fetch_metrics=fetch_metrics,
-            fetch_chains=fetch_chains,
-        )
-    )
-
-    logger.success("✅ Async export afgerond")
+    removed_tws_chain_entry()
 
 
 if __name__ == "__main__":  # pragma: no cover - manual invocation

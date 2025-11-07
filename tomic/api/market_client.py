@@ -2,7 +2,7 @@ from __future__ import annotations
 
 """Market data clients for retrieving spot prices and option chains.
 
-``OptionChainClient.contractDetails`` stores the underlying's
+``OptionChainClientLegacy.contractDetails`` stores the underlying's
 ``trading_class`` and ``primary_exchange`` when it receives details for the
 stock contract.  ``OptionContract.to_ib`` then uses these values when building
 option contracts so that requests match the underlying's market data.
@@ -411,7 +411,7 @@ class MarketClient(IncrementingIdMixin, BaseIBApp):
         self._details_event.set()
 
 
-class OptionChainClient(MarketClient):
+class OptionChainClientLegacy(MarketClient):
     """IB client that retrieves a basic option chain."""
 
     def __init__(
@@ -1499,8 +1499,8 @@ class OptionChainClient(MarketClient):
         return new_records
 
 
-class TermStructureClient(OptionChainClient):
-    """Lightweight ``OptionChainClient`` for quick term structure snapshots."""
+class TermStructureClient(OptionChainClientLegacy):
+    """Lightweight ``OptionChainClientLegacy`` for quick term structure snapshots."""
 
     def __init__(
         self, symbol: str, *, expiries: int = 3, strike_window: int = 1
@@ -1584,14 +1584,14 @@ def await_market_data(
         timeout = int(cfg_get("MARKET_DATA_TIMEOUT", 480))
 
     start = time.time()
-    retries = int(cfg_get("OPTION_DATA_RETRIES", 0)) if isinstance(app, OptionChainClient) else 0
+    retries = int(cfg_get("OPTION_DATA_RETRIES", 0)) if isinstance(app, OptionChainClientLegacy) else 0
     interval = 1
 
     while time.time() - start < timeout:
         remaining = timeout - (time.time() - start)
         if remaining <= 0:
             break
-        if isinstance(app, OptionChainClient):
+        if isinstance(app, OptionChainClientLegacy):
             event = getattr(app, "all_data_event", app.market_event)
             # Progress-based completion check
             if (
@@ -1612,7 +1612,7 @@ def await_market_data(
             event.clear()
             continue
 
-        if isinstance(app, OptionChainClient):
+        if isinstance(app, OptionChainClientLegacy):
             hist = getattr(app, "use_hist_iv", False)
             if (
                 getattr(app, "all_data_event", event).is_set()
@@ -1672,14 +1672,14 @@ def await_market_data(
 
 @log_result
 def compute_iv_term_structure(
-    app: OptionChainClient, *, strike_window: int | None = None
+    app: OptionChainClientLegacy, *, strike_window: int | None = None
 ) -> dict[str, float]:
     """Return front-month term structure metrics based on retrieved IVs.
 
     Parameters
     ----------
     app:
-        Running :class:`OptionChainClient` with populated ``market_data``.
+        Running :class:`OptionChainClientLegacy` with populated ``market_data``.
         Access to the data is synchronized with ``app.data_lock`` so this
         function is thread-safe.
     strike_window:
@@ -1769,14 +1769,14 @@ def fetch_market_metrics(
     wait_time = timeout if timeout is not None else cfg_get("MARKET_DATA_TIMEOUT", 30)
     if (
         timeout is None
-        and isinstance(app, OptionChainClient)
+        and isinstance(app, OptionChainClientLegacy)
         and not app.expiries
     ):
         wait_time = cfg_get("SPOT_TIMEOUT", 10)
 
     if await_market_data(app, symbol, timeout=wait_time):
         metrics["spot_price"] = app.spot_price or metrics["spot_price"]
-        if isinstance(app, OptionChainClient):
+        if isinstance(app, OptionChainClientLegacy):
             term = compute_iv_term_structure(app)
             if term.get("term_m1_m2") is not None:
                 metrics["term_m1_m2"] = term["term_m1_m2"]
@@ -1792,7 +1792,7 @@ def fetch_market_metrics(
 
 __all__ = [
     "MarketClient",
-    "OptionChainClient",
+    "OptionChainClientLegacy",
     "TermStructureClient",
     "start_app",
     "await_market_data",

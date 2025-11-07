@@ -58,15 +58,12 @@ def build_export_menu(
 ) -> Menu:
     """Return the export submenu used by the control panel."""
 
+    def _notify_tws_disabled() -> None:
+        logger.info("TWS option-chain bulk export attempted while disabled")
+        print("TWS option-chain fetch is uitgeschakeld. Gebruik Polygon-marktdata.")
+
     def export_chain_bulk() -> None:
-        symbol = prompt_fn("Ticker symbool: ", "")
-        if not symbol:
-            print("Geen symbool opgegeven")
-            return
-        try:
-            run_module("tomic.cli.option_lookup_bulk", symbol)
-        except Exception:
-            print("❌ Export mislukt")
+        _notify_tws_disabled()
 
     def csv_check() -> None:
         path = prompt_fn("Pad naar CSV-bestand: ", "")
@@ -200,7 +197,10 @@ def build_export_menu(
             return
 
     menu = Menu("📁 DATA & MARKTDATA")
-    menu.add("OptionChain ophalen via TWS API", export_chain_bulk)
+    menu.add(
+        "OptionChain ophalen via TWS API (uitgeschakeld)",
+        export_chain_bulk,
+    )
     menu.add("OptionChain ophalen via Polygon API", polygon_chain)
     menu.add("Controleer CSV-kwaliteit", csv_check)
     menu.add("Run GitHub Action lokaal", run_github_action)
