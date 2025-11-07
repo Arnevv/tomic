@@ -1,7 +1,13 @@
 import pathlib
 import re
 
-FORBIDDEN = [r"\bOptionChainClient\b", r"\bexport_market_data\b", r"\bStepByStepClient\b"]
+FORBIDDEN = [
+    r"\bOptionChainClient\b",
+    r"\bexport_market_data\b",
+    r"\bStepByStepClient\b",
+    r"\bgetallmarkets\b",
+    r"\bfetch_single_option\b",
+]
 
 
 def test_no_forbidden_symbols():
