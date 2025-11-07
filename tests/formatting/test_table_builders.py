@@ -60,6 +60,7 @@ def _build_summary(**overrides):
         hv30=0.21,
         hv90=0.22,
         hv252=0.25,
+        atr=1.5,
         edge=0.1,
         greeks={"delta": -0.35, "theta": 0.08, "vega": 0.12},
     )
@@ -423,6 +424,9 @@ def test_proposal_summary_table_includes_scenario_details():
     assert ["ROM", "10.00", "Foo (geschat)"] in rows
     assert ["EV", "5.00", "Foo (geschat)"] in rows
     assert ["Scenario fout", "no scenario defined", "—"] in rows
+    assert ["ATR", "1.50", "—"] in rows
+    metrics = [row[0] for row in rows]
+    assert metrics.index("ATR") == metrics.index("Greeks Σ") + 1
 
 
 def test_proposal_summary_table_marks_metrics_when_quotes_missing():
@@ -433,6 +437,7 @@ def test_proposal_summary_table_marks_metrics_when_quotes_missing():
 
     assert headers == ["Metric", "Value", "Details"]
     assert rows[0] == ["Bron", "Metrics", "—"]
+    assert ["ATR", "1.50", "—"] in rows
 
 
 def test_proposal_earnings_table_formats_values():

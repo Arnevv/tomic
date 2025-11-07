@@ -533,7 +533,7 @@ def _summary_status(accepted: bool | None) -> str | None:
 
 def _format_summary_value(value: Any, row: SummaryRow) -> str:
     metric = getattr(row, "metric", "").lower()
-    if metric in {"score", "ev", "credit", "margin", "max win", "max loss", "risk/reward", "rom", "edge"}:
+    if metric in {"score", "ev", "credit", "margin", "max win", "max loss", "risk/reward", "rom", "edge", "atr"}:
         return fmt_num(value, 2)
     if metric == "pos":
         return fmt_percent(value, 1)
@@ -645,10 +645,14 @@ def proposal_summary_table(vm: ProposalVM, *, spec: TableSpec = PROPOSAL_SUMMARY
         SummaryRow("PoS", summary.pos),
         SummaryRow("ROM", summary.rom, scenario_detail),
     ]
+    atr_row = SummaryRow("ATR", summary.atr)
     if summary.edge is not None:
         rows.append(SummaryRow("Edge", summary.edge))
     if summary.greeks:
         rows.append(SummaryRow("Greeks Σ", summary.greeks))
+        rows.append(atr_row)
+    else:
+        rows.append(atr_row)
     if summary.iv_rank is not None:
         rows.append(SummaryRow("IV Rank", summary.iv_rank))
     if summary.iv_percentile is not None:
