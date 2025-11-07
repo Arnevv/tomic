@@ -589,7 +589,7 @@ def run_market_scan(
             lines.append("997       → Toon afgewezen aanbevelingen")
         lines.extend(
             [
-                "998       → TWS-data ophalen voor alle getoonde rijen",
+                "998       → IB snapshot-refresh voor alle getoonde rijen",
                 "999       → Nieuwe Polygon-scan",
                 "0         → Terug naar Volatility Snapshot Aanbevelingen",
             ]
@@ -599,11 +599,13 @@ def run_market_scan(
     def _perform_scan(*, refresh_quotes: bool, reprompt_dir: bool) -> list[Candidate] | None:
         _prepare_chain_source(reprompt_dir)
         if refresh_quotes:
-            print("📡 TWS-data ophalen voor alle rijen…")
+            print("📡 IB snapshot-refresh voor alle rijen…")
+        use_tws_chain = refresh_quotes and cfg.tws_option_chain_enabled()
+        chain_resolver = _tws_chain_source if use_tws_chain else _chain_source
         try:
             candidates = scan_service.run_market_scan(
                 scan_requests,
-                chain_source=_tws_chain_source if refresh_quotes else _chain_source,
+                chain_source=chain_resolver,
                 top_n=top_n,
                 refresh_quotes=refresh_quotes,
             )
@@ -647,7 +649,7 @@ def run_market_scan(
             continue
         if sel == "998":
             if not prompt_yes_no_fn(
-                "Informatie van TWS ophalen voor alle rijen?",
+                "IB snapshot-refresh uitvoeren voor alle rijen?",
                 False,
             ):
                 continue
