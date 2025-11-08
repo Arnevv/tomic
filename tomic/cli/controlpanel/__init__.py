@@ -223,10 +223,6 @@ def _open_trades_menu(session: ControlPanelSession, services: ControlPanelServic
     portfolio.run_trade_management()
 
 
-def _open_risk_menu(session: ControlPanelSession, services: ControlPanelServices) -> None:
-    portfolio.run_risk_tools()
-
-
 def _open_settings_menu(session: ControlPanelSession, services: ControlPanelServices) -> None:
     portfolio.run_settings_menu(session, services)
     _sync_state()
@@ -249,12 +245,6 @@ ROOT_SECTIONS: list[MenuSection] = [
         "Trades & Journal",
         [
             MenuItem("Trades beheren", _open_trades_menu),
-        ],
-    ),
-    MenuSection(
-        "Risicotools & Synthetica",
-        [
-            MenuItem("Risicotools", _open_risk_menu),
         ],
     ),
     MenuSection(
@@ -334,7 +324,6 @@ load_portfolio_timestamp = portfolio.load_portfolio_timestamp
 print_saved_portfolio_greeks = portfolio.print_saved_portfolio_greeks
 run_dataexporter = portfolio.run_dataexporter
 run_trade_management = portfolio.run_trade_management
-run_risk_tools = portfolio.run_risk_tools
 generate_strategy_candidates = _generate_strategy_candidates
 _print_evaluation_overview = portfolio._print_evaluation_overview
 

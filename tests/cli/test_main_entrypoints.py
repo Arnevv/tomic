@@ -19,14 +19,17 @@ def test_get_iv_rank_main(monkeypatch):
         },
     )
     messages = []
-    monkeypatch.setattr(
-        mod.logger, "info", lambda msg, *a, **k: messages.append(msg.format(*a))
-    )
-    monkeypatch.setattr(
-        mod.logger, "success", lambda msg, *a, **k: messages.append(msg)
-    )
+    def _capture(msg, *a, **k):
+        try:
+            formatted = msg.format(*a, **k)
+        except Exception:
+            formatted = msg
+        messages.append(formatted)
+
+    monkeypatch.setattr(mod.logger, "info", _capture)
+    monkeypatch.setattr(mod.logger, "success", _capture)
     mod.main(["ABC"])
-    assert any("Metrics fetched" in m for m in messages)
+    assert any("IV metrics for ABC" in m for m in messages)
 
 
 def test_performance_analyzer_main(tmp_path, monkeypatch):
@@ -97,31 +100,21 @@ def test_controlpanel_main(monkeypatch):
     rpc_stub.submit_task = lambda *a, **k: None
     monkeypatch.setitem(sys.modules, "tomic.proto.rpc", rpc_stub)
     mod = importlib.import_module("tomic.cli.controlpanel")
+    section_titles = [section.title for section in mod.ROOT_SECTIONS]
+    assert section_titles == [
+        "Analyse & Strategie",
+        "Data & Marktdata",
+        "Trades & Journal",
+        "Configuratie",
+    ]
+    assert not hasattr(mod, "run_risk_tools")
     monkeypatch.setattr(mod, "run_module", lambda m: None)
     monkeypatch.setattr(mod, "run_portfolio_menu", lambda: None)
     monkeypatch.setattr(mod, "run_trade_management", lambda: None)
     monkeypatch.setattr(mod, "run_dataexporter", lambda: None)
-    monkeypatch.setattr(mod, "run_risk_tools", lambda: None)
     monkeypatch.setattr(mod, "run_settings_menu", lambda: None)
     monkeypatch.setattr(builtins, "input", lambda prompt="": "8")
     mod.main()
-
-
-def test_entry_checker_main(tmp_path, monkeypatch):
-    mod = importlib.import_module("tomic.cli.entry_checker")
-    pos = tmp_path / "p.json"
-    pos.write_text("[]")
-    monkeypatch.setattr(mod, "cfg_get", lambda name, default=None: str(pos))
-    dashboard_stub = types.ModuleType("tomic.analysis.strategy")
-    dashboard_stub.group_strategies = lambda positions: [{"symbol": "AAA", "type": "X"}]
-    monkeypatch.setitem(sys.modules, "tomic.analysis.strategy", dashboard_stub)
-    monkeypatch.setattr(mod, "check_entry_conditions", lambda strat: ["warn"])
-    lines = []
-    monkeypatch.setattr(
-        builtins, "print", lambda *a, **k: lines.append(" ".join(str(x) for x in a))
-    )
-    mod.main([str(pos)])
-    assert any("warn" in line for line in lines)
 
 
 
@@ -160,23 +153,17 @@ def test_csv_quality_check_main(tmp_path, monkeypatch):
     mod.main([str(csv_path), "SYM"])
 
 
-def test_portfolio_scenario_main(monkeypatch):
-    mod = importlib.import_module("tomic.cli.portfolio_scenario")
-    monkeypatch.setattr(mod, "load_positions", lambda p: [])
-    monkeypatch.setattr(mod, "group_strategies", lambda positions: [])
-    monkeypatch.setattr(
-        mod,
-        "simulate_portfolio_response",
-        lambda s, ss, iv: {
-            "totals": {"delta": 0, "vega": 0, "theta": 0},
-            "pnl_change": 0,
-            "rom_before": 0,
-            "rom_after": 0,
-        },
-    )
-    inputs = iter(["2", "5", "n"])
-    monkeypatch.setattr(builtins, "input", lambda *args: next(inputs))
-    mod.main(["pos.json"])
+@pytest.mark.parametrize(
+    "removed_module",
+    [
+        "tomic.cli.entry_checker",
+        "tomic.cli.portfolio_scenario",
+        "tomic.cli.synthetics_detector",
+    ],
+)
+def test_removed_cli_modules_raise_import_error(removed_module):
+    with pytest.raises(ModuleNotFoundError):
+        importlib.import_module(removed_module)
 
 
 def test_link_positions_main(monkeypatch):
@@ -192,38 +179,6 @@ def test_link_positions_main(monkeypatch):
     mod.main()
 
 
-def test_synthetics_detector_main(tmp_path, monkeypatch):
-    mod = importlib.import_module("tomic.cli.synthetics_detector")
-    path = tmp_path / "p.json"
-    path.write_text("[]")
-    monkeypatch.setattr(mod, "cfg_get", lambda name, default=None: str(path))
-    dashboard_stub = types.ModuleType("tomic.analysis.strategy")
-    dashboard_stub.group_strategies = lambda positions: [
-        {"symbol": "AAA", "type": "Test", "legs": []}
-    ]
-    monkeypatch.setitem(sys.modules, "tomic.analysis.strategy", dashboard_stub)
-    monkeypatch.setattr(
-        mod, "analyze_synthetics_and_edge", lambda s: {"synthetic": "stock"}
-    )
-    output = []
-    monkeypatch.setattr(
-        builtins, "print", lambda *a, **k: output.append(" ".join(str(x) for x in a))
-    )
-    mod.main([str(path)])
-    assert output
-
-
-def test_risk_tools_generate_proposals(monkeypatch):
-    rpc_stub = types.ModuleType("tomic.proto.rpc")
-    rpc_stub.submit_task = lambda *a, **k: None
-    monkeypatch.setitem(sys.modules, "tomic.proto.rpc", rpc_stub)
-    mod = importlib.import_module("tomic.cli.controlpanel")
-    called = []
-    monkeypatch.setattr(mod, "run_module", lambda name, *a: called.append(name))
-    inputs = iter(["4", "7"])
-    monkeypatch.setattr(builtins, "input", lambda *a: next(inputs))
-    mod.run_risk_tools()
-    assert called == ["tomic.cli.generate_proposals"]
 
 
 def test_trading_plan_main(capsys):
@@ -273,7 +228,6 @@ def test_getonemarket_run(monkeypatch):
 
 def test_getallmarkets_run(monkeypatch):
     mod = importlib.reload(importlib.import_module("tomic.api.getallmarkets"))
-    monkeypatch.setattr(mod, "connect_ib", lambda *a, **k: types.SimpleNamespace(disconnect=lambda: None))
 
     with pytest.raises(RuntimeError):
         mod.run("XYZ")

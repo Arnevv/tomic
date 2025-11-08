@@ -844,21 +844,6 @@ def run_trade_management() -> None:
     menu.run()
 
 
-def run_risk_tools() -> None:
-    """Menu for risk analysis helpers."""
-
-    menu = Menu("🚦 RISICO TOOLS & SYNTHETICA")
-    menu.add("Entry checker", partial(run_module, "tomic.cli.entry_checker"))
-    menu.add("Scenario-analyse", partial(run_module, "tomic.cli.portfolio_scenario"))
-    menu.add("Event watcher", partial(run_module, "tomic.cli.event_watcher"))
-    menu.add("Synthetics detector", partial(run_module, "tomic.cli.synthetics_detector"))
-    menu.add(
-        "Theoretical value calculator",
-        partial(run_module, "tomic.cli.bs_calculator"),
-    )
-    menu.run()
-
-
 def run_portfolio_menu(
     session: ControlPanelSession | None = None,
     services: ControlPanelServices | None = None,
