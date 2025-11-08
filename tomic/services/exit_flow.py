@@ -737,10 +737,65 @@ def _intent_strategy_name(intent: ExitIntent) -> str | None:
     return str(name)
 
 
+def intent_symbol(intent: Any) -> str | None:
+    """Return the canonical symbol for ``intent`` if available."""
+
+    return _intent_symbol(intent)  # type: ignore[arg-type]
+
+
+def intent_expiry(intent: Any) -> str | None:
+    """Return the canonical expiry for ``intent`` if available."""
+
+    return _intent_expiry(intent)  # type: ignore[arg-type]
+
+
+def intent_strategy_name(intent: Any) -> str | None:
+    """Return the configured strategy name for ``intent`` if available."""
+
+    return _intent_strategy_name(intent)  # type: ignore[arg-type]
+
+
+def intent_strategy_payload(intent: Any) -> Mapping[str, Any]:
+    """Return the raw strategy mapping for ``intent``."""
+
+    return _intent_strategy(intent)  # type: ignore[arg-type]
+
+
+def _coerce_int(value: Any, default: int) -> int:
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return default
+
+
+def _coerce_float(value: Any, default: float) -> float:
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return default
+
+
+def resolve_exit_intent_freshen_config() -> tuple[int, float]:
+    """Return (attempts, wait_s) for exit intent quote freshening."""
+
+    attempts_default = 3
+    wait_default = 0.3
+    attempts_cfg = cfg_get("EXIT_INTENT_FRESHEN_ATTEMPTS", attempts_default)
+    wait_cfg = cfg_get("EXIT_INTENT_FRESHEN_WAIT_S", wait_default)
+    attempts = max(_coerce_int(attempts_cfg, attempts_default), 0)
+    wait_s = max(_coerce_float(wait_cfg, wait_default), 0.0)
+    return attempts, wait_s
+
+
 __all__ = [
     "ExitAttemptResult",
     "ExitFlowConfig",
     "ExitFlowResult",
     "execute_exit_flow",
+    "intent_expiry",
+    "intent_strategy_name",
+    "intent_strategy_payload",
+    "intent_symbol",
+    "resolve_exit_intent_freshen_config",
     "store_exit_flow_result",
 ]
