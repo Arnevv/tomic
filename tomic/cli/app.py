@@ -8,6 +8,7 @@ from . import csv_quality_check
 from . import option_lookup
 from . import generate_proposals
 from . import rules
+from . import data_health_scan
 
 
 def main(argv: list[str] | None = None) -> None:
@@ -46,6 +47,20 @@ def main(argv: list[str] | None = None) -> None:
     sub_prop.set_defaults(
         func=lambda a: generate_proposals.main(
             [p for p in [a.positions, a.export_dir] if p]
+        )
+    )
+
+    sub_health = sub.add_parser(
+        "data-health-scan",
+        help="Toon per symbool welke datasets ontbreken of buiten range vallen",
+    )
+    sub_health.add_argument(
+        "--symbols",
+        help="Komma-gescheiden lijst met symbolen",
+    )
+    sub_health.set_defaults(
+        func=lambda a: data_health_scan.main(
+            ([f"--symbols", a.symbols] if a.symbols else [])
         )
     )
 
