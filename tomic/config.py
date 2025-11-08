@@ -175,6 +175,12 @@ class AppConfig(BaseModel):
     MAX_SYMBOLS_PER_RUN: int | None = None
     POLYGON_API_KEYS: List[str] = []
     DATA_SOURCES: Dict[str, Any] = {"tws_option_chain_enabled": False}
+    DATA_HEALTH_THRESHOLDS: Dict[str, Any] = {
+        "spot_max_age_days": 3,
+        "hv_max_age_days": 7,
+        "iv_max_age_days": 7,
+        "earnings_max_age_days": 120,
+    }
 
 class StrategyScenario(BaseModel):
     """Scenario configuration for portfolio strategies."""
