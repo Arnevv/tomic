@@ -470,23 +470,13 @@ def _run_trade_management_module(session: ControlPanelSession, services: Control
 
 def fetch_and_show_portfolio(session: ControlPanelSession, services: ControlPanelServices) -> None:
     print("ℹ️ Haal portfolio op...")
-    try:
-        run_module("tomic.api.getaccountinfo")
-        save_portfolio_timestamp()
-    except subprocess.CalledProcessError:
+    result = run_module("tomic.api.getaccountinfo")
+    if result:
         print("❌ Ophalen van portfolio mislukt")
         return
-    view = prompt("Weergavemodus (compact/full/alerts): ", "full").strip().lower()
-    try:
-        run_module(
-            STRATEGY_DASHBOARD_MODULE,
-            str(portfolio_services.POSITIONS_FILE),
-            str(portfolio_services.ACCOUNT_INFO_FILE),
-            f"--view={view}",
-        )
-        run_module("tomic.analysis.performance_analyzer")
-    except subprocess.CalledProcessError:
-        print("❌ Dashboard kon niet worden gestart")
+    save_portfolio_timestamp()
+    view = _prompt_dashboard_view()
+    _run_dashboard_modules(view)
 
 
 def show_saved_portfolio(session: ControlPanelSession, services: ControlPanelServices) -> None:
@@ -500,17 +490,28 @@ def show_saved_portfolio(session: ControlPanelSession, services: ControlPanelSer
     if ts:
         print(f"ℹ️ Laatste update: {ts}")
     print_saved_portfolio_greeks()
-    view = prompt("Weergavemodus (compact/full/alerts): ", "full").strip().lower()
-    try:
-        run_module(
-            STRATEGY_DASHBOARD_MODULE,
-            str(portfolio_services.POSITIONS_FILE),
-            str(portfolio_services.ACCOUNT_INFO_FILE),
-            f"--view={view}",
-        )
-        run_module("tomic.analysis.performance_analyzer")
-    except subprocess.CalledProcessError:
+    view = _prompt_dashboard_view()
+    _run_dashboard_modules(view)
+
+
+def _prompt_dashboard_view() -> str:
+    return prompt("Weergavemodus (compact/full/alerts): ", "full").strip().lower()
+
+
+def _run_dashboard_modules(view: str) -> bool:
+    result = run_module(
+        STRATEGY_DASHBOARD_MODULE,
+        str(portfolio_services.POSITIONS_FILE),
+        str(portfolio_services.ACCOUNT_INFO_FILE),
+        f"--view={view}",
+    )
+    if result:
         print("❌ Dashboard kon niet worden gestart")
+        return False
+    if run_module("tomic.analysis.performance_analyzer"):
+        print("❌ Dashboard kon niet worden gestart")
+        return False
+    return True
 
 
 def show_saved_greeks(session: ControlPanelSession, services: ControlPanelServices) -> None:
@@ -788,7 +789,11 @@ def show_earnings_info(session: ControlPanelSession, services: ControlPanelServi
 
 def save_portfolio_timestamp() -> None:
     """Store the datetime of the latest portfolio fetch."""
-    portfolio_services.record_portfolio_timestamp()
+    try:
+        portfolio_services.record_portfolio_timestamp()
+    except OSError as exc:
+        logger.warning("Kon portfolio-timestamp niet opslaan: %s", exc)
+        print("⚠️ Kon portfolio-timestamp niet opslaan.")
 
 
 def load_portfolio_timestamp() -> str | None:
