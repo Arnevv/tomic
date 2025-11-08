@@ -141,10 +141,10 @@ class AppConfig(BaseModel):
     ]
     MID_FALLBACK_MAX_PER_4: int = 4
     SPREAD_POLICY: Dict[str, Any] = {
-        "relative": 0.12,
+        "relative": 0.25,
         "absolute": [
             {"max_underlying": 50.0, "threshold": 0.10},
-            {"max_underlying": 200.0, "threshold": 0.20},
+            {"max_underlying": 200.0, "threshold": 0.30},
             {"max_underlying": None, "threshold": 0.50},
         ],
         "exceptions": [
@@ -157,8 +157,8 @@ class AppConfig(BaseModel):
             {
                 "name": "iron_combo",
                 "match": {"structure": ["iron_condor", "iron_fly"]},
-                "relative": 0.10,
-                "absolute": 0.35,
+                "relative": 0.50,
+                "absolute": 0.60,
             },
         ],
     }

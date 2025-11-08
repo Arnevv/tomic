@@ -6,6 +6,6 @@ earnings_import:
   - Next Earnings
   - 'Next Earnings '
 import:
-  last_earnings_csv_path: C:\Users\ArnevanVeen\Downloads\StockWatchlist_TOMIC_20251101_184431.csv
+  last_earnings_csv_path: C:\Users\ArnevanVeen\Downloads\StockWatchlist_TOMIC_20251108_090026.csv
 data:
   earnings_json_path: tomic\data\earnings_dates.json

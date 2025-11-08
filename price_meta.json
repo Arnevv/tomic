@@ -18,7 +18,7 @@
     "baseline_as_of": null
   },
   "AMD": {
-    "fetched_at": "2025-08-16T21:35:46.793851",
+    "fetched_at": "2025-11-06T21:48:00.943667",
     "source": null,
     "baseline_active": false,
     "baseline_as_of": null
@@ -72,7 +72,7 @@
     "baseline_as_of": null
   },
   "BMY": {
-    "fetched_at": "2025-11-01T18:47:59.708420",
+    "fetched_at": "2025-11-08T08:54:40.264259",
     "source": null,
     "baseline_active": false,
     "baseline_as_of": null
@@ -96,7 +96,7 @@
     "baseline_as_of": null
   },
   "CL": {
-    "fetched_at": "2025-11-01T18:48:00.241203",
+    "fetched_at": "2025-11-08T08:54:54.582071",
     "source": null,
     "baseline_active": false,
     "baseline_as_of": null
@@ -132,7 +132,7 @@
     "baseline_as_of": null
   },
   "D": {
-    "fetched_at": null,
+    "fetched_at": "2025-11-05T09:14:58.951942",
     "source": null,
     "baseline_active": false,
     "baseline_as_of": null
@@ -216,7 +216,7 @@
     "baseline_as_of": null
   },
   "GILD": {
-    "fetched_at": "2025-11-01T18:48:01.069602",
+    "fetched_at": "2025-11-08T08:55:25.071967",
     "source": null,
     "baseline_active": false,
     "baseline_as_of": null
@@ -228,7 +228,7 @@
     "baseline_as_of": null
   },
   "GOOGL": {
-    "fetched_at": "2025-11-01T18:48:01.992552",
+    "fetched_at": "2025-11-07T17:16:15.851605",
     "source": null,
     "baseline_active": false,
     "baseline_as_of": null
@@ -258,7 +258,7 @@
     "baseline_as_of": null
   },
   "INTC": {
-    "fetched_at": "2025-10-30T19:10:56.422711",
+    "fetched_at": "2025-11-05T20:24:33.311461",
     "source": null,
     "baseline_active": false,
     "baseline_as_of": null
@@ -294,7 +294,7 @@
     "baseline_as_of": null
   },
   "LMT": {
-    "fetched_at": "2025-11-01T18:48:02.481677",
+    "fetched_at": "2025-11-07T17:16:16.326867",
     "source": null,
     "baseline_active": false,
     "baseline_as_of": null
@@ -306,7 +306,7 @@
     "baseline_as_of": null
   },
   "LULU": {
-    "fetched_at": null,
+    "fetched_at": "2025-11-04T18:55:48.473794",
     "source": null,
     "baseline_active": false,
     "baseline_as_of": null
@@ -318,7 +318,7 @@
     "baseline_as_of": null
   },
   "MCD": {
-    "fetched_at": null,
+    "fetched_at": "2025-11-07T17:16:16.798006",
     "source": null,
     "baseline_active": false,
     "baseline_as_of": null
@@ -360,7 +360,7 @@
     "baseline_as_of": null
   },
   "MU": {
-    "fetched_at": "2025-11-01T18:48:02.939674",
+    "fetched_at": "2025-11-06T21:48:04.999423",
     "source": null,
     "baseline_active": false,
     "baseline_as_of": null
@@ -420,7 +420,7 @@
     "baseline_as_of": null
   },
   "PEP": {
-    "fetched_at": "2025-10-31T20:54:24.615288",
+    "fetched_at": "2025-11-08T08:55:53.619384",
     "source": null,
     "baseline_active": false,
     "baseline_as_of": null
@@ -432,7 +432,7 @@
     "baseline_as_of": null
   },
   "PG": {
-    "fetched_at": "2025-11-01T18:48:03.367200",
+    "fetched_at": "2025-11-07T17:16:17.867841",
     "source": null,
     "baseline_active": false,
     "baseline_as_of": null
@@ -444,7 +444,7 @@
     "baseline_as_of": null
   },
   "PM": {
-    "fetched_at": "2025-11-01T18:48:03.712074",
+    "fetched_at": "2025-11-08T08:56:07.884417",
     "source": null,
     "baseline_active": false,
     "baseline_as_of": null
@@ -624,13 +624,13 @@
     "baseline_as_of": null
   },
   "ACHR": {
-    "fetched_at": "2025-11-01T12:56:40.507359-04:00",
+    "fetched_at": "2025-11-07T17:16:13.014946",
     "source": null,
     "baseline_active": false,
     "baseline_as_of": null
   },
   "ACN": {
-    "fetched_at": "2025-11-01T18:47:59.229471",
+    "fetched_at": "2025-11-08T08:54:27.952110",
     "source": null,
     "baseline_active": false,
     "baseline_as_of": null
@@ -648,7 +648,7 @@
     "baseline_as_of": null
   },
   "ALAB": {
-    "fetched_at": "2025-11-01T18:33:33.643213",
+    "fetched_at": "2025-11-05T09:13:49.823003",
     "source": null,
     "baseline_active": false,
     "baseline_as_of": null
@@ -660,7 +660,7 @@
     "baseline_as_of": null
   },
   "ANET": {
-    "fetched_at": "2025-11-01T18:34:06.170461",
+    "fetched_at": "2025-11-05T09:14:33.181103",
     "source": null,
     "baseline_active": false,
     "baseline_as_of": null
@@ -720,7 +720,7 @@
     "baseline_as_of": null
   },
   "BE": {
-    "fetched_at": "2025-11-01T13:02:08.574846-04:00",
+    "fetched_at": "2025-11-07T17:16:13.976229",
     "source": null,
     "baseline_active": false,
     "baseline_as_of": null
@@ -750,7 +750,7 @@
     "baseline_as_of": null
   },
   "CEG": {
-    "fetched_at": "2025-11-01T13:02:16.757876-04:00",
+    "fetched_at": "2025-11-06T21:48:02.138216",
     "source": null,
     "baseline_active": false,
     "baseline_as_of": null
@@ -810,7 +810,7 @@
     "baseline_as_of": null
   },
   "DIS": {
-    "fetched_at": "2025-11-01T13:02:33.629645-04:00",
+    "fetched_at": "2025-11-08T08:55:09.636345",
     "source": null,
     "baseline_active": false,
     "baseline_as_of": null
@@ -828,7 +828,7 @@
     "baseline_as_of": null
   },
   "EWZ": {
-    "fetched_at": "2025-11-01T18:48:00.633833",
+    "fetched_at": "2025-11-03T20:58:51.394220",
     "source": null,
     "baseline_active": false,
     "baseline_as_of": null
@@ -864,7 +864,7 @@
     "baseline_as_of": null
   },
   "GOOG": {
-    "fetched_at": "2025-11-01T18:48:01.516523",
+    "fetched_at": "2025-11-07T17:16:15.367536",
     "source": null,
     "baseline_active": false,
     "baseline_as_of": null
@@ -882,13 +882,13 @@
     "baseline_as_of": null
   },
   "JNJ": {
-    "fetched_at": null,
+    "fetched_at": "2025-11-06T21:48:03.988430",
     "source": null,
     "baseline_active": false,
     "baseline_as_of": null
   },
   "LLY": {
-    "fetched_at": "2025-11-01T13:02:51.422842-04:00",
+    "fetched_at": "2025-11-05T20:25:04.365897",
     "source": null,
     "baseline_active": false,
     "baseline_as_of": null
@@ -924,7 +924,7 @@
     "baseline_as_of": null
   },
   "NVO": {
-    "fetched_at": "2025-11-01T18:37:04.093959",
+    "fetched_at": "2025-11-08T08:55:38.303820",
     "source": null,
     "baseline_active": false,
     "baseline_as_of": null
@@ -948,7 +948,7 @@
     "baseline_as_of": null
   },
   "PLTR": {
-    "fetched_at": "2025-11-01T13:03:09.123857-04:00",
+    "fetched_at": "2025-11-05T09:15:07.605310",
     "source": null,
     "baseline_active": false,
     "baseline_as_of": null
@@ -960,7 +960,7 @@
     "baseline_as_of": null
   },
   "QCOM": {
-    "fetched_at": "2025-11-01T11:29:43.453243-04:00",
+    "fetched_at": "2025-11-06T21:48:06.267456",
     "source": null,
     "baseline_active": false,
     "baseline_as_of": null
@@ -972,19 +972,19 @@
     "baseline_as_of": null
   },
   "SHOP": {
-    "fetched_at": "2025-11-01T11:29:47.180594-04:00",
+    "fetched_at": "2025-11-05T09:15:26.387426",
     "source": null,
     "baseline_active": false,
     "baseline_as_of": null
   },
   "SMCI": {
-    "fetched_at": "2025-11-01T11:29:49.020765-04:00",
+    "fetched_at": "2025-11-05T20:26:03.721004",
     "source": null,
     "baseline_active": false,
     "baseline_as_of": null
   },
   "SMH": {
-    "fetched_at": "2025-11-01T11:29:50.862489-04:00",
+    "fetched_at": "2025-11-05T20:26:30.386990",
     "source": null,
     "baseline_active": false,
     "baseline_as_of": null
@@ -996,7 +996,7 @@
     "baseline_as_of": null
   },
   "SOFI": {
-    "fetched_at": "2025-11-01T11:29:54.210560-04:00",
+    "fetched_at": "2025-11-06T21:48:06.726665",
     "source": null,
     "baseline_active": false,
     "baseline_as_of": null
@@ -1020,7 +1020,7 @@
     "baseline_as_of": null
   },
   "STZ": {
-    "fetched_at": "2025-11-01T11:30:01.108545-04:00",
+    "fetched_at": "2025-11-08T08:56:25.532752",
     "source": null,
     "baseline_active": false,
     "baseline_as_of": null
@@ -1032,7 +1032,7 @@
     "baseline_as_of": null
   },
   "TSM": {
-    "fetched_at": "2025-11-01T11:30:04.679131-04:00",
+    "fetched_at": "2025-11-05T20:27:24.533458",
     "source": null,
     "baseline_active": false,
     "baseline_as_of": null
