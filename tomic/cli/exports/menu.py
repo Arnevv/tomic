@@ -91,6 +91,15 @@ def build_export_menu(
             date_dir = Path(cfg.get("EXPORT_DIR", "exports")) / datetime.now().strftime("%Y%m%d")
             print(f"⚠️ Geen exportbestand gevonden in {date_dir.resolve()}")
 
+    def data_health_scan() -> None:
+        symbols = prompt_fn(
+            "Symbolen (komma-gescheiden, leeg voor standaard): ", ""
+        ).strip()
+        args: list[str] = []
+        if symbols:
+            args = ["--symbols", symbols]
+        run_module("tomic.cli.data_health_scan", *args)
+
     def run_github_action() -> None:
         try:
             run_module("tomic.cli.fetch_prices_polygon")
@@ -211,6 +220,10 @@ def build_export_menu(
     menu.add("ATR Calculator", lambda: run_module("tomic.cli.atr_calculator"))
     menu.add("IV backfill", lambda: run_module("tomic.cli.iv_backfill_flow"))
     menu.add("Import nieuwe earning dates van MarketChameleon", import_market_chameleon_earnings)
+    menu.add(
+        "Data quality monitoring per symbol (data-health-scan)",
+        data_health_scan,
+    )
     return menu
 
 
