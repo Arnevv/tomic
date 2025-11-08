@@ -8818,5 +8818,12 @@
     "close": 66.26,
     "volume": 11570505.0,
     "atr": null
+  },
+  {
+    "symbol": "PYPL",
+    "date": "2025-11-07",
+    "close": 66.22,
+    "volume": 13442736.0,
+    "atr": null
   }
 ]
