@@ -30,7 +30,7 @@ def test_exit_flow_cli_runs(monkeypatch, tmp_path):
     monkeypatch.setattr(
         cli_mod,
         "build_management_summary",
-        lambda positions_file=None, journal_file=None: [
+        lambda positions_file=None, journal_file=None, loader=None: [
             StrategyManagementSummary(
                 symbol="XYZ",
                 expiry="20240119",
@@ -81,7 +81,7 @@ def test_exit_flow_cli_symbol_filter(monkeypatch, tmp_path):
     monkeypatch.setattr(
         cli_mod,
         "build_management_summary",
-        lambda positions_file=None, journal_file=None: [
+        lambda positions_file=None, journal_file=None, loader=None: [
             StrategyManagementSummary(
                 symbol="AAA",
                 expiry="20240119",
@@ -139,7 +139,7 @@ def test_exit_flow_cli_skips_without_alert(monkeypatch, tmp_path):
     monkeypatch.setattr(
         cli_mod,
         "build_management_summary",
-        lambda positions_file=None, journal_file=None: [
+        lambda positions_file=None, journal_file=None, loader=None: [
             StrategyManagementSummary(
                 symbol="QQQ",
                 expiry="20250117",
@@ -178,3 +178,41 @@ def test_exit_flow_cli_skips_without_alert(monkeypatch, tmp_path):
     code = cli_mod.main([])
     assert code == 0
     assert executed == []
+
+
+def test_exit_flow_cli_uses_freshen_config(monkeypatch, tmp_path):
+    intent = StrategyExitIntent(strategy={"symbol": "ZZZ", "expiry": "20260116"}, legs=[], exit_rules=None)
+
+    monkeypatch.setattr(cli_mod, "setup_logging", lambda: None)
+    monkeypatch.setattr(
+        cli_mod,
+        "build_management_summary",
+        lambda positions_file=None, journal_file=None, loader=None: [
+            StrategyManagementSummary(
+                symbol="ZZZ",
+                expiry="20260116",
+                strategy="iron_condor",
+                spot=None,
+                unrealized_pnl=None,
+                days_to_expiry=None,
+                exit_trigger="🚨",
+                status="⚠️ Beheer nodig",
+            )
+        ],
+    )
+
+    captured: dict[str, tuple[int, float]] = {}
+
+    def fake_build_exit_intents(*, freshen_attempts, freshen_wait_s, **kwargs):
+        captured["freshen"] = (freshen_attempts, freshen_wait_s)
+        return [intent]
+
+    monkeypatch.setattr(cli_mod, "build_exit_intents", fake_build_exit_intents)
+    monkeypatch.setattr(cli_mod, "execute_exit_flow", lambda intent_arg, config: ExitFlowResult(status="success", reason="", limit_prices=tuple(), order_ids=tuple(), attempts=tuple(), forced=False))
+    monkeypatch.setattr(cli_mod, "store_exit_flow_result", lambda intent_arg, result, directory: tmp_path / "exit.json")
+    monkeypatch.setattr(cli_mod.ExitFlowConfig, "from_app_config", classmethod(lambda cls: _make_config(tmp_path)))
+    monkeypatch.setattr(cli_mod, "resolve_exit_intent_freshen_config", lambda: (7, 0.75))
+
+    code = cli_mod.main([])
+    assert code == 0
+    assert captured["freshen"] == (7, 0.75)

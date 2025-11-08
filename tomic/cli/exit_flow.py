@@ -6,15 +6,18 @@ import argparse
 import sys
 from copy import deepcopy
 from pathlib import Path
-from typing import Any, Callable, Iterable, Mapping
+from typing import Any, Callable, Iterable
 
-from tomic.config import get as cfg_get
 from tomic.journal.utils import load_json
 from tomic.logutils import logger, setup_logging
 from tomic.services.exit_flow import (
     ExitFlowConfig,
     ExitFlowResult,
     execute_exit_flow,
+    intent_strategy_name,
+    intent_strategy_payload,
+    intent_symbol,
+    resolve_exit_intent_freshen_config,
     store_exit_flow_result,
 )
 from tomic.services.trade_management_service import (
@@ -27,29 +30,26 @@ from tomic.services.trade_management_service import (
 
 
 def _intent_symbol(intent: StrategyExitIntent) -> str:
-    """Return a normalized symbol label consistent with service logic."""
+    """Return a normalized symbol label consistent met servicebeslissingen."""
 
     keys = exit_intent_keys(intent)
     if keys:
         symbol, _ = sorted(keys, key=lambda item: (item[0] or "", item[1] or ""))[0]
         if symbol:
-            return symbol
+            text = str(symbol).strip()
+            if text:
+                return text.upper()
 
-    strategy = intent.strategy or {}
-    symbol = strategy.get("symbol") or strategy.get("underlying")
-    if symbol in (None, "") and intent.legs:
-        first = intent.legs[0]
-        if isinstance(first, Mapping):
-            symbol = first.get("symbol")
+    symbol = intent_symbol(intent)
     label = str(symbol or "-").strip()
     return label.upper() if label else "-"
 
 
 def _intent_label(intent: StrategyExitIntent) -> str:
-    strategy = intent.strategy or {}
+    strategy = intent_strategy_payload(intent)
     symbol = strategy.get("symbol") or strategy.get("underlying")
     expiry = strategy.get("expiry")
-    name = strategy.get("type") or strategy.get("strategy")
+    name = intent_strategy_name(intent)
 
     parts = [
         str(symbol).upper() if symbol else None,
@@ -287,24 +287,7 @@ def main(argv: Iterable[str] | None = None) -> int:
     )
     alert_index = build_exit_alert_index(summaries)
 
-    def _coerce_int(value: Any, default: int) -> int:
-        try:
-            return int(value)
-        except (TypeError, ValueError):
-            return default
-
-    def _coerce_float(value: Any, default: float) -> float:
-        try:
-            return float(value)
-        except (TypeError, ValueError):
-            return default
-
-    freshen_attempts_default = 3
-    freshen_wait_default = 0.3
-    freshen_attempts_cfg = cfg_get("EXIT_INTENT_FRESHEN_ATTEMPTS", freshen_attempts_default)
-    freshen_wait_cfg = cfg_get("EXIT_INTENT_FRESHEN_WAIT_S", freshen_wait_default)
-    freshen_attempts = max(_coerce_int(freshen_attempts_cfg, freshen_attempts_default), 0)
-    freshen_wait_s = max(_coerce_float(freshen_wait_cfg, freshen_wait_default), 0.0)
+    freshen_attempts, freshen_wait_s = resolve_exit_intent_freshen_config()
 
     intents = build_exit_intents(
         positions_file=args.positions,
@@ -315,7 +298,7 @@ def main(argv: Iterable[str] | None = None) -> int:
     )
 
     filtered: list[StrategyExitIntent] = []
-    skipped_without_alert: list[str] = []
+    skipped_symbols: list[str] = []
     has_symbol_filter = bool(symbols)
     has_alerts = bool(alert_index)
 
@@ -324,25 +307,21 @@ def main(argv: Iterable[str] | None = None) -> int:
         if has_symbol_filter and symbol_label.upper() not in symbols:
             continue
 
-        if not has_alerts:
-            skipped_without_alert.append(symbol_label)
+        if has_alerts and exit_intent_keys(intent) & alert_index:
+            filtered.append(intent)
             continue
 
-        if not (exit_intent_keys(intent) & alert_index):
-            skipped_without_alert.append(symbol_label)
-            continue
-
-        filtered.append(intent)
+        skipped_symbols.append(symbol_label)
 
     if not filtered:
         logger.warning("Geen exit-intents gevonden voor de geselecteerde criteria.")
         return 0
 
-    if skipped_without_alert:
-        skipped_summary = sorted(dict.fromkeys(filter(None, skipped_without_alert)))
+    if skipped_symbols:
+        skipped_summary = sorted({symbol for symbol in skipped_symbols if symbol})
         logger.info(
             "Sla %d intent(s) over zonder actieve exit-alert: %s",
-            len(skipped_without_alert),
+            len(skipped_symbols),
             ", ".join(skipped_summary),
         )
 
