@@ -166,3 +166,28 @@ def test_build_proposal_viewmodel_marks_missing_quotes_pending(
 
     assert vm.accepted is None
     assert "⚠️ Geen verse quotes voor: 195" in vm.warnings
+
+
+def test_build_proposal_viewmodel_marks_missing_bid_ask_pending(
+    sample_refresh_result: RefreshResult,
+) -> None:
+    candidate = sample_refresh_result.accepted[0]
+    proposal = candidate.proposal
+    legs = [dict(leg) for leg in proposal.legs]
+    legs[0]["bid"] = None
+    legs[0]["ask"] = None
+    updated_proposal = replace(proposal, legs=legs)
+    updated_candidate = replace(
+        candidate,
+        proposal=updated_proposal,
+        core=None,
+        accepted=True,
+    )
+
+    vm = build_proposal_viewmodel(updated_candidate, None)
+
+    assert vm.accepted is None
+    assert any(
+        warning.startswith("⚠️ Bid/ask ontbreekt")
+        for warning in vm.warnings
+    )

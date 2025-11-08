@@ -377,6 +377,10 @@ def build_proposal_viewmodel(
     legs_vm = tuple(_build_leg_vm(leg) for leg in core.legs)
     warnings = [warning for leg in legs_vm for warning in leg.warnings]
 
+    missing_bidask = any(leg.bid is None or leg.ask is None for leg in legs_vm)
+    if accepted and missing_bidask:
+        accepted = None
+
     missing_edge = False
     for leg in proposal.legs:
         if not isinstance(leg, Mapping):
