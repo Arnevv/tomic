@@ -6,7 +6,6 @@ import argparse
 from . import controlpanel
 from . import csv_quality_check
 from . import option_lookup
-from . import portfolio_scenario
 from . import generate_proposals
 from . import rules
 
@@ -36,12 +35,6 @@ def main(argv: list[str] | None = None) -> None:
         func=lambda a: option_lookup.main(
             [a.symbol, a.expiry, a.strike, a.type] if a.symbol else []
         )
-    )
-
-    sub_scen = sub.add_parser("portfolio-scenario", help="Simuleer portfolio shift")
-    sub_scen.add_argument("positions", nargs="?")
-    sub_scen.set_defaults(
-        func=lambda a: portfolio_scenario.main([a.positions] if a.positions else [])
     )
 
     sub_prop = sub.add_parser(

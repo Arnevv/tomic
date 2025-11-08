@@ -1,5 +1,7 @@
 import importlib
 
+import pytest
+
 
 def _import_app(monkeypatch):
     log_mod = importlib.import_module("tomic.logutils")
@@ -35,12 +37,11 @@ def test_cli_dispatch_option_lookup(monkeypatch):
     assert received == [["SPY", "2024-01-19", "400", "call"]]
 
 
-def test_cli_dispatch_portfolio_scenario(monkeypatch):
+def test_cli_dispatch_unknown_portfolio_scenario(monkeypatch):
     mod = _import_app(monkeypatch)
-    received = []
-    monkeypatch.setattr(mod.portfolio_scenario, "main", lambda args: received.append(args))
-    mod.main(["portfolio-scenario", "positions.json"])
-    assert received == [["positions.json"]]
+    with pytest.raises(SystemExit) as exc:
+        mod.main(["portfolio-scenario", "positions.json"])
+    assert exc.value.code == 2
 
 
 def test_cli_dispatch_generate_proposals(monkeypatch):
