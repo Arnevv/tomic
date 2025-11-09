@@ -17,7 +17,7 @@ if not exist "exports\exit_logs" (
 REM Check virtuele omgeving
 if not exist ".venv\Scripts\python.exe" (
     echo [%time%] FOUT: .venv\Scripts\python.exe niet gevonden.
-    exit /b 1
+    endlocal & exit /b 1
 )
 
 REM Gebruik ongebufferde output naar een dag-log
@@ -31,13 +31,18 @@ REM Snelle bereikbaarheidstest TWS (poort 7497) - faal snel als down
 powershell -NoProfile -Command "if (-not (Test-NetConnection -ComputerName '127.0.0.1' -Port 7497 -WarningAction SilentlyContinue).TcpTestSucceeded) { exit 2 }"
 if %errorlevel% equ 2 (
     echo [%time%] FOUT: TWS/IB Gateway niet bereikbaar op 127.0.0.1:7497.
-    exit /b 2
+    endlocal & exit /b 2
 )
 
 REM Start de exit-flow module (unbuffered) met expliciete venv-python
 echo [%time%] Starten van exit-flow module...
-".venv\Scripts\python.exe" -u -m tomic.cli.exit_flow  >> "%LOGFILE%" 2>&1
+".venv\Scripts\python.exe" -u -m tomic.cli.exit_flow >> "%LOGFILE%" 2>&1
 set "RC=%ERRORLEVEL%"
 
 if %RC% neq 0 (
-    echo [%time%] FOUT: Exit-flow gestopt met code %
+    echo [%time%] FOUT: Exit-flow gestopt met code %RC%.
+    endlocal & exit /b %RC%
+)
+
+echo [%time%] Exit-flow succesvol afgerond.
+endlocal & exit /b 0
