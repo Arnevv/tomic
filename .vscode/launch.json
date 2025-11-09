@@ -1,0 +1,13 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Run TOMIC",
+      "type": "python",
+      "request": "launch",
+      "module": "tomic.cli.controlpanel",
+      "console": "integratedTerminal",
+      "env": { "PYTHONPATH": "${workspaceFolder}/tomic" }
+    }
+  ]
+}
