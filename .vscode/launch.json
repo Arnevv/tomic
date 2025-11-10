@@ -6,8 +6,9 @@
       "type": "python",
       "request": "launch",
       "module": "tomic.cli.controlpanel",
+      "cwd": "${workspaceFolder}",
       "console": "integratedTerminal",
-      "env": { "PYTHONPATH": "${workspaceFolder}/tomic" }
+      "envFile": "${workspaceFolder}/.env"
     }
   ]
 }
