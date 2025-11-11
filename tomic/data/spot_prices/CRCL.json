@@ -761,5 +761,12 @@
     "close": 103.14,
     "volume": 9523194.0,
     "atr": null
+  },
+  {
+    "symbol": "CRCL",
+    "date": "2025-11-10",
+    "close": 104.1,
+    "volume": 8567340.0,
+    "atr": null
   }
 ]

@@ -8825,5 +8825,12 @@
     "close": 616.91,
     "volume": 1849747.0,
     "atr": null
+  },
+  {
+    "symbol": "SPOT",
+    "date": "2025-11-10",
+    "close": 622.93,
+    "volume": 1659945.0,
+    "atr": null
   }
 ]

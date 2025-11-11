@@ -8902,5 +8902,12 @@
     "close": 368.54,
     "volume": 2756681.0,
     "atr": null
+  },
+  {
+    "symbol": "AXP",
+    "date": "2025-11-10",
+    "close": 367.88,
+    "volume": 2876625.0,
+    "atr": null
   }
 ]

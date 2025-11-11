@@ -8825,5 +8825,12 @@
     "close": 170.89,
     "volume": 10614576.0,
     "atr": null
+  },
+  {
+    "symbol": "QCOM",
+    "date": "2025-11-10",
+    "close": 171.57,
+    "volume": 10128053.0,
+    "atr": null
   }
 ]

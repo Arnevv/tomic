@@ -6620,5 +6620,12 @@
     "close": 358.39,
     "volume": 5769211.0,
     "atr": null
+  },
+  {
+    "symbol": "CEG",
+    "date": "2025-11-10",
+    "close": 360.93,
+    "volume": 2436291.0,
+    "atr": null
   }
 ]

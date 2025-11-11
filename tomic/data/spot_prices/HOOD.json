@@ -7530,5 +7530,12 @@
     "close": 130.36,
     "volume": 44893957.0,
     "atr": null
+  },
+  {
+    "symbol": "HOOD",
+    "date": "2025-11-10",
+    "close": 135.88,
+    "volume": 30979388.0,
+    "atr": null
   }
 ]
