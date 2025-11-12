@@ -8832,5 +8832,12 @@
     "close": 90.35,
     "volume": 15624719.0,
     "atr": null
+  },
+  {
+    "symbol": "XLE",
+    "date": "2025-11-11",
+    "close": 91.53,
+    "volume": 19368007.0,
+    "atr": null
   }
 ]

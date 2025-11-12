@@ -8832,5 +8832,12 @@
     "close": 309.13,
     "volume": 2974759.0,
     "atr": null
+  },
+  {
+    "symbol": "IBM",
+    "date": "2025-11-11",
+    "close": 313.72,
+    "volume": 4381507.0,
+    "atr": null
   }
 ]

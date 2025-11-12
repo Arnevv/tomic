@@ -8909,5 +8909,12 @@
     "close": 218.71,
     "volume": 4530874.0,
     "atr": null
+  },
+  {
+    "symbol": "ABBV",
+    "date": "2025-11-11",
+    "close": 225.17,
+    "volume": 4802278.0,
+    "atr": null
   }
 ]

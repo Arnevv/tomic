@@ -8909,5 +8909,12 @@
     "close": 170.35,
     "volume": 2942304.0,
     "atr": null
+  },
+  {
+    "symbol": "LULU",
+    "date": "2025-11-11",
+    "close": 169.81,
+    "volume": 2663374.0,
+    "atr": null
   }
 ]
