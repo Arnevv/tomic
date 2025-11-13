@@ -8230,5 +8230,12 @@
     "close": 104.68,
     "volume": 4166457.0,
     "atr": null
+  },
+  {
+    "symbol": "RBLX",
+    "date": "2025-11-12",
+    "close": 104.34,
+    "volume": 4472203.0,
+    "atr": null
   }
 ]

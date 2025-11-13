@@ -8839,5 +8839,12 @@
     "close": 40.76,
     "volume": 21086716.0,
     "atr": null
+  },
+  {
+    "symbol": "FXI",
+    "date": "2025-11-12",
+    "close": 40.91,
+    "volume": 20589670.0,
+    "atr": null
   }
 ]

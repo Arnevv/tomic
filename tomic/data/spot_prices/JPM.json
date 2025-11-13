@@ -8916,5 +8916,12 @@
     "close": 315.62,
     "volume": 5029651.0,
     "atr": null
+  },
+  {
+    "symbol": "JPM",
+    "date": "2025-11-12",
+    "close": 320.41,
+    "volume": 10577838.0,
+    "atr": null
   }
 ]

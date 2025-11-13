@@ -8839,5 +8839,12 @@
     "close": 988.62,
     "volume": 4165962.0,
     "atr": null
+  },
+  {
+    "symbol": "LLY",
+    "date": "2025-11-12",
+    "close": 1017.78,
+    "volume": 5184764.0,
+    "atr": null
   }
 ]

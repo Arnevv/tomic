@@ -8839,5 +8839,12 @@
     "close": 114.85,
     "volume": 9712215.0,
     "atr": null
+  },
+  {
+    "symbol": "DIS",
+    "date": "2025-11-12",
+    "close": 116.65,
+    "volume": 15247306.0,
+    "atr": null
   }
 ]

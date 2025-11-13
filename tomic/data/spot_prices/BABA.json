@@ -8839,5 +8839,12 @@
     "close": 160.8,
     "volume": 11406649.0,
     "atr": null
+  },
+  {
+    "symbol": "BABA",
+    "date": "2025-11-12",
+    "close": 157.91,
+    "volume": 13943089.0,
+    "atr": null
   }
 ]
