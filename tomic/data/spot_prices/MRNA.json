@@ -8846,5 +8846,12 @@
     "close": 26.71,
     "volume": 9581726.0,
     "atr": null
+  },
+  {
+    "symbol": "MRNA",
+    "date": "2025-11-13",
+    "close": 24.96,
+    "volume": 10687007.0,
+    "atr": null
   }
 ]

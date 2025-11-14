@@ -8069,5 +8069,12 @@
     "close": 304,
     "volume": 6965837.0,
     "atr": null
+  },
+  {
+    "symbol": "COIN",
+    "date": "2025-11-13",
+    "close": 283.14,
+    "volume": 11107072.0,
+    "atr": null
   }
 ]

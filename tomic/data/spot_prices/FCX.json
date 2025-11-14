@@ -8846,5 +8846,12 @@
     "close": 41.81,
     "volume": 12841479.0,
     "atr": null
+  },
+  {
+    "symbol": "FCX",
+    "date": "2025-11-13",
+    "close": 40.54,
+    "volume": 10378308.0,
+    "atr": null
   }
 ]

@@ -8062,5 +8062,12 @@
     "close": 584.86,
     "volume": 4444357.0,
     "atr": null
+  },
+  {
+    "symbol": "APP",
+    "date": "2025-11-13",
+    "close": 556.15,
+    "volume": 5190300.0,
+    "atr": null
   }
 ]

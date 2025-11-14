@@ -8923,5 +8923,12 @@
     "close": 183.81,
     "volume": 1479979.0,
     "atr": null
+  },
+  {
+    "symbol": "SPG",
+    "date": "2025-11-13",
+    "close": 183.61,
+    "volume": 1467532.0,
+    "atr": null
   }
 ]

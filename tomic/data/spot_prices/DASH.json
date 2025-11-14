@@ -8664,5 +8664,12 @@
     "close": 196.51,
     "volume": 5137251.0,
     "atr": null
+  },
+  {
+    "symbol": "DASH",
+    "date": "2025-11-13",
+    "close": 195.21,
+    "volume": 6345100.0,
+    "atr": null
   }
 ]
