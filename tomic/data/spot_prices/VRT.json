@@ -8853,5 +8853,12 @@
     "close": 163.64,
     "volume": 11381971.0,
     "atr": null
+  },
+  {
+    "symbol": "VRT",
+    "date": "2025-11-14",
+    "close": 170.97,
+    "volume": 10017588.0,
+    "atr": null
   }
 ]

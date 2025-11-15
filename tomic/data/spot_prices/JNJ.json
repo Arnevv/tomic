@@ -4149,5 +4149,12 @@
     "close": 195.25,
     "volume": 8631264.0,
     "atr": null
+  },
+  {
+    "symbol": "JNJ",
+    "date": "2025-11-14",
+    "close": 195.93,
+    "volume": 8823385.0,
+    "atr": null
   }
 ]

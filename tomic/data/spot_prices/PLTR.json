@@ -8853,5 +8853,12 @@
     "close": 172.14,
     "volume": 63157772.0,
     "atr": null
+  },
+  {
+    "symbol": "PLTR",
+    "date": "2025-11-14",
+    "close": 174.01,
+    "volume": 62597444.0,
+    "atr": null
   }
 ]

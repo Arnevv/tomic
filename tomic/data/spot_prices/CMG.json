@@ -8853,5 +8853,12 @@
     "close": 31.38,
     "volume": 22756365.0,
     "atr": null
+  },
+  {
+    "symbol": "CMG",
+    "date": "2025-11-14",
+    "close": 31.57,
+    "volume": 18555546.0,
+    "atr": null
   }
 ]
