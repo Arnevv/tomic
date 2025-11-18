@@ -8860,5 +8860,12 @@
     "close": 331.11,
     "volume": 2760590.0,
     "atr": null
+  },
+  {
+    "symbol": "ADBE",
+    "date": "2025-11-17",
+    "close": 325.07,
+    "volume": 3298570.0,
+    "atr": null
   }
 ]

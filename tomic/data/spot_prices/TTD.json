@@ -8860,5 +8860,12 @@
     "close": 41.93,
     "volume": 11491510.0,
     "atr": null
+  },
+  {
+    "symbol": "TTD",
+    "date": "2025-11-17",
+    "close": 40.21,
+    "volume": 14628843.0,
+    "atr": null
   }
 ]

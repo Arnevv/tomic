@@ -2917,5 +2917,12 @@
     "close": 144.34,
     "volume": 5696979.0,
     "atr": null
+  },
+  {
+    "symbol": "ALAB",
+    "date": "2025-11-17",
+    "close": 141.39,
+    "volume": 5407920.0,
+    "atr": null
   }
 ]

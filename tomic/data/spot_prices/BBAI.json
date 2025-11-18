@@ -6921,5 +6921,12 @@
     "close": 6.06,
     "volume": 90744735.0,
     "atr": null
+  },
+  {
+    "symbol": "BBAI",
+    "date": "2025-11-17",
+    "close": 5.57,
+    "volume": 84826792.0,
+    "atr": null
   }
 ]

@@ -1125,5 +1125,12 @@
     "close": 77.36,
     "volume": 52462723.0,
     "atr": null
+  },
+  {
+    "symbol": "CRWV",
+    "date": "2025-11-17",
+    "close": 75.33,
+    "volume": 29173488.0,
+    "atr": null
   }
 ]
