@@ -43,8 +43,17 @@ from tomic.services.market_scan_service import (
     MarketScanService,
     ScanFailure,
 )
+from tomic.services.market_snapshot_service import ScanRow
+from tomic.services.pipeline_refresh import (
+    RefreshContext,
+    RefreshParams,
+    RefreshSource,
+    build_proposal_from_entry,
+    refresh_pipeline,
+)
 from tomic.services.portfolio_service import Candidate, CandidateRankingError
 from tomic.services.strategy_pipeline import StrategyProposal
+from tomic.criteria import load_criteria
 from tomic.utils import latest_atr
 
 
@@ -360,6 +369,124 @@ def show_evaluations(
     return show_reasons
 
 
+def _promote_rejected_to_candidates(
+    session: ControlPanelSession,
+    services: ControlPanelServices,
+    rejection_entries: Sequence[Mapping[str, Any]],
+    *,
+    timeout: float = 15.0,
+) -> tuple[list[Candidate], list[Mapping[str, Any]]]:
+    """Refresh rejected proposals via IB and promote any that pass to candidates.
+
+    Returns:
+        A tuple of (promoted_candidates, remaining_rejections).
+    """
+    if not rejection_entries:
+        return [], []
+
+    # Build proposals from rejection entries
+    prepared_entries: list[dict[str, Any]] = []
+    original_map: dict[int, Mapping[str, Any]] = {}
+
+    for idx, entry in enumerate(rejection_entries):
+        if not isinstance(entry, Mapping):
+            continue
+        prepared: dict[str, Any] = dict(entry)
+        prepared["__original_index__"] = idx
+        proposal = build_proposal_from_entry(prepared)
+        if not proposal:
+            continue
+        prepared_entries.append(prepared)
+        original_map[idx] = entry
+
+    if not prepared_entries:
+        return [], list(rejection_entries)
+
+    # Set up refresh parameters
+    criteria_cfg = load_criteria()
+    spot_price = session.spot_price if isinstance(session.spot_price, (int, float)) else None
+
+    params = RefreshParams(
+        entries=prepared_entries,
+        criteria=criteria_cfg,
+        spot_price=spot_price,
+        timeout=timeout,
+        max_attempts=1,
+        retry_delay=0.0,
+        parallel=False,
+        proposal_builder=build_proposal_from_entry,
+    )
+
+    run_id = session.run_id
+    trace_id = str(run_id) if isinstance(run_id, str) else None
+    context = RefreshContext(trace_id=trace_id)
+
+    # Run the refresh pipeline
+    result = refresh_pipeline(context, params=params)
+
+    # Collect promoted candidates
+    promoted_scan_rows: list[ScanRow] = []
+    promoted_indexes: set[int] = set()
+
+    for item in result.accepted:
+        original_idx = item.source.index
+        original_entry = original_map.get(original_idx)
+        if original_entry is None:
+            continue
+
+        proposal = item.proposal
+        symbol = item.source.symbol or str(original_entry.get("symbol") or "").upper()
+        strategy = proposal.strategy or str(original_entry.get("strategy") or "")
+
+        # Get metrics from original entry
+        metrics = original_entry.get("metrics")
+        if not isinstance(metrics, Mapping):
+            metrics = dict(original_entry)
+
+        # Get next_earnings from original entry
+        next_earnings = original_entry.get("next_earnings")
+        if isinstance(next_earnings, str):
+            next_earnings = parse_date(next_earnings)
+        elif not isinstance(next_earnings, date):
+            next_earnings = None
+
+        # Create ScanRow for the promoted proposal
+        scan_row = ScanRow(
+            symbol=symbol,
+            strategy=strategy,
+            proposal=proposal,
+            metrics=dict(metrics),
+            spot=spot_price,
+            next_earnings=next_earnings,
+            spot_preview=False,
+            spot_source="ib",
+        )
+        promoted_scan_rows.append(scan_row)
+        promoted_indexes.add(original_idx)
+
+        logger.info(
+            "Promoted %s/%s from rejections to candidates after IB refresh",
+            symbol,
+            strategy,
+        )
+
+    # Convert scan rows to candidates
+    promoted_candidates: list[Candidate] = []
+    if promoted_scan_rows:
+        try:
+            promoted_candidates = services.portfolio.rank_candidates(promoted_scan_rows)
+        except CandidateRankingError as exc:
+            logger.warning("Failed to rank promoted candidates: %s", exc)
+
+    # Build remaining rejections (exclude promoted)
+    remaining_rejections: list[Mapping[str, Any]] = []
+    for idx, entry in enumerate(rejection_entries):
+        if idx not in promoted_indexes:
+            remaining_rejections.append(entry)
+
+    return promoted_candidates, remaining_rejections
+
+
 def run_market_scan(
     session: ControlPanelSession,
     services: ControlPanelServices,
@@ -654,8 +781,36 @@ def run_market_scan(
             ):
                 continue
             refreshed = _perform_scan(refresh_quotes=True, reprompt_dir=False)
-            if refreshed:
-                candidates = refreshed
+            if refreshed is not None:
+                # Check for promotable rejections
+                if session.scan_rejections:
+                    print("📡 Controleren van afgewezen voorstellen op promotie...")
+                    promoted, remaining = _promote_rejected_to_candidates(
+                        session,
+                        services,
+                        session.scan_rejections,
+                        timeout=float(cfg.get("MARKET_DATA_TIMEOUT", 15.0) or 15.0),
+                    )
+                    if promoted:
+                        # Merge promoted candidates with refreshed candidates
+                        all_candidates = list(refreshed) + list(promoted)
+                        # Re-sort by score
+                        all_candidates.sort(
+                            key=lambda c: c.score if c.score is not None else 0.0,
+                            reverse=True,
+                        )
+                        # Apply top_n limit
+                        if top_n is not None and top_n > 0:
+                            all_candidates = all_candidates[:top_n]
+                        candidates = all_candidates
+                        # Update rejections to remove promoted
+                        session.scan_rejections = remaining
+                        print(f"✅ {len(promoted)} voorstel(len) gepromoveerd naar kandidaten.")
+                    else:
+                        candidates = refreshed
+                        session.scan_rejections = remaining
+                else:
+                    candidates = refreshed
                 continue
             elif refreshed is None:
                 continue
