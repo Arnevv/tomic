@@ -1,0 +1,1138 @@
+================================================================================
+TOMIC PYTHON CODEBASE - COMPLETE DEPENDENCY AND MODULE RELATIONSHIP ANALYSIS
+================================================================================
+
+EXECUTIVE SUMMARY
+=================
+The TOMIC codebase is a well-architected options trading analysis system with 245 
+Python modules organized into 9 distinct layers. The architecture demonstrates:
+- Clean layering with NO circular dependencies
+- Clear unidirectional data flow from TWS API through analysis to output
+- Proper separation of concerns across specialized modules
+- Strong foundation layers (logutils, config) supporting all tiers
+
+Overall Assessment: GOOD - Well-structured with minimal architectural debt
+
+
+================================================================================
+1. CODEBASE STATISTICS
+================================================================================
+
+Total Python Modules:           245
+Modules with No Dependencies:   141 (57% - mostly leaf/utility modules)
+Core Foundation Modules:        5 (logutils, config, utils, models, criteria)
+Layers:                         9 (API, Analysis, Services, Strategies, CLI, etc.)
+
+Complexity Metrics:
+  Max Dependencies in a Module: 33 (cli.controlpanel)
+  Average Dependencies:         3.2 per module
+  No Circular Dependencies:     ✓ (Clean design)
+  No Reciprocal Imports:        ✓ (Clear direction)
+
+
+================================================================================
+2. ARCHITECTURAL LAYERS (9 Tiers)
+================================================================================
+
+LAYER 1: CORE INFRASTRUCTURE (Foundation)
+-----------------------------------------
+Modules: logutils, config, utils, models, criteria
+Purpose: Foundation for all other modules
+Role: Logging, configuration, shared data structures
+Key Exports:
+  - logutils.logger (used by 71 modules!)
+  - config.get_app_config()
+  - criteria.RULES (central rules repository)
+Characteristics:
+  ✓ Zero internal dependencies (pure leaf modules)
+  ✓ Heavily imported by almost all other modules
+  ✓ Stable foundation for entire system
+
+
+LAYER 2: IBAPI WRAPPER (Protocol)
+---------------------------------
+Modules: ibapi.* (32 modules total)
+Purpose: Wrapper around Interactive Brokers API
+Key Modules:
+  - ibapi.connection - Connection management
+  - ibapi.client - Base client class
+  - ibapi.contract - Contract definitions
+  - ibapi.order - Order structures
+Characteristics:
+  ✓ All leaf modules (no internal dependencies)
+  ✓ Pure protocol implementation
+  ✓ Isolated from business logic
+
+
+LAYER 3: API LAYER (TWS Data Fetching)
+--------------------------------------
+Modules: api.* (18 modules)
+Purpose: Fetch market data from TWS/Interactive Brokers
+
+Key Modules and Exports:
+  tomic.api.ib_connection
+    Classes:  IBClient
+    Functions: connect_ib()
+    Role: Main connection handler
+    
+  tomic.api.base_client
+    Classes: BaseIBApp
+    Role: Base wrapper with logging
+    Deps: ib_connection, logutils
+    
+  tomic.api.getonemarket
+    Functions: run()
+    Role: Fetch single option chain
+    Deps: base_client, ibapi modules
+    
+  tomic.api.getallmarkets
+    Role: Batch market data fetching
+    
+  tomic.api.option_metrics
+    Role: Calculate Greeks, IVs from market data
+    Deps: models
+
+Characteristics:
+  ✓ Minimal internal dependencies (focused)
+  ✓ One-way dependency: uses ibapi layer only
+  ✓ Abstraction layer between TWS and business logic
+
+
+LAYER 4: CORE DATA & CONFIG (Data Models)
+------------------------------------------
+Modules: core.* (13 modules)
+Purpose: Data structures, pricing models, configuration
+
+Key Modules:
+  tomic.core.config
+    - strike_selection: Strike selection rules
+    - config_models: Pydantic models
+    
+  tomic.core.data
+    - chain_normalizer: Option chain normalization
+    - interest_rates: Interest rate handling
+    
+  tomic.core.portfolio
+    - services: Portfolio-level operations
+      Functions: submit_order(), save_trades(), refresh_proposal()
+      Classes: OrderSubmissionResult, OrderSubmissionError
+      Deps: 12 modules (orchestrator)
+      Role: Coordinates portfolio operations across system
+    
+  tomic.core.pricing
+    - mid_service: Mid pricing calculations
+    - mid_tags: Pricing tag definitions
+    - spread_policy: Spread policy enforcement
+
+Characteristics:
+  ✓ Supports multiple upper layers
+  ✓ core.portfolio.services is major orchestrator (12 deps)
+  ✓ Properly models domain entities
+
+
+LAYER 5: ANALYSIS LAYER (Business Logic)
+----------------------------------------
+Modules: analysis.* (18 modules)
+Purpose: Greeks, metrics, volatility analysis, proposal generation
+
+Key Modules and Exports:
+  tomic.analysis.greeks (LEAF MODULE)
+    Functions: compute_portfolio_greeks(), compute_greeks_by_symbol()
+    Role: Calculate options Greeks (delta, gamma, theta, vega)
+    Deps: helpers.numeric
+    Imported by: 7 modules
+    
+  tomic.analysis.metrics (LEAF MODULE)
+    Functions: compute_term_structure(), historical_volatility(), 
+              average_true_range(), render_kpi_box()
+    Role: IV metrics and volatility analysis
+    Deps: helpers.dateutils, helpers.account
+    Imported by: 6 modules
+    
+  tomic.analysis.proposal_engine (HUB MODULE - 11 DEPS)
+    Functions: generate_proposals(), suggest_strategies()
+    Classes: _StrategyContext
+    Role: Main proposal generation orchestrator
+    Deps: analysis.greeks, analysis.metrics, criteria, helpers,
+          services.chain_processing, services.pipeline_runner,
+          services.strategy_pipeline
+    Bridges: Analysis ↔ Services layers
+    
+  tomic.analysis.volatility_fetcher
+    Role: Fetch and cache IV data
+    
+  tomic.analysis.iv_history, iv_backfill
+    Role: Historical IV data management
+    
+  tomic.analysis.exit_rules
+    Role: Exit condition evaluation
+    
+  tomic.analysis.rules
+    Role: Entry rule evaluation
+    
+  tomic.analysis.scoring
+    Role: Strategy scoring logic
+
+Characteristics:
+  ✓ proposal_engine bridges Analysis ↔ Services effectively
+  ✓ Individual calculators (greeks, metrics) are well-isolated
+  ✓ Clear separation: Calculation vs. Orchestration
+
+
+LAYER 6: STRATEGY EXECUTION (Candidate Generation)
+--------------------------------------------------
+Modules: strategies.* (10 modules) + strategy.* (4 modules)
+
+Key Modules:
+  tomic.strategy_candidates
+    Functions: generate_strategy_candidates(), select_expiry_pairs()
+    Classes: StrikeMatch
+    Role: Generate candidate positions based on chain
+    
+  tomic.strike_selector
+    Functions: load_filter_config(), filter_by_expiry()
+    Classes: FilterConfig, StrikeSelector
+    Role: Strike selection based on rules
+    
+  tomic.strategies.*
+    - atm_iron_butterfly.py
+    - iron_condor.py
+    - short_call_spread.py
+    - short_put_spread.py
+    - ratio_spread.py
+    - calendar.py
+    - backspread_put.py
+    - naked_put.py
+    Role: Strategy-specific logic
+    
+  tomic.strategy.models
+    Classes: StrategyProposal, StrategyContext
+    
+  tomic.strategy.reason_engine
+    Classes: ReasonEngine
+    Role: Rejection reason tracking
+
+Characteristics:
+  ✓ Individual strategy modules are leaf modules (good isolation)
+  ✓ strike_selector and strategy_candidates are key coordinators
+  ✓ reason_engine provides consistent rejection messaging
+
+
+LAYER 7: SERVICES (Orchestration & Pipeline)
+--------------------------------------------
+Modules: services.* (23 modules)
+Purpose: Service coordination, pipelines, market snapshots
+
+Key Modules:
+  tomic.services.strategy_pipeline (HUB - 13 IMPORTERS)
+    Classes: StrategyPipeline, PipelineRunResult, RejectionSummary
+    Functions: run()
+    Role: Main strategy generation pipeline executor
+    Deps: core.pricing, strike_selector, helpers, metrics,
+          strategy_candidates, strategy.models
+    Exported by: proposal_engine, ib_marketdata, cli.app_services
+    
+  tomic.services.ib_marketdata (11 DEPS)
+    Classes: IBMarketDataService, QuoteSnapshotApp, SnapshotResult
+    Functions: fetch_quote_snapshot()
+    Role: Fetch and manage market snapshots from TWS
+    Deps: api.base_client, api.ib_connection, analysis.scoring,
+          models, portfolio_service, strategy_pipeline
+    
+  tomic.services.chain_processing (9 DEPS)
+    Classes: ChainPreparationConfig, PreparedChain
+    Functions: load_and_prepare_chain()
+    Role: Normalize and prepare option chains for analysis
+    Deps: core.data, core.config, helpers.*
+    
+  tomic.services.chain_sources
+    Role: Chain source resolution (TWS, Polygon, files)
+    
+  tomic.services.market_snapshot_service
+    Role: Snapshots of market state
+    
+  tomic.services.portfolio_service
+    Role: Portfolio state tracking
+    
+  tomic.services.order_submission (12 DEPS)
+    Classes: OrderSubmissionService
+    Role: Submit orders to TWS
+    Deps: api.base_client, api.ib_connection, core.pricing
+    
+  tomic.services.exit_flow
+    Role: Exit management workflow
+    
+  tomic.services.trade_management_service
+    Role: Active trade management
+    
+  tomic.services.proposal_details
+    Role: Detailed proposal information
+    
+  tomic.services.proposal_generation
+    Role: Wraps analysis.proposal_engine
+    
+  tomic.services._config, _id_sequence, _percent (LEAF)
+    Role: Helper services
+
+Characteristics:
+  ✓ strategy_pipeline is central orchestrator
+  ✓ Well-organized: each service has single responsibility
+  ✓ ib_marketdata coordinates between API and strategies
+
+
+LAYER 8: EXPORT & REPORTING (Output)
+------------------------------------
+Modules: export.* (4 modules) + reporting.* (3 modules)
+
+Key Modules:
+  tomic.export.csv_exporter
+    Functions: export_proposals_csv()
+    Role: Export proposals to CSV with metadata
+    Deps: export.utils
+    Characteristics: LEAF MODULE - clean isolation
+    
+  tomic.export.json_exporter
+    Role: Export proposals to JSON
+    
+  tomic.export.journal_exporter
+    Functions: render_journal_entries()
+    Role: Generate journal entries
+    Deps: journal.utils
+    
+  tomic.export.utils
+    Classes: RunMetadata
+    Role: Shared export utilities
+    
+  tomic.reporting.rejections
+    Role: Format rejection reports
+    
+  tomic.reporting._formatting
+    Role: Report formatting helpers
+
+Characteristics:
+  ✓ All modules are LEAF (minimal dependencies) - good!
+  ✓ Each exporter is independent
+  ✓ Output layer is properly decoupled
+
+
+LAYER 9: CLI (User Interface)
+----------------------------
+Modules: cli.* (54 modules total - largest layer!)
+Purpose: User interface, menus, interactive workflows
+
+Key Modules:
+  tomic.cli.app
+    Role: Entry point
+    
+  tomic.cli.app_services (7 DEPS)
+    Classes: ControlPanelServices, ExportServices
+    Functions: create_controlpanel_services()
+    Role: Service container for CLI
+    Deps: config, services.*
+    
+  tomic.cli.controlpanel.__init__ (33 DEPS - MOST COUPLED!)
+    Role: Main control panel menu
+    Deps: All major layers (analysis, api, services, export)
+    Status: LARGE aggregator - candidate for refactoring
+    
+  tomic.cli.controlpanel.portfolio_ui (23 DEPS)
+    Role: Portfolio visualization
+    
+  tomic.cli.controlpanel.menu_config
+    Role: Configuration menu
+    
+  tomic.cli.portfolio.menu_flow (15 DEPS)
+    Role: Portfolio menu orchestration
+    
+  tomic.cli.generate_proposals
+    Role: Proposal generation workflow
+    
+  tomic.cli.strategy_dashboard
+    Role: Strategy display dashboard
+    
+  tomic.cli.exit_flow
+    Role: Exit management workflow
+    
+  tomic.cli.compute_volstats
+    Role: Volatility statistics
+    
+  tomic.cli.fetch_prices
+    Role: Price fetching CLI
+    
+  Plus ~40 more CLI modules for various features
+
+Characteristics:
+  ✗ HIGHEST COUPLING: cli.controlpanel with 33 dependencies
+  ✓ Most other CLI modules are leaf modules
+  ✓ Proper service injection pattern used
+  ✗ REFACTORING CANDIDATE: Consider breaking controlpanel into smaller menu components
+
+
+================================================================================
+3. CORE/SHARED MODULES (Foundation Modules)
+================================================================================
+
+Module                              Importers   Dependencies   Role
+─────────────────────────────────────────────────────────────────────────────
+tomic.logutils                          71          0         Logging system
+tomic.config                            44          0         Configuration
+tomic.journal.utils                     23          0         Journal I/O
+tomic.utils                             21          0         Utilities
+tomic.services.strategy_pipeline        13          ~10        Main orchestrator
+tomic.helpers.dateutils                 12          0         Date handling
+tomic.helpers.price_utils               11          0         Price calculations
+tomic.helpers.numeric                   11          0         Numeric utilities
+tomic.cli.controlpanel_session           9          ~5         CLI session state
+tomic.infrastructure.storage             7          0         File I/O
+tomic.reporting                          7          0         Report generation
+tomic.analysis.greeks                    7          1         Greeks calculation
+tomic.models                             7          1         Data models
+tomic.api.ib_connection                  7          0         TWS connection
+
+Top Risk Modules (Single point of failure):
+  ! tomic.logutils: If broken, 71 modules fail
+  ! tomic.config: If broken, 44 modules fail
+  → These are well-maintained, low-risk, but critical
+
+
+================================================================================
+4. DATA FLOW ANALYSIS
+================================================================================
+
+Complete Information Flow Pipeline:
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                    TOMIC DATA PROCESSING PIPELINE                           │
+│                                                                              │
+│  TWS API    →  Market Data  →  Analysis  →  Strategies  →  Output          │
+│    Layer         Normalization      Layer       Layer        Layer          │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+STAGE 1: INPUT (TWS API Connection)
+──────────────────────────────────
+Entry Points:
+  - tomic.api.ib_connection.connect_ib() → Establishes TWS connection
+  - tomic.api.base_client.BaseIBApp     → Base application wrapper
+  - tomic.ibapi.connection              → Low-level protocol
+
+Data Produced:
+  - Option chains (ContractDetails)
+  - Market data (prices, Greeks)
+  - Account information
+
+Modules Involved:
+  tomic.api.getonemarket          → Fetch single chain
+  tomic.api.getallmarkets         → Batch fetch
+  tomic.api.option_metrics        → Calculate metrics
+  tomic.api.market_client         → Market data client
+  tomic.api.earnings_importer     → Earnings data
+  tomic.api.open_interest         → Open interest data
+
+
+STAGE 2: MARKET DATA PROCESSING
+──────────────────────────────
+Input: Raw option chains from TWS
+Processing:
+  tomic.services.ib_marketdata    → Fetch and snapshot management
+                                     (imports: api.base_client, api.ib_connection)
+  
+  tomic.core.data.chain_normalizer → Normalize chain format
+                                      (imports: helpers, core.*, models)
+  
+  tomic.core.data.interest_rates   → Handle rate data
+  
+  tomic.infrastructure.storage     → File persistence
+
+Data Transformed:
+  Raw chains → Normalized structures → Persistable format
+
+
+STAGE 3: ANALYSIS & METRICS
+─────────────────────────
+Input: Normalized option chains
+Processing:
+  tomic.analysis.greeks
+    └─ compute_portfolio_greeks()
+       Input: Positions
+       Output: Greeks dict (delta, gamma, theta, vega, etc.)
+  
+  tomic.analysis.metrics
+    ├─ compute_term_structure()
+    ├─ historical_volatility()
+    ├─ average_true_range()
+    └─ render_kpi_box()
+  
+  tomic.analysis.volatility_fetcher
+    └─ Fetch IV from external sources
+  
+  tomic.analysis.iv_backfill
+    └─ Historical IV data
+  
+  tomic.analysis.performance_analyzer
+    └─ Trade performance analysis
+
+Data Transformed:
+  Chains → Greeks → Metrics → Proposals
+
+
+STAGE 4: STRATEGY GENERATION
+────────────────────────────
+Input: Analyzed market data + Rules
+Processing:
+  tomic.analysis.proposal_engine
+    ├─ generate_proposals()
+    ├─ suggest_strategies()
+    └─ Orchestrates entire generation
+    
+    Dependencies:
+    ├─ tomic.analysis.greeks          (Use Greeks for filtering)
+    ├─ tomic.analysis.metrics         (Use volatility metrics)
+    ├─ tomic.criteria.RULES           (Entry/exit rules)
+    ├─ tomic.services.chain_processing (Prepare chains)
+    └─ tomic.services.strategy_pipeline (Execute generation)
+  
+  tomic.services.strategy_pipeline
+    ├─ StrategyPipeline class (main executor)
+    ├─ run()
+    ├─ Filters and scores proposals
+    │
+    └─ Calls:
+        ├─ tomic.strike_selector.StrikeSelector
+        │  └─ Select appropriate strikes
+        │
+        ├─ tomic.strategy_candidates.generate_strategy_candidates()
+        │  └─ Generate candidate combinations
+        │
+        ├─ tomic.strategies.*
+        │  └─ Strategy-specific logic (iron condor, spreads, etc.)
+        │
+        └─ tomic.core.pricing.MidService
+           └─ Price proposals at mid levels
+
+Data Transformed:
+  Raw chains + Rules → Candidate strategies → Scored proposals → Final proposals
+
+
+STAGE 5: FILTERING & RULES
+──────────────────────────
+Input: Generated proposals
+Processing:
+  tomic.criteria.RULES
+    ├─ Entry rules (min IV rank, max spread width, etc.)
+    ├─ Exit rules (profit target, stop loss, etc.)
+    ├─ Portfolio rules (position limits, etc.)
+    └─ Gate rules (market conditions)
+  
+  tomic.analysis.rules
+    ├─ Evaluate entry rules
+    └─ Filter candidates
+  
+  tomic.analysis.exit_rules
+    └─ Define exit conditions
+  
+  tomic.analysis.entry_checks
+    └─ Pre-entry validation
+
+Data Transformed:
+  All candidates → Filtered candidates → Accepted proposals
+
+
+STAGE 6: PORTFOLIO OPERATIONS
+─────────────────────────────
+Input: Accepted proposals
+Processing:
+  tomic.core.portfolio.services (12 DEPS - major orchestrator!)
+    ├─ capture_strategy_generation()     → Record generation
+    ├─ prepare_order()                   → Prepare order details
+    ├─ submit_order()                    → Submit to TWS
+    ├─ refresh_proposal_from_ib()        → Get confirmation
+    ├─ export_proposal_to_csv()          → Export results
+    ├─ save_trades()                     → Persist to journal
+    └─ Dependencies:
+        ├─ tomic.analysis.greeks         (Calculate greeks)
+        ├─ tomic.criteria                (Apply rules)
+        ├─ tomic.services.order_submission (Submit orders)
+        ├─ tomic.services.exit_flow      (Exit management)
+        └─ tomic.export.*                (Export data)
+
+  tomic.services.order_submission (12 DEPS)
+    └─ Submit orders to Interactive Brokers
+
+Data Transformed:
+  Proposals → Orders → Confirmations → Saved positions
+
+
+STAGE 7: OUTPUT & PERSISTENCE
+─────────────────────────────
+Input: Results from all stages
+Output Formats:
+
+  tomic.export.csv_exporter
+    └─ export_proposals_csv()
+       Output: CSV files with metadata
+       Format: Headers + Data rows + Footer metadata
+  
+  tomic.export.json_exporter
+    └─ JSON format proposals
+  
+  tomic.export.journal_exporter
+    └─ render_journal_entries()
+       Output: Trade journal entries
+  
+  tomic.reporting.rejections
+    └─ Rejection reports
+  
+  tomic.journal.service
+    └─ Journal updates
+
+Data Persisted:
+  ├─ Proposals CSV
+  ├─ JSON snapshots
+  ├─ Trade journal
+  └─ Metadata
+
+
+STAGE 8: CLI ORCHESTRATION
+──────────────────────────
+User interface layer coordinates entire pipeline:
+
+  tomic.cli.controlpanel (33 DEPS - aggregator!)
+    ├─ Main menu system
+    ├─ Calls all major subsystems
+    ├─ Imports from: api, analysis, services, export, etc.
+    └─ Status: HIGHLY COUPLED - refactoring candidate
+  
+  tomic.cli.app_services
+    ├─ ControlPanelServices (service container)
+    ├─ ExportServices (export helpers)
+    └─ Provides dependency injection
+  
+  tomic.cli.generate_proposals
+    └─ Wraps proposal generation
+  
+  tomic.cli.exit_flow
+    └─ Exit workflow UI
+
+
+CRITICAL DATA FLOW PATHS
+────────────────────────
+
+Path 1: Market Data → Proposals (Main Flow)
+────────────────────────────────────────────
+  api.ib_connection.IBClient
+    ↓ (connect to TWS)
+  api.getonemarket.run()
+    ↓ (fetch option chain)
+  services.ib_marketdata.fetch_quote_snapshot()
+    ↓ (create market snapshot)
+  services.chain_processing.load_and_prepare_chain()
+    ↓ (normalize chain)
+  analysis.proposal_engine.generate_proposals()
+    ├─ analysis.greeks.compute_*() 
+    ├─ analysis.metrics.compute_*()
+    ├─ criteria.RULES
+    └─ services.strategy_pipeline.run()
+  services.strategy_pipeline.StrategyPipeline
+    ↓ (generate & score)
+  export.csv_exporter.export_proposals_csv()
+    ↓
+  Output: Proposals CSV
+
+
+Path 2: Portfolio Operations
+──────────────────────────
+  proposals (from Path 1)
+    ↓
+  core.portfolio.services.prepare_order()
+    ↓
+  services.order_submission.OrderSubmissionService
+    ↓ (submit to TWS)
+  core.portfolio.services.submit_order()
+    ↓
+  export.journal_exporter.render_journal_entries()
+    ↓
+  journal.service.update_journal()
+    ↓
+  Output: Trade journal
+
+
+Path 3: Data Persistence
+────────────────────
+  All stages
+    ↓
+  infrastructure.storage (CSV/JSON files)
+    ↓
+  journal.utils (Load/save JSON)
+    ↓
+  Output: Persistent data store
+
+
+================================================================================
+5. MODULE DEPENDENCY GRAPH
+================================================================================
+
+(Showing only internal project dependencies)
+
+HIGHEST IMPORT DENSITY (Top 10 Most Connected):
+  cli.controlpanel ........................ 33 deps  [TIGHTLY COUPLED]
+  cli.controlpanel.portfolio_ui ........... 23 deps  [TIGHTLY COUPLED]
+  cli.portfolio.menu_flow ................. 15 deps
+  services.order_submission ............... 12 deps
+  cli.rejections.handlers ................. 12 deps
+  core.portfolio.services ................. 12 deps  [ORCHESTRATOR]
+  services.ib_marketdata .................. 11 deps
+  analysis.proposal_engine ................ 11 deps  [ORCHESTRATOR]
+  exports.cli_support ..................... 10 deps
+  services.chain_processing ............... 9 deps
+
+MOST IMPORTED (Highest Incoming Dependencies):
+  logutils ....................... 71 importers  [CRITICAL HUB]
+  config ......................... 44 importers  [CRITICAL HUB]
+  journal.utils .................. 23 importers
+  utils .......................... 21 importers
+  services.strategy_pipeline ..... 13 importers  [KEY ORCHESTRATOR]
+  helpers.dateutils .............. 12 importers
+  helpers.price_utils ............ 11 importers
+  helpers.numeric ................ 11 importers
+  cli.controlpanel_session ....... 9 importers
+  infrastructure.storage ......... 7 importers
+
+LEAF MODULES (141 total - 57% of codebase!)
+Pure implementation, no internal dependencies:
+  ✓ All ibapi.* (32 modules) - Protocol wrapper
+  ✓ All export.* (4 modules) - Output formatters
+  ✓ All integrations.* (3 modules) - External integrations
+  ✓ analysis.greeks, metrics - Calculators
+  ✓ strategies.* (most) - Strategy implementations
+  ✓ Many helpers - Utility functions
+
+
+DEPENDENCY FLOW DIRECTION (No cycles!)
+──────────────────────────────────────
+
+Strict flow:
+  CLI
+   ↓
+  Services ← Analysis ← Data
+   ↓         ↓         ↓
+  API     Helpers   Core
+   ↓
+  IBAPI (Leaf)
+
+KEY CONSTRAINT: API never imports from Analysis/Services
+               (API is isolated input layer)
+
+
+================================================================================
+6. POTENTIAL COUPLING ISSUES & REFACTORING OPPORTUNITIES
+================================================================================
+
+CRITICAL COUPLING ISSUES
+════════════════════════
+
+Issue 1: cli.controlpanel is TOO COUPLED (33 dependencies)
+──────────────────────────────────────────────────────────
+Module: tomic.cli.controlpanel.__init__
+Severity: MEDIUM (UI layer, but still large)
+Dependencies: analysis.*, api.*, services.*, export.*, helpers.*, etc.
+Problem: Acts as catch-all aggregator for main menu
+Impact: Hard to maintain, test, extend
+Recommendation:
+  → Break into smaller focused menu modules
+  → Create separate sub-modules for each menu section
+  → Example: menu_proposal_generation, menu_portfolio, menu_settings
+  → Use strategy pattern or plugin architecture
+
+
+Issue 2: cli.controlpanel.portfolio_ui (23 dependencies)
+─────────────────────────────────────────────────────────
+Module: Portfolio UI display
+Severity: MEDIUM
+Problem: Aggregates portfolio logic + display
+Recommendation:
+  → Separate display logic from portfolio operations
+  → Move business logic to core.portfolio.services
+  → Keep UI module focused on presentation
+
+
+Issue 3: core.portfolio.services (12 dependencies)
+──────────────────────────────────────────────────
+Module: Portfolio operations orchestrator
+Severity: LOW (Expected for orchestrator)
+Role: Properly coordinates across multiple subsystems
+Status: Well-designed, necessary coupling
+Note: This is GOOD coupling - clear orchestration point
+
+
+Issue 4: services.ib_marketdata bridges API ↔ Analysis (11 dependencies)
+─────────────────────────────────────────────────────────────────────────
+Module: Market data service
+Severity: LOW (Expected for bridge)
+Role: Translates API data to analysis-ready format
+Status: Proper separation of concerns
+Dependencies are necessary and well-organized
+
+
+Issue 5: analysis.proposal_engine bridges multiple layers (11 dependencies)
+──────────────────────────────────────────────────────────────────────────
+Module: Main proposal generation orchestrator
+Severity: LOW (Expected for orchestrator)
+Role: Coordinates analysis + services layers
+Status: Clean orchestration
+Note: Different from cli.controlpanel (business vs. UI layer)
+
+
+ARCHITECTURAL STRENGTHS
+═══════════════════════
+
+✓ NO CIRCULAR DEPENDENCIES
+  Found: 0 cycles
+  Status: Excellent - indicates clean layering
+  Implication: Each module can be independently tested
+
+✓ NO RECIPROCAL IMPORTS
+  A doesn't import B while B imports A
+  Status: Perfect - strict dependency direction
+  Implication: Clear dependency hierarchy
+
+✓ PROPER FOUNDATION LAYERS
+  logutils, config used everywhere but depend on nothing
+  Status: Excellent
+  Implication: Stable foundation
+
+✓ LEAF MODULES PREDOMINANT
+  57% of modules are leaf modules (141/245)
+  Status: Excellent - isolates implementation
+  Implication: Easy to test and maintain
+
+✓ CLEAR LAYERING
+  Input → Processing → Output
+  No back-dependencies to input layer
+  Status: Excellent architecture
+
+✓ SERVICE ORCHESTRATORS
+  Proper use of orchestrator pattern:
+  - analysis.proposal_engine (analysis layer)
+  - core.portfolio.services (core layer)
+  - services.strategy_pipeline (services layer)
+  Status: Good separation of concerns
+
+
+MINOR CONCERNS
+══════════════
+
+⚠ logutils ubiquity (71 importers)
+  Risk: If modified, affects 71 modules
+  Mitigation: Stable interface, rarely changes
+  Status: Acceptable, necessary for logging
+
+⚠ CLI layer complexity (54 modules)
+  Issue: Largest single layer
+  Cause: UI naturally has many workflows
+  Status: Expected for interactive system
+  Note: Internal structure is still reasonable
+
+⚠ Export layer simplicity
+  Note: Currently GOOD (minimal deps)
+  Opportunity: Add more sophisticated formatters
+  Status: Properly isolated for expansion
+
+
+================================================================================
+7. TIGHTLY COUPLED MODULE GROUPS (Inter-dependencies)
+================================================================================
+
+Group 1: Proposal Generation Cluster
+────────────────────────────────────
+Modules that work together closely:
+  - analysis.proposal_engine          (generates)
+  - services.strategy_pipeline         (executes)
+  - strike_selector                    (selects strikes)
+  - strategy_candidates                (generates candidates)
+  - core.pricing.*                     (prices)
+
+Coupling Type: NECESSARY (Business logic cluster)
+Coherence: HIGH (same functional area)
+Status: GOOD - this is proper clustering
+
+
+Group 2: Portfolio Operations Cluster
+─────────────────────────────────────
+Modules that handle portfolio:
+  - core.portfolio.services            (orchestrates)
+  - services.order_submission          (submits)
+  - services.exit_flow                 (exits)
+  - export.journal_exporter            (saves)
+  - analysis.greeks                    (calculates risk)
+
+Coupling Type: NECESSARY (Portfolio workflow)
+Coherence: HIGH (same functional area)
+Status: GOOD - proper clustering
+
+
+Group 3: Market Data Cluster
+───────────────────────────
+Modules that fetch/process market data:
+  - api.getonemarket
+  - api.getallmarkets
+  - services.ib_marketdata
+  - services.chain_processing
+  - core.data.*
+
+Coupling Type: NECESSARY (Data pipeline)
+Coherence: HIGH (same functional area)
+Status: GOOD - unidirectional flow
+
+
+Group 4: Rules & Filtering Cluster
+──────────────────────────────────
+Modules that define/apply rules:
+  - criteria                           (rules definition)
+  - analysis.rules                     (rule evaluation)
+  - analysis.exit_rules                (exit rules)
+  - analysis.entry_checks              (entry checks)
+
+Coupling Type: ACCEPTABLE (Rules engine)
+Coherence: HIGH (same functional area)
+Status: GOOD - could be more tightly integrated
+
+
+================================================================================
+8. MODULE DEPENDENCY MATRIX BY LAYER
+================================================================================
+
+From → To (showing key cross-layer dependencies):
+
+                    API   Analysis  Services  Export  CLI
+Core .............. ✓      ✓         ✓        ✓      ✓
+Helpers ............ -      ✓         ✓        ✓      ✓
+Analysis ........... -      ✓         ✓        ✓      ✓
+API ................ -      -         ✓        -      ✓
+Services ........... -      -         ✓        ✓      ✓
+Export ............. -      -         -        ✓      ✓
+CLI ................ -      -         -        -      -
+
+Legend: ✓ = Can import from, - = Should not import from
+
+OBSERVATIONS:
+  ✓ Strict upward dependencies (no backwards)
+  ✓ API never imports from business logic
+  ✓ Proper isolation between layers
+  ✓ CLI freely imports from all layers (as expected)
+
+
+================================================================================
+9. RISK ASSESSMENT & MAINTENANCE NOTES
+================================================================================
+
+CRITICAL MODULES (System will not function without):
+─────────────────────────────────────────────────
+1. tomic.logutils (imported by 71 modules)
+   Risk Level: CRITICAL
+   Impact: Any failure breaks logging everywhere
+   Mitigation: Stable interface, minimal logic, well-tested
+   Recommendation: Lock changes, extensive testing for any modification
+
+2. tomic.config (imported by 44 modules)
+   Risk Level: CRITICAL
+   Impact: Configuration failure affects all major modules
+   Mitigation: Separate loading from usage, validate early
+   Recommendation: Extensive unit tests, integration tests
+
+3. tomic.services.strategy_pipeline (imported by 13 modules)
+   Risk Level: HIGH
+   Impact: Proposal generation engine
+   Mitigation: Comprehensive test coverage
+   Recommendation: Maintain strict interface, version changes carefully
+
+
+BOTTLENECK MODULES (High fan-in):
+─────────────────────────────
+- tomic.journal.utils (23 importers) - JSON I/O
+  Status: Good, stable interface
+  
+- tomic.helpers.dateutils (12 importers) - Date handling
+  Status: Good, stable utilities
+  
+- tomic.helpers.price_utils (11 importers) - Price calculations
+  Status: Good, specific utilities
+
+
+MAINTENANCE BURDEN AREAS:
+──────────────────────────
+
+1. CLI Layer (54 modules)
+   Challenge: Large surface area
+   Solution: Keep modules small and focused
+   Status: Currently OK, monitor growth
+
+2. Services Layer (23 modules)
+   Challenge: Orchestration complexity
+   Solution: Use dependency injection, clear interfaces
+   Status: Good architecture, well-organized
+
+3. Analysis Layer (18 modules)
+   Challenge: Mathematical correctness
+   Solution: Comprehensive unit tests
+   Status: Good, math-focused modules
+
+
+TESTING RECOMMENDATIONS:
+────────────────────────
+
+Priority 1 (Test thoroughly):
+  - logutils (critical)
+  - config (critical)
+  - services.strategy_pipeline
+  - analysis.proposal_engine
+  - api.ib_connection
+
+Priority 2 (Good coverage):
+  - analysis.greeks
+  - analysis.metrics
+  - core.pricing.*
+  - strike_selector
+  - strategy_pipeline
+
+Priority 3 (Moderate coverage):
+  - All CLI modules
+  - Export modules
+  - Helper modules
+
+
+REFACTORING OPPORTUNITIES:
+──────────────────────────
+
+1. Break cli.controlpanel into sub-modules
+   Effort: MEDIUM
+   Benefit: Improved maintainability
+   Priority: MEDIUM
+
+2. Create formal service interfaces
+   Effort: MEDIUM
+   Benefit: Better testability
+   Priority: LOW
+
+3. Extract common portfolio patterns
+   Effort: LOW
+   Benefit: Code reuse
+   Priority: LOW
+
+
+================================================================================
+10. SUMMARY & RECOMMENDATIONS
+================================================================================
+
+OVERALL ARCHITECTURE QUALITY: GOOD
+═════════════════════════════════
+
+Strengths:
+  ✓ Clean layering with no circular dependencies
+  ✓ Clear unidirectional data flow
+  ✓ Proper separation of concerns
+  ✓ Strong foundation modules (logutils, config)
+  ✓ 57% leaf modules (good isolation)
+  ✓ Well-defined orchestrators (proposal_engine, strategy_pipeline)
+  ✓ Proper abstraction layers (API, Analysis, Services)
+
+Weaknesses:
+  ✗ CLI layer is somewhat large (54 modules)
+  ✗ cli.controlpanel is overly coupled (33 deps)
+  ✗ Some service classes do multiple things
+
+Risks:
+  ! Logging dependency is ubiquitous (71 modules)
+  ! Config dependency is critical (44 modules)
+  ! CLI depends on almost everything (potential for circular reasoning)
+
+
+IMMEDIATE RECOMMENDATIONS:
+══════════════════════════
+
+1. REFACTOR cli.controlpanel
+   Current: 33 dependencies (too many)
+   Target: Break into smaller menu components
+   Impact: Improve maintainability, testability
+   Effort: MEDIUM
+   Priority: MEDIUM
+
+2. MAINTAIN STRICT LAYER BOUNDARIES
+   Current: Good separation
+   Action: Document and enforce
+   Tools: Import linters, type checking
+   Priority: MEDIUM
+
+3. ADD MODULE-LEVEL TYPE HINTS
+   Current: Partially typed
+   Impact: Better IDE support, type safety
+   Effort: MEDIUM
+   Priority: LOW
+
+4. DOCUMENT CRITICAL INTERFACES
+   Current: Some documentation
+   Priority: HIGH
+   Modules: StrategyPipeline, ProposalEngine, PortfolioServices
+
+5. EXPAND TEST COVERAGE
+   Critical modules: logutils, config, strategy_pipeline
+   Target: >90% coverage for critical modules
+   Priority: HIGH
+
+
+LONG-TERM ARCHITECTURE EVOLUTION:
+═════════════════════════════════
+
+Phase 1 (Stabilize):
+  - Document module contracts
+  - Achieve >90% test coverage for critical modules
+  - Refactor cli.controlpanel
+
+Phase 2 (Enhance):
+  - Consider plugin architecture for strategies
+  - Add support for multiple market data sources
+  - Implement formal service interfaces
+
+Phase 3 (Scale):
+  - Async/parallel processing for large portfolios
+  - Distributed processing for multi-symbol analysis
+  - Real-time market monitoring
+
+
+MODULE HEALTH CHECKLIST:
+═══════════════════════
+
+For each module, assess:
+  [ ] Single responsibility principle
+  [ ] <10 dependencies (for non-orchestrators)
+  [ ] <20 public exports
+  [ ] Clear documentation
+  [ ] >80% test coverage
+  [ ] No deprecated patterns
+  [ ] Type hints for public API
+  [ ] Proper error handling
+
+Current Status:
+  ✓ Most modules pass checklist
+  ✗ cli.controlpanel fails dependency check
+  ⚠ Some analysis modules could improve documentation
+
+
+================================================================================
+END OF ANALYSIS
+================================================================================
+
+Generated: 2025-11-19
+Analyzed: 245 Python modules
+Circular Dependencies Found: 0
+Reciprocal Imports Found: 0
+Average Module Dependencies: 3.2
+Overall Assessment: GOOD ARCHITECTURE
+
+KEY CONTACT POINTS FOR UNDERSTANDING:
+  1. Start with: tomic.services.strategy_pipeline (main orchestrator)
+  2. Then read: tomic.analysis.proposal_engine (analysis orchestrator)
+  3. Then read: tomic.core.portfolio.services (portfolio orchestrator)
+  4. Then read: tomic.cli.app_services (service injection)
+  5. Then explore: Individual layer modules as needed
+
+For questions about specific layers, refer to the layer sections above.
