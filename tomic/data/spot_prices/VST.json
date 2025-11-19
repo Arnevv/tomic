@@ -8867,5 +8867,12 @@
     "close": 175,
     "volume": 3108331.0,
     "atr": null
+  },
+  {
+    "symbol": "VST",
+    "date": "2025-11-18",
+    "close": 174.42,
+    "volume": 3278226.0,
+    "atr": null
   }
 ]

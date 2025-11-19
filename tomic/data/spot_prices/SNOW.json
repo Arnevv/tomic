@@ -8867,5 +8867,12 @@
     "close": 252.79,
     "volume": 3163559.0,
     "atr": null
+  },
+  {
+    "symbol": "SNOW",
+    "date": "2025-11-18",
+    "close": 254.51,
+    "volume": 2667063.0,
+    "atr": null
   }
 ]

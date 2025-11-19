@@ -7327,5 +7327,12 @@
     "close": 7.42,
     "volume": 68942343.0,
     "atr": null
+  },
+  {
+    "symbol": "ACHR",
+    "date": "2025-11-18",
+    "close": 7.61,
+    "volume": 57765623.0,
+    "atr": null
   }
 ]
