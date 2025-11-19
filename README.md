@@ -131,8 +131,11 @@ Blijkt een regel te streng, pas dan de waarden in `criteria.yaml` of
 `tomic/strike_selection_rules.yaml` aan en valideer ze via `tomic rules
 validate <pad/naar/criteria.yaml> --reload`.
 
-Bij onvoldoende volume of open interest toont de log nu per strike ook volume,
-open interest en expiratie in de vorm `strike [volume, open interest, expiry]`.
+Bij onvoldoende volume of open interest toont de log per strike ook volume,
+open interest en expiratie (`strike [volume, open interest, expiry]`). In de
+samenvatting van afgewezen aanbevelingen wordt bovendien de minimale volume/oi
+per aanvraag weergegeven, bijvoorbeeld `onvoldoende volume/open interest (min
+vol 3, min oi 12)`.
 
 ⏳ Data-verversing
 Plan een dagelijkse job (of gebruik `tomic/cli/fetch_prices.py`) om sluitingsdata

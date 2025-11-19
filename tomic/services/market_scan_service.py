@@ -121,6 +121,7 @@ class MarketScanService:
                     continue
                 seen_codes.add(code)
                 label = detail.message or ReasonAggregator.label_for(detail.category)
+                label = self._with_liquidity_summary(detail, label)
                 count = reason_counts.get(code)
                 if count and count > 1:
                     label = f"{label} ({count})"
@@ -152,6 +153,52 @@ class MarketScanService:
             reasons=tuple(reason_labels),
             filters=tuple(filter_labels),
         )
+
+    @staticmethod
+    def _with_liquidity_summary(detail: ReasonDetail, label: str) -> str:
+        if (detail.code or "").upper() != "LOW_LIQUIDITY_VOLUME":
+            return label
+
+        legs = detail.data.get("legs") if detail.data else None
+        if not isinstance(legs, Sequence):
+            return label
+
+        volumes: list[float] = []
+        open_interests: list[float] = []
+
+        for leg in legs:
+            if not isinstance(leg, Mapping):
+                continue
+            vol = leg.get("volume")
+            oi = leg.get("open_interest")
+
+            try:
+                if vol is not None:
+                    volumes.append(float(vol))
+            except Exception:
+                pass
+
+            try:
+                if oi is not None:
+                    open_interests.append(float(oi))
+            except Exception:
+                pass
+
+        def _format(value: float) -> str:
+            if isinstance(value, float) and value.is_integer():
+                return str(int(value))
+            return str(value)
+
+        parts: list[str] = []
+        if volumes:
+            parts.append(f"min vol {_format(min(volumes))}")
+        if open_interests:
+            parts.append(f"min oi {_format(min(open_interests))}")
+
+        if not parts:
+            return label
+
+        return f"{label} ({', '.join(parts)})"
 
     def run_market_scan(
         self,
