@@ -28,6 +28,7 @@ class ReasonCategory(str, Enum):
     EV_BELOW_MIN = "EV_BELOW_MIN"
     PREVIEW_QUALITY = "PREVIEW_QUALITY"
     LOW_LIQUIDITY = "LOW_LIQUIDITY"
+    SUSPICIOUS_METRICS = "SUSPICIOUS_METRICS"
     OTHER = "OTHER"
 
 
@@ -39,6 +40,7 @@ ReasonCategoryLiteral = Literal[
     "EV_BELOW_MIN",
     "PREVIEW_QUALITY",
     "LOW_LIQUIDITY",
+    "SUSPICIOUS_METRICS",
     "OTHER",
 ]
 
@@ -51,6 +53,7 @@ _CATEGORY_LABELS: Final[Mapping[ReasonCategory, str]] = {
     ReasonCategory.EV_BELOW_MIN: "EV onvoldoende",
     ReasonCategory.PREVIEW_QUALITY: "Datakwaliteit (fallback mid)",
     ReasonCategory.LOW_LIQUIDITY: "Lage liquiditeit",
+    ReasonCategory.SUSPICIOUS_METRICS: "Verdachte metrics",
     ReasonCategory.OTHER: "Overig",
 }
 
@@ -67,6 +70,7 @@ _CATEGORY_PRIORITY: Final[Mapping[ReasonCategory, int]] = {
     ReasonCategory.EV_BELOW_MIN: 4,
     ReasonCategory.PREVIEW_QUALITY: 5,
     ReasonCategory.LOW_LIQUIDITY: 0,
+    ReasonCategory.SUSPICIOUS_METRICS: 1,
     ReasonCategory.OTHER: 6,
 }
 
