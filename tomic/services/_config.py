@@ -4,6 +4,7 @@ from __future__ import annotations
 from typing import Any, Iterable, Mapping
 
 from tomic.config import get as cfg_get
+from tomic.logutils import logger
 
 
 _DEFAULT_EXIT_SPREAD_ABSOLUTE = 0.50
@@ -31,8 +32,14 @@ def _as_mapping(value: Any) -> Mapping[str, Any]:
 
 def _coerce_float(value: Any, default: float) -> float:
     try:
-        return float(value)
+        result = float(value)
+        if not isinstance(result, (int, float)) or result != result:  # Check for NaN
+            logger.debug(f"[config] Invalid float value {value!r}, using default {default}")
+            return default
+        return result
     except (TypeError, ValueError):
+        if value not in (None, ""):
+            logger.debug(f"[config] Cannot convert {value!r} to float, using default {default}")
         return default
 
 
@@ -51,7 +58,11 @@ def _coerce_bool(value: Any, default: bool) -> bool:
 
 
 def exit_spread_config() -> dict[str, Any]:
-    """Return normalized spread configuration for exit order checks."""
+    """Return normalized spread configuration for exit order checks.
+
+    All values are clamped to >= 0.0 for safety.
+    Invalid values fall back to defaults with debug logging.
+    """
 
     options = _as_mapping(cfg_value("EXIT_ORDER_OPTIONS", {}))
     spread_raw = _as_mapping(options.get("spread"))
@@ -73,6 +84,7 @@ def exit_spread_config() -> dict[str, Any]:
     relative = _coerce_float(spread_raw.get("relative"), relative_default)
     max_age = _coerce_float(spread_raw.get("max_quote_age"), max_age_default)
 
+    # Clamp all values to be non-negative
     return {
         "absolute": max(0.0, absolute),
         "relative": max(0.0, relative),
@@ -81,7 +93,11 @@ def exit_spread_config() -> dict[str, Any]:
 
 
 def exit_repricer_config() -> dict[str, Any]:
-    """Return repricer tuning for exit orders."""
+    """Return repricer tuning for exit orders.
+
+    wait_seconds is clamped to >= 0.0 for safety.
+    Invalid values fall back to defaults with debug logging.
+    """
 
     options = _as_mapping(cfg_value("EXIT_ORDER_OPTIONS", {}))
     repricer_raw = _as_mapping(options.get("repricer"))
@@ -102,7 +118,11 @@ def exit_repricer_config() -> dict[str, Any]:
 
 
 def exit_fallback_config() -> dict[str, Any]:
-    """Return fallback policy for exit order validation."""
+    """Return fallback policy for exit order validation.
+
+    Safely handles non-iterable allowed_sources with fallback to empty set.
+    Invalid values fall back to defaults with debug logging.
+    """
 
     options = _as_mapping(cfg_value("EXIT_ORDER_OPTIONS", {}))
     fallback_raw = _as_mapping(options.get("fallback"))
@@ -118,11 +138,22 @@ def exit_fallback_config() -> dict[str, Any]:
         allow_preview_default,
     )
     sources_raw: Iterable[Any] = fallback_raw.get("allowed_sources", allowed_sources_default)
-    allowed_sources = {
-        str(item).strip().lower()
-        for item in (sources_raw or [])
-        if str(item).strip()
-    }
+
+    # Safely parse allowed_sources, handling non-iterable values
+    allowed_sources: set[str] = set()
+    if sources_raw and not isinstance(sources_raw, str):
+        try:
+            for item in sources_raw:
+                normalized = str(item).strip().lower()
+                if normalized:
+                    allowed_sources.add(normalized)
+        except TypeError:
+            # sources_raw is not iterable (and not a string)
+            if sources_raw not in (None, ""):
+                logger.debug(f"[config] allowed_sources is not iterable: {sources_raw!r}, using empty set")
+    elif isinstance(sources_raw, str) and sources_raw.strip():
+        # If it's a single string, log a warning since we expect a list
+        logger.debug(f"[config] allowed_sources is a string (expected list): {sources_raw!r}, using empty set")
 
     return {
         "allow_preview": allow_preview,
@@ -131,7 +162,12 @@ def exit_fallback_config() -> dict[str, Any]:
 
 
 def exit_force_exit_config() -> dict[str, Any]:
-    """Return forced exit policy configuration."""
+    """Return forced exit policy configuration.
+
+    Handles both boolean and mapping force_exit values.
+    limit_cap is only set when type is valid and value > 0.
+    Invalid values fall back to defaults with debug logging.
+    """
 
     options = _as_mapping(cfg_value("EXIT_ORDER_OPTIONS", {}))
     force_option = options.get("force_exit")
@@ -159,14 +195,24 @@ def exit_force_exit_config() -> dict[str, Any]:
     limit_cap: dict[str, Any] | None = None
     cap_type = str(limit_cap_raw.get("type") or "").strip().lower()
     cap_value = _coerce_float(limit_cap_raw.get("value"), 0.0)
+
+    # Only set limit_cap if type is valid and value is positive
     if cap_type in {"absolute", "bps"} and cap_value > 0:
         limit_cap = {"type": cap_type, "value": cap_value}
+    elif limit_cap_raw and cap_type not in {"", "absolute", "bps"}:
+        logger.debug(f"[config] Unknown limit_cap type '{cap_type}', ignoring")
 
     return {"enabled": enabled, "market_order": market_order, "limit_cap": limit_cap}
 
 
 def exit_price_ladder_config() -> dict[str, Any]:
-    """Return configuration for incremental exit price adjustments."""
+    """Return configuration for incremental exit price adjustments.
+
+    Supports multiple naming conventions for wait time (step_wait_seconds, step_wait_s, step_wait_ms).
+    Invalid step values are silently skipped.
+    All time values are clamped to >= 0.0 for safety.
+    Invalid values fall back to defaults with debug logging.
+    """
 
     options = _as_mapping(cfg_value("EXIT_ORDER_OPTIONS", {}))
     ladder_raw = _as_mapping(options.get("price_ladder"))
@@ -175,25 +221,38 @@ def exit_price_ladder_config() -> dict[str, Any]:
 
     raw_steps = ladder_raw.get("steps", []) or []
     steps: list[float] = []
-    for value in raw_steps:
-        try:
-            steps.append(float(value))
-        except (TypeError, ValueError):
-            continue
 
+    # Safely parse steps list, skipping invalid values
+    try:
+        for value in raw_steps:
+            try:
+                steps.append(float(value))
+            except (TypeError, ValueError):
+                if value not in (None, ""):
+                    logger.debug(f"[config] Skipping invalid price_ladder step: {value!r}")
+                continue
+    except TypeError:
+        # raw_steps is not iterable
+        if raw_steps not in (None, ""):
+            logger.debug(f"[config] price_ladder steps is not iterable: {raw_steps!r}, using empty list")
+
+    # Support multiple naming conventions for wait time
     if "step_wait_seconds" in ladder_raw:
         wait_seconds = _coerce_float(ladder_raw.get("step_wait_seconds"), 0.0)
     elif "step_wait_s" in ladder_raw:
         wait_seconds = _coerce_float(ladder_raw.get("step_wait_s"), 0.0)
     elif "step_wait_ms" in ladder_raw:
-        wait_seconds = _coerce_float(ladder_raw.get("step_wait_ms"), 0.0) / 1000.0
+        wait_ms = _coerce_float(ladder_raw.get("step_wait_ms"), 0.0)
+        wait_seconds = wait_ms / 1000.0 if wait_ms > 0 else 0.0
     else:
         wait_seconds = 0.0
 
     if "max_duration_seconds" in ladder_raw:
         max_duration = _coerce_float(ladder_raw.get("max_duration_seconds"), 0.0)
-    else:
+    elif "max_duration_s" in ladder_raw:
         max_duration = _coerce_float(ladder_raw.get("max_duration_s"), 0.0)
+    else:
+        max_duration = 0.0
 
     return {
         "enabled": enabled,
