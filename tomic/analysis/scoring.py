@@ -36,6 +36,11 @@ from ..strategy.reasons import (
     dedupe_reasons,
     make_reason,
 )
+
+# Sanity check thresholds for suspicious metrics
+_CREDIT_TO_WIDTH_WARN_RATIO = 0.80  # Warn if credit > 80% of wing width
+_ROM_WARN_THRESHOLD = 500.0  # Warn if ROM > 500%
+_MARGIN_MIN_THRESHOLD = 50.0  # Warn if margin < $50 per contract
 from ..strategy.reason_engine import ReasonEngine
 
 if TYPE_CHECKING:
@@ -992,6 +997,68 @@ def compute_proposal_metrics(
         )
         logger.info(f"[❌ voorstel afgewezen] {strategy_name} — reason: EV negatief")
         return _finalize(None)
+
+    # Sanity checks for suspicious "too good to be true" metrics
+    if strategy_name in {"iron_condor", "atm_iron_butterfly"}:
+        # Check credit-to-wing-width ratio
+        if theoretical_cap is not None and theoretical_cap > 0:
+            credit_to_width_ratio = net_credit / theoretical_cap
+            if credit_to_width_ratio > _CREDIT_TO_WIDTH_WARN_RATIO:
+                _add_reason(
+                    make_reason(
+                        ReasonCategory.SUSPICIOUS_METRICS,
+                        "CREDIT_TO_WIDTH_HIGH",
+                        f"credit/breedte verhouding verdacht hoog ({credit_to_width_ratio:.1%})",
+                        data={
+                            "credit": round(net_credit, 4),
+                            "wing_width": round(theoretical_cap, 4),
+                            "ratio": round(credit_to_width_ratio, 4),
+                            "threshold": _CREDIT_TO_WIDTH_WARN_RATIO,
+                        },
+                    )
+                )
+                logger.warning(
+                    f"[⚠️ {strategy_name}] Credit-to-width ratio {credit_to_width_ratio:.1%} > "
+                    f"{_CREDIT_TO_WIDTH_WARN_RATIO:.0%} threshold — may indicate data quality issue"
+                )
+
+        # Check for very low margin (near-zero risk)
+        if margin is not None and margin < _MARGIN_MIN_THRESHOLD:
+            _add_reason(
+                make_reason(
+                    ReasonCategory.SUSPICIOUS_METRICS,
+                    "MARGIN_TOO_LOW",
+                    f"margin verdacht laag (${margin:.2f})",
+                    data={
+                        "margin": round(margin, 2),
+                        "threshold": _MARGIN_MIN_THRESHOLD,
+                    },
+                )
+            )
+            logger.warning(
+                f"[⚠️ {strategy_name}] Margin ${margin:.2f} < ${_MARGIN_MIN_THRESHOLD:.2f} threshold — "
+                f"near-zero risk is unrealistic"
+            )
+
+        # Check for extremely high ROM
+        if proposal.rom is not None and proposal.rom > _ROM_WARN_THRESHOLD:
+            _add_reason(
+                make_reason(
+                    ReasonCategory.SUSPICIOUS_METRICS,
+                    "ROM_SUSPICIOUSLY_HIGH",
+                    f"ROM verdacht hoog ({proposal.rom:.1f}%)",
+                    data={
+                        "rom": round(proposal.rom, 2),
+                        "threshold": _ROM_WARN_THRESHOLD,
+                        "max_profit": round(proposal.max_profit, 2) if proposal.max_profit else None,
+                        "margin": round(margin, 2) if margin else None,
+                    },
+                )
+            )
+            logger.warning(
+                f"[⚠️ {strategy_name}] ROM {proposal.rom:.1f}% > {_ROM_WARN_THRESHOLD:.0f}% threshold — "
+                f"'too good to be true' scenario"
+            )
 
     strat_cfg = crit.strategy
     proposal.rom_norm = _normalize_ratio(proposal.rom, strat_cfg.rom_cap_pct)
