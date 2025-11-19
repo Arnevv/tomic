@@ -1,0 +1,397 @@
+================================================================================
+TOMIC MODULE QUICK REFERENCE GUIDE
+================================================================================
+
+KEY ENTRY POINTS FOR UNDERSTANDING THE CODEBASE
+================================================
+
+START HERE (Read in this order):
+1. tomic/services/strategy_pipeline.py
+   - Main proposal generation orchestrator
+   - Shows how different layers work together
+   - ~300-400 lines, well-commented
+
+2. tomic/analysis/proposal_engine.py
+   - Analysis layer orchestrator
+   - Shows how analysis feeds into pipeline
+   - ~400-500 lines
+
+3. tomic/core/portfolio/services.py
+   - Portfolio operations orchestrator
+   - Shows output/persistence layer
+   - ~500-600 lines
+
+4. tomic/cli/app_services.py
+   - Service container/dependency injection
+   - Shows how modules are wired together
+   - ~100 lines, clean pattern
+
+
+CRITICAL MODULES (Do not break these without extensive testing)
+===============================================================
+
+Module                          Importers   Risk     What it does
+───────────────────────────────────────────────────────────────────────────────
+tomic.logutils                  71          CRITICAL Logging system
+tomic.config                    44          CRITICAL Application config
+tomic.journal.utils             23          HIGH     JSON persistence
+tomic.utils                     21          HIGH     General utilities
+tomic.services.strategy_pipeline 13         HIGH     Main orchestrator
+tomic.helpers.dateutils         12          MEDIUM   Date handling
+tomic.helpers.price_utils       11          MEDIUM   Price calculations
+tomic.helpers.numeric           11          MEDIUM   Math utilities
+tomic.models                    7           MEDIUM   Data structures
+tomic.criteria                  varies      MEDIUM   Rules repository
+
+
+LAYER-BY-LAYER MODULE LOCATIONS
+================================
+
+Input/Source Layer:
+  tomic.api.*                   - TWS API integration (18 modules)
+  tomic.ibapi.*                 - IBKR protocol wrapper (32 modules)
+  Entry point: api.ib_connection.connect_ib()
+
+Data Processing Layer:
+  tomic.services.ib_marketdata  - Market snapshot fetcher
+  tomic.services.chain_processing - Chain normalization
+  tomic.core.data.*             - Data structures and normalization
+
+Analysis Layer:
+  tomic.analysis.proposal_engine - Main orchestrator (START HERE)
+  tomic.analysis.greeks          - Greeks calculations
+  tomic.analysis.metrics         - IV and volatility
+  tomic.criteria                 - Rules engine
+
+Strategy Generation:
+  tomic.services.strategy_pipeline - Proposal executor (CRITICAL)
+  tomic.strike_selector           - Strike selection
+  tomic.strategy_candidates       - Candidate generation
+  tomic.strategies.*              - Strategy-specific logic
+
+Portfolio Management:
+  tomic.core.portfolio.services   - Portfolio orchestrator
+  tomic.services.order_submission - Order placement
+  tomic.services.exit_flow        - Exit management
+  tomic.journal.*                 - Trade journal
+
+Output Layer:
+  tomic.export.csv_exporter       - CSV output
+  tomic.export.json_exporter      - JSON output
+  tomic.export.journal_exporter   - Journal entries
+  tomic.infrastructure.storage    - File persistence
+
+User Interface:
+  tomic.cli.app_services          - Service container
+  tomic.cli.controlpanel          - Main menu (33 deps - TOO COUPLED!)
+  tomic.cli.generate_proposals    - Proposal generation CLI
+  ~50 other CLI modules for various workflows
+
+
+MOST IMPORTANT CLASSES AND FUNCTIONS
+====================================
+
+StrategyPipeline (tomic.services.strategy_pipeline)
+  - Main proposal generation executor
+  - run() method generates and ranks proposals
+  - Key imports: strike_selector, strategy_candidates, pricing
+
+ProposalEngine (tomic.analysis.proposal_engine)
+  - Orchestrates analysis layer
+  - generate_proposals() main entry
+  - Uses: greeks, metrics, criteria, strategy_pipeline
+
+PortfolioServices (tomic.core.portfolio.services)
+  - Coordinates portfolio operations
+  - submit_order(), prepare_order(), save_trades()
+  - Uses: order_submission, exit_flow, export
+
+IBMarketDataService (tomic.services.ib_marketdata)
+  - Fetches and manages market snapshots
+  - fetch_quote_snapshot() main entry
+  - Uses: api.base_client, api.ib_connection
+
+StrikeSelector (tomic.strike_selector)
+  - Selects appropriate strikes based on rules
+  - filter_by_expiry() main function
+  - Used by: strategy_pipeline
+
+ControlPanelServices (tomic.cli.app_services)
+  - Service container for CLI
+  - Pipeline factory pattern
+  - Provides dependency injection
+
+
+DATA TRANSFORMATION WORKFLOW
+============================
+
+Raw TWS Data
+  ↓
+api.getonemarket.run()
+  ↓ (chain fetched)
+services.ib_marketdata.fetch_quote_snapshot()
+  ↓ (snapshot created)
+services.chain_processing.load_and_prepare_chain()
+  ↓ (normalized)
+analysis.proposal_engine.generate_proposals()
+  ├→ analysis.greeks.compute_portfolio_greeks()
+  ├→ analysis.metrics.compute_term_structure()
+  └→ services.strategy_pipeline.run()
+    ├→ strike_selector.StrikeSelector.filter()
+    ├→ strategy_candidates.generate_strategy_candidates()
+    ├→ strategies.* (specific strategy logic)
+    └→ core.pricing.MidService (price)
+  ↓ (scored proposals)
+core.portfolio.services.prepare_order()
+  ↓
+services.order_submission.OrderSubmissionService()
+  ↓ (submitted)
+export.csv_exporter.export_proposals_csv()
+  ↓
+export.journal_exporter.render_journal_entries()
+  ↓ (persistent)
+Saved Trades
+
+
+DEPENDENCY PATTERNS TO AVOID
+============================
+
+❌ DON'T: Import API from Analysis
+   Bad: tomic/analysis/greeks.py imports from tomic/api/*
+   Reason: Would violate layer separation
+
+❌ DON'T: Create circular imports
+   Bad: A imports B, B imports A
+   Status: Currently prevented - maintain this!
+
+❌ DON'T: Add more dependencies to cli.controlpanel
+   It already has 33 - split into smaller modules instead
+
+❌ DON'T: Modify logutils or config without extensive testing
+   They affect 71 and 44 modules respectively
+
+❌ DON'T: Add business logic to CLI layer
+   Keep CLI focused on user interaction only
+
+
+DEPENDENCY PATTERNS TO FOLLOW
+=============================
+
+✓ DO: Use service containers for dependency injection
+   Example: tomic/cli/app_services.py
+   Pattern: ControlPanelServices class provides all dependencies
+
+✓ DO: Keep Helpers isolated with no dependencies
+   Example: tomic/helpers/numeric.py - pure functions
+   Benefits: Easy to test, reusable
+
+✓ DO: Use orchestrators to coordinate multiple modules
+   Example: analysis.proposal_engine, services.strategy_pipeline
+   Pattern: One module coordinates 5-10 others
+
+✓ DO: Keep export/output modules as leaves
+   Example: csv_exporter, json_exporter
+   Pattern: Just transform data, no complex logic
+
+✓ DO: Isolate external integrations
+   Example: tomic/integrations/polygon/*
+   Pattern: Separate module for each external service
+
+
+TESTING STRATEGY BY LAYER
+=========================
+
+LAYER 1 (Foundation): HIGH priority
+  - tomic.logutils - Must not break
+  - tomic.config - Must validate early
+  - Target: >95% coverage
+
+LAYER 3-5 (Core logic): MEDIUM-HIGH priority
+  - tomic.api.* - Integration tests with mocked TWS
+  - tomic.analysis.* - Unit tests for calculations
+  - tomic.services.* - Mock dependencies
+  - Target: >85% coverage
+
+LAYER 6-8 (Execution): MEDIUM priority
+  - tomic.strategies.* - Strategy-specific tests
+  - tomic.export.* - Format validation tests
+  - Target: >75% coverage
+
+LAYER 9 (CLI): LOW priority
+  - tomic.cli.* - Integration tests
+  - Hard to unit test (interactive)
+  - Target: >50% coverage
+
+
+FILES IN THIS DIRECTORY
+=======================
+
+DEPENDENCY_ANALYSIS.txt (40KB)
+  - Complete architectural analysis
+  - All 245 modules documented
+  - Data flow diagrams
+  - Coupling analysis
+  - Refactoring recommendations
+  
+ARCHITECTURE_SUMMARY.md (11KB)
+  - Quick visual reference
+  - 9-layer diagram
+  - Critical dependencies table
+  - Troubleshooting guide
+  
+MODULE_REFERENCE.txt (this file)
+  - Quick lookup guide
+  - Key modules and functions
+  - Patterns and anti-patterns
+  - Testing strategy
+
+
+COMMON MODIFICATIONS & WHERE TO MAKE THEM
+=========================================
+
+Add a new strategy:
+  1. Create tomic/strategies/your_strategy.py
+  2. Implement strategy generator function
+  3. Register in strategy_candidates.py
+  4. No other modifications needed!
+
+Add a new rule:
+  1. Modify tomic/criteria.py (add to RULES)
+  2. Implement evaluation in tomic/analysis/rules.py
+  3. Test in analysis unit tests
+
+Change Greeks calculation:
+  1. Modify tomic/analysis/greeks.py
+  2. Update test expectations
+  3. Verify proposal engine still works
+
+Add new export format:
+  1. Create tomic/export/your_format_exporter.py
+  2. Follow csv_exporter.py pattern
+  3. Keep as leaf module (no internal imports)
+
+Change TWS API integration:
+  1. Modify tomic/api/* modules
+  2. Keep changes in api layer only
+  3. Don't expose internal details upward
+
+Add CLI workflow:
+  1. Create tomic/cli/your_workflow.py
+  2. Use app_services for dependency injection
+  3. Keep business logic in service layer
+
+
+UNDERSTANDING IMPORT STRUCTURE
+==============================
+
+from tomic import config as cfg
+  → Gets the config module from foundation layer
+  → Available everywhere
+
+from tomic.services.strategy_pipeline import StrategyPipeline
+  → Gets specific class from services
+  → Proper way to import
+
+from ..helpers import dateutils
+  → Relative import (within same package)
+  → Equivalent to: from tomic.helpers import dateutils
+
+from tomic.analysis.greeks import compute_portfolio_greeks
+  → Gets specific function from analysis
+  → Only what you need
+
+
+DEBUGGING TIPS
+==============
+
+1. Trace data through pipeline:
+   - Start at API layer (api.getonemarket)
+   - Follow to services (ib_marketdata)
+   - Follow to analysis (proposal_engine)
+   - Follow to output (export.csv_exporter)
+
+2. Check module dependencies:
+   - Look at top of file for imports
+   - Use grep: grep "^from tomic\|^import tomic" file.py
+
+3. Find where a class is used:
+   - grep "StrategyPipeline" -r tomic/
+   - Check cli/app_services.py for composition
+
+4. Understand error sources:
+   - logutils logs most operations
+   - Check journal.utils for data I/O errors
+   - Check api.ib_connection for TWS errors
+
+5. Performance bottlenecks:
+   - strategy_pipeline.run() - proposal generation
+   - analysis.proposal_engine - orchestration
+   - strike_selector - strike filtering
+
+
+STYLE NOTES
+===========
+
+Logging:
+  from tomic.logutils import logger
+  logger.info("Message")  # Available everywhere
+
+Configuration:
+  from tomic.config import get as cfg_get
+  value = cfg_get("section.key", default_value)
+
+Models:
+  from tomic.models import OptionContract
+  Use Pydantic for type safety
+
+Typing:
+  Most modules use type hints
+  Follow existing patterns for consistency
+
+Error Handling:
+  Create custom exceptions in module
+  Inherit from Exception
+  Use meaningful error messages
+
+
+QUICK STATS
+===========
+
+Total Python Modules:        245
+  - Leaf modules:            141 (57%)
+  - Hub modules:             15 (orchestrators)
+  - Foundation modules:       5 (critical)
+
+Largest Layers:
+  - CLI:                      54 modules
+  - IBAPI:                    32 modules
+  - Services:                 23 modules
+  - Analysis:                 18 modules
+  - API:                      18 modules
+
+Cyclomatic Complexity:
+  - Circular dependencies:    0 (EXCELLENT)
+  - Reciprocal imports:       0 (EXCELLENT)
+  - Max deps in module:       33 (cli.controlpanel - TOO HIGH)
+  - Average deps:             3.2 (GOOD)
+
+Code Health:
+  - No architectural debt:    ✓
+  - Clean layer separation:   ✓
+  - Proper abstractions:      ✓
+  - Excessive coupling area:  ✗ (cli.controlpanel)
+
+
+FINAL RECOMMENDATIONS
+====================
+
+1. IMMEDIATE: Document critical modules (logutils, config)
+2. URGENT: Add type hints to all public APIs
+3. IMPORTANT: Refactor cli.controlpanel (33 deps -> split)
+4. ONGOING: Maintain <10 deps for non-orchestrator modules
+5. BEST PRACTICE: Keep foundation layer changes minimal
+
+
+For detailed analysis, see: DEPENDENCY_ANALYSIS.txt
+For architecture overview, see: ARCHITECTURE_SUMMARY.md
+
