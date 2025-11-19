@@ -75,3 +75,19 @@ def test_metrics_rejects_low_liquidity(monkeypatch):
     assert any(
         "Onvoldoende volume/open interest" in entry for entry in logged
     )
+    assert reasons[0].data == {
+        "legs": [
+            {
+                "strike": 100,
+                "volume": 0,
+                "open_interest": 0,
+                "expiry": "20250101",
+            },
+            {
+                "strike": 90,
+                "volume": 0,
+                "open_interest": 0,
+                "expiry": "20250101",
+            },
+        ]
+    }

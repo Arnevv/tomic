@@ -738,7 +738,7 @@ def check_liquidity(
     if min_vol <= 0 and min_oi <= 0:
         return True, []
 
-    low_liq: List[str] = []
+    low_liq: List[dict[str, object]] = []
     for leg in legs:
         vol_raw = leg.get("volume")
         try:
@@ -758,10 +758,21 @@ def check_liquidity(
             (min_vol > 0 and vol is not None and vol < min_vol)
             or (min_oi > 0 and oi is not None and oi < min_oi)
         ):
-            low_liq.append(f"{strike} [{vol or 0}, {oi or 0}, {exp}]")
+            low_liq.append(
+                {
+                    "strike": strike,
+                    "volume": vol if vol is not None else 0,
+                    "open_interest": oi if oi is not None else 0,
+                    "expiry": exp,
+                }
+            )
     if low_liq:
+        formatted = [
+            f"{entry.get('strike')} [{entry.get('volume')}, {entry.get('open_interest')}, {entry.get('expiry')}]"
+            for entry in low_liq
+        ]
         logger.info(
-            f"[{strategy_name}] Onvoldoende volume/open interest voor strikes {', '.join(low_liq)}"
+            f"[{strategy_name}] Onvoldoende volume/open interest voor strikes {', '.join(formatted)}"
         )
         return False, [
             make_reason(
