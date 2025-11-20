@@ -48,6 +48,30 @@ log = logger
 _COMBO_MAX_QUOTE_AGE_SEC = 5.0
 
 
+@dataclass(frozen=True)
+class OrderSubmissionAttempt:
+    """Outcome for a single validation stage within order submission."""
+
+    stage: str
+    status: str
+    reason: str | None = None
+    details: Mapping[str, Any] | None = None
+
+
+@dataclass(frozen=True)
+class OrderSubmissionResult:
+    """Aggregated result for order submission validation and execution."""
+
+    status: str
+    reason: str | None
+    instructions: tuple[Any, ...] = ()  # tuple[OrderInstruction, ...] defined later
+    order_ids: tuple[int, ...] = ()
+    attempts: tuple[OrderSubmissionAttempt, ...] = ()
+    errors: tuple[str, ...] = ()
+    quote_issues: tuple[str, ...] = ()
+    validation_failures: tuple[str, ...] = ()
+
+
 def _load_default_spread_policy() -> SpreadPolicy:
     raw_policy = cfg_value("SPREAD_POLICY", {})
     policy_cfg = raw_policy if isinstance(raw_policy, Mapping) else {}
@@ -345,6 +369,37 @@ def _compute_combo_nbbo(
     return ComboQuote(bid=low, ask=high, mid=mid, width=width)
 
 
+def _validate_credit_for_strategy(
+    credit_per_combo: float | None,
+    *,
+    strategy: str | None = None,
+    structure: str | None = None,
+) -> tuple[bool, str]:
+    """Validate that credit strategies never submit with credit <= 0."""
+
+    if credit_per_combo is None:
+        return False, "missing_credit_value"
+
+    credit_value = float(credit_per_combo)
+
+    # Determine if this is a credit strategy
+    is_credit_strategy = False
+    strategy_lower = (strategy or "").lower()
+    structure_lower = (structure or "").lower()
+
+    credit_keywords = {"credit", "iron_condor", "iron_fly", "iron_butterfly"}
+    if any(keyword in strategy_lower for keyword in credit_keywords):
+        is_credit_strategy = True
+    if any(keyword in structure_lower for keyword in credit_keywords):
+        is_credit_strategy = True
+
+    # For credit strategies, block if credit <= 0
+    if is_credit_strategy and credit_value <= 0:
+        return False, f"credit_strategy_non_positive (credit={credit_value:.2f})"
+
+    return True, "credit_ok"
+
+
 def _evaluate_tradeability(
     legs: Sequence[_LegSummary],
     combo_quote: ComboQuote,
@@ -402,19 +457,26 @@ def _evaluate_tradeability(
             forced_reasons.append(failure)
         else:
             return False, failure
+    # ROBUUST: Quote-age ALTIJD afdwingen, geen force override
     for idx, leg in enumerate(legs, start=1):
         age = leg.quote_age_sec
-        if age is None or age > max_age:
-            failure = f"stale_quote_leg{idx}"
-            if force:
-                forced_reasons.append(failure)
-            else:
-                return False, failure
+        if age is None:
+            return False, f"quote_age_missing_leg{idx} (quote age is verplicht voor order submission)"
+        if age > max_age:
+            return False, f"stale_quote_leg{idx} (age={age:.1f}s > max={max_age:.1f}s)"
+
+    # ROBUUST: mid_source='model' blokkeren waar niet expliciet toegestaan
     for idx, leg in enumerate(legs, start=1):
         source = (leg.mid_source or "").strip().lower()
         reason = reason_from_mid_source(source or None)
         if reason is None:
             continue
+
+        # Check if this is 'model' source - always block unless explicitly allowed
+        if source == "model":
+            if not (allow_fallback and allowed_sources and "model" in allowed_sources):
+                return False, f"mid_source_model_blocked_leg{idx} (model pricing niet toegestaan voor order entry)"
+
         if allow_fallback and reason.category == ReasonCategory.PREVIEW_QUALITY:
             if allowed_sources and source not in allowed_sources:
                 failure = f"mid_source_leg{idx}={source or 'unknown'}"
@@ -1306,6 +1368,16 @@ class OrderSubmissionService:
             credit_reference = per_combo_mid_credit
         if credit_reference is None:
             _block_order("missing_credit", "combo mist (mid) credit informatie")
+
+        # ROBUUST: Valideer credit voor credit-strategieën
+        credit_ok, credit_msg = _validate_credit_for_strategy(
+            credit_reference,
+            strategy=proposal.strategy,
+            structure=structure,
+        )
+        if not credit_ok:
+            _block_order("invalid_credit", credit_msg)
+
         net_price = combo_quote.mid
         price_capped = False
         if combo_width is not None:
@@ -1660,6 +1732,8 @@ def prepare_order_instructions(
 __all__ = [
     "OrderInstruction",
     "OrderPlacementApp",
+    "OrderSubmissionAttempt",
+    "OrderSubmissionResult",
     "OrderSubmissionService",
     "prepare_order_instructions",
 ]
