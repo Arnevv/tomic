@@ -721,6 +721,7 @@ class IBMarketDataService:
                 leg["mid_refresh_trigger"] = trigger
             timestamp = datetime.utcnow().isoformat()
             leg["mid_refresh_timestamp"] = timestamp
+            leg["quote_age_sec"] = 0.0
             previous_mid_val = None
             try:
                 previous_mid_val = float(previous_mid) if previous_mid is not None else None

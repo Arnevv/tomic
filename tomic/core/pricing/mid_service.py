@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from datetime import datetime
 from typing import Iterable, Mapping, MutableMapping, Optional, Sequence
 
 from ...helpers.numeric import safe_float
@@ -151,13 +152,34 @@ def _quote_from_resolution(resolution: MidResolution, *, rate: InterestRateQuote
     )
 
 
+def _compute_quote_age(leg: Mapping[str, object]) -> float | None:
+    """Compute quote age in seconds from explicit field or timestamp."""
+    # First check for explicit quote_age_sec or quote_age
+    age = safe_float(leg.get("quote_age_sec")) or safe_float(leg.get("quote_age"))
+    if age is not None:
+        return age
+
+    # If not present, compute from mid_refresh_timestamp
+    timestamp_str = leg.get("mid_refresh_timestamp")
+    if timestamp_str:
+        try:
+            timestamp = datetime.fromisoformat(str(timestamp_str))
+            now = datetime.utcnow()
+            delta = (now - timestamp).total_seconds()
+            return max(0.0, delta)
+        except (ValueError, TypeError, AttributeError):
+            pass
+
+    return None
+
+
 def _heuristic_quote(leg: Mapping[str, object], *, rate: InterestRateQuote) -> MidPriceQuote:
     mid = safe_float(leg.get("mid"))
     fallback = normalize_mid_source(leg.get("mid_fallback"))
     source = normalize_mid_source(leg.get("mid_source"), (fallback,))
     spread_flag = None
     reason = None
-    quote_age = safe_float(leg.get("quote_age_sec")) or safe_float(leg.get("quote_age"))
+    quote_age = _compute_quote_age(leg)
 
     if mid is not None and mid > 0:
         return MidPriceQuote(
