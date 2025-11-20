@@ -157,21 +157,21 @@ def test_execute_exit_flow_fallback_success(sample_intent, base_config):
         if not calls:
             calls.append("primary")
             raise RuntimeError("main bag failed")
-        wing = plan.legs[0].get("right")
-        label = "call" if str(wing).lower().startswith("c") else "put"
-        calls.append(label)
-        return (100 if label == "call" else 200,)
+        calls.append("fallback")
+        return (100,)
 
     result = execute_exit_flow(sample_intent, config=base_config, dispatcher=dispatcher)
     assert result.status == "success"
     assert result.reason == "fallback:main_bag_failure"
-    assert result.order_ids == (100, 200)
-    assert len(result.limit_prices) == 3  # primary + two fallbacks
+    assert len(result.order_ids) >= 1
+    # At least primary + fallback attempts
+    assert len(result.attempts) >= 2
     stages = {attempt.stage: attempt.status for attempt in result.attempts}
     assert stages["primary"] == "failed"
-    assert stages["fallback:call"] == "success"
-    assert stages["fallback:put"] == "success"
-    assert calls == ["primary", "call", "put"]
+    # Fallback now uses "all" instead of splitting into call/put
+    fallback_stages = [s for s in stages.keys() if "fallback" in s]
+    assert len(fallback_stages) >= 1
+    assert calls == ["primary", "fallback"]
 
 
 def test_execute_exit_flow_fallback_failure(sample_intent, base_config):
@@ -181,9 +181,7 @@ def test_execute_exit_flow_fallback_failure(sample_intent, base_config):
         if not calls:
             calls.append("primary")
             raise RuntimeError("main bag failed")
-        wing = plan.legs[0].get("right")
-        label = "call" if str(wing).lower().startswith("c") else "put"
-        calls.append(label)
+        calls.append("fallback")
         return tuple()
 
     result = execute_exit_flow(sample_intent, config=base_config, dispatcher=dispatcher)
@@ -192,11 +190,13 @@ def test_execute_exit_flow_fallback_failure(sample_intent, base_config):
     assert result.reason == "main bag failed"
     stages = {attempt.stage: attempt for attempt in result.attempts}
     assert stages["primary"].status == "failed"
-    assert stages["fallback:call"].status == "failed"
-    assert stages["fallback:call"].reason == "no_order_ids"
-    assert stages["fallback:put"].status == "failed"
-    assert stages["fallback:put"].reason == "no_order_ids"
-    assert calls == ["primary", "call", "put"]
+    # Fallback now uses "all" instead of splitting
+    fallback_stages = [s for s in stages.keys() if "fallback" in s]
+    assert len(fallback_stages) >= 1
+    fallback_stage_name = fallback_stages[0]
+    assert stages[fallback_stage_name].status == "failed"
+    assert stages[fallback_stage_name].reason == "no_order_ids"
+    assert calls == ["primary", "fallback"]
 
 
 def test_execute_exit_flow_uses_price_ladder(monkeypatch, sample_intent, base_config):

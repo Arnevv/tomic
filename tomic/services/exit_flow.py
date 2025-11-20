@@ -51,6 +51,8 @@ class ExitFlowResult:
     order_ids: tuple[int, ...]
     attempts: tuple[ExitAttemptResult, ...] = ()
     forced: bool = False
+    errors: tuple[str, ...] = ()
+    quote_issues: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -312,16 +314,143 @@ def execute_exit_flow(
     attempts.extend(fallback_attempts)
     limit_prices.extend(fallback_limits)
     placed_ids.extend(fallback_ids)
-    status = "success" if placed_ids else "failed"
-    reason = f"fallback:{fallback_reason}" if placed_ids else str(primary_error or "no_orders")
+
+    # If fallback succeeded, return success
+    if placed_ids:
+        status = "success"
+        reason = f"fallback:{fallback_reason}"
+        return ExitFlowResult(
+            status=status,
+            reason=reason,
+            limit_prices=_unique_values(limit_prices, transform=float, skip_none=True),
+            order_ids=_unique_values(placed_ids, transform=int),
+            attempts=tuple(attempts),
+            forced=forced,
+        )
+
+    # If we reach here, primary and fallback both failed
+    # Try force-exit if enabled
+    if forced:
+        logger.info("[exit-flow] primary and fallback failed, attempting force-exit")
+        force_attempts, force_ids, force_limits, force_error = _execute_force_exit(
+            intent,
+            active_dispatcher,
+            error=primary_error,
+        )
+        attempts.extend(force_attempts)
+        limit_prices.extend(force_limits)
+        placed_ids.extend(force_ids)
+
+        if placed_ids:
+            status = "success"
+            reason = "force_exit"
+            return ExitFlowResult(
+                status=status,
+                reason=reason,
+                limit_prices=_unique_values(limit_prices, transform=float, skip_none=True),
+                order_ids=_unique_values(placed_ids, transform=int),
+                attempts=tuple(attempts),
+                forced=forced,
+            )
+
+        # All paths failed
+        all_errors = [str(primary_error or "primary_failed")]
+        if force_error:
+            all_errors.append(str(force_error))
+        status = "failed"
+        reason = " | ".join(all_errors)
+        return ExitFlowResult(
+            status=status,
+            reason=reason,
+            limit_prices=_unique_values(limit_prices, transform=float, skip_none=True),
+            order_ids=tuple(),
+            attempts=tuple(attempts),
+            forced=forced,
+        )
+
+    # Force-exit not enabled, return failure
+    status = "failed"
+    reason = str(primary_error or "no_orders")
     return ExitFlowResult(
         status=status,
         reason=reason,
         limit_prices=_unique_values(limit_prices, transform=float, skip_none=True),
-        order_ids=_unique_values(placed_ids, transform=int),
+        order_ids=tuple(),
         attempts=tuple(attempts),
         forced=forced,
     )
+
+
+def _execute_force_exit(
+    intent: ExitIntent,
+    dispatcher: Callable[[ExitOrderPlan], Iterable[int]],
+    *,
+    error: Exception | None,
+) -> tuple[list[ExitAttemptResult], list[int], list[float], Exception | None]:
+    """Execute force-exit as last resort after primary and fallback failures."""
+
+    logger.debug("[force-exit] attempting force exit with aggressive pricing")
+
+    attempts: list[ExitAttemptResult] = []
+    order_ids: list[int] = []
+    limit_prices: list[float] = []
+
+    try:
+        plan = build_exit_order_plan(intent)
+    except ValueError as exc:
+        logger.warning("[force-exit] build_exit_order_plan failed: %s", exc)
+        attempts.append(
+            ExitAttemptResult(
+                stage="force",
+                status="failed",
+                limit_price=None,
+                order_ids=tuple(),
+                reason=str(exc),
+            )
+        )
+        return attempts, order_ids, limit_prices, exc
+
+    limit_value = safe_float(plan.limit_price)
+    if limit_value is not None:
+        limit_prices.append(limit_value)
+
+    ids, dispatch_error = _call_dispatcher(dispatcher, plan)
+    if dispatch_error is not None:
+        logger.error("[force-exit] dispatcher raised an error", exc_info=dispatch_error)
+        attempts.append(
+            ExitAttemptResult(
+                stage="force",
+                status="failed",
+                limit_price=limit_value,
+                order_ids=tuple(),
+                reason=str(dispatch_error),
+            )
+        )
+        return attempts, order_ids, limit_prices, dispatch_error
+
+    if ids:
+        order_ids.extend(ids)
+        attempts.append(
+            ExitAttemptResult(
+                stage="force",
+                status="success",
+                limit_price=limit_value,
+                order_ids=ids,
+            )
+        )
+        return attempts, order_ids, limit_prices, None
+
+    failure_reason = "no_order_ids"
+    attempts.append(
+        ExitAttemptResult(
+            stage="force",
+            status="failed",
+            limit_price=limit_value,
+            order_ids=tuple(),
+            reason=failure_reason,
+        )
+    )
+    return attempts, order_ids, limit_prices, RuntimeError("force_exit_no_orders")
 
 
 def _execute_fallback(
