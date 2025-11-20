@@ -174,7 +174,6 @@ class AppConfig(BaseModel):
     POLYGON_DELAY_SNAPSHOT_MS: int = 200
     MAX_SYMBOLS_PER_RUN: int | None = None
     POLYGON_API_KEYS: List[str] = []
-    DATA_SOURCES: Dict[str, Any] = {"tws_option_chain_enabled": False}
     DATA_HEALTH_THRESHOLDS: Dict[str, Any] = {
         "spot_max_age_days": 3,
         "hv_max_age_days": 7,
@@ -333,15 +332,6 @@ def load_config() -> AppConfig:
     if "vix" in data and "VIX" not in data:
         cfg["VIX"] = data["vix"]
 
-    ds_raw = data.get("DATA_SOURCES") or data.get("data_sources") or {}
-    if isinstance(ds_raw, dict):
-        merged_sources = dict(defaults.get("DATA_SOURCES", {}))
-        for key, value in ds_raw.items():
-            merged_sources[str(key)] = value
-        cfg["DATA_SOURCES"] = merged_sources
-    else:
-        cfg["DATA_SOURCES"] = defaults.get("DATA_SOURCES", {})
-
     configured_symbols = data.get("DEFAULT_SYMBOLS")
     if isinstance(configured_symbols, list):
         cfg["DEFAULT_SYMBOLS"] = [str(s) for s in configured_symbols]
@@ -422,20 +412,6 @@ def get(name: str, default: Any | None = None) -> Any:
         return getattr(CONFIG, name, default)
 
 
-def tws_option_chain_enabled() -> bool:
-    """Return whether the deprecated TWS option-chain flow is enabled."""
-
-    sources = get("DATA_SOURCES", {})
-    flag: Any
-    if isinstance(sources, dict):
-        flag = sources.get("tws_option_chain_enabled")
-    else:
-        flag = None
-    if isinstance(flag, bool):
-        return flag
-    if isinstance(flag, str):
-        return flag.strip().lower() in {"1", "true", "yes", "on"}
-    return False
 
 
 def reload() -> None:

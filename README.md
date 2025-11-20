@@ -61,7 +61,6 @@ Optie Beschrijving
 
 * De TWS-ketenexport leverde onstabiele resultaten op en blokkeerde de rest van het controlpanel.
 * Polygon-exports zijn nu de standaardbron voor keteninformatie.
-* Via `config.yaml` kun je controleren of de vlag `data_sources.tws_option_chain_enabled` actief is; standaard staat deze op `false` en zelfs wanneer je hem op `true` zet toont de CLI een duidelijke melding dat de TWS-flow is verwijderd.
 
 📊 ANALYSE & STRATEGIE
 1. Trading Plan

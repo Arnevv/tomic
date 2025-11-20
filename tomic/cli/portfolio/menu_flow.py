@@ -727,8 +727,8 @@ def run_market_scan(
         _prepare_chain_source(reprompt_dir)
         if refresh_quotes:
             print("📡 IB snapshot-refresh voor alle rijen…")
-        use_tws_chain = refresh_quotes and cfg.tws_option_chain_enabled()
-        chain_resolver = _tws_chain_source if use_tws_chain else _chain_source
+        # Always use Polygon for option chains
+        chain_resolver = _chain_source
         try:
             candidates = scan_service.run_market_scan(
                 scan_requests,

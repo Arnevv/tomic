@@ -48,7 +48,6 @@ from tomic.cli.common import Menu, prompt, prompt_yes_no
 
 
 from tomic import config as cfg
-from tomic.config import tws_option_chain_enabled
 from tomic.core.portfolio import services as portfolio_services
 from tomic.logutils import logger, setup_logging
 from tomic.analysis.volatility_fetcher import fetch_volatility_metrics
@@ -577,10 +576,6 @@ def show_market_info(session: ControlPanelSession, services: ControlPanelService
         "999       → Nieuwe Polygon-scan",
         "0         → Terug naar hoofdmenu",
     ]
-    if tws_option_chain_enabled():
-        selection_help_lines.insert(
-            2, "998       → (niet beschikbaar) IB snapshot-refresh"
-        )
     selection_help = "\n".join(selection_help_lines)
     tws_enabled = False
     print(selection_help)
