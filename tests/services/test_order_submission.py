@@ -910,3 +910,312 @@ def test_place_orders_retries_after_10043(monkeypatch, caplog):
         "retry_reason=remove_non_guaranteed_for_multi_leg_combo" in msg
         for msg in logged_infos
     )
+
+
+# ============================================================================
+# ROBUUSTE ORDER SUBMISSION TESTS
+# ============================================================================
+
+
+def test_quote_age_missing_blocks_order(monkeypatch):
+    """Quote-age moet altijd aanwezig zijn."""
+    monkeypatch.setattr(order_submission, "Order", lambda: types.SimpleNamespace())
+    proposal = StrategyProposal(
+        strategy="short_put_spread",
+        legs=[
+            {
+                "symbol": "AAA",
+                "expiry": "20240119",
+                "strike": 100.0,
+                "type": "put",
+                "position": -1,
+                "conId": 5001,
+                "bid": 1.5,
+                "ask": 1.6,
+                "quote_age_sec": None,  # Missing!
+                "mid_source": "true",
+            },
+            {
+                "symbol": "AAA",
+                "expiry": "20240119",
+                "strike": 95.0,
+                "type": "put",
+                "position": 1,
+                "conId": 5002,
+                "bid": 0.7,
+                "ask": 0.8,
+                "quote_age_sec": 1.0,
+                "mid_source": "true",
+            },
+        ],
+    )
+    proposal.credit = 80.0
+
+    with pytest.raises(ValueError, match="quote age is verplicht"):
+        prepare_order_instructions(proposal, symbol="AAA")
+
+
+def test_quote_age_stale_blocks_order(monkeypatch):
+    """Stale quotes moeten worden geblokkeerd."""
+    monkeypatch.setattr(order_submission, "Order", lambda: types.SimpleNamespace())
+    proposal = StrategyProposal(
+        strategy="short_put_spread",
+        legs=[
+            {
+                "symbol": "AAA",
+                "expiry": "20240119",
+                "strike": 100.0,
+                "type": "put",
+                "position": -1,
+                "conId": 5101,
+                "bid": 1.5,
+                "ask": 1.6,
+                "quote_age_sec": 10.0,  # Stale!
+                "mid_source": "true",
+            },
+            {
+                "symbol": "AAA",
+                "expiry": "20240119",
+                "strike": 95.0,
+                "type": "put",
+                "position": 1,
+                "conId": 5102,
+                "bid": 0.7,
+                "ask": 0.8,
+                "quote_age_sec": 1.0,
+                "mid_source": "true",
+            },
+        ],
+    )
+    proposal.credit = 80.0
+
+    with pytest.raises(ValueError, match="stale_quote"):
+        prepare_order_instructions(proposal, symbol="AAA")
+
+
+def test_credit_strategy_with_zero_credit_blocks(monkeypatch):
+    """Credit-strategieën met credit <= 0 moeten worden geblokkeerd."""
+    monkeypatch.setattr(order_submission, "Order", lambda: types.SimpleNamespace())
+    proposal = StrategyProposal(
+        strategy="iron_condor",  # Credit strategy!
+        legs=[
+            {
+                "symbol": "AAA",
+                "expiry": "20240119",
+                "strike": 100.0,
+                "type": "call",
+                "position": -1,
+                "conId": 5201,
+                "bid": 2.0,
+                "ask": 2.05,
+                "quote_age_sec": 1.0,
+                "mid_source": "true",
+            },
+            {
+                "symbol": "AAA",
+                "expiry": "20240119",
+                "strike": 105.0,
+                "type": "call",
+                "position": 1,
+                "conId": 5202,
+                "bid": 1.0,
+                "ask": 1.05,
+                "quote_age_sec": 1.0,
+                "mid_source": "true",
+            },
+            {
+                "symbol": "AAA",
+                "expiry": "20240119",
+                "strike": 90.0,
+                "type": "put",
+                "position": -1,
+                "conId": 5203,
+                "bid": 2.2,
+                "ask": 2.25,
+                "quote_age_sec": 1.0,
+                "mid_source": "true",
+            },
+            {
+                "symbol": "AAA",
+                "expiry": "20240119",
+                "strike": 85.0,
+                "type": "put",
+                "position": 1,
+                "conId": 5204,
+                "bid": 0.8,
+                "ask": 0.85,
+                "quote_age_sec": 1.0,
+                "mid_source": "true",
+            },
+        ],
+    )
+    proposal.credit = 0.0  # Zero credit!
+
+    with pytest.raises(ValueError, match="credit_strategy_non_positive"):
+        prepare_order_instructions(proposal, symbol="AAA")
+
+
+def test_credit_strategy_with_negative_credit_blocks(monkeypatch):
+    """Credit-strategieën met negatieve credit moeten worden geblokkeerd."""
+    monkeypatch.setattr(order_submission, "Order", lambda: types.SimpleNamespace())
+    proposal = StrategyProposal(
+        strategy="short_call_credit_spread",
+        legs=[
+            {
+                "symbol": "AAA",
+                "expiry": "20240119",
+                "strike": 100.0,
+                "type": "call",
+                "position": -1,
+                "conId": 5301,
+                "bid": 2.0,
+                "ask": 2.1,
+                "quote_age_sec": 1.0,
+                "mid_source": "true",
+            },
+            {
+                "symbol": "AAA",
+                "expiry": "20240119",
+                "strike": 105.0,
+                "type": "call",
+                "position": 1,
+                "conId": 5302,
+                "bid": 1.0,
+                "ask": 1.1,
+                "quote_age_sec": 1.0,
+                "mid_source": "true",
+            },
+        ],
+    )
+    proposal.credit = -50.0  # Negative!
+
+    with pytest.raises(ValueError, match="credit_strategy_non_positive"):
+        prepare_order_instructions(proposal, symbol="AAA")
+
+
+def test_mid_source_model_blocked_by_default(monkeypatch):
+    """mid_source='model' moet standaard worden geblokkeerd."""
+    monkeypatch.setattr(order_submission, "Order", lambda: types.SimpleNamespace())
+    proposal = StrategyProposal(
+        strategy="short_put_spread",
+        legs=[
+            {
+                "symbol": "AAA",
+                "expiry": "20240119",
+                "strike": 100.0,
+                "type": "put",
+                "position": -1,
+                "conId": 5401,
+                "bid": 1.5,
+                "ask": 1.6,
+                "quote_age_sec": 1.0,
+                "mid_source": "model",  # Model source!
+            },
+            {
+                "symbol": "AAA",
+                "expiry": "20240119",
+                "strike": 95.0,
+                "type": "put",
+                "position": 1,
+                "conId": 5402,
+                "bid": 0.7,
+                "ask": 0.8,
+                "quote_age_sec": 1.0,
+                "mid_source": "true",
+            },
+        ],
+    )
+    proposal.credit = 80.0
+
+    with pytest.raises(ValueError, match="model pricing niet toegestaan"):
+        prepare_order_instructions(proposal, symbol="AAA")
+
+
+def test_mid_source_model_allowed_with_explicit_permission(monkeypatch):
+    """mid_source='model' kan worden toegestaan met expliciete toestemming."""
+    monkeypatch.setattr(order_submission, "Order", lambda: types.SimpleNamespace())
+    proposal = StrategyProposal(
+        strategy="short_put_spread",
+        legs=[
+            {
+                "symbol": "AAA",
+                "expiry": "20240119",
+                "strike": 100.0,
+                "type": "put",
+                "position": -1,
+                "conId": 5501,
+                "bid": 1.5,
+                "ask": 1.6,
+                "quote_age_sec": 1.0,
+                "mid_source": "model",
+            },
+            {
+                "symbol": "AAA",
+                "expiry": "20240119",
+                "strike": 95.0,
+                "type": "put",
+                "position": 1,
+                "conId": 5502,
+                "bid": 0.7,
+                "ask": 0.8,
+                "quote_age_sec": 1.0,
+                "mid_source": "model",
+            },
+        ],
+    )
+    proposal.credit = 80.0
+
+    # Should succeed with explicit permission
+    service = OrderSubmissionService(
+        allow_fallback=True,
+        allowed_fallback_sources=["model"],
+    )
+    instructions = service.build_instructions(
+        proposal,
+        symbol="AAA",
+    )
+    assert len(instructions) == 1
+
+
+def test_validate_credit_for_strategy_detects_iron_condor():
+    """Test dat credit validatie iron_condor herkent als credit-strategie."""
+    ok, msg = order_submission._validate_credit_for_strategy(
+        0.0,
+        strategy="iron_condor",
+        structure=None,
+    )
+    assert not ok
+    assert "credit_strategy_non_positive" in msg
+
+
+def test_validate_credit_for_strategy_detects_iron_fly():
+    """Test dat credit validatie iron_fly herkent als credit-strategie."""
+    ok, msg = order_submission._validate_credit_for_strategy(
+        -10.0,
+        strategy="iron_fly",
+        structure=None,
+    )
+    assert not ok
+    assert "credit_strategy_non_positive" in msg
+
+
+def test_validate_credit_for_strategy_allows_positive_credit():
+    """Test dat credit validatie positieve credit toestaat."""
+    ok, msg = order_submission._validate_credit_for_strategy(
+        250.0,
+        strategy="iron_condor",
+        structure=None,
+    )
+    assert ok
+    assert msg == "credit_ok"
+
+
+def test_validate_credit_for_strategy_allows_debit_strategy_with_negative():
+    """Test dat debit-strategieën negatieve credit mogen hebben."""
+    ok, msg = order_submission._validate_credit_for_strategy(
+        -100.0,
+        strategy="short_put_spread",  # Not a credit strategy
+        structure="vertical",
+    )
+    assert ok
+    assert msg == "credit_ok"
