@@ -8874,5 +8874,12 @@
     "close": 140.45,
     "volume": 12866132.0,
     "atr": null
+  },
+  {
+    "symbol": "SHOP",
+    "date": "2025-11-19",
+    "close": 146,
+    "volume": 9569346.0,
+    "atr": null
   }
 ]

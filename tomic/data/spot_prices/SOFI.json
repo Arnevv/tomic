@@ -7866,5 +7866,12 @@
     "close": 26.24,
     "volume": 66736541.0,
     "atr": null
+  },
+  {
+    "symbol": "SOFI",
+    "date": "2025-11-19",
+    "close": 26.72,
+    "volume": 62920989.0,
+    "atr": null
   }
 ]

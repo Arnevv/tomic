@@ -8874,5 +8874,12 @@
     "close": 240,
     "volume": 3374140.0,
     "atr": null
+  },
+  {
+    "symbol": "ACN",
+    "date": "2025-11-19",
+    "close": 241.08,
+    "volume": 2560071.0,
+    "atr": null
   }
 ]

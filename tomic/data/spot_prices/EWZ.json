@@ -8874,5 +8874,12 @@
     "close": 32.71,
     "volume": 17690902.0,
     "atr": null
+  },
+  {
+    "symbol": "EWZ",
+    "date": "2025-11-19",
+    "close": 32.49,
+    "volume": 22187534.0,
+    "atr": null
   }
 ]

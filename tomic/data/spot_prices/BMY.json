@@ -8951,5 +8951,12 @@
     "close": 47.06,
     "volume": 14564295.0,
     "atr": null
+  },
+  {
+    "symbol": "BMY",
+    "date": "2025-11-19",
+    "close": 45.79,
+    "volume": 14791800.0,
+    "atr": null
   }
 ]

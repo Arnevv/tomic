@@ -8874,5 +8874,12 @@
     "close": 201,
     "volume": 5363554.0,
     "atr": null
+  },
+  {
+    "symbol": "PANW",
+    "date": "2025-11-19",
+    "close": 199.9,
+    "volume": 7528214.0,
+    "atr": null
   }
 ]

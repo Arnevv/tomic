@@ -8874,5 +8874,12 @@
     "close": 47.55,
     "volume": 17058593.0,
     "atr": null
+  },
+  {
+    "symbol": "NVO",
+    "date": "2025-11-19",
+    "close": 49,
+    "volume": 16542074.0,
+    "atr": null
   }
 ]

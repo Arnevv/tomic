@@ -8874,5 +8874,12 @@
     "close": 206.8,
     "volume": 22042892.0,
     "atr": null
+  },
+  {
+    "symbol": "MSTR",
+    "date": "2025-11-19",
+    "close": 186.5,
+    "volume": 28167732.0,
+    "atr": null
   }
 ]

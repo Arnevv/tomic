@@ -8951,5 +8951,12 @@
     "close": 228.5,
     "volume": 33817142.0,
     "atr": null
+  },
+  {
+    "symbol": "MU",
+    "date": "2025-11-19",
+    "close": 225.92,
+    "volume": 35250337.0,
+    "atr": null
   }
 ]
