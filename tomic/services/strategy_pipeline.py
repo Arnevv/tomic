@@ -437,13 +437,15 @@ class StrategyPipeline:
         rejected: list[ReasonDetail] = []
         for proposal in proposals:
             latest_expiry = self._latest_expiry(proposal.legs)
-            if latest_expiry is None or latest_expiry >= earnings_date:
+            # Reject als earnings vóór expiry komen (opties zijn nog actief tijdens earnings)
+            # Accept als expiry vóór earnings komt (opties zijn al vervallen vóór earnings)
+            if latest_expiry is None or latest_expiry <= earnings_date:
                 kept.append(proposal)
                 continue
             reason = make_reason(
                 ReasonCategory.POLICY_VIOLATION,
                 "EARNINGS_BEFORE_EVENT",
-                f"Earnings {earnings_date.isoformat()} voor expiry {latest_expiry.isoformat()}",
+                f"Earnings {earnings_date.isoformat()} vóór expiry {latest_expiry.isoformat()}",
                 data={
                     "earnings_date": earnings_date.isoformat(),
                     "expiry": latest_expiry.isoformat(),

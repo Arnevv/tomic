@@ -779,11 +779,15 @@ def check_liquidity(
         logger.info(
             f"[{strategy_name}] Onvoldoende volume/open interest voor strikes {', '.join(formatted)}"
         )
+        # Vind de laagste waarden
+        min_volume = min(entry.get("volume", 0) for entry in low_liq)
+        min_oi = min(entry.get("open_interest", 0) for entry in low_liq)
+        message = f"onvoldoende volume/open interest (min vol: {min_volume}, min OI: {min_oi})"
         return False, [
             make_reason(
                 ReasonCategory.LOW_LIQUIDITY,
                 "LOW_LIQUIDITY_VOLUME",
-                "onvoldoende volume/open interest",
+                message,
                 data={"legs": list(low_liq)},
             )
         ]
