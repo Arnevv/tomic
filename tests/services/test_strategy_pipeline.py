@@ -184,7 +184,9 @@ def test_summarize_rejections_merges():
 
 def test_earnings_filter_blocks_expiry_before_event(tmp_path, sample_option):
     earnings_file = tmp_path / "earnings.json"
-    earnings_file.write_text(json.dumps({"XYZ": ["2030-02-01"]}))
+    # Earnings op 2024-01-05, vóór de expiry op 2024-01-10
+    # Dit moet gereject worden want opties zijn nog actief tijdens earnings
+    earnings_file.write_text(json.dumps({"XYZ": ["2024-01-05"]}))
 
     selector = DummySelector()
 
