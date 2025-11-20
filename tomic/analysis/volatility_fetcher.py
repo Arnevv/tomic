@@ -537,6 +537,7 @@ def _fetch_vix_from_ibkr_sync(settings: VixConfig) -> _VixFetcherResult:
             md_sequence = [1, 2, 3] if rth_open else [1, 2, 3, 4]
             timeout_ms = rth_timeout_ms if rth_open else off_timeout_ms
             invalid_exchange = False
+            all_timeouts = True
             for md_type in md_sequence:
                 try:
                     ticks = app.request_snapshot_with_mdtype(
@@ -553,6 +554,7 @@ def _fetch_vix_from_ibkr_sync(settings: VixConfig) -> _VixFetcherResult:
                     continue
                 except Exception as exc:  # pragma: no cover - network failures
                     message = str(exc)
+                    all_timeouts = False
                     logger.debug(
                         "IBKR snapshot error exchange=%s mdType=%s: %s",
                         exchange,
@@ -566,6 +568,7 @@ def _fetch_vix_from_ibkr_sync(settings: VixConfig) -> _VixFetcherResult:
                     last_error = message
                     continue
 
+                all_timeouts = False
                 selection = select_tick(ticks, rth_open=rth_open, mode=policy)
                 if selection:
                     tick_type, value = selection
@@ -584,9 +587,20 @@ def _fetch_vix_from_ibkr_sync(settings: VixConfig) -> _VixFetcherResult:
             if invalid_exchange:
                 continue
 
-            last_error = (
-                f"no acceptable tick (exchange={exchange}, policy={policy}, rth_open={rth_open})"
-            )
+            if all_timeouts:
+                last_error = (
+                    f"all market data requests timed out for {exchange} - "
+                    f"ensure VIX market data subscription is active in IBKR "
+                    f"(timeout={timeout_ms}ms, tried md_types={md_sequence})"
+                )
+                logger.warning(
+                    "VIX market data timeout on %s - likely missing IBKR market data subscription for VIX index",
+                    exchange,
+                )
+            else:
+                last_error = (
+                    f"no acceptable tick (exchange={exchange}, policy={policy}, rth_open={rth_open})"
+                )
 
         if last_error is None:
             last_error = f"VIX fetch failed: no acceptable tick (policy={policy}, rth_open=False)"

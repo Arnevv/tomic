@@ -41,7 +41,7 @@ class VixConfig(BaseModel):
     http_timeout_sec: float = 3.0
     http_retries: int = 0
     ib_timeout_sec: float = 3.0
-    ib_exchanges: List[str] = ["CBOE", "CBOEIND"]
+    ib_exchanges: List[str] = ["CBOE"]
     json_api: Optional[VixJsonApiConfig] = None
 
 
@@ -54,9 +54,9 @@ class AppConfig(BaseModel):
     EXIT_ORDER_OPTIONS: Dict[str, Any] = {}
 
     VIX_PRICE_POLICY: str = "last_known"
-    VIX_EXCHANGES: List[str] = ["CBOE", "CBOEIND"]
-    VIX_RTH_TIMEOUT_MS: int = 1500
-    VIX_OFFHOURS_TIMEOUT_MS: int = 1500
+    VIX_EXCHANGES: List[str] = ["CBOE"]
+    VIX_RTH_TIMEOUT_MS: int = 5000
+    VIX_OFFHOURS_TIMEOUT_MS: int = 5000
     VIX_LOG_TICK_SOURCE: bool = True
     VIX_MEMORY_TTL_SECONDS: int = 0
 
