@@ -8881,5 +8881,12 @@
     "close": 26.89,
     "volume": 6206503.0,
     "atr": null
+  },
+  {
+    "symbol": "ENPH",
+    "date": "2025-11-20",
+    "close": 26.12,
+    "volume": 6311989.0,
+    "atr": null
   }
 ]

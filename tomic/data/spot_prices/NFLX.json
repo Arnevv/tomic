@@ -8958,5 +8958,12 @@
     "close": 110,
     "volume": 31900095.0,
     "atr": null
+  },
+  {
+    "symbol": "NFLX",
+    "date": "2025-11-20",
+    "close": 105.67,
+    "volume": 36906619.0,
+    "atr": null
   }
 ]
