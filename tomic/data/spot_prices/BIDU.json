@@ -8888,5 +8888,12 @@
     "close": 110.45,
     "volume": 4846581.0,
     "atr": null
+  },
+  {
+    "symbol": "BIDU",
+    "date": "2025-11-21",
+    "close": 110.95,
+    "volume": 2771779.0,
+    "atr": null
   }
 ]

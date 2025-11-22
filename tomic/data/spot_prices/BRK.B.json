@@ -8888,5 +8888,12 @@
     "close": 501.12,
     "volume": 5485791.0,
     "atr": null
+  },
+  {
+    "symbol": "BRK.B",
+    "date": "2025-11-21",
+    "close": 504.04,
+    "volume": 6058108.0,
+    "atr": null
   }
 ]

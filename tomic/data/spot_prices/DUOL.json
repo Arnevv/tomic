@@ -7600,5 +7600,12 @@
     "close": 168.01,
     "volume": 1671960.0,
     "atr": null
+  },
+  {
+    "symbol": "DUOL",
+    "date": "2025-11-21",
+    "close": 172.78,
+    "volume": 2157113.0,
+    "atr": null
   }
 ]
