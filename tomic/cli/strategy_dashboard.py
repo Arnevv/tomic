@@ -97,7 +97,6 @@ def print_strategy_full(strategy, *, details: bool = False):
     hv = strategy.get("hv_entry")
     ivr = strategy.get("ivrank_entry")
     ivp = strategy.get("ivpct_entry")
-    vix = strategy.get("vix_entry")
     skew = strategy.get("skew_entry")
     term = strategy.get("term_slope")
     atr = strategy.get("atr_entry")
@@ -109,8 +108,6 @@ def print_strategy_full(strategy, *, details: bool = False):
         parts_main.append(f"IV Rank: {ivr * 100:.1f}")
     if ivp is not None:
         parts_main.append(f"IV Pctl: {ivp * 100:.1f}")
-    if vix is not None:
-        parts_extra.append(f"VIX {vix:.2f}")
     if skew is not None:
         parts_extra.append(f"Skew {skew*100:.1f}bp")
     if term is not None:

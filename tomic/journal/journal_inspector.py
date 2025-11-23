@@ -59,7 +59,6 @@ def toon_details(trade: Dict[str, Any]) -> None:
         "IV_Entry",
         "HV_Entry",
         "DaysInTrade",
-        "VIX",
         "ATR_14",
         "Skew",
     ]
@@ -228,7 +227,6 @@ def snapshot_input(trade: Dict[str, Any]) -> None:
         ivr_val /= 100
     snapshot["iv_rank"] = ivr_val
     snapshot["hv30"] = float_input("HV30: ")
-    snapshot["vix"] = float_input("VIX: ")
     snapshot["atr14"] = float_input("ATR(14): ")
     iv_call = float_input("IV 25D CALL: ")
     iv_put = float_input("IV 25D PUT: ")

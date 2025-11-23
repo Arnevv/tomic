@@ -104,8 +104,6 @@ class GateRules(BaseModel):
     iv_rank_max: float | None = None
     iv_percentile_min: float | None = None
     iv_percentile_max: float | None = None
-    vix_min: float | None = None
-    vix_max: float | None = None
     term_m1_m3_min: float | None = None
     term_m1_m3_max: float | None = None
 

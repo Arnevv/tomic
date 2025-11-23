@@ -93,8 +93,6 @@ def test_show_market_info(monkeypatch, tmp_path):
 
     mod.MARKET_SNAPSHOT_SERVICE = mod.MarketSnapshotService(mod.cfg)
 
-    monkeypatch.setattr(mod, "fetch_volatility_metrics", lambda *a, **k: {"vix": 19.5})
-
     rec = {
         "symbol": "AAA",
         "spot": 100.0,
@@ -144,7 +142,6 @@ def test_show_market_info(monkeypatch, tmp_path):
 
     assert any("2030-01-01" in line for line in prints)
     assert any("short_put_spread" in line for line in prints)
-    assert any("VIX" in line for line in prints)
 
 
 def test_market_info_polygon_scan(monkeypatch, tmp_path):
@@ -187,12 +184,6 @@ def test_market_info_polygon_scan(monkeypatch, tmp_path):
                 )
             ],
         ),
-    )
-
-    monkeypatch.setattr(
-        mod,
-        "fetch_volatility_metrics",
-        lambda *a, **k: {"vix": 19.5},
     )
 
     rec = {
@@ -366,12 +357,6 @@ def test_market_info_polygon_scan_existing_dir(monkeypatch, tmp_path):
         ),
     )
 
-    monkeypatch.setattr(
-        mod,
-        "fetch_volatility_metrics",
-        lambda *a, **k: {"vix": 19.5},
-    )
-
     rec = {
         "symbol": "AAA",
         "spot": 100.0,
@@ -540,12 +525,6 @@ def test_market_info_reports_earnings_filter(monkeypatch):
                 )
             ],
         ),
-    )
-
-    monkeypatch.setattr(
-        mod,
-        "fetch_volatility_metrics",
-        lambda *a, **k: {"vix": 20.1},
     )
 
     monkeypatch.setattr(

@@ -15,36 +15,6 @@ def _asdict(model: BaseModel) -> Dict[str, Any]:
     return model.dict()
 
 
-class VixJsonApiConfig(BaseModel):
-    """Configuration for fetching the VIX from a JSON or CSV endpoint."""
-
-    url: str = ""
-    field: str | None = None
-    format: str = "json"
-    headers: Dict[str, str] = {}
-    name: str = "json_api"
-
-
-class VixConfig(BaseModel):
-    """Configuration for orchestrating VIX providers."""
-
-    provider_order: List[str] = [
-        "ibkr",
-        "json_api",
-        "yahoo_json",
-        "barchart_html",
-        "yahoo_html",
-        "google_html",
-        "manual",
-    ]
-    daily_store: str = "data/vix/daily_vix.csv"
-    http_timeout_sec: float = 3.0
-    http_retries: int = 0
-    ib_timeout_sec: float = 3.0
-    ib_exchanges: List[str] = ["CBOE"]
-    json_api: Optional[VixJsonApiConfig] = None
-
-
 class AppConfig(BaseModel):
     """Typed configuration loaded from YAML or environment."""
 
@@ -52,13 +22,6 @@ class AppConfig(BaseModel):
 
     # Allow tuning of the exit flow through ``config.yaml``.
     EXIT_ORDER_OPTIONS: Dict[str, Any] = {}
-
-    VIX_PRICE_POLICY: str = "last_known"
-    VIX_EXCHANGES: List[str] = ["CBOE"]
-    VIX_RTH_TIMEOUT_MS: int = 5000
-    VIX_OFFHOURS_TIMEOUT_MS: int = 5000
-    VIX_LOG_TICK_SOURCE: bool = True
-    VIX_MEMORY_TTL_SECONDS: int = 0
 
     POSITIONS_FILE: str = "positions.json"
     ACCOUNT_INFO_FILE: str = "account_info.json"
@@ -122,10 +85,6 @@ class AppConfig(BaseModel):
     CONTRACT_DETAILS_RETRIES: int = 0
     DOWNLOAD_TIMEOUT: int = 10
     DOWNLOAD_RETRIES: int = 2
-    VIX_TIMEOUT: int = 3
-    VIX_RETRIES: int = 1
-    VIX_SOURCE_ORDER: List[str] = ["yahoo_json", "google_html", "yahoo_html"]
-    VIX: VixConfig = VixConfig()
     BID_ASK_TIMEOUT: int = 5
     MARKET_DATA_TIMEOUT: int = 120
     OPTION_DATA_RETRIES: int = 0
@@ -339,9 +298,6 @@ def load_config() -> AppConfig:
 
     defaults = _asdict(AppConfig())
     cfg = {**defaults, **data}
-    # Support lowercase ``vix`` section in YAML configuration files
-    if "vix" in data and "VIX" not in data:
-        cfg["VIX"] = data["vix"]
 
     configured_symbols = data.get("DEFAULT_SYMBOLS")
     if isinstance(configured_symbols, list):
