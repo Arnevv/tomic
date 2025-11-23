@@ -202,7 +202,13 @@ class OratsBackfillFlow:
     def _calculate_metrics(
         self, ticker: str, rows: list[dict[str, str]]
     ) -> OratsRecord | None:
-        """Calculate ATM IV, term structure, and skew from ORATS rows."""
+        """Calculate ATM IV, term structure, and skew from ORATS rows.
+
+        Calculations aligned with Polygon methodology (compute_volstats_polygon.py):
+        - ATM IV: ±3% tolerance (was ±2%)
+        - Term structure: Expiration-based grouping with (M1-M2) sign convention
+        - Skew: Delta-based selection (δ ≈ ±0.25) with strike-based fallback
+        """
         if not rows:
             return None
 
@@ -236,98 +242,150 @@ class OratsBackfillFlow:
             logger.warning(f"Ongeldige spot prijs voor {ticker}: {spot_price}")
             return None
 
-        # Calculate ATM IV (±2% moneyness, 30-60 DTE)
-        atm_ivs = []
+        # Calculate ATM IV (±3% moneyness to match Polygon)
+        # Group by expiration date and average ATM strikes per expiration
+        exp_atm_ivs: dict[str, list[float]] = {}
+        tolerance = max(spot_price * 0.03, 2.0)
+
         for row in rows:
             try:
                 strike = float(row.get("strike", 0))
                 yte = float(row.get("yte", 0))
                 smv_vol = row.get("smoothSmvVol", "").strip()
+                exp_date = row.get("expirDate", "").strip()
 
                 if not smv_vol or smv_vol == "" or smv_vol == "null":
                     continue
-
-                iv = float(smv_vol)
-
-                # Calculate moneyness
-                moneyness = strike / spot_price
-                dte = yte * 365
-
-                # ATM criteria: ±2% moneyness, 30-60 DTE
-                if 0.98 <= moneyness <= 1.02 and 30 <= dte <= 60:
-                    atm_ivs.append(iv)
-            except (ValueError, TypeError):
-                continue
-
-        atm_iv = sum(atm_ivs) / len(atm_ivs) if atm_ivs else None
-
-        # Calculate term structure (M1, M2, M3)
-        term_ivs = {"M1": [], "M2": [], "M3": []}
-        for row in rows:
-            try:
-                strike = float(row.get("strike", 0))
-                yte = float(row.get("yte", 0))
-                smv_vol = row.get("smoothSmvVol", "").strip()
-
-                if not smv_vol or smv_vol == "" or smv_vol == "null":
+                if not exp_date:
                     continue
 
                 iv = float(smv_vol)
-
-                moneyness = strike / spot_price
                 dte = yte * 365
 
-                # ATM strikes for term structure
-                if 0.98 <= moneyness <= 1.02:
-                    if 30 <= dte <= 45:
-                        term_ivs["M1"].append(iv)
-                    elif 45 <= dte <= 75:
-                        term_ivs["M2"].append(iv)
-                    elif 75 <= dte <= 120:
-                        term_ivs["M3"].append(iv)
+                # ATM criteria: ±3% tolerance (matching Polygon)
+                if abs(strike - spot_price) <= tolerance:
+                    if exp_date not in exp_atm_ivs:
+                        exp_atm_ivs[exp_date] = []
+                    exp_atm_ivs[exp_date].append(iv)
             except (ValueError, TypeError):
                 continue
 
-        m1 = sum(term_ivs["M1"]) / len(term_ivs["M1"]) if term_ivs["M1"] else None
-        m2 = sum(term_ivs["M2"]) / len(term_ivs["M2"]) if term_ivs["M2"] else None
-        m3 = sum(term_ivs["M3"]) / len(term_ivs["M3"]) if term_ivs["M3"] else None
+        # Average all ATM IVs across all expirations for overall ATM IV
+        all_atm_ivs = [iv for ivs in exp_atm_ivs.values() for iv in ivs]
+        atm_iv = sum(all_atm_ivs) / len(all_atm_ivs) if all_atm_ivs else None
 
-        term_m1_m2 = round((m2 - m1) * 100, 2) if m1 and m2 else None
-        term_m1_m3 = round((m3 - m1) * 100, 2) if m1 and m3 else None
+        # Calculate term structure using expiration-based grouping (matching Polygon)
+        # Use the same exp_atm_ivs we already calculated above, or rebuild if needed
+        if not exp_atm_ivs:
+            # Rebuild if ATM IV calculation was skipped
+            for row in rows:
+                try:
+                    strike = float(row.get("strike", 0))
+                    smv_vol = row.get("smoothSmvVol", "").strip()
+                    exp_date = row.get("expirDate", "").strip()
 
-        # Calculate skew (OTM puts vs OTM calls)
-        put_ivs = []
-        call_ivs = []
+                    if not smv_vol or smv_vol == "" or smv_vol == "null":
+                        continue
+                    if not exp_date:
+                        continue
+
+                    iv = float(smv_vol)
+
+                    # ATM criteria: ±3% tolerance
+                    if abs(strike - spot_price) <= tolerance:
+                        if exp_date not in exp_atm_ivs:
+                            exp_atm_ivs[exp_date] = []
+                        exp_atm_ivs[exp_date].append(iv)
+                except (ValueError, TypeError):
+                    continue
+
+        # Sort expirations and take first 3
+        sorted_exps = sorted(exp_atm_ivs.keys())
+        exp_avgs: list[float] = []
+        for exp in sorted_exps[:3]:
+            ivs = exp_atm_ivs[exp]
+            if ivs:
+                exp_avgs.append(sum(ivs) / len(ivs))
+
+        # Term structure: (first - second) matching Polygon's sign convention
+        term_m1_m2 = round((exp_avgs[0] - exp_avgs[1]) * 100, 2) if len(exp_avgs) >= 2 else None
+        term_m1_m3 = round((exp_avgs[0] - exp_avgs[2]) * 100, 2) if len(exp_avgs) >= 3 else None
+
+        # Calculate skew using delta-based selection (matching Polygon)
+        # Primary: Delta-based (target δ ≈ ±0.25)
+        # Fallback: Strike-based (Puts 85%, Calls 115%)
+        call_iv: float | None = None
+        put_iv: float | None = None
+        call_delta_err = float("inf")
+        put_delta_err = float("inf")
+        call_strike_err = float("inf")
+        put_strike_err = float("inf")
+
+        target_call = spot_price * 1.15
+        target_put = spot_price * 0.85
+
         for row in rows:
             try:
                 strike = float(row.get("strike", 0))
-                yte = float(row.get("yte", 0))
                 p_mid_iv = row.get("pMidIv", "").strip()
                 c_mid_iv = row.get("cMidIv", "").strip()
+                p_delta = row.get("pDelta", "").strip()
+                c_delta = row.get("cDelta", "").strip()
 
-                moneyness = strike / spot_price
-                dte = yte * 365
+                # Try delta-based selection first
+                if p_delta and p_delta != "null" and p_mid_iv and p_mid_iv != "null":
+                    try:
+                        delta_val = float(p_delta)
+                        iv_val = float(p_mid_iv)
+                        # Target delta around -0.25 (range -0.30 to -0.20)
+                        err = abs(delta_val + 0.25)
+                        if err < put_delta_err:
+                            put_delta_err = err
+                            put_iv = iv_val
+                    except ValueError:
+                        pass
 
-                # Use strikes around 30-60 DTE
-                if 30 <= dte <= 60:
-                    # OTM puts: 90-95% moneyness
-                    if 0.90 <= moneyness <= 0.95 and p_mid_iv and p_mid_iv != "null":
-                        try:
-                            put_ivs.append(float(p_mid_iv))
-                        except ValueError:
-                            pass
-                    # OTM calls: 105-110% moneyness
-                    if 1.05 <= moneyness <= 1.10 and c_mid_iv and c_mid_iv != "null":
-                        try:
-                            call_ivs.append(float(c_mid_iv))
-                        except ValueError:
-                            pass
+                if c_delta and c_delta != "null" and c_mid_iv and c_mid_iv != "null":
+                    try:
+                        delta_val = float(c_delta)
+                        iv_val = float(c_mid_iv)
+                        # Target delta around +0.25 (range 0.20 to 0.30)
+                        err = abs(delta_val - 0.25)
+                        if err < call_delta_err:
+                            call_delta_err = err
+                            call_iv = iv_val
+                    except ValueError:
+                        pass
+
+                # Fallback: Strike-based selection
+                if p_mid_iv and p_mid_iv != "null":
+                    try:
+                        iv_val = float(p_mid_iv)
+                        diff = abs(strike - target_put)
+                        if diff < put_strike_err:
+                            put_strike_err = diff
+                            # Only update if we don't have delta-based selection
+                            if put_delta_err == float("inf"):
+                                put_iv = iv_val
+                    except ValueError:
+                        pass
+
+                if c_mid_iv and c_mid_iv != "null":
+                    try:
+                        iv_val = float(c_mid_iv)
+                        diff = abs(strike - target_call)
+                        if diff < call_strike_err:
+                            call_strike_err = diff
+                            # Only update if we don't have delta-based selection
+                            if call_delta_err == float("inf"):
+                                call_iv = iv_val
+                    except ValueError:
+                        pass
+
             except (ValueError, TypeError):
                 continue
 
-        avg_put_iv = sum(put_ivs) / len(put_ivs) if put_ivs else None
-        avg_call_iv = sum(call_ivs) / len(call_ivs) if call_ivs else None
-        skew = round((avg_put_iv - avg_call_iv) * 100, 2) if avg_put_iv and avg_call_iv else None
+        skew = round((put_iv - call_iv) * 100, 2) if put_iv and call_iv else None
 
         return OratsRecord(
             ticker=ticker,
