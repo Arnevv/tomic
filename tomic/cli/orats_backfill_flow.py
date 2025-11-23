@@ -26,6 +26,7 @@ from tomic.cli.services.vol_helpers import (
 from tomic.helpers.json_utils import dump_json
 from tomic.journal.utils import load_json
 from tomic.logutils import logger
+from tomic.utils import _is_third_friday
 
 try:
     from tabulate import tabulate
@@ -72,6 +73,8 @@ class OratsRecord:
     """Single row from ORATS CSV with calculated metrics.
 
     Metrics aligned with Polygon methodology:
+    - Expiration filtering: Only Third Friday expirations (matching Polygon)
+    - Deduplication: Remove duplicate (strike, type) combinations
     - ATM IV: Single ATM call from front month (13-48 DTE)
     - Term structure: M1-M2 and M1-M3 using single ATM calls per month
     - Skew: Delta ±0.25 from front month only
@@ -220,6 +223,8 @@ class OratsBackfillFlow:
         """Calculate ATM IV, term structure, and skew from ORATS rows.
 
         ALIGNED WITH POLYGON METHODOLOGY (polygon_iv.py):
+        - Expiration selection: Only Third Friday expirations (13-48 DTE for front month)
+        - Deduplication: Remove duplicate (strike, type) combinations
         - ATM IV: Single ATM call from front month (13-48 DTE)
         - Term structure: M1-M2 and M1-M3 using single ATM calls per month
         - Skew: Delta ±0.25 from front month only (not all expirations)
@@ -297,6 +302,50 @@ class OratsBackfillFlow:
         if not exp_groups:
             logger.warning(f"Geen geldige expirations voor {ticker}")
             return None
+
+        # ================================================================
+        # STEP 1.5: Filter to only Third Friday expirations (matching Polygon)
+        # ================================================================
+        third_friday_groups = {}
+        third_friday_dte = {}
+
+        for exp_date, rows in exp_groups.items():
+            # Parse expiration date to check if it's a third Friday
+            for date_format in ["%Y%m%d", "%m/%d/%Y", "%d/%m/%Y", "%Y-%m-%d"]:
+                try:
+                    exp_dt = datetime.strptime(exp_date, date_format).date()
+                    if _is_third_friday(exp_dt):
+                        third_friday_groups[exp_date] = rows
+                        third_friday_dte[exp_date] = exp_dte[exp_date]
+                    break
+                except ValueError:
+                    continue
+
+        if not third_friday_groups:
+            logger.warning(
+                f"Geen Third Friday expirations voor {ticker} - alleen weeklies beschikbaar"
+            )
+            return None
+
+        logger.info(
+            f"Filtered {len(exp_groups)} expirations to {len(third_friday_groups)} Third Fridays"
+        )
+
+        # Use only third Friday expirations from here on
+        exp_groups = third_friday_groups
+        exp_dte = third_friday_dte
+
+        # ================================================================
+        # STEP 1.75: Deduplicate rows for each expiration (matching Polygon)
+        # ================================================================
+        for exp_date in exp_groups:
+            original_count = len(exp_groups[exp_date])
+            exp_groups[exp_date] = self._deduplicate_rows(exp_groups[exp_date])
+            dedup_count = len(exp_groups[exp_date])
+            if original_count != dedup_count:
+                logger.info(
+                    f"Deduplicated {exp_date}: {original_count} -> {dedup_count} rows"
+                )
 
         # ================================================================
         # STEP 2: Select front month (13-48 DTE, like Polygon)
@@ -515,6 +564,40 @@ class OratsBackfillFlow:
             return round((put_iv - call_iv) * 100, 2)
 
         return None
+
+    def _deduplicate_rows(self, rows: list[dict[str, str]]) -> list[dict[str, str]]:
+        """Deduplicate rows by (strike, option_type) combination.
+
+        When multiple rows exist for the same strike and type, keep the last one
+        in the CSV (simulating Polygon's deduplication by latest timestamp).
+
+        This matches Polygon's deduplication logic in polygon_iv.py:389-463.
+        """
+        seen: dict[tuple[float, str], dict[str, str]] = {}
+
+        for row in rows:
+            try:
+                strike = float(row.get("strike", 0))
+
+                # Determine option type based on which IV fields are populated
+                c_mid_iv = row.get("cMidIv", "").strip()
+                p_mid_iv = row.get("pMidIv", "").strip()
+
+                # Create entries for both call and put if both exist
+                if c_mid_iv and c_mid_iv != "null":
+                    key = (strike, "call")
+                    seen[key] = row
+
+                if p_mid_iv and p_mid_iv != "null":
+                    key = (strike, "put")
+                    seen[key] = row
+
+            except (ValueError, TypeError):
+                # Skip rows with invalid strike prices
+                continue
+
+        # Return deduplicated rows
+        return list(seen.values())
 
     def _merge_records(
         self, symbol: str, new_records: list[OratsRecord]
