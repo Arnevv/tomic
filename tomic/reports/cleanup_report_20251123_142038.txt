@@ -1,0 +1,52 @@
+================================================================================
+MarketChameleon IV Data Cleanup Report
+================================================================================
+Generated: 2025-11-23 14:20:38
+Mode: PRODUCTION
+
+SUMMARY
+--------------------------------------------------------------------------------
+Total files found:          158
+Files processed:            50
+Files skipped:              108
+Files with errors:          0
+Total MC entries removed:   166933
+Total Polygon kept:         2481
+Disk space before:          10.07 MB
+Disk space after:           0.51 MB
+Disk space saved:           9.56 MB (95.0%)
+
+TOP 20 SYMBOLS BY MC ENTRIES REMOVED
+--------------------------------------------------------------------------------
+Symbol     Original  MC Removed  Polygon  % Reduced  Size Before  Size After
+--------------------------------------------------------------------------------
+AMAT           5744        5728       16      99.7%      340.4 KB        3.4 KB
+ADBE           5743        5727       16      99.7%      340.2 KB        3.5 KB
+ACN            5742        5726       16      99.7%      339.9 KB        3.3 KB
+AEP            5744        5645       99      98.3%      352.7 KB       20.7 KB
+AMT            5744        5645       99      98.3%      353.3 KB       20.8 KB
+BMY            5744        5645       99      98.3%      353.5 KB       20.6 KB
+AMGN           5743        5644       99      98.3%      352.9 KB       20.6 KB
+CAT            5743        5644       99      98.3%      351.8 KB       20.6 KB
+CVS            5743        5644       99      98.3%      352.5 KB       20.5 KB
+CVX            5743        5644       99      98.3%      353.2 KB       20.7 KB
+C              5742        5643       99      98.3%      353.7 KB       20.6 KB
+CL             5742        5643       99      98.3%      353.0 KB       20.4 KB
+AXP            5741        5642       99      98.3%      353.5 KB       20.7 KB
+D              5741        5642       99      98.3%      353.0 KB       20.5 KB
+BA             5742        5641      101      98.2%      353.0 KB       21.1 KB
+BAC            5741        5640      101      98.2%      353.3 KB       21.0 KB
+COST           5739        5638      101      98.2%      352.7 KB       21.0 KB
+NVDA           5741        5637      104      98.2%      352.9 KB       21.7 KB
+AMD            5735        5634      101      98.2%      352.0 KB       21.1 KB
+DAL            5354        5338       16      99.7%      317.0 KB        3.4 KB
+
+BACKUP INFORMATION
+--------------------------------------------------------------------------------
+Backup location: tomic/data/iv_daily_summary/backup_20251123_142038
+Backup verified: ✓ MD5 checksums match for random samples
+
+Rollback command:
+  python cleanup_mc_iv_data.py --rollback backup_20251123_142038
+
+================================================================================
