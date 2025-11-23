@@ -212,10 +212,16 @@ class OratsBackfillFlow:
             logger.warning(f"Geen trade_date gevonden voor {ticker}")
             return None
 
-        # Parse date to YYYY-MM-DD
-        try:
-            parsed_date = datetime.strptime(trade_date, "%Y%m%d").strftime("%Y-%m-%d")
-        except ValueError:
+        # Parse date to YYYY-MM-DD - try multiple formats
+        parsed_date = None
+        for date_format in ["%Y%m%d", "%m/%d/%Y", "%d/%m/%Y", "%Y-%m-%d"]:
+            try:
+                parsed_date = datetime.strptime(trade_date, date_format).strftime("%Y-%m-%d")
+                break
+            except ValueError:
+                continue
+
+        if not parsed_date:
             logger.warning(f"Ongeldige datum voor {ticker}: {trade_date}")
             return None
 
