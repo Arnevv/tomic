@@ -205,6 +205,17 @@ def _load_env(path: Path) -> Dict[str, Any]:
     return data
 
 
+def load_env_file(path: Path | None = None) -> None:
+    """Populate ``os.environ`` with values from a ``.env`` file."""
+
+    target = Path(path) if path else _BASE_DIR / ".env"
+    if not target.exists():
+        return
+
+    for key, value in _load_env(target).items():
+        os.environ.setdefault(key, value)
+
+
 def _load_yaml(path: Path) -> Dict[str, Any]:
     """Load configuration from a YAML file.
 
