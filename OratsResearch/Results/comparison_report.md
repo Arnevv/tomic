@@ -4,20 +4,18 @@
 **Symbolen:** AAPL, MSFT, NVDA, SPY, TSLA
 **Totaal vergelijkingen:** 15
 
-## 🏆 Overall Winner: **ORATS ✓**
+## 🏆 Overall Winner: **NEEDS REVIEW ⚠**
 
 | Metric | ORATS | Polygon | Status |
 |--------|-------|---------|--------|
 | Completeness | 100.0% | 100% | ✓ PASS |
-| ATM IV Accuracy | Δ0.14% | - | ✓ PASS |
+| ATM IV Accuracy | Δ1.96% | - | ✗ FAIL |
 | Skew Consistency | 15/15 ✓ | - | ✓ PASS |
 
-### ✅ Acceptatie: **GO** voor ORATS integratie
+### ⚠ Acceptatie: **REVIEW VEREIST**
 
-**Reden:**
-- Voldoet aan alle harde criteria (≥95% completeness, ≤0.5% IV diff)
-- Skew logica consistent in minimaal 90% van gevallen
-- Data kwaliteit gelijkwaardig of beter dan Polygon
+**Issues:**
+- ✗ ATM IV verschil 1.96% > 0.5% vereist
 
 ## Detailed Breakdown
 
@@ -49,12 +47,12 @@
 
 - Gemiddeld 50 strikes per dag
 - Completeness: 100.0%
-- ATM IV Δ: 0.10% gemiddeld
+- ATM IV Δ: 9.20% gemiddeld
 
 | Date | Strikes | Completeness | ATM IV (ORATS) | ATM IV (Polygon) | Δ | Skew OK |
 |------|---------|--------------|----------------|------------------|---|----------|
-| 2025-11-19 | 50 | 100.0% | 26.5% | 26.6% | 0.17% | ✓ |
-| 2025-11-20 | 50 | 100.0% | 51.8% | 51.8% | 0.01% | ✓ |
+| 2025-11-19 | 50 | 100.0% | 26.5% | 53.6% | 27.17% | ✓ |
+| 2025-11-20 | 50 | 100.0% | 51.8% | 52.2% | 0.32% | ✓ |
 | 2025-11-21 | 50 | 100.0% | 48.3% | 48.4% | 0.12% | ✓ |
 
 ### SPY (3 dagen)
@@ -83,11 +81,10 @@
 
 ## 🚩 Red Flags
 
-**NONE** - All validation criteria passed ✓
+- **ATM IV deviation:** 1.96% average difference (target: ≤0.5%)
 
 ## 📈 Recommendation
 
-**Proceed met ORATS backfill vanaf 2022.**
+**Onderzoek data kwaliteit issues voordat je verdergaat.**
 
-ORATS data voldoet aan alle kwaliteitscriteria en is geschikt als primaire IV-bron.
-Deprecate MC-data zodra ORATS 2-jarige historie complete is.
+Los de geïdentificeerde red flags op voordat ORATS in productie gaat.
