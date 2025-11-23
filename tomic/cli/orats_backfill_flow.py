@@ -17,6 +17,12 @@ import yaml
 
 from tomic import config as cfg
 from tomic.cli.common import prompt, prompt_yes_no
+from tomic.cli.services.vol_helpers import (
+    _get_closes,
+    iv_percentile,
+    iv_rank,
+    rolling_hv,
+)
 from tomic.helpers.json_utils import dump_json
 from tomic.journal.utils import load_json
 from tomic.logutils import logger
@@ -63,7 +69,14 @@ except Exception:
 
 @dataclass
 class OratsRecord:
-    """Single row from ORATS CSV with calculated metrics."""
+    """Single row from ORATS CSV with calculated metrics.
+
+    Metrics aligned with Polygon methodology:
+    - ATM IV: Single ATM call from front month (13-48 DTE)
+    - Term structure: M1-M2 and M1-M3 using single ATM calls per month
+    - Skew: Delta ±0.25 from front month only
+    - IV Rank/Percentile: Based on 30-day rolling HV
+    """
 
     ticker: str
     date: str
@@ -71,6 +84,8 @@ class OratsRecord:
     term_m1_m2: float | None
     term_m1_m3: float | None
     skew: float | None
+    iv_rank: float | None
+    iv_percentile: float | None
 
 
 @dataclass
@@ -204,10 +219,11 @@ class OratsBackfillFlow:
     ) -> OratsRecord | None:
         """Calculate ATM IV, term structure, and skew from ORATS rows.
 
-        Calculations aligned with Polygon methodology (compute_volstats_polygon.py):
-        - ATM IV: ±3% tolerance (was ±2%)
-        - Term structure: Expiration-based grouping with (M1-M2) sign convention
-        - Skew: Delta-based selection (δ ≈ ±0.25) with strike-based fallback
+        ALIGNED WITH POLYGON METHODOLOGY (polygon_iv.py):
+        - ATM IV: Single ATM call from front month (13-48 DTE)
+        - Term structure: M1-M2 and M1-M3 using single ATM calls per month
+        - Skew: Delta ±0.25 from front month only (not all expirations)
+        - IV Rank/Percentile: Based on 30-day rolling HV
         """
         if not rows:
             return None
@@ -220,14 +236,16 @@ class OratsBackfillFlow:
 
         # Parse date to YYYY-MM-DD - try multiple formats
         parsed_date = None
+        trade_dt = None
         for date_format in ["%Y%m%d", "%m/%d/%Y", "%d/%m/%Y", "%Y-%m-%d"]:
             try:
-                parsed_date = datetime.strptime(trade_date, date_format).strftime("%Y-%m-%d")
+                trade_dt = datetime.strptime(trade_date, date_format)
+                parsed_date = trade_dt.strftime("%Y-%m-%d")
                 break
             except ValueError:
                 continue
 
-        if not parsed_date:
+        if not parsed_date or not trade_dt:
             logger.warning(f"Ongeldige datum voor {ticker}: {trade_date}")
             return None
 
@@ -242,78 +260,186 @@ class OratsBackfillFlow:
             logger.warning(f"Ongeldige spot prijs voor {ticker}: {spot_price}")
             return None
 
-        # Calculate ATM IV (±3% moneyness to match Polygon)
-        # Group by expiration date and average ATM strikes per expiration
-        exp_atm_ivs: dict[str, list[float]] = {}
-        tolerance = max(spot_price * 0.03, 2.0)
+        # ================================================================
+        # STEP 1: Group rows by expiration and calculate DTE
+        # ================================================================
+        exp_groups: dict[str, list[dict[str, str]]] = {}
+        exp_dte: dict[str, float] = {}
+
+        for row in rows:
+            exp_date = row.get("expirDate", "").strip()
+            if not exp_date:
+                continue
+
+            # Parse expiration date
+            exp_dt = None
+            for date_format in ["%Y%m%d", "%m/%d/%Y", "%d/%m/%Y", "%Y-%m-%d"]:
+                try:
+                    exp_dt = datetime.strptime(exp_date, date_format)
+                    break
+                except ValueError:
+                    continue
+
+            if not exp_dt:
+                continue
+
+            # Calculate DTE
+            dte = (exp_dt - trade_dt).days
+            if dte < 0:  # Skip expired options
+                continue
+
+            if exp_date not in exp_groups:
+                exp_groups[exp_date] = []
+                exp_dte[exp_date] = dte
+
+            exp_groups[exp_date].append(row)
+
+        if not exp_groups:
+            logger.warning(f"Geen geldige expirations voor {ticker}")
+            return None
+
+        # ================================================================
+        # STEP 2: Select front month (13-48 DTE, like Polygon)
+        # ================================================================
+        front_month = None
+        for exp_date in sorted(exp_groups.keys(), key=lambda x: exp_dte[x]):
+            dte = exp_dte[exp_date]
+            if 13 <= dte <= 48:
+                front_month = exp_date
+                break
+
+        if not front_month:
+            logger.warning(f"Geen expiration tussen 13-48 DTE voor {ticker}")
+            return None
+
+        # ================================================================
+        # STEP 3: Select M2 and M3 (next two monthly expirations)
+        # ================================================================
+        sorted_exps = sorted(exp_groups.keys(), key=lambda x: exp_dte[x])
+        front_idx = sorted_exps.index(front_month)
+
+        month2 = sorted_exps[front_idx + 1] if front_idx + 1 < len(sorted_exps) else None
+        month3 = sorted_exps[front_idx + 2] if front_idx + 2 < len(sorted_exps) else None
+
+        # ================================================================
+        # STEP 4: Extract ATM call from front month (like Polygon)
+        # ================================================================
+        atm_iv = self._extract_atm_call(exp_groups[front_month], spot_price)
+
+        # ================================================================
+        # STEP 5: Extract ATM calls from M2 and M3 for term structure
+        # ================================================================
+        iv_month2 = None
+        iv_month3 = None
+
+        if month2:
+            iv_month2 = self._extract_atm_call(exp_groups[month2], spot_price)
+
+        if month3:
+            iv_month3 = self._extract_atm_call(exp_groups[month3], spot_price)
+
+        # Term structure: M1-M2 and M1-M3 (matching Polygon formula)
+        term_m1_m2 = None
+        term_m1_m3 = None
+
+        if atm_iv is not None and iv_month2 is not None:
+            term_m1_m2 = round((atm_iv - iv_month2) * 100, 2)
+
+        if atm_iv is not None and iv_month3 is not None:
+            term_m1_m3 = round((atm_iv - iv_month3) * 100, 2)
+
+        # ================================================================
+        # STEP 6: Extract skew from FRONT MONTH ONLY (matching Polygon)
+        # ================================================================
+        skew = self._extract_skew(exp_groups[front_month], spot_price)
+
+        # ================================================================
+        # STEP 7: Calculate IV Rank and Percentile (NEW!)
+        # ================================================================
+        iv_rank_value = None
+        iv_percentile_value = None
+
+        if atm_iv is not None:
+            try:
+                closes = _get_closes(ticker)
+                if closes:
+                    hv_series = rolling_hv(closes, 30)
+                    if hv_series:
+                        # Scale IV to percentage for comparison with HV
+                        scaled_iv = atm_iv * 100
+                        iv_rank_value = iv_rank(scaled_iv, hv_series)
+                        iv_percentile_value = iv_percentile(scaled_iv, hv_series)
+
+                        # Normalize if needed (matching Polygon logic)
+                        if isinstance(iv_rank_value, (int, float)) and iv_rank_value > 1:
+                            iv_rank_value /= 100
+                        if isinstance(iv_percentile_value, (int, float)) and iv_percentile_value > 1:
+                            iv_percentile_value /= 100
+            except Exception as exc:
+                logger.warning(f"IV rank/percentile berekening mislukt voor {ticker}: {exc}")
+
+        return OratsRecord(
+            ticker=ticker,
+            date=parsed_date,
+            atm_iv=atm_iv,
+            term_m1_m2=term_m1_m2,
+            term_m1_m3=term_m1_m3,
+            skew=skew,
+            iv_rank=iv_rank_value,
+            iv_percentile=iv_percentile_value,
+        )
+
+    def _extract_atm_call(
+        self, rows: list[dict[str, str]], spot_price: float
+    ) -> float | None:
+        """Extract single ATM call IV (closest to spot, matching Polygon).
+
+        Follows IVExtractor.extract_atm_call from polygon_iv.py:
+        - Only call options
+        - Find strike closest to spot
+        - Filter out extreme deltas (< 0.05 or > 0.95)
+        """
+        atm_iv = None
+        atm_err = float("inf")
 
         for row in rows:
             try:
                 strike = float(row.get("strike", 0))
-                yte = float(row.get("yte", 0))
-                smv_vol = row.get("smoothSmvVol", "").strip()
-                exp_date = row.get("expirDate", "").strip()
+                c_mid_iv = row.get("cMidIv", "").strip()
+                c_delta = row.get("cDelta", "").strip()
 
-                if not smv_vol or smv_vol == "" or smv_vol == "null":
-                    continue
-                if not exp_date:
+                if not c_mid_iv or c_mid_iv == "null":
                     continue
 
-                iv = float(smv_vol)
-                dte = yte * 365
+                iv_val = float(c_mid_iv)
 
-                # ATM criteria: ±3% tolerance (matching Polygon)
-                if abs(strike - spot_price) <= tolerance:
-                    if exp_date not in exp_atm_ivs:
-                        exp_atm_ivs[exp_date] = []
-                    exp_atm_ivs[exp_date].append(iv)
+                # Delta filtering (matching Polygon)
+                if c_delta and c_delta != "null":
+                    delta_val = float(c_delta)
+                    if delta_val < 0.05 or delta_val > 0.95:
+                        continue
+
+                # Find closest strike to spot
+                diff = abs(strike - spot_price)
+                if diff < atm_err:
+                    atm_err = diff
+                    atm_iv = iv_val
+
             except (ValueError, TypeError):
                 continue
 
-        # Average all ATM IVs across all expirations for overall ATM IV
-        all_atm_ivs = [iv for ivs in exp_atm_ivs.values() for iv in ivs]
-        atm_iv = sum(all_atm_ivs) / len(all_atm_ivs) if all_atm_ivs else None
+        return atm_iv
 
-        # Calculate term structure using expiration-based grouping (matching Polygon)
-        # Use the same exp_atm_ivs we already calculated above, or rebuild if needed
-        if not exp_atm_ivs:
-            # Rebuild if ATM IV calculation was skipped
-            for row in rows:
-                try:
-                    strike = float(row.get("strike", 0))
-                    smv_vol = row.get("smoothSmvVol", "").strip()
-                    exp_date = row.get("expirDate", "").strip()
+    def _extract_skew(
+        self, rows: list[dict[str, str]], spot_price: float
+    ) -> float | None:
+        """Extract skew from single expiration (matching Polygon).
 
-                    if not smv_vol or smv_vol == "" or smv_vol == "null":
-                        continue
-                    if not exp_date:
-                        continue
-
-                    iv = float(smv_vol)
-
-                    # ATM criteria: ±3% tolerance
-                    if abs(strike - spot_price) <= tolerance:
-                        if exp_date not in exp_atm_ivs:
-                            exp_atm_ivs[exp_date] = []
-                        exp_atm_ivs[exp_date].append(iv)
-                except (ValueError, TypeError):
-                    continue
-
-        # Sort expirations and take first 3
-        sorted_exps = sorted(exp_atm_ivs.keys())
-        exp_avgs: list[float] = []
-        for exp in sorted_exps[:3]:
-            ivs = exp_atm_ivs[exp]
-            if ivs:
-                exp_avgs.append(sum(ivs) / len(ivs))
-
-        # Term structure: (first - second) matching Polygon's sign convention
-        term_m1_m2 = round((exp_avgs[0] - exp_avgs[1]) * 100, 2) if len(exp_avgs) >= 2 else None
-        term_m1_m3 = round((exp_avgs[0] - exp_avgs[2]) * 100, 2) if len(exp_avgs) >= 3 else None
-
-        # Calculate skew using delta-based selection (matching Polygon)
-        # Primary: Delta-based (target δ ≈ ±0.25)
-        # Fallback: Strike-based (Puts 85%, Calls 115%)
+        Follows IVExtractor.extract_skew from polygon_iv.py:
+        - Primary: Delta-based (call δ ≈ 0.25, put δ ≈ -0.25)
+        - Fallback: Strike-based (call 115%, put 85%)
+        - Formula: (put_iv - call_iv) * 100
+        """
         call_iv: float | None = None
         put_iv: float | None = None
         call_delta_err = float("inf")
@@ -332,12 +458,12 @@ class OratsBackfillFlow:
                 p_delta = row.get("pDelta", "").strip()
                 c_delta = row.get("cDelta", "").strip()
 
-                # Try delta-based selection first
+                # Delta-based selection (primary method)
                 if p_delta and p_delta != "null" and p_mid_iv and p_mid_iv != "null":
                     try:
                         delta_val = float(p_delta)
                         iv_val = float(p_mid_iv)
-                        # Target delta around -0.25 (range -0.30 to -0.20)
+                        # Target delta around -0.25
                         err = abs(delta_val + 0.25)
                         if err < put_delta_err:
                             put_delta_err = err
@@ -349,7 +475,7 @@ class OratsBackfillFlow:
                     try:
                         delta_val = float(c_delta)
                         iv_val = float(c_mid_iv)
-                        # Target delta around +0.25 (range 0.20 to 0.30)
+                        # Target delta around +0.25
                         err = abs(delta_val - 0.25)
                         if err < call_delta_err:
                             call_delta_err = err
@@ -357,14 +483,14 @@ class OratsBackfillFlow:
                     except ValueError:
                         pass
 
-                # Fallback: Strike-based selection
+                # Strike-based fallback
                 if p_mid_iv and p_mid_iv != "null":
                     try:
                         iv_val = float(p_mid_iv)
                         diff = abs(strike - target_put)
                         if diff < put_strike_err:
                             put_strike_err = diff
-                            # Only update if we don't have delta-based selection
+                            # Only use fallback if no delta-based selection
                             if put_delta_err == float("inf"):
                                 put_iv = iv_val
                     except ValueError:
@@ -376,7 +502,7 @@ class OratsBackfillFlow:
                         diff = abs(strike - target_call)
                         if diff < call_strike_err:
                             call_strike_err = diff
-                            # Only update if we don't have delta-based selection
+                            # Only use fallback if no delta-based selection
                             if call_delta_err == float("inf"):
                                 call_iv = iv_val
                     except ValueError:
@@ -385,16 +511,10 @@ class OratsBackfillFlow:
             except (ValueError, TypeError):
                 continue
 
-        skew = round((put_iv - call_iv) * 100, 2) if put_iv and call_iv else None
+        if call_iv is not None and put_iv is not None:
+            return round((put_iv - call_iv) * 100, 2)
 
-        return OratsRecord(
-            ticker=ticker,
-            date=parsed_date,
-            atm_iv=atm_iv,
-            term_m1_m2=term_m1_m2,
-            term_m1_m3=term_m1_m3,
-            skew=skew,
-        )
+        return None
 
     def _merge_records(
         self, symbol: str, new_records: list[OratsRecord]
@@ -436,7 +556,8 @@ class OratsBackfillFlow:
                 )
             )
 
-            # Update record (don't overwrite HV-based metrics)
+            # Update record with all ORATS-calculated metrics
+            # NOTE: Now includes IV rank/percentile (previously not calculated)
             base = old_record.copy()
             if new_record.atm_iv is not None:
                 base["atm_iv"] = new_record.atm_iv
@@ -446,6 +567,10 @@ class OratsBackfillFlow:
                 base["term_m1_m3"] = new_record.term_m1_m3
             if new_record.skew is not None:
                 base["skew"] = new_record.skew
+            if new_record.iv_rank is not None:
+                base["iv_rank (HV)"] = new_record.iv_rank
+            if new_record.iv_percentile is not None:
+                base["iv_percentile (HV)"] = new_record.iv_percentile
             base["date"] = date
             merged[date] = base
 
