@@ -12,7 +12,7 @@
     "baseline_as_of": null
   },
   "AEP": {
-    "fetched_at": null,
+    "fetched_at": "2025-11-20T20:50:02.767893",
     "source": null,
     "baseline_active": false,
     "baseline_as_of": null
@@ -30,7 +30,7 @@
     "baseline_as_of": null
   },
   "AMT": {
-    "fetched_at": "2025-10-30T19:10:40.312423",
+    "fetched_at": "2025-11-20T20:50:04.184125",
     "source": null,
     "baseline_active": false,
     "baseline_as_of": null
@@ -72,7 +72,7 @@
     "baseline_as_of": null
   },
   "BMY": {
-    "fetched_at": "2025-11-19T20:28:59.727822",
+    "fetched_at": "2025-11-20T20:50:04.540369",
     "source": null,
     "baseline_active": false,
     "baseline_as_of": null
@@ -96,7 +96,7 @@
     "baseline_as_of": null
   },
   "CL": {
-    "fetched_at": "2025-11-19T20:29:00.163912",
+    "fetched_at": "2025-11-19T21:53:45.567772",
     "source": null,
     "baseline_active": false,
     "baseline_as_of": null
@@ -222,7 +222,7 @@
     "baseline_as_of": null
   },
   "GLD": {
-    "fetched_at": "2025-11-19T20:29:01.235283",
+    "fetched_at": "2025-11-20T20:50:06.011752",
     "source": null,
     "baseline_active": false,
     "baseline_as_of": null
@@ -300,7 +300,7 @@
     "baseline_as_of": null
   },
   "LOW": {
-    "fetched_at": "2025-11-19T20:29:01.956889",
+    "fetched_at": "2025-11-19T21:53:47.264302",
     "source": null,
     "baseline_active": false,
     "baseline_as_of": null
@@ -420,19 +420,19 @@
     "baseline_as_of": null
   },
   "PEP": {
-    "fetched_at": "2025-11-19T20:29:03.028092",
+    "fetched_at": "2025-11-19T21:53:48.324906",
     "source": null,
     "baseline_active": false,
     "baseline_as_of": null
   },
   "PFE": {
-    "fetched_at": "2025-11-19T20:29:03.395043",
+    "fetched_at": "2025-11-20T20:50:07.286508",
     "source": null,
     "baseline_active": false,
     "baseline_as_of": null
   },
   "PG": {
-    "fetched_at": "2025-11-19T20:29:03.742604",
+    "fetched_at": "2025-11-20T20:50:07.672706",
     "source": null,
     "baseline_active": false,
     "baseline_as_of": null
@@ -444,7 +444,7 @@
     "baseline_as_of": null
   },
   "PM": {
-    "fetched_at": "2025-11-19T20:29:04.108351",
+    "fetched_at": "2025-11-20T20:50:08.109089",
     "source": null,
     "baseline_active": false,
     "baseline_as_of": null
@@ -486,7 +486,7 @@
     "baseline_as_of": null
   },
   "SLV": {
-    "fetched_at": "2025-11-19T20:29:04.563737",
+    "fetched_at": "2025-11-20T20:50:08.720170",
     "source": null,
     "baseline_active": false,
     "baseline_as_of": null
@@ -516,7 +516,7 @@
     "baseline_as_of": null
   },
   "TGT": {
-    "fetched_at": "2025-11-19T20:29:05.351145",
+    "fetched_at": "2025-11-19T21:53:50.743992",
     "source": null,
     "baseline_active": false,
     "baseline_as_of": null
@@ -720,7 +720,7 @@
     "baseline_as_of": null
   },
   "BE": {
-    "fetched_at": "2025-11-19T20:28:59.290031",
+    "fetched_at": "2025-11-19T21:53:44.707803",
     "source": null,
     "baseline_active": false,
     "baseline_as_of": null
@@ -852,7 +852,7 @@
     "baseline_as_of": null
   },
   "GDX": {
-    "fetched_at": "2025-11-19T20:29:00.597142",
+    "fetched_at": "2025-11-20T20:50:05.182255",
     "source": null,
     "baseline_active": false,
     "baseline_as_of": null
@@ -924,13 +924,13 @@
     "baseline_as_of": null
   },
   "NVO": {
-    "fetched_at": "2025-11-19T20:29:02.349874",
+    "fetched_at": "2025-11-20T20:50:06.836423",
     "source": null,
     "baseline_active": false,
     "baseline_as_of": null
   },
   "OPEN": {
-    "fetched_at": "2025-11-19T20:29:02.693265",
+    "fetched_at": "2025-11-19T21:53:47.976076",
     "source": null,
     "baseline_active": false,
     "baseline_as_of": null
@@ -1020,7 +1020,7 @@
     "baseline_as_of": null
   },
   "STZ": {
-    "fetched_at": "2025-11-19T20:29:04.982526",
+    "fetched_at": "2025-11-20T20:50:09.356468",
     "source": null,
     "baseline_active": false,
     "baseline_as_of": null
@@ -1032,7 +1032,7 @@
     "baseline_as_of": null
   },
   "TSM": {
-    "fetched_at": "2025-11-19T20:29:05.748030",
+    "fetched_at": "2025-11-19T21:53:51.153846",
     "source": null,
     "baseline_active": false,
     "baseline_as_of": null

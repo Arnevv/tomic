@@ -210,7 +210,8 @@ def build_export_menu(
         try:
             # Import the pipeline function
             import sys
-            orats_scripts_dir = Path(__file__).parent.parent.parent / "OratsResearch" / "Scripts"
+            # Path: menu.py -> exports -> cli -> tomic -> project_root
+            orats_scripts_dir = Path(__file__).parent.parent.parent.parent / "OratsResearch" / "Scripts"
             if str(orats_scripts_dir) not in sys.path:
                 sys.path.insert(0, str(orats_scripts_dir))
 
