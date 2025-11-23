@@ -27,7 +27,6 @@ except Exception:  # pragma: no cover - tests provide stub
 
 
 from tomic.api.base_client import BaseIBApp
-from tomic.analysis.volatility_fetcher import fetch_volatility_metrics
 from tomic.config import get as cfg_get
 from tomic.services._id_sequence import IncrementingIdMixin
 from .client_registry import ACTIVE_CLIENT_IDS
@@ -291,18 +290,6 @@ class MarketClient(IncrementingIdMixin, BaseIBApp):
 
         self.cancelMktData(req_id)
         self.invalid_contracts.add(req_id)
-
-        if self.spot_price is None:
-            fallback = fetch_volatility_metrics(self.symbol).get("spot_price")
-            if fallback is not None:
-                try:
-                    self.spot_price = float(fallback)
-                    logger.info(f"✅ [stap 3] Spotprijs fallback: {self.spot_price}")
-                    self._logged_spot = True
-                    if hasattr(self, "spot_event"):
-                        self.spot_event.set()
-                except (TypeError, ValueError):
-                    logger.warning("Fallback spot price could not be parsed")
 
         if self.spot_price is None:
             logger.error(
@@ -1731,7 +1718,7 @@ def fetch_market_metrics(
     *,
     timeout: int | None = None,
 ) -> dict[str, Any] | None:
-    """Return key volatility metrics scraped from Barchart and optional spot price.
+    """Return key volatility metrics and spot price from IB data.
 
     When ``app`` is provided it must already be connected; this function will use
     it to retrieve the spot price without opening a new IB session. If ``app`` is
@@ -1739,18 +1726,16 @@ def fetch_market_metrics(
     """
 
     logger.debug(f"Fetching metrics for {symbol}")
-    data = fetch_volatility_metrics(symbol.upper())
     metrics: Dict[str, Any] = {
-        "spot_price": data.get("spot_price"),
-        "hv30": data.get("hv30"),
-        "atr14": data.get("atr14"),
-        "vix": data.get("vix"),
-        "skew": data.get("skew"),
+        "spot_price": None,
+        "hv30": None,
+        "atr14": None,
+        "skew": None,
         "term_m1_m2": None,
         "term_m1_m3": None,
-        "iv_rank": data.get("iv_rank"),
-        "implied_volatility": data.get("implied_volatility"),
-        "iv_percentile": data.get("iv_percentile"),
+        "iv_rank": None,
+        "implied_volatility": None,
+        "iv_percentile": None,
     }
 
     owns_app = False

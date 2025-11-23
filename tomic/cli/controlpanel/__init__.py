@@ -35,7 +35,6 @@ from tomic.reporting import ReasonAggregator, EvaluationSummary, format_reject_r
 from tomic.reporting.rejections import ExpiryBreakdown
 from tomic.strategy.reasons import ReasonCategory, normalize_reason
 from tomic.analysis.market_overview import build_market_overview
-from tomic.analysis.volatility_fetcher import fetch_volatility_metrics
 from tomic.services.market_snapshot_service import MarketSnapshotService
 from tomic.services.market_scan_service import MarketScanService, MarketScanRequest
 from tomic.services import refresh_pipeline, build_proposal_from_entry
@@ -81,7 +80,6 @@ class _ControlPanelModule(ModuleType):
             if hasattr(_CONTEXT.services, "market_snapshot"):
                 _CONTEXT.services.market_snapshot = value
         portfolio_proxy_names = {
-            "fetch_volatility_metrics",
             "prompt",
             "prompt_yes_no",
             "StrikeSelector",
@@ -334,7 +332,6 @@ _print_evaluation_overview = portfolio._print_evaluation_overview
 cfg = portfolio.cfg
 MARKET_SNAPSHOT_SERVICE = MarketSnapshotService(cfg)
 _CONTEXT.services.market_snapshot = MARKET_SNAPSHOT_SERVICE
-fetch_volatility_metrics = fetch_volatility_metrics
 build_market_overview = build_market_overview
 MarketSnapshotService = MarketSnapshotService
 MarketScanService = MarketScanService
@@ -386,7 +383,6 @@ def _load_portfolio_context(*args, **kwargs):
     return _load_portfolio_context_impl(*args, **kwargs)
 
 _ORIGINAL_REFRESH_REJECTIONS = refresh_rejections
-setattr(portfolio, "fetch_volatility_metrics", fetch_volatility_metrics)
 setattr(portfolio, "MARKET_SNAPSHOT_SERVICE", MARKET_SNAPSHOT_SERVICE)
 setattr(portfolio, "build_market_overview", build_market_overview)
 setattr(portfolio, "MarketScanService", MarketScanService)
