@@ -13,6 +13,10 @@ from typing import Any, Iterable, Mapping, Sequence
 
 import inspect
 
+from tomic.config import load_env_file
+
+load_env_file()
+
 from tomic.cli import services as cli_services
 from tomic.cli.app_services import ControlPanelServices
 from tomic.cli.common import Menu, prompt, prompt_yes_no
