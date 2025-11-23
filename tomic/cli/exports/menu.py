@@ -205,6 +205,35 @@ def build_export_menu(
         if not isinstance(updated, dict):  # pragma: no cover - defensive
             return
 
+    def execute_orats_research() -> None:
+        """Execute ORATS validation research pipeline."""
+        try:
+            # Import the pipeline function
+            import sys
+            orats_scripts_dir = Path(__file__).parent.parent.parent / "OratsResearch" / "Scripts"
+            if str(orats_scripts_dir) not in sys.path:
+                sys.path.insert(0, str(orats_scripts_dir))
+
+            from run_orats_research import run_orats_research_pipeline
+
+            # Run the pipeline
+            success = run_orats_research_pipeline()
+
+            if success:
+                print("\n✅ ORATS research pipeline voltooid!")
+                results_dir = orats_scripts_dir.parent / "Results"
+                print(f"\n📊 Bekijk de resultaten in: {results_dir}")
+            else:
+                print("\n❌ ORATS research pipeline mislukt. Controleer de errors hierboven.")
+
+        except ImportError as exc:
+            print(f"❌ Kan ORATS research modules niet laden: {exc}")
+            print("Zorg dat de OratsResearch/Scripts directory bestaat en de scripts bevat.")
+        except Exception as exc:
+            print(f"❌ ORATS research pipeline error: {exc}")
+            import traceback
+            traceback.print_exc()
+
     menu = Menu("📁 DATA & MARKTDATA")
     menu.add(
         "OptionChain ophalen via TWS API (uitgeschakeld)",
@@ -223,6 +252,10 @@ def build_export_menu(
     menu.add(
         "Data quality monitoring per symbol (data-health-scan)",
         data_health_scan,
+    )
+    menu.add(
+        "Execute Orats Research",
+        execute_orats_research,
     )
     return menu
 
