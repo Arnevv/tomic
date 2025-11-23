@@ -154,9 +154,25 @@ class OratsBackfillFlow:
 
                 csv_name = csv_files[0]
                 with zf.open(csv_name) as csv_file:
-                    # ORATS uses tab-delimited format
+                    # Detect delimiter by reading a sample
                     text_stream = io.TextIOWrapper(csv_file, encoding="utf-8")
-                    reader = csv.DictReader(text_stream, delimiter="\t")
+                    sample = text_stream.read(10000)
+                    text_stream.seek(0)
+
+                    # Try to detect delimiter (ORATS may use comma or tab)
+                    detected_delimiter = ","  # Default to comma
+                    for test_delimiter in [',', '\t', ';', '|']:
+                        lines = sample.split('\n')[:5]
+                        if lines:
+                            header_line = lines[0]
+                            num_delimiters = header_line.count(test_delimiter)
+                            # ORATS should have 30+ columns
+                            if num_delimiters > 20:
+                                detected_delimiter = test_delimiter
+                                logger.info(f"Detected CSV delimiter: {repr(test_delimiter)} ({num_delimiters + 1} columns)")
+                                break
+
+                    reader = csv.DictReader(text_stream, delimiter=detected_delimiter)
 
                     # Group rows by ticker
                     symbol_rows: dict[str, list[dict[str, str]]] = {}
