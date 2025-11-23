@@ -132,8 +132,7 @@ def main(argv: List[str] | None = None) -> None:
             continue
         iv_today_val = iv_today_rec.get("atm_iv")
         iv_rank_val = iv_today_rec.get("iv_rank (HV)")
-        if isinstance(iv_rank_val, (int, float)) and iv_rank_val > 1:
-            iv_rank_val /= 100
+        # iv_rank is now stored in 0-100 scale, no normalization needed
         hv_delta = historical_hv_delta(sym, dte, earnings_data, hv_data)
         proj_iv = None
         if hv_delta is not None and iv_today_val is not None:
@@ -179,8 +178,9 @@ def main(argv: List[str] | None = None) -> None:
     for idx, r in enumerate(rows, 1):
         dte_str = f"{r['dte']:+d}" if isinstance(r.get("dte"), int) else ""
         iv_rank = r.get("iv_rank")
+        # iv_rank is now in 0-100 scale, no need to multiply by 100
         iv_rank_str = (
-            f"{iv_rank * 100:.0f}%" if isinstance(iv_rank, (int, float)) else ""
+            f"{iv_rank:.0f}%" if isinstance(iv_rank, (int, float)) else ""
         )
         iv_today = r.get("iv_today")
         iv_today_str = f"{iv_today:.3f}" if isinstance(iv_today, (int, float)) else ""

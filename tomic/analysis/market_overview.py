@@ -174,7 +174,8 @@ def build_market_overview(
         link = f"[{sym}](https://marketchameleon.com/Overview/{sym}/)"
         iv_val = f"{rec['iv']:.4f}" if isinstance(rec.get("iv"), (int, float)) else ""
         ivr = rec.get("iv_rank")
-        iv_rank_val = f"{ivr * 100:.0f}" if isinstance(ivr, (int, float)) else ""
+        # iv_rank is now in 0-100 scale, no need to multiply by 100
+        iv_rank_val = f"{ivr:.0f}" if isinstance(ivr, (int, float)) else ""
         skew_val = rec.get("skew")
         skew_str = f"{skew_val:.2f}" if isinstance(skew_val, (int, float)) else ""
         earnings = rec.get("next_earnings", "")
