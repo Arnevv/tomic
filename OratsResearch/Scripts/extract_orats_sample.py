@@ -91,7 +91,7 @@ def process_orats_date(csv_path: Path, symbol: str, output_dir: Path) -> bool:
 
         # Read CSV and filter for target symbol
         symbol_rows = []
-        with open(csv_path, 'r') as csvfile:
+        with open(csv_path, 'r', encoding='utf-8') as csvfile:
             reader = csv.DictReader(csvfile)
             for row in reader:
                 if row.get('ticker') == symbol:
@@ -153,7 +153,7 @@ def process_orats_date(csv_path: Path, symbol: str, output_dir: Path) -> bool:
 
         # Write to JSON (using sanitized date in filename)
         output_file = output_dir / f"{symbol}_{trade_date_safe}.json"
-        with open(output_file, 'w') as f:
+        with open(output_file, 'w', encoding='utf-8') as f:
             json.dump(output_data, f, indent=2)
 
         atm_display = f"{atm_iv:.1%}" if atm_iv else "N/A"

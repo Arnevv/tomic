@@ -30,7 +30,7 @@ def generate_orats_test_data():
     for date in test_dates:
         csv_filename = output_dir / f"orats_{date.replace('-', '')}.csv"
 
-        with open(csv_filename, 'w', newline='') as csvfile:
+        with open(csv_filename, 'w', newline='', encoding='utf-8') as csvfile:
             fieldnames = [
                 'ticker', 'cOpra', 'pOpra', 'stkPx', 'expirDate', 'yte', 'strike',
                 'cVolu', 'cOi', 'pVolu', 'pOi', 'cBidPx', 'cValue', 'cAskPx',
@@ -52,7 +52,7 @@ def generate_orats_test_data():
                 atm_iv_base = 0.20  # Default
 
                 if polygon_file.exists():
-                    with open(polygon_file, 'r') as f:
+                    with open(polygon_file, 'r', encoding='utf-8') as f:
                         polygon_data = json.load(f)
                         for entry in polygon_data:
                             if entry.get('date') == date and entry.get('atm_iv'):
