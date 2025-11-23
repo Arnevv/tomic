@@ -103,6 +103,8 @@ def process_orats_date(csv_path: Path, symbol: str, output_dir: Path) -> bool:
 
         # Get trade date and spot price from first row
         trade_date = symbol_rows[0]['trade_date']
+        # Sanitize trade_date: replace / and - with underscore to avoid path issues
+        trade_date_safe = trade_date.replace('/', '_').replace('-', '_').replace('\\', '_')
         spot_price = safe_float(symbol_rows[0]['spot_px'])
 
         if spot_price is None:
@@ -149,8 +151,8 @@ def process_orats_date(csv_path: Path, symbol: str, output_dir: Path) -> bool:
             'strikes': strikes
         }
 
-        # Write to JSON
-        output_file = output_dir / f"{symbol}_{trade_date}.json"
+        # Write to JSON (using sanitized date in filename)
+        output_file = output_dir / f"{symbol}_{trade_date_safe}.json"
         with open(output_file, 'w') as f:
             json.dump(output_data, f, indent=2)
 
