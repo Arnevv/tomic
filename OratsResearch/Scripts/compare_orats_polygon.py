@@ -40,7 +40,7 @@ def load_polygon_data(polygon_dir: Path, symbol: str, date: str) -> Optional[Dic
         return None
 
     try:
-        with open(polygon_file, 'r') as f:
+        with open(polygon_file, 'r', encoding='utf-8') as f:
             all_data = json.load(f)
 
         # Handle both dict and list formats
@@ -81,7 +81,7 @@ def load_orats_data(orats_dir: Path, symbol: str, date: str) -> Optional[Dict]:
         return None
 
     try:
-        with open(orats_file, 'r') as f:
+        with open(orats_file, 'r', encoding='utf-8') as f:
             data = json.load(f)
         data['file'] = orats_file
         return data
@@ -169,7 +169,7 @@ def generate_markdown_report(results: List[ComparisonResult], output_path: Path)
         by_symbol[result.symbol].append(result)
 
     # Generate report
-    with open(output_path, 'w') as f:
+    with open(output_path, 'w', encoding='utf-8') as f:
         f.write("# ORATS vs Polygon Validation Report\n\n")
         f.write(f"**Periode:** October 2025\n")
         f.write(f"**Symbolen:** {', '.join(sorted(by_symbol.keys()))}\n")

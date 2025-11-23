@@ -15,7 +15,7 @@ matplotlib.use('Agg')  # Non-interactive backend
 def load_json_data(file_path: Path) -> Optional[Dict]:
     """Load JSON data from file."""
     try:
-        with open(file_path, 'r') as f:
+        with open(file_path, 'r', encoding='utf-8') as f:
             return json.load(f)
     except Exception as e:
         print(f"  ⚠ Error loading {file_path}: {e}")
@@ -259,7 +259,7 @@ def create_all_plots(orats_dir: Path, polygon_dir: Path, output_dir: Path) -> No
             print(f"  ⚠ No Polygon data for {symbol}")
             continue
 
-        with open(polygon_file, 'r') as f:
+        with open(polygon_file, 'r', encoding='utf-8') as f:
             polygon_all = json.load(f)
 
         # Handle both dict and list formats
