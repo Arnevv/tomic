@@ -370,11 +370,11 @@ class OratsBackfillFlow:
                         iv_rank_value = iv_rank(scaled_iv, hv_series)
                         iv_percentile_value = iv_percentile(scaled_iv, hv_series)
 
-                        # Normalize if needed (matching Polygon logic)
-                        if isinstance(iv_rank_value, (int, float)) and iv_rank_value > 1:
-                            iv_rank_value /= 100
-                        if isinstance(iv_percentile_value, (int, float)) and iv_percentile_value > 1:
-                            iv_percentile_value /= 100
+                        # Convert to 0-100 scale (iv_rank and iv_percentile return 0-1)
+                        if isinstance(iv_rank_value, (int, float)):
+                            iv_rank_value *= 100
+                        if isinstance(iv_percentile_value, (int, float)):
+                            iv_percentile_value *= 100
             except Exception as exc:
                 logger.warning(f"IV rank/percentile berekening mislukt voor {ticker}: {exc}")
 
