@@ -88,7 +88,9 @@ class OratsBackfillFlow:
     """Main class for ORATS backfill operations."""
 
     def __init__(self):
-        self.ftp_host = os.getenv("ORATS_FTP_HOST", "de1.hostedftp.com")
+        # Strip any trailing slashes and paths from hostname (FTP expects hostname only)
+        raw_host = os.getenv("ORATS_FTP_HOST", "de1.hostedftp.com")
+        self.ftp_host = raw_host.split("/")[0] if "/" in raw_host else raw_host
         self.ftp_user = os.getenv("ORATS_FTP_USER", "")
         self.ftp_password = os.getenv("ORATS_FTP_PASSWORD", "")
         self.ftp_path = os.getenv("ORATS_FTP_PATH", "smvstrikes")
