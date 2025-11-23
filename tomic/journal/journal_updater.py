@@ -140,7 +140,6 @@ def interactieve_trade_invoer():
         "spot_price": None,
         "hv30": None,
         "atr14": None,
-        "vix": None,
         "skew": None,
         "iv_rank": None,
         "implied_volatility": None,
@@ -151,7 +150,6 @@ def interactieve_trade_invoer():
     iv_entry = metrics["implied_volatility"]
     iv_rank = metrics["iv_rank"]
     hv_entry = metrics["hv30"]
-    vix = metrics["vix"]
     atr14 = metrics["atr14"]
     skew = metrics["skew"]
     iv_percentile = metrics["iv_percentile"]
@@ -186,7 +184,6 @@ def interactieve_trade_invoer():
         "HV_Entry": hv_entry,
         "IV_Rank": iv_rank,
         "IV_Percentile": iv_percentile,
-        "VIX": vix,
         "ATR_14": atr14,
         "Skew": skew,
         "Spot": spot,

@@ -427,7 +427,6 @@ def group_strategies(
                 ("IV_Percentile", "ivpct_entry"),
                 ("Skew", "skew_entry"),
                 ("ATR_14", "atr_entry"),
-                ("VIX", "vix_entry"),
             ]:
                 if trade_data.get(key) is not None:
                     try:

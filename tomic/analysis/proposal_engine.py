@@ -161,7 +161,7 @@ def _select_best(proposals: Sequence[StrategyProposal]) -> StrategyProposal | No
     return max(candidates, key=_score_key)
 
 
-def _condor_gate_allows(metrics: Any | None, vix: float | None) -> bool:
+def _condor_gate_allows(metrics: Any | None) -> bool:
     gate = RULES.portfolio.condor_gates
     iv_rank = _extract_float(metrics, "iv_rank")
     iv_pct = _extract_float(metrics, "iv_percentile")
@@ -182,14 +182,10 @@ def _condor_gate_allows(metrics: Any | None, vix: float | None) -> bool:
         and iv_pct > gate.iv_percentile_max
     ):
         return False
-    if gate.vix_min is not None and vix is not None and vix < gate.vix_min:
-        return False
-    if gate.vix_max is not None and vix is not None and vix > gate.vix_max:
-        return False
     return True
 
 
-def _calendar_gate_allows(metrics: Any | None, vix: float | None) -> bool:
+def _calendar_gate_allows(metrics: Any | None) -> bool:
     gate = RULES.portfolio.calendar_gates
     iv_rank = _extract_float(metrics, "iv_rank")
     iv_pct = _extract_float(metrics, "iv_percentile")
@@ -215,10 +211,6 @@ def _calendar_gate_allows(metrics: Any | None, vix: float | None) -> bool:
         return False
     if gate.term_m1_m3_max is not None and term is not None and term > gate.term_m1_m3_max:
         return False
-    if gate.vix_min is not None and vix is not None and vix < gate.vix_min:
-        return False
-    if gate.vix_max is not None and vix is not None and vix > gate.vix_max:
-        return False
     return True
 
 
@@ -233,7 +225,6 @@ def suggest_strategies(
     strategy_config: Mapping[str, Any] | None = None,
     interest_rate: float = 0.05,
     metrics: Any | None = None,
-    vix: float | None = None,
     next_earnings: Any | None = None,
 ) -> list[dict[str, Any]]:
     """Return portfolio suggestions driven by the strategy pipeline."""
@@ -265,7 +256,7 @@ def suggest_strategies(
                 _format_proposal(best, reason="Delta-balancering")
             )
 
-    if vega > RULES.portfolio.vega_to_condor and _condor_gate_allows(metrics, vix):
+    if vega > RULES.portfolio.vega_to_condor and _condor_gate_allows(metrics):
         proposals = _run_strategy_pipeline(ctx, StrategyName.IRON_CONDOR)
         best = _select_best(proposals)
         if best:
@@ -274,7 +265,7 @@ def suggest_strategies(
                 _format_proposal(best, reason="Vega verlagen")
             )
 
-    if vega < RULES.portfolio.vega_to_calendar and _calendar_gate_allows(metrics, vix):
+    if vega < RULES.portfolio.vega_to_calendar and _calendar_gate_allows(metrics):
         proposals = _run_strategy_pipeline(ctx, StrategyName.CALENDAR)
         best = _select_best(proposals)
         if best:
@@ -291,7 +282,6 @@ def generate_proposals(
     chain_dir: str,
     *,
     metrics: Mapping[str, Any] | None = None,
-    vix: float | None = None,
 ) -> dict[str, list[dict[str, Any]]]:
     """Combine portfolio Greeks with chain data and return proposals."""
 
@@ -330,7 +320,6 @@ def generate_proposals(
             strategy_config=strategy_config,
             interest_rate=interest_rate,
             metrics=metrics_obj,
-            vix=vix,
             next_earnings=next_earnings,
         )
 

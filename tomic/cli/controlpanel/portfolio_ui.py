@@ -50,7 +50,6 @@ from tomic.cli.common import Menu, prompt, prompt_yes_no
 from tomic import config as cfg
 from tomic.core.portfolio import services as portfolio_services
 from tomic.logutils import logger, setup_logging
-from tomic.analysis.volatility_fetcher import fetch_volatility_metrics
 from tomic.analysis.market_overview import build_market_overview
 from tomic.cli.app_services import ControlPanelServices, create_controlpanel_services
 from tomic.cli.controlpanel_session import ControlPanelSession
@@ -95,19 +94,6 @@ def _default_symbols() -> list[str]:
         if cleaned:
             symbols.append(cleaned.upper())
     return symbols
-
-
-def _fetch_vix_value(symbols: Sequence[str]) -> float | None:
-    base_symbol = symbols[0] if symbols else "SPY"
-    try:
-        metrics = fetch_volatility_metrics(base_symbol)
-    except Exception:
-        return None
-    if isinstance(metrics, Mapping):
-        value = metrics.get("vix")
-        if isinstance(value, (int, float)):
-            return float(value)
-    return None
 
 
 def _snapshot_row_mapping(row: object) -> dict[str, Any]:
@@ -539,10 +525,6 @@ def _print_factsheet(
 def show_market_info(session: ControlPanelSession, services: ControlPanelServices) -> None:
     symbols = _default_symbols()
 
-    vix_value = _fetch_vix_value(symbols)
-    if vix_value is not None:
-        print(f"VIX {vix_value:.2f}")
-
     snapshot = _load_snapshot(services, symbols)
     rows = _overview_input(snapshot.rows)
 
@@ -638,10 +620,6 @@ def show_informative_market_info(
     session: ControlPanelSession, services: ControlPanelServices
 ) -> None:
     symbols = _default_symbols()
-
-    vix_value = _fetch_vix_value(symbols)
-    if vix_value is not None:
-        print(f"VIX {vix_value:.2f}")
 
     snapshot = _load_snapshot(services, symbols)
     formatted_rows = [
