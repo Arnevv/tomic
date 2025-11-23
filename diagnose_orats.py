@@ -87,11 +87,42 @@ def inspect_zip(zip_path: Path, target_symbol: str | None = None) -> None:
 
             with zf.open(csv_name) as csv_file:
                 text_stream = io.TextIOWrapper(csv_file, encoding="utf-8")
-                reader = csv.DictReader(text_stream, delimiter="\t")
+
+                # First, detect the delimiter by reading a sample
+                sample = text_stream.read(10000)
+                text_stream.seek(0)
+
+                # Try to detect delimiter
+                detected_delimiter = None
+                for test_delimiter in [',', '\t', ';', '|']:
+                    lines = sample.split('\n')[:5]
+                    if lines:
+                        header_line = lines[0]
+                        num_delimiters = header_line.count(test_delimiter)
+                        # Check if we have reasonable number of columns (ORATS should have 30+ columns)
+                        if num_delimiters > 20:
+                            detected_delimiter = test_delimiter
+                            print(f"\n🔍 Delimiter gedetecteerd: {'TAB' if test_delimiter == chr(9) else repr(test_delimiter)} ({num_delimiters + 1} kolommen)")
+                            break
+
+                if not detected_delimiter:
+                    print("\n⚠️  Kon delimiter niet detecteren, probeer comma...")
+                    detected_delimiter = ','
+
+                reader = csv.DictReader(text_stream, delimiter=detected_delimiter)
 
                 # Get headers
                 headers = reader.fieldnames
                 print(f"\n📋 Kolommen ({len(headers)}):")
+
+                # If we only got 1 column, something is wrong
+                if len(headers) == 1:
+                    print(f"\n⚠️  WAARSCHUWING: Slechts 1 kolom gevonden!")
+                    print(f"  Dit betekent dat het delimiter verkeerd is.")
+                    print(f"  Eerste regel inhoud:")
+                    print(f"  {list(headers)[0][:200]}")
+                    return
+
                 for i, header in enumerate(headers, 1):
                     print(f"  {i:2d}. {header}")
 
