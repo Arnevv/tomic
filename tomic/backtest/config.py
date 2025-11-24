@@ -84,8 +84,11 @@ class BacktestConfig(BaseModel):
     )
 
     # Date range for backtest
-    start_date: str = "2007-01-01"
-    end_date: str = "2024-12-31"
+    #start_date: str = "2007-01-01" #dit was oude data, later te herstellen als ik meer data heb
+    #end_date: str = "2024-12-31" #dit was oude data, later te herstellen als ik meer data heb
+
+    start_date: str = "2025-05-01"
+    end_date: str = "2025-11-21"
 
     # Target DTE for new positions
     target_dte: int = 45
