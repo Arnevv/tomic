@@ -60,6 +60,7 @@ from tomic.cli.portfolio.menu_flow import (
     run_market_scan as portfolio_run_market_scan,
     show_market_overview as portfolio_show_market_overview,
 )
+from tomic.cli.backtest_ui import run_backtest_menu
 from tomic.cli.module_runner import run_module
 from tomic.cli.settings.menu_config import SETTINGS_MENU
 from tomic.cli.settings.handlers import build_settings_menu
@@ -849,6 +850,7 @@ def run_portfolio_menu(
         partial(run_module, "tomic.cli.exit_flow"),
     )
     menu.add("Earnings-informatie", partial(show_earnings_info, session, services))
+    menu.add("Backtesting", run_backtest_menu)
     menu.run()
 
 def run_settings_menu(
