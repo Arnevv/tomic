@@ -58,13 +58,6 @@ def build_export_menu(
 ) -> Menu:
     """Return the export submenu used by the control panel."""
 
-    def _notify_tws_disabled() -> None:
-        logger.info("TWS option-chain bulk export attempted while disabled")
-        print("TWS option-chain fetch is uitgeschakeld. Gebruik Polygon-marktdata.")
-
-    def export_chain_bulk() -> None:
-        _notify_tws_disabled()
-
     def csv_check() -> None:
         path = prompt_fn("Pad naar CSV-bestand: ", "")
         if not path:
@@ -236,10 +229,6 @@ def build_export_menu(
             traceback.print_exc()
 
     menu = Menu("📁 DATA & MARKTDATA")
-    menu.add(
-        "OptionChain ophalen via TWS API (uitgeschakeld)",
-        export_chain_bulk,
-    )
     menu.add("OptionChain ophalen via Polygon API", polygon_chain)
     menu.add("Controleer CSV-kwaliteit", csv_check)
     menu.add("Run GitHub Action lokaal", run_github_action)
@@ -248,7 +237,6 @@ def build_export_menu(
         lambda: run_module("tomic.scripts.backfill_hv"),
     )
     menu.add("ATR Calculator", lambda: run_module("tomic.cli.atr_calculator"))
-    menu.add("IV backfill (MarketChameleon)", lambda: run_module("tomic.cli.iv_backfill_flow"))
     menu.add("IV backfill (ORATS)", lambda: run_module("tomic.cli.orats_backfill_flow"))
     menu.add("Import nieuwe earning dates van MarketChameleon", import_market_chameleon_earnings)
     menu.add(
