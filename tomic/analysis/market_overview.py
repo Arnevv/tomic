@@ -187,6 +187,8 @@ def build_market_overview(
         ivr = rec.get("iv_rank")
         # iv_rank is now in 0-100 scale, no need to multiply by 100
         iv_rank_val = f"{ivr:.0f}" if isinstance(ivr, (int, float)) else ""
+        ivp = rec.get("iv_percentile")
+        iv_percentile_val = f"{ivp:.0f}" if isinstance(ivp, (int, float)) else ""
         skew_val = rec.get("skew")
         skew_str = f"{skew_val:.2f}" if isinstance(skew_val, (int, float)) else ""
         earnings = rec.get("next_earnings", "")
@@ -200,6 +202,7 @@ def build_market_overview(
                 vega,
                 theta,
                 iv_rank_val,
+                iv_percentile_val,
                 skew_str,
                 earnings,
             ]
