@@ -3,15 +3,61 @@
 from __future__ import annotations
 
 import argparse
-from dataclasses import dataclass
-from datetime import date
+from dataclasses import dataclass, field
+from datetime import date, timedelta
 from pathlib import Path
+from types import SimpleNamespace
 from typing import Iterable, Sequence
+
+try:  # pragma: no cover - optional dependency
+    import holidays  # type: ignore
+except Exception:  # pragma: no cover - fallback when package is missing
+
+    class _NoHolidays:
+        def __contains__(self, _date: date) -> bool:
+            return False
+
+    holidays = SimpleNamespace(US=lambda: _NoHolidays(), NYSE=lambda: _NoHolidays())  # type: ignore
 
 from tomic.config import get as cfg_get
 from tomic.infrastructure.storage import load_json
 
 from ._tabulate import tabulate
+
+
+_US_MARKET_HOLIDAYS = None
+
+
+def _us_market_holidays():
+    """Return a holiday calendar for US equity markets."""
+    global _US_MARKET_HOLIDAYS
+    if _US_MARKET_HOLIDAYS is None:
+        try:
+            calendar_factory = getattr(holidays, "NYSE")
+        except AttributeError:  # pragma: no cover - NYSE calendar missing
+            calendar_factory = getattr(holidays, "US")
+        _US_MARKET_HOLIDAYS = calendar_factory()
+    return _US_MARKET_HOLIDAYS
+
+
+def _is_trading_day(d: date) -> bool:
+    """Return True if d is a US trading day (weekday and not a holiday)."""
+    if d.weekday() >= 5:  # Weekend
+        return False
+    return d not in _us_market_holidays()
+
+
+def _count_trading_days(start: date, end: date) -> int:
+    """Count expected trading days between start and end (inclusive)."""
+    if start > end:
+        return 0
+    count = 0
+    current = start
+    while current <= end:
+        if _is_trading_day(current):
+            count += 1
+        current += timedelta(days=1)
+    return count
 
 
 @dataclass
@@ -20,10 +66,29 @@ class SeriesWindow:
 
     start: date | None
     end: date | None
+    actual_count: int = 0
 
     @property
     def missing(self) -> bool:
         return self.start is None or self.end is None
+
+    @property
+    def expected_count(self) -> int:
+        """Expected number of trading days between start and end."""
+        if self.start is None or self.end is None:
+            return 0
+        return _count_trading_days(self.start, self.end)
+
+    @property
+    def gap_pct(self) -> float | None:
+        """Percentage of missing trading days, or None if no data."""
+        expected = self.expected_count
+        if expected == 0:
+            return None
+        missing = expected - self.actual_count
+        if missing <= 0:
+            return 0.0
+        return (missing / expected) * 100
 
 
 DEFAULT_THRESHOLDS = {
@@ -46,7 +111,7 @@ def _parse_date(value: object) -> date | None:
 
 def _series_window(records: object, *, date_key: str = "date") -> SeriesWindow:
     if not isinstance(records, Iterable):  # pragma: no cover - defensive guard
-        return SeriesWindow(None, None)
+        return SeriesWindow(None, None, 0)
     dates: list[date] = []
     for entry in records:  # type: ignore[assignment]
         if not isinstance(entry, dict):
@@ -55,8 +120,10 @@ def _series_window(records: object, *, date_key: str = "date") -> SeriesWindow:
         if parsed:
             dates.append(parsed)
     if not dates:
-        return SeriesWindow(None, None)
-    return SeriesWindow(min(dates), max(dates))
+        return SeriesWindow(None, None, 0)
+    # Use unique dates to count actual data points
+    unique_dates = set(dates)
+    return SeriesWindow(min(dates), max(dates), len(unique_dates))
 
 
 def _load_series(path: Path) -> list[dict]:
@@ -84,9 +151,11 @@ def _load_earnings(path: Path, symbol: str) -> list[date]:
 def _format_window(window: SeriesWindow) -> str:
     if window.missing:
         return "-"
+    gap = window.gap_pct
+    gap_str = f" ({gap:.1f}%)" if gap is not None and gap > 0 else ""
     if window.start == window.end:
-        return window.start.isoformat()
-    return f"{window.start.isoformat()} → {window.end.isoformat()}"
+        return window.start.isoformat() + gap_str
+    return f"{window.start.isoformat()} → {window.end.isoformat()}{gap_str}"
 
 
 def _format_earnings(dates: Sequence[date]) -> str:
