@@ -289,7 +289,8 @@ def build_market_overview_table(rows: Iterable[Sequence[object]]) -> TableSpec:
         "Delta",
         "Vega",
         "Theta",
-        "IV Rank (HV)",
+        "IV Rank",
+        "IV Percentile",
         "Skew",
         "Earnings",
     )
@@ -301,6 +302,7 @@ def build_market_overview_table(rows: Iterable[Sequence[object]]) -> TableSpec:
         "left",
         "left",
         "left",
+        "right",
         "right",
         "right",
         "left",
