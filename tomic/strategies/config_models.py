@@ -83,6 +83,7 @@ class IronCondorStrikeConfig(_BaseStrikeConfig):
     short_call_delta_range: Tuple[float, float]
     short_put_delta_range: Tuple[float, float]
     wing_sigma_multiple: float | None = None
+    min_wing_width_atr: float | None = None
     short_leg_width_points: float | None = None
     short_leg_width_ratio: float | None = None
     long_wing_strike_tolerance_percent: float | None = None
@@ -95,6 +96,7 @@ class IronCondorConfig(_BaseConfig):
 class AtmIronButterflyStrikeConfig(_BaseStrikeConfig):
     center_strike_relative_to_spot: List[float]
     wing_sigma_multiple: float | None = None
+    min_wing_width_atr: float | None = None
 
 
 class AtmIronButterflyConfig(_BaseConfig):

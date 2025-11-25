@@ -579,6 +579,8 @@ def generate_wing_spread(
     proposals: List[StrategyProposal] = []
     rejected_reasons: list[str] = []
     sigma_mult = float(ctx.rules.get("wing_sigma_multiple", 1.0))
+    min_wing_atr = ctx.rules.get("min_wing_width_atr")
+    min_wing_width = float(min_wing_atr) * ctx.atr if min_wing_atr is not None and ctx.atr else None
     strat_label = getattr(strategy_name, "value", strategy_name)
     long_wing_tolerance = None
     long_wing_tolerance_val = ctx.rules.get("long_wing_strike_tolerance_percent")
@@ -656,6 +658,12 @@ def generate_wing_spread(
                     )
                     rejected_reasons.append(reason)
                     continue
+                # Enforce minimum wing width based on ATR
+                if min_wing_width is not None and width < min_wing_width:
+                    logger.debug(
+                        f"[{strat_label}] Wing width {width:.2f} < min {min_wing_width:.2f} ATR, using minimum"
+                    )
+                    width = min_wing_width
                 sc_strike = sp_strike = center
                 lc = _nearest_strike(
                     strike_map,
@@ -800,6 +808,18 @@ def generate_wing_spread(
                     )
                     rejected_reasons.append(reason)
                     continue
+                # Enforce minimum wing width based on ATR
+                if min_wing_width is not None:
+                    if c_w < min_wing_width:
+                        logger.debug(
+                            f"[{strat_label}] Call wing {c_w:.2f} < min {min_wing_width:.2f} ATR, using minimum"
+                        )
+                        c_w = min_wing_width
+                    if p_w < min_wing_width:
+                        logger.debug(
+                            f"[{strat_label}] Put wing {p_w:.2f} < min {min_wing_width:.2f} ATR, using minimum"
+                        )
+                        p_w = min_wing_width
                 lc_target = sc_strike + c_w
                 lp_target = sp_strike - p_w
                 lc = _nearest_strike(
