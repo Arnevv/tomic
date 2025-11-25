@@ -1,140 +1,39 @@
-# =========================
-# TOMIC Backtest Configuration
-# =========================
-# Configuration for backtesting delta-neutral options strategies
-# using historical IV data.
-#
-# Core hypothesis being tested:
-# "Systematically selling premium when IV is elevated relative to HV
-# delivers consistent positive returns with manageable drawdowns."
-
 version: 1
-
-# Strategy to backtest
 strategy_type: iron_condor
-
-# Symbols to include in backtest
-# Start with liquid, diverse underlyings
 symbols:
-  - SPY   # S&P 500 ETF - broad market
-  - QQQ   # Nasdaq 100 ETF - tech heavy
-  - IWM   # Russell 2000 ETF - small cap
-  - AAPL  # Apple - mega cap single stock
-  - MSFT  # Microsoft - mega cap single stock
-
-# Date range for historical data
-# Current data: 2025-04-01 to 2025-11-24
-start_date: "2025-04-01"
-end_date: "2025-11-24"
-
-# Target days to expiration for new positions
-# Dennis Chen recommends 30-45 DTE for optimal theta decay
+- SPY
+- QQQ
+- IWM
+- AAPL
+- MSFT
+start_date: '2024-10-01'
+end_date: '2025-11-24'
 target_dte: 45
-
-# ====================
-# ENTRY RULES
-# ====================
-# Entry signals based on IV metrics
-# Primary signal: IV percentile (elevated IV)
 entry_rules:
-  # Minimum IV percentile to enter (0-100)
-  # 60 = IV higher than 60% of historical values
   iv_percentile_min: 60.0
-
-  # Optional: Minimum IV rank (0-100)
-  # null = not used as filter
   iv_rank_min: null
-
-  # Optional: Skew range filter
-  # Negative skew = puts more expensive than calls
   skew_min: null
   skew_max: null
-
-  # Optional: Term structure filter
-  # Positive = backwardation (near > far)
-  # Negative = contango (far > near)
   term_structure_min: null
   term_structure_max: null
-
-  # Optional: Minimum IV-HV spread
-  # 0.05 = require IV at least 5% above HV
   iv_hv_spread_min: null
-
-# ====================
-# EXIT RULES
-# ====================
-# Based on Dennis Chen / TOMIC exit discipline
 exit_rules:
-  # Profit target: exit at X% of credit received
-  # 50% is the Dennis Chen standard
   profit_target_pct: 50.0
-
-  # Stop loss: exit if loss exceeds X% of credit
-  # 100% = risk equals credit received
-  # Can be 100-150% depending on risk tolerance
   stop_loss_pct: 100.0
-
-  # Time exit: close at X DTE to avoid gamma risk
-  # 5-7 DTE is standard to avoid expiration week volatility
   min_dte: 5
-
-  # Maximum days in trade
-  # Dennis Chen recommends max 45 days
   max_days_in_trade: 45
-
-  # IV collapse exit: close if IV drops X vol points below entry
-  # 10 vol points indicates thesis has played out
   iv_collapse_threshold: 10.0
-
-  # Delta breach threshold (modeled via IV spike proxy)
-  # Not directly measurable without Greeks
   delta_breach_threshold: 20.0
-
-# ====================
-# POSITION SIZING
-# ====================
 position_sizing:
-  # Sizing method: fixed_risk or percent_equity
   type: fixed_risk
-
-  # Maximum risk per trade in dollars
   max_risk_per_trade: 200.0
-
-  # Maximum positions per symbol (avoid concentration)
   max_positions_per_symbol: 1
-
-  # Maximum total positions across all symbols
   max_total_positions: 10
-
-# ====================
-# SAMPLE SPLITTING
-# ====================
-# For walk-forward validation
 sample_split:
-  # Fraction of data for in-sample optimization
-  # 0.30 = 30% in-sample, 70% out-of-sample
-  in_sample_ratio: 0.30
-
-  # Split method: chronological only for time series
+  in_sample_ratio: 0.3
   method: chronological
-
-# ====================
-# TRANSACTION COSTS
-# ====================
 costs:
-  # Commission per contract (round-trip)
   commission_per_contract: 1.0
-
-  # Slippage as percentage of credit
-  # 5% accounts for bid-ask spread crossing
   slippage_pct: 5.0
-
-# ====================
-# IRON CONDOR SPECIFIC
-# ====================
-# Wing width between short and long strikes
 iron_condor_wing_width: 5
-
-# Target delta for short strikes (~1 SD)
-# 0.16 corresponds to approximately 1 standard deviation
 iron_condor_short_delta: 0.16
