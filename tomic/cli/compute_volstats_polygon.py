@@ -8,7 +8,13 @@ from time import sleep
 from typing import List, Any
 
 from tomic.analysis.metrics import historical_volatility
-from tomic.cli.services.vol_helpers import _get_closes, iv_percentile, iv_rank, rolling_hv
+from tomic.cli.services.vol_helpers import (
+    _get_closes,
+    iv_percentile,
+    iv_rank,
+    rolling_hv,
+    get_historical_iv_series,
+)
 from tomic.config import get as cfg_get
 from tomic.infrastructure.storage import update_json_file
 from tomic.infrastructure.throttling import RateLimiter
@@ -208,25 +214,30 @@ def main(argv: List[str] | None = None) -> None:
         term_m1_m2 = metrics.get("term_m1_m2")
         term_m1_m3 = metrics.get("term_m1_m3")
         skew = metrics.get("skew")
-        rank = metrics.get("iv_rank (HV)")
-        pct = metrics.get("iv_percentile (HV)")
         if iv is None:
             logger.warning(f"No implied volatility for {sym}")
-        hv_series = rolling_hv(closes, 30)
+
+        # Use historical IV series for rank/percentile calculation (not HV)
+        iv_series = get_historical_iv_series(sym, exclude_date=date_str)
         scaled_iv = iv * 100 if iv is not None else None
-        rank = iv_rank(scaled_iv or 0.0, hv_series) if scaled_iv is not None else None
-        pct = iv_percentile(scaled_iv or 0.0, hv_series) if scaled_iv is not None else None
-        # Convert to 0-100 scale (iv_rank and iv_percentile return 0-1)
-        if isinstance(rank, (int, float)):
-            rank *= 100
-        if isinstance(pct, (int, float)):
-            pct *= 100
+        rank = None
+        pct = None
+        if scaled_iv is not None and iv_series:
+            rank = iv_rank(scaled_iv, iv_series)
+            pct = iv_percentile(scaled_iv, iv_series)
+            # Convert to 0-100 scale (iv_rank and iv_percentile return 0-1)
+            if isinstance(rank, (int, float)):
+                rank *= 100
+            if isinstance(pct, (int, float)):
+                pct *= 100
+        elif scaled_iv is not None:
+            logger.debug(f"Insufficient IV history for {sym}")
 
         summary_record = {
             "date": date_str,
             "atm_iv": iv,
-            "iv_rank (HV)": rank,
-            "iv_percentile (HV)": pct,
+            "iv_rank (IV)": rank,
+            "iv_percentile (IV)": pct,
             "term_m1_m2": term_m1_m2,
             "term_m1_m3": term_m1_m3,
             "skew": skew,

@@ -22,6 +22,7 @@ from tomic.cli.services.vol_helpers import (
     iv_percentile,
     iv_rank,
     rolling_hv,
+    get_historical_iv_series,
 )
 from tomic.helpers.json_utils import dump_json
 from tomic.journal.utils import load_json
@@ -403,27 +404,29 @@ class OratsBackfillFlow:
         skew = self._extract_skew(exp_groups[front_month], spot_price)
 
         # ================================================================
-        # STEP 7: Calculate IV Rank and Percentile (NEW!)
+        # STEP 7: Calculate IV Rank and Percentile using historical IV
         # ================================================================
         iv_rank_value = None
         iv_percentile_value = None
 
         if atm_iv is not None:
             try:
-                closes = _get_closes(ticker)
-                if closes:
-                    hv_series = rolling_hv(closes, 30)
-                    if hv_series:
-                        # Scale IV to percentage for comparison with HV
-                        scaled_iv = atm_iv * 100
-                        iv_rank_value = iv_rank(scaled_iv, hv_series)
-                        iv_percentile_value = iv_percentile(scaled_iv, hv_series)
+                # Use historical IV series for rank/percentile (not HV)
+                date_str = parsed_date.strftime("%Y-%m-%d")
+                iv_series = get_historical_iv_series(ticker, exclude_date=date_str)
+                if iv_series:
+                    # Scale IV to percentage for comparison
+                    scaled_iv = atm_iv * 100
+                    iv_rank_value = iv_rank(scaled_iv, iv_series)
+                    iv_percentile_value = iv_percentile(scaled_iv, iv_series)
 
-                        # Convert to 0-100 scale (iv_rank and iv_percentile return 0-1)
-                        if isinstance(iv_rank_value, (int, float)):
-                            iv_rank_value *= 100
-                        if isinstance(iv_percentile_value, (int, float)):
-                            iv_percentile_value *= 100
+                    # Convert to 0-100 scale (iv_rank and iv_percentile return 0-1)
+                    if isinstance(iv_rank_value, (int, float)):
+                        iv_rank_value *= 100
+                    if isinstance(iv_percentile_value, (int, float)):
+                        iv_percentile_value *= 100
+                else:
+                    logger.debug(f"Insufficient IV history for {ticker} on {date_str}")
             except Exception as exc:
                 logger.warning(f"IV rank/percentile berekening mislukt voor {ticker}: {exc}")
 
@@ -651,9 +654,9 @@ class OratsBackfillFlow:
             if new_record.skew is not None:
                 base["skew"] = new_record.skew
             if new_record.iv_rank is not None:
-                base["iv_rank (HV)"] = new_record.iv_rank
+                base["iv_rank (IV)"] = new_record.iv_rank
             if new_record.iv_percentile is not None:
-                base["iv_percentile (HV)"] = new_record.iv_percentile
+                base["iv_percentile (IV)"] = new_record.iv_percentile
             base["date"] = date
             merged[date] = base
 

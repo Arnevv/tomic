@@ -131,7 +131,8 @@ def main(argv: List[str] | None = None) -> None:
         if earn_date is None or dte is None:
             continue
         iv_today_val = iv_today_rec.get("atm_iv")
-        iv_rank_val = iv_today_rec.get("iv_rank (HV)")
+        # Support both new (IV) and legacy (HV) field names
+        iv_rank_val = iv_today_rec.get("iv_rank (IV)") or iv_today_rec.get("iv_rank (HV)")
         # iv_rank is now stored in 0-100 scale, no normalization needed
         hv_delta = historical_hv_delta(sym, dte, earnings_data, hv_data)
         proj_iv = None

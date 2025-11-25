@@ -17,6 +17,7 @@ from tomic.cli.services.vol_helpers import (
     iv_percentile,
     iv_rank,
     rolling_hv,
+    get_historical_iv_series,
 )
 
 from tomic.integrations.polygon.client import PolygonClient
@@ -818,26 +819,28 @@ def fetch_polygon_iv30d(symbol: str) -> Dict[str, float | None] | None:
 
     iv_rank_value = None
     iv_percentile_value = None
-    closes = _get_closes(symbol)
-    hv_series = rolling_hv(closes, 30)
-    if atm_iv is not None:
+    today_str = spot_date  # gebruik de datum van de laatste close
+    # Use historical IV series for rank/percentile calculation (not HV)
+    iv_series = get_historical_iv_series(symbol, exclude_date=today_str)
+    if atm_iv is not None and iv_series:
         scaled_iv = atm_iv * 100
-        iv_rank_value = iv_rank(scaled_iv, hv_series)
-        iv_percentile_value = iv_percentile(scaled_iv, hv_series)
+        iv_rank_value = iv_rank(scaled_iv, iv_series)
+        iv_percentile_value = iv_percentile(scaled_iv, iv_series)
         # Convert to 0-100 scale (iv_rank and iv_percentile return 0-1)
         if isinstance(iv_rank_value, (int, float)):
             iv_rank_value *= 100
         if isinstance(iv_percentile_value, (int, float)):
             iv_percentile_value *= 100
-    else:
+    elif atm_iv is None:
         logger.debug("Cannot compute IV rank without ATM IV")
+    else:
+        logger.debug(f"Cannot compute IV rank: insufficient IV history for {symbol}")
 
-    today_str = spot_date  # gebruik de datum van de laatste close
     daily_iv_data = {
         "date": today_str,
         "atm_iv": atm_iv,
-        "iv_rank (HV)": iv_rank_value,
-        "iv_percentile (HV)": iv_percentile_value,
+        "iv_rank (IV)": iv_rank_value,
+        "iv_percentile (IV)": iv_percentile_value,
         "term_m1_m2": term_m1_m2,
         "term_m1_m3": term_m1_m3,
         "skew": skew,
@@ -859,8 +862,8 @@ def fetch_polygon_iv30d(symbol: str) -> Dict[str, float | None] | None:
         "skew": skew,
         "term_m1_m2": term_m1_m2,
         "term_m1_m3": term_m1_m3,
-        "iv_rank (HV)": iv_rank_value,
-        "iv_percentile (HV)": iv_percentile_value,
+        "iv_rank (IV)": iv_rank_value,
+        "iv_percentile (IV)": iv_percentile_value,
     }
 
 

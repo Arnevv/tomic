@@ -10,6 +10,7 @@ from typing import Iterable, Sequence
 
 from tomic.config import get as cfg_get
 from tomic.infrastructure.storage import load_json
+from tomic.cli.services.vol_helpers import MIN_IV_HISTORY_DAYS
 
 from ._tabulate import tabulate
 
@@ -64,6 +65,20 @@ def _load_series(path: Path) -> list[dict]:
     if isinstance(data, list):
         return [entry for entry in data if isinstance(entry, dict)]
     return []
+
+
+def _count_iv_records_with_atm(records: list[dict]) -> int:
+    """Count IV records that have a valid atm_iv value."""
+    count = 0
+    for entry in records:
+        atm_iv = entry.get("atm_iv")
+        if atm_iv is not None:
+            try:
+                if float(atm_iv) > 0:
+                    count += 1
+            except (TypeError, ValueError):
+                continue
+    return count
 
 
 def _load_earnings(path: Path, symbol: str) -> list[date]:
@@ -127,10 +142,12 @@ def _scan_symbol(
     iv_dir: Path,
     earnings_file: Path,
     limits: dict[str, int],
-) -> tuple[str, SeriesWindow, SeriesWindow, SeriesWindow, list[date], list[str]]:
+) -> tuple[str, SeriesWindow, SeriesWindow, SeriesWindow, list[date], int, list[str]]:
     spot_window = _series_window(_load_series(spot_dir / f"{symbol}.json"))
     hv_window = _series_window(_load_series(hv_dir / f"{symbol}.json"))
-    iv_window = _series_window(_load_series(iv_dir / f"{symbol}.json"))
+    iv_records = _load_series(iv_dir / f"{symbol}.json")
+    iv_window = _series_window(iv_records)
+    iv_history_count = _count_iv_records_with_atm(iv_records)
     earnings_dates = _load_earnings(earnings_file, symbol)
 
     issues: list[str] = []
@@ -142,6 +159,10 @@ def _scan_symbol(
         issues.append("missing_iv")
     if not earnings_dates:
         issues.append("missing_earnings")
+
+    # Check if IV history is insufficient for reliable rank/percentile calculation
+    if not iv_window.missing and iv_history_count < MIN_IV_HISTORY_DAYS:
+        issues.append("iv_history_insufficient")
 
     today = date.today()
     if _check_stale(spot_window, key="spot_max_age_days", today=today, limits=limits):
@@ -171,7 +192,7 @@ def _scan_symbol(
         if iv_window.end and spot_window.end and iv_window.end > spot_window.end:
             issues.append("iv_after_spot")
 
-    return symbol, spot_window, hv_window, iv_window, earnings_dates, sorted(set(issues))
+    return symbol, spot_window, hv_window, iv_window, earnings_dates, iv_history_count, sorted(set(issues))
 
 
 def main(argv: list[str] | None = None) -> None:
@@ -199,7 +220,7 @@ def main(argv: list[str] | None = None) -> None:
 
     rows = []
     for symbol in sorted({sym.upper() for sym in symbols}):
-        sym, spot, hv, iv, earnings_dates, issues = _scan_symbol(
+        sym, spot, hv, iv, earnings_dates, iv_count, issues = _scan_symbol(
             symbol,
             spot_dir=spot_dir,
             hv_dir=hv_dir,
@@ -207,18 +228,23 @@ def main(argv: list[str] | None = None) -> None:
             earnings_file=earnings_file,
             limits=limits,
         )
+        # Format IV count with indicator if insufficient
+        iv_count_str = str(iv_count)
+        if iv_count < MIN_IV_HISTORY_DAYS:
+            iv_count_str = f"{iv_count} ⚠️"
         rows.append(
             [
                 sym,
                 _format_window(spot),
                 _format_window(hv),
                 _format_window(iv),
+                iv_count_str,
                 _format_earnings(earnings_dates),
                 ", ".join(issues),
             ]
         )
 
-    headers = ["Symbol", "Spot range", "HV range", "IV range", "Earnings", "Issues"]
+    headers = ["Symbol", "Spot range", "HV range", "IV range", "IV#", "Earnings", "Issues"]
     print(tabulate(rows, headers=headers, tablefmt="github"))
 
 
