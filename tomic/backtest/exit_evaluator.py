@@ -48,7 +48,8 @@ class ExitEvaluator:
     """
 
     # Proxy threshold for delta breach (IV spike in vol points)
-    IV_SPIKE_DELTA_PROXY = 15.0
+    # Lowered from 15.0 to 8.0 for more conservative/realistic breach detection
+    IV_SPIKE_DELTA_PROXY = 8.0
 
     def __init__(self, config: BacktestConfig):
         self.config = config

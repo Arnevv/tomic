@@ -111,9 +111,9 @@ class MetricsCalculator:
         daily_returns = self._calculate_daily_returns(equity_curve)
 
         if daily_returns:
-            metrics.volatility = self._calculate_volatility(daily_returns)
-            metrics.sharpe_ratio = self._calculate_sharpe(daily_returns)
-            metrics.sortino_ratio = self._calculate_sortino(daily_returns)
+            metrics.volatility = self._calculate_volatility(daily_returns, equity_curve)
+            metrics.sharpe_ratio = self._calculate_sharpe(daily_returns, equity_curve)
+            metrics.sortino_ratio = self._calculate_sortino(daily_returns, equity_curve)
 
         # Drawdown metrics
         dd_metrics = self._calculate_drawdown(equity_curve)
@@ -210,7 +210,9 @@ class MetricsCalculator:
 
         return returns
 
-    def _calculate_volatility(self, returns: List[float]) -> float:
+    def _calculate_volatility(
+        self, returns: List[float], equity_curve: List[Tuple[date, float]] = None
+    ) -> float:
         """Calculate annualized volatility from returns."""
         if not returns:
             return 0
@@ -219,14 +221,43 @@ class MetricsCalculator:
         variance = sum((r - mean_return) ** 2 for r in returns) / len(returns)
         std_dev = math.sqrt(variance)
 
-        # Annualize (assume ~252 trading days per year)
-        # But trades don't happen daily, so scale by approximate trade frequency
-        trades_per_year = min(252, len(returns) * (365 / 252))
+        # Annualize based on actual trading period
+        trades_per_year = self._estimate_trades_per_year(len(returns), equity_curve)
         annualized_vol = std_dev * math.sqrt(trades_per_year)
 
         return annualized_vol * 100  # As percentage
 
-    def _calculate_sharpe(self, returns: List[float]) -> float:
+    def _estimate_trades_per_year(
+        self, num_trades: int, equity_curve: List[Tuple[date, float]] = None
+    ) -> float:
+        """Estimate annualized number of trades based on actual period.
+
+        Uses equity curve dates to determine the actual trading period length.
+        """
+        if not equity_curve or len(equity_curve) < 2:
+            # Fallback: assume average of 1 trade per week
+            return min(52, num_trades)
+
+        # Get actual period from equity curve dates
+        first_date = equity_curve[0][0]
+        last_date = equity_curve[-1][0]
+        period_days = (last_date - first_date).days
+
+        if period_days <= 0:
+            return min(52, num_trades)
+
+        # Calculate trades per year based on actual period
+        # period_days / 365 = fraction of year
+        # num_trades / fraction = trades per year
+        fraction_of_year = period_days / 365.0
+        trades_per_year = num_trades / fraction_of_year
+
+        # Cap at reasonable maximum (no more than weekly trades per symbol)
+        return min(252, trades_per_year)
+
+    def _calculate_sharpe(
+        self, returns: List[float], equity_curve: List[Tuple[date, float]] = None
+    ) -> float:
         """Calculate Sharpe ratio.
 
         Sharpe = (Returns - Risk Free) / Volatility
@@ -235,18 +266,20 @@ class MetricsCalculator:
             return 0
 
         mean_return = sum(returns) / len(returns)
-        volatility = self._calculate_volatility(returns) / 100  # Convert from %
+        volatility = self._calculate_volatility(returns, equity_curve) / 100
 
         if volatility == 0:
             return 0
 
-        # Annualize mean return
-        trades_per_year = min(252, len(returns) * (365 / 252))
+        # Annualize mean return based on actual trading period
+        trades_per_year = self._estimate_trades_per_year(len(returns), equity_curve)
         annual_return = mean_return * trades_per_year
 
         return (annual_return - self.RISK_FREE_RATE) / volatility
 
-    def _calculate_sortino(self, returns: List[float]) -> float:
+    def _calculate_sortino(
+        self, returns: List[float], equity_curve: List[Tuple[date, float]] = None
+    ) -> float:
         """Calculate Sortino ratio (penalizes only downside volatility).
 
         Sortino = (Returns - Risk Free) / Downside Deviation
@@ -267,8 +300,8 @@ class MetricsCalculator:
         if downside_dev == 0:
             return float("inf")
 
-        # Annualize
-        trades_per_year = min(252, len(returns) * (365 / 252))
+        # Annualize based on actual trading period
+        trades_per_year = self._estimate_trades_per_year(len(returns), equity_curve)
         annual_return = mean_return * trades_per_year
         annual_downside = downside_dev * math.sqrt(trades_per_year)
 
@@ -385,6 +418,8 @@ def calculate_degradation_score(
     """Calculate performance degradation between in-sample and out-of-sample.
 
     A lower score is better (less degradation).
+    Only measures degradation when out-of-sample is WORSE than in-sample.
+    If out-of-sample performs better, degradation = 0 (no overfitting detected).
 
     Returns:
         Degradation score as percentage (0 = no degradation, 100 = total loss)
@@ -392,16 +427,22 @@ def calculate_degradation_score(
     if in_sample.sharpe_ratio == 0:
         return 100.0 if out_sample.sharpe_ratio <= 0 else 0.0
 
-    # Primary metric: Sharpe ratio degradation
-    sharpe_degradation = abs(
-        (in_sample.sharpe_ratio - out_sample.sharpe_ratio) / in_sample.sharpe_ratio
-    )
-
-    # Secondary: Win rate degradation
-    if in_sample.win_rate > 0:
-        winrate_degradation = abs(
-            (in_sample.win_rate - out_sample.win_rate) / in_sample.win_rate
+    # Primary metric: Sharpe ratio degradation (only if worse)
+    if out_sample.sharpe_ratio >= in_sample.sharpe_ratio:
+        sharpe_degradation = 0.0  # No degradation if out-of-sample is better
+    else:
+        sharpe_degradation = (
+            (in_sample.sharpe_ratio - out_sample.sharpe_ratio) / in_sample.sharpe_ratio
         )
+
+    # Secondary: Win rate degradation (only if worse)
+    if in_sample.win_rate > 0:
+        if out_sample.win_rate >= in_sample.win_rate:
+            winrate_degradation = 0.0  # No degradation if out-of-sample is better
+        else:
+            winrate_degradation = (
+                (in_sample.win_rate - out_sample.win_rate) / in_sample.win_rate
+            )
     else:
         winrate_degradation = 0
 
