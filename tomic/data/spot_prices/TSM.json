@@ -8895,5 +8895,12 @@
     "close": 275.06,
     "volume": 21023668.0,
     "atr": null
+  },
+  {
+    "symbol": "TSM",
+    "date": "2025-11-24",
+    "close": 284.64,
+    "volume": 13570042.0,
+    "atr": null
   }
 ]

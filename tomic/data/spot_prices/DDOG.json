@@ -8895,5 +8895,12 @@
     "close": 157.55,
     "volume": 6140186.0,
     "atr": null
+  },
+  {
+    "symbol": "DDOG",
+    "date": "2025-11-24",
+    "close": 158.44,
+    "volume": 6859788.0,
+    "atr": null
   }
 ]

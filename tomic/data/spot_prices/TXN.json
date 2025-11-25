@@ -8895,5 +8895,12 @@
     "close": 159.4,
     "volume": 11709140.0,
     "atr": null
+  },
+  {
+    "symbol": "TXN",
+    "date": "2025-11-24",
+    "close": 161.26,
+    "volume": 9584470.0,
+    "atr": null
   }
 ]

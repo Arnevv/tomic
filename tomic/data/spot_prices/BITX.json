@@ -4240,5 +4240,12 @@
     "close": 28.11,
     "volume": 20367562.0,
     "atr": null
+  },
+  {
+    "symbol": "BITX",
+    "date": "2025-11-24",
+    "close": 31.03,
+    "volume": 11302364.0,
+    "atr": null
   }
 ]

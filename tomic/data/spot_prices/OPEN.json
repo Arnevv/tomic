@@ -8657,5 +8657,12 @@
     "close": 6.75,
     "volume": 160415350.0,
     "atr": null
+  },
+  {
+    "symbol": "OPEN",
+    "date": "2025-11-24",
+    "close": 7.69,
+    "volume": 156539524.0,
+    "atr": null
   }
 ]

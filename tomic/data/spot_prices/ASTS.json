@@ -8153,5 +8153,12 @@
     "close": 51.37,
     "volume": 13379723.0,
     "atr": null
+  },
+  {
+    "symbol": "ASTS",
+    "date": "2025-11-24",
+    "close": 55,
+    "volume": 10171132.0,
+    "atr": null
   }
 ]
