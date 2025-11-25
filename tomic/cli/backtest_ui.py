@@ -138,6 +138,15 @@ def configure_backtest_params() -> None:
 
     # Entry rules
     menu.add(
+        f"Startdatum [{config.start_date}]",
+        partial(_edit_start_date, config),
+    )
+    menu.add(
+        f"Einddatum [{config.end_date}]",
+        partial(_edit_end_date, config),
+    )
+
+    menu.add(
         f"IV Percentile minimum [{config.entry_rules.iv_percentile_min}]",
         partial(_edit_iv_percentile_min, config),
     )
@@ -188,6 +197,50 @@ def _edit_iv_percentile_min(config: BacktestConfig) -> None:
             print(f"IV percentile minimum: {config.entry_rules.iv_percentile_min}")
         except ValueError:
             print("Ongeldige waarde")
+
+
+def _edit_start_date(config: BacktestConfig) -> None:
+    """Edit start date for backtest period."""
+    from datetime import date
+
+    current = config.start_date
+    new_value = prompt(f"Nieuwe startdatum (YYYY-MM-DD) [{current}]: ")
+    if new_value:
+        try:
+            new_date = date.fromisoformat(new_value)
+        except ValueError:
+            print("Ongeldige datum, gebruik formaat YYYY-MM-DD")
+            return
+
+        end_date = date.fromisoformat(config.end_date)
+        if new_date >= end_date:
+            print("Startdatum moet voor de einddatum liggen")
+            return
+
+        config.start_date = new_date.isoformat()
+        print(f"Startdatum ingesteld op {config.start_date}")
+
+
+def _edit_end_date(config: BacktestConfig) -> None:
+    """Edit end date for backtest period."""
+    from datetime import date
+
+    current = config.end_date
+    new_value = prompt(f"Nieuwe einddatum (YYYY-MM-DD) [{current}]: ")
+    if new_value:
+        try:
+            new_date = date.fromisoformat(new_value)
+        except ValueError:
+            print("Ongeldige datum, gebruik formaat YYYY-MM-DD")
+            return
+
+        start_date = date.fromisoformat(config.start_date)
+        if new_date <= start_date:
+            print("Einddatum moet na de startdatum liggen")
+            return
+
+        config.end_date = new_date.isoformat()
+        print(f"Einddatum ingesteld op {config.end_date}")
 
 
 def _edit_profit_target(config: BacktestConfig) -> None:
