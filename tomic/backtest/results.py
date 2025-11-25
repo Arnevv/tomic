@@ -52,12 +52,16 @@ class IVDataPoint:
         except ValueError:
             dt = None
 
+        # Support both new (IV) and legacy (HV) field names for backward compatibility
+        iv_rank_raw = data.get("iv_rank (IV)") or data.get("iv_rank (HV)")
+        iv_percentile_raw = data.get("iv_percentile (IV)") or data.get("iv_percentile (HV)")
+
         return cls(
             date=dt,
             symbol=symbol,
             atm_iv=data.get("atm_iv"),
-            iv_rank=data.get("iv_rank (HV)"),
-            iv_percentile=data.get("iv_percentile (HV)"),
+            iv_rank=iv_rank_raw,
+            iv_percentile=iv_percentile_raw,
             hv30=data.get("hv30"),
             skew=data.get("skew"),
             term_m1_m2=data.get("term_m1_m2"),

@@ -40,7 +40,7 @@ def test_compute_volstats_polygon_main(monkeypatch):
     mod.main([])
 
     assert len(captured) == 2
-    assert any("iv_rank (HV)" in r for r in captured)
+    assert any("iv_rank (IV)" in r for r in captured)
     assert any(r.get("atm_iv") == 0.25 for r in captured)
     assert any(r.get("term_m1_m2") == -1.0 for r in captured)
     assert any(r.get("term_m1_m3") == -2.0 for r in captured)

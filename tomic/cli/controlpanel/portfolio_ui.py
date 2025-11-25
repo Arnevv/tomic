@@ -532,8 +532,10 @@ def show_market_info(session: ControlPanelSession, services: ControlPanelService
     recs, table_rows, meta = _build_overview(rows)
 
     earnings_filtered: dict[str, Sequence[str]] = {}
+    iv_history_insufficient: list[str] = []
     if isinstance(meta, dict):
         earnings_filtered = meta.get("earnings_filtered", {}) or {}
+        iv_history_insufficient = meta.get("iv_history_insufficient", []) or []
     if earnings_filtered:
         total_hidden = sum(len(strategies) for strategies in earnings_filtered.values())
         detail_parts = []
@@ -544,6 +546,11 @@ def show_market_info(session: ControlPanelSession, services: ControlPanelService
         print(
             f"ℹ️ {total_hidden} aanbevelingen verborgen vanwege earnings-filter"
             + (f" ({detail_msg})" if detail_msg else "")
+        )
+    if iv_history_insufficient:
+        symbols_str = ", ".join(sorted(iv_history_insufficient))
+        print(
+            f"⚠️ {len(iv_history_insufficient)} symbolen uitgesloten vanwege onvoldoende IV historie (<252 dagen): {symbols_str}"
         )
 
     if not recs:
@@ -635,8 +642,8 @@ def show_informative_market_info(
         "hv30",
         "hv90",
         "hv252",
-        "iv_rank (HV)",
-        "iv_percentile (HV)",
+        "iv_rank (IV)",
+        "iv_percentile (IV)",
         "term_m1_m2",
         "term_m1_m3",
         "skew",

@@ -174,6 +174,10 @@ def _read_metrics(
         today_fn,
     )
 
+    # Support both new (IV) and legacy (HV) field names for backward compatibility
+    iv_rank_raw = summary.get("iv_rank (IV)") or summary.get("iv_rank (HV)")
+    iv_percentile_raw = summary.get("iv_percentile (IV)") or summary.get("iv_percentile (HV)")
+
     return MarketSnapshotRow(
         symbol=symbol,
         spot=spot.get("close"),
@@ -182,8 +186,8 @@ def _read_metrics(
         hv30=hv.get("hv30"),
         hv90=hv.get("hv90"),
         hv252=hv.get("hv252"),
-        iv_rank=normalize_percent(summary.get("iv_rank (HV)")),
-        iv_percentile=normalize_percent(summary.get("iv_percentile (HV)")),
+        iv_rank=normalize_percent(iv_rank_raw),
+        iv_percentile=normalize_percent(iv_percentile_raw),
         term_m1_m2=summary.get("term_m1_m2"),
         term_m1_m3=summary.get("term_m1_m3"),
         skew=summary.get("skew"),

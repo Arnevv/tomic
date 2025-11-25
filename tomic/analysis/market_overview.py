@@ -78,8 +78,17 @@ def build_market_overview(
     recs: List[Dict[str, Any]] = []
     config_data = cfg.get("STRATEGY_CONFIG") or {}
     filtered_meta_sets: Dict[str, set[str]] = defaultdict(set)
+    iv_history_insufficient: List[str] = []
 
     for r in rows:
+        symbol = r[0]
+
+        # Skip symbols with insufficient IV history (iv_rank will be None)
+        iv_rank_value = r[7]
+        if iv_rank_value is None:
+            iv_history_insufficient.append(symbol)
+            continue
+
         metrics = {
             "IV": r[2],
             "HV20": r[3],
@@ -93,7 +102,6 @@ def build_market_overview(
             "term_m1_m3": r[10],
             "skew": r[11],
         }
-        symbol = r[0]
         earnings_date, days_until = normalize_earnings_context(
             r[12] if len(r) > 12 else None,
             r[13] if len(r) > 13 else None,
@@ -149,7 +157,10 @@ def build_market_overview(
     }
 
     if not recs:
-        return [], [], {"earnings_filtered": filtered_meta}
+        return [], [], {
+            "earnings_filtered": filtered_meta,
+            "iv_history_insufficient": iv_history_insufficient,
+        }
 
     order = [
         "Vega Short",
@@ -194,7 +205,10 @@ def build_market_overview(
             ]
         )
 
-    return recs, table_rows, {"earnings_filtered": filtered_meta}
+    return recs, table_rows, {
+        "earnings_filtered": filtered_meta,
+        "iv_history_insufficient": iv_history_insufficient,
+    }
 
 
 __all__ = ["build_market_overview", "categorize", "parse_greeks"]

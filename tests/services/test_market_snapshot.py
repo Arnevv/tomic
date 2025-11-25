@@ -45,8 +45,8 @@ def test_read_metrics_returns_row(tmp_path):
                 {
                     "date": "2024-05-02",
                     "atm_iv": 0.4,
-                    "iv_rank (HV)": 62,
-                    "iv_percentile (HV)": 75,
+                    "iv_rank (IV)": 62,
+                    "iv_percentile (IV)": 75,
                     "term_m1_m2": 1.1,
                     "term_m1_m3": 1.2,
                     "skew": 3.5,
@@ -140,8 +140,8 @@ def test_load_snapshot_returns_serializable_rows(tmp_path):
                     {
                         "date": "2024-05-02",
                         "atm_iv": summary_iv,
-                        "iv_rank (HV)": 55,
-                        "iv_percentile (HV)": percentile,
+                        "iv_rank (IV)": 55,
+                        "iv_percentile (IV)": percentile,
                         "term_m1_m2": 1.1,
                         "term_m1_m3": 1.2,
                         "skew": 3.0,

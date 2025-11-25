@@ -130,8 +130,8 @@ def test_fetch_polygon_iv30d(monkeypatch, tmp_path):
     assert metrics["term_m1_m2"] == 1.0
     assert metrics["term_m1_m3"] == 2.0
     assert metrics["skew"] == 3.0
-    assert metrics["iv_rank (HV)"] is None
-    assert metrics["iv_percentile (HV)"] is None
+    assert metrics["iv_rank (IV)"] is None
+    assert metrics["iv_percentile (IV)"] is None
     assert (iv_dir / "ABC.log").exists()
 
 
@@ -246,8 +246,8 @@ def test_fetch_polygon_iv30d_fallback(monkeypatch, tmp_path):
     assert metrics["term_m1_m2"] == 1.0
     assert metrics["term_m1_m3"] == 2.0
     assert metrics["skew"] is None
-    assert metrics["iv_rank (HV)"] is None
-    assert metrics["iv_percentile (HV)"] is None
+    assert metrics["iv_rank (IV)"] is None
+    assert metrics["iv_percentile (IV)"] is None
     assert (iv_dir / "ABC.log").exists()
 
 
