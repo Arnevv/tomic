@@ -6,6 +6,57 @@ from datetime import date, timedelta
 from tomic.cli import data_health_scan as mod
 
 
+def test_gap_percentage_calculation():
+    """Test that gap percentage is calculated correctly."""
+    # Create a window with 5 actual dates over a longer period
+    # Jan 2024: 2,3,4,5 (Tue-Fri) + 8,9,10,11,12 (Mon-Fri) = 9 trading days
+    # (1 Jan is New Year's Day - market closed)
+    window = mod.SeriesWindow(
+        start=date(2024, 1, 2),  # Tuesday
+        end=date(2024, 1, 12),   # Friday
+        actual_count=5,
+    )
+    # Expected: 9 trading days, actual: 5, missing: 4 -> 44.4%
+    assert window.expected_count == 9
+    gap = window.gap_pct
+    assert gap is not None
+    assert abs(gap - 44.4) < 0.1
+
+
+def test_gap_percentage_no_gaps():
+    """Test that 0% gap is returned when all days present."""
+    window = mod.SeriesWindow(
+        start=date(2024, 1, 2),
+        end=date(2024, 1, 5),  # Tue-Fri = 4 trading days
+        actual_count=4,
+    )
+    assert window.gap_pct == 0.0
+
+
+def test_format_window_shows_gap():
+    """Test that _format_window includes gap percentage when gaps exist."""
+    window = mod.SeriesWindow(
+        start=date(2024, 1, 2),
+        end=date(2024, 1, 12),
+        actual_count=5,
+    )
+    formatted = mod._format_window(window)
+    assert "2024-01-02" in formatted
+    assert "2024-01-12" in formatted
+    assert "44.4%" in formatted
+
+
+def test_format_window_no_gap_suffix():
+    """Test that _format_window omits gap percentage when no gaps."""
+    window = mod.SeriesWindow(
+        start=date(2024, 1, 2),
+        end=date(2024, 1, 5),
+        actual_count=4,
+    )
+    formatted = mod._format_window(window)
+    assert "%" not in formatted
+
+
 def test_scan_reports_missing_and_mismatch(tmp_path, monkeypatch, capsys):
     today = date.today()
 
