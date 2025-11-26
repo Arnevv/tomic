@@ -78,11 +78,6 @@ def build_parser() -> argparse.ArgumentParser:
         "--tz",
         help="Timezone voor CSV datums wanneer pandas conversie nodig is",
     )
-    parser.add_argument(
-        "--no-backup",
-        action="store_true",
-        help="Sla backup van bestaande JSON over",
-    )
     return parser
 
 
@@ -203,12 +198,9 @@ def run(args: argparse.Namespace) -> int:
         dry_run=False,
     )
 
-    save_earnings_json(updated_data, json_path, backup=not args.no_backup)
+    save_earnings_json(updated_data, json_path)
     runtime_config.set_value("data.earnings_json_path", str(json_path))
 
-    backup_path = save_earnings_json.last_backup_path
-    if backup_path:
-        print(f"Backup: {backup_path}")
     print(f"Wijzigingen opgeslagen naar {json_path}")
     return 0
 

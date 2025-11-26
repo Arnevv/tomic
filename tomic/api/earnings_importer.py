@@ -10,7 +10,6 @@ from __future__ import annotations
 
 import csv
 import json
-import shutil
 from collections.abc import Iterable
 from datetime import date, datetime
 from pathlib import Path
@@ -209,23 +208,18 @@ def load_json(path: str | Path) -> dict[str, list[str]]:
 
 
 def save_json(data: dict[str, list[str]], path: str | Path, backup: bool = True) -> None:
-    """Persist ``data`` to ``path`` while optionally creating a timestamped backup."""
+    """Persist ``data`` to ``path``.
+
+    The ``backup`` parameter is deprecated and ignored (kept for API compatibility).
+    """
 
     json_path = Path(path).expanduser()
     json_path.parent.mkdir(parents=True, exist_ok=True)
 
-    backup_path: Path | None = None
-    if backup and json_path.exists():
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        backup_path = json_path.with_suffix(json_path.suffix + f".{timestamp}.bak")
-        shutil.copy2(json_path, backup_path)
-
     with json_path.open("w", encoding="utf-8") as handle:
         json.dump(data, handle, indent=2, sort_keys=True)
 
-    save_json.last_backup_path = backup_path
-    if backup_path:
-        logger.info(f"Backup aangemaakt: {backup_path}")
+    save_json.last_backup_path = None
     logger.success(f"earnings JSON opgeslagen: {json_path}")
 
 
