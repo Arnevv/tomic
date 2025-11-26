@@ -409,7 +409,11 @@ class IBMarketDataService:
         trigger: str | None = None,
         log_delta: bool = True,
     ) -> SnapshotResult:
+        import time as _time
+        _t_refresh_start = _time.perf_counter()
+
         if not proposal.legs:
+            logger.info("[ib_marketdata] refresh: no legs, skipping")
             return SnapshotResult(proposal, [], True, [])
 
         trigger_label = trigger or "manual"
@@ -423,7 +427,12 @@ class IBMarketDataService:
         host = str(cfg_value("IB_HOST", "127.0.0.1"))
 
         app = self._app_factory()
-        logger.info("📡 Ophalen IB quotes voor voorstel trigger=%s", trigger_label)
+        logger.info("📡 Ophalen IB quotes voor voorstel trigger=%s (legs=%d, timeout=%.1fs)",
+                    trigger_label, len(proposal.legs), timeout)
+
+        _t_connect_start = _time.perf_counter()
+        logger.info("[ib_marketdata] connect_ib: starting host=%s port=%d client_id=%d",
+                    host, port, client_id)
         connect_ib(
             client_id=client_id,
             host=host,
@@ -431,9 +440,17 @@ class IBMarketDataService:
             timeout=int(timeout),
             app=app,
         )
+        _t_connect_done = _time.perf_counter()
+        logger.info("[ib_marketdata] connect_ib: done in %.0fms",
+                    (_t_connect_done - _t_connect_start) * 1000)
 
         if hasattr(app, "wait_until_ready"):
-            app.wait_until_ready(timeout=1.0)
+            _t_ready_start = _time.perf_counter()
+            logger.info("[ib_marketdata] wait_until_ready: starting (timeout=1.0s)")
+            ready_ok = app.wait_until_ready(timeout=1.0)
+            _t_ready_done = _time.perf_counter()
+            logger.info("[ib_marketdata] wait_until_ready: done in %.0fms (ready=%s)",
+                        (_t_ready_done - _t_ready_start) * 1000, ready_ok)
 
         try:
             missing: list[str] = []
@@ -446,14 +463,29 @@ class IBMarketDataService:
                     "Snapshot market data not supported with generic ticks "
                     f"{generic_ticks}; using streaming data instead"
                 )
-            for leg in proposal.legs:
+            logger.info("[ib_marketdata] starting leg loop: %d legs, use_snapshot=%s",
+                        len(proposal.legs), use_snapshot)
+            for leg_idx, leg in enumerate(proposal.legs):
+                _t_leg_start = _time.perf_counter()
+                leg_strike = leg.get("strike", "?")
+                logger.info("[ib_marketdata] leg %d/%d (strike=%s): starting",
+                            leg_idx + 1, len(proposal.legs), leg_strike)
                 try:
+                    _t_build_start = _time.perf_counter()
                     contract = self._build_contract(
                         leg,
                         log=False,
                         warn_missing=False,
                     )
+                    _t_build_done = _time.perf_counter()
+                    logger.info("[ib_marketdata] leg %d: _build_contract done in %.0fms",
+                                leg_idx + 1, (_t_build_done - _t_build_start) * 1000)
+
+                    _t_enrich_start = _time.perf_counter()
                     contract = self._maybe_enrich_contract(app, leg, contract, timeout)
+                    _t_enrich_done = _time.perf_counter()
+                    logger.info("[ib_marketdata] leg %d: _maybe_enrich_contract done in %.0fms",
+                                leg_idx + 1, (_t_enrich_done - _t_enrich_start) * 1000)
                 except Exception as exc:
                     logger.warning(f"⚠️ Contract kon niet worden opgebouwd: {exc}")
                     logger.warning(
@@ -467,26 +499,29 @@ class IBMarketDataService:
                 retry_delay = self._quote_retry_delay
                 max_retries = self._max_quote_retries
                 self._log_contract(contract, leg)
+                _t_mktdata_loop_start = _time.perf_counter()
+                logger.info("[ib_marketdata] leg %d: starting reqMktData loop (max_retries=%d, timeout=%.1fs)",
+                            leg_idx + 1, max_retries, timeout)
                 while attempts <= max_retries:
                     attempts += 1
                     req_id = app._next_id()
                     app.register_request(req_id, snapshot=use_snapshot)
                     event = app._event(req_id)
-                    logger.debug(
-                        "reqMktData "
-                        f"req_id={req_id} "
-                        f"symbol={getattr(contract, 'symbol', '-')} "
-                        f"secType={getattr(contract, 'secType', '-')} "
-                        f"expiry={getattr(contract, 'lastTradeDateOrContractMonth', '-')} "
-                        f"strike={getattr(contract, 'strike', '-')} "
-                        f"right={getattr(contract, 'right', '-')} "
-                        f"exchange={getattr(contract, 'exchange', '-')} "
-                        f"snapshot={use_snapshot} "
-                        f"attempt={attempts}"
+                    logger.info(
+                        "[ib_marketdata] leg %d attempt %d/%d: reqMktData req_id=%d strike=%s",
+                        leg_idx + 1, attempts, max_retries + 1, req_id, leg_strike
                     )
+                    _t_req_start = _time.perf_counter()
                     app.reqMktData(req_id, contract, generic_ticks, use_snapshot, False, [])
                     try:
-                        if not event.wait(timeout):
+                        _t_wait_start = _time.perf_counter()
+                        logger.info("[ib_marketdata] leg %d attempt %d: event.wait starting (timeout=%.1fs)",
+                                    leg_idx + 1, attempts, timeout)
+                        wait_result = event.wait(timeout)
+                        _t_wait_done = _time.perf_counter()
+                        logger.info("[ib_marketdata] leg %d attempt %d: event.wait done in %.0fms (result=%s)",
+                                    leg_idx + 1, attempts, (_t_wait_done - _t_wait_start) * 1000, wait_result)
+                        if not wait_result:
                             logger.warning(
                                 "⏱ Timeout bij ophalen quote voor "
                                 f"strike {leg.get('strike')} (poging {attempts})"
@@ -503,11 +538,14 @@ class IBMarketDataService:
                             ask_ok = _is_valid_price(snapshot.get("ask"))
                             if bid_ok and ask_ok:
                                 quote_received = True
+                                _t_req_done = _time.perf_counter()
+                                logger.info("[ib_marketdata] leg %d attempt %d: quote received in %.0fms (bid=%s, ask=%s)",
+                                            leg_idx + 1, attempts, (_t_req_done - _t_req_start) * 1000,
+                                            snapshot.get("bid"), snapshot.get("ask"))
                                 break
-                            logger.debug(
-                                "Ontbrekende bid/ask na poging "
-                                f"{attempts} voor strike {leg.get('strike')} "
-                                f"(bid={snapshot.get('bid')}, ask={snapshot.get('ask')})"
+                            logger.info(
+                                "[ib_marketdata] leg %d attempt %d: missing bid/ask (bid=%s, ask=%s)",
+                                leg_idx + 1, attempts, snapshot.get('bid'), snapshot.get('ask')
                             )
                     finally:
                         try:
@@ -519,12 +557,22 @@ class IBMarketDataService:
                     if quote_received:
                         break
                     if attempts <= max_retries and retry_delay:
+                        logger.info("[ib_marketdata] leg %d: sleeping %.2fs before retry", leg_idx + 1, retry_delay)
                         time.sleep(retry_delay)
+
+                _t_mktdata_loop_done = _time.perf_counter()
+                _t_leg_done = _time.perf_counter()
+                logger.info("[ib_marketdata] leg %d/%d done: total=%.0fms, mktdata_loop=%.0fms, quote_received=%s",
+                            leg_idx + 1, len(proposal.legs),
+                            (_t_leg_done - _t_leg_start) * 1000,
+                            (_t_mktdata_loop_done - _t_mktdata_loop_start) * 1000,
+                            quote_received)
 
                 if not quote_received:
                     missing.append(str(leg.get("strike")))
                     leg["missing_edge"] = True
 
+            _t_score_start = _time.perf_counter()
             score, reasons = scoring.calculate_score(
                 proposal.strategy,
                 proposal,
@@ -532,6 +580,10 @@ class IBMarketDataService:
                 criteria=criteria,
                 atr=proposal.atr,
             )
+            _t_score_done = _time.perf_counter()
+            logger.info("[ib_marketdata] calculate_score done in %.0fms",
+                        (_t_score_done - _t_score_start) * 1000)
+
             accepted = score is not None
             after_metrics = _capture_metric_snapshot(proposal)
             metrics_delta = _compute_metric_delta(before_metrics, after_metrics)
@@ -555,6 +607,11 @@ class IBMarketDataService:
                     accepted,
                 )
             result.governance = _governance_payload(proposal, result, trigger_label)
+
+            _t_refresh_done = _time.perf_counter()
+            logger.info("[ib_marketdata] refresh COMPLETE: total=%.0fms, legs=%d, missing=%d, accepted=%s",
+                        (_t_refresh_done - _t_refresh_start) * 1000,
+                        len(proposal.legs), len(missing), accepted)
             return result
         finally:
             try:
@@ -601,21 +658,33 @@ class IBMarketDataService:
         contract: Contract,
         timeout: float,
     ) -> Contract:
+        import time as _time
         if not isinstance(leg, dict):
+            logger.debug("[_maybe_enrich_contract] leg is not dict, skipping")
             return contract
         trading_class = leg.get("tradingClass") or leg.get("trading_class")
         primary_exchange = leg.get("primaryExchange") or leg.get("primary_exchange")
         con_id = leg.get("conId") or leg.get("con_id")
         if trading_class and primary_exchange and con_id:
+            logger.debug("[_maybe_enrich_contract] all fields present, skipping enrichment")
             return contract
         if not hasattr(app, "request_contract_details"):
+            logger.debug("[_maybe_enrich_contract] app has no request_contract_details, skipping")
             return contract
         details_timeout = max(1.0, min(float(timeout), 5.0))
+        logger.info("[_maybe_enrich_contract] calling request_contract_details (timeout=%.1fs)", details_timeout)
+        _t_details_start = _time.perf_counter()
         try:
             enriched = app.request_contract_details(contract, timeout=details_timeout)
         except Exception:
+            _t_details_done = _time.perf_counter()
+            logger.warning("[_maybe_enrich_contract] request_contract_details failed in %.0fms",
+                           (_t_details_done - _t_details_start) * 1000)
             logger.debug("Contract details request failed", exc_info=True)
             return contract
+        _t_details_done = _time.perf_counter()
+        logger.info("[_maybe_enrich_contract] request_contract_details done in %.0fms (enriched=%s)",
+                    (_t_details_done - _t_details_start) * 1000, enriched is not None)
         if not enriched:
             return contract
 
@@ -802,9 +871,15 @@ def fetch_quote_snapshot(
     service: IBMarketDataService | None = None,
 ) -> SnapshotResult:
     """Refresh proposal quotes via IB and recompute metrics."""
+    import time as _time
+    _t_start = _time.perf_counter()
+    logger.info("[fetch_quote_snapshot] starting trigger=%s legs=%d",
+                trigger or "manual", len(proposal.legs) if proposal.legs else 0)
 
     svc = service or IBMarketDataService()
     baseline_metrics = _capture_metric_snapshot(proposal)
+
+    _t_refresh_start = _time.perf_counter()
     result = svc.refresh(
         proposal,
         criteria=criteria,
@@ -814,6 +889,9 @@ def fetch_quote_snapshot(
         trigger=trigger,
         log_delta=log_delta,
     )
+    _t_refresh_done = _time.perf_counter()
+    logger.info("[fetch_quote_snapshot] svc.refresh done in %.0fms",
+                (_t_refresh_done - _t_refresh_start) * 1000)
     result.trigger = result.trigger or trigger or "manual"
     if not result.metrics_delta:
         updated_metrics = _capture_metric_snapshot(result.proposal)
@@ -841,6 +919,10 @@ def fetch_quote_snapshot(
         )
     if result.accepted and result.governance and not result.governance.get("needs_refresh"):
         result.proposal.needs_refresh = False
+
+    _t_done = _time.perf_counter()
+    logger.info("[fetch_quote_snapshot] COMPLETE: total=%.0fms, accepted=%s, missing=%d",
+                (_t_done - _t_start) * 1000, result.accepted, len(result.missing_quotes))
     return result
 
 
