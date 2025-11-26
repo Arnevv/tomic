@@ -432,8 +432,13 @@ def _enrich_strategy_leg_quotes(
     refresh_attempts: int = 0,
     refresh_wait: float = 0.0,
 ) -> None:
+    t_enrich_start = time.perf_counter()
+    symbol = strategy.get("symbol", "?")
+    logger.debug("[quote_enrich] START for %s (attempts=%d, wait=%.2fs)", symbol, refresh_attempts, refresh_wait)
+
     legs = strategy.get("legs")
     if not isinstance(legs, list):
+        logger.debug("[quote_enrich] no legs found for %s", symbol)
         return
 
     con_lookup = {}
@@ -466,10 +471,14 @@ def _enrich_strategy_leg_quotes(
 
     attempts_remaining = max(int(refresh_attempts), 0)
     if not needs_refresh and attempts_remaining <= 0:
+        t_elapsed = time.perf_counter() - t_enrich_start
+        logger.debug("[quote_enrich] %s: no refresh needed (%dms)", symbol, int(t_elapsed * 1000))
         return
 
     fetcher = _resolve_quote_fetcher(quote_fetcher)
     if fetcher is None:
+        t_elapsed = time.perf_counter() - t_enrich_start
+        logger.debug("[quote_enrich] %s: no fetcher available (%dms)", symbol, int(t_elapsed * 1000))
         return
 
     attempts = max(attempts_remaining, 1) if (needs_refresh or attempts_remaining > 0) else 0
@@ -477,14 +486,24 @@ def _enrich_strategy_leg_quotes(
         return
 
     wait_time = max(float(refresh_wait), 0.0)
+    logger.info("[quote_enrich] %s: starting %d fetch attempts (wait=%.2fs)", symbol, attempts, wait_time)
+    total_fetch_time = 0.0
+    total_wait_time = 0.0
 
     for attempt in range(attempts):
+        t_fetch_start = time.perf_counter()
+        logger.debug("[quote_enrich] %s: fetch attempt %d/%d", symbol, attempt + 1, attempts)
+
         payload: list[MutableMapping[str, Any]] = [dict(leg) for leg in legs]
         for idx, payload_leg in enumerate(payload):
             raw_leg = matched_raw[idx] if idx < len(matched_raw) else None
             _prepare_payload_leg(payload_leg, strategy, raw_leg)
 
         refreshed = fetcher(strategy, payload)
+        t_fetch_elapsed = time.perf_counter() - t_fetch_start
+        total_fetch_time += t_fetch_elapsed
+        logger.debug("[quote_enrich] %s: fetch %d/%d took %dms", symbol, attempt + 1, attempts, int(t_fetch_elapsed * 1000))
+
         if isinstance(refreshed, Sequence):
             for idx, updated in enumerate(refreshed):
                 if idx >= len(legs):
@@ -500,11 +519,34 @@ def _enrich_strategy_leg_quotes(
                 if isinstance(raw_leg, MutableMapping):
                     _update_raw_leg_quotes(raw_leg, legs[idx])
 
-        if all(_has_valid_quotes(leg) and _has_min_tick(leg) for leg in legs):
+        all_valid = all(_has_valid_quotes(leg) and _has_min_tick(leg) for leg in legs)
+        if all_valid:
+            t_elapsed = time.perf_counter() - t_enrich_start
+            logger.info(
+                "[quote_enrich] %s: SUCCESS at attempt %d/%d (fetch=%dms, wait=%dms, total=%dms)",
+                symbol,
+                attempt + 1,
+                attempts,
+                int(total_fetch_time * 1000),
+                int(total_wait_time * 1000),
+                int(t_elapsed * 1000),
+            )
             break
 
         if attempt < attempts - 1 and wait_time > 0:
+            logger.debug("[quote_enrich] %s: sleeping %.2fs before retry...", symbol, wait_time)
             time.sleep(wait_time)
+            total_wait_time += wait_time
+    else:
+        t_elapsed = time.perf_counter() - t_enrich_start
+        logger.warning(
+            "[quote_enrich] %s: INCOMPLETE after %d attempts (fetch=%dms, wait=%dms, total=%dms)",
+            symbol,
+            attempts,
+            int(total_fetch_time * 1000),
+            int(total_wait_time * 1000),
+            int(t_elapsed * 1000),
+        )
 
 
 def build_exit_intents(
@@ -520,13 +562,23 @@ def build_exit_intents(
 ) -> Sequence[StrategyExitIntent]:
     """Return exit governance payload per strategy with raw legs and quotes."""
 
+    t_build_start = time.perf_counter()
+    logger.info("[build_exit_intents] START (freshen_attempts=%d, freshen_wait_s=%.2f)", freshen_attempts, freshen_wait_s)
+
+    t_load_start = time.perf_counter()
     positions_path, journal_path, positions, journal = _load_positions_and_journal(
         positions_file,
         journal_file,
         loader,
     )
+    t_load_elapsed = time.perf_counter() - t_load_start
+    logger.info("[build_exit_intents] load positions/journal: %dms", int(t_load_elapsed * 1000))
 
+    t_group_start = time.perf_counter()
     strategies = grouper(positions, journal)
+    t_group_elapsed = time.perf_counter() - t_group_start
+    logger.info("[build_exit_intents] group strategies: %dms (%d strategies)", int(t_group_elapsed * 1000), len(strategies))
+
     exit_rules_data = exit_rule_loader(journal_path)
     exit_rules: Mapping[tuple[Any, Any], Mapping[str, Any]]
     if isinstance(exit_rules_data, Mapping):
@@ -537,10 +589,16 @@ def build_exit_intents(
     raw_by_trade, raw_by_symbol_expiry = _collect_raw_leg_groups(positions, journal)
 
     intents: list[StrategyExitIntent] = []
-    for strategy in strategies:
+    t_enrich_total = 0.0
+
+    for idx, strategy in enumerate(strategies):
+        symbol = strategy.get("symbol", "?")
+        logger.debug("[build_exit_intents] processing strategy %d/%d: %s", idx + 1, len(strategies), symbol)
+
         raw_legs_source = _resolve_raw_legs(strategy, raw_by_trade, raw_by_symbol_expiry)
 
         raw_leg_copies: list[MutableMapping[str, Any]] = [dict(leg) for leg in raw_legs_source]
+        t_enrich_start = time.perf_counter()
         _enrich_strategy_leg_quotes(
             strategy,
             raw_leg_copies,
@@ -548,6 +606,8 @@ def build_exit_intents(
             refresh_attempts=freshen_attempts,
             refresh_wait=freshen_wait_s,
         )
+        t_enrich_elapsed = time.perf_counter() - t_enrich_start
+        t_enrich_total += t_enrich_elapsed
 
         rule_key = (strategy.get("symbol"), strategy.get("expiry"))
         rule = exit_rules.get(rule_key)
@@ -560,6 +620,14 @@ def build_exit_intents(
         )
 
     intents.sort(key=_intent_sort_key)
+
+    t_build_elapsed = time.perf_counter() - t_build_start
+    logger.info(
+        "[build_exit_intents] DONE: %d intents, enrich=%dms, total=%dms",
+        len(intents),
+        int(t_enrich_total * 1000),
+        int(t_build_elapsed * 1000),
+    )
     return intents
 
 
