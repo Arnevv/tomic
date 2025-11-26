@@ -616,28 +616,47 @@ def _attempt_reprice_if_needed(
     instructions: Sequence[OrderInstruction],
     placed_ids: Sequence[int],
 ) -> bool:
+    t_reprice_start = time.perf_counter()
+    log.info("[repricer] _attempt_reprice_if_needed START")
+
     if not instructions or not placed_ids:
+        log.info("[repricer] no instructions or placed_ids, skipping")
         return False
     if not _orders_active_without_fill(app, placed_ids):
+        log.info("[repricer] orders not active or already filled, skipping")
         return False
+
     wait_time = max(_REPRICER_WAIT_SECONDS, 0)
     if wait_time:
-        log.info("[repricer] waiting %ss for fill before adjusting", int(wait_time))
+        log.info("[repricer] sleeping %ss waiting for fill...", int(wait_time))
+        t_sleep_start = time.perf_counter()
         time.sleep(wait_time)
+        t_sleep_elapsed = time.perf_counter() - t_sleep_start
+        log.info("[repricer] sleep done: %dms", int(t_sleep_elapsed * 1000))
+
     if not _orders_active_without_fill(app, placed_ids):
-        log.info("[repricer] skip repricer; order updated during wait")
+        t_elapsed = time.perf_counter() - t_reprice_start
+        log.info("[repricer] order filled during wait, skip reprice (total: %dms)", int(t_elapsed * 1000))
         return False
+
     updated = False
     for instr in instructions:
         if _reprice_single_instruction(instr):
             updated = True
     if not updated:
+        t_elapsed = time.perf_counter() - t_reprice_start
+        log.info("[repricer] no repricing needed (total: %dms)", int(t_elapsed * 1000))
         return False
+
+    log.info("[repricer] cancelling %d orders for reprice...", len(placed_ids))
     for order_id in placed_ids:
         try:
             app.cancelOrder(order_id)
         except Exception:  # pragma: no cover - defensive
             logger.debug("Kon order niet annuleren tijdens repricer", exc_info=True)
+
+    t_elapsed = time.perf_counter() - t_reprice_start
+    log.info("[repricer] reprice triggered (total: %dms)", int(t_elapsed * 1000))
     return True
 
 
@@ -1490,6 +1509,9 @@ class OrderSubmissionService:
         client_id: int,
         timeout: int = 5,
     ) -> tuple[OrderPlacementApp, list[int]]:
+        t_place_start = time.perf_counter()
+        log.info("[place_orders] START: %d instructions", len(instructions))
+
         if not instructions:
             raise ValueError("geen orders om te plaatsen")
 
@@ -1503,11 +1525,22 @@ class OrderSubmissionService:
         attempt = 0
         while True:
             attempt += 1
+            t_attempt_start = time.perf_counter()
+            log.info("[place_orders] attempt %d: connecting to IB...", attempt)
+
+            t_connect_start = time.perf_counter()
             app = self._app_factory()
             connect_ib(host=host, port=port, client_id=client_id, timeout=timeout, app=app)
+            t_connect_elapsed = time.perf_counter() - t_connect_start
+            log.info("[place_orders] connect_ib: %dms", int(t_connect_elapsed * 1000))
+
             try:
+                t_wait_start = time.perf_counter()
                 while not getattr(app, "next_order_id_ready", False):
                     time.sleep(0.1)
+                t_wait_elapsed = time.perf_counter() - t_wait_start
+                log.info("[place_orders] next_order_id_ready: %dms", int(t_wait_elapsed * 1000))
+
                 order_id = app.next_valid_id or 1
                 con_ids_to_validate: set[int] = set()
                 for instr in instructions:
@@ -1532,10 +1565,16 @@ class OrderSubmissionService:
                             ) from exc
 
                 if con_ids_to_validate:
+                    t_validate_start = time.perf_counter()
+                    log.info("[place_orders] validating %d conIds...", len(con_ids_to_validate))
                     app.validate_contract_conids(sorted(con_ids_to_validate))
+                    t_validate_elapsed = time.perf_counter() - t_validate_start
+                    log.info("[place_orders] validate_contract_conids: %dms", int(t_validate_elapsed * 1000))
+
                 placed_ids: list[int] = []
                 parent_id = order_id
                 order_map: dict[int, OrderInstruction] = {}
+                t_orders_start = time.perf_counter()
                 for idx, instr in enumerate(instructions):
                     current_id = order_id + idx
                     order = instr.order
@@ -1592,7 +1631,15 @@ class OrderSubmissionService:
                     )
                     app.placeOrder(current_id, instr.contract, order)
                     placed_ids.append(current_id)
+
+                t_orders_elapsed = time.perf_counter() - t_orders_start
+                log.info("[place_orders] placeOrder calls: %dms for %d orders", int(t_orders_elapsed * 1000), len(placed_ids))
+
+                t_handshake_start = time.perf_counter()
                 app.wait_for_order_handshake(placed_ids)
+                t_handshake_elapsed = time.perf_counter() - t_handshake_start
+                log.info("[place_orders] wait_for_order_handshake: %dms", int(t_handshake_elapsed * 1000))
+
                 errors = app.get_order_errors(placed_ids)
                 retryable = False
                 for err_order_id, code, _message in errors:
@@ -1659,7 +1706,11 @@ class OrderSubmissionService:
                     continue
 
                 if not repricer_done:
+                    t_repricer_start = time.perf_counter()
+                    log.info("[place_orders] checking if reprice needed...")
                     if _attempt_reprice_if_needed(app, instructions, placed_ids):
+                        t_repricer_elapsed = time.perf_counter() - t_repricer_start
+                        log.info("[place_orders] repricer triggered: %dms", int(t_repricer_elapsed * 1000))
                         repricer_done = True
                         retry_info = {
                             "reason": "repricer_adjustment",
@@ -1672,6 +1723,9 @@ class OrderSubmissionService:
                                 "Kon app niet disconnecten na repricer", exc_info=True
                             )
                         continue
+                    else:
+                        t_repricer_elapsed = time.perf_counter() - t_repricer_start
+                        log.info("[place_orders] repricer not needed: %dms", int(t_repricer_elapsed * 1000))
 
                 if retry_info:
                     old_ids = retry_info.get("old_ids", ())
@@ -1687,6 +1741,16 @@ class OrderSubmissionService:
                         retry_info.get("reason", "unknown"),
                         mapping,
                     )
+
+                t_attempt_elapsed = time.perf_counter() - t_attempt_start
+                t_place_total = time.perf_counter() - t_place_start
+                log.info(
+                    "[place_orders] DONE: attempt=%d, attempt_time=%dms, total=%dms, order_ids=%s",
+                    attempt,
+                    int(t_attempt_elapsed * 1000),
+                    int(t_place_total * 1000),
+                    placed_ids,
+                )
                 return app, placed_ids
             except Exception:
                 logger.exception("❌ Fout bij versturen van IB orders")

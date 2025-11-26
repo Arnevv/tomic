@@ -4,12 +4,15 @@ from __future__ import annotations
 
 import argparse
 import sys
+import time
 from copy import deepcopy
 from pathlib import Path
 from typing import Any, Callable, Iterable
 
 from tomic.journal.utils import load_json
 from tomic.logutils import logger, setup_logging
+
+
 from tomic.services.exit_flow import (
     ExitFlowConfig,
     ExitFlowResult,
@@ -260,10 +263,28 @@ def _cached_loader(loader: Callable[[str], Any]) -> Callable[[str], Any]:
     return _load
 
 
+def _format_duration(seconds: float) -> str:
+    """Format duration as human-readable string."""
+    if seconds < 1:
+        return f"{seconds * 1000:.0f}ms"
+    elif seconds < 60:
+        return f"{seconds:.1f}s"
+    else:
+        mins = int(seconds // 60)
+        secs = seconds % 60
+        return f"{mins}m {secs:.1f}s"
+
+
 def main(argv: Iterable[str] | None = None) -> int:
     """CLI entrypoint for executing exit flows."""
 
     setup_logging()
+
+    # ===== TIMING: Start totaal =====
+    t_total_start = time.perf_counter()
+    logger.info("=" * 60)
+    logger.info("EXIT-FLOW GESTART - Diagnostische logging actief")
+    logger.info("=" * 60)
 
     parser = argparse.ArgumentParser(description="Run the exit workflow for current positions")
     parser.add_argument("--positions", help="Pad naar positions.json", default=None)
@@ -280,15 +301,34 @@ def main(argv: Iterable[str] | None = None) -> int:
 
     cached_loader = _cached_loader(load_json)
 
+    # ===== TIMING: build_management_summary =====
+    t_summary_start = time.perf_counter()
+    logger.info("[FASE 1/5] Laden management summaries...")
     summaries = build_management_summary(
         positions_file=args.positions,
         journal_file=args.journal,
         loader=cached_loader,
     )
     alert_index = build_exit_alert_index(summaries)
+    t_summary_elapsed = time.perf_counter() - t_summary_start
+    logger.info(
+        "[FASE 1/5] ✓ Summaries geladen: %d summaries, %d alerts (%s)",
+        len(summaries),
+        len(alert_index),
+        _format_duration(t_summary_elapsed),
+    )
 
+    # ===== TIMING: resolve_exit_intent_freshen_config =====
     freshen_attempts, freshen_wait_s = resolve_exit_intent_freshen_config()
+    logger.info(
+        "[CONFIG] freshen_attempts=%d, freshen_wait_s=%.2f",
+        freshen_attempts,
+        freshen_wait_s,
+    )
 
+    # ===== TIMING: build_exit_intents =====
+    t_intents_start = time.perf_counter()
+    logger.info("[FASE 2/5] Bouwen exit intents (incl. quote refresh)...")
     intents = build_exit_intents(
         positions_file=args.positions,
         journal_file=args.journal,
@@ -296,7 +336,16 @@ def main(argv: Iterable[str] | None = None) -> int:
         freshen_attempts=freshen_attempts,
         freshen_wait_s=freshen_wait_s,
     )
+    t_intents_elapsed = time.perf_counter() - t_intents_start
+    logger.info(
+        "[FASE 2/5] ✓ Exit intents gebouwd: %d intents (%s)",
+        len(intents),
+        _format_duration(t_intents_elapsed),
+    )
 
+    # ===== TIMING: Filtering =====
+    t_filter_start = time.perf_counter()
+    logger.info("[FASE 3/5] Filteren intents...")
     filtered: list[StrategyExitIntent] = []
     skipped_symbols: list[str] = []
     has_symbol_filter = bool(symbols)
@@ -313,8 +362,18 @@ def main(argv: Iterable[str] | None = None) -> int:
 
         skipped_symbols.append(symbol_label)
 
+    t_filter_elapsed = time.perf_counter() - t_filter_start
+    logger.info(
+        "[FASE 3/5] ✓ Gefilterd: %d te verwerken, %d overgeslagen (%s)",
+        len(filtered),
+        len(skipped_symbols),
+        _format_duration(t_filter_elapsed),
+    )
+
     if not filtered:
+        t_total_elapsed = time.perf_counter() - t_total_start
         logger.warning("Geen exit-intents gevonden voor de geselecteerde criteria.")
+        logger.info("[TOTAAL] Exit-flow beëindigd in %s", _format_duration(t_total_elapsed))
         return 0
 
     if skipped_symbols:
@@ -325,25 +384,99 @@ def main(argv: Iterable[str] | None = None) -> int:
             ", ".join(skipped_summary),
         )
 
+    # ===== TIMING: Config laden =====
+    t_config_start = time.perf_counter()
     config = ExitFlowConfig.from_app_config()
+    t_config_elapsed = time.perf_counter() - t_config_start
+    logger.info(
+        "[CONFIG] host=%s, port=%d, client_id=%d, fetch_only=%s (%s)",
+        config.host,
+        config.port,
+        config.client_id,
+        config.fetch_only,
+        _format_duration(t_config_elapsed),
+    )
     if config.fetch_only:
         logger.info("IB_FETCH_ONLY actief → orders worden niet verstuurd.")
 
+    # ===== TIMING: Execute exit flows =====
+    logger.info("[FASE 4/5] Uitvoeren exit flows voor %d intents...", len(filtered))
     exit_code = 0
     collected: list[tuple[StrategyExitIntent, ExitFlowResult, Path]] = []
-    for intent in filtered:
+    intent_timings: list[tuple[str, float]] = []
+
+    for idx, intent in enumerate(filtered, start=1):
+        symbol_label = _intent_symbol(intent)
+        intent_label = _intent_label(intent)
+
+        logger.info("-" * 50)
+        logger.info(
+            "[INTENT %d/%d] Start: %s",
+            idx,
+            len(filtered),
+            intent_label,
+        )
+        t_intent_start = time.perf_counter()
+
         try:
             result = execute_exit_flow(intent, config=config)
         except Exception:  # pragma: no cover - defensive logging
-            logger.exception("Exit-flow mislukte voor %s", _intent_symbol(intent))
+            t_intent_elapsed = time.perf_counter() - t_intent_start
+            logger.exception(
+                "[INTENT %d/%d] ✗ EXCEPTION na %s voor %s",
+                idx,
+                len(filtered),
+                _format_duration(t_intent_elapsed),
+                symbol_label,
+            )
+            intent_timings.append((symbol_label, t_intent_elapsed))
             exit_code = 1
             continue
+
+        t_intent_elapsed = time.perf_counter() - t_intent_start
+        intent_timings.append((symbol_label, t_intent_elapsed))
+
+        logger.info(
+            "[INTENT %d/%d] ✓ Klaar: %s → %s (%d attempts) in %s",
+            idx,
+            len(filtered),
+            symbol_label,
+            result.status,
+            len(result.attempts),
+            _format_duration(t_intent_elapsed),
+        )
+
         log_path = store_exit_flow_result(intent, result, directory=config.log_directory)
         _log_progress(intent, result)
         collected.append((intent, result, log_path))
         if result.status == "failed":
             exit_code = 1
+
+    # ===== TIMING: Final summary =====
+    logger.info("-" * 50)
+    logger.info("[FASE 5/5] Genereren samenvatting...")
     _log_final_summary(collected)
+
+    # ===== TIMING: Totaal overzicht =====
+    t_total_elapsed = time.perf_counter() - t_total_start
+    logger.info("=" * 60)
+    logger.info("TIMING OVERZICHT")
+    logger.info("=" * 60)
+    logger.info("  Summaries laden:    %s", _format_duration(t_summary_elapsed))
+    logger.info("  Intents bouwen:     %s", _format_duration(t_intents_elapsed))
+    logger.info("  Filteren:           %s", _format_duration(t_filter_elapsed))
+
+    if intent_timings:
+        logger.info("  Per intent:")
+        for symbol, duration in intent_timings:
+            logger.info("    - %-15s %s", symbol, _format_duration(duration))
+        total_intent_time = sum(d for _, d in intent_timings)
+        logger.info("  Intent totaal:      %s", _format_duration(total_intent_time))
+
+    logger.info("-" * 60)
+    logger.info("  TOTALE RUNTIME:     %s", _format_duration(t_total_elapsed))
+    logger.info("=" * 60)
+
     return exit_code
 
 

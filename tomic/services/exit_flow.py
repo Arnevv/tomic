@@ -158,6 +158,11 @@ class ExitFlowConfig:
         return _dispatch
 
 
+def _fmt_ms(seconds: float) -> str:
+    """Format seconds as milliseconds string."""
+    return f"{seconds * 1000:.0f}ms"
+
+
 def execute_exit_flow(
     intent: ExitIntent,
     *,
@@ -168,6 +173,11 @@ def execute_exit_flow(
 ) -> ExitFlowResult:
     """Execute the exit workflow for ``intent`` and return a structured result."""
 
+    t_flow_start = time.perf_counter()
+    logger.info("[execute_exit_flow] START")
+
+    # ===== Setup phase =====
+    t_setup_start = time.perf_counter()
     cfg = config or ExitFlowConfig.from_app_config()
     forced = cfg.force_exit_enabled if force_exit is None else bool(force_exit)
     force_policy = exit_force_exit_config()
@@ -175,14 +185,26 @@ def execute_exit_flow(
     active_dispatcher = dispatcher
     if active_dispatcher is None:
         active_dispatcher = cfg.create_dispatcher(force_exit=forced)
+    t_setup_elapsed = time.perf_counter() - t_setup_start
+    logger.info("[execute_exit_flow] setup: %s (forced=%s)", _fmt_ms(t_setup_elapsed), forced)
 
     attempts: list[ExitAttemptResult] = []
     limit_prices: list[float] = []
     placed_ids: list[int] = []
 
+    # ===== Build order plan =====
+    t_plan_start = time.perf_counter()
     try:
         plan = build_exit_order_plan(intent)
     except ValueError as exc:
+        t_plan_elapsed = time.perf_counter() - t_plan_start
+        t_flow_elapsed = time.perf_counter() - t_flow_start
+        logger.warning(
+            "[execute_exit_flow] build_exit_order_plan FAILED: %s (%s, total: %s)",
+            exc,
+            _fmt_ms(t_plan_elapsed),
+            _fmt_ms(t_flow_elapsed),
+        )
         return ExitFlowResult(
             status="failed",
             reason=str(exc),
@@ -191,6 +213,13 @@ def execute_exit_flow(
             attempts=tuple(),
             forced=forced,
         )
+    t_plan_elapsed = time.perf_counter() - t_plan_start
+    logger.info(
+        "[execute_exit_flow] build_exit_order_plan: %s (legs=%d, limit=%.2f)",
+        _fmt_ms(t_plan_elapsed),
+        len(plan.legs),
+        plan.limit_price or 0,
+    )
 
     base_limit = safe_float(plan.limit_price)
 
@@ -221,6 +250,8 @@ def execute_exit_flow(
                 reason="fetch_only_mode",
             )
         )
+        t_flow_elapsed = time.perf_counter() - t_flow_start
+        logger.info("[execute_exit_flow] DONE (fetch_only) total: %s", _fmt_ms(t_flow_elapsed))
         return ExitFlowResult(
             status="fetch_only",
             reason="fetch_only_mode",
@@ -232,9 +263,17 @@ def execute_exit_flow(
 
     ladder_cfg = exit_price_ladder_config()
     use_ladder = bool(ladder_cfg.get("enabled"))
+    logger.info(
+        "[execute_exit_flow] ladder_enabled=%s, steps=%s, step_wait=%ss",
+        use_ladder,
+        ladder_cfg.get("steps", []),
+        ladder_cfg.get("step_wait_seconds", 0),
+    )
     primary_error: Exception | None = None
 
     if use_ladder:
+        t_ladder_start = time.perf_counter()
+        logger.info("[execute_exit_flow] Starting price ladder dispatch...")
         (
             ladder_attempts,
             ladder_limits,
@@ -247,11 +286,23 @@ def execute_exit_flow(
             forced=forced,
             limit_cap=limit_cap_cfg,
         )
+        t_ladder_elapsed = time.perf_counter() - t_ladder_start
+        logger.info(
+            "[execute_exit_flow] ladder dispatch: %s (attempts=%d, ids=%d)",
+            _fmt_ms(t_ladder_elapsed),
+            len(ladder_attempts),
+            len(ladder_ids),
+        )
         attempts.extend(ladder_attempts)
         limit_prices.extend(ladder_limits)
         if ladder_ids:
             placed_ids.extend(ladder_ids)
             final_stage = ladder_attempts[-1].stage if ladder_attempts else "primary"
+            t_flow_elapsed = time.perf_counter() - t_flow_start
+            logger.info(
+                "[execute_exit_flow] DONE (ladder success) total: %s",
+                _fmt_ms(t_flow_elapsed),
+            )
             return ExitFlowResult(
                 status="success",
                 reason=final_stage,
@@ -261,10 +312,20 @@ def execute_exit_flow(
                 forced=forced,
             )
         primary_error = ladder_error or RuntimeError("price_ladder_failed")
+        logger.info("[execute_exit_flow] ladder failed: %s", primary_error)
     else:
+        t_primary_start = time.perf_counter()
+        logger.info("[execute_exit_flow] Starting primary dispatch (no ladder)...")
         if base_limit is not None:
             limit_prices.append(base_limit)
         order_ids, dispatch_error = _call_dispatcher(active_dispatcher, plan)
+        t_primary_elapsed = time.perf_counter() - t_primary_start
+        logger.info(
+            "[execute_exit_flow] primary dispatch: %s (ids=%d, error=%s)",
+            _fmt_ms(t_primary_elapsed),
+            len(order_ids) if order_ids else 0,
+            dispatch_error,
+        )
         if dispatch_error is not None:
             primary_error = dispatch_error
             attempts.append(
@@ -290,6 +351,11 @@ def execute_exit_flow(
             )
             if order_ids:
                 placed_ids.extend(order_ids)
+                t_flow_elapsed = time.perf_counter() - t_flow_start
+                logger.info(
+                    "[execute_exit_flow] DONE (primary success) total: %s",
+                    _fmt_ms(t_flow_elapsed),
+                )
                 return ExitFlowResult(
                     status="success",
                     reason="primary",
@@ -300,6 +366,9 @@ def execute_exit_flow(
                 )
             primary_error = RuntimeError("no_orders")
 
+    # ===== Fallback dispatch =====
+    t_fallback_start = time.perf_counter()
+    logger.info("[execute_exit_flow] Starting fallback dispatch...")
     (
         fallback_attempts,
         fallback_ids,
@@ -311,6 +380,13 @@ def execute_exit_flow(
         error=primary_error,
         repricer_steps=repricer_steps,
     )
+    t_fallback_elapsed = time.perf_counter() - t_fallback_start
+    logger.info(
+        "[execute_exit_flow] fallback dispatch: %s (attempts=%d, ids=%d)",
+        _fmt_ms(t_fallback_elapsed),
+        len(fallback_attempts),
+        len(fallback_ids),
+    )
     attempts.extend(fallback_attempts)
     limit_prices.extend(fallback_limits)
     placed_ids.extend(fallback_ids)
@@ -319,6 +395,11 @@ def execute_exit_flow(
     if placed_ids:
         status = "success"
         reason = f"fallback:{fallback_reason}"
+        t_flow_elapsed = time.perf_counter() - t_flow_start
+        logger.info(
+            "[execute_exit_flow] DONE (fallback success) total: %s",
+            _fmt_ms(t_flow_elapsed),
+        )
         return ExitFlowResult(
             status=status,
             reason=reason,
@@ -331,11 +412,18 @@ def execute_exit_flow(
     # If we reach here, primary and fallback both failed
     # Try force-exit if enabled
     if forced:
-        logger.info("[exit-flow] primary and fallback failed, attempting force-exit")
+        t_force_start = time.perf_counter()
+        logger.info("[execute_exit_flow] primary and fallback failed, attempting force-exit...")
         force_attempts, force_ids, force_limits, force_error = _execute_force_exit(
             intent,
             active_dispatcher,
             error=primary_error,
+        )
+        t_force_elapsed = time.perf_counter() - t_force_start
+        logger.info(
+            "[execute_exit_flow] force-exit dispatch: %s (ids=%d)",
+            _fmt_ms(t_force_elapsed),
+            len(force_ids),
         )
         attempts.extend(force_attempts)
         limit_prices.extend(force_limits)
@@ -344,6 +432,11 @@ def execute_exit_flow(
         if placed_ids:
             status = "success"
             reason = "force_exit"
+            t_flow_elapsed = time.perf_counter() - t_flow_start
+            logger.info(
+                "[execute_exit_flow] DONE (force-exit success) total: %s",
+                _fmt_ms(t_flow_elapsed),
+            )
             return ExitFlowResult(
                 status=status,
                 reason=reason,
@@ -359,6 +452,11 @@ def execute_exit_flow(
             all_errors.append(str(force_error))
         status = "failed"
         reason = " | ".join(all_errors)
+        t_flow_elapsed = time.perf_counter() - t_flow_start
+        logger.info(
+            "[execute_exit_flow] DONE (all failed) total: %s",
+            _fmt_ms(t_flow_elapsed),
+        )
         return ExitFlowResult(
             status=status,
             reason=reason,
@@ -371,6 +469,11 @@ def execute_exit_flow(
     # Force-exit not enabled, return failure
     status = "failed"
     reason = str(primary_error or "no_orders")
+    t_flow_elapsed = time.perf_counter() - t_flow_start
+    logger.info(
+        "[execute_exit_flow] DONE (failed, no force) total: %s",
+        _fmt_ms(t_flow_elapsed),
+    )
     return ExitFlowResult(
         status=status,
         reason=reason,
@@ -633,15 +736,32 @@ def _dispatch_with_price_ladder(
     max_duration = safe_float(ladder_cfg.get("max_duration_seconds")) or 0.0
     max_duration = max(max_duration, 0.0)
 
+    logger.info(
+        "[price_ladder] START: %d steps, wait=%ss, max_duration=%ss",
+        len(steps),
+        wait_seconds,
+        max_duration,
+    )
+
     attempts: list[ExitAttemptResult] = []
     limit_prices: list[float] = []
     placed_ids: list[int] = []
     seen_prices: set[float] = set()
     last_error: Exception | None = None
     start = time.monotonic()
+    total_wait_time = 0.0
 
     for idx, offset in enumerate(steps):
+        t_step_start = time.perf_counter()
         stage = "primary" if idx == 0 else f"ladder:{idx}"
+        logger.info(
+            "[price_ladder] step %d/%d: stage=%s, offset=%.4f",
+            idx + 1,
+            len(steps),
+            stage,
+            offset,
+        )
+
         if idx == 0 and abs(offset) < 1e-9:
             candidate_plan = plan
         else:
@@ -652,6 +772,7 @@ def _dispatch_with_price_ladder(
                 limit_cap=limit_cap,
             )
         if candidate_plan is None:
+            logger.info("[price_ladder] step %d: SKIPPED (invalid_limit)", idx + 1)
             attempts.append(
                 ExitAttemptResult(
                     stage=stage,
@@ -667,6 +788,11 @@ def _dispatch_with_price_ladder(
         normalized_price = round(price, 4) if price is not None else None
         if normalized_price is not None:
             if normalized_price in seen_prices:
+                logger.info(
+                    "[price_ladder] step %d: SKIPPED (duplicate_price=%.4f)",
+                    idx + 1,
+                    price,
+                )
                 attempts.append(
                     ExitAttemptResult(
                         stage=stage,
@@ -680,9 +806,19 @@ def _dispatch_with_price_ladder(
             seen_prices.add(normalized_price)
             limit_prices.append(price)
 
+        t_dispatch_start = time.perf_counter()
         ids, dispatch_error = _call_dispatcher(dispatcher, candidate_plan)
+        t_dispatch_elapsed = time.perf_counter() - t_dispatch_start
+
         if dispatch_error is not None:
             last_error = dispatch_error
+            logger.info(
+                "[price_ladder] step %d: FAILED dispatch (%s) price=%.4f, took %s",
+                idx + 1,
+                dispatch_error,
+                price or 0,
+                _fmt_ms(t_dispatch_elapsed),
+            )
             attempts.append(
                 ExitAttemptResult(
                     stage=stage,
@@ -695,6 +831,15 @@ def _dispatch_with_price_ladder(
             continue
 
         if ids:
+            t_step_elapsed = time.perf_counter() - t_step_start
+            logger.info(
+                "[price_ladder] step %d: SUCCESS! price=%.4f, ids=%s, dispatch=%s, step=%s",
+                idx + 1,
+                price or 0,
+                ids,
+                _fmt_ms(t_dispatch_elapsed),
+                _fmt_ms(t_step_elapsed),
+            )
             attempts.append(
                 ExitAttemptResult(
                     stage=stage,
@@ -704,8 +849,21 @@ def _dispatch_with_price_ladder(
                 )
             )
             placed_ids.extend(ids)
+            total_elapsed = time.monotonic() - start
+            logger.info(
+                "[price_ladder] DONE (success at step %d) total=%s, waited=%ss",
+                idx + 1,
+                _fmt_ms(total_elapsed),
+                total_wait_time,
+            )
             return attempts, limit_prices, placed_ids, None
 
+        logger.info(
+            "[price_ladder] step %d: FAILED (no_order_ids) price=%.4f, dispatch=%s",
+            idx + 1,
+            price or 0,
+            _fmt_ms(t_dispatch_elapsed),
+        )
         attempts.append(
             ExitAttemptResult(
                 stage=stage,
@@ -722,16 +880,29 @@ def _dispatch_with_price_ladder(
                 elapsed = time.monotonic() - start
                 remaining = max_duration - elapsed
                 if remaining <= 0:
+                    logger.info(
+                        "[price_ladder] max_duration reached (%.1fs), stopping early",
+                        elapsed,
+                    )
                     break
                 if wait_time > 0:
                     wait_time = min(wait_time, remaining)
                 else:
                     wait_time = max(0.0, remaining)
             if wait_time > 0:
+                logger.info("[price_ladder] sleeping %.2fs before next step...", wait_time)
                 time.sleep(wait_time)
+                total_wait_time += wait_time
 
     if last_error is None:
         last_error = RuntimeError("price_ladder_failed")
+    total_elapsed = time.monotonic() - start
+    logger.info(
+        "[price_ladder] DONE (failed all %d steps) total=%s, waited=%ss",
+        len(steps),
+        _fmt_ms(total_elapsed),
+        total_wait_time,
+    )
     return attempts, limit_prices, placed_ids, last_error
 
 
