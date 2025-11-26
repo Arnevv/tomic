@@ -163,15 +163,7 @@ def test_run_iv_backfill_flow_previews_and_writes(
     assert "⚠️ HV ontbreekt" in captured
     assert "⚠️ Spotdata ontbreekt" in captured
     assert "✅ IV backfill opgeslagen" in captured
-    assert "Backup aangemaakt" in captured
 
     merged = json.loads(summary_file.read_text(encoding="utf-8"))
     assert [row["date"] for row in merged] == ["2023-12-31", "2024-01-01", "2024-01-02"]
     assert isclose(merged[-1]["atm_iv"], 0.65)
-
-    backup = summary_file.with_suffix(".json.bak")
-    assert backup.exists()
-    assert json.loads(backup.read_text(encoding="utf-8")) == [
-        {"date": "2023-12-31", "atm_iv": 0.40},
-        {"date": "2024-01-02", "atm_iv": 0.40},
-    ]

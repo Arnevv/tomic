@@ -180,16 +180,13 @@ def build_export_menu(
             print("Import geannuleerd.")
             return
         try:
-            updated, backup_path = apply_import(plan)
+            updated, _ = apply_import(plan)
         except Exception as exc:  # pragma: no cover - filesystem errors
             logger.error("Opslaan van earnings JSON mislukt: %s", exc)
             print(f"❌ Opslaan mislukt: {exc}")
             return
         runtime_config_module.set_value("data.earnings_json_path", str(plan.json_path))
-        if backup_path:
-            print(f"Klaar. Backup: {backup_path}")
-        else:
-            print("Klaar. JSON bestand aangemaakt zonder backup.")
+        print("Klaar. JSON bestand opgeslagen.")
         logger.success(
             "Earnings import voltooid voor %s symbolen naar %s",
             len(changes),

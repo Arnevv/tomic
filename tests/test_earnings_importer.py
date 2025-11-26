@@ -104,7 +104,7 @@ def test_cli_dry_run_and_confirm_write(
     data_after_dry = json.loads(json_path.read_text(encoding="utf-8"))
     assert data_after_dry["AAPL"] == ["2025-09-15"]
 
-    # Apply run should update JSON and create a backup.
+    # Apply run should update JSON.
     exit_code = cli_module.main(
         [
             "--csv",
@@ -119,9 +119,6 @@ def test_cli_dry_run_and_confirm_write(
     assert exit_code == 0
     data_final = json.loads(json_path.read_text(encoding="utf-8"))
     assert data_final["AAPL"] == ["2025-10-30"]
-
-    backups = list(json_path.parent.glob("earnings.json.*.bak"))
-    assert backups, "Backup bestand ontbreekt"
 
     out = capsys.readouterr().out
     assert "Wijzigingen opgeslagen" in out

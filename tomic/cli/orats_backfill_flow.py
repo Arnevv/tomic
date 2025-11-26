@@ -6,7 +6,6 @@ import csv
 import ftplib
 import io
 import os
-import shutil
 import zipfile
 from dataclasses import dataclass
 from datetime import datetime, timedelta
@@ -663,19 +662,13 @@ class OratsBackfillFlow:
         # Sort by date
         merged_list = sorted(merged.values(), key=lambda r: r.get("date", ""))
 
-        # Backup existing file
-        backup_path: Path | None = None
-        if summary_file.exists():
-            backup_path = summary_file.with_suffix(summary_file.suffix + ".bak")
-            shutil.copy2(summary_file, backup_path)
-
         # Write to temp file first, then atomic replace
         summary_dir.mkdir(parents=True, exist_ok=True)
         tmp = summary_file.with_name(f"temp_{summary_file.name}")
         dump_json(merged_list, tmp)
         tmp.replace(summary_file)
 
-        return merged_list, backup_path
+        return merged_list, None
 
     def _generate_validation_report(self) -> Path:
         """Generate CSV validation report with old vs new comparisons."""

@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import csv
-import shutil
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
@@ -226,17 +225,12 @@ def _merge_records(
 
     merged_list = sorted(merged.values(), key=lambda r: r.get("date", ""))
 
-    backup_path: Path | None = None
-    if target.exists():
-        backup_path = target.with_suffix(target.suffix + ".bak")
-        shutil.copy2(target, backup_path)
-
     target.parent.mkdir(parents=True, exist_ok=True)
     tmp = target.with_name(f"temp_{target.name}")
     dump_json(merged_list, tmp)
     tmp.replace(target)
 
-    return merged_list, backup_path
+    return merged_list, None
 
 
 def run_iv_backfill_flow() -> None:
@@ -367,7 +361,7 @@ def run_iv_backfill_flow() -> None:
         logger.info(f"Dry-run voor IV backfill {symbol} zonder wijzigingen")
         return
 
-    merged_records, backup_path = _merge_records(summary_file, parsed.records)
+    merged_records, _ = _merge_records(summary_file, parsed.records)
     logger.success(
         f"IV backfill voltooid voor {symbol}: {len(parsed.records)} records verwerkt"
     )
@@ -375,8 +369,6 @@ def run_iv_backfill_flow() -> None:
         "✅ IV backfill opgeslagen naar"
         f" {summary_file} (totaal {len(merged_records)} records)"
     )
-    if backup_path:
-        print(f"Backup aangemaakt: {backup_path}")
 
 
 def main() -> None:

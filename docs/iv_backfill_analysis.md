@@ -31,9 +31,9 @@
    - Vergelijk met bestaande `iv_daily_summary/<symbol>.json` records (bijv. datering, waardeverschillen groter dan 3%) en toon: aantal nieuwe dagen, updates (verschillende waarden groter dan 3%), overlappende data, hiaten.
    - Vergelijk datums met HV (`historical_volatility/<symbol>.json`) en spot (`spot_prices/<symbol>.json`) om te signaleren of ondersteunende data ontbreekt.
 4. **Gebruikersbeslissing.** Na diff toont TOMIC een samenvattende tabel en vraagt bevestiging.
-   - Bij bevestiging: schrijf in bulk. We kunnen `update_json_file()` per record gebruiken, maar efficiënter is een helper die records merge't en één keer wegschrijft (inclusief back-up van bestaande file).
+   - Bij bevestiging: schrijf in bulk. We kunnen `update_json_file()` per record gebruiken, maar efficiënter is een helper die records merge't en één keer wegschrijft.
    - Optioneel: schrijf ook HV/spot-data als de CSV deze bevat; anders markeer dat aanvullende backfill nodig is (zie §4).
-5. **Logging & audit.** Log successen/mislukkingen, schrijf bij voorkeur naar CLI + logfile. Overweeg een `.bak` back-up voor de bestaande JSON alvorens te overschrijven.
+5. **Logging & audit.** Log successen/mislukkingen, schrijf bij voorkeur naar CLI + logfile.
 6. **Dry-run/preview modus.** Bied een vlag om alleen een rapport te genereren zonder te schrijven (nuttig voor batchimporten of CI-checks).
 
 ## 4. Spot- en HV-consistentie

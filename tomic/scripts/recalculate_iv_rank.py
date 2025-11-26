@@ -15,7 +15,6 @@ from __future__ import annotations
 
 import argparse
 import json
-import shutil
 from pathlib import Path
 from typing import Any
 
@@ -154,10 +153,6 @@ def process_symbol(
             skipped += 1
 
     if not dry_run:
-        # Backup original file
-        backup_file = summary_file.with_suffix(".json.bak")
-        shutil.copy2(summary_file, backup_file)
-
         # Save updated records
         save_iv_summary(summary_file, new_records)
         logger.info(f"Updated {symbol}: {updated}/{total} records changed, {skipped} skipped (insufficient history)")

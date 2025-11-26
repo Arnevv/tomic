@@ -39,8 +39,6 @@ kolomkeuze.
 5. Bevestig met `Y` om te schrijven. Bij `N` voert de CLI een dry-run uit en
    schrijft niets naar disk.
 6. Bij een bevestigde write:
-   - Bestaat het `iv_daily_summary/<SYMBOL>.json` al, dan wordt eerst een
-     `.bak` back-up gemaakt.
    - De dataset wordt samengevoegd en gesorteerd op datum.
    - Het totale recordaantal wordt getoond zodat downstream-controles de
      omvang kunnen valideren.
@@ -69,7 +67,7 @@ Om regressies te voorkomen is er unit- én integratiedekking:
   parser- en validatiegedrag (datumnormalisatie, duplicaten, foutmeldingen).
 - `tests/cli/test_iv_backfill_flow.py::test_run_iv_backfill_flow_previews_and_writes`
   voert de volledige interactieve flow uit in een temp-directory, inclusief
-  preview, waarschuwingen en bulk write + back-up.
+  preview, waarschuwingen en bulk write.
 - Draai daarnaast rooktests voor downstream consumers wanneer je IV-data
   bijwerkt:
   - `pytest tests/analysis/test_market_overview.py`
