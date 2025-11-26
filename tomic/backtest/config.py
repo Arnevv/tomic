@@ -104,6 +104,9 @@ class BacktestConfig(BaseModel):
     iron_condor_wing_width: int = 5  # Strike width between short and long legs
     iron_condor_short_delta: float = 0.16  # Target delta for short strikes (~1 SD)
 
+    # P&L Model selection
+    use_greeks_model: bool = False  # Use Greeks-based model instead of IV-based model
+
     model_config = ConfigDict(extra="forbid")
 
     def get_in_sample_end_date(self) -> date:

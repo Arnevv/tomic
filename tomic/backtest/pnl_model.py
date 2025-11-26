@@ -18,6 +18,7 @@ from typing import Optional
 
 from tomic.backtest.config import BacktestConfig, CostConfig
 from tomic.backtest.results import IVDataPoint
+from tomic.bs_calculator import calculate_greeks, OptionGreeks
 
 
 @dataclass
@@ -29,6 +30,17 @@ class PnLEstimate:
     theta_pnl: float  # P&L from time decay
     costs: float  # Transaction costs
     pnl_pct: float  # P&L as percentage of max risk
+
+
+@dataclass
+class GreeksSnapshot:
+    """Greeks for a position at a point in time."""
+
+    delta: float
+    gamma: float
+    vega: float
+    theta: float
+    position_price: float  # Price of entire IC position
 
 
 class IronCondorPnLModel:
@@ -251,4 +263,194 @@ class SimplePnLModel:
         return -estimated_credit * (self.loss_pct / 100)
 
 
-__all__ = ["IronCondorPnLModel", "SimplePnLModel", "PnLEstimate"]
+class GreeksBasedPnLModel:
+    """P&L estimation model using Black-Scholes Greeks.
+
+    This model uses real option Greeks from Black-Scholes to calculate:
+    1. Entry credit: Sum of short put spread + short call spread premiums
+    2. Daily P&L: Track Greeks changes as IV and spot move
+    3. Exit P&L: Final realized P&L from Greeks snapshots
+
+    Iron Condor structure:
+    - Short: 1x OTM Put + 1x OTM Call (wider spread)
+    - Long: 1x ITM Put + 1x ITM Call (tighter spread)
+    - This creates a 4-leg position with bounded risk/reward
+    """
+
+    def __init__(self, config: BacktestConfig):
+        self.config = config
+        self.costs_config = config.costs
+
+    def calculate_ic_greeks(
+        self,
+        spot_price: float,
+        atm_iv: float,
+        dte: int,
+        short_put_delta: float = 0.20,
+        short_call_delta: float = 0.20,
+    ) -> GreeksSnapshot:
+        """Calculate Greeks for entry and exit strikes of an Iron Condor.
+
+        For simplicity, we calculate:
+        - Short put at (spot - 1.5*atm*spot) or ~0.20 delta
+        - Long put at (spot - 2.5*atm*spot) or lower
+        - Short call at (spot + 1.5*atm*spot) or ~0.20 delta
+        - Long call at (spot + 2.5*atm*spot) or higher
+
+        Args:
+            spot_price: Current spot price
+            atm_iv: At-the-money IV
+            dte: Days to expiration
+            short_put_delta: Target delta for short put (typically 0.15-0.25)
+            short_call_delta: Target delta for short call (typically 0.15-0.25)
+
+        Returns:
+            GreeksSnapshot with aggregated Greeks for the Iron Condor position
+        """
+        # Normalize IV
+        iv = atm_iv if atm_iv < 1 else atm_iv / 100
+
+        # Estimate strikes based on IV and delta
+        # For 0.20 delta, strike is roughly spot - 0.85*iv*spot
+        put_width = 0.85 * iv * spot_price  # Distance from ATM
+        call_width = 0.85 * iv * spot_price
+
+        short_put_strike = spot_price - put_width
+        long_put_strike = short_put_strike - (iv * spot_price)  # Wing width
+        short_call_strike = spot_price + call_width
+        long_call_strike = short_call_strike + (iv * spot_price)  # Wing width
+
+        # Calculate Greeks for each leg
+        short_put_greeks = calculate_greeks("P", spot_price, short_put_strike, dte, iv)
+        long_put_greeks = calculate_greeks("P", spot_price, long_put_strike, dte, iv)
+        short_call_greeks = calculate_greeks("C", spot_price, short_call_strike, dte, iv)
+        long_call_greeks = calculate_greeks("C", spot_price, long_call_strike, dte, iv)
+
+        # Iron Condor: short 1 spread, long 1 spread = net credit position
+        # Greeks are aggregated (short legs negative, long legs positive)
+        delta = -short_put_greeks.delta + long_put_greeks.delta - short_call_greeks.delta + long_call_greeks.delta
+        gamma = -short_put_greeks.gamma + long_put_greeks.gamma - short_call_greeks.gamma + long_call_greeks.gamma
+        vega = -short_put_greeks.vega + long_put_greeks.vega - short_call_greeks.vega + long_call_greeks.vega
+        theta = -short_put_greeks.theta + long_put_greeks.theta - short_call_greeks.theta + long_call_greeks.theta
+
+        # Price is the credit received (sum of shorts minus longs)
+        position_price = (
+            (short_put_greeks.price - long_put_greeks.price)
+            + (short_call_greeks.price - long_call_greeks.price)
+        )
+
+        # Apply multiplier (100 for US equity options)
+        multiplier = 100
+        vega_per_contract = vega / multiplier  # Vega is per 1% IV, scale to contract
+        theta_per_contract = theta  # Theta is already per day
+
+        return GreeksSnapshot(
+            delta=delta,
+            gamma=gamma,
+            vega=vega_per_contract,
+            theta=theta_per_contract,
+            position_price=max(position_price * multiplier, 0.01),  # Avoid zero credit
+        )
+
+    def estimate_credit_from_greeks(
+        self,
+        spot_price: float,
+        atm_iv: float,
+        dte: int,
+        max_risk: float,
+    ) -> float:
+        """Estimate credit received for Iron Condor using Greeks.
+
+        Args:
+            spot_price: Current spot price
+            atm_iv: At-the-money IV
+            dte: Days to expiration
+            max_risk: Maximum risk per trade (wing width)
+
+        Returns:
+            Estimated credit in dollars
+        """
+        greeks_entry = self.calculate_ic_greeks(spot_price, atm_iv, dte)
+        credit = greeks_entry.position_price
+
+        # Wing width is typically max_risk (e.g., $200)
+        # Scale credit to this risk level
+        # For typical ICs, credit is 25-35% of wing width
+        credit_ratio = max(0.15, min(0.50, credit / (max_risk / 2)))
+        estimated_credit = max_risk * credit_ratio
+
+        return max(estimated_credit, 1.0)
+
+    def estimate_pnl_from_greeks(
+        self,
+        greeks_entry: GreeksSnapshot,
+        greeks_current: GreeksSnapshot,
+        days_in_trade: int,
+        estimated_credit: float,
+        max_risk: float,
+        spot_at_entry: float,
+        spot_current: float,
+    ) -> PnLEstimate:
+        """Estimate P&L using Greeks changes (vega and gamma P&L).
+
+        P&L drivers:
+        1. Vega P&L: Greeks_entry.vega * (IV_change) * multiplier
+        2. Gamma P&L: 0.5 * Greeks_entry.gamma * (spot_change)^2 * multiplier
+        3. Theta P&L: Greeks_entry.theta * days_in_trade * multiplier
+
+        Args:
+            greeks_entry: Greeks snapshot at entry
+            greeks_current: Greeks snapshot at current point
+            days_in_trade: Days elapsed
+            estimated_credit: Credit received at entry
+            max_risk: Maximum risk
+            spot_at_entry: Spot price at entry
+            spot_current: Current spot price
+
+        Returns:
+            PnLEstimate with P&L breakdown
+        """
+        # Spot move
+        spot_move = spot_current - spot_at_entry
+
+        # Gamma P&L: 0.5 * gamma * spot_move^2
+        # Approximate using Greeks_entry (slightly conservative)
+        gamma_pnl = 0.5 * greeks_entry.gamma * (spot_move ** 2) * 100
+
+        # Theta P&L: theta per day * days_in_trade
+        # Use average of entry and current theta
+        avg_theta = (greeks_entry.theta + greeks_current.theta) / 2
+        theta_pnl = avg_theta * days_in_trade * 100
+
+        # Vega P&L: vega * iv_change
+        # This is captured in greeks movement
+        vega_pnl = (greeks_current.vega - greeks_entry.vega) * 100
+
+        # Transaction costs
+        num_contracts = max(1, int(max_risk / self.config.iron_condor_wing_width / 100))
+        costs = self._calculate_costs(num_contracts * 4)
+
+        # Total P&L
+        total_pnl = gamma_pnl + theta_pnl + vega_pnl - costs
+
+        # Cap at max profit and max loss
+        total_pnl = min(estimated_credit, total_pnl)
+        total_pnl = max(-max_risk, total_pnl)
+
+        pnl_pct = (total_pnl / max_risk * 100) if max_risk > 0 else 0
+
+        return PnLEstimate(
+            total_pnl=round(total_pnl, 2),
+            vega_pnl=round(vega_pnl, 2),
+            theta_pnl=round(theta_pnl, 2),
+            costs=round(costs, 2),
+            pnl_pct=round(pnl_pct, 2),
+        )
+
+    def _calculate_costs(self, num_legs: int) -> float:
+        """Calculate transaction costs for a trade."""
+        commission = num_legs * self.costs_config.commission_per_contract
+        return commission
+
+
+__all__ = ["IronCondorPnLModel", "SimplePnLModel", "PnLEstimate", "GreeksBasedPnLModel", "GreeksSnapshot"]

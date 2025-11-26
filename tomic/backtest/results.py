@@ -128,6 +128,11 @@ class SimulatedTrade:
     # Tracking
     pnl_history: List[float] = field(default_factory=list)
     iv_history: List[float] = field(default_factory=list)
+    spot_history: List[float] = field(default_factory=list)  # For Greeks-based model
+
+    # Greeks tracking (for GreeksBasedPnLModel)
+    greeks_at_entry: Optional[Any] = None  # GreeksSnapshot at entry
+    greeks_history: List[Any] = field(default_factory=list)  # Daily Greeks updates
 
     def close(
         self,
