@@ -220,6 +220,104 @@ class HypothesisEngine:
         hypothesis = self.create_hypothesis(name, save=False, **kwargs)
         return self.run(hypothesis, progress_callback)
 
+    def clone_hypothesis(
+        self,
+        hypothesis_id: str,
+        new_name: Optional[str] = None,
+        save: bool = True,
+    ) -> Optional[Hypothesis]:
+        """Clone an existing hypothesis with a new ID.
+
+        Creates a copy of the hypothesis configuration ready for modification.
+
+        Args:
+            hypothesis_id: ID of hypothesis to clone.
+            new_name: Optional new name for the clone.
+            save: Whether to save the clone to store immediately.
+
+        Returns:
+            Cloned Hypothesis, or None if source not found.
+        """
+        source = self.store.get(hypothesis_id)
+        if source is None:
+            logger.warning(f"Hypothesis not found for cloning: {hypothesis_id}")
+            return None
+
+        cloned = source.clone(new_name)
+
+        if save:
+            self.store.save(cloned)
+            logger.info(f"Cloned hypothesis '{source.name}' -> '{cloned.name}' (id: {cloned.id})")
+
+        return cloned
+
+    def update_hypothesis(
+        self,
+        hypothesis_id: str,
+        **updates,
+    ) -> Optional[Hypothesis]:
+        """Update an existing hypothesis configuration.
+
+        Only allows updating DRAFT hypotheses. For completed hypotheses,
+        use clone_hypothesis first.
+
+        Args:
+            hypothesis_id: ID of hypothesis to update.
+            **updates: Configuration fields to update. Supported fields:
+                - name, description, symbols, strategy_type
+                - iv_percentile_min, iv_rank_min
+                - profit_target_pct, stop_loss_pct, max_days_in_trade
+                - start_date, end_date, max_risk_per_trade
+                - tags
+
+        Returns:
+            Updated Hypothesis, or None if not found or not editable.
+        """
+        hypothesis = self.store.get(hypothesis_id)
+        if hypothesis is None:
+            logger.warning(f"Hypothesis not found for update: {hypothesis_id}")
+            return None
+
+        # Allow updating DRAFT, FAILED, or even COMPLETED hypotheses
+        # But warn for completed ones
+        if hypothesis.status == HypothesisStatus.COMPLETED:
+            logger.warning(
+                f"Updating completed hypothesis '{hypothesis.name}'. "
+                "Results will be cleared and hypothesis reset to DRAFT."
+            )
+            hypothesis.result = None
+            hypothesis.score = None
+            hypothesis.run_at = None
+            hypothesis.error_message = None
+
+        # Reset status to DRAFT for re-running
+        hypothesis.status = HypothesisStatus.DRAFT
+
+        # Update config fields
+        config_dict = hypothesis.config.to_dict()
+        config_fields = {
+            "name", "description", "symbols", "strategy_type",
+            "iv_percentile_min", "iv_rank_min",
+            "profit_target_pct", "stop_loss_pct", "max_days_in_trade",
+            "start_date", "end_date", "max_risk_per_trade",
+            "expected_win_rate", "expected_sharpe",
+        }
+
+        for key, value in updates.items():
+            if key in config_fields:
+                config_dict[key] = value
+            elif key == "tags":
+                hypothesis.tags = value
+
+        # Recreate config with updates
+        hypothesis.config = HypothesisConfig.from_dict(config_dict)
+
+        # Save
+        self.store.save(hypothesis)
+        logger.info(f"Updated hypothesis '{hypothesis.name}' (id: {hypothesis.id})")
+
+        return hypothesis
+
     def run_batch(
         self,
         batch_name: str,

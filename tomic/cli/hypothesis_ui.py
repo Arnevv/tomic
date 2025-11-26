@@ -36,6 +36,8 @@ def run_hypothesis_menu() -> None:
     menu = Menu("HYPOTHESE TESTING")
     menu.add("Nieuwe hypothese aanmaken & runnen", create_and_run_hypothesis)
     menu.add("Bestaande hypothese runnen", run_existing_hypothesis)
+    menu.add("Hypothese klonen", clone_hypothesis)
+    menu.add("Hypothese bewerken", edit_hypothesis)
     menu.add("Hypotheses bekijken", list_hypotheses)
     menu.add("Hypotheses vergelijken", compare_hypotheses_menu)
     menu.add("Symbol scorecard", show_symbol_scorecard)
@@ -64,7 +66,7 @@ def create_and_run_hypothesis() -> None:
     symbols = [s.strip().upper() for s in symbols_str.split(",")]
 
     # Get strategy
-    print("\nStrategieen: iron_condor, short_put_spread, short_call_spread")
+    print("\nStrategieen: iron_condor, short_put_spread, short_call_spread, calendar")
     strategy = prompt("Strategie [iron_condor]: ") or "iron_condor"
 
     # Get entry parameters
@@ -620,6 +622,231 @@ def delete_hypothesis() -> None:
         print(f"Hypothese '{hypothesis.name}' verwijderd.")
 
 
+def clone_hypothesis() -> None:
+    """Clone an existing hypothesis."""
+    store = get_store()
+    hypotheses = store.list_all()
+
+    if not hypotheses:
+        print("\nGeen hypotheses om te klonen.")
+        return
+
+    print("\n" + "=" * 60)
+    print("HYPOTHESE KLONEN")
+    print("=" * 60)
+
+    for i, hyp in enumerate(hypotheses[:20], 1):
+        status_icon = {
+            "draft": "[DRAFT]",
+            "completed": "[OK]",
+            "failed": "[FAIL]",
+            "running": "[...]",
+        }.get(hyp.status.value, "[?]")
+        print(f"{i:2}. {status_icon} {hyp.name} ({hyp.id})")
+
+    choice = prompt("\nKies nummer om te klonen: ")
+    if not choice:
+        return
+
+    try:
+        idx = int(choice) - 1
+        if 0 <= idx < len(hypotheses):
+            source = hypotheses[idx]
+        else:
+            print("Ongeldige keuze.")
+            return
+    except ValueError:
+        print("Ongeldige invoer.")
+        return
+
+    # Ask for new name
+    new_name = prompt(f"Nieuwe naam [{source.name} (kopie)]: ")
+
+    # Clone
+    engine = HypothesisEngine()
+    cloned = engine.clone_hypothesis(source.id, new_name if new_name else None)
+
+    if cloned:
+        print(f"\nHypothese gekloond: '{cloned.name}' (id: {cloned.id})")
+
+        # Ask if user wants to edit the clone
+        if prompt_yes_no("Wil je de gekloonde hypothese aanpassen?"):
+            _edit_hypothesis_interactive(cloned)
+
+        # Ask if user wants to run
+        if prompt_yes_no("Wil je de hypothese nu runnen?"):
+            _run_hypothesis_with_progress(cloned)
+    else:
+        print("Klonen mislukt.")
+
+
+def edit_hypothesis() -> None:
+    """Edit an existing hypothesis."""
+    store = get_store()
+    hypotheses = store.list_all()
+
+    if not hypotheses:
+        print("\nGeen hypotheses om te bewerken.")
+        return
+
+    print("\n" + "=" * 60)
+    print("HYPOTHESE BEWERKEN")
+    print("=" * 60)
+
+    for i, hyp in enumerate(hypotheses[:20], 1):
+        status_icon = {
+            "draft": "[DRAFT]",
+            "completed": "[OK]",
+            "failed": "[FAIL]",
+            "running": "[...]",
+        }.get(hyp.status.value, "[?]")
+        print(f"{i:2}. {status_icon} {hyp.name} ({hyp.id})")
+
+    choice = prompt("\nKies nummer om te bewerken: ")
+    if not choice:
+        return
+
+    try:
+        idx = int(choice) - 1
+        if 0 <= idx < len(hypotheses):
+            hypothesis = hypotheses[idx]
+        else:
+            print("Ongeldige keuze.")
+            return
+    except ValueError:
+        print("Ongeldige invoer.")
+        return
+
+    # Warn if completed
+    if hypothesis.status.value == "completed":
+        print("\nLet op: Dit is een voltooide hypothese.")
+        print("Als je deze aanpast worden de resultaten gewist.")
+        if not prompt_yes_no("Wil je doorgaan?"):
+            return
+
+    _edit_hypothesis_interactive(hypothesis)
+
+    # Ask if user wants to run
+    if prompt_yes_no("\nWil je de hypothese nu runnen?"):
+        # Reload from store to get updated version
+        updated = store.get(hypothesis.id)
+        if updated:
+            _run_hypothesis_with_progress(updated)
+
+
+def _edit_hypothesis_interactive(hypothesis) -> None:
+    """Interactive editor for hypothesis configuration."""
+    config = hypothesis.config
+
+    print("\n" + "-" * 40)
+    print("HUIDIGE CONFIGURATIE (Enter = behouden)")
+    print("-" * 40)
+
+    # Collect updates
+    updates = {}
+
+    # Name
+    new_name = prompt(f"Naam [{config.name}]: ")
+    if new_name:
+        updates["name"] = new_name
+
+    # Description
+    new_desc = prompt(f"Beschrijving [{config.description or '(geen)'}]: ")
+    if new_desc:
+        updates["description"] = new_desc
+
+    # Symbols
+    symbols_str = prompt(f"Symbol(s) [{', '.join(config.symbols)}]: ")
+    if symbols_str:
+        updates["symbols"] = [s.strip().upper() for s in symbols_str.split(",")]
+
+    # Strategy
+    print("\nStrategieen: iron_condor, short_put_spread, short_call_spread, calendar")
+    new_strategy = prompt(f"Strategie [{config.strategy_type}]: ")
+    if new_strategy:
+        updates["strategy_type"] = new_strategy
+
+    # IV percentile
+    iv_str = prompt(f"IV Percentile minimum [{config.iv_percentile_min}]: ")
+    if iv_str:
+        try:
+            updates["iv_percentile_min"] = float(iv_str)
+        except ValueError:
+            print("Ongeldige waarde, wordt overgeslagen.")
+
+    # Profit target
+    profit_str = prompt(f"Profit target % [{config.profit_target_pct}]: ")
+    if profit_str:
+        try:
+            updates["profit_target_pct"] = float(profit_str)
+        except ValueError:
+            print("Ongeldige waarde, wordt overgeslagen.")
+
+    # Stop loss
+    stop_str = prompt(f"Stop loss % [{config.stop_loss_pct}]: ")
+    if stop_str:
+        try:
+            updates["stop_loss_pct"] = float(stop_str)
+        except ValueError:
+            print("Ongeldige waarde, wordt overgeslagen.")
+
+    # Max DIT
+    dit_str = prompt(f"Max dagen in trade [{config.max_days_in_trade}]: ")
+    if dit_str:
+        try:
+            updates["max_days_in_trade"] = int(dit_str)
+        except ValueError:
+            print("Ongeldige waarde, wordt overgeslagen.")
+
+    # Date range
+    new_start = prompt(f"Start datum [{config.start_date}]: ")
+    if new_start:
+        updates["start_date"] = new_start
+
+    new_end = prompt(f"Eind datum [{config.end_date}]: ")
+    if new_end:
+        updates["end_date"] = new_end
+
+    if not updates:
+        print("\nGeen wijzigingen.")
+        return
+
+    # Apply updates
+    engine = HypothesisEngine()
+    updated = engine.update_hypothesis(hypothesis.id, **updates)
+
+    if updated:
+        print(f"\nHypothese '{updated.name}' bijgewerkt.")
+    else:
+        print("\nBijwerken mislukt.")
+
+
+def _run_hypothesis_with_progress(hypothesis) -> None:
+    """Run a hypothesis with progress display."""
+    engine = HypothesisEngine()
+
+    print(f"\nHypothese '{hypothesis.name}' wordt uitgevoerd...")
+
+    if RICH_AVAILABLE:
+        console = Console()
+        with Progress(
+            SpinnerColumn(),
+            TextColumn("[progress.description]{task.description}"),
+            console=console,
+        ) as progress:
+            task = progress.add_task("Initialiseren...", total=100)
+
+            def update_progress(message: str, percent: float) -> None:
+                progress.update(task, description=message, completed=percent)
+
+            hypothesis = engine.run(hypothesis, progress_callback=update_progress)
+    else:
+        hypothesis = engine.run(hypothesis)
+
+    print("\n")
+    _print_hypothesis_result(hypothesis)
+
+
 def _print_hypothesis_result(hypothesis: Hypothesis) -> None:
     """Print results for a single hypothesis."""
     if not hypothesis.is_completed:
@@ -744,6 +971,8 @@ def _print_comparison(comparison) -> None:
 __all__ = [
     "run_hypothesis_menu",
     "create_and_run_hypothesis",
+    "clone_hypothesis",
+    "edit_hypothesis",
     "list_hypotheses",
     "compare_hypotheses_menu",
     "show_symbol_scorecard",

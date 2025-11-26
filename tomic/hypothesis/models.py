@@ -268,6 +268,37 @@ class Hypothesis:
             "score": f"{self.score.total_score:.0f}" if self.score else "N/A",
         }
 
+    def clone(self, new_name: Optional[str] = None) -> "Hypothesis":
+        """Create a clone of this hypothesis with a new ID.
+
+        Creates a fresh copy with DRAFT status, ready for modification and running.
+        The original hypothesis is not modified.
+
+        Args:
+            new_name: Optional new name for the clone. If not provided,
+                     the original name with " (kopie)" suffix is used.
+
+        Returns:
+            New Hypothesis instance with cloned configuration.
+        """
+        # Clone the config
+        config_dict = self.config.to_dict()
+        if new_name:
+            config_dict["name"] = new_name
+        else:
+            config_dict["name"] = f"{self.config.name} (kopie)"
+
+        cloned_config = HypothesisConfig.from_dict(config_dict)
+
+        # Create new hypothesis with fresh ID and DRAFT status
+        return Hypothesis(
+            config=cloned_config,
+            tags=self.tags.copy(),
+            # Reset status to DRAFT - this is a fresh copy
+            status=HypothesisStatus.DRAFT,
+            # Do not copy result, score, run_at, or error_message
+        )
+
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary for serialization."""
         data = {
