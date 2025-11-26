@@ -423,26 +423,29 @@ class IBMarketDataService:
             port = int(cfg_value("IB_PORT", 7497))
         else:
             port = int(cfg_value("IB_LIVE_PORT", 7496))
-        client_id = int(cfg_value("IB_MARKETDATA_CLIENT_ID", 901))
         host = str(cfg_value("IB_HOST", "127.0.0.1"))
+        # Use shorter connect timeout (max 10s) to fail fast if TWS is unresponsive
+        connect_timeout = min(int(timeout), 10)
 
         app = self._app_factory()
         logger.info("📡 Ophalen IB quotes voor voorstel trigger=%s (legs=%d, timeout=%.1fs)",
                     trigger_label, len(proposal.legs), timeout)
 
         _t_connect_start = _time.perf_counter()
-        logger.info("[ib_marketdata] connect_ib: starting host=%s port=%d client_id=%d",
-                    host, port, client_id)
+        # Use unique=True to generate unique client_id, avoiding conflicts with zombie connections
+        logger.info("[ib_marketdata] connect_ib: starting host=%s port=%d (unique client_id, timeout=%ds)",
+                    host, port, connect_timeout)
         connect_ib(
-            client_id=client_id,
             host=host,
             port=port,
-            timeout=int(timeout),
+            timeout=connect_timeout,
             app=app,
+            unique=True,  # Generate unique client_id to avoid zombie connection conflicts
         )
         _t_connect_done = _time.perf_counter()
-        logger.info("[ib_marketdata] connect_ib: done in %.0fms",
-                    (_t_connect_done - _t_connect_start) * 1000)
+        logger.info("[ib_marketdata] connect_ib: done in %.0fms (client_id=%s)",
+                    (_t_connect_done - _t_connect_start) * 1000,
+                    getattr(app, 'clientId', '?'))
 
         if hasattr(app, "wait_until_ready"):
             _t_ready_start = _time.perf_counter()
@@ -614,10 +617,15 @@ class IBMarketDataService:
                         len(proposal.legs), len(missing), accepted)
             return result
         finally:
+            # Robust disconnect: ensure connection is properly closed to avoid zombie connections
             try:
+                logger.info("[ib_marketdata] disconnecting from IB...")
                 app.disconnect()
+                # Small delay to allow socket to close cleanly on both ends
+                _time.sleep(0.1)
+                logger.info("[ib_marketdata] disconnect complete")
             except Exception:
-                logger.debug("Kon IB verbinding niet netjes sluiten", exc_info=True)
+                logger.warning("Kon IB verbinding niet netjes sluiten", exc_info=True)
 
     # ------------------------------------------------------------------
     def _build_contract(
