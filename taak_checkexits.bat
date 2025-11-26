@@ -60,19 +60,8 @@ echo [%time%] TWS verbinding OK
 REM Start de exit-flow module MET TIMEOUT
 echo [%time%] Starten van exit-flow module (max %MAX_RUNTIME_SECONDS%s)...
 
-REM Gebruik PowerShell om proces met timeout te starten
-powershell -NoProfile -ExecutionPolicy Bypass -Command ^
-    "$proc = Start-Process -FilePath '.venv\Scripts\python.exe' ^
-        -ArgumentList '-u', '-m', 'tomic.cli.exit_flow' ^
-        -NoNewWindow -PassThru -RedirectStandardOutput '%LOGFILE%' -RedirectStandardError '%LOGFILE%.err'; ^
-    $finished = $proc.WaitForExit(%MAX_RUNTIME_SECONDS%000); ^
-    if (-not $finished) { ^
-        Write-Host '[TIMEOUT] Forceer stop na %MAX_RUNTIME_SECONDS%s'; ^
-        Stop-Process -Id $proc.Id -Force -ErrorAction SilentlyContinue; ^
-        Start-Sleep -Milliseconds 500; ^
-        exit 124; ^
-    }; ^
-    exit $proc.ExitCode"
+REM Gebruik PowerShell om proces met timeout te starten (alles op 1 regel voor compatibiliteit)
+powershell -NoProfile -ExecutionPolicy Bypass -Command "$proc = Start-Process -FilePath '.venv\Scripts\python.exe' -ArgumentList '-u', '-m', 'tomic.cli.exit_flow' -NoNewWindow -PassThru -RedirectStandardOutput '%LOGFILE%' -RedirectStandardError '%LOGFILE%.err'; $finished = $proc.WaitForExit(%MAX_RUNTIME_SECONDS%000); if (-not $finished) { Write-Host '[TIMEOUT] Forceer stop na %MAX_RUNTIME_SECONDS%s'; Stop-Process -Id $proc.Id -Force -ErrorAction SilentlyContinue; Start-Sleep -Milliseconds 500; exit 124 }; exit $proc.ExitCode"
 set "RC=%ERRORLEVEL%"
 
 REM Cleanup lege error log
