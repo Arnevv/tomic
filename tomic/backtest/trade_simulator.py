@@ -15,12 +15,13 @@ from typing import Dict, List, Optional
 from tomic.backtest.config import BacktestConfig
 from tomic.backtest.data_loader import IVTimeSeries
 from tomic.backtest.exit_evaluator import ExitEvaluator, ExitEvaluation
-from tomic.backtest.pnl_model import IronCondorPnLModel
+from tomic.backtest.pnl_model import IronCondorPnLModel, GreeksBasedPnLModel
 from tomic.backtest.results import (
     EntrySignal,
     ExitReason,
     SimulatedTrade,
     TradeStatus,
+    IVDataPoint,
 )
 from tomic.logutils import logger
 
@@ -40,9 +41,11 @@ class TradeSimulator:
     - Fixed risk per trade ($200)
     """
 
-    def __init__(self, config: BacktestConfig):
+    def __init__(self, config: BacktestConfig, use_greeks_model: bool = False):
         self.config = config
         self.pnl_model = IronCondorPnLModel(config)
+        self.greeks_model = GreeksBasedPnLModel(config) if use_greeks_model else None
+        self.use_greeks_model = use_greeks_model
         self.exit_evaluator = ExitEvaluator(config)
 
         # Track open positions by symbol
@@ -101,11 +104,19 @@ class TradeSimulator:
         target_expiry = signal.date + timedelta(days=target_dte)
 
         # Estimate credit received
-        estimated_credit = self.pnl_model.estimate_credit(
-            iv_at_entry=signal.iv_at_entry,
-            max_risk=max_risk,
-            target_dte=target_dte,
-        )
+        if self.use_greeks_model and self.greeks_model and signal.spot_at_entry:
+            estimated_credit = self.greeks_model.estimate_credit_from_greeks(
+                spot_price=signal.spot_at_entry,
+                atm_iv=signal.iv_at_entry,
+                dte=target_dte,
+                max_risk=max_risk,
+            )
+        else:
+            estimated_credit = self.pnl_model.estimate_credit(
+                iv_at_entry=signal.iv_at_entry,
+                max_risk=max_risk,
+                target_dte=target_dte,
+            )
 
         # Apply slippage to credit
         slippage_pct = self.config.costs.slippage_pct / 100
@@ -126,6 +137,14 @@ class TradeSimulator:
             num_contracts=1,  # Simplified for MVP
             status=TradeStatus.OPEN,
         )
+
+        # Calculate and store Greeks at entry (if using Greeks model)
+        if self.use_greeks_model and self.greeks_model and signal.spot_at_entry:
+            trade.greeks_at_entry, _ = self.greeks_model.calculate_ic_greeks(
+                spot_price=signal.spot_at_entry,
+                atm_iv=signal.iv_at_entry,
+                dte=target_dte,
+            )
 
         # Track the trade
         self._open_positions[signal.symbol] = trade
@@ -172,14 +191,54 @@ class TradeSimulator:
             # Update P&L tracking
             if current_iv is not None:
                 trade.iv_history.append(current_iv)
-                pnl_estimate = self.pnl_model.estimate_pnl(
-                    iv_at_entry=trade.iv_at_entry,
-                    iv_current=current_iv,
-                    days_in_trade=trade.days_in_trade,
-                    target_dte=self.config.target_dte,
-                    estimated_credit=trade.estimated_credit,
-                    max_risk=trade.max_risk,
-                )
+
+                # Use Greeks-based P&L if available
+                if self.use_greeks_model and self.greeks_model and trade.greeks_at_entry and trade.spot_at_entry and ts:
+                    # Get current spot price
+                    current_dp = ts.get(current_date)
+                    current_spot = current_dp.spot_price if current_dp else trade.spot_at_entry
+                    if current_spot:
+                        trade.spot_history.append(current_spot)
+
+                        # Calculate current Greeks
+                        greeks_current, _ = self.greeks_model.calculate_ic_greeks(
+                            spot_price=current_spot,
+                            atm_iv=current_iv,
+                            dte=max(0, (trade.target_expiry - current_date).days),
+                        )
+                        trade.greeks_history.append(greeks_current)
+
+                        # Calculate P&L from Greeks
+                        pnl_estimate = self.greeks_model.estimate_pnl_from_greeks(
+                            greeks_entry=trade.greeks_at_entry,
+                            greeks_current=greeks_current,
+                            days_in_trade=trade.days_in_trade,
+                            estimated_credit=trade.estimated_credit,
+                            max_risk=trade.max_risk,
+                            spot_at_entry=trade.spot_at_entry,
+                            spot_current=current_spot,
+                        )
+                    else:
+                        # Fallback to standard model if no spot data
+                        pnl_estimate = self.pnl_model.estimate_pnl(
+                            iv_at_entry=trade.iv_at_entry,
+                            iv_current=current_iv,
+                            days_in_trade=trade.days_in_trade,
+                            target_dte=self.config.target_dte,
+                            estimated_credit=trade.estimated_credit,
+                            max_risk=trade.max_risk,
+                        )
+                else:
+                    # Use standard IV-based model
+                    pnl_estimate = self.pnl_model.estimate_pnl(
+                        iv_at_entry=trade.iv_at_entry,
+                        iv_current=current_iv,
+                        days_in_trade=trade.days_in_trade,
+                        target_dte=self.config.target_dte,
+                        estimated_credit=trade.estimated_credit,
+                        max_risk=trade.max_risk,
+                    )
+
                 trade.current_pnl = pnl_estimate.total_pnl
                 trade.pnl_history.append(pnl_estimate.total_pnl)
 
