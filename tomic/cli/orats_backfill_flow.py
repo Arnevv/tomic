@@ -6,6 +6,8 @@ import csv
 import ftplib
 import io
 import os
+import shutil
+import time
 import zipfile
 from dataclasses import dataclass
 from datetime import datetime, timedelta
@@ -149,7 +151,6 @@ class OratsBackfillFlow:
                         f"Download poging {attempt + 1} mislukt voor {remote_path}: {exc}. "
                         f"Retry in {wait}s..."
                     )
-                    import time
                     time.sleep(wait)
                 else:
                     logger.error(f"Download definitief mislukt na {max_retries} pogingen: {remote_path}")
@@ -694,6 +695,37 @@ class OratsBackfillFlow:
         logger.info(f"Validation rapport gegenereerd: {report_path}")
         return report_path
 
+    def _safe_delete_file(self, path: Path, max_retries: int = 5) -> bool:
+        """Safely delete a file with retry logic for Windows file locking.
+
+        On Windows, file handles may not be immediately released after closing.
+        This method retries deletion with exponential backoff.
+        """
+        if not path.exists():
+            return True
+
+        for attempt in range(max_retries):
+            try:
+                path.unlink()
+                return True
+            except PermissionError:
+                if attempt < max_retries - 1:
+                    wait = 0.5 * (2 ** attempt)  # 0.5s, 1s, 2s, 4s, 8s
+                    logger.debug(
+                        f"Bestand nog in gebruik, retry {attempt + 1}/{max_retries} "
+                        f"voor {path.name} in {wait}s..."
+                    )
+                    time.sleep(wait)
+                else:
+                    logger.warning(
+                        f"Kon bestand niet verwijderen na {max_retries} pogingen: {path}"
+                    )
+                    return False
+            except Exception as exc:
+                logger.warning(f"Onverwachte fout bij verwijderen {path}: {exc}")
+                return False
+        return False
+
     def _is_weekend(self, date: datetime) -> bool:
         """Check if date is weekend (Saturday=5, Sunday=6)."""
         return date.weekday() >= 5
@@ -827,12 +859,15 @@ class OratsBackfillFlow:
                     processed_symbols.add(symbol)
                     print(f"  ✓ {symbol}: {len(merged_records)} totaal records")
 
-                # Cleanup
-                local_path.unlink(missing_ok=True)
+                # Cleanup downloaded ZIP file (with retry for Windows file locking)
+                self._safe_delete_file(local_path)
 
         finally:
-            ftp.quit()
-            # Cleanup temp directory
+            try:
+                ftp.quit()
+            except Exception:
+                pass  # FTP connection may already be closed
+            # Cleanup temp directory (ignore_errors handles any remaining locked files)
             shutil.rmtree(temp_dir, ignore_errors=True)
 
         # Generate validation report
