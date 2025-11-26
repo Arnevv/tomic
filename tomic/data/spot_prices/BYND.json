@@ -8902,5 +8902,12 @@
     "close": 0.8625,
     "volume": 89056057.0,
     "atr": null
+  },
+  {
+    "symbol": "BYND",
+    "date": "2025-11-25",
+    "close": 0.8571,
+    "volume": 53099795.0,
+    "atr": null
   }
 ]

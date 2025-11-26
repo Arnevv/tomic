@@ -8902,5 +8902,12 @@
     "close": 83.79,
     "volume": 24049344.0,
     "atr": null
+  },
+  {
+    "symbol": "MRVL",
+    "date": "2025-11-25",
+    "close": 83.43,
+    "volume": 11665598.0,
+    "atr": null
   }
 ]
