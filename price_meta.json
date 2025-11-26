@@ -18,7 +18,7 @@
     "baseline_as_of": null
   },
   "AMD": {
-    "fetched_at": "2025-11-06T21:48:00.943667",
+    "fetched_at": "2025-11-25T21:24:25.093236",
     "source": null,
     "baseline_active": false,
     "baseline_as_of": null
@@ -72,7 +72,7 @@
     "baseline_as_of": null
   },
   "BMY": {
-    "fetched_at": "2025-11-23T17:23:06.742255",
+    "fetched_at": "2025-11-25T21:24:39.220667",
     "source": null,
     "baseline_active": false,
     "baseline_as_of": null
@@ -216,13 +216,13 @@
     "baseline_as_of": null
   },
   "GILD": {
-    "fetched_at": "2025-11-09T11:46:10.471368",
+    "fetched_at": "2025-11-25T21:24:58.975696",
     "source": null,
     "baseline_active": false,
     "baseline_as_of": null
   },
   "GLD": {
-    "fetched_at": "2025-11-20T20:50:06.011752",
+    "fetched_at": "2025-11-25T21:25:47.641012",
     "source": null,
     "baseline_active": false,
     "baseline_as_of": null
@@ -426,13 +426,13 @@
     "baseline_as_of": null
   },
   "PFE": {
-    "fetched_at": "2025-11-20T20:50:07.286508",
+    "fetched_at": "2025-11-25T21:26:01.606983",
     "source": null,
     "baseline_active": false,
     "baseline_as_of": null
   },
   "PG": {
-    "fetched_at": "2025-11-20T20:50:07.672706",
+    "fetched_at": "2025-11-25T21:26:16.987683",
     "source": null,
     "baseline_active": false,
     "baseline_as_of": null
@@ -486,7 +486,7 @@
     "baseline_as_of": null
   },
   "SLV": {
-    "fetched_at": "2025-11-24T19:11:19.594874",
+    "fetched_at": "2025-11-25T21:26:41.575056",
     "source": null,
     "baseline_active": false,
     "baseline_as_of": null
@@ -1020,7 +1020,7 @@
     "baseline_as_of": null
   },
   "STZ": {
-    "fetched_at": "2025-11-20T20:50:09.356468",
+    "fetched_at": "2025-11-25T21:26:59.756101",
     "source": null,
     "baseline_active": false,
     "baseline_as_of": null

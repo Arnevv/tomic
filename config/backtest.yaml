@@ -6,7 +6,7 @@ symbols:
 - IWM
 - AAPL
 - MSFT
-start_date: '2024-10-01'
+start_date: '2024-05-01'
 end_date: '2025-11-24'
 target_dte: 45
 entry_rules:
