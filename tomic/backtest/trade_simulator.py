@@ -140,7 +140,7 @@ class TradeSimulator:
 
         # Calculate and store Greeks at entry (if using Greeks model)
         if self.use_greeks_model and self.greeks_model and signal.spot_at_entry:
-            trade.greeks_at_entry, _ = self.greeks_model.calculate_ic_greeks(
+            trade.greeks_at_entry = self.greeks_model.calculate_ic_greeks(
                 spot_price=signal.spot_at_entry,
                 atm_iv=signal.iv_at_entry,
                 dte=target_dte,
@@ -201,7 +201,7 @@ class TradeSimulator:
                         trade.spot_history.append(current_spot)
 
                         # Calculate current Greeks
-                        greeks_current, _ = self.greeks_model.calculate_ic_greeks(
+                        greeks_current = self.greeks_model.calculate_ic_greeks(
                             spot_price=current_spot,
                             atm_iv=current_iv,
                             dte=max(0, (trade.target_expiry - current_date).days),

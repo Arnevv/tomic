@@ -288,7 +288,7 @@ class GreeksBasedPnLModel:
         dte: int,
         short_put_delta: float = 0.20,
         short_call_delta: float = 0.20,
-    ) -> tuple[GreeksSnapshot, GreeksSnapshot]:
+    ) -> GreeksSnapshot:
         """Calculate Greeks for entry and exit strikes of an Iron Condor.
 
         For simplicity, we calculate:
@@ -305,7 +305,7 @@ class GreeksBasedPnLModel:
             short_call_delta: Target delta for short call (typically 0.15-0.25)
 
         Returns:
-            Tuple of (Greeks at entry DTE, Greeks at expiration)
+            GreeksSnapshot with aggregated Greeks for the Iron Condor position
         """
         # Normalize IV
         iv = atm_iv if atm_iv < 1 else atm_iv / 100
@@ -370,7 +370,7 @@ class GreeksBasedPnLModel:
         Returns:
             Estimated credit in dollars
         """
-        greeks_entry, _ = self.calculate_ic_greeks(spot_price, atm_iv, dte)
+        greeks_entry = self.calculate_ic_greeks(spot_price, atm_iv, dte)
         credit = greeks_entry.position_price
 
         # Wing width is typically max_risk (e.g., $200)

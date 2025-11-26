@@ -184,7 +184,7 @@ class BacktestEngine:
         Returns:
             List of SimulatedTrade objects from this period.
         """
-        simulator = TradeSimulator(self.config)
+        simulator = TradeSimulator(self.config, use_greeks_model=self.config.use_greeks_model)
 
         # Get all trading dates in period
         all_dates = []
