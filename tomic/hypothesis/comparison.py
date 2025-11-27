@@ -72,15 +72,22 @@ class HypothesisComparison:
                 continue
 
             metrics = hyp.result.combined_metrics
+            # Calculate Ret/DD (Return / Max Drawdown ratio)
+            ret_dd = (
+                metrics.total_pnl / metrics.max_drawdown
+                if metrics.max_drawdown > 0
+                else float("inf")
+            )
+            ret_dd_str = f"{ret_dd:.2f}" if ret_dd != float("inf") else "∞"
             row = {
                 "rank": self.rankings.get(hyp.id, "-"),
                 "name": hyp.name,
                 "symbol": ", ".join(hyp.config.symbols),
                 "trades": metrics.total_trades,
-                "win_rate": f"{metrics.win_rate:.1f}%",
-                "sharpe": f"{metrics.sharpe_ratio:.2f}",
+                "win_rate": f"{metrics.win_rate * 100:.1f}%",
                 "total_pnl": f"${metrics.total_pnl:.0f}",
                 "profit_factor": f"{metrics.profit_factor:.2f}",
+                "ret_dd": ret_dd_str,
                 "max_dd": f"{metrics.max_drawdown_pct:.1f}%",
                 "degradation": f"{hyp.result.degradation_score:.1f}%",
                 "score": f"{hyp.score.total_score:.0f}" if hyp.score else "N/A",

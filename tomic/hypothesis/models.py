@@ -259,7 +259,7 @@ class Hypothesis:
         metrics = self.result.combined_metrics
         return {
             "trades": metrics.total_trades,
-            "win_rate": f"{metrics.win_rate:.1f}%",
+            "win_rate": f"{metrics.win_rate * 100:.1f}%",
             "sharpe": f"{metrics.sharpe_ratio:.2f}",
             "total_pnl": f"${metrics.total_pnl:.0f}",
             "profit_factor": f"{metrics.profit_factor:.2f}",

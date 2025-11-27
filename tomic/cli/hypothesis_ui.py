@@ -920,9 +920,9 @@ def _print_comparison(comparison) -> None:
         table.add_column("Symbol(s)")
         table.add_column("Trades")
         table.add_column("Win %", style="cyan")
-        table.add_column("Sharpe", style="cyan")
         table.add_column("P&L")
-        table.add_column("PF")
+        table.add_column("PF", style="cyan")
+        table.add_column("Ret/DD", style="cyan")
         table.add_column("DD")
         table.add_column("Degr.")
         table.add_column("Score", style="bold green")
@@ -936,9 +936,9 @@ def _print_comparison(comparison) -> None:
                 row["symbol"][:10],
                 str(row["trades"]),
                 row["win_rate"],
-                row["sharpe"],
                 row["total_pnl"],
                 row["profit_factor"],
+                row["ret_dd"],
                 row["max_dd"],
                 row["degradation"],
                 row["score"],
@@ -957,14 +957,14 @@ def _print_comparison(comparison) -> None:
         print("HYPOTHESE VERGELIJKING")
         print("=" * 100)
         print(f"{'#':<3} {'Naam':<20} {'Symbol':<8} {'Trades':<7} {'Win%':<7} "
-              f"{'Sharpe':<7} {'P&L':<10} {'Score':<7}")
+              f"{'P&L':<10} {'PF':<7} {'Ret/DD':<7} {'Score':<7}")
         print("-" * 100)
 
         for row in table_data:
             print(
                 f"{row['rank']:<3} {row['name'][:20]:<20} {row['symbol'][:8]:<8} "
-                f"{row['trades']:<7} {row['win_rate']:<7} {row['sharpe']:<7} "
-                f"{row['total_pnl']:<10} {row['score']:<7}"
+                f"{row['trades']:<7} {row['win_rate']:<7} {row['total_pnl']:<10} "
+                f"{row['profit_factor']:<7} {row['ret_dd']:<7} {row['score']:<7}"
             )
 
 
