@@ -8909,5 +8909,12 @@
     "close": 62.15,
     "volume": 7752571.0,
     "atr": null
+  },
+  {
+    "symbol": "DAL",
+    "date": "2025-11-26",
+    "close": 64.27,
+    "volume": 8121368.0,
+    "atr": null
   }
 ]

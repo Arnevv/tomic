@@ -8986,5 +8986,12 @@
     "close": 802.32,
     "volume": 2252490.0,
     "atr": null
+  },
+  {
+    "symbol": "GS",
+    "date": "2025-11-26",
+    "close": 816.01,
+    "volume": 1862600.0,
+    "atr": null
   }
 ]

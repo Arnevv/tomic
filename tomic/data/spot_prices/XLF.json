@@ -8909,5 +8909,12 @@
     "close": 52.54,
     "volume": 50923023.0,
     "atr": null
+  },
+  {
+    "symbol": "XLF",
+    "date": "2025-11-26",
+    "close": 52.95,
+    "volume": 35221346.0,
+    "atr": null
   }
 ]

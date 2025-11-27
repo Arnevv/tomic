@@ -8909,5 +8909,12 @@
     "close": 242.46,
     "volume": 8328315.0,
     "atr": null
+  },
+  {
+    "symbol": "AMAT",
+    "date": "2025-11-26",
+    "close": 249.97,
+    "volume": 8785626.0,
+    "atr": null
   }
 ]

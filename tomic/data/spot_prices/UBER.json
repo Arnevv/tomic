@@ -8909,5 +8909,12 @@
     "close": 83.69,
     "volume": 18476975.0,
     "atr": null
+  },
+  {
+    "symbol": "UBER",
+    "date": "2025-11-26",
+    "close": 85.66,
+    "volume": 20446621.0,
+    "atr": null
   }
 ]

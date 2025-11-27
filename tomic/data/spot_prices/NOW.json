@@ -8909,5 +8909,12 @@
     "close": 825.31,
     "volume": 1455855.0,
     "atr": null
+  },
+  {
+    "symbol": "NOW",
+    "date": "2025-11-26",
+    "close": 802.72,
+    "volume": 2006984.0,
+    "atr": null
   }
 ]

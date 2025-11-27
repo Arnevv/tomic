@@ -8909,5 +8909,12 @@
     "close": 385.03,
     "volume": 33500118.0,
     "atr": null
+  },
+  {
+    "symbol": "AVGO",
+    "date": "2025-11-26",
+    "close": 397.57,
+    "volume": 28685817.0,
+    "atr": null
   }
 ]

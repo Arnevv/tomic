@@ -8909,5 +8909,12 @@
     "close": 340.01,
     "volume": 12049664.0,
     "atr": null
+  },
+  {
+    "symbol": "SMH",
+    "date": "2025-11-26",
+    "close": 347.71,
+    "volume": 5532012.0,
+    "atr": null
   }
 ]
