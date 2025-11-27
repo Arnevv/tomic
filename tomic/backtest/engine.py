@@ -348,6 +348,14 @@ class BacktestEngine:
             logger.info(f"Total P&L: ${m.total_pnl:.2f}")
             logger.info(f"Sharpe Ratio: {m.sharpe_ratio:.2f}")
             logger.info(f"Max Drawdown: {m.max_drawdown_pct:.1f}%")
+            logger.info("-" * 60)
+            logger.info("ADDITIONAL METRICS:")
+            logger.info(f"  Ret/DD: {m.ret_dd:.2f}")
+            logger.info(f"  Profit Factor: {m.profit_factor:.2f}")
+            logger.info(f"  Average Winner: ${m.average_winner:.2f}")
+            logger.info(f"  Average Loser: ${m.average_loser:.2f}")
+            logger.info(f"  Expectancy: ${m.expectancy:.2f}")
+            logger.info(f"  SQN: {m.sqn:.2f}")
 
         if result.in_sample_metrics and result.out_sample_metrics:
             logger.info("-" * 60)
