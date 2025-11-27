@@ -180,7 +180,11 @@ class DataLoader:
         return ts if len(ts) > 0 else None
 
     def _load_iv_daily_summary(self, symbol: str) -> Optional[IVTimeSeries]:
-        """Load IV data from existing IV daily summary files."""
+        """Load IV data from existing IV daily summary files.
+
+        For older data that lacks iv_percentile, we calculate it using a
+        rolling 252-day (1 year) window of ATM IV values.
+        """
         iv_dir = cfg_get("IV_DAILY_SUMMARY_DIR", "tomic/data/iv_daily_summary")
         base_dir = Path(__file__).resolve().parent.parent.parent
         iv_path = base_dir / iv_dir / f"{symbol}.json"
@@ -198,13 +202,54 @@ class DataLoader:
         if not isinstance(raw_data, list):
             return None
 
+        # First pass: collect all data points with their ATM IV values
+        # to calculate iv_percentile for records that don't have it
+        all_data_points: List[Tuple[date, IVDataPoint, Dict]] = []
+        iv_history: List[Tuple[date, float]] = []  # For percentile calculation
+
+        for record in raw_data:
+            dp = IVDataPoint.from_dict(record, symbol)
+            if dp.date and dp.atm_iv is not None:
+                all_data_points.append((dp.date, dp, record))
+                iv_history.append((dp.date, dp.atm_iv))
+
+        # Sort by date
+        all_data_points.sort(key=lambda x: x[0])
+        iv_history.sort(key=lambda x: x[0])
+
+        # Second pass: calculate iv_percentile for records that don't have it
+        # using a 252-day lookback window
+        LOOKBACK_DAYS = 252
         ts = IVTimeSeries(symbol)
         start = date.fromisoformat(self.config.start_date)
         end = date.fromisoformat(self.config.end_date)
 
-        for record in raw_data:
-            dp = IVDataPoint.from_dict(record, symbol)
-            if dp.date and start <= dp.date <= end and dp.is_valid():
+        for i, (dt, dp, record) in enumerate(all_data_points):
+            if dt < start or dt > end:
+                continue
+
+            # If iv_percentile is missing, calculate it
+            if dp.iv_percentile is None and dp.atm_iv is not None:
+                # Find IV values in the lookback window
+                lookback_ivs = [
+                    iv for d, iv in iv_history[:i+1]
+                    if (dt - d).days <= LOOKBACK_DAYS and (dt - d).days >= 0
+                ]
+
+                if len(lookback_ivs) >= 20:  # Need at least 20 data points
+                    # Calculate percentile: what % of historical values is current IV above?
+                    current_iv = dp.atm_iv
+                    below_count = sum(1 for iv in lookback_ivs if iv < current_iv)
+                    dp.iv_percentile = (below_count / len(lookback_ivs)) * 100
+
+                    # Also calculate iv_rank if missing
+                    if dp.iv_rank is None:
+                        min_iv = min(lookback_ivs)
+                        max_iv = max(lookback_ivs)
+                        if max_iv > min_iv:
+                            dp.iv_rank = ((current_iv - min_iv) / (max_iv - min_iv)) * 100
+
+            if dp.is_valid():
                 ts.add(dp)
 
         return ts if len(ts) > 0 else None
