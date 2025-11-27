@@ -152,6 +152,9 @@ class BacktestConfig(BaseModel):
     iron_condor_wing_width: int = 5
     iron_condor_short_delta: float = 0.16
 
+    # P&L Model selection
+    use_greeks_model: bool = False  # Use Greeks-based model instead of IV-based model
+
     model_config = ConfigDict(extra="forbid")
 
     def get_in_sample_end_date(self) -> date:
