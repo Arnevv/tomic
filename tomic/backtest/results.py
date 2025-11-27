@@ -193,6 +193,10 @@ class PerformanceMetrics:
     max_drawdown_duration_days: int = 0
     volatility: float = 0.0
     calmar_ratio: float = 0.0
+    ret_dd: float = 0.0  # Return to Drawdown ratio (Total Return % / Max Drawdown %)
+
+    # System quality metrics
+    sqn: float = 0.0  # System Quality Number (Van Tharp)
 
     # Trade metrics
     avg_days_in_trade: float = 0.0

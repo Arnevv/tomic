@@ -125,6 +125,13 @@ class MetricsCalculator:
         if metrics.max_drawdown_pct > 0:
             metrics.calmar_ratio = metrics.cagr / metrics.max_drawdown_pct
 
+        # Ret/DD (Return to Drawdown ratio)
+        if metrics.max_drawdown_pct > 0:
+            metrics.ret_dd = metrics.total_return_pct / metrics.max_drawdown_pct
+
+        # SQN (System Quality Number - Van Tharp)
+        metrics.sqn = self._calculate_sqn(closed_trades)
+
         # Trade duration metrics
         durations = [t.days_in_trade for t in closed_trades]
         metrics.avg_days_in_trade = sum(durations) / len(durations) if durations else 0
@@ -170,6 +177,48 @@ class MetricsCalculator:
         avg_loss = abs(sum(t.final_pnl for t in losers)) / len(losers) if losers else 0
 
         return (win_rate * avg_win) - (loss_rate * avg_loss)
+
+    def _calculate_sqn(self, trades: List[SimulatedTrade]) -> float:
+        """Calculate System Quality Number (Van Tharp).
+
+        SQN = √N × (Mean R / StdDev R)
+
+        Where R = R-multiple = P&L / Risk per trade
+
+        SQN interpretation (Van Tharp):
+        - < 1.6: Poor, hard to trade profitably
+        - 1.6-2.0: Below average
+        - 2.0-2.5: Average
+        - 2.5-3.0: Good
+        - 3.0-5.0: Excellent
+        - 5.0-7.0: Superb
+        - > 7.0: Holy Grail (probably curve-fitted)
+        """
+        if len(trades) < 2:
+            return 0.0
+
+        # Calculate R-multiples (P&L / max_risk)
+        r_multiples = []
+        for trade in trades:
+            if trade.max_risk > 0:
+                r = trade.final_pnl / trade.max_risk
+                r_multiples.append(r)
+
+        if len(r_multiples) < 2:
+            return 0.0
+
+        # Calculate mean and standard deviation of R-multiples
+        mean_r = sum(r_multiples) / len(r_multiples)
+        variance = sum((r - mean_r) ** 2 for r in r_multiples) / len(r_multiples)
+        std_r = math.sqrt(variance)
+
+        if std_r == 0:
+            return 0.0
+
+        # SQN = √N × (Mean R / Std R)
+        sqn = math.sqrt(len(r_multiples)) * (mean_r / std_r)
+
+        return sqn
 
     def _build_equity_curve(
         self, trades: List[SimulatedTrade]
