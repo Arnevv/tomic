@@ -302,10 +302,10 @@ class ScorecardBuilder:
                 best_total_score = hyp.score.total_score
                 best_hypothesis = hyp
 
-        # Calculate aggregates
+        # Calculate aggregates (convert ratios to percentages)
         if win_rates:
-            score.best_win_rate = max(win_rates)
-            score.avg_win_rate = sum(win_rates) / len(win_rates)
+            score.best_win_rate = max(win_rates) * 100
+            score.avg_win_rate = (sum(win_rates) / len(win_rates)) * 100
 
         if sharpes:
             score.best_sharpe = max(sharpes)
