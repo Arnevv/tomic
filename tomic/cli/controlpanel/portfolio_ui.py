@@ -62,6 +62,7 @@ from tomic.cli.portfolio.menu_flow import (
 )
 from tomic.cli.backtest_ui import run_backtest_menu
 from tomic.cli.hypothesis_ui import run_hypothesis_menu
+from tomic.cli.pipeline_config_ui import run_pipeline_config_menu
 from tomic.cli.module_runner import run_module
 from tomic.cli.settings.menu_config import SETTINGS_MENU
 from tomic.cli.settings.handlers import build_settings_menu
@@ -860,6 +861,7 @@ def run_portfolio_menu(
     menu.add("Earnings-informatie", partial(show_earnings_info, session, services))
     menu.add("Backtesting", run_backtest_menu)
     menu.add("Hypothese Testing", run_hypothesis_menu)
+    menu.add("Pipeline Configuratie", run_pipeline_config_menu)
     menu.run()
 
 def run_settings_menu(
