@@ -216,7 +216,10 @@ class MetricsCalculator:
             return 0.0
 
         # SQN = √N × (Mean R / Std R)
-        sqn = math.sqrt(len(r_multiples)) * (mean_r / std_r)
+        # Cap N at 100 to normalize SQN (Van Tharp's standard sample size)
+        # This prevents inflated SQN values when trading many symbols/trades
+        capped_n = min(100, len(r_multiples))
+        sqn = math.sqrt(capped_n) * (mean_r / std_r)
 
         return sqn
 
