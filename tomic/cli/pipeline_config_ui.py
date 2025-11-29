@@ -207,6 +207,12 @@ def compare_all_strategies() -> None:
     print("STRATEGIEEN VERGELIJKING")
     print("=" * 70)
 
+    strategy_col_width = 22
+    value_col_width = 16
+
+    def _truncate(value: str, width: int) -> str:
+        return value if len(value) <= width else value[: width - 1]
+
     # Key parameters to compare
     key_params = [
         ("Entry: IV Rank", "market_selection", "criterion_1"),
@@ -222,14 +228,16 @@ def compare_all_strategies() -> None:
     if RICH_AVAILABLE:
         console = Console()
         table = Table(title="Strategieen Vergelijking", box=box.ROUNDED)
-        table.add_column("Strategie", style="bold cyan")
+        table.add_column(
+            "Strategie", style="bold cyan", width=strategy_col_width, min_width=strategy_col_width
+        )
 
         for label, _, _ in key_params:
-            table.add_column(label, justify="center")
+            table.add_column(label, justify="center", width=value_col_width, min_width=value_col_width)
 
         for strategy_key in registry.list_strategies():
             config = registry.get_strategy(strategy_key)
-            row = [config.strategy_name[:15]]
+            row = [_truncate(config.strategy_name, strategy_col_width)]
 
             for _, phase_name, param_name in key_params:
                 try:
@@ -238,7 +246,8 @@ def compare_all_strategies() -> None:
                     if phase_params:
                         source = phase_params.parameters.get(param_name)
                         if source:
-                            row.append(_format_value(source.value)[:15])
+                            value_str = _format_value(source.value)
+                            row.append(_truncate(value_str, value_col_width))
                         else:
                             row.append("-")
                     else:
@@ -252,15 +261,15 @@ def compare_all_strategies() -> None:
     else:
         # Plain text version
         strategies = registry.list_strategies()
-        print(f"\n{'Strategie':<18}", end="")
+        print(f"\n{'Strategie':<{strategy_col_width}}", end="")
         for label, _, _ in key_params:
-            print(f"{label:<12}", end="")
+            print(f"{label:<{value_col_width}}", end="")
         print()
-        print("-" * (18 + len(key_params) * 12))
+        print("-" * (strategy_col_width + len(key_params) * value_col_width))
 
         for strategy_key in strategies:
             config = registry.get_strategy(strategy_key)
-            print(f"{config.strategy_name[:16]:<18}", end="")
+            print(f"{_truncate(config.strategy_name, strategy_col_width):<{strategy_col_width}}", end="")
 
             for _, phase_name, param_name in key_params:
                 try:
@@ -269,13 +278,14 @@ def compare_all_strategies() -> None:
                     if phase_params:
                         source = phase_params.parameters.get(param_name)
                         if source:
-                            print(f"{_format_value(source.value)[:10]:<12}", end="")
+                            value_str = _truncate(_format_value(source.value), value_col_width)
+                            print(f"{value_str:<{value_col_width}}", end="")
                         else:
-                            print(f"{'-':<12}", end="")
+                            print(f"{'-':<{value_col_width}}", end="")
                     else:
-                        print(f"{'-':<12}", end="")
+                        print(f"{'-':<{value_col_width}}", end="")
                 except Exception:
-                    print(f"{'-':<12}", end="")
+                    print(f"{'-':<{value_col_width}}", end="")
             print()
 
 
