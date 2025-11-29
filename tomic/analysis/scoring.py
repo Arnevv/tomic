@@ -950,16 +950,18 @@ def compute_proposal_metrics(
     loss_val = safe_float(proposal.max_loss)
     if proposal.risk_reward is None and profit_val is not None and loss_val not in (None, 0.0):
         risk = abs(loss_val)
-        if risk > 0:
-            proposal.risk_reward = profit_val / risk
+        if risk > 0 and profit_val > 0:
+            # R/R = max_loss / max_profit (TOMIC definition: risk per unit reward)
+            # Lower is better. Threshold check: R/R <= min_rr
+            proposal.risk_reward = risk / profit_val
 
     min_rr = computation.min_risk_reward or 0.0
     meets_min = bool(computation.meets_min_risk_reward)
     if not meets_min:
         message = (
-            f"risk/reward onvoldoende ({proposal.risk_reward:.2f} < {min_rr:.2f})"
+            f"risk/reward onvoldoende ({proposal.risk_reward:.2f} > {min_rr:.2f})"
             if proposal.risk_reward is not None
-            else f"risk/reward onvoldoende (< {min_rr:.2f})"
+            else f"risk/reward onvoldoende (> {min_rr:.2f})"
         )
         _add_reason(
             make_reason(

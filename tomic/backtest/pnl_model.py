@@ -84,18 +84,23 @@ class IronCondorPnLModel:
         """Estimate credit received for an Iron Condor.
 
         For a typical Iron Condor with ~0.16 delta short strikes:
-        - Credit is roughly 25-35% of wing width
+        - Credit is roughly 25-40% of wing width
         - Higher IV = higher credit
 
         Args:
             iv_at_entry: ATM IV at entry (as decimal, e.g., 0.20 for 20%)
-            max_risk: Maximum risk in dollars
+            max_risk: Maximum risk in dollars (not used, kept for API compatibility)
             target_dte: Days to expiration at entry
 
         Returns:
             Estimated credit received in dollars.
         """
-        # Base credit ratio (credit / max_risk) at 20% IV, 45 DTE
+        # Use wing width as the basis for credit calculation
+        # This ensures R/R ratios are realistic
+        wing_width = self.config.iron_condor_wing_width * 100  # e.g., $500 for $5 wings
+
+        # Base credit ratio (credit / wing_width) at 20% IV, 45 DTE
+        # Typical IC gets 25-35% of wing width as credit
         base_credit_ratio = 0.30
 
         # Adjust for IV level (higher IV = higher credit)
@@ -107,9 +112,11 @@ class IronCondorPnLModel:
         dte_adjustment = min(1.2, target_dte / 45)
 
         credit_ratio = base_credit_ratio * iv_adjustment * dte_adjustment
-        credit_ratio = min(0.50, max(0.15, credit_ratio))  # Cap between 15-50%
+        # Cap between 20-50% of wing width
+        # 40%+ credit = R/R <= 1.5 (TOMIC threshold)
+        credit_ratio = min(0.50, max(0.20, credit_ratio))
 
-        return max_risk * credit_ratio
+        return wing_width * credit_ratio
 
     def estimate_pnl(
         self,
