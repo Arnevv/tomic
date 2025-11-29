@@ -244,8 +244,8 @@ class TestResult:
     sharpe: float
     max_drawdown: float
     profit_factor: float
-    ret_dd: float
-    degradation: float
+    ret_dd: Optional[float]
+    degradation: Optional[float]
     is_baseline: bool = False
 
 
@@ -512,8 +512,10 @@ def _print_single_result(result: TestResult) -> None:
     print(f"  Sharpe Ratio:   {result.sharpe:.2f}")
     print(f"  Max Drawdown:   {result.max_drawdown:.1f}%")
     print(f"  Profit Factor:  {result.profit_factor:.2f}")
-    print(f"  Ret/DD:         {result.ret_dd:.2f}")
-    print(f"  Degradation:    {result.degradation:.1f}%")
+    ret_dd_str = f"{result.ret_dd:.2f}" if result.ret_dd is not None else "N/A"
+    print(f"  Ret/DD:         {ret_dd_str}")
+    degradation_str = f"{result.degradation:.1f}%" if result.degradation is not None else "N/A"
+    print(f"  Degradation:    {degradation_str}")
 
 
 # =============================================================================
@@ -673,8 +675,16 @@ def _print_comparison(comparison: ComparisonResult) -> None:
     print(f"{'Sharpe':<20} {b.sharpe:>15.2f} {w.sharpe:>15.2f} {diff_str(b.sharpe, w.sharpe, '.2f'):>15}")
     print(f"{'Max Drawdown':<20} {b.max_drawdown:>14.1f}% {w.max_drawdown:>14.1f}% {diff_str(b.max_drawdown, w.max_drawdown):>15}")
     print(f"{'Profit Factor':<20} {b.profit_factor:>15.2f} {w.profit_factor:>15.2f} {diff_str(b.profit_factor, w.profit_factor, '.2f'):>15}")
-    print(f"{'Ret/DD':<20} {b.ret_dd:>15.2f} {w.ret_dd:>15.2f} {diff_str(b.ret_dd, w.ret_dd, '.2f'):>15}")
-    print(f"{'Degradation':<20} {b.degradation:>14.1f}% {w.degradation:>14.1f}% {diff_str(b.degradation, w.degradation):>15}")
+    # Handle None values for ret_dd
+    b_ret_dd_str = f"{b.ret_dd:>15.2f}" if b.ret_dd is not None else f"{'N/A':>15}"
+    w_ret_dd_str = f"{w.ret_dd:>15.2f}" if w.ret_dd is not None else f"{'N/A':>15}"
+    ret_dd_diff = diff_str(b.ret_dd, w.ret_dd, '.2f') if (b.ret_dd is not None and w.ret_dd is not None) else "N/A"
+    print(f"{'Ret/DD':<20} {b_ret_dd_str} {w_ret_dd_str} {ret_dd_diff:>15}")
+    # Handle None values for degradation
+    b_deg_str = f"{b.degradation:>14.1f}%" if b.degradation is not None else f"{'N/A':>15}"
+    w_deg_str = f"{w.degradation:>14.1f}%" if w.degradation is not None else f"{'N/A':>15}"
+    deg_diff = diff_str(b.degradation, w.degradation) if (b.degradation is not None and w.degradation is not None) else "N/A"
+    print(f"{'Degradation':<20} {b_deg_str} {w_deg_str} {deg_diff:>15}")
 
     # Analysis
     print("\n" + "-" * 75)
@@ -889,6 +899,7 @@ def _print_sweep_results(
         if r.param_value == current_value:
             marker = " <"  # Current
 
+        ret_dd_str = f"{r.ret_dd:>8.2f}" if r.ret_dd is not None else f"{'N/A':>8}"
         print(
             f"  {r.param_value:>8} "
             f"{r.trades:>8} "
@@ -897,7 +908,7 @@ def _print_sweep_results(
             f"{r.sharpe:>8.2f} "
             f"{r.max_drawdown:>7.1f}% "
             f"{r.profit_factor:>8.2f} "
-            f"{r.ret_dd:>8.2f}"
+            f"{ret_dd_str}"
             f"{marker}"
         )
 
