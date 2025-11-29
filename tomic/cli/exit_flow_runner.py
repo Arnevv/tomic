@@ -38,7 +38,8 @@ def run_with_timeout(timeout_seconds: int = 300) -> int:
     Returns:
         Exit code from exit_flow.main() or 124 on timeout
     """
-    setup_logging()
+    # Use stdout for console visibility (stderr is often not displayed in batch scripts)
+    setup_logging(stdout=True)
 
     logger.info("=" * 60)
     logger.info("Exit Flow Runner gestart")

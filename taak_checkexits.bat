@@ -57,12 +57,17 @@ if %errorlevel% equ 2 (
 )
 echo [%time%] TWS verbinding OK
 
-REM Start de exit-flow module MET TIMEOUT
+REM Start de exit-flow module - output direct zichtbaar in console
 echo [%time%] Starten van exit-flow module (max %MAX_RUNTIME_SECONDS%s)...
+echo.
 
-REM Gebruik PowerShell om proces met timeout te starten (alles op 1 regel voor compatibiliteit)
-powershell -NoProfile -ExecutionPolicy Bypass -Command "$proc = Start-Process -FilePath '.venv\Scripts\python.exe' -ArgumentList '-u', '-m', 'tomic.cli.exit_flow' -NoNewWindow -PassThru -RedirectStandardOutput '%LOGFILE%' -RedirectStandardError '%LOGFILE%.err'; $finished = $proc.WaitForExit(%MAX_RUNTIME_SECONDS%000); if (-not $finished) { Write-Host '[TIMEOUT] Forceer stop na %MAX_RUNTIME_SECONDS%s'; Stop-Process -Id $proc.Id -Force -ErrorAction SilentlyContinue; Start-Sleep -Milliseconds 500; exit 124 }; exit $proc.ExitCode"
+REM Direct Python uitvoeren - output is nu zichtbaar in console
+REM De exit_flow_runner heeft een ingebouwde timeout
+.venv\Scripts\python.exe -u -m tomic.cli.exit_flow_runner --timeout %MAX_RUNTIME_SECONDS% 2>&1
 set "RC=%ERRORLEVEL%"
+
+REM Schrijf samenvatting naar logbestand
+echo [%time%] Exit-flow afgerond met code %RC% > "%LOGFILE%"
 
 REM Cleanup lege error log
 if exist "%LOGFILE%.err" (
