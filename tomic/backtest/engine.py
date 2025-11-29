@@ -50,20 +50,61 @@ class BacktestEngine:
         self,
         config: Optional[BacktestConfig] = None,
         progress_callback: Optional[Callable[[str, float], None]] = None,
+        strategy_config: Optional[Dict[str, Any]] = None,
     ):
         """Initialize the backtest engine.
 
         Args:
             config: BacktestConfig instance. If None, loads from default location.
             progress_callback: Optional callback for progress updates (message, percent)
+            strategy_config: Optional strategy-specific config (min_risk_reward, etc.)
+                If None, loads from config/strategies.yaml
         """
         self.config = config or load_backtest_config()
         self.progress_callback = progress_callback
+
+        # Load strategy config from YAML if not provided
+        if strategy_config is None:
+            strategy_config = self._load_strategy_config()
+        self.strategy_config = strategy_config
 
         # Initialize components
         self.data_loader = DataLoader(self.config)
         self.signal_generator = SignalGenerator(self.config)
         self.metrics_calculator = MetricsCalculator()
+
+    def _load_strategy_config(self) -> Dict[str, Any]:
+        """Load strategy-specific configuration from strategies.yaml."""
+        from pathlib import Path
+
+        try:
+            import yaml
+        except ImportError:
+            return {}
+
+        base_dir = Path(__file__).resolve().parent.parent.parent
+        strategies_path = base_dir / "config" / "strategies.yaml"
+
+        if not strategies_path.exists():
+            return {}
+
+        try:
+            with open(strategies_path, "r", encoding="utf-8") as f:
+                data = yaml.safe_load(f) or {}
+
+            # Get strategy-specific config
+            strategy_type = self.config.strategy_type
+            strategies = data.get("strategies", {})
+            defaults = data.get("default", {})
+
+            # Merge defaults with strategy-specific
+            result = dict(defaults)
+            if strategy_type in strategies:
+                result.update(strategies[strategy_type])
+
+            return result
+        except Exception:
+            return {}
 
     def run(self) -> BacktestResult:
         """Run the complete backtest.
@@ -184,7 +225,11 @@ class BacktestEngine:
         Returns:
             List of SimulatedTrade objects from this period.
         """
-        simulator = TradeSimulator(self.config, use_greeks_model=self.config.use_greeks_model)
+        simulator = TradeSimulator(
+            self.config,
+            use_greeks_model=self.config.use_greeks_model,
+            strategy_config=self.strategy_config,
+        )
 
         # Get all trading dates in period
         all_dates = []
@@ -232,10 +277,13 @@ class BacktestEngine:
         trades = simulator.get_all_trades()
         summary = simulator.get_summary()
 
+        rr_rejections = summary.get('rr_rejections', 0)
+        rejection_msg = f", {rr_rejections} R/R filtered" if rr_rejections > 0 else ""
+
         logger.info(
             f"{period_name} complete: {summary['total_trades']} trades, "
             f"win rate {summary['win_rate']:.1%}, "
-            f"total P&L ${summary['total_pnl']:.2f}"
+            f"total P&L ${summary['total_pnl']:.2f}{rejection_msg}"
         )
 
         return trades
