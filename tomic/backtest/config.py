@@ -21,7 +21,11 @@ class EntryRulesConfig(BaseModel):
     term_structure_max: Optional[float] = None
     iv_hv_spread_min: Optional[float] = None
 
-    model_config = ConfigDict(extra="forbid")
+    # DTE range from strike_selection_rules.yaml
+    dte_min: Optional[int] = None
+    dte_max: Optional[int] = None
+
+    model_config = ConfigDict(extra="allow")
 
 
 class ExitRulesConfig(BaseModel):

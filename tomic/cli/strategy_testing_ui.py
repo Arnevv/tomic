@@ -38,6 +38,8 @@ def load_live_config() -> Dict[str, Any]:
     - From strategies.yaml: min_risk_reward, min_rom, min_edge, min_pos, etc.
     - From criteria.yaml: acceptance criteria
     - From backtest.yaml: entry/exit rules
+    - From volatility_rules.yaml: IV/skew entry criteria per strategy
+    - From strike_selection_rules.yaml: DTE range, delta range per strategy
     """
     from pathlib import Path
     from tomic.config import _load_yaml, _BASE_DIR
@@ -60,6 +62,24 @@ def load_live_config() -> Dict[str, Any]:
     criteria_path = _BASE_DIR / "criteria.yaml"
     if criteria_path.exists():
         config["criteria"] = _load_yaml(criteria_path)
+
+    # Load volatility_rules.yaml (list of strategy rules)
+    volatility_path = _BASE_DIR / "tomic" / "volatility_rules.yaml"
+    if volatility_path.exists():
+        vol_rules = _load_yaml(volatility_path)
+        # Convert list to dict keyed by strategy
+        if isinstance(vol_rules, list):
+            config["volatility_rules"] = {
+                rule.get("key"): rule for rule in vol_rules if rule.get("key")
+            }
+        else:
+            config["volatility_rules"] = vol_rules or {}
+
+    # Load strike_selection_rules.yaml
+    strike_path = _BASE_DIR / "tomic" / "strike_selection_rules.yaml"
+    if strike_path.exists():
+        strike_rules = _load_yaml(strike_path)
+        config["strike_selection_rules"] = strike_rules or {}
 
     return config
 
@@ -131,7 +151,80 @@ def get_testable_parameters(strategy: str = "iron_condor") -> List[Dict[str, Any
             "source": "backtest.yaml",
         })
 
+    # Strike selection parameters from strike_selection_rules.yaml
+    strike_rules = config.get("strike_selection_rules", {})
+    default_strike = strike_rules.get("default", {})
+    strategy_strike = strike_rules.get(strategy, {})
+
+    # DTE range
+    dte_range = strategy_strike.get("dte_range") or default_strike.get("dte_range")
+    if dte_range:
+        params.append({
+            "key": "dte_range",
+            "description": "DTE Range [min, max]",
+            "category": "strike_selection",
+            "current_value": dte_range,
+            "source": "strike_selection_rules.yaml",
+        })
+
+    # Delta range (for delta-based strategies)
+    delta_range = strategy_strike.get("short_delta_range") or strategy_strike.get("delta_range")
+    if delta_range:
+        params.append({
+            "key": "delta_range",
+            "description": "Delta Range [min, max]",
+            "category": "strike_selection",
+            "current_value": delta_range,
+            "source": "strike_selection_rules.yaml",
+        })
+
+    # Stddev range (for iron condors etc.)
+    stddev_range = strategy_strike.get("stddev_range")
+    if stddev_range:
+        params.append({
+            "key": "stddev_range",
+            "description": "Std Dev Range",
+            "category": "strike_selection",
+            "current_value": stddev_range,
+            "source": "strike_selection_rules.yaml",
+        })
+
+    # Volatility rules from volatility_rules.yaml
+    vol_rules = config.get("volatility_rules", {})
+    strategy_vol = vol_rules.get(strategy, {})
+    criteria = strategy_vol.get("criteria", [])
+
+    # Parse volatility criteria into testable parameters
+    for criterion in criteria:
+        if isinstance(criterion, str):
+            # Parse criteria like "iv_rank >= 0.5"
+            parsed = _parse_vol_criterion(criterion)
+            if parsed:
+                params.append({
+                    "key": f"vol_{parsed['field']}",
+                    "description": f"Vol Rule: {parsed['field']} {parsed['operator']} {parsed['value']}",
+                    "category": "volatility",
+                    "current_value": parsed["value"],
+                    "source": "volatility_rules.yaml",
+                    "operator": parsed["operator"],
+                    "field": parsed["field"],
+                })
+
     return params
+
+
+def _parse_vol_criterion(criterion: str) -> Optional[Dict[str, Any]]:
+    """Parse a volatility criterion string like 'iv_rank >= 0.5'."""
+    import re
+    # Match patterns like: field >= value, field <= value, field > value, field < value
+    match = re.match(r"(\w+)\s*(>=|<=|>|<|==)\s*([\d.]+)", criterion.strip())
+    if match:
+        return {
+            "field": match.group(1),
+            "operator": match.group(2),
+            "value": float(match.group(3)),
+        }
+    return None
 
 
 # =============================================================================
@@ -195,7 +288,8 @@ def run_live_config_validation() -> None:
     print("LIVE CONFIG VALIDATIE")
     print("=" * 70)
     print("\nTest je huidige productie-configuratie tegen historische data.")
-    print("Gebruikt: strategies.yaml, criteria.yaml, backtest.yaml")
+    print("Gebruikt: strategies.yaml, criteria.yaml, backtest.yaml,")
+    print("          volatility_rules.yaml, strike_selection_rules.yaml")
 
     # Load and show current config
     config = load_live_config()
@@ -205,10 +299,30 @@ def run_live_config_validation() -> None:
     print("HUIDIGE CONFIGURATIE (iron_condor)")
     print("-" * 50)
 
-    # Show key parameters
+    # Show key parameters grouped by category
     params = get_testable_parameters(strategy)
+
+    # Group by category
+    categories = {}
     for p in params:
-        print(f"  {p['description']:30} = {p['current_value']}")
+        cat = p.get("category", "other")
+        if cat not in categories:
+            categories[cat] = []
+        categories[cat].append(p)
+
+    category_names = {
+        "scoring": "SCORING (strategies.yaml)",
+        "entry": "ENTRY RULES (backtest.yaml)",
+        "exit": "EXIT RULES (backtest.yaml)",
+        "strike_selection": "STRIKE SELECTIE (strike_selection_rules.yaml)",
+        "volatility": "VOLATILITY REGELS (volatility_rules.yaml)",
+    }
+
+    for cat, cat_params in categories.items():
+        cat_name = category_names.get(cat, cat.upper())
+        print(f"\n  {cat_name}:")
+        for p in cat_params:
+            print(f"    {p['description']:35} = {p['current_value']}")
 
     print("\n" + "-" * 50)
 
@@ -249,7 +363,55 @@ def _run_backtest_with_config(
 
     config.strategy_type = strategy
 
-    # Apply overrides to entry/exit rules
+    # Load live strategy config for all parameters
+    live_config = load_live_config()
+
+    # Apply strike selection rules (DTE range)
+    strike_rules = live_config.get("strike_selection_rules", {})
+    default_strike = strike_rules.get("default", {})
+    strategy_strike = strike_rules.get(strategy, {})
+
+    dte_range = overrides.get("dte_range") or strategy_strike.get("dte_range") or default_strike.get("dte_range")
+    if dte_range and len(dte_range) >= 2:
+        # Use midpoint of DTE range as target_dte
+        config.target_dte = (dte_range[0] + dte_range[1]) // 2
+        # Store DTE range for filtering
+        config.entry_rules.dte_min = dte_range[0]
+        config.entry_rules.dte_max = dte_range[1]
+
+    # Apply volatility rules to entry criteria
+    vol_rules = live_config.get("volatility_rules", {})
+    strategy_vol = vol_rules.get(strategy, {})
+    criteria = strategy_vol.get("criteria", [])
+
+    for criterion in criteria:
+        if isinstance(criterion, str):
+            parsed = _parse_vol_criterion(criterion)
+            if parsed:
+                field = parsed["field"]
+                value = parsed["value"]
+                op = parsed["operator"]
+
+                # Check for overrides first
+                override_key = f"vol_{field}"
+                if override_key in overrides:
+                    value = overrides[override_key]
+
+                # Map volatility rules to entry_rules
+                if field == "iv_rank" and op in (">=", ">"):
+                    # iv_rank is 0-1 in rules, but entry_rules uses 0-100 scale
+                    config.entry_rules.iv_rank_min = value * 100 if value < 1 else value
+                elif field == "iv_percentile" and op in (">=", ">"):
+                    # iv_percentile is 0-1 in rules, but entry_rules uses 0-100 scale
+                    config.entry_rules.iv_percentile_min = value * 100 if value < 1 else value
+                elif field == "skew" and op == "<=":
+                    config.entry_rules.skew_max = value
+                elif field == "skew" and op == ">=":
+                    config.entry_rules.skew_min = value
+                elif field == "iv_vs_hv20" and op == ">":
+                    config.entry_rules.iv_hv_spread_min = value
+
+    # Apply manual overrides to entry/exit rules (these take precedence)
     if "iv_percentile_min" in overrides:
         config.entry_rules.iv_percentile_min = overrides["iv_percentile_min"]
     if "profit_target_pct" in overrides:
@@ -259,16 +421,13 @@ def _run_backtest_with_config(
     if "max_days_in_trade" in overrides:
         config.exit_rules.max_days_in_trade = int(overrides["max_days_in_trade"])
 
-    # Load live strategy config for min_risk_reward etc.
-    live_config = load_live_config()
-
     # Get effective min_risk_reward (override or live config)
     min_rr = overrides.get(
         "min_risk_reward",
         get_strategy_param(live_config, strategy, "min_risk_reward", 1.0)
     )
 
-    # Store in a way the engine can access
+    # Store strategy-specific config
     strategy_overrides = {
         "min_risk_reward": min_rr,
         "min_rom": overrides.get(
@@ -283,6 +442,10 @@ def _run_backtest_with_config(
             "min_pos",
             get_strategy_param(live_config, strategy, "min_pos")
         ),
+        # Include strike selection for reference
+        "dte_range": dte_range,
+        "stddev_range": strategy_strike.get("stddev_range"),
+        "delta_range": strategy_strike.get("short_delta_range") or strategy_strike.get("delta_range"),
     }
 
     # Create engine with strategy config
