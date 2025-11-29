@@ -28,7 +28,7 @@ except Exception:  # pragma: no cover
     ContractDetails = object  # type: ignore[assignment]
 
 from tomic.api.base_client import BaseIBApp
-from tomic.api.ib_connection import connect_ib
+from tomic.api.ib_connection import connect_ib_with_retry
 from tomic.analysis import scoring
 from tomic.logutils import logger
 from tomic.models import OptionContract
@@ -435,7 +435,8 @@ class IBMarketDataService:
         socket_timeout = min(10.0, timeout / 2)
         logger.info("[ib_marketdata] connect_ib: starting host=%s port=%d client_id=%d socket_timeout=%.1fs",
                     host, port, client_id, socket_timeout)
-        connect_ib(
+        # Use connect_ib_with_retry for automatic recovery from duplicate client ID
+        connect_ib_with_retry(
             client_id=client_id,
             host=host,
             port=port,

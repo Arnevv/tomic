@@ -31,7 +31,7 @@ except Exception:  # pragma: no cover
             self.value = value
 
 from tomic.api.base_client import BaseIBApp
-from tomic.api.ib_connection import connect_ib
+from tomic.api.ib_connection import connect_ib_with_retry
 from tomic.helpers.dateutils import normalize_expiry_code
 from tomic.helpers.numeric import safe_float
 from tomic.logutils import logger
@@ -1532,7 +1532,8 @@ class OrderSubmissionService:
             app = self._app_factory()
             # Use reasonable socket connect timeout (10s)
             socket_timeout = min(10.0, timeout / 2) if timeout else 10.0
-            connect_ib(host=host, port=port, client_id=client_id, timeout=timeout, app=app, connect_timeout=socket_timeout)
+            # Use connect_ib_with_retry for automatic recovery from duplicate client ID
+            connect_ib_with_retry(host=host, port=port, client_id=client_id, timeout=timeout, app=app, connect_timeout=socket_timeout)
             t_connect_elapsed = time.perf_counter() - t_connect_start
             log.info("[place_orders] connect_ib: %dms", int(t_connect_elapsed * 1000))
 
