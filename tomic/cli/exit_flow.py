@@ -286,6 +286,22 @@ def main(argv: Iterable[str] | None = None) -> int:
     logger.info("EXIT-FLOW GESTART - Diagnostische logging actief")
     logger.info("=" * 60)
 
+    # Log IB client registry status at startup
+    try:
+        from tomic.api.client_registry import ACTIVE_CLIENT_IDS
+        if ACTIVE_CLIENT_IDS:
+            logger.warning(
+                "[STARTUP] ⚠️ Active IB client IDs detected at startup: %s",
+                list(ACTIVE_CLIENT_IDS),
+            )
+            logger.warning(
+                "[STARTUP] This may cause connection conflicts. Consider clearing stale IDs."
+            )
+        else:
+            logger.info("[STARTUP] No active IB client IDs (registry is clean)")
+    except ImportError:
+        pass
+
     parser = argparse.ArgumentParser(description="Run the exit workflow for current positions")
     parser.add_argument("--positions", help="Pad naar positions.json", default=None)
     parser.add_argument("--journal", help="Pad naar journal.json", default=None)
