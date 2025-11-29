@@ -431,14 +431,17 @@ class IBMarketDataService:
                     trigger_label, len(proposal.legs), timeout)
 
         _t_connect_start = _time.perf_counter()
-        logger.info("[ib_marketdata] connect_ib: starting host=%s port=%d client_id=%d",
-                    host, port, client_id)
+        # Use a reasonable socket connect timeout (10s) - separate from data timeout
+        socket_timeout = min(10.0, timeout / 2)
+        logger.info("[ib_marketdata] connect_ib: starting host=%s port=%d client_id=%d socket_timeout=%.1fs",
+                    host, port, client_id, socket_timeout)
         connect_ib(
             client_id=client_id,
             host=host,
             port=port,
             timeout=int(timeout),
             app=app,
+            connect_timeout=socket_timeout,
         )
         _t_connect_done = _time.perf_counter()
         logger.info("[ib_marketdata] connect_ib: done in %.0fms",

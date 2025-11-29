@@ -30,7 +30,7 @@ class Connection:
         self.wrapper = None
         self.lock = threading.Lock()
 
-    def connect(self):
+    def connect(self, connect_timeout: float = 10.0):
         try:
             self.socket = socket.socket()
         # TODO: list the exceptions you want to catch
@@ -39,14 +39,32 @@ class Connection:
                 self.wrapper.error(
                     NO_VALID_ID, currentTimeMillis(), FAIL_CREATE_SOCK.code(), FAIL_CREATE_SOCK.msg()
                 )
+            return
 
         try:
+            # Set timeout BEFORE connect to prevent indefinite hang
+            self.socket.settimeout(connect_timeout)
+            logger.debug(f"socket.connect() starting with timeout={connect_timeout}s")
             self.socket.connect((self.host, self.port))
-        except socket.error:
+            logger.debug("socket.connect() completed successfully")
+        except socket.timeout:
+            logger.error(f"socket.connect() timeout after {connect_timeout}s to {self.host}:{self.port}")
+            if self.wrapper:
+                self.wrapper.error(NO_VALID_ID, currentTimeMillis(), CONNECT_FAIL.code(),
+                                   f"Connection timeout after {connect_timeout}s")
+            self.socket.close()
+            self.socket = None
+            raise
+        except socket.error as e:
+            logger.error(f"socket.connect() failed: {e}")
             if self.wrapper:
                 self.wrapper.error(NO_VALID_ID, currentTimeMillis(), CONNECT_FAIL.code(), CONNECT_FAIL.msg())
+            if self.socket:
+                self.socket.close()
+                self.socket = None
+            raise
 
-        self.socket.settimeout(1)  # non-blocking
+        self.socket.settimeout(1)  # non-blocking for subsequent operations
 
     def disconnect(self):
         self.lock.acquire()

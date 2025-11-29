@@ -266,12 +266,22 @@ def connect_ib(
     *,
     unique: bool = False,
     app: IBClient | None = None,
+    connect_timeout: float = 10.0,
 ) -> IBClient:
     """Connect to IB.
 
     When ``unique`` is ``True`` a unique ``client_id`` is generated so
     multiple connections can be opened simultaneously without client id
     clashes.
+
+    Args:
+        client_id: IB client ID to use
+        host: TWS/Gateway host
+        port: TWS/Gateway port
+        timeout: Timeout for waiting on nextValidId (seconds)
+        unique: Generate unique client_id to avoid clashes
+        app: Existing IBClient instance to use
+        connect_timeout: Socket connect timeout (seconds)
     """
     if unique:
         client_id = int(time.time() * 1000) % 2_000_000
@@ -279,18 +289,29 @@ def connect_ib(
         client_id = int(cfg_get("IB_CLIENT_ID", 100))
 
     if client_id in ACTIVE_CLIENT_IDS:
-        logger.warning(f"IB client_id {client_id} already active")
+        logger.warning(f"IB client_id {client_id} already active - may cause connection issues")
     if app is None:
         app = IBClient()
     elif not isinstance(app, IBClient):  # pragma: no cover - defensive
         raise TypeError("app must inherit from IBClient")
 
     try:
-        logger.debug(f"Connecting to IB host={host} port={port} client_id={client_id}")
-        app.connect(host, port, client_id)
+        logger.info(f"[connect_ib] connecting host={host} port={port} client_id={client_id} connect_timeout={connect_timeout}s")
+        app.connect(host, port, client_id, connect_timeout=connect_timeout)
+        # Check if connection actually succeeded (socket may have failed)
+        if not app.isConnected():
+            raise RuntimeError(f"❌ Verbinding mislukt - socket niet verbonden na connect()")
         ACTIVE_CLIENT_IDS.add(client_id)
+        logger.info(f"[connect_ib] socket connected, starting message thread")
+    except socket.timeout as e:
+        logger.error(f"[connect_ib] socket timeout after {connect_timeout}s to {host}:{port}")
+        raise RuntimeError(f"❌ Socket timeout na {connect_timeout}s bij verbinden met TWS op {host}:{port}") from e
     except socket.error as e:
-        raise RuntimeError(f"❌ Kon niet verbinden met TWS op {host}:{port}: {e}")
+        logger.error(f"[connect_ib] socket error: {e}")
+        raise RuntimeError(f"❌ Kon niet verbinden met TWS op {host}:{port}: {e}") from e
+    except Exception as e:
+        logger.error(f"[connect_ib] unexpected error: {e}")
+        raise
 
     thread = threading.Thread(target=app.run, daemon=True)
     thread.start()
@@ -299,8 +320,15 @@ def connect_ib(
     start = time.time()
     while app.next_valid_id is None:
         if time.time() - start > timeout:
-            raise TimeoutError("⏱ Timeout bij wachten op nextValidId")
+            # Clean up on timeout
+            logger.error(f"[connect_ib] timeout waiting for nextValidId after {timeout}s")
+            try:
+                app.disconnect()
+            except Exception:
+                pass
+            ACTIVE_CLIENT_IDS.discard(client_id)
+            raise TimeoutError(f"⏱ Timeout bij wachten op nextValidId na {timeout}s")
         time.sleep(0.1)
 
-    logger.debug("IB connection established")
+    logger.info(f"[connect_ib] connection established, nextValidId={app.next_valid_id}")
     return app
