@@ -6,6 +6,7 @@ strategy and phase, with editing and preset management.
 
 from __future__ import annotations
 
+import re
 from datetime import datetime
 from functools import partial
 from typing import Optional, List, Dict, Any
@@ -381,7 +382,7 @@ def _edit_strategy_parameter(strategy_key: str) -> None:
 
     # Parse new value
     try:
-        new_value = _parse_value(new_value_str, type(source.value))
+        new_value = _parse_value(new_value_str, type(source.value), original_value=source.value)
     except ValueError as e:
         print(f"Ongeldige waarde: {e}")
         return
@@ -401,9 +402,66 @@ def _edit_strategy_parameter(strategy_key: str) -> None:
         print(f"\n✗ Fout bij opslaan van parameter")
 
 
-def _parse_value(value_str: str, target_type: type) -> Any:
-    """Parse a string value to the target type."""
+# Pattern to match criterion strings like "iv_rank >= 0.5" or "skew <= 2.0"
+_CRITERION_PATTERN = re.compile(r'^(\w+)\s*(>=|<=|>|<|==|!=)\s*(-?[\d.]+)$')
+
+
+def _is_criterion(value: Any) -> bool:
+    """Check if a value is a criterion string (e.g., 'iv_rank >= 0.5')."""
+    if not isinstance(value, str):
+        return False
+    return bool(_CRITERION_PATTERN.match(value.strip()))
+
+
+def _update_criterion_value(original: str, new_value_str: str) -> str:
+    """Update the numeric part of a criterion string.
+
+    If new_value_str is just a number, replace only the number in the criterion.
+    If new_value_str is a full criterion, return it as-is.
+    """
+    new_value_str = new_value_str.strip()
+
+    # If the new value is already a full criterion, return it
+    if _CRITERION_PATTERN.match(new_value_str):
+        return new_value_str
+
+    # Try to parse as a number
+    try:
+        # Parse the number (handles both int and float)
+        if '.' in new_value_str:
+            new_num = float(new_value_str)
+        else:
+            new_num = int(new_value_str)
+
+        # Extract the variable and operator from the original
+        match = _CRITERION_PATTERN.match(original.strip())
+        if match:
+            var_name, operator, _ = match.groups()
+            # Format with appropriate precision
+            if isinstance(new_num, float):
+                return f"{var_name} {operator} {new_num}"
+            else:
+                return f"{var_name} {operator} {new_num}"
+    except ValueError:
+        pass
+
+    # If we can't parse it, return the new value as-is
+    return new_value_str
+
+
+def _parse_value(value_str: str, target_type: type, original_value: Any = None) -> Any:
+    """Parse a string value to the target type.
+
+    Args:
+        value_str: The new value string entered by the user
+        target_type: The expected type based on the current value
+        original_value: The original value (used for criterion preservation)
+    """
     value_str = value_str.strip()
+
+    # Special handling for criterion strings - preserve the variable and operator
+    if original_value is not None and _is_criterion(original_value):
+        return _update_criterion_value(original_value, value_str)
 
     if target_type == bool or value_str.lower() in ("true", "false", "ja", "nee", "yes", "no"):
         return value_str.lower() in ("true", "ja", "yes", "1")
