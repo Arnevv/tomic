@@ -47,8 +47,8 @@ set "RUNSTAMP=%RUNSTAMP: =0%"
 set "LOGFILE=exports\exit_logs\exit_auto_%RUNSTAMP%.log"
 echo [%time%] Logbestand: %LOGFILE%
 
-REM Snelle bereikbaarheidstest TWS (poort 7497) - faal snel als down
-powershell -NoProfile -Command "if (-not (Test-NetConnection -ComputerName '127.0.0.1' -Port 7497 -WarningAction SilentlyContinue).TcpTestSucceeded) { exit 2 }"
+REM Snelle bereikbaarheidstest TWS (poort 7497) - gebruik directe TCP socket (veel sneller dan Test-NetConnection)
+powershell -NoProfile -ExecutionPolicy Bypass -Command "$ErrorActionPreference='SilentlyContinue'; $tcp = New-Object System.Net.Sockets.TcpClient; $async = $tcp.BeginConnect('127.0.0.1', 7497, $null, $null); $wait = $async.AsyncWaitHandle.WaitOne(3000, $false); if (-not $wait -or -not $tcp.Connected) { $tcp.Close(); exit 2 }; $tcp.Close(); exit 0"
 if %errorlevel% equ 2 (
     echo [%time%] FOUT: TWS/IB Gateway niet bereikbaar op 127.0.0.1:7497.
     echo         Zorg dat TWS of IB Gateway draait en API toegang aan staat.

@@ -16,6 +16,11 @@ from tomic.logutils import logger, log_result
 from .client_registry import ACTIVE_CLIENT_IDS
 
 
+class DuplicateClientIdError(Exception):
+    """Raised when TWS rejects connection due to duplicate client ID (error 326)."""
+    pass
+
+
 def generate_unique_client_id() -> int:
     """Generate a unique client ID using timestamp and random component.
 
@@ -56,6 +61,9 @@ if _PROTOBUF_ABS not in sys.path:
     sys.path.insert(0, _PROTOBUF_ABS)
 
 class IBClient(EClient, EWrapper):
+    # Error code 326 = "Unable to connect as the client id is already in use"
+    ERROR_DUPLICATE_CLIENT_ID = 326
+
     def __init__(self) -> None:
         EClient.__init__(self, self)
         self.next_valid_id = None
@@ -63,6 +71,9 @@ class IBClient(EClient, EWrapper):
         self._next_req_id = 1
         self._requests_lock = threading.RLock()
         self._requests: Dict[int, RequestState] = {}
+        # Track connection-level errors (like duplicate client ID)
+        self._connection_error: Optional[str] = None
+        self._connection_error_code: Optional[int] = None
 
     def nextValidId(self, orderId: int) -> None:  # noqa: N802 - IB API callback
         self.next_valid_id = orderId
@@ -265,6 +276,13 @@ class IBClient(EClient, EWrapper):
     ) -> None:  # noqa: N802 - signature compatible with EWrapper
         """Log IB error messages with full context."""
 
+        # Detect connection-level errors (reqId=-1 means global/connection error)
+        if errorCode == self.ERROR_DUPLICATE_CLIENT_ID:
+            self._connection_error = errorString
+            self._connection_error_code = errorCode
+            logger.warning(f"[IB] duplicate client ID error: {errorString}")
+            return
+
         if reqId != -1:
             with self._requests_lock:
                 state = self._requests.get(reqId)
@@ -351,6 +369,18 @@ def connect_ib(
 
     start = time.time()
     while app.next_valid_id is None:
+        # Check for duplicate client ID error (error 326)
+        if app._connection_error_code == IBClient.ERROR_DUPLICATE_CLIENT_ID:
+            logger.warning(f"[connect_ib] duplicate client ID {client_id} detected")
+            try:
+                app.disconnect()
+            except Exception:
+                pass
+            ACTIVE_CLIENT_IDS.discard(client_id)
+            raise DuplicateClientIdError(
+                f"Client ID {client_id} is al in gebruik door een andere verbinding"
+            )
+
         if time.time() - start > timeout:
             # Clean up on timeout
             logger.error(f"[connect_ib] timeout waiting for nextValidId after {timeout}s")
@@ -364,3 +394,84 @@ def connect_ib(
 
     logger.info(f"[connect_ib] connection established, nextValidId={app.next_valid_id}")
     return app
+
+
+def connect_ib_with_retry(
+    client_id: int | None = None,
+    host: str = "127.0.0.1",
+    port: int = 7497,
+    timeout: int = 5,
+    *,
+    unique: bool = False,
+    app: IBClient | None = None,
+    connect_timeout: float = 10.0,
+    max_retries: int = 2,
+) -> IBClient:
+    """Connect to IB with automatic retry on duplicate client ID.
+
+    If the initial connection fails with error 326 (duplicate client ID),
+    this function automatically retries with a random client ID.
+
+    This handles the common case where:
+    - A previous session crashed without proper cleanup
+    - TWS still holds a "ghost" connection with the same client ID
+    - The new connection is rejected until TWS cleans up (can take minutes)
+
+    Args:
+        client_id: Initial client ID to try (None = use config default)
+        host: TWS/Gateway host
+        port: TWS/Gateway port
+        timeout: Timeout for waiting on nextValidId (seconds)
+        unique: Generate unique client_id to avoid clashes
+        app: Existing IBClient instance to use (new one created on retry)
+        connect_timeout: Socket connect timeout (seconds)
+        max_retries: Maximum retry attempts with random client ID
+
+    Returns:
+        Connected IBClient instance
+
+    Raises:
+        DuplicateClientIdError: If all retry attempts fail
+        TimeoutError: If connection times out
+        RuntimeError: For other connection failures
+    """
+    last_error: Exception | None = None
+
+    for attempt in range(max_retries + 1):
+        try:
+            # On retry, force unique client ID and create fresh app
+            if attempt > 0:
+                logger.info(
+                    f"[connect_ib_with_retry] retry {attempt}/{max_retries} "
+                    f"with random client ID"
+                )
+                unique = True
+                app = None  # Create fresh IBClient on retry
+
+            return connect_ib(
+                client_id=client_id,
+                host=host,
+                port=port,
+                timeout=timeout,
+                unique=unique,
+                app=app,
+                connect_timeout=connect_timeout,
+            )
+
+        except DuplicateClientIdError as e:
+            last_error = e
+            if attempt < max_retries:
+                logger.warning(
+                    f"[connect_ib_with_retry] duplicate client ID, "
+                    f"will retry with random ID ({attempt + 1}/{max_retries})"
+                )
+                # Small delay before retry
+                time.sleep(0.5)
+            else:
+                logger.error(
+                    f"[connect_ib_with_retry] all {max_retries + 1} attempts failed "
+                    f"due to duplicate client ID"
+                )
+
+    # All retries exhausted
+    raise last_error or DuplicateClientIdError("Connection failed after all retries")

@@ -19,8 +19,8 @@ if not exist ".venv\Scripts\python.exe" (
     exit /b 1
 )
 
-REM Check TWS beschikbaarheid
-powershell -NoProfile -Command "if (-not (Test-NetConnection -ComputerName '127.0.0.1' -Port 7497 -WarningAction SilentlyContinue).TcpTestSucceeded) { exit 2 }"
+REM Check TWS beschikbaarheid (directe TCP socket - veel sneller dan Test-NetConnection)
+powershell -NoProfile -ExecutionPolicy Bypass -Command "$ErrorActionPreference='SilentlyContinue'; $tcp = New-Object System.Net.Sockets.TcpClient; $async = $tcp.BeginConnect('127.0.0.1', 7497, $null, $null); $wait = $async.AsyncWaitHandle.WaitOne(3000, $false); if (-not $wait -or -not $tcp.Connected) { $tcp.Close(); exit 2 }; $tcp.Close(); exit 0"
 if %errorlevel% equ 2 (
     echo [FOUT] TWS niet bereikbaar op 127.0.0.1:7497
     exit /b 2
