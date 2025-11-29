@@ -1,10 +1,7 @@
 @echo off
 REM === TOMIC Exit Intent Auto Runner ===
-REM Met timeout om hangen te voorkomen
+REM Roept exit_flow direct aan (niet via Start-Process om environment issues te voorkomen)
 setlocal EnableDelayedExpansion
-
-REM === CONFIGURATIE ===
-set "MAX_RUNTIME_SECONDS=300"
 
 echo [%date% %time%] === Start TOMIC Exit Intent Auto Runner ===
 
@@ -57,23 +54,16 @@ if %errorlevel% equ 2 (
 )
 echo [%time%] TWS verbinding OK
 
-REM Start de exit-flow module MET TIMEOUT
-echo [%time%] Starten van exit-flow module (max %MAX_RUNTIME_SECONDS%s)...
+REM Start de exit-flow module DIRECT (niet via Start-Process om environment issues te voorkomen)
+echo [%time%] Starten van exit-flow module...
 
-REM Gebruik PowerShell om proces met timeout te starten (alles op 1 regel voor compatibiliteit)
-powershell -NoProfile -ExecutionPolicy Bypass -Command "$proc = Start-Process -FilePath '.venv\Scripts\python.exe' -ArgumentList '-u', '-m', 'tomic.cli.exit_flow' -NoNewWindow -PassThru -RedirectStandardOutput '%LOGFILE%' -RedirectStandardError '%LOGFILE%.err'; $finished = $proc.WaitForExit(%MAX_RUNTIME_SECONDS%000); if (-not $finished) { Write-Host '[TIMEOUT] Forceer stop na %MAX_RUNTIME_SECONDS%s'; Stop-Process -Id $proc.Id -Force -ErrorAction SilentlyContinue; Start-Sleep -Milliseconds 500; exit 124 }; exit $proc.ExitCode"
+REM Direct aanroepen - output gaat naar logfile, console toont voortgang
+.venv\Scripts\python.exe -u -m tomic.cli.exit_flow > "%LOGFILE%" 2>&1
 set "RC=%ERRORLEVEL%"
 
 REM Cleanup lege error log
 if exist "%LOGFILE%.err" (
     for %%A in ("%LOGFILE%.err") do if %%~zA equ 0 del "%LOGFILE%.err"
-)
-
-if %RC% equ 124 (
-    echo [%time%] TIMEOUT: Exit-flow duurde langer dan %MAX_RUNTIME_SECONDS% seconden.
-    echo [%time%] Controleer %LOGFILE% voor details.
-    pause
-    endlocal & exit /b 124
 )
 
 if %RC% neq 0 (
