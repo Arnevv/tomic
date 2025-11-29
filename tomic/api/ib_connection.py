@@ -1,4 +1,5 @@
 import os
+import random
 import socket
 import sys
 import threading
@@ -13,6 +14,29 @@ from tomic.config import get as cfg_get
 
 from tomic.logutils import logger, log_result
 from .client_registry import ACTIVE_CLIENT_IDS
+
+
+def generate_unique_client_id() -> int:
+    """Generate a unique client ID using timestamp and random component.
+
+    This avoids conflicts when multiple processes connect to IB Gateway
+    simultaneously or when previous sessions weren't properly closed.
+
+    Returns:
+        A unique client ID in the range 1000-999999
+    """
+    # Combine timestamp (changes every ms) with random component
+    timestamp_part = int(time.time() * 1000) % 500_000
+    random_part = random.randint(1000, 499_999)
+    client_id = (timestamp_part + random_part) % 999_000 + 1000
+
+    # Ensure not already in use within this process
+    attempts = 0
+    while client_id in ACTIVE_CLIENT_IDS and attempts < 100:
+        client_id = random.randint(1000, 999_999)
+        attempts += 1
+
+    return client_id
 
 
 @dataclass
@@ -274,6 +298,10 @@ def connect_ib(
     multiple connections can be opened simultaneously without client id
     clashes.
 
+    The config option ``IB_USE_RANDOM_CLIENT_ID`` can be set to True to
+    always use a random client ID, which prevents conflicts when previous
+    sessions weren't properly closed or other processes are connected.
+
     Args:
         client_id: IB client ID to use
         host: TWS/Gateway host
@@ -283,8 +311,12 @@ def connect_ib(
         app: Existing IBClient instance to use
         connect_timeout: Socket connect timeout (seconds)
     """
-    if unique:
-        client_id = int(time.time() * 1000) % 2_000_000
+    # Check if random client ID is configured globally
+    use_random = bool(cfg_get("IB_USE_RANDOM_CLIENT_ID", False))
+
+    if unique or use_random:
+        client_id = generate_unique_client_id()
+        logger.info(f"[connect_ib] using random client_id={client_id} (unique={unique}, config_random={use_random})")
     elif client_id is None:
         client_id = int(cfg_get("IB_CLIENT_ID", 100))
 
