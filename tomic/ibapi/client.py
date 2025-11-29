@@ -153,6 +153,8 @@ from ibapi.protobuf.GlobalCancelRequest_pb2 import GlobalCancelRequest as Global
 # TODO: use pylint
 
 logger = logging.getLogger(__name__)
+# Use tomic logger for critical handshake logging (ibapi logger is set to WARNING)
+_tomic_logger = logging.getLogger("tomic.ibapi.client")
 
 
 class EClient(object):
@@ -316,12 +318,21 @@ class EClient(object):
             msg2 = str.encode(v100prefix, "ascii") + msg
             logger.debug("REQUEST %s", msg2)
             self.conn.sendMsg(msg2)
+            _tomic_logger.info("[EClient] sent initial handshake, waiting for server version...")
 
             self.decoder = decoder.Decoder(self.wrapper, self.serverVersion())
             fields = []
 
             # sometimes I get news before the server version, thus the loop
+            handshake_start = currentTimeMillis()
+            handshake_timeout_ms = connect_timeout * 1000  # Use same timeout for handshake
             while len(fields) != 2:
+                # Check for handshake timeout
+                if currentTimeMillis() - handshake_start > handshake_timeout_ms:
+                    _tomic_logger.error(f"[EClient] handshake TIMEOUT after {connect_timeout}s waiting for server version")
+                    self.disconnect()
+                    raise socket.timeout(f"Handshake timeout after {connect_timeout}s")
+
                 self.decoder.interpret(fields, 0)
                 buf = self.conn.recvMsg()
                 if not self.conn.isConnected():
@@ -341,7 +352,7 @@ class EClient(object):
 
             (server_version, conn_time) = fields
             server_version = int(server_version)
-            logger.debug("ANSWER Version:%d time:%s", server_version, conn_time)
+            _tomic_logger.info(f"[EClient] handshake completed, server_version={server_version}")
             self.connTime = conn_time
             self.serverVersion_ = server_version
             self.decoder.serverVersion = self.serverVersion()
@@ -350,7 +361,7 @@ class EClient(object):
 
             self.reader = reader.EReader(self.conn, self.msg_queue)
             self.reader.start()  # start thread
-            logger.info("sent startApi")
+            _tomic_logger.info("[EClient] starting API...")
             self.startApi()
             self.wrapper.connectAck()
         except socket.error:
