@@ -48,6 +48,7 @@ class AppConfig(BaseModel):
     DEFAULT_TIME_IN_FORCE: str = "DAY"
     IB_PAPER_MODE: bool = True
     IB_FETCH_ONLY: bool = False
+    IB_USE_RANDOM_CLIENT_ID: bool = False
     DATA_PROVIDER: str = "ib"
     POLYGON_API_KEY: str = ""
     LOG_LEVEL: str = "INFO"
