@@ -74,14 +74,18 @@ def run_with_timeout(timeout_seconds: int = 300) -> int:
         )
         logger.error("Process wordt geforceerd gestopt")
         logger.error("Dit kan betekenen dat:")
-        logger.error("  - TWS niet reageert")
-        logger.error("  - Er een IB API deadlock is")
+        logger.error("  - TWS niet reageert of is afgesloten")
+        logger.error("  - Er een IB API deadlock is (socket.connect() hang)")
         logger.error("  - De price ladder te lang duurt")
+        logger.error("Tip: Check of TWS/IB Gateway draait op de geconfigureerde poort")
 
         # Force cleanup van eventuele IB connections
         _force_cleanup_ib_connections()
 
         return 124  # Standard timeout exit code
+
+    # Always cleanup stale connections after completion
+    _force_cleanup_ib_connections()
 
     if result_container["error"]:
         logger.error(f"Exit flow exception: {result_container['error']}")
@@ -91,17 +95,24 @@ def run_with_timeout(timeout_seconds: int = 300) -> int:
 
 
 def _force_cleanup_ib_connections():
-    """Force cleanup of any active IB connections."""
+    """Force cleanup of any active IB connections.
+
+    This clears the ACTIVE_CLIENT_IDS registry to allow future connections
+    with the same client IDs. Note: the actual socket connections may still
+    be held by TWS until they timeout.
+    """
     try:
         from tomic.api.client_registry import ACTIVE_CLIENT_IDS
 
         if ACTIVE_CLIENT_IDS:
-            logger.warning(
-                f"Actieve IB client IDs gevonden: {ACTIVE_CLIENT_IDS}"
-            )
-            logger.warning("Deze worden mogelijk niet correct afgesloten")
+            stale_ids = list(ACTIVE_CLIENT_IDS)
+            logger.warning(f"Cleaning up {len(stale_ids)} stale IB client IDs: {stale_ids}")
+            ACTIVE_CLIENT_IDS.clear()
+            logger.info("Client ID registry cleared - next connection can reuse IDs")
+        else:
+            logger.debug("No active IB client IDs to clean up")
     except ImportError:
-        pass
+        logger.debug("Could not import client_registry for cleanup")
 
 
 def main() -> int:

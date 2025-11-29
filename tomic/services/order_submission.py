@@ -1530,7 +1530,9 @@ class OrderSubmissionService:
 
             t_connect_start = time.perf_counter()
             app = self._app_factory()
-            connect_ib(host=host, port=port, client_id=client_id, timeout=timeout, app=app)
+            # Use reasonable socket connect timeout (10s)
+            socket_timeout = min(10.0, timeout / 2) if timeout else 10.0
+            connect_ib(host=host, port=port, client_id=client_id, timeout=timeout, app=app, connect_timeout=socket_timeout)
             t_connect_elapsed = time.perf_counter() - t_connect_start
             log.info("[place_orders] connect_ib: %dms", int(t_connect_elapsed * 1000))
 

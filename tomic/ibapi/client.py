@@ -267,7 +267,7 @@ class EClient(object):
 
         self.sendMsg(OUT.START_API, msg)
 
-    def connect(self, host, port, clientId):
+    def connect(self, host, port, clientId, connect_timeout: float = 10.0):
         """This function must be called before any other. There is no
         feedback for a successful connection, but a subsequent attempt to
         connect will return the message \"Already connected.\"
@@ -279,6 +279,7 @@ class EClient(object):
         clientId:int - A number used to identify this client connection. All
             orders placed/modified from this client will be associated with
             this client identifier.
+        connect_timeout:float - Socket connect timeout in seconds (default: 10.0)
 
             Note: Each client MUST connect with a unique clientId."""
 
@@ -293,12 +294,12 @@ class EClient(object):
             self.port = port
             self.clientId = clientId
             logger.debug(
-                "Connecting to %s:%d w/ id:%d", self.host, self.port, self.clientId
+                "Connecting to %s:%d w/ id:%d timeout:%.1fs", self.host, self.port, self.clientId, connect_timeout
             )
 
             self.conn = Connection(self.host, self.port)
 
-            self.conn.connect()
+            self.conn.connect(connect_timeout=connect_timeout)
             self.setConnState(EClient.CONNECTING)
 
             # TODO: support async mode
