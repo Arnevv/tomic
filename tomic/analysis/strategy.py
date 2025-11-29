@@ -189,8 +189,10 @@ def parse_plan_metrics(plan_text: str) -> Dict[str, float]:
         except ValueError:
             pass
     if "max_profit" in metrics and "max_loss" in metrics and metrics["max_loss"]:
-        rr = metrics["max_profit"] / abs(metrics["max_loss"])
-        if abs(abs(metrics["max_profit"]) - abs(metrics["max_loss"])) < 1e-2:
+        # R/R = max_loss / max_profit (TOMIC definition: risk per unit reward)
+        # Lower is better. Threshold check: R/R <= min_rr
+        rr = abs(metrics["max_loss"]) / metrics["max_profit"] if metrics["max_profit"] else None
+        if rr is not None and abs(abs(metrics["max_profit"]) - abs(metrics["max_loss"])) < 1e-2:
             rr = None
         metrics["risk_reward"] = rr
     return metrics
@@ -225,12 +227,14 @@ def heuristic_risk_metrics(
             else:
                 max_profit = width - debit
                 max_loss = debit
-            rr = max_profit / abs(max_loss) if max_loss else None
-            if abs(abs(max_profit) - abs(max_loss)) < 1e-2:
+            # R/R = max_loss / max_profit (TOMIC definition: risk per unit reward)
+            # Lower is better. Threshold check: R/R <= min_rr
+            rr = abs(max_loss) / max_profit if max_profit else None
+            if rr is not None and abs(abs(max_profit) - abs(max_loss)) < 1e-2:
                 rr = None
             if rr is not None:
                 logger.info(
-                    f"[R/R check] {strategy_id}: reward={max_profit:.2f}, risk={max_loss:.2f}, ratio={rr:.2f}"
+                    f"[R/R check] {strategy_id}: max_win={max_profit:.2f}, max_loss={max_loss:.2f}, R/R={rr:.2f}"
                 )
             return {
                 "max_profit": max_profit,
@@ -270,12 +274,14 @@ def heuristic_risk_metrics(
             credit = -cost_basis if cost_basis < 0 else 0
             max_profit = credit
             max_loss = width - credit
-            rr = max_profit / abs(max_loss) if max_loss else None
-            if abs(abs(max_profit) - abs(max_loss)) < 1e-2:
+            # R/R = max_loss / max_profit (TOMIC definition: risk per unit reward)
+            # Lower is better. Threshold check: R/R <= min_rr
+            rr = abs(max_loss) / max_profit if max_profit else None
+            if rr is not None and abs(abs(max_profit) - abs(max_loss)) < 1e-2:
                 rr = None
             if rr is not None:
                 logger.info(
-                    f"[R/R check] {strategy_id}: reward={max_profit:.2f}, risk={max_loss:.2f}, ratio={rr:.2f}"
+                    f"[R/R check] {strategy_id}: max_win={max_profit:.2f}, max_loss={max_loss:.2f}, R/R={rr:.2f}"
                 )
             return {
                 "max_profit": max_profit,

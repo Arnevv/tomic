@@ -135,12 +135,17 @@ class TradeSimulator:
         estimated_credit = estimated_credit * (1 - slippage_pct)
 
         # Check minimum risk/reward ratio from strategy config
+        # R/R = max_loss / max_profit (TOMIC definition: risk per unit reward)
+        # Lower is better. Threshold check: R/R <= min_rr
         min_rr = self.strategy_config.get("min_risk_reward")
-        if min_rr is not None and max_risk > 0:
-            actual_rr = estimated_credit / max_risk
-            if actual_rr < min_rr:
+        if min_rr is not None and estimated_credit > 0:
+            # Calculate actual max_loss based on wing width
+            wing_width = self.config.iron_condor_wing_width * 100  # Convert to dollars
+            actual_max_loss = wing_width - estimated_credit
+            actual_rr = actual_max_loss / estimated_credit
+            if actual_rr > min_rr:
                 logger.debug(
-                    f"Rejected {signal.symbol} - R/R {actual_rr:.2f} < min {min_rr}"
+                    f"Rejected {signal.symbol} - R/R {actual_rr:.2f} > max {min_rr}"
                 )
                 self._rr_rejections += 1
                 return None

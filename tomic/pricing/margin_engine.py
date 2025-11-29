@@ -236,7 +236,9 @@ class MarginEngine:
 
         if risk_reward is None and max_profit is not None and max_loss not in (None, 0.0):
             try:
-                risk_reward = max_profit / abs(max_loss)
+                # R/R = max_loss / max_profit (TOMIC definition: risk per unit reward)
+                # Lower is better. Threshold check: R/R <= min_rr
+                risk_reward = abs(max_loss) / max_profit
             except Exception:  # pragma: no cover - defensive
                 risk_reward = None
 
@@ -245,7 +247,8 @@ class MarginEngine:
             if risk_reward is None:
                 meets_min = False
             else:
-                meets_min = risk_reward >= min_rr - 1e-9
+                # TOMIC: R/R must be <= threshold (lower is better)
+                meets_min = risk_reward <= min_rr + 1e-9
 
         return MarginComputation(
             strategy=strategy or "unknown",
