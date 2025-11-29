@@ -1,0 +1,825 @@
+"""CLI interface for unified strategy testing functionality.
+
+Combines backtesting, what-if analysis, and parameter sweeps
+into a single coherent interface that works with live configuration.
+"""
+
+from __future__ import annotations
+
+from dataclasses import dataclass
+from datetime import datetime
+from functools import partial
+from typing import Any, Callable, Dict, List, Optional, Tuple
+
+from tomic.cli.common import Menu, prompt, prompt_yes_no
+from tomic.logutils import logger
+
+try:
+    from rich.console import Console
+    from rich.table import Table
+    from rich.panel import Panel
+    from rich.progress import Progress, SpinnerColumn, TextColumn
+    from rich import box
+
+    RICH_AVAILABLE = True
+except ImportError:
+    RICH_AVAILABLE = False
+
+
+# =============================================================================
+# Configuration Loading
+# =============================================================================
+
+
+def load_live_config() -> Dict[str, Any]:
+    """Load all live configuration from YAML files.
+
+    Returns a merged dictionary with all parameters that affect strategy testing:
+    - From strategies.yaml: min_risk_reward, min_rom, min_edge, min_pos, etc.
+    - From criteria.yaml: acceptance criteria
+    - From backtest.yaml: entry/exit rules
+    """
+    from pathlib import Path
+    from tomic.config import _load_yaml, _BASE_DIR
+
+    config: Dict[str, Any] = {}
+
+    # Load strategies.yaml
+    strategies_path = _BASE_DIR / "config" / "strategies.yaml"
+    if strategies_path.exists():
+        data = _load_yaml(strategies_path)
+        config["strategies"] = data.get("strategies", {})
+        config["strategy_defaults"] = data.get("default", {})
+
+    # Load backtest.yaml
+    backtest_path = _BASE_DIR / "config" / "backtest.yaml"
+    if backtest_path.exists():
+        config["backtest"] = _load_yaml(backtest_path)
+
+    # Load criteria.yaml
+    criteria_path = _BASE_DIR / "criteria.yaml"
+    if criteria_path.exists():
+        config["criteria"] = _load_yaml(criteria_path)
+
+    return config
+
+
+def get_strategy_param(
+    config: Dict[str, Any],
+    strategy: str,
+    param: str,
+    default: Any = None
+) -> Any:
+    """Get a parameter value for a strategy with fallback to defaults."""
+    # First check strategy-specific
+    strategies = config.get("strategies", {})
+    if strategy in strategies and param in strategies[strategy]:
+        return strategies[strategy][param]
+
+    # Then check defaults
+    defaults = config.get("strategy_defaults", {})
+    if param in defaults:
+        return defaults[param]
+
+    return default
+
+
+def get_testable_parameters(strategy: str = "iron_condor") -> List[Dict[str, Any]]:
+    """Get list of parameters that can be tested for a strategy."""
+    config = load_live_config()
+
+    params = []
+
+    # Strategy parameters from strategies.yaml
+    strategy_params = [
+        ("min_risk_reward", "Minimum Risk/Reward ratio", "scoring"),
+        ("min_rom", "Minimum Return on Margin", "scoring"),
+        ("min_edge", "Minimum Edge", "scoring"),
+        ("min_pos", "Minimum Probability of Success", "scoring"),
+        ("min_ev", "Minimum Expected Value", "scoring"),
+    ]
+
+    for param_key, description, category in strategy_params:
+        current = get_strategy_param(config, strategy, param_key)
+        if current is not None:
+            params.append({
+                "key": param_key,
+                "description": description,
+                "category": category,
+                "current_value": current,
+                "source": "strategies.yaml",
+            })
+
+    # Backtest parameters
+    backtest = config.get("backtest", {})
+    entry_rules = backtest.get("entry_rules", {})
+    exit_rules = backtest.get("exit_rules", {})
+
+    backtest_params = [
+        ("iv_percentile_min", "IV Percentile minimum", "entry", entry_rules.get("iv_percentile_min", 60.0)),
+        ("profit_target_pct", "Profit Target %", "exit", exit_rules.get("profit_target_pct", 50.0)),
+        ("stop_loss_pct", "Stop Loss %", "exit", exit_rules.get("stop_loss_pct", 100.0)),
+        ("max_days_in_trade", "Max Days in Trade", "exit", exit_rules.get("max_days_in_trade", 45)),
+    ]
+
+    for param_key, description, category, current in backtest_params:
+        params.append({
+            "key": param_key,
+            "description": description,
+            "category": category,
+            "current_value": current,
+            "source": "backtest.yaml",
+        })
+
+    return params
+
+
+# =============================================================================
+# Data Classes
+# =============================================================================
+
+
+@dataclass
+class TestResult:
+    """Result from a single backtest run."""
+
+    config_label: str
+    param_value: Any
+    trades: int
+    win_rate: float
+    total_pnl: float
+    sharpe: float
+    max_drawdown: float
+    profit_factor: float
+    ret_dd: float
+    degradation: float
+    is_baseline: bool = False
+
+
+@dataclass
+class ComparisonResult:
+    """Result comparing baseline vs what-if scenario."""
+
+    baseline: TestResult
+    whatif: TestResult
+    param_name: str
+    param_old_value: Any
+    param_new_value: Any
+
+
+# =============================================================================
+# Main Menu
+# =============================================================================
+
+
+def run_strategy_testing_menu() -> None:
+    """Run the unified strategy testing submenu."""
+    menu = Menu("STRATEGY TESTING")
+    menu.add("Live Config Validatie", run_live_config_validation)
+    menu.add("What-If Analyse", run_whatif_analysis)
+    menu.add("Parameter Sweep", run_parameter_sweep)
+    menu.add("Custom Experiment", run_custom_experiment)
+    menu.add("Resultaten Bekijken", view_results)
+    menu.add("Test Configuratie", configure_test_settings)
+    menu.run()
+
+
+# =============================================================================
+# Mode 1: Live Config Validation
+# =============================================================================
+
+
+def run_live_config_validation() -> None:
+    """Test current live configuration against historical data."""
+    print("\n" + "=" * 70)
+    print("LIVE CONFIG VALIDATIE")
+    print("=" * 70)
+    print("\nTest je huidige productie-configuratie tegen historische data.")
+    print("Gebruikt: strategies.yaml, criteria.yaml, backtest.yaml")
+
+    # Load and show current config
+    config = load_live_config()
+    strategy = "iron_condor"  # Default for now
+
+    print("\n" + "-" * 50)
+    print("HUIDIGE CONFIGURATIE (iron_condor)")
+    print("-" * 50)
+
+    # Show key parameters
+    params = get_testable_parameters(strategy)
+    for p in params:
+        print(f"  {p['description']:30} = {p['current_value']}")
+
+    print("\n" + "-" * 50)
+
+    if not prompt_yes_no("\nBacktest starten met deze configuratie?"):
+        print("Geannuleerd.")
+        return
+
+    # Run backtest with live config
+    result = _run_backtest_with_config(
+        strategy=strategy,
+        overrides={},  # No overrides - use live config
+        label="Live Config",
+        show_progress=True,
+    )
+
+    if result:
+        _print_single_result(result)
+
+        # Store for later viewing
+        _store_result("live_validation", result)
+
+
+def _run_backtest_with_config(
+    strategy: str,
+    overrides: Dict[str, Any],
+    label: str,
+    show_progress: bool = True,
+) -> Optional[TestResult]:
+    """Run a backtest with specific configuration overrides."""
+    from tomic.backtest.config import load_backtest_config, BacktestConfig
+    from tomic.backtest.engine import BacktestEngine
+
+    # Load base config
+    try:
+        config = load_backtest_config()
+    except Exception:
+        config = BacktestConfig()
+
+    config.strategy_type = strategy
+
+    # Apply overrides to entry/exit rules
+    if "iv_percentile_min" in overrides:
+        config.entry_rules.iv_percentile_min = overrides["iv_percentile_min"]
+    if "profit_target_pct" in overrides:
+        config.exit_rules.profit_target_pct = overrides["profit_target_pct"]
+    if "stop_loss_pct" in overrides:
+        config.exit_rules.stop_loss_pct = overrides["stop_loss_pct"]
+    if "max_days_in_trade" in overrides:
+        config.exit_rules.max_days_in_trade = int(overrides["max_days_in_trade"])
+
+    # Load live strategy config for min_risk_reward etc.
+    live_config = load_live_config()
+
+    # Get effective min_risk_reward (override or live config)
+    min_rr = overrides.get(
+        "min_risk_reward",
+        get_strategy_param(live_config, strategy, "min_risk_reward", 1.0)
+    )
+
+    # Store in a way the engine can access
+    strategy_overrides = {
+        "min_risk_reward": min_rr,
+        "min_rom": overrides.get(
+            "min_rom",
+            get_strategy_param(live_config, strategy, "min_rom")
+        ),
+        "min_edge": overrides.get(
+            "min_edge",
+            get_strategy_param(live_config, strategy, "min_edge")
+        ),
+        "min_pos": overrides.get(
+            "min_pos",
+            get_strategy_param(live_config, strategy, "min_pos")
+        ),
+    }
+
+    # Create engine with strategy config
+    engine = BacktestEngine(config=config, strategy_config=strategy_overrides)
+
+    print(f"\nBacktest: {label}")
+    print(f"Periode: {config.start_date} tot {config.end_date}")
+
+    # Run
+    try:
+        if show_progress and RICH_AVAILABLE:
+            console = Console()
+            with Progress(
+                SpinnerColumn(),
+                TextColumn("[progress.description]{task.description}"),
+                console=console,
+            ) as progress:
+                task = progress.add_task("Initialiseren...", total=100)
+
+                def update(msg: str, pct: float) -> None:
+                    progress.update(task, description=msg, completed=pct)
+
+                engine.progress_callback = update
+                bt_result = engine.run()
+        else:
+            def simple(msg: str, pct: float) -> None:
+                if pct % 25 == 0:
+                    print(f"[{pct:.0f}%] {msg}")
+
+            engine.progress_callback = simple
+            bt_result = engine.run()
+
+        # Convert to TestResult
+        if bt_result and bt_result.combined_metrics:
+            m = bt_result.combined_metrics
+            return TestResult(
+                config_label=label,
+                param_value=None,
+                trades=m.total_trades,
+                win_rate=m.win_rate * 100,
+                total_pnl=m.total_pnl,
+                sharpe=m.sharpe_ratio,
+                max_drawdown=m.max_drawdown_pct,
+                profit_factor=m.profit_factor,
+                ret_dd=m.ret_dd,
+                degradation=bt_result.degradation_score or 0,
+            )
+    except Exception as e:
+        logger.error(f"Backtest failed: {e}")
+        print(f"\nFout tijdens backtest: {e}")
+
+    return None
+
+
+def _print_single_result(result: TestResult) -> None:
+    """Print a single backtest result."""
+    print("\n" + "=" * 60)
+    print(f"RESULTAAT: {result.config_label}")
+    print("=" * 60)
+
+    print(f"\n  Trades:         {result.trades}")
+    print(f"  Win Rate:       {result.win_rate:.1f}%")
+    print(f"  Total P&L:      ${result.total_pnl:,.2f}")
+    print(f"  Sharpe Ratio:   {result.sharpe:.2f}")
+    print(f"  Max Drawdown:   {result.max_drawdown:.1f}%")
+    print(f"  Profit Factor:  {result.profit_factor:.2f}")
+    print(f"  Ret/DD:         {result.ret_dd:.2f}")
+    print(f"  Degradation:    {result.degradation:.1f}%")
+
+
+# =============================================================================
+# Mode 2: What-If Analysis
+# =============================================================================
+
+
+def run_whatif_analysis() -> None:
+    """Test impact of changing a single parameter."""
+    print("\n" + "=" * 70)
+    print("WHAT-IF ANALYSE")
+    print("=" * 70)
+    print("\nTest de impact van het wijzigen van een enkele parameter.")
+
+    strategy = "iron_condor"
+    params = get_testable_parameters(strategy)
+
+    # Show current config
+    print("\n" + "-" * 50)
+    print("HUIDIGE LIVE CONFIG")
+    print("-" * 50)
+
+    for i, p in enumerate(params, 1):
+        print(f"  {i:2}. {p['description']:30} = {p['current_value']}")
+
+    # Select parameter
+    print("\n" + "-" * 50)
+    choice = prompt("Welke parameter wil je testen? [nummer]: ")
+    if not choice:
+        return
+
+    try:
+        idx = int(choice) - 1
+        if 0 <= idx < len(params):
+            selected_param = params[idx]
+        else:
+            print("Ongeldige keuze.")
+            return
+    except ValueError:
+        print("Ongeldige invoer.")
+        return
+
+    # Get new value
+    current = selected_param["current_value"]
+    print(f"\nParameter: {selected_param['description']}")
+    print(f"Huidige waarde: {current}")
+
+    new_value_str = prompt("Nieuwe waarde om te testen: ")
+    if not new_value_str:
+        return
+
+    try:
+        if isinstance(current, float):
+            new_value = float(new_value_str)
+        elif isinstance(current, int):
+            new_value = int(new_value_str)
+        else:
+            new_value = new_value_str
+    except ValueError:
+        print("Ongeldige waarde.")
+        return
+
+    # Confirm
+    print(f"\nVergelijking: {selected_param['key']}")
+    print(f"  Baseline: {current}")
+    print(f"  What-If:  {new_value}")
+
+    if not prompt_yes_no("\nVergelijking starten?"):
+        return
+
+    # Run baseline
+    print("\n" + "=" * 50)
+    print("BASELINE (huidige config)")
+    print("=" * 50)
+
+    baseline = _run_backtest_with_config(
+        strategy=strategy,
+        overrides={},
+        label=f"Baseline ({selected_param['key']}={current})",
+        show_progress=True,
+    )
+
+    if not baseline:
+        print("Baseline backtest mislukt.")
+        return
+
+    baseline.is_baseline = True
+    baseline.param_value = current
+
+    # Run what-if
+    print("\n" + "=" * 50)
+    print(f"WHAT-IF ({selected_param['key']}={new_value})")
+    print("=" * 50)
+
+    whatif = _run_backtest_with_config(
+        strategy=strategy,
+        overrides={selected_param["key"]: new_value},
+        label=f"What-If ({selected_param['key']}={new_value})",
+        show_progress=True,
+    )
+
+    if not whatif:
+        print("What-If backtest mislukt.")
+        return
+
+    whatif.param_value = new_value
+
+    # Show comparison
+    comparison = ComparisonResult(
+        baseline=baseline,
+        whatif=whatif,
+        param_name=selected_param["key"],
+        param_old_value=current,
+        param_new_value=new_value,
+    )
+
+    _print_comparison(comparison)
+
+    # Offer to apply
+    if prompt_yes_no("\nWijziging doorvoeren naar live config?"):
+        _apply_parameter_change(selected_param, new_value)
+
+
+def _print_comparison(comparison: ComparisonResult) -> None:
+    """Print a comparison between baseline and what-if."""
+    b = comparison.baseline
+    w = comparison.whatif
+
+    print("\n" + "=" * 75)
+    print(f"VERGELIJKING: {comparison.param_name}")
+    print("=" * 75)
+
+    # Calculate differences
+    def diff_str(old: float, new: float, fmt: str = ".1f", pct: bool = False) -> str:
+        diff = new - old
+        sign = "+" if diff >= 0 else ""
+        if pct:
+            return f"{sign}{diff:{fmt}}%"
+        return f"{sign}{diff:{fmt}}"
+
+    def diff_pct(old: float, new: float) -> str:
+        if old == 0:
+            return "N/A"
+        pct = ((new - old) / abs(old)) * 100
+        sign = "+" if pct >= 0 else ""
+        return f"{sign}{pct:.1f}%"
+
+    # Header
+    print(f"\n{'Metric':<20} {'BASELINE':>15} {'WHAT-IF':>15} {'VERSCHIL':>15}")
+    print(f"{'':20} {f'({comparison.param_old_value})':>15} {f'({comparison.param_new_value})':>15}")
+    print("-" * 75)
+
+    # Rows
+    print(f"{'Trades':<20} {b.trades:>15} {w.trades:>15} {diff_str(b.trades, w.trades, 'd'):>15}")
+    print(f"{'Win Rate':<20} {b.win_rate:>14.1f}% {w.win_rate:>14.1f}% {diff_str(b.win_rate, w.win_rate):>15}")
+    print(f"{'Total P&L':<20} ${b.total_pnl:>13,.2f} ${w.total_pnl:>13,.2f} {diff_pct(b.total_pnl, w.total_pnl):>15}")
+    print(f"{'Sharpe':<20} {b.sharpe:>15.2f} {w.sharpe:>15.2f} {diff_str(b.sharpe, w.sharpe, '.2f'):>15}")
+    print(f"{'Max Drawdown':<20} {b.max_drawdown:>14.1f}% {w.max_drawdown:>14.1f}% {diff_str(b.max_drawdown, w.max_drawdown):>15}")
+    print(f"{'Profit Factor':<20} {b.profit_factor:>15.2f} {w.profit_factor:>15.2f} {diff_str(b.profit_factor, w.profit_factor, '.2f'):>15}")
+    print(f"{'Ret/DD':<20} {b.ret_dd:>15.2f} {w.ret_dd:>15.2f} {diff_str(b.ret_dd, w.ret_dd, '.2f'):>15}")
+    print(f"{'Degradation':<20} {b.degradation:>14.1f}% {w.degradation:>14.1f}% {diff_str(b.degradation, w.degradation):>15}")
+
+    # Analysis
+    print("\n" + "-" * 75)
+    print("ANALYSE:")
+
+    trade_change = ((w.trades - b.trades) / b.trades * 100) if b.trades > 0 else 0
+    sharpe_change = w.sharpe - b.sharpe
+
+    if trade_change > 10:
+        print(f"  + Meer trades ({trade_change:+.1f}%)")
+    elif trade_change < -10:
+        print(f"  - Minder trades ({trade_change:+.1f}%)")
+
+    if sharpe_change > 0.1:
+        print(f"  + Betere risk-adjusted returns (Sharpe {sharpe_change:+.2f})")
+    elif sharpe_change < -0.1:
+        print(f"  - Slechtere risk-adjusted returns (Sharpe {sharpe_change:+.2f})")
+
+    if w.win_rate > b.win_rate + 1:
+        print(f"  + Hogere win rate (+{w.win_rate - b.win_rate:.1f}%)")
+    elif w.win_rate < b.win_rate - 1:
+        print(f"  - Lagere win rate ({w.win_rate - b.win_rate:.1f}%)")
+
+    if w.max_drawdown > b.max_drawdown + 1:
+        print(f"  ! Hogere drawdown (+{w.max_drawdown - b.max_drawdown:.1f}%)")
+
+
+def _apply_parameter_change(param: Dict[str, Any], new_value: Any) -> None:
+    """Apply a parameter change to the live configuration."""
+    from pathlib import Path
+    from tomic.config import _BASE_DIR
+
+    try:
+        import yaml
+    except ImportError:
+        print("PyYAML is vereist voor het opslaan van configuratie.")
+        return
+
+    source = param["source"]
+    key = param["key"]
+
+    if source == "strategies.yaml":
+        path = _BASE_DIR / "config" / "strategies.yaml"
+        _update_yaml_value(path, ["strategies", "iron_condor", key], new_value)
+    elif source == "backtest.yaml":
+        path = _BASE_DIR / "config" / "backtest.yaml"
+        if param["category"] == "entry":
+            _update_yaml_value(path, ["entry_rules", key], new_value)
+        else:
+            _update_yaml_value(path, ["exit_rules", key], new_value)
+
+    print(f"\n Parameter '{key}' bijgewerkt naar {new_value} in {source}")
+
+
+def _update_yaml_value(path: Path, keys: List[str], value: Any) -> None:
+    """Update a value in a YAML file."""
+    import yaml
+
+    with open(path, "r", encoding="utf-8") as f:
+        data = yaml.safe_load(f) or {}
+
+    # Navigate to the right location
+    current = data
+    for key in keys[:-1]:
+        if key not in current:
+            current[key] = {}
+        current = current[key]
+
+    current[keys[-1]] = value
+
+    with open(path, "w", encoding="utf-8") as f:
+        yaml.safe_dump(data, f, default_flow_style=False, sort_keys=False)
+
+
+# =============================================================================
+# Mode 3: Parameter Sweep
+# =============================================================================
+
+
+def run_parameter_sweep() -> None:
+    """Find optimal value for a parameter by testing multiple values."""
+    print("\n" + "=" * 70)
+    print("PARAMETER SWEEP")
+    print("=" * 70)
+    print("\nVind de optimale waarde voor een parameter door meerdere waarden te testen.")
+
+    strategy = "iron_condor"
+    params = get_testable_parameters(strategy)
+
+    # Show parameters
+    print("\n" + "-" * 50)
+    print("BESCHIKBARE PARAMETERS")
+    print("-" * 50)
+
+    for i, p in enumerate(params, 1):
+        print(f"  {i:2}. {p['description']:30} [huidig: {p['current_value']}]")
+
+    # Select parameter
+    choice = prompt("\nWelke parameter wil je sweepen? [nummer]: ")
+    if not choice:
+        return
+
+    try:
+        idx = int(choice) - 1
+        if 0 <= idx < len(params):
+            selected_param = params[idx]
+        else:
+            print("Ongeldige keuze.")
+            return
+    except ValueError:
+        print("Ongeldige invoer.")
+        return
+
+    # Get range
+    current = selected_param["current_value"]
+    print(f"\nParameter: {selected_param['description']}")
+    print(f"Huidige waarde: {current}")
+
+    # Suggest default ranges based on parameter
+    key = selected_param["key"]
+    if key == "min_risk_reward":
+        default_range = "0.8, 1.0, 1.2, 1.4, 1.5, 1.6, 1.8, 2.0"
+    elif key == "iv_percentile_min":
+        default_range = "50, 55, 60, 65, 70, 75, 80"
+    elif key == "profit_target_pct":
+        default_range = "30, 40, 50, 60, 70, 80"
+    elif key == "stop_loss_pct":
+        default_range = "75, 100, 125, 150, 200"
+    else:
+        default_range = ""
+
+    range_str = prompt(f"Waarden (komma-gescheiden) [{default_range}]: ") or default_range
+    if not range_str:
+        print("Geen waarden opgegeven.")
+        return
+
+    try:
+        if isinstance(current, float):
+            values = [float(v.strip()) for v in range_str.split(",")]
+        elif isinstance(current, int):
+            values = [int(v.strip()) for v in range_str.split(",")]
+        else:
+            values = [v.strip() for v in range_str.split(",")]
+    except ValueError:
+        print("Ongeldige waarden.")
+        return
+
+    # Confirm
+    print(f"\nSweep: {selected_param['key']}")
+    print(f"Waarden: {values}")
+    print(f"Aantal tests: {len(values)}")
+
+    if not prompt_yes_no("\nSweep starten?"):
+        return
+
+    # Run sweep
+    results: List[TestResult] = []
+
+    for i, value in enumerate(values):
+        print(f"\n[{i+1}/{len(values)}] Testen {selected_param['key']} = {value}")
+
+        result = _run_backtest_with_config(
+            strategy=strategy,
+            overrides={selected_param["key"]: value},
+            label=f"{selected_param['key']}={value}",
+            show_progress=False,  # Minimize output for sweeps
+        )
+
+        if result:
+            result.param_value = value
+            result.is_baseline = (value == current)
+            results.append(result)
+
+    if not results:
+        print("\nGeen resultaten verkregen.")
+        return
+
+    # Show results
+    _print_sweep_results(results, selected_param, current)
+
+    # Offer to apply best
+    best = max(results, key=lambda r: r.sharpe)
+    if best.param_value != current:
+        if prompt_yes_no(f"\nWil je {selected_param['key']}={best.param_value} doorvoeren?"):
+            _apply_parameter_change(selected_param, best.param_value)
+
+
+def _print_sweep_results(
+    results: List[TestResult],
+    param: Dict[str, Any],
+    current_value: Any,
+) -> None:
+    """Print parameter sweep results."""
+    # Sort by Sharpe (descending)
+    sorted_results = sorted(results, key=lambda r: r.sharpe, reverse=True)
+
+    print("\n" + "=" * 90)
+    print(f"SWEEP RESULTATEN: {param['key']} (gesorteerd op Sharpe)")
+    print("=" * 90)
+
+    # Header
+    print(f"\n  {'Value':>8} {'Trades':>8} {'Win%':>8} {'P&L':>12} {'Sharpe':>8} {'MaxDD':>8} {'PF':>8} {'Ret/DD':>8}")
+    print("-" * 90)
+
+    # Find best Sharpe
+    best_sharpe = max(r.sharpe for r in results)
+
+    for r in sorted_results:
+        marker = ""
+        if r.sharpe == best_sharpe:
+            marker = " *"  # Best
+        if r.param_value == current_value:
+            marker = " <"  # Current
+
+        print(
+            f"  {r.param_value:>8} "
+            f"{r.trades:>8} "
+            f"{r.win_rate:>7.1f}% "
+            f"${r.total_pnl:>10,.0f} "
+            f"{r.sharpe:>8.2f} "
+            f"{r.max_drawdown:>7.1f}% "
+            f"{r.profit_factor:>8.2f} "
+            f"{r.ret_dd:>8.2f}"
+            f"{marker}"
+        )
+
+    print("\n  * = beste Sharpe    < = huidige config")
+
+    # Recommendations
+    best = sorted_results[0]
+    current_result = next((r for r in results if r.param_value == current_value), None)
+
+    if current_result and best.param_value != current_value:
+        print("\n" + "-" * 90)
+        print("AANBEVELING:")
+        improvement = ((best.sharpe - current_result.sharpe) / current_result.sharpe) * 100
+        print(f"  {param['key']}={best.param_value} geeft {improvement:+.1f}% betere Sharpe ratio")
+        print(f"  ({current_result.sharpe:.2f} -> {best.sharpe:.2f})")
+
+
+# =============================================================================
+# Mode 4: Custom Experiment
+# =============================================================================
+
+
+def run_custom_experiment() -> None:
+    """Run a custom backtest with manual configuration."""
+    print("\n" + "=" * 70)
+    print("CUSTOM EXPERIMENT")
+    print("=" * 70)
+    print("\nVrij experimenteren met losse configuratie.")
+    print("Gebruikt config/backtest.yaml als basis.")
+
+    # Import existing backtest UI
+    from tomic.cli.backtest_ui import run_iron_condor_backtest
+
+    run_iron_condor_backtest()
+
+
+# =============================================================================
+# Results Storage
+# =============================================================================
+
+
+_STORED_RESULTS: Dict[str, List[TestResult]] = {}
+
+
+def _store_result(category: str, result: TestResult) -> None:
+    """Store a result for later viewing."""
+    if category not in _STORED_RESULTS:
+        _STORED_RESULTS[category] = []
+    _STORED_RESULTS[category].append(result)
+
+
+def view_results() -> None:
+    """View stored test results."""
+    if not _STORED_RESULTS:
+        print("\nGeen opgeslagen resultaten.")
+        print("Voer eerst een test uit.")
+        return
+
+    print("\n" + "=" * 70)
+    print("OPGESLAGEN RESULTATEN")
+    print("=" * 70)
+
+    for category, results in _STORED_RESULTS.items():
+        print(f"\n{category}:")
+        for r in results:
+            print(f"  - {r.config_label}: Sharpe {r.sharpe:.2f}, P&L ${r.total_pnl:,.0f}")
+
+
+def configure_test_settings() -> None:
+    """Configure test settings (period, symbols, etc.)."""
+    from tomic.cli.backtest_ui import configure_backtest_params
+    configure_backtest_params()
+
+
+# =============================================================================
+# Exports
+# =============================================================================
+
+
+__all__ = [
+    "run_strategy_testing_menu",
+    "run_live_config_validation",
+    "run_whatif_analysis",
+    "run_parameter_sweep",
+    "run_custom_experiment",
+    "load_live_config",
+    "get_testable_parameters",
+]

@@ -39,20 +39,32 @@ class TradeSimulator:
     - Max 1 position per symbol at a time
     - Max total positions across all symbols
     - Fixed risk per trade ($200)
+    - Minimum risk/reward ratio (from strategy config)
     """
 
-    def __init__(self, config: BacktestConfig, use_greeks_model: bool = False):
+    def __init__(
+        self,
+        config: BacktestConfig,
+        use_greeks_model: bool = False,
+        strategy_config: Optional[Dict[str, any]] = None,
+    ):
         self.config = config
         self.pnl_model = IronCondorPnLModel(config)
         self.greeks_model = GreeksBasedPnLModel(config) if use_greeks_model else None
         self.use_greeks_model = use_greeks_model
         self.exit_evaluator = ExitEvaluator(config)
 
+        # Strategy-specific config (min_risk_reward, min_rom, etc.)
+        self.strategy_config = strategy_config or {}
+
         # Track open positions by symbol
         self._open_positions: Dict[str, SimulatedTrade] = {}
 
         # All trades (open and closed)
         self._all_trades: List[SimulatedTrade] = []
+
+        # Track rejections for diagnostics
+        self._rr_rejections: int = 0
 
     def get_open_positions(self) -> Dict[str, SimulatedTrade]:
         """Get currently open positions."""
@@ -121,6 +133,17 @@ class TradeSimulator:
         # Apply slippage to credit
         slippage_pct = self.config.costs.slippage_pct / 100
         estimated_credit = estimated_credit * (1 - slippage_pct)
+
+        # Check minimum risk/reward ratio from strategy config
+        min_rr = self.strategy_config.get("min_risk_reward")
+        if min_rr is not None and max_risk > 0:
+            actual_rr = estimated_credit / max_risk
+            if actual_rr < min_rr:
+                logger.debug(
+                    f"Rejected {signal.symbol} - R/R {actual_rr:.2f} < min {min_rr}"
+                )
+                self._rr_rejections += 1
+                return None
 
         # Create trade
         trade = SimulatedTrade(
@@ -330,6 +353,7 @@ class TradeSimulator:
             "win_rate": len(winners) / len(closed_trades) if closed_trades else 0,
             "total_pnl": total_pnl,
             "avg_pnl": total_pnl / len(closed_trades) if closed_trades else 0,
+            "rr_rejections": self._rr_rejections,
         }
 
 
