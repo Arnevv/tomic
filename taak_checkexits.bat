@@ -54,9 +54,14 @@ echo [%time%] TWS verbinding OK
 REM Start de exit-flow module met expliciete working directory
 echo [%time%] Starten van exit-flow module...
 
-REM Wissel naar repo root EN roep Python aan met absolute path
+REM Wissel naar repo root
 cd /d "%REPO_ROOT%"
-"%PYTHON_EXE%" -u -m tomic.cli.exit_flow > "%LOGFILE%" 2>&1
+
+REM Gebruik PowerShell Tee-Object voor live console output + logging, met correcte exit code
+powershell -NoProfile -ExecutionPolicy Bypass -Command ^
+    "$env:PYTHONUNBUFFERED='1'; ^
+    & '%PYTHON_EXE%' -u -m tomic.cli.exit_flow 2>&1 | Tee-Object -FilePath '%LOGFILE%'; ^
+    exit $LASTEXITCODE"
 set "RC=%ERRORLEVEL%"
 
 REM Cleanup lege error log
