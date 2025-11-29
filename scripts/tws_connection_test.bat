@@ -41,6 +41,7 @@ echo ============================================================
 echo  Afgerond: %date% %time%
 echo  Exit code: %RC%
 echo ============================================================
-
+echo.
+pause
 endlocal
 exit /b %RC%

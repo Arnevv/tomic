@@ -27,5 +27,7 @@ set "RC=%ERRORLEVEL%"
 
 echo.
 echo Exit code: %RC%
+echo.
+pause
 endlocal
 exit /b %RC%
