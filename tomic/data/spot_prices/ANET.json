@@ -8916,5 +8916,12 @@
     "close": 127.65,
     "volume": 5994041.0,
     "atr": null
+  },
+  {
+    "symbol": "ANET",
+    "date": "2025-11-28",
+    "close": 130.68,
+    "volume": 3895049.0,
+    "atr": null
   }
 ]

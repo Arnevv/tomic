@@ -8916,5 +8916,12 @@
     "close": 32.83,
     "volume": 21608646.0,
     "atr": null
+  },
+  {
+    "symbol": "SMCI",
+    "date": "2025-11-28",
+    "close": 33.85,
+    "volume": 10733713.0,
+    "atr": null
   }
 ]

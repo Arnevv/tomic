@@ -8916,5 +8916,12 @@
     "close": 21.63,
     "volume": 4634281.0,
     "atr": null
+  },
+  {
+    "symbol": "GME",
+    "date": "2025-11-28",
+    "close": 22.53,
+    "volume": 8770535.0,
+    "atr": null
   }
 ]

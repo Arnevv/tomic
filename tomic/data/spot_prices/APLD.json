@@ -6865,5 +6865,12 @@
     "close": 24.94,
     "volume": 21901743.0,
     "atr": null
+  },
+  {
+    "symbol": "APLD",
+    "date": "2025-11-28",
+    "close": 27.1,
+    "volume": 19840953.0,
+    "atr": null
   }
 ]
