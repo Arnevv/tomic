@@ -40,6 +40,91 @@ from tomic.utils import get_leg_qty, get_leg_right, normalize_leg, resolve_symbo
 
 
 _GENERIC_TICKS = "100,101,104,106"
+
+# Circuit breaker state for IB connection
+# Prevents repeated connection attempts when TWS is not responding
+_circuit_breaker_state = {
+    "last_failure_time": 0.0,
+    "consecutive_failures": 0,
+    "cooldown_until": 0.0,  # Skip connections until this time
+}
+_CIRCUIT_BREAKER_COOLDOWN_SECONDS = 30.0  # Skip connections for 30s after failures
+_CIRCUIT_BREAKER_FAILURE_THRESHOLD = 1  # Trip after 1 failure
+
+
+def _circuit_breaker_check() -> tuple[bool, str]:
+    """Check if circuit breaker allows connection attempt.
+
+    Returns:
+        (allowed, reason): Tuple of whether connection is allowed and reason if not.
+    """
+    now = time.time()
+    state = _circuit_breaker_state
+
+    if now < state["cooldown_until"]:
+        remaining = state["cooldown_until"] - now
+        return False, f"Circuit breaker actief - wacht nog {remaining:.0f}s (TWS reageerde niet bij laatste {state['consecutive_failures']} poging(en))"
+
+    return True, ""
+
+
+def _circuit_breaker_record_failure() -> None:
+    """Record a connection failure in the circuit breaker."""
+    now = time.time()
+    state = _circuit_breaker_state
+    state["last_failure_time"] = now
+    state["consecutive_failures"] += 1
+
+    if state["consecutive_failures"] >= _CIRCUIT_BREAKER_FAILURE_THRESHOLD:
+        state["cooldown_until"] = now + _CIRCUIT_BREAKER_COOLDOWN_SECONDS
+        logger.warning(
+            "[circuit_breaker] IB verbinding gefaald %d keer - "
+            "overslaan voor %.0fs (TWS reageerde niet op handshake)",
+            state["consecutive_failures"],
+            _CIRCUIT_BREAKER_COOLDOWN_SECONDS
+        )
+
+
+def _circuit_breaker_record_success() -> None:
+    """Record a successful connection - reset the circuit breaker."""
+    state = _circuit_breaker_state
+    if state["consecutive_failures"] > 0:
+        logger.info("[circuit_breaker] IB verbinding geslaagd - circuit breaker gereset")
+    state["consecutive_failures"] = 0
+    state["cooldown_until"] = 0.0
+
+
+def reset_circuit_breaker() -> None:
+    """Reset the circuit breaker manually.
+
+    Call this after restarting TWS to immediately allow new connection attempts.
+    """
+    state = _circuit_breaker_state
+    state["consecutive_failures"] = 0
+    state["cooldown_until"] = 0.0
+    state["last_failure_time"] = 0.0
+    logger.info("[circuit_breaker] Circuit breaker handmatig gereset")
+
+
+def get_circuit_breaker_status() -> dict[str, Any]:
+    """Get the current circuit breaker status.
+
+    Returns:
+        Dictionary with circuit breaker state information.
+    """
+    now = time.time()
+    state = _circuit_breaker_state
+    is_open = now < state["cooldown_until"]
+    remaining = max(0.0, state["cooldown_until"] - now) if is_open else 0.0
+
+    return {
+        "is_open": is_open,
+        "consecutive_failures": state["consecutive_failures"],
+        "remaining_cooldown_seconds": remaining,
+        "last_failure_time": state["last_failure_time"],
+    }
+
+
 def _is_finite_number(value: Any) -> bool:
     try:
         if isinstance(value, bool):  # bool is subclass of int; ignore
@@ -426,24 +511,35 @@ class IBMarketDataService:
         client_id = int(cfg_value("IB_MARKETDATA_CLIENT_ID", 901))
         host = str(cfg_value("IB_HOST", "127.0.0.1"))
 
+        # Check circuit breaker before attempting connection
+        cb_allowed, cb_reason = _circuit_breaker_check()
+        if not cb_allowed:
+            logger.warning("[ib_marketdata] %s", cb_reason)
+            raise RuntimeError(cb_reason)
+
         app = self._app_factory()
         logger.info("📡 Ophalen IB quotes voor voorstel trigger=%s (legs=%d, timeout=%.1fs)",
                     trigger_label, len(proposal.legs), timeout)
 
         _t_connect_start = _time.perf_counter()
-        # Use a reasonable socket connect timeout (10s) - separate from data timeout
-        socket_timeout = min(10.0, timeout / 2)
+        # Use shorter socket timeout (5s) to fail fast when TWS is not responding
+        socket_timeout = min(5.0, timeout / 2)
         logger.info("[ib_marketdata] connect_ib: starting host=%s port=%d client_id=%d socket_timeout=%.1fs",
                     host, port, client_id, socket_timeout)
         # Use connect_ib_with_retry for automatic recovery from duplicate client ID
-        connect_ib_with_retry(
-            client_id=client_id,
-            host=host,
-            port=port,
-            timeout=int(timeout),
-            app=app,
-            connect_timeout=socket_timeout,
-        )
+        try:
+            connect_ib_with_retry(
+                client_id=client_id,
+                host=host,
+                port=port,
+                timeout=int(timeout),
+                app=app,
+                connect_timeout=socket_timeout,
+            )
+            _circuit_breaker_record_success()
+        except Exception as e:
+            _circuit_breaker_record_failure()
+            raise
         _t_connect_done = _time.perf_counter()
         logger.info("[ib_marketdata] connect_ib: done in %.0fms",
                     (_t_connect_done - _t_connect_start) * 1000)

@@ -299,6 +299,33 @@ class IBClient(EClient, EWrapper):
             logger.debug(f"IB extra info: {extra}")
 
 
+def _log_connection_diagnostics(host: str, port: int) -> None:
+    """Log diagnostic information when connection fails.
+
+    This helps users understand why the connection failed and what to do.
+    """
+    logger.warning("=" * 60)
+    logger.warning("TWS VERBINDING DIAGNOSE")
+    logger.warning("=" * 60)
+    logger.warning(
+        "De TCP verbinding naar %s:%d slaagde, maar TWS reageerde niet "
+        "op de API handshake. Dit komt vaak door:",
+        host, port
+    )
+    logger.warning("  1. TWS heeft nog een 'zombie' verbinding van een vorige sessie")
+    logger.warning("  2. TWS API module is niet volledig geladen")
+    logger.warning("  3. Er zijn te veel API verbindingen open")
+    logger.warning("")
+    logger.warning("OPLOSSINGEN:")
+    logger.warning("  - Herstart TWS (Trader Workstation)")
+    logger.warning("  - Controleer TWS > Edit > Global Configuration > API > Settings:")
+    logger.warning("      * 'Enable ActiveX and Socket Clients' is aangevinkt")
+    logger.warning("      * Socket Port is %d", port)
+    logger.warning("      * 'Allow connections from localhost only' is aangevinkt")
+    logger.warning("  - Wacht 30-60 seconden en probeer opnieuw")
+    logger.warning("=" * 60)
+
+
 @log_result
 def connect_ib(
     client_id: int | None = None,
@@ -350,11 +377,13 @@ def connect_ib(
         app.connect(host, port, client_id, connect_timeout=connect_timeout)
         # Check if connection actually succeeded (socket may have failed)
         if not app.isConnected():
+            _log_connection_diagnostics(host, port)
             raise RuntimeError(f"❌ Verbinding mislukt - socket niet verbonden na connect()")
         ACTIVE_CLIENT_IDS.add(client_id)
         logger.info(f"[connect_ib] socket connected, starting message thread")
     except socket.timeout as e:
         logger.error(f"[connect_ib] socket timeout after {connect_timeout}s to {host}:{port}")
+        _log_connection_diagnostics(host, port)
         raise RuntimeError(f"❌ Socket timeout na {connect_timeout}s bij verbinden met TWS op {host}:{port}") from e
     except socket.error as e:
         logger.error(f"[connect_ib] socket error: {e}")
