@@ -20,6 +20,8 @@ from ibapi.utils import currentTimeMillis
 # TODO: support SSL !!
 
 logger = logging.getLogger(__name__)
+# Use tomic logger for critical socket connect logging (ibapi logger is set to WARNING)
+_tomic_logger = logging.getLogger("tomic.ibapi.socket")
 
 
 class Connection:
@@ -44,11 +46,11 @@ class Connection:
         try:
             # Set timeout BEFORE connect to prevent indefinite hang
             self.socket.settimeout(connect_timeout)
-            logger.debug(f"socket.connect() starting with timeout={connect_timeout}s")
+            _tomic_logger.info(f"[socket] connect() starting to {self.host}:{self.port} timeout={connect_timeout}s")
             self.socket.connect((self.host, self.port))
-            logger.debug("socket.connect() completed successfully")
+            _tomic_logger.info(f"[socket] connect() completed successfully to {self.host}:{self.port}")
         except socket.timeout:
-            logger.error(f"socket.connect() timeout after {connect_timeout}s to {self.host}:{self.port}")
+            _tomic_logger.error(f"[socket] connect() TIMEOUT after {connect_timeout}s to {self.host}:{self.port}")
             if self.wrapper:
                 self.wrapper.error(NO_VALID_ID, currentTimeMillis(), CONNECT_FAIL.code(),
                                    f"Connection timeout after {connect_timeout}s")
@@ -56,7 +58,7 @@ class Connection:
             self.socket = None
             raise
         except socket.error as e:
-            logger.error(f"socket.connect() failed: {e}")
+            _tomic_logger.error(f"[socket] connect() FAILED to {self.host}:{self.port}: {e}")
             if self.wrapper:
                 self.wrapper.error(NO_VALID_ID, currentTimeMillis(), CONNECT_FAIL.code(), CONNECT_FAIL.msg())
             if self.socket:
