@@ -328,8 +328,8 @@ class BacktestEngine:
                 f"Warning: Only {len(result.trades)} trades - results may not be statistically significant"
             )
 
-        # Check degradation
-        if result.degradation_score > 50:
+        # Check degradation (only if out-of-sample data exists)
+        if result.degradation_score is not None and result.degradation_score > 50:
             messages.append(
                 f"Warning: High degradation score ({result.degradation_score:.1f}%) - "
                 "strategy may be overfit to in-sample data"
@@ -398,7 +398,7 @@ class BacktestEngine:
             logger.info(f"Max Drawdown: {m.max_drawdown_pct:.1f}%")
             logger.info("-" * 60)
             logger.info("ADDITIONAL METRICS:")
-            logger.info(f"  Ret/DD: {m.ret_dd:.2f}")
+            logger.info(f"  Ret/DD: {'N/A' if m.ret_dd is None else f'{m.ret_dd:.2f}'}")
             logger.info(f"  Profit Factor: {m.profit_factor:.2f}")
             logger.info(f"  Average Winner: ${m.average_winner:.2f}")
             logger.info(f"  Average Loser: ${m.average_loser:.2f}")
@@ -414,7 +414,10 @@ class BacktestEngine:
             logger.info(
                 f"  Out-Sample Sharpe: {result.out_sample_metrics.sharpe_ratio:.2f}"
             )
-            logger.info(f"  Degradation Score: {result.degradation_score:.1f}%")
+            if result.degradation_score is not None:
+                logger.info(f"  Degradation Score: {result.degradation_score:.1f}%")
+            else:
+                logger.info("  Degradation Score: N/A (no out-of-sample trades)")
 
         if result.validation_messages:
             logger.info("-" * 60)
