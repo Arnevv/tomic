@@ -192,8 +192,8 @@ class PerformanceMetrics:
     max_drawdown_pct: float = 0.0
     max_drawdown_duration_days: int = 0
     volatility: float = 0.0
-    calmar_ratio: float = 0.0
-    ret_dd: float = 0.0  # Return to Drawdown ratio (Total Return % / Max Drawdown %)
+    calmar_ratio: Optional[float] = None
+    ret_dd: Optional[float] = None  # Return to Drawdown ratio (Total Return % / Max Drawdown %)
 
     # System quality metrics
     sqn: float = 0.0  # System Quality Number (Van Tharp)
@@ -237,7 +237,7 @@ class BacktestResult:
     daily_returns: List[float] = field(default_factory=list)
 
     # Validation metrics
-    degradation_score: float = 0.0  # How much performance degraded out-of-sample
+    degradation_score: Optional[float] = None  # How much performance degraded out-of-sample (None if no OOS data)
     is_valid: bool = True  # Whether backtest passed validation checks
     validation_messages: List[str] = field(default_factory=list)
 

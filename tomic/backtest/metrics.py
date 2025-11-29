@@ -466,7 +466,7 @@ class MetricsCalculator:
 def calculate_degradation_score(
     in_sample: PerformanceMetrics,
     out_sample: PerformanceMetrics,
-) -> float:
+) -> Optional[float]:
     """Calculate performance degradation between in-sample and out-of-sample.
 
     A lower score is better (less degradation).
@@ -475,7 +475,12 @@ def calculate_degradation_score(
 
     Returns:
         Degradation score as percentage (0 = no degradation, 100 = total loss)
+        Returns None if out-of-sample has no trades (cannot calculate degradation)
     """
+    # Cannot calculate degradation without out-of-sample trades
+    if out_sample.total_trades == 0:
+        return None
+
     if in_sample.sharpe_ratio == 0:
         return 100.0 if out_sample.sharpe_ratio <= 0 else 0.0
 

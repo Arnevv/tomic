@@ -149,14 +149,19 @@ class BacktestReport:
         ]
 
         for label, attr, fmt in metrics_rows:
-            in_val = getattr(in_m, attr, 0) or 0
-            out_val = getattr(out_m, attr, 0) or 0
-            comb_val = getattr(comb_m, attr, 0) or 0
+            in_val = getattr(in_m, attr, None)
+            out_val = getattr(out_m, attr, None)
+            comb_val = getattr(comb_m, attr, None)
 
-            # Color coding for comparison
-            in_str = fmt.format(in_val)
-            out_str = fmt.format(out_val)
-            comb_str = fmt.format(comb_val)
+            # Handle None values (e.g., ret_dd when no drawdown)
+            def format_val(val):
+                if val is None:
+                    return "N/A"
+                return fmt.format(val)
+
+            in_str = format_val(in_val)
+            out_str = format_val(out_val)
+            comb_str = format_val(comb_val)
 
             table.add_row(label, in_str, out_str, comb_str)
 
@@ -164,10 +169,13 @@ class BacktestReport:
 
         # Degradation score
         degradation = self.result.degradation_score
-        color = "green" if degradation < 25 else "yellow" if degradation < 50 else "red"
-        self.console.print(
-            f"\n[{color}]Degradation Score: {degradation:.1f}%[/{color}]"
-        )
+        if degradation is None:
+            self.console.print("\n[dim]Degradation Score: N/A (no out-of-sample data)[/dim]")
+        else:
+            color = "green" if degradation < 25 else "yellow" if degradation < 50 else "red"
+            self.console.print(
+                f"\n[{color}]Degradation Score: {degradation:.1f}%[/{color}]"
+            )
         self.console.print()
 
     def _print_exit_reasons(self) -> None:
@@ -292,8 +300,13 @@ class BacktestReport:
             print(f"Total P&L: ${m.total_pnl:.2f}")
             print(f"Sharpe Ratio: {m.sharpe_ratio:.2f}")
             print(f"Max Drawdown: {m.max_drawdown_pct:.1f}%")
+            print(f"Ret/DD: {'N/A' if m.ret_dd is None else f'{m.ret_dd:.2f}'}")
 
-        print(f"\nDegradation Score: {self.result.degradation_score:.1f}%")
+        degradation = self.result.degradation_score
+        if degradation is None:
+            print("\nDegradation Score: N/A (no out-of-sample data)")
+        else:
+            print(f"\nDegradation Score: {degradation:.1f}%")
 
         if self.result.validation_messages:
             print("\nValidation Messages:")
