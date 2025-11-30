@@ -28,6 +28,7 @@ def main():
     print(f"Client ID: {client_id}")
     print()
 
+    app = None
     try:
         print("Connecting to TWS...")
         app = connect_ib(
@@ -38,13 +39,14 @@ def main():
             connect_timeout=15.0,
         )
 
-        print(f"Connected! Next valid order ID: {app.next_valid_order_id}")
+        print(f"Connected! Next valid order ID: {app.next_valid_id}")
 
         # Small delay to ensure connection is stable
         time.sleep(1)
 
         print("Disconnecting...")
         app.disconnect()
+        app = None  # Mark as disconnected
 
         print()
         print("SUCCESS: TWS connection test completed successfully!")
@@ -66,6 +68,15 @@ def main():
         print()
         print(f"ERROR: {type(e).__name__}: {e}")
         return 1
+
+    finally:
+        # Always clean up the connection to avoid leaving sessions open
+        if app is not None:
+            try:
+                print("Cleaning up connection...")
+                app.disconnect()
+            except Exception:
+                pass  # Ignore errors during cleanup
 
 
 if __name__ == "__main__":
