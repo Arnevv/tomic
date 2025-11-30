@@ -53,7 +53,8 @@ if %errorlevel% neq 0 (
 )
 echo [%time%] TWS verbinding OK
 REM Korte pauze om TWS tijd te geven de vorige connectie netjes af te sluiten
-timeout /t 2 /nobreak >nul
+REM Gebruik ping i.p.v. timeout (werkt ook in niet-interactieve Taakplanner sessies)
+ping localhost -n 3 >nul 2>&1
 
 REM Start de exit-flow module met expliciete working directory
 echo [%time%] Starten van exit-flow module...
