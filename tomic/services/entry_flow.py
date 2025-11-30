@@ -20,6 +20,11 @@ from datetime import date, datetime
 from pathlib import Path
 from typing import Any, Callable, Mapping, Sequence
 
+
+def _fmt_ms(seconds: float) -> str:
+    """Format seconds as milliseconds string."""
+    return f"{seconds * 1000:.0f}ms"
+
 from tomic import config as cfg
 from tomic.analysis.market_overview import build_market_overview
 from tomic.core.portfolio import services as portfolio_services
@@ -207,6 +212,7 @@ def execute_entry_flow(
     Returns:
         EntryFlowResult with details of all entry attempts.
     """
+    t_flow_start = time.perf_counter()
     started_at = datetime.now()
     errors: list[str] = []
     attempts: list[EntryAttempt] = []
@@ -214,29 +220,37 @@ def execute_entry_flow(
     if config is None:
         config = EntryFlowConfig.from_config()
 
+    logger.info("[execute_entry_flow] START")
     logger.info("=" * 60)
-    logger.info("Entry Flow gestart")
-    logger.info(f"  max_open_trades: {config.max_open_trades}")
-    logger.info(f"  max_per_symbol: {config.max_per_symbol}")
-    logger.info(f"  ib_refresh: {config.ib_refresh}")
-    logger.info(f"  dry_run: {config.dry_run}")
+    logger.info("Entry Flow gestart om %s", started_at.strftime("%Y-%m-%d %H:%M:%S"))
+    logger.info("  max_open_trades: %d", config.max_open_trades)
+    logger.info("  max_per_symbol: %d", config.max_per_symbol)
+    logger.info("  ib_refresh: %s", config.ib_refresh)
+    logger.info("  dry_run: %s", config.dry_run)
+    logger.info("  top_n: %s", config.top_n or "all")
     logger.info("=" * 60)
 
     # Step 1: Check position limits
+    t_limits_start = time.perf_counter()
+    logger.info("[execute_entry_flow] Step 1: checking position limits...")
     limits_config = PositionLimitsConfig(
         max_open_trades=config.max_open_trades,
         max_per_symbol=config.max_per_symbol,
     )
     position_state = evaluate_position_limits(limits_config)
+    t_limits_elapsed = time.perf_counter() - t_limits_start
 
     logger.info(
-        "Position state: %d open, %d slots available",
+        "[execute_entry_flow] position_limits: %s (open=%d, slots=%d, symbols=%s)",
+        _fmt_ms(t_limits_elapsed),
         position_state.open_count,
         position_state.available_slots,
+        sorted(position_state.symbols_with_positions),
     )
 
     if not position_state.can_open_any:
-        logger.info("Geen slots beschikbaar - entry flow gestopt")
+        t_flow_elapsed = time.perf_counter() - t_flow_start
+        logger.info("[execute_entry_flow] DONE (no_slots) total: %s", _fmt_ms(t_flow_elapsed))
         return EntryFlowResult(
             status="no_slots",
             started_at=started_at,
@@ -245,9 +259,12 @@ def execute_entry_flow(
         )
 
     # Step 2: Load market snapshot
+    t_snapshot_start = time.perf_counter()
+    logger.info("[execute_entry_flow] Step 2: loading market snapshot...")
     symbols = _default_symbols()
     if not symbols:
-        logger.warning("Geen symbolen geconfigureerd (DEFAULT_SYMBOLS)")
+        t_flow_elapsed = time.perf_counter() - t_flow_start
+        logger.warning("[execute_entry_flow] DONE (no_symbols) total: %s", _fmt_ms(t_flow_elapsed))
         return EntryFlowResult(
             status="no_symbols",
             started_at=started_at,
@@ -256,12 +273,13 @@ def execute_entry_flow(
             errors=("Geen symbolen geconfigureerd",),
         )
 
-    logger.info("Laden van snapshot voor %d symbolen...", len(symbols))
+    logger.info("[execute_entry_flow] loading snapshot for %d symbols: %s", len(symbols), symbols)
     snapshot_service = MarketSnapshotService(cfg)
     try:
         snapshot = snapshot_service.load_snapshot({"symbols": symbols})
     except Exception as exc:
-        logger.exception("Kon snapshot niet laden: %s", exc)
+        t_flow_elapsed = time.perf_counter() - t_flow_start
+        logger.exception("[execute_entry_flow] snapshot load FAILED: %s (total: %s)", exc, _fmt_ms(t_flow_elapsed))
         return EntryFlowResult(
             status="failed",
             started_at=started_at,
@@ -269,8 +287,12 @@ def execute_entry_flow(
             position_state=position_state,
             errors=(f"Snapshot laden mislukt: {exc}",),
         )
+    t_snapshot_elapsed = time.perf_counter() - t_snapshot_start
+    logger.info("[execute_entry_flow] snapshot loaded: %s (%d rows)", _fmt_ms(t_snapshot_elapsed), len(snapshot.rows))
 
     # Step 3: Build recommendations via market overview
+    t_overview_start = time.perf_counter()
+    logger.info("[execute_entry_flow] Step 3: building market overview...")
     rows = [[mapping[key] for key in (
         "symbol", "spot", "iv", "hv20", "hv30", "hv90", "hv252",
         "iv_rank", "iv_percentile", "term_m1_m2", "term_m1_m3",
@@ -278,9 +300,11 @@ def execute_entry_flow(
     )] for mapping in (_snapshot_row_mapping(row) for row in snapshot.rows)]
 
     recommendations, _, meta = build_market_overview(rows)
+    t_overview_elapsed = time.perf_counter() - t_overview_start
 
     if not recommendations:
-        logger.info("Geen aanbevelingen uit market overview")
+        t_flow_elapsed = time.perf_counter() - t_flow_start
+        logger.info("[execute_entry_flow] DONE (no_candidates from overview) total: %s", _fmt_ms(t_flow_elapsed))
         return EntryFlowResult(
             status="no_candidates",
             started_at=started_at,
@@ -288,9 +312,12 @@ def execute_entry_flow(
             position_state=position_state,
         )
 
-    logger.info("Market overview: %d aanbevelingen", len(recommendations))
+    logger.info("[execute_entry_flow] market_overview: %s (%d recommendations)", _fmt_ms(t_overview_elapsed), len(recommendations))
+    for rec in recommendations:
+        logger.info("  → %s: %s (score=%.2f)", rec.get("symbol"), rec.get("strategy"), rec.get("score", 0))
 
     # Step 4: Build scan requests
+    logger.info("[execute_entry_flow] Step 4: building scan requests...")
     scan_requests: list[MarketScanRequest] = []
     for rec in recommendations:
         symbol = str(rec.get("symbol") or "").upper()
@@ -315,7 +342,8 @@ def execute_entry_flow(
         )
 
     if not scan_requests:
-        logger.info("Geen scan requests na filtering")
+        t_flow_elapsed = time.perf_counter() - t_flow_start
+        logger.info("[execute_entry_flow] DONE (no_scan_requests) total: %s", _fmt_ms(t_flow_elapsed))
         return EntryFlowResult(
             status="no_candidates",
             started_at=started_at,
@@ -323,7 +351,10 @@ def execute_entry_flow(
             position_state=position_state,
         )
 
+    logger.info("[execute_entry_flow] built %d scan requests", len(scan_requests))
+
     # Step 5: Setup chain source
+    logger.info("[execute_entry_flow] Step 5: setting up chain source (Polygon)...")
     from tomic.cli.app_services import create_controlpanel_services
     from tomic.cli.controlpanel_session import ControlPanelSession
 
@@ -340,7 +371,8 @@ def execute_entry_flow(
             return None
 
     # Step 6: Run market scan
-    logger.info("Starten market scan...")
+    t_scan_start = time.perf_counter()
+    logger.info("[execute_entry_flow] Step 6: running market scan (ib_refresh=%s)...", config.ib_refresh)
     pipeline = create_strategy_pipeline()
     portfolio_service = PortfolioService()
     prep_config = ChainPreparationConfig.from_app_config()
@@ -369,7 +401,8 @@ def execute_entry_flow(
             refresh_quotes=config.ib_refresh,
         )
     except (MarketScanError, CandidateRankingError) as exc:
-        logger.exception("Market scan mislukt: %s", exc)
+        t_flow_elapsed = time.perf_counter() - t_flow_start
+        logger.exception("[execute_entry_flow] market_scan FAILED: %s (total: %s)", exc, _fmt_ms(t_flow_elapsed))
         return EntryFlowResult(
             status="failed",
             started_at=started_at,
@@ -378,10 +411,13 @@ def execute_entry_flow(
             errors=(f"Market scan mislukt: {exc}",),
         )
 
+    t_scan_elapsed = time.perf_counter() - t_scan_start
     candidates_found = len(candidates)
-    logger.info("Market scan: %d candidates gevonden", candidates_found)
+    logger.info("[execute_entry_flow] market_scan: %s (%d candidates found)", _fmt_ms(t_scan_elapsed), candidates_found)
 
     if not candidates:
+        t_flow_elapsed = time.perf_counter() - t_flow_start
+        logger.info("[execute_entry_flow] DONE (no_candidates from scan) total: %s", _fmt_ms(t_flow_elapsed))
         return EntryFlowResult(
             status="no_candidates",
             started_at=started_at,
@@ -391,6 +427,7 @@ def execute_entry_flow(
         )
 
     # Step 7: Filter by position limits
+    logger.info("[execute_entry_flow] Step 7: filtering by position limits...")
     candidate_dicts = [
         {"symbol": c.symbol, "strategy": c.strategy, "candidate": c}
         for c in candidates
@@ -402,7 +439,7 @@ def execute_entry_flow(
 
     for item, reason in rejected:
         logger.info(
-            "Candidate %s/%s afgewezen: %s",
+            "[execute_entry_flow] candidate REJECTED: %s/%s - %s",
             item.get("symbol"),
             item.get("strategy"),
             reason,
@@ -410,12 +447,14 @@ def execute_entry_flow(
 
     allowed_candidates = [item["candidate"] for item in allowed]
     logger.info(
-        "Na position limits: %d van %d candidates toegestaan",
+        "[execute_entry_flow] position_limits_filter: %d/%d candidates allowed",
         len(allowed_candidates),
         candidates_found,
     )
 
     if not allowed_candidates:
+        t_flow_elapsed = time.perf_counter() - t_flow_start
+        logger.info("[execute_entry_flow] DONE (no_candidates after limits) total: %s", _fmt_ms(t_flow_elapsed))
         return EntryFlowResult(
             status="no_candidates",
             started_at=started_at,
@@ -426,18 +465,19 @@ def execute_entry_flow(
         )
 
     # Step 8: Submit orders for each candidate
-    for candidate in allowed_candidates:
+    logger.info("[execute_entry_flow] Step 8: submitting orders for %d candidates...", len(allowed_candidates))
+    for idx, candidate in enumerate(allowed_candidates, 1):
+        t_order_start = time.perf_counter()
         symbol = candidate.symbol
         strategy = candidate.strategy
         proposal = candidate.proposal
 
-        logger.info("=" * 40)
-        logger.info("Processing: %s / %s", symbol, strategy)
-        logger.info("  Score: %.2f", candidate.score or 0)
-        logger.info("  Credit: %.2f", proposal.credit or 0)
+        logger.info("-" * 40)
+        logger.info("[execute_entry_flow] order %d/%d: %s / %s", idx, len(allowed_candidates), symbol, strategy)
+        logger.info("  score=%.2f, credit=%.2f", candidate.score or 0, proposal.credit or 0)
 
         if config.dry_run:
-            logger.info("  [DRY RUN] Zou order plaatsen")
+            logger.info("  [DRY_RUN] order skipped (dry_run_mode)")
             attempts.append(
                 EntryAttempt(
                     symbol=symbol,
@@ -456,7 +496,8 @@ def execute_entry_flow(
                 symbol=symbol,
             )
         except portfolio_services.OrderSubmissionError as exc:
-            logger.error("Order submission failed voor %s: %s", symbol, exc)
+            t_order_elapsed = time.perf_counter() - t_order_start
+            logger.error("[execute_entry_flow] order FAILED for %s: %s (%s)", symbol, exc, _fmt_ms(t_order_elapsed))
             attempts.append(
                 EntryAttempt(
                     symbol=symbol,
@@ -470,7 +511,8 @@ def execute_entry_flow(
             continue
 
         if result.fetch_only:
-            logger.info("  [FETCH_ONLY] Order niet verzonden (IB_FETCH_ONLY=true)")
+            t_order_elapsed = time.perf_counter() - t_order_start
+            logger.info("  [FETCH_ONLY] order skipped (IB_FETCH_ONLY=true) %s", _fmt_ms(t_order_elapsed))
             attempts.append(
                 EntryAttempt(
                     symbol=symbol,
@@ -483,15 +525,16 @@ def execute_entry_flow(
             continue
 
         order_ids = result.order_ids
-        logger.info("  Order geplaatst: %s", order_ids)
+        t_order_elapsed = time.perf_counter() - t_order_start
+        logger.info("  order SUCCESS: ids=%s (%s)", order_ids, _fmt_ms(t_order_elapsed))
 
         # Create journal entry
         journal_entry = _build_journal_entry(candidate, proposal, order_ids)
         try:
             add_trade(journal_entry)
-            logger.info("  Journal entry toegevoegd: %s", journal_entry.get("TradeID"))
+            logger.info("  journal entry added: %s", journal_entry.get("TradeID"))
         except Exception as exc:
-            logger.error("  Journal entry mislukt: %s", exc)
+            logger.error("  journal entry FAILED: %s", exc)
             errors.append(f"Journal failed {symbol}: {exc}")
 
         attempts.append(
@@ -506,8 +549,10 @@ def execute_entry_flow(
         )
 
     # Determine final status
+    t_flow_elapsed = time.perf_counter() - t_flow_start
     successful = sum(1 for a in attempts if a.status == "success")
     failed = sum(1 for a in attempts if a.status == "failed")
+    dry_run_count = sum(1 for a in attempts if a.status == "dry_run")
 
     if successful > 0 and failed == 0:
         status = "success"
@@ -519,11 +564,15 @@ def execute_entry_flow(
         status = "no_entries"
 
     logger.info("=" * 60)
-    logger.info("Entry Flow afgerond: %s", status)
-    logger.info("  Candidates gevonden: %d", candidates_found)
-    logger.info("  Na limits filter: %d", len(allowed_candidates))
-    logger.info("  Succesvol: %d", successful)
-    logger.info("  Mislukt: %d", failed)
+    logger.info("[execute_entry_flow] DONE (%s) total: %s", status, _fmt_ms(t_flow_elapsed))
+    logger.info("  candidates_found: %d", candidates_found)
+    logger.info("  after_limits: %d", len(allowed_candidates))
+    logger.info("  successful: %d", successful)
+    logger.info("  failed: %d", failed)
+    if dry_run_count > 0:
+        logger.info("  dry_run: %d", dry_run_count)
+    if errors:
+        logger.info("  errors: %s", errors)
     logger.info("=" * 60)
 
     return EntryFlowResult(
