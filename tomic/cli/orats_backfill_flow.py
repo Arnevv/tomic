@@ -412,8 +412,8 @@ class OratsBackfillFlow:
         if atm_iv is not None:
             try:
                 # Use historical IV series for rank/percentile (not HV)
-                date_str = parsed_date.strftime("%Y-%m-%d")
-                iv_series = get_historical_iv_series(ticker, exclude_date=date_str)
+                # parsed_date is already a string in YYYY-MM-DD format
+                iv_series = get_historical_iv_series(ticker, exclude_date=parsed_date)
                 if iv_series:
                     # Scale IV to percentage for comparison
                     scaled_iv = atm_iv * 100
@@ -667,7 +667,7 @@ class OratsBackfillFlow:
         summary_dir.mkdir(parents=True, exist_ok=True)
         tmp = summary_file.with_name(f"temp_{summary_file.name}")
         dump_json(merged_list, tmp)
-        tmp.replace(summary_file)
+        self._safe_replace_file(tmp, summary_file)
 
         return merged_list, None
 
@@ -694,6 +694,40 @@ class OratsBackfillFlow:
 
         logger.info(f"Validation rapport gegenereerd: {report_path}")
         return report_path
+
+    def _safe_replace_file(self, src: Path, dst: Path, max_retries: int = 5) -> bool:
+        """Safely replace a file with retry logic for Windows file locking.
+
+        On Windows, file handles may not be immediately released after closing.
+        This method retries replacement with exponential backoff.
+        """
+        for attempt in range(max_retries):
+            try:
+                src.replace(dst)
+                return True
+            except PermissionError:
+                if attempt < max_retries - 1:
+                    wait = 0.5 * (2 ** attempt)  # 0.5s, 1s, 2s, 4s, 8s
+                    logger.debug(
+                        f"Bestand nog in gebruik, retry {attempt + 1}/{max_retries} "
+                        f"voor {dst.name} in {wait}s..."
+                    )
+                    time.sleep(wait)
+                else:
+                    # Last resort: try copy + delete instead of atomic replace
+                    try:
+                        shutil.copy2(src, dst)
+                        self._safe_delete_file(src)
+                        return True
+                    except Exception as exc:
+                        logger.error(
+                            f"Kon bestand niet vervangen na {max_retries} pogingen: {dst} - {exc}"
+                        )
+                        return False
+            except Exception as exc:
+                logger.error(f"Onverwachte fout bij vervangen {dst}: {exc}")
+                return False
+        return False
 
     def _safe_delete_file(self, path: Path, max_retries: int = 5) -> bool:
         """Safely delete a file with retry logic for Windows file locking.
