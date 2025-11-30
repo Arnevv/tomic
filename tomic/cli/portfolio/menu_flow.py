@@ -533,7 +533,10 @@ def run_market_scan(
     source_choice = getattr(session, "chain_source", "polygon")
 
     existing_chain_dir: Path | None = None
-    _ = prompt_yes_no_fn  # keep reference for compatibility
+
+    use_interpolation = prompt_yes_no_fn(
+        "Wil je delta/iv interpoleren voor alle Polygon chains?", False
+    )
 
     pipeline = services.get_pipeline()
     config_data = cfg.get("STRATEGY_CONFIG") or {}
@@ -593,6 +596,7 @@ def run_market_scan(
         spot_from_chain=spot_from_chain_fn,
         atr_loader=latest_atr,
         refresh_snapshot=portfolio_services.refresh_proposal_from_ib,
+        apply_interpolation=use_interpolation,
     )
 
     decision_cache: dict[tuple[ChainSourceName, str], ChainSourceDecision] = {}
