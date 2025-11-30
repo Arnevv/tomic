@@ -696,7 +696,7 @@
     "baseline_as_of": null
   },
   "ASTS": {
-    "fetched_at": "2025-11-29T13:35:35.920885",
+    "fetched_at": "2025-11-30T17:01:00.401419",
     "source": null,
     "baseline_active": false,
     "baseline_as_of": null
@@ -1063,6 +1063,66 @@
   },
   "VST": {
     "fetched_at": "2025-11-01T11:30:13.565611-04:00",
+    "source": null,
+    "baseline_active": false,
+    "baseline_as_of": null
+  },
+  "DKNG": {
+    "fetched_at": null,
+    "source": null,
+    "baseline_active": false,
+    "baseline_as_of": null
+  },
+  "FDX": {
+    "fetched_at": null,
+    "source": null,
+    "baseline_active": false,
+    "baseline_as_of": null
+  },
+  "NET": {
+    "fetched_at": null,
+    "source": null,
+    "baseline_active": false,
+    "baseline_as_of": null
+  },
+  "RIVN": {
+    "fetched_at": null,
+    "source": null,
+    "baseline_active": false,
+    "baseline_as_of": null
+  },
+  "ROKU": {
+    "fetched_at": null,
+    "source": null,
+    "baseline_active": false,
+    "baseline_as_of": null
+  },
+  "SNAP": {
+    "fetched_at": null,
+    "source": null,
+    "baseline_active": false,
+    "baseline_as_of": null
+  },
+  "SQ": {
+    "fetched_at": null,
+    "source": null,
+    "baseline_active": false,
+    "baseline_as_of": null
+  },
+  "UAL": {
+    "fetched_at": null,
+    "source": null,
+    "baseline_active": false,
+    "baseline_as_of": null
+  },
+  "XBI": {
+    "fetched_at": null,
+    "source": null,
+    "baseline_active": false,
+    "baseline_as_of": null
+  },
+  "XLV": {
+    "fetched_at": null,
     "source": null,
     "baseline_active": false,
     "baseline_as_of": null
