@@ -58,10 +58,8 @@ REM Wissel naar repo root
 cd /d "%REPO_ROOT%"
 
 REM Gebruik PowerShell Tee-Object voor live console output + logging, met correcte exit code
-powershell -NoProfile -ExecutionPolicy Bypass -Command ^
-    "$env:PYTHONUNBUFFERED='1'; ^
-    & '%PYTHON_EXE%' -u -m tomic.cli.exit_flow 2>&1 | Tee-Object -FilePath '%LOGFILE%'; ^
-    exit $LASTEXITCODE"
+REM NB: Commando op 1 regel om compatibiliteit met PowerShell-als-parent-shell te garanderen
+powershell -NoProfile -ExecutionPolicy Bypass -Command "$env:PYTHONUNBUFFERED='1'; & '%PYTHON_EXE%' -u -m tomic.cli.exit_flow 2>&1 | Tee-Object -FilePath '%LOGFILE%'; exit $LASTEXITCODE"
 set "RC=%ERRORLEVEL%"
 
 REM Cleanup lege error log
