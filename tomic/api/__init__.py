@@ -16,22 +16,31 @@ import sys
 def _ensure_ibapi() -> None:
     """Ensure the `ibapi` package can be imported.
 
-    Tries the following in order:
-    1. Native pip install
+    Tries the following in order (bundled version FIRST for consistent behavior):
+    1. Bundled package within the 'tomic' source tree (preferred for consistency)
     2. Environment variable (TWS_API_PATH or IB_API_PATH)
     3. Local fallback path: ./lib/ibapi
+    4. Native pip install (last resort)
     """
 
-    # Check 1: native pip install
-    try:
-        importlib.import_module("ibapi.contract")
-        return
-    except ModuleNotFoundError as exc:
-        if exc.name in {"google", "google.protobuf"}:
-            raise ModuleNotFoundError(
-                "Missing dependency 'protobuf'. Install via 'pip install protobuf'"
-            ) from exc
-        # continue to check alt paths
+    # Check 1: bundled package within the 'tomic' source tree (PREFERRED)
+    # Using the bundled version ensures consistent behavior across all scripts
+    local_pkg = os.path.dirname(os.path.dirname(__file__))
+    bundled_path = os.path.join(local_pkg, "ibapi")
+    if os.path.exists(bundled_path):
+        sys.path.insert(0, local_pkg)
+        proto_path = os.path.join(bundled_path, "protobuf")
+        if os.path.isdir(proto_path):
+            sys.path.insert(0, proto_path)
+        try:
+            importlib.import_module("ibapi.contract")
+            return
+        except ModuleNotFoundError as exc:
+            if exc.name in {"google", "google.protobuf"}:
+                raise ModuleNotFoundError(
+                    "Missing dependency 'protobuf'. Install via 'pip install protobuf'"
+                ) from exc
+            # continue to check other paths
 
     # Check 2: environment variable path
     api_path = os.getenv("TWS_API_PATH") or os.getenv("IB_API_PATH")
@@ -65,19 +74,15 @@ def _ensure_ibapi() -> None:
                 f"ibapi not found in fallback path: {fallback_path}"
             ) from exc
 
-    # Check 4: bundled package within the 'tomic' source tree
-    local_pkg = os.path.dirname(os.path.dirname(__file__))
-    bundled_path = os.path.join(local_pkg, "ibapi")
-    if os.path.exists(bundled_path):
-        sys.path.insert(0, local_pkg)
-        proto_path = os.path.join(bundled_path, "protobuf")
-        if os.path.isdir(proto_path):
-            sys.path.insert(0, proto_path)
-        try:
-            importlib.import_module("ibapi.contract")
-            return
-        except ModuleNotFoundError:
-            pass
+    # Check 4: native pip install (last resort)
+    try:
+        importlib.import_module("ibapi.contract")
+        return
+    except ModuleNotFoundError as exc:
+        if exc.name in {"google", "google.protobuf"}:
+            raise ModuleNotFoundError(
+                "Missing dependency 'protobuf'. Install via 'pip install protobuf'"
+            ) from exc
 
     # All options exhausted
     raise ModuleNotFoundError(
