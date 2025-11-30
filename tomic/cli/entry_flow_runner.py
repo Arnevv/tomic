@@ -162,7 +162,9 @@ def run_with_timeout(
     Returns:
         Exit code: 0 for success, 1 for failure, 124 for timeout.
     """
-    setup_logging()
+    # Use stdout=True to avoid PowerShell NativeCommandError
+    # PowerShell treats stderr output as errors, even for INFO logs
+    setup_logging(stdout=True)
 
     logger.info("=" * 60)
     logger.info("Entry Flow Runner gestart")

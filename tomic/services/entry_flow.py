@@ -357,9 +357,14 @@ def execute_entry_flow(
     logger.info("[execute_entry_flow] Step 5: setting up chain source (Polygon)...")
     from tomic.cli.app_services import create_controlpanel_services
     from tomic.cli.controlpanel_session import ControlPanelSession
+    from tomic.strike_selector import StrikeSelector
+    from tomic.strategy_candidates import generate_strategy_candidates
 
     session = ControlPanelSession()
-    services = create_controlpanel_services()
+    services = create_controlpanel_services(
+        strike_selector_factory=StrikeSelector,
+        strategy_generator=generate_strategy_candidates,
+    )
 
     def _polygon_chain_source(symbol: str) -> ChainSourceDecision | None:
         if chain_source_factory:
