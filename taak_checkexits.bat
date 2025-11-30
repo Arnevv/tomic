@@ -42,14 +42,18 @@ set "RUNSTAMP=%RUNSTAMP: =0%"
 set "LOGFILE=%LOG_DIR%\exit_auto_%RUNSTAMP%.log"
 echo [%time%] Logbestand: %LOGFILE%
 
-REM Snelle bereikbaarheidstest TWS (poort 7497)
-powershell -NoProfile -ExecutionPolicy Bypass -Command "$ErrorActionPreference='SilentlyContinue'; $tcp = New-Object System.Net.Sockets.TcpClient; $async = $tcp.BeginConnect('127.0.0.1', 7497, $null, $null); $wait = $async.AsyncWaitHandle.WaitOne(3000, $false); if (-not $wait -or -not $tcp.Connected) { $tcp.Close(); exit 2 }; $tcp.Close(); exit 0"
-if %errorlevel% equ 2 (
-    echo [%time%] FOUT: TWS/IB Gateway niet bereikbaar op 127.0.0.1:7497.
+REM TWS bereikbaarheidstest via Python script (respecteert IB protocol)
+echo [%time%] TWS bereikbaarheidscheck...
+"%PYTHON_EXE%" "%REPO_ROOT%\scripts\tws_connection_test.py" >nul 2>&1
+if %errorlevel% neq 0 (
+    echo [%time%] FOUT: TWS/IB Gateway niet bereikbaar of connectie mislukt.
+    echo [%time%] Controleer of TWS draait en API connecties accepteert op poort 7497.
     pause
     endlocal & exit /b 2
 )
 echo [%time%] TWS verbinding OK
+REM Korte pauze om TWS tijd te geven de vorige connectie netjes af te sluiten
+timeout /t 2 /nobreak >nul
 
 REM Start de exit-flow module met expliciete working directory
 echo [%time%] Starten van exit-flow module...
