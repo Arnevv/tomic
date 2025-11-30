@@ -1,13 +1,18 @@
 version: 1
 strategy_type: iron_condor
 symbols:
-- SPY
-- QQQ
-- IWM
 - AAPL
+- CRM
 - MSFT
-start_date: '2024-05-01'
-end_date: '2025-11-24'
+- SPY
+- GLD
+- SLV
+- AMZN
+- TSLA
+- BAC
+- PM
+start_date: '2024-01-01'
+end_date: '2025-01-01'
 target_dte: 45
 entry_rules:
   iv_percentile_min: 60.0
@@ -30,10 +35,11 @@ position_sizing:
   max_positions_per_symbol: 1
   max_total_positions: 10
 sample_split:
-  in_sample_ratio: 0.3
+  in_sample_ratio: 1.0
   method: chronological
 costs:
   commission_per_contract: 1.0
   slippage_pct: 5.0
 iron_condor_wing_width: 5
 iron_condor_short_delta: 0.16
+use_greeks_model: false
