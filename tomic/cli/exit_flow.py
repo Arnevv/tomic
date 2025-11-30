@@ -6,10 +6,12 @@ import argparse
 import sys
 import time
 from copy import deepcopy
+from datetime import datetime
 from pathlib import Path
 from typing import Any, Callable, Iterable
 
 from tomic.journal.utils import load_json
+from tomic.journal.service import update_trade
 from tomic.logutils import logger, setup_logging
 
 
@@ -46,6 +48,74 @@ def _intent_symbol(intent: StrategyExitIntent) -> str:
     symbol = intent_symbol(intent)
     label = str(symbol or "-").strip()
     return label.upper() if label else "-"
+
+
+def _get_trade_id(intent: StrategyExitIntent) -> str | None:
+    """Extract TradeID from the intent's strategy mapping."""
+    strategy = intent.strategy
+    if isinstance(strategy, dict):
+        trade_id = strategy.get("trade_id") or strategy.get("TradeID")
+        if trade_id:
+            return str(trade_id)
+    return None
+
+
+def _update_journal_on_exit(
+    intent: StrategyExitIntent,
+    result: ExitFlowResult,
+    *,
+    journal_path: str | None = None,
+) -> bool:
+    """Update the journal entry after a successful exit.
+
+    Marks the trade as closed with exit date, price, and order IDs.
+
+    Returns:
+        True if journal was updated, False otherwise.
+    """
+    trade_id = _get_trade_id(intent)
+    if not trade_id:
+        logger.warning(
+            "Kan journal niet updaten: geen TradeID gevonden in intent voor %s",
+            _intent_symbol(intent),
+        )
+        return False
+
+    # Get exit price from the successful attempt
+    exit_price = None
+    if result.order_ids and result.attempts:
+        # Find the attempt that resulted in a fill
+        for attempt in reversed(result.attempts):
+            if attempt.order_ids and attempt.limit_price is not None:
+                exit_price = attempt.limit_price
+                break
+
+    if exit_price is None and result.limit_prices:
+        exit_price = result.limit_prices[-1]
+
+    updates: dict[str, Any] = {
+        "Status": "Gesloten",
+        "DatumUit": datetime.now().strftime("%Y-%m-%d"),
+    }
+
+    if exit_price is not None:
+        updates["ExitPrice"] = exit_price
+
+    if result.order_ids:
+        updates["ExitOrderIDs"] = list(result.order_ids)
+
+    try:
+        success = update_trade(trade_id, updates, journal_path)
+        if success:
+            logger.info(
+                "📔 Journal bijgewerkt: %s → Status=Gesloten, ExitPrice=%.2f",
+                trade_id,
+                exit_price or 0,
+            )
+        return success
+    except Exception as exc:
+        logger.error("Kon journal niet updaten voor %s: %s", trade_id, exc)
+        return False
 
 
 def _intent_label(intent: StrategyExitIntent) -> str:
@@ -449,6 +519,11 @@ def main(argv: Iterable[str] | None = None) -> int:
         log_path = store_exit_flow_result(intent, result, directory=config.log_directory)
         _log_progress(intent, result)
         collected.append((intent, result, log_path))
+
+        # Update journal for successful exits
+        if result.status == "success":
+            _update_journal_on_exit(intent, result, journal_path=args.journal)
+
         if result.status == "failed":
             exit_code = 1
 
