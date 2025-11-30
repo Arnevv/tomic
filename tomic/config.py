@@ -141,6 +141,15 @@ class AppConfig(BaseModel):
         "earnings_max_age_days": 120,
     }
 
+    # Entry Flow Automation settings --------------------------------------
+    ENTRY_FLOW_MAX_OPEN_TRADES: int = 5
+    ENTRY_FLOW_MAX_PER_SYMBOL: int = 1
+    ENTRY_FLOW_IB_REFRESH: bool = True
+    ENTRY_FLOW_DRY_RUN: bool = False
+    ENTRY_FLOW_TOP_N: Optional[int] = None
+    ENTRY_FLOW_TIMEOUT: int = 300
+
+
 class StrategyScenario(BaseModel):
     """Scenario configuration for portfolio strategies."""
 
