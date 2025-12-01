@@ -80,17 +80,22 @@ class IronCondorPnLModel:
         iv_at_entry: float,
         max_risk: float,
         target_dte: int,
+        stddev_range: Optional[float] = None,
     ) -> float:
         """Estimate credit received for an Iron Condor.
 
         For a typical Iron Condor with ~0.16 delta short strikes:
         - Credit is roughly 25-40% of wing width
         - Higher IV = higher credit
+        - Lower stddev_range = strikes closer to ATM = higher credit
 
         Args:
             iv_at_entry: ATM IV at entry (as decimal, e.g., 0.20 for 20%)
             max_risk: Maximum risk in dollars (not used, kept for API compatibility)
             target_dte: Days to expiration at entry
+            stddev_range: Standard deviation distance for short strikes (default 1.5)
+                Lower values = strikes closer to ATM = higher credit but higher risk
+                Higher values = strikes farther from ATM = lower credit but lower risk
 
         Returns:
             Estimated credit received in dollars.
@@ -99,7 +104,7 @@ class IronCondorPnLModel:
         # This ensures R/R ratios are realistic
         wing_width = self.config.iron_condor_wing_width * 100  # e.g., $500 for $5 wings
 
-        # Base credit ratio (credit / wing_width) at 20% IV, 45 DTE
+        # Base credit ratio (credit / wing_width) at 20% IV, 45 DTE, 1.5 stddev
         # Typical IC gets 25-35% of wing width as credit
         base_credit_ratio = 0.30
 
@@ -111,7 +116,21 @@ class IronCondorPnLModel:
         # Adjust for DTE (more DTE = higher credit due to more time value)
         dte_adjustment = min(1.2, target_dte / 45)
 
-        credit_ratio = base_credit_ratio * iv_adjustment * dte_adjustment
+        # Adjust for stddev_range (lower stddev = closer to ATM = higher credit)
+        # At stddev 1.0: ~35% more credit than baseline
+        # At stddev 1.5: baseline (no adjustment)
+        # At stddev 2.0: ~25% less credit than baseline
+        # At stddev 2.5: ~40% less credit than baseline
+        if stddev_range is not None and stddev_range > 0:
+            # stddev_adjustment: inverse relationship, normalized to 1.5 baseline
+            # Formula: (1.5 / stddev_range) ^ 0.6 gives good scaling
+            stddev_adjustment = (1.5 / stddev_range) ** 0.6
+            # Cap the adjustment to reasonable bounds
+            stddev_adjustment = min(1.5, max(0.5, stddev_adjustment))
+        else:
+            stddev_adjustment = 1.0
+
+        credit_ratio = base_credit_ratio * iv_adjustment * dte_adjustment * stddev_adjustment
         # Cap between 20-50% of wing width
         # 40%+ credit = R/R <= 1.5 (TOMIC threshold)
         credit_ratio = min(0.50, max(0.20, credit_ratio))
@@ -365,6 +384,7 @@ class GreeksBasedPnLModel:
         atm_iv: float,
         dte: int,
         max_risk: float,
+        stddev_range: Optional[float] = None,
     ) -> float:
         """Estimate credit received for Iron Condor using Greeks.
 
@@ -373,6 +393,9 @@ class GreeksBasedPnLModel:
             atm_iv: At-the-money IV
             dte: Days to expiration
             max_risk: Maximum risk per trade (wing width)
+            stddev_range: Standard deviation distance for short strikes (default 1.5)
+                Lower values = strikes closer to ATM = higher credit but higher risk
+                Higher values = strikes farther from ATM = lower credit but lower risk
 
         Returns:
             Estimated credit in dollars
@@ -384,6 +407,16 @@ class GreeksBasedPnLModel:
         # Scale credit to this risk level
         # For typical ICs, credit is 25-35% of wing width
         credit_ratio = max(0.15, min(0.50, credit / (max_risk / 2)))
+
+        # Adjust for stddev_range (lower stddev = closer to ATM = higher credit)
+        if stddev_range is not None and stddev_range > 0:
+            # stddev_adjustment: inverse relationship, normalized to 1.5 baseline
+            stddev_adjustment = (1.5 / stddev_range) ** 0.6
+            stddev_adjustment = min(1.5, max(0.5, stddev_adjustment))
+            credit_ratio = credit_ratio * stddev_adjustment
+            # Re-cap after adjustment
+            credit_ratio = max(0.15, min(0.50, credit_ratio))
+
         estimated_credit = max_risk * credit_ratio
 
         return max(estimated_credit, 1.0)
