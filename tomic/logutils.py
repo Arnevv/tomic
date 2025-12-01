@@ -320,11 +320,13 @@ def log_combo_evaluation(
     reward = metrics.get("max_profit") if metrics else None
     max_loss = metrics.get("max_loss") if metrics else None
     ev = metrics.get("ev") if metrics else None
+    # R/R = max_loss / max_profit (TOMIC definition: risk per unit reward)
+    # Lower is better. Threshold check: R/R <= min_rr (e.g., 1.50)
     rr = None
     if isinstance(reward, (int, float)) and isinstance(max_loss, (int, float)):
         loss = abs(max_loss)
-        if loss:
-            rr = reward / loss
+        if reward > 0:
+            rr = loss / reward
 
     pos_str = f"{round(pos, 1)}%" if isinstance(pos, (float, int)) else "n/a"
     rr_str = f"{round(rr, 2)}" if isinstance(rr, (float, int)) else "n/a"
