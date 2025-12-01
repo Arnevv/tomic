@@ -815,6 +815,12 @@ def run_market_scan(
                         session.scan_rejections = remaining
                 else:
                     candidates = refreshed
+                # Check if all candidates were rejected after refresh
+                if not candidates:
+                    print("⚠️ Geen voorstellen na refresh.")
+                    if failure_entries:
+                        _print_failures_table()
+                    break
                 continue
             elif refreshed is None:
                 continue
