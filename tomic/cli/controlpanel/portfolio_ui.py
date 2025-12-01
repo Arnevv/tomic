@@ -566,11 +566,12 @@ def show_market_info(session: ControlPanelSession, services: ControlPanelService
     selection_help_lines = [
         "\nSelectie maken:",
         "[nummer]  → Details voor één rij",
+        "998       → IB snapshot-refresh voor alle getoonde rijen",
         "999       → Nieuwe Polygon-scan",
         "0         → Terug naar hoofdmenu",
     ]
     selection_help = "\n".join(selection_help_lines)
-    tws_enabled = False
+    tws_enabled = True
     print(selection_help)
 
     while True:
