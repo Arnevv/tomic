@@ -350,6 +350,7 @@ class MarketScanService:
                     "Refresh requested but no snapshot refresher configured; skipping"
                 )
             else:
+                rejected_indices: list[int] = []
                 for index, row in enumerate(scan_rows):
                     try:
                         result = refresher(
@@ -367,8 +368,20 @@ class MarketScanService:
                         )
                         continue
                     proposal = getattr(result, "proposal", None)
+                    accepted = getattr(result, "accepted", True)
                     if isinstance(proposal, StrategyProposal):
                         scan_rows[index] = replace(row, proposal=proposal)
+                    # Filter out candidates that failed acceptance after IB refresh
+                    if not accepted:
+                        logger.info(
+                            "[market_scan] %s/%s rejected after IB refresh",
+                            row.symbol,
+                            row.strategy,
+                        )
+                        rejected_indices.append(index)
+                # Remove rejected rows (iterate in reverse to preserve indices)
+                for idx in reversed(rejected_indices):
+                    scan_rows.pop(idx)
 
         rules = {"top_n": top_n} if top_n is not None else None
         return self._portfolio.rank_candidates(scan_rows, rules)
