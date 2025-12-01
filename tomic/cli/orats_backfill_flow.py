@@ -124,6 +124,8 @@ class OratsBackfillFlow:
         self.ftp_path = os.getenv("ORATS_FTP_PATH", "smvstrikes")
         self.validation_entries: list[ValidationEntry] = []
         self._download_count = 0
+        # Cache directory for persistent ZIP storage
+        self.cache_dir = Path(cfg.get("ORATS_CACHE_DIR", "tomic/data/orats_cache")).expanduser()
 
     def _connect_ftp(self) -> ftplib.FTP:
         """Connect to ORATS FTP server with timeout.
@@ -222,6 +224,119 @@ class OratsBackfillFlow:
                     return False, current_ftp
 
         return False, current_ftp
+
+    def _get_cache_path(self, date: datetime) -> Path:
+        """Get the cache path for a given date's ZIP file.
+
+        Cache is organized by year: orats_cache/2024/ORATS_SMV_Strikes_20240115.zip
+        """
+        year = date.strftime("%Y")
+        date_str = date.strftime("%Y%m%d")
+        cache_year_dir = self.cache_dir / year
+        return cache_year_dir / f"ORATS_SMV_Strikes_{date_str}.zip"
+
+    def _get_cached_or_download(
+        self, ftp: ftplib.FTP | None, date: datetime
+    ) -> tuple[Path | None, ftplib.FTP | None]:
+        """Get ZIP file from cache or download if not cached.
+
+        Returns tuple of (zip_path, ftp_connection).
+        zip_path is None if download failed.
+        ftp is the (possibly reconnected) FTP connection.
+        """
+        cache_path = self._get_cache_path(date)
+        date_str = date.strftime("%Y%m%d")
+        year = date.strftime("%Y")
+
+        # Check if already in cache
+        if cache_path.exists():
+            logger.info(f"Cache hit: {cache_path.name}")
+            return cache_path, ftp
+
+        # Need to download - ensure cache directory exists
+        cache_path.parent.mkdir(parents=True, exist_ok=True)
+
+        # Connect to FTP if not connected
+        if ftp is None:
+            try:
+                ftp = self._connect_ftp()
+            except Exception as exc:
+                logger.error(f"FTP verbinding mislukt: {exc}")
+                return None, None
+
+        # Download to cache
+        remote_path = f"{self.ftp_path}/{year}/ORATS_SMV_Strikes_{date_str}.zip"
+        success, ftp = self._download_file(ftp, remote_path, cache_path)
+
+        if success:
+            return cache_path, ftp
+        else:
+            # Remove partial download if exists
+            if cache_path.exists():
+                self._safe_delete_file(cache_path)
+            return None, ftp
+
+    def _get_existing_dates_for_symbol(self, symbol: str) -> set[str]:
+        """Get set of dates that already have data for a symbol.
+
+        Returns dates in YYYY-MM-DD format.
+        """
+        summary_dir = Path(cfg.get("IV_SUMMARY_DIR", "tomic/data/iv_daily_summary")).expanduser()
+        summary_file = summary_dir / f"{symbol}.json"
+
+        existing = load_json(summary_file)
+        if not isinstance(existing, list):
+            return set()
+
+        dates = set()
+        for record in existing:
+            if isinstance(record, dict) and "date" in record:
+                # Check if record has ORATS-specific fields (not just Polygon data)
+                if record.get("atm_iv") is not None:
+                    dates.add(str(record["date"]))
+        return dates
+
+    def _get_missing_dates_for_symbols(
+        self, symbols: list[str], trading_days: list[datetime]
+    ) -> dict[str, set[str]]:
+        """Determine which dates are missing data for each symbol.
+
+        Returns dict mapping symbol -> set of missing date strings (YYYY-MM-DD).
+        """
+        missing: dict[str, set[str]] = {}
+        all_dates = {d.strftime("%Y-%m-%d") for d in trading_days}
+
+        for symbol in symbols:
+            existing = self._get_existing_dates_for_symbol(symbol)
+            symbol_missing = all_dates - existing
+            if symbol_missing:
+                missing[symbol] = symbol_missing
+
+        return missing
+
+    def _get_dates_to_process(
+        self, symbols: list[str], trading_days: list[datetime]
+    ) -> tuple[list[datetime], dict[str, set[str]]]:
+        """Determine which dates need processing based on symbol gaps.
+
+        Returns:
+        - List of dates that need to be processed (have at least one symbol missing)
+        - Dict mapping symbol -> set of missing dates
+        """
+        missing_by_symbol = self._get_missing_dates_for_symbols(symbols, trading_days)
+
+        # Collect all dates that have at least one symbol missing data
+        dates_needed: set[str] = set()
+        for symbol_dates in missing_by_symbol.values():
+            dates_needed.update(symbol_dates)
+
+        # Convert back to datetime and sort
+        dates_to_process = [
+            d for d in trading_days
+            if d.strftime("%Y-%m-%d") in dates_needed
+        ]
+
+        return dates_to_process, missing_by_symbol
 
     def _parse_orats_csv(
         self, zip_path: Path, requested_symbols: set[str]
@@ -901,57 +1016,77 @@ class OratsBackfillFlow:
                 trading_days.append(current)
             current += timedelta(days=1)
 
+        # Determine which dates need processing (gap detection)
+        print("\n🔍 Analyseren welke data nog ontbreekt...")
+        dates_to_process, missing_by_symbol = self._get_dates_to_process(symbols, trading_days)
+
+        # Count cache hits
+        cached_count = sum(1 for d in dates_to_process if self._get_cache_path(d).exists())
+        download_count = len(dates_to_process) - cached_count
+
+        # Count total missing symbol-days
+        total_missing = sum(len(dates) for dates in missing_by_symbol.values())
+        symbols_with_gaps = len(missing_by_symbol)
+
         # Confirmation
         print(f"\n📊 Samenvatting:")
         print(f"   Periode: {start_date.strftime('%d/%m/%Y')} - {end_date.strftime('%d/%m/%Y')}")
-        print(f"   Handelsdagen: {len(trading_days)}")
-        print(f"   Symbolen: {len(symbols)}")
-        print(f"   Totaal: {len(trading_days) * len(symbols)} symbool-dagen")
+        print(f"   Handelsdagen in periode: {len(trading_days)}")
+        print(f"   Symbolen: {len(symbols)} ({symbols_with_gaps} met ontbrekende data)")
+        print(f"   Dagen te verwerken: {len(dates_to_process)} (van {len(trading_days)})")
+        print(f"   Cache hits: {cached_count} | Te downloaden: {download_count}")
+        print(f"   Totaal symbool-dagen te verwerken: {total_missing}")
+
+        if not dates_to_process:
+            print("\n✅ Alle data is al aanwezig, geen verwerking nodig!")
+            return
 
         if not prompt_yes_no("\nDoorgaan met backfill?", True):
             print("Geannuleerd.")
             return
 
-        # Connect to FTP
-        print("\n🔗 Verbinden met ORATS FTP server...")
-        try:
-            ftp = self._connect_ftp()
-        except Exception as exc:
-            print(f"❌ FTP verbinding mislukt: {exc}")
-            return
-
-        # Process each day
-        temp_dir = Path("temp_orats")
-        temp_dir.mkdir(exist_ok=True)
+        # FTP connection will be created lazily when needed (if cache misses)
+        ftp: ftplib.FTP | None = None
 
         processed_symbols: set[str] = set()
         failed_downloads = 0
         missing_symbols = 0
+        cache_hits = 0
 
         try:
-            for idx, date in enumerate(trading_days, 1):
+            for idx, date in enumerate(dates_to_process, 1):
                 date_str = date.strftime("%Y%m%d")
-                year = date.strftime("%Y")
+                date_key = date.strftime("%Y-%m-%d")
 
-                # ORATS path: smvstrikes/{YEAR}/ORATS_SMV_Strikes_{YYYYMMDD}.zip
-                remote_path = f"{self.ftp_path}/{year}/ORATS_SMV_Strikes_{date_str}.zip"
-                local_path = temp_dir / f"ORATS_SMV_Strikes_{date_str}.zip"
+                # Get symbols that need this date
+                symbols_needing_date = [
+                    s for s in symbols
+                    if s in missing_by_symbol and date_key in missing_by_symbol[s]
+                ]
 
-                print(f"\n[{idx}/{len(trading_days)}] {date.strftime('%d/%m/%Y')} ({date_str})")
-
-                # Download (with auto-reconnection on failures)
-                success, ftp = self._download_file(ftp, remote_path, local_path)
-                if not success:
-                    failed_downloads += 1
-                    logger.warning(f"Download mislukt: {remote_path}")
+                if not symbols_needing_date:
                     continue
 
-                # Parse CSV
-                day_records = self._parse_orats_csv(local_path, symbols_set)
+                print(f"\n[{idx}/{len(dates_to_process)}] {date.strftime('%d/%m/%Y')} ({date_str}) - {len(symbols_needing_date)} symbols")
+
+                # Get from cache or download
+                zip_path, ftp = self._get_cached_or_download(ftp, date)
+
+                if zip_path is None:
+                    failed_downloads += 1
+                    logger.warning(f"Kon ZIP niet ophalen voor {date_str}")
+                    continue
+
+                if self._get_cache_path(date).exists():
+                    cache_hits += 1
+
+                # Parse CSV - only request symbols that need this date
+                symbols_for_date = set(symbols_needing_date)
+                day_records = self._parse_orats_csv(zip_path, symbols_for_date)
 
                 if not day_records:
                     logger.warning(f"Geen data gevonden voor {date_str}")
-                    missing_symbols += len(symbols)
+                    missing_symbols += len(symbols_needing_date)
                     continue
 
                 # Update JSON files per symbol
@@ -960,16 +1095,14 @@ class OratsBackfillFlow:
                     processed_symbols.add(symbol)
                     print(f"  ✓ {symbol}: {len(merged_records)} totaal records")
 
-                # Cleanup downloaded ZIP file (with retry for Windows file locking)
-                self._safe_delete_file(local_path)
+                # ZIP files blijven in cache - niet verwijderen!
 
         finally:
-            try:
-                ftp.quit()
-            except Exception:
-                pass  # FTP connection may already be closed
-            # Cleanup temp directory (ignore_errors handles any remaining locked files)
-            shutil.rmtree(temp_dir, ignore_errors=True)
+            if ftp is not None:
+                try:
+                    ftp.quit()
+                except Exception:
+                    pass  # FTP connection may already be closed
 
         # Generate validation report
         if self.validation_entries:
@@ -991,7 +1124,9 @@ class OratsBackfillFlow:
         # Summary
         print(f"\n✅ ORATS backfill voltooid!")
         print(f"   Processed symbols: {len(processed_symbols)}/{len(symbols)}")
+        print(f"   Cache hits: {cache_hits}")
         print(f"   Failed downloads: {failed_downloads}")
+        print(f"   Cache locatie: {self.cache_dir}")
 
         if failed_downloads > 0:
             logger.warning(f"{failed_downloads} downloads mislukt, zie logs voor details")

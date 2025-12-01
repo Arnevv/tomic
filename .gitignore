@@ -39,3 +39,6 @@ portfolio_meta.json
 positions.json
 account_info.json
 .env
+
+# ORATS cache (large ZIP files)
+tomic/data/orats_cache/
