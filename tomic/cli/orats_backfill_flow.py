@@ -1033,6 +1033,15 @@ class OratsBackfillFlow:
         print(f"   Periode: {start_date.strftime('%d/%m/%Y')} - {end_date.strftime('%d/%m/%Y')}")
         print(f"   Handelsdagen in periode: {len(trading_days)}")
         print(f"   Symbolen: {len(symbols)} ({symbols_with_gaps} met ontbrekende data)")
+
+        # Show which symbols have missing data
+        if missing_by_symbol:
+            missing_symbols_list = sorted(missing_by_symbol.keys())
+            if len(missing_symbols_list) <= 10:
+                print(f"   Symbolen met gaps: {', '.join(missing_symbols_list)}")
+            else:
+                print(f"   Symbolen met gaps: {', '.join(missing_symbols_list[:10])}... (+{len(missing_symbols_list) - 10})")
+
         print(f"   Dagen te verwerken: {len(dates_to_process)} (van {len(trading_days)})")
         print(f"   Cache hits: {cached_count} | Te downloaden: {download_count}")
         print(f"   Totaal symbool-dagen te verwerken: {total_missing}")
@@ -1085,9 +1094,27 @@ class OratsBackfillFlow:
                 day_records = self._parse_orats_csv(zip_path, symbols_for_date)
 
                 if not day_records:
-                    logger.warning(f"Geen data gevonden voor {date_str}")
+                    # Show which symbols were not found (likely didn't exist yet)
+                    not_found = sorted(symbols_for_date)
+                    if len(not_found) <= 5:
+                        symbols_str = ", ".join(not_found)
+                    else:
+                        symbols_str = f"{', '.join(not_found[:5])}... (+{len(not_found) - 5} meer)"
+                    logger.warning(f"Symbolen niet gevonden in ORATS data voor {date_str}: {symbols_str}")
+                    logger.info(f"  ℹ️  Deze symbolen bestonden mogelijk nog niet op deze datum")
                     missing_symbols += len(symbols_needing_date)
                     continue
+
+                # Report symbols that were requested but not found
+                found_symbols = set(day_records.keys())
+                not_found_symbols = symbols_for_date - found_symbols
+                if not_found_symbols:
+                    if len(not_found_symbols) <= 3:
+                        nf_str = ", ".join(sorted(not_found_symbols))
+                    else:
+                        nf_sorted = sorted(not_found_symbols)
+                        nf_str = f"{', '.join(nf_sorted[:3])}... (+{len(not_found_symbols) - 3})"
+                    print(f"  ⚠️  Niet gevonden: {nf_str} (bestond mogelijk nog niet)")
 
                 # Update JSON files per symbol
                 for symbol, records in day_records.items():
