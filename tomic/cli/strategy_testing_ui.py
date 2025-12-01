@@ -777,7 +777,7 @@ def _print_comparison(comparison: ComparisonResult) -> None:
         print(f"  ! Hogere drawdown (+{w.max_drawdown - b.max_drawdown:.1f}%)")
 
 
-def _apply_parameter_change(param: Dict[str, Any], new_value: Any) -> None:
+def _apply_parameter_change(param: Dict[str, Any], new_value: Any, strategy: str = "iron_condor") -> None:
     """Apply a parameter change to the live configuration."""
     from pathlib import Path
     from tomic.config import _BASE_DIR
@@ -793,18 +793,27 @@ def _apply_parameter_change(param: Dict[str, Any], new_value: Any) -> None:
 
     if source == "strategies.yaml":
         path = _BASE_DIR / "config" / "strategies.yaml"
-        _update_yaml_value(path, ["strategies", "iron_condor", key], new_value)
+        _update_yaml_value(path, ["strategies", strategy, key], new_value)
     elif source == "backtest.yaml":
         path = _BASE_DIR / "config" / "backtest.yaml"
         if param["category"] == "entry":
             _update_yaml_value(path, ["entry_rules", key], new_value)
         else:
             _update_yaml_value(path, ["exit_rules", key], new_value)
+    elif source == "strike_selection_rules.yaml":
+        path = _BASE_DIR / "tomic" / "strike_selection_rules.yaml"
+        _update_yaml_value(path, [strategy, key], new_value)
+    elif source == "volatility_rules.yaml":
+        path = _BASE_DIR / "tomic" / "volatility_rules.yaml"
+        _update_volatility_rule(path, strategy, param, new_value)
+    else:
+        print(f"\n⚠ Onbekende bron: {source} - wijziging niet opgeslagen")
+        return
 
-    print(f"\n Parameter '{key}' bijgewerkt naar {new_value} in {source}")
+    print(f"\n✓ Parameter '{key}' bijgewerkt naar {new_value} in {source}")
 
 
-def _update_yaml_value(path: Path, keys: List[str], value: Any) -> None:
+def _update_yaml_value(path: "Path", keys: List[str], value: Any) -> None:
     """Update a value in a YAML file."""
     import yaml
 
@@ -819,6 +828,61 @@ def _update_yaml_value(path: Path, keys: List[str], value: Any) -> None:
         current = current[key]
 
     current[keys[-1]] = value
+
+    with open(path, "w", encoding="utf-8") as f:
+        yaml.safe_dump(data, f, default_flow_style=False, sort_keys=False)
+
+
+def _update_volatility_rule(path: "Path", strategy: str, param: Dict[str, Any], new_value: Any) -> None:
+    """Update a volatility rule criterion in volatility_rules.yaml.
+
+    The volatility_rules.yaml is a list of dictionaries with 'key' and 'criteria'.
+    Criteria are strings like 'iv_rank >= 0.6'.
+    """
+    import yaml
+
+    with open(path, "r", encoding="utf-8") as f:
+        data = yaml.safe_load(f) or []
+
+    if not isinstance(data, list):
+        print("Onverwacht formaat in volatility_rules.yaml")
+        return
+
+    # Find the strategy entry
+    strategy_entry = None
+    for entry in data:
+        if entry.get("key") == strategy:
+            strategy_entry = entry
+            break
+
+    if not strategy_entry:
+        print(f"Strategie '{strategy}' niet gevonden in volatility_rules.yaml")
+        return
+
+    # Get the field and operator from param
+    field = param.get("field")
+    operator = param.get("operator", ">=")
+
+    if not field:
+        print("Geen veld informatie beschikbaar voor volatility rule")
+        return
+
+    # Update or add the criterion
+    criteria = strategy_entry.get("criteria", [])
+    new_criterion = f"{field} {operator} {new_value}"
+
+    # Find and replace existing criterion for this field
+    updated = False
+    for i, criterion in enumerate(criteria):
+        if isinstance(criterion, str) and criterion.strip().startswith(field):
+            criteria[i] = new_criterion
+            updated = True
+            break
+
+    if not updated:
+        criteria.append(new_criterion)
+
+    strategy_entry["criteria"] = criteria
 
     with open(path, "w", encoding="utf-8") as f:
         yaml.safe_dump(data, f, default_flow_style=False, sort_keys=False)
