@@ -316,13 +316,21 @@ def execute_entry_flow(
     for rec in recommendations:
         logger.info("  -> %s: %s", rec.get("symbol"), rec.get("strategy"))
 
-    # Step 4: Build scan requests
+    # Step 4: Build scan requests (filtering out symbols with existing positions)
     logger.info("[execute_entry_flow] Step 4: building scan requests...")
     scan_requests: list[MarketScanRequest] = []
+    skipped_symbols: set[str] = set()
     for rec in recommendations:
         symbol = str(rec.get("symbol") or "").upper()
         strategy = str(rec.get("strategy") or "").lower().replace(" ", "_")
         if not symbol or not strategy:
+            continue
+
+        # Skip symbols that already have open positions (early filtering)
+        if symbol in position_state.symbols_with_positions:
+            if symbol not in skipped_symbols:
+                logger.info("  [skip] %s: already has open position", symbol)
+                skipped_symbols.add(symbol)
             continue
 
         earnings_value = rec.get("next_earnings")
