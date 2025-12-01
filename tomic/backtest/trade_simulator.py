@@ -10,7 +10,7 @@ Handles:
 from __future__ import annotations
 
 from datetime import date, timedelta
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
 
 from tomic.backtest.config import BacktestConfig
 from tomic.backtest.data_loader import IVTimeSeries
@@ -40,6 +40,7 @@ class TradeSimulator:
     - Max total positions across all symbols
     - Fixed risk per trade ($200)
     - Minimum risk/reward ratio (from strategy config)
+    - Earnings protection (exclude_expiry_before_earnings)
     """
 
     def __init__(
@@ -47,6 +48,8 @@ class TradeSimulator:
         config: BacktestConfig,
         use_greeks_model: bool = False,
         strategy_config: Optional[Dict[str, any]] = None,
+        earnings_data: Optional[Dict[str, List[str]]] = None,
+        exclude_expiry_before_earnings: bool = False,
     ):
         self.config = config
         self.pnl_model = IronCondorPnLModel(config)
@@ -57,6 +60,10 @@ class TradeSimulator:
         # Strategy-specific config (min_risk_reward, min_rom, etc.)
         self.strategy_config = strategy_config or {}
 
+        # Earnings protection settings
+        self.earnings_data = earnings_data or {}
+        self.exclude_expiry_before_earnings = exclude_expiry_before_earnings
+
         # Track open positions by symbol
         self._open_positions: Dict[str, SimulatedTrade] = {}
 
@@ -65,6 +72,7 @@ class TradeSimulator:
 
         # Track rejections for diagnostics
         self._rr_rejections: int = 0
+        self._earnings_rejections: int = 0
 
     def get_open_positions(self) -> Dict[str, SimulatedTrade]:
         """Get currently open positions."""
@@ -114,6 +122,14 @@ class TradeSimulator:
 
         # Calculate target expiry date
         target_expiry = signal.date + timedelta(days=target_dte)
+
+        # Check earnings protection (Laag 2: exclude_expiry_before_earnings)
+        if self._would_cross_earnings(signal.symbol, signal.date, target_expiry):
+            logger.debug(
+                f"Rejected {signal.symbol} - expiry {target_expiry} crosses earnings"
+            )
+            self._earnings_rejections += 1
+            return None
 
         # Estimate credit received
         if self.use_greeks_model and self.greeks_model and signal.spot_at_entry:
@@ -338,7 +354,55 @@ class TradeSimulator:
         self._open_positions.clear()
         return closed_trades
 
-    def get_summary(self) -> Dict[str, any]:
+    def _would_cross_earnings(
+        self, symbol: str, entry_date: date, target_expiry: date
+    ) -> bool:
+        """Check if a trade would be open during earnings.
+
+        Args:
+            symbol: The ticker symbol
+            entry_date: The entry date of the trade
+            target_expiry: The target expiry date
+
+        Returns:
+            True if earnings fall between entry and expiry (trade would cross earnings).
+        """
+        if not self.exclude_expiry_before_earnings:
+            return False
+
+        next_earnings = self._get_next_earnings(symbol, entry_date)
+        if next_earnings is None:
+            return False
+
+        # Reject if earnings are between entry and expiry (exclusive of entry, inclusive of expiry)
+        # i.e., the position would still be open when earnings occur
+        return entry_date < next_earnings <= target_expiry
+
+    def _get_next_earnings(self, symbol: str, reference_date: date) -> Optional[date]:
+        """Get the next earnings date for a symbol after reference_date.
+
+        Args:
+            symbol: The ticker symbol
+            reference_date: The date to search from
+
+        Returns:
+            The next earnings date, or None if not found.
+        """
+        earnings_dates = self.earnings_data.get(symbol.upper(), [])
+        if not earnings_dates:
+            return None
+
+        for date_str in sorted(earnings_dates):
+            try:
+                earnings_date = date.fromisoformat(date_str)
+                if earnings_date >= reference_date:
+                    return earnings_date
+            except ValueError:
+                continue
+
+        return None
+
+    def get_summary(self) -> Dict[str, Any]:
         """Get summary statistics of the simulation."""
         all_trades = self._all_trades
         closed_trades = [t for t in all_trades if t.status == TradeStatus.CLOSED]
@@ -359,6 +423,7 @@ class TradeSimulator:
             "total_pnl": total_pnl,
             "avg_pnl": total_pnl / len(closed_trades) if closed_trades else 0,
             "rr_rejections": self._rr_rejections,
+            "earnings_rejections": self._earnings_rejections,
         }
 
 

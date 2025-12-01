@@ -11,7 +11,9 @@ Coordinates all components:
 
 from __future__ import annotations
 
+import json
 from datetime import date, timedelta
+from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional
 
 from tomic.backtest.config import BacktestConfig, load_backtest_config
@@ -68,9 +70,24 @@ class BacktestEngine:
             strategy_config = self._load_strategy_config()
         self.strategy_config = strategy_config
 
+        # Load earnings data for earnings protection
+        self.earnings_data = self._load_earnings_data()
+
+        # Extract earnings settings from strategy config
+        self.min_days_until_earnings = self._get_earnings_setting(
+            "min_days_until_earnings", default=None
+        )
+        self.exclude_expiry_before_earnings = self._get_earnings_setting(
+            "exclude_expiry_before_earnings", default=False
+        )
+
         # Initialize components
         self.data_loader = DataLoader(self.config)
-        self.signal_generator = SignalGenerator(self.config)
+        self.signal_generator = SignalGenerator(
+            self.config,
+            earnings_data=self.earnings_data,
+            min_days_until_earnings=self.min_days_until_earnings,
+        )
         self.metrics_calculator = MetricsCalculator()
 
     def _load_strategy_config(self) -> Dict[str, Any]:
@@ -105,6 +122,43 @@ class BacktestEngine:
             return result
         except Exception:
             return {}
+
+    def _load_earnings_data(self) -> Dict[str, List[str]]:
+        """Load earnings dates from JSON file.
+
+        Returns:
+            Dict mapping symbol -> list of earnings date strings (YYYY-MM-DD).
+        """
+        base_dir = Path(__file__).resolve().parent.parent
+        earnings_path = base_dir / "data" / "earnings_dates.json"
+
+        if not earnings_path.exists():
+            logger.warning(f"Earnings data file not found: {earnings_path}")
+            return {}
+
+        try:
+            with open(earnings_path, "r", encoding="utf-8") as f:
+                data = json.load(f)
+            logger.info(f"Loaded earnings data for {len(data)} symbols")
+            return data
+        except Exception as e:
+            logger.warning(f"Failed to load earnings data: {e}")
+            return {}
+
+    def _get_earnings_setting(self, key: str, default: Any = None) -> Any:
+        """Get earnings setting from strategy config.
+
+        Checks entry_rules config first, then strategy_config.
+        """
+        # Check if explicitly set in entry_rules config
+        entry_rules = self.config.entry_rules
+        if hasattr(entry_rules, key):
+            value = getattr(entry_rules, key)
+            if value is not None:
+                return value
+
+        # Fall back to strategy config from strategies.yaml
+        return self.strategy_config.get(key, default)
 
     def run(self) -> BacktestResult:
         """Run the complete backtest.
@@ -229,6 +283,8 @@ class BacktestEngine:
             self.config,
             use_greeks_model=self.config.use_greeks_model,
             strategy_config=self.strategy_config,
+            earnings_data=self.earnings_data,
+            exclude_expiry_before_earnings=self.exclude_expiry_before_earnings,
         )
 
         # Get all trading dates in period
@@ -278,7 +334,17 @@ class BacktestEngine:
         summary = simulator.get_summary()
 
         rr_rejections = summary.get('rr_rejections', 0)
-        rejection_msg = f", {rr_rejections} R/R filtered" if rr_rejections > 0 else ""
+        earnings_rejections = summary.get('earnings_rejections', 0)
+        signal_earnings_blocks = self.signal_generator.get_earnings_blocks()
+
+        rejection_parts = []
+        if rr_rejections > 0:
+            rejection_parts.append(f"{rr_rejections} R/R filtered")
+        if signal_earnings_blocks > 0:
+            rejection_parts.append(f"{signal_earnings_blocks} earnings-blocked signals")
+        if earnings_rejections > 0:
+            rejection_parts.append(f"{earnings_rejections} earnings-expiry filtered")
+        rejection_msg = f", {', '.join(rejection_parts)}" if rejection_parts else ""
 
         logger.info(
             f"{period_name} complete: {summary['total_trades']} trades, "

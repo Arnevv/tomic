@@ -25,11 +25,20 @@ class SignalGenerator:
     - Skew
     - Term structure
     - IV-HV spread
+    - Earnings proximity (min_days_until_earnings)
     """
 
-    def __init__(self, config: BacktestConfig):
+    def __init__(
+        self,
+        config: BacktestConfig,
+        earnings_data: Optional[Dict[str, List[str]]] = None,
+        min_days_until_earnings: Optional[int] = None,
+    ):
         self.config = config
         self.entry_rules = config.entry_rules
+        self.earnings_data = earnings_data or {}
+        self.min_days_until_earnings = min_days_until_earnings
+        self._earnings_blocks = 0  # Track blocked signals due to earnings
 
     def scan_for_signals(
         self,
@@ -54,6 +63,11 @@ class SignalGenerator:
             if open_positions.get(symbol, False):
                 continue
 
+            # Check earnings proximity (Laag 1: min_days_until_earnings)
+            if self._is_earnings_too_close(symbol, trading_date):
+                self._earnings_blocks += 1
+                continue
+
             # Get IV data for this date
             data_point = ts.get(trading_date)
             if data_point is None or not data_point.is_valid():
@@ -65,6 +79,58 @@ class SignalGenerator:
                 signals.append(signal)
 
         return signals
+
+    def _is_earnings_too_close(self, symbol: str, trading_date: date) -> bool:
+        """Check if earnings are too close for this symbol on this date.
+
+        Args:
+            symbol: The ticker symbol
+            trading_date: The date we're considering entering
+
+        Returns:
+            True if earnings are within min_days_until_earnings, False otherwise.
+        """
+        if self.min_days_until_earnings is None or self.min_days_until_earnings <= 0:
+            return False
+
+        next_earnings = self._get_next_earnings(symbol, trading_date)
+        if next_earnings is None:
+            return False
+
+        days_until = (next_earnings - trading_date).days
+        return days_until < self.min_days_until_earnings
+
+    def _get_next_earnings(self, symbol: str, reference_date: date) -> Optional[date]:
+        """Get the next earnings date for a symbol after reference_date.
+
+        Args:
+            symbol: The ticker symbol
+            reference_date: The date to search from
+
+        Returns:
+            The next earnings date, or None if not found.
+        """
+        earnings_dates = self.earnings_data.get(symbol.upper(), [])
+        if not earnings_dates:
+            return None
+
+        for date_str in sorted(earnings_dates):
+            try:
+                earnings_date = date.fromisoformat(date_str)
+                if earnings_date >= reference_date:
+                    return earnings_date
+            except ValueError:
+                continue
+
+        return None
+
+    def get_earnings_blocks(self) -> int:
+        """Get count of signals blocked due to earnings proximity."""
+        return self._earnings_blocks
+
+    def reset_earnings_blocks(self) -> None:
+        """Reset earnings block counter."""
+        self._earnings_blocks = 0
 
     def _evaluate_entry(self, dp: IVDataPoint) -> Optional[EntrySignal]:
         """Evaluate if a data point meets entry criteria.

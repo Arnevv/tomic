@@ -25,6 +25,10 @@ class EntryRulesConfig(BaseModel):
     dte_min: Optional[int] = None
     dte_max: Optional[int] = None
 
+    # Earnings protection (loaded from strategies.yaml if not specified)
+    min_days_until_earnings: Optional[int] = None
+    exclude_expiry_before_earnings: bool = False
+
     model_config = ConfigDict(extra="allow")
 
 
