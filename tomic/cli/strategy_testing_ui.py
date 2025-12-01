@@ -427,6 +427,16 @@ def _run_backtest_with_config(
         get_strategy_param(live_config, strategy, "min_risk_reward", 1.0)
     )
 
+    # Get stddev_range from overrides or config (override takes precedence)
+    stddev_range = overrides.get("stddev_range") or strategy_strike.get("stddev_range")
+
+    # Get delta_range from overrides or config
+    delta_range = (
+        overrides.get("delta_range")
+        or strategy_strike.get("short_delta_range")
+        or strategy_strike.get("delta_range")
+    )
+
     # Store strategy-specific config
     strategy_overrides = {
         "min_risk_reward": min_rr,
@@ -444,8 +454,8 @@ def _run_backtest_with_config(
         ),
         # Include strike selection for reference
         "dte_range": dte_range,
-        "stddev_range": strategy_strike.get("stddev_range"),
-        "delta_range": strategy_strike.get("short_delta_range") or strategy_strike.get("delta_range"),
+        "stddev_range": stddev_range,
+        "delta_range": delta_range,
     }
 
     # Create engine with strategy config
@@ -523,6 +533,63 @@ def _print_single_result(result: TestResult) -> None:
 # =============================================================================
 
 
+def _parse_parameter_value(value_str: str, current_value: Any) -> Any:
+    """Parse a string value to match the type of the current value.
+
+    Handles:
+    - float: "1.5" -> 1.5
+    - int: "45" -> 45
+    - list of int: "20, 60" -> [20, 60]
+    - list of float: "0.15, 0.35" -> [0.15, 0.35]
+
+    Args:
+        value_str: String input from user
+        current_value: Current parameter value (used to determine target type)
+
+    Returns:
+        Parsed value in the correct type, or None if parsing fails.
+
+    Raises:
+        ValueError: If parsing fails with a specific error message.
+    """
+    value_str = value_str.strip()
+
+    # Handle list types (e.g., dte_range, delta_range)
+    if isinstance(current_value, list):
+        # Split on comma and strip whitespace
+        parts = [p.strip() for p in value_str.split(",")]
+        if len(parts) < 2:
+            raise ValueError(f"Verwacht minimaal 2 waarden gescheiden door komma (bijv. '{current_value[0]}, {current_value[1]}')")
+
+        # Determine element type from current value
+        if current_value and isinstance(current_value[0], int):
+            try:
+                return [int(p) for p in parts]
+            except ValueError:
+                raise ValueError("Alle waarden moeten gehele getallen zijn")
+        else:
+            try:
+                return [float(p) for p in parts]
+            except ValueError:
+                raise ValueError("Alle waarden moeten getallen zijn")
+
+    # Handle simple types
+    if isinstance(current_value, float):
+        try:
+            return float(value_str)
+        except ValueError:
+            raise ValueError("Verwacht een decimaal getal")
+
+    if isinstance(current_value, int):
+        try:
+            return int(value_str)
+        except ValueError:
+            raise ValueError("Verwacht een geheel getal")
+
+    # Default: return as string
+    return value_str
+
+
 def run_whatif_analysis() -> None:
     """Test impact of changing a single parameter."""
     print("\n" + "=" * 70)
@@ -568,14 +635,12 @@ def run_whatif_analysis() -> None:
         return
 
     try:
-        if isinstance(current, float):
-            new_value = float(new_value_str)
-        elif isinstance(current, int):
-            new_value = int(new_value_str)
-        else:
-            new_value = new_value_str
-    except ValueError:
-        print("Ongeldige waarde.")
+        new_value = _parse_parameter_value(new_value_str, current)
+        if new_value is None:
+            print("Ongeldige waarde.")
+            return
+    except ValueError as e:
+        print(f"Ongeldige waarde: {e}")
         return
 
     # Confirm

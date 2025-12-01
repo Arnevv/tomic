@@ -115,6 +115,9 @@ class TradeSimulator:
         # Calculate target expiry date
         target_expiry = signal.date + timedelta(days=target_dte)
 
+        # Get stddev_range from strategy config (affects credit calculation)
+        stddev_range = self.strategy_config.get("stddev_range")
+
         # Estimate credit received
         if self.use_greeks_model and self.greeks_model and signal.spot_at_entry:
             estimated_credit = self.greeks_model.estimate_credit_from_greeks(
@@ -122,12 +125,14 @@ class TradeSimulator:
                 atm_iv=signal.iv_at_entry,
                 dte=target_dte,
                 max_risk=max_risk,
+                stddev_range=stddev_range,
             )
         else:
             estimated_credit = self.pnl_model.estimate_credit(
                 iv_at_entry=signal.iv_at_entry,
                 max_risk=max_risk,
                 target_dte=target_dte,
+                stddev_range=stddev_range,
             )
 
         # Apply slippage to credit
