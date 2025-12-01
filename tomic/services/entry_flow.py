@@ -353,8 +353,23 @@ def execute_entry_flow(
 
     logger.info("[execute_entry_flow] built %d scan requests", len(scan_requests))
 
-    # Step 5: Setup chain source
-    logger.info("[execute_entry_flow] Step 5: setting up chain source (Polygon)...")
+    # Step 5: IB snapshot refresh for recommended symbols (before fetching Polygon chains)
+    if config.ib_refresh:
+        t_refresh_start = time.perf_counter()
+        unique_symbols = sorted({req.symbol for req in scan_requests})
+        logger.info("[execute_entry_flow] Step 5: IB snapshot-refresh for %d symbols...", len(unique_symbols))
+        for symbol in unique_symbols:
+            try:
+                spot = refresh_spot_price(symbol)
+                if spot is not None:
+                    logger.info("  [!] %s: live spot price %.2f", symbol, spot)
+            except Exception as exc:
+                logger.warning("  [!] %s: IB refresh failed: %s", symbol, exc)
+        t_refresh_elapsed = time.perf_counter() - t_refresh_start
+        logger.info("[execute_entry_flow] ib_refresh: %s", _fmt_ms(t_refresh_elapsed))
+
+    # Step 6: Setup chain source
+    logger.info("[execute_entry_flow] Step 6: setting up chain source (Polygon)...")
     from tomic.cli.app_services import create_controlpanel_services
     from tomic.cli.controlpanel_session import ControlPanelSession
     from tomic.strike_selector import StrikeSelector
@@ -375,9 +390,9 @@ def execute_entry_flow(
             logger.debug("Geen chain voor %s: %s", symbol, exc)
             return None
 
-    # Step 6: Run market scan
+    # Step 7: Run market scan
     t_scan_start = time.perf_counter()
-    logger.info("[execute_entry_flow] Step 6: running market scan (ib_refresh=%s)...", config.ib_refresh)
+    logger.info("[execute_entry_flow] Step 7: running market scan (ib_refresh=%s)...", config.ib_refresh)
     pipeline = create_strategy_pipeline()
     portfolio_service = PortfolioService()
     prep_config = ChainPreparationConfig.from_app_config()
@@ -431,8 +446,8 @@ def execute_entry_flow(
             candidates_found=0,
         )
 
-    # Step 7: Filter by position limits
-    logger.info("[execute_entry_flow] Step 7: filtering by position limits...")
+    # Step 8: Filter by position limits
+    logger.info("[execute_entry_flow] Step 8: filtering by position limits...")
     candidate_dicts = [
         {"symbol": c.symbol, "strategy": c.strategy, "candidate": c}
         for c in candidates
@@ -469,8 +484,8 @@ def execute_entry_flow(
             candidates_after_limits=0,
         )
 
-    # Step 8: Submit orders for each candidate
-    logger.info("[execute_entry_flow] Step 8: submitting orders for %d candidates...", len(allowed_candidates))
+    # Step 9: Submit orders for each candidate
+    logger.info("[execute_entry_flow] Step 9: submitting orders for %d candidates...", len(allowed_candidates))
     for idx, candidate in enumerate(allowed_candidates, 1):
         t_order_start = time.perf_counter()
         symbol = candidate.symbol
