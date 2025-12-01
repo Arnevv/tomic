@@ -126,6 +126,8 @@ class _SafeStreamWrapper:
             '\u2705': '[ok]',            # ✅
             '\u274c': '[x]',             # ❌
             '\u2192': '->',              # →
+            '\u2014': ' - ',             # — (em-dash)
+            '\u2013': ' - ',             # – (en-dash)
             '\u03c3': 'sigma',           # σ
             '\u26a1': '[!]',             # ⚡
             '\u26a0': '[!]',             # ⚠
@@ -138,7 +140,6 @@ class _SafeStreamWrapper:
             '\u2795': '[+]',             # ➕
             '\U0001f4e1': '[signal]',    # 📡
             '\u0394': 'delta',           # Δ
-            'ù': ' | ',                  # ù separator used in logs
         }
         for char, replacement in replacements.items():
             text = text.replace(char, replacement)

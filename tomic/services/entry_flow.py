@@ -314,7 +314,7 @@ def execute_entry_flow(
 
     logger.info("[execute_entry_flow] market_overview: %s (%d recommendations)", _fmt_ms(t_overview_elapsed), len(recommendations))
     for rec in recommendations:
-        logger.info("  → %s: %s (score=%.2f)", rec.get("symbol"), rec.get("strategy"), rec.get("score", 0))
+        logger.info("  -> %s: %s", rec.get("symbol"), rec.get("strategy"))
 
     # Step 4: Build scan requests
     logger.info("[execute_entry_flow] Step 4: building scan requests...")

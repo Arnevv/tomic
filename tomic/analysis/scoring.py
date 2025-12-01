@@ -70,19 +70,24 @@ def _resolve_strategy_config(strategy_name: str) -> Mapping[str, Any]:
 def resolve_min_risk_reward(
     strategy_cfg: Mapping[str, Any], criteria: CriteriaConfig | None
 ) -> float:
-    """Determine the effective minimum risk/reward threshold."""
+    """Determine the effective minimum risk/reward threshold.
 
+    Priority order (highest to lowest):
+    1. Strategy-specific setting from strategies.yaml
+    2. Default from strategies.yaml
+    3. Fallback from criteria.yaml
+    """
+    # Try strategy config first (includes strategy-specific and default from strategies.yaml)
     min_rr = safe_float(strategy_cfg.get("min_risk_reward"))
 
-    crit_value: float | None = None
-    if criteria is not None:
+    # Use criteria.yaml as fallback only if strategy config has no value
+    if min_rr is None and criteria is not None:
         try:
-            crit_value = safe_float(criteria.strategy.acceptance.min_risk_reward)
+            min_rr = safe_float(criteria.strategy.acceptance.min_risk_reward)
         except AttributeError:  # pragma: no cover - defensive
-            crit_value = None
-    if crit_value is not None:
-        min_rr = crit_value
+            min_rr = None
 
+    # Final fallback to RULES
     if min_rr is None:
         fallback = safe_float(getattr(RULES.strategy.acceptance, "min_risk_reward", None))
         min_rr = fallback if fallback is not None else 0.0
