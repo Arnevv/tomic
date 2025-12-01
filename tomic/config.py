@@ -36,6 +36,7 @@ class AppConfig(BaseModel):
     IV_DAILY_SUMMARY_DIR: str = "tomic/data/iv_daily_summary"
     IV_DEBUG_DIR: str = "iv_debug"
     HISTORICAL_VOLATILITY_DIR: str = "tomic/data/historical_volatility"
+    ORATS_CACHE_DIR: str = "tomic/data/orats_cache"
     EXPORT_DIR: str = "exports"
     IB_HOST: str = "127.0.0.1"
     IB_PORT: int = 7497
