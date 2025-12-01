@@ -105,6 +105,66 @@ class InterceptHandler(logging.Handler):
             logger.log(record.levelno, record.getMessage())
 
 
+class _SafeStreamWrapper:
+    """Wrapper for streams that handles encoding errors gracefully on Windows."""
+
+    def __init__(self, stream):
+        self._stream = stream
+
+    def write(self, message: str) -> int:
+        try:
+            return self._stream.write(message)
+        except UnicodeEncodeError:
+            # Replace unencodable characters with ASCII alternatives
+            safe_message = self._make_ascii_safe(message)
+            return self._stream.write(safe_message)
+
+    def _make_ascii_safe(self, text: str) -> str:
+        """Replace Unicode characters with ASCII alternatives."""
+        replacements = {
+            '\U0001f504': '[sync]',      # 🔄
+            '\u2705': '[ok]',            # ✅
+            '\u274c': '[x]',             # ❌
+            '\u2192': '->',              # →
+            '\u03c3': 'sigma',           # σ
+            '\u26a1': '[!]',             # ⚡
+            '\u26a0': '[!]',             # ⚠
+            '\ufe0f': '',                # variation selector
+            '\u2264': '<=',              # ≤
+            '\u2265': '>=',              # ≥
+            '\U0001f680': '[>>]',        # 🚀
+            '\U0001f4c8': '[chart]',     # 📈
+            '\u23f1': '[timer]',         # ⏱
+            '\u2795': '[+]',             # ➕
+            '\U0001f4e1': '[signal]',    # 📡
+            '\u0394': 'delta',           # Δ
+            'ù': ' | ',                  # ù separator used in logs
+        }
+        for char, replacement in replacements.items():
+            text = text.replace(char, replacement)
+        # Final fallback: encode with 'replace' for any remaining chars
+        return text.encode(self._stream.encoding or 'utf-8', errors='replace').decode(
+            self._stream.encoding or 'utf-8', errors='replace'
+        )
+
+    def flush(self) -> None:
+        self._stream.flush()
+
+    def __getattr__(self, name: str):
+        return getattr(self._stream, name)
+
+
+def _needs_safe_wrapper(stream) -> bool:
+    """Check if stream needs the safe wrapper for encoding issues."""
+    if sys.platform != 'win32':
+        return False
+    encoding = getattr(stream, 'encoding', None)
+    if encoding is None:
+        return True
+    # cp1252, cp850, etc. don't support full Unicode
+    return encoding.lower() not in ('utf-8', 'utf8', 'utf-16', 'utf-32')
+
+
 def setup_logging(
     default_level: int = logging.INFO,
     *,
@@ -123,6 +183,10 @@ def setup_logging(
     level = getattr(logging, level_name, default_level)
 
     stream = sys.stdout if stdout else sys.stderr
+
+    # Wrap stream if needed for Windows encoding issues
+    if _needs_safe_wrapper(stream):
+        stream = _SafeStreamWrapper(stream)
 
     if _LOGURU_AVAILABLE:
         logger.remove()
