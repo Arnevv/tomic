@@ -1,0 +1,11 @@
+[
+  {
+    "date": "2025-11-28",
+    "atm_iv": 0.3055499279288766,
+    "iv_rank (IV)": null,
+    "iv_percentile (IV)": null,
+    "term_m1_m2": 0.03,
+    "term_m1_m3": -0.03,
+    "skew": 6.0
+  }
+]
