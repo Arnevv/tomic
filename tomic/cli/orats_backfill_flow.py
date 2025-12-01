@@ -7,6 +7,7 @@ import ftplib
 import io
 import os
 import shutil
+import socket
 import time
 import zipfile
 from dataclasses import dataclass
@@ -107,6 +108,13 @@ class ValidationEntry:
 class OratsBackfillFlow:
     """Main class for ORATS backfill operations."""
 
+    # FTP timeout in seconds - prevents indefinite hangs on network issues
+    FTP_TIMEOUT = 60
+    # Number of downloads between keepalive checks
+    KEEPALIVE_INTERVAL = 10
+    # Delay between downloads to avoid overwhelming the server (seconds)
+    DOWNLOAD_DELAY = 0.5
+
     def __init__(self):
         # Strip any trailing slashes and paths from hostname (FTP expects hostname only)
         raw_host = os.getenv("ORATS_FTP_HOST", "de1.hostedftp.com")
@@ -115,9 +123,13 @@ class OratsBackfillFlow:
         self.ftp_password = os.getenv("ORATS_FTP_PASSWORD", "")
         self.ftp_path = os.getenv("ORATS_FTP_PATH", "smvstrikes")
         self.validation_entries: list[ValidationEntry] = []
+        self._download_count = 0
 
     def _connect_ftp(self) -> ftplib.FTP:
-        """Connect to ORATS FTP server."""
+        """Connect to ORATS FTP server with timeout.
+
+        Uses a 60-second timeout to prevent indefinite hangs on network issues.
+        """
         if not self.ftp_user or not self.ftp_password:
             raise ValueError(
                 "ORATS FTP credentials niet gevonden. "
@@ -125,25 +137,73 @@ class OratsBackfillFlow:
             )
 
         try:
-            ftp = ftplib.FTP(self.ftp_host)
+            ftp = ftplib.FTP(self.ftp_host, timeout=self.FTP_TIMEOUT)
             ftp.login(self.ftp_user, self.ftp_password)
-            logger.info(f"FTP verbinding gemaakt met {self.ftp_host}")
+            logger.info(f"FTP verbinding gemaakt met {self.ftp_host} (timeout={self.FTP_TIMEOUT}s)")
             return ftp
         except Exception as exc:
             logger.error(f"FTP verbinding mislukt: {exc}")
             raise
 
+    def _ensure_ftp_connected(self, ftp: ftplib.FTP | None) -> ftplib.FTP:
+        """Ensure FTP connection is alive, reconnect if necessary.
+
+        Checks connection health using NOOP command and reconnects if stale.
+        """
+        if ftp is None:
+            logger.info("Geen FTP verbinding, maak nieuwe verbinding...")
+            return self._connect_ftp()
+
+        try:
+            # NOOP command to check if connection is alive
+            ftp.voidcmd("NOOP")
+            return ftp
+        except Exception as exc:
+            logger.warning(f"FTP verbinding verloren ({exc}), opnieuw verbinden...")
+            try:
+                ftp.quit()
+            except Exception:
+                pass
+            return self._connect_ftp()
+
     def _download_file(
         self, ftp: ftplib.FTP, remote_path: str, local_path: Path
-    ) -> bool:
-        """Download file from FTP with retry logic."""
+    ) -> tuple[bool, ftplib.FTP]:
+        """Download file from FTP with retry logic and reconnection support.
+
+        Returns tuple of (success, ftp_connection) - ftp may be new connection if
+        reconnection was needed.
+        """
         max_retries = 3
+        current_ftp = ftp
+
         for attempt in range(max_retries):
             try:
+                # Check/refresh connection every KEEPALIVE_INTERVAL downloads
+                self._download_count += 1
+                if self._download_count % self.KEEPALIVE_INTERVAL == 0:
+                    current_ftp = self._ensure_ftp_connected(current_ftp)
+
                 with local_path.open("wb") as f:
-                    ftp.retrbinary(f"RETR {remote_path}", f.write)
+                    current_ftp.retrbinary(f"RETR {remote_path}", f.write)
                 logger.info(f"Downloaded: {remote_path}")
-                return True
+
+                # Add small delay to avoid overwhelming the server
+                time.sleep(self.DOWNLOAD_DELAY)
+                return True, current_ftp
+
+            except (socket.timeout, TimeoutError) as exc:
+                logger.warning(
+                    f"Download timeout voor {remote_path}: {exc}. "
+                    f"Reconnecting..."
+                )
+                current_ftp = self._connect_ftp()
+                if attempt < max_retries - 1:
+                    time.sleep(2 ** attempt)
+                else:
+                    logger.error(f"Download definitief mislukt na {max_retries} pogingen: {remote_path}")
+                    return False, current_ftp
+
             except Exception as exc:
                 if attempt < max_retries - 1:
                     wait = 2 ** attempt
@@ -152,10 +212,16 @@ class OratsBackfillFlow:
                         f"Retry in {wait}s..."
                     )
                     time.sleep(wait)
+                    # Try to reconnect on any error
+                    try:
+                        current_ftp = self._ensure_ftp_connected(current_ftp)
+                    except Exception:
+                        current_ftp = self._connect_ftp()
                 else:
                     logger.error(f"Download definitief mislukt na {max_retries} pogingen: {remote_path}")
-                    return False
-        return False
+                    return False, current_ftp
+
+        return False, current_ftp
 
     def _parse_orats_csv(
         self, zip_path: Path, requested_symbols: set[str]
@@ -426,7 +492,7 @@ class OratsBackfillFlow:
                     if isinstance(iv_percentile_value, (int, float)):
                         iv_percentile_value *= 100
                 else:
-                    logger.debug(f"Insufficient IV history for {ticker} on {date_str}")
+                    logger.debug(f"Insufficient IV history for {ticker} on {parsed_date}")
             except Exception as exc:
                 logger.warning(f"IV rank/percentile berekening mislukt voor {ticker}: {exc}")
 
@@ -873,8 +939,9 @@ class OratsBackfillFlow:
 
                 print(f"\n[{idx}/{len(trading_days)}] {date.strftime('%d/%m/%Y')} ({date_str})")
 
-                # Download
-                if not self._download_file(ftp, remote_path, local_path):
+                # Download (with auto-reconnection on failures)
+                success, ftp = self._download_file(ftp, remote_path, local_path)
+                if not success:
                     failed_downloads += 1
                     logger.warning(f"Download mislukt: {remote_path}")
                     continue
