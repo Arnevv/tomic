@@ -1,66 +1,9 @@
 version: 1
 strategy_type: iron_condor
 symbols:
-- AAPL
-- ABBV
-- ACHR
-- ACN
-- ADBE
-- AFRM
-- AMAT
-- AMD
-- AMGN
-- AMT
-- AMZN
-- ANET
-- APP
-- ARKK
-- ARM
-- ASTS
-- AVGO
-- AXP
-- BA
-- BABA
-- BAC
-- BE
-- BIDU
-- BYND
-- C
-- CMG
-- COIN
-- CRM
-- CRWD
-- CVS
-- DAL
-- DDOG
-- DE
-- DELL
-- ENPH
-- EWZ
-- GME
-- INTC
-- LULU
-- MDB
-- MRNA
-- MRVL
-- MU
-- NFLX
-- NKE
-- ORCL
-- PFE
-- SCHW
-- DKNG
-- FDX
-- NET
-- RIVN
-- ROKU
-- SNAP
-- SQ
-- UAL
-- XBI
-- XLV
+- TSLA
 start_date: '2019-01-01'
-end_date: '2025-01-01'
+end_date: '2025-11-30'
 target_dte: 45
 entry_rules:
   iv_percentile_min: 60.0
@@ -85,7 +28,7 @@ position_sizing:
   max_positions_per_symbol: 1
   max_total_positions: 10
 sample_split:
-  in_sample_ratio: 1.0
+  in_sample_ratio: 0.3
   method: chronological
 costs:
   commission_per_contract: 1.0
