@@ -15,7 +15,7 @@ from __future__ import annotations
 import csv
 import json
 from dataclasses import asdict, dataclass
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -265,6 +265,12 @@ class ExternalValidationExporter:
                     if day_idx < len(trade.spot_history)
                     else None
                 )
+                # Use actual date from date_history if available (fixes DTE calculation bug)
+                if day_idx < len(trade.date_history):
+                    trade_date = trade.date_history[day_idx]
+                else:
+                    # Fallback to calculated date (may be inaccurate if data gaps exist)
+                    trade_date = trade.entry_date + timedelta(days=day_idx)
 
                 iv_change = None
                 iv_change_vol_points = None
@@ -277,9 +283,9 @@ class ExternalValidationExporter:
 
                 pnl_pct = (pnl / trade.max_risk) * 100 if trade.max_risk else 0
 
-                # Calculate DTE remaining
-                dte_at_entry = (trade.target_expiry - trade.entry_date).days
-                dte_remaining = max(0, dte_at_entry - day_idx)
+                # Calculate DTE remaining using actual trade date
+                dte_remaining = max(0, (trade.target_expiry - trade_date).days)
+                days_in_trade_actual = (trade_date - trade.entry_date).days
 
                 # Check exit triggers - MUST match exit_evaluator.py logic exactly
                 # Profit target: compare P&L to percentage of CREDIT, not max_risk
@@ -305,8 +311,8 @@ class ExternalValidationExporter:
                     and iv_change_vol_points <= -iv_collapse_threshold
                 )
 
-                # Max days in trade
-                max_dit_triggered = day_idx >= max_dit
+                # Max days in trade (use actual days, not array index)
+                max_dit_triggered = days_in_trade_actual >= max_dit
 
                 # Determine exit in priority order (same as exit_evaluator.py)
                 exit_triggered = (
@@ -331,15 +337,10 @@ class ExternalValidationExporter:
                 elif max_dit_triggered:
                     exit_reason = "max_days_in_trade"
 
-                # Calculate trade date
-                from datetime import timedelta
-
-                trade_date = trade.entry_date + timedelta(days=day_idx)
-
                 snapshot = TradeDailySnapshot(
                     trade_id=idx,
                     date=str(trade_date),
-                    days_in_trade=day_idx,
+                    days_in_trade=days_in_trade_actual,
                     iv_current=iv_current,
                     iv_change_from_entry=iv_change,
                     spot_current=spot_current,
