@@ -224,6 +224,7 @@ class TradeSimulator:
             # Update P&L tracking
             if current_iv is not None:
                 trade.iv_history.append(current_iv)
+                trade.date_history.append(current_date)
 
                 # Use Greeks-based P&L if available
                 if self.use_greeks_model and self.greeks_model and trade.greeks_at_entry and trade.spot_at_entry and ts:
