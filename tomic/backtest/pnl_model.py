@@ -66,9 +66,11 @@ class IronCondorPnLModel:
     """
 
     # Model parameters (can be calibrated with real trade data)
-    # Conservative estimates to avoid overly optimistic backtests
-    VEGA_SENSITIVITY = 1.0  # $ per vol point per $100 max risk (was 1.5)
-    THETA_DECAY_FACTOR = 0.4  # Fraction of credit captured by theta over full DTE (was 0.6)
+    # Realistic estimates for iron condor P&L dynamics
+    # Increased from conservative values (1.0/0.4) to more realistic values
+    # to better model losses during IV spikes and normal theta decay
+    VEGA_SENSITIVITY = 1.5  # $ per vol point per $100 max risk
+    THETA_DECAY_FACTOR = 0.5  # Fraction of credit captured by theta over full DTE
     MAX_PROFIT_CAPTURE = 0.50  # Target 50% of max profit
 
     def __init__(self, config: BacktestConfig):
