@@ -12,6 +12,7 @@ from functools import partial
 from typing import Any, Callable, Dict, List, Optional, Tuple
 
 from tomic.cli.common import Menu, prompt, prompt_yes_no
+from tomic.cli.external_validation_export import run_external_validation_export
 from tomic.logutils import logger
 
 try:
@@ -274,6 +275,7 @@ def run_strategy_testing_menu() -> None:
     menu.add("Custom Experiment", run_custom_experiment)
     menu.add("Resultaten Bekijken", view_results)
     menu.add("Test Configuratie", configure_test_settings)
+    menu.add("Export voor Externe Validatie", run_external_validation_export)
     menu.run()
 
 
@@ -1123,6 +1125,7 @@ __all__ = [
     "run_whatif_analysis",
     "run_parameter_sweep",
     "run_custom_experiment",
+    "run_external_validation_export",
     "load_live_config",
     "get_testable_parameters",
 ]
