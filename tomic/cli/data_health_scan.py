@@ -203,6 +203,75 @@ def _check_stale(window: SeriesWindow, *, key: str, today: date, limits: dict[st
     return False
 
 
+@dataclass
+class DataGap:
+    """Represents a gap in data coverage."""
+
+    start: date  # Last date with data before gap
+    end: date  # First date with data after gap
+    trading_days_missing: int  # Number of trading days in the gap
+
+
+def _detect_gaps(
+    records: list[dict],
+    *,
+    date_key: str = "date",
+    min_gap_trading_days: int = 5,
+) -> list[DataGap]:
+    """Detect significant gaps in a date series.
+
+    Args:
+        records: List of records with date field
+        date_key: Key for date field in records
+        min_gap_trading_days: Minimum gap size to report (default 5 trading days)
+
+    Returns:
+        List of DataGap objects for gaps >= min_gap_trading_days
+    """
+    dates: list[date] = []
+    for entry in records:
+        if not isinstance(entry, dict):
+            continue
+        parsed = _parse_date(entry.get(date_key))
+        if parsed:
+            dates.append(parsed)
+
+    if len(dates) < 2:
+        return []
+
+    sorted_dates = sorted(set(dates))
+    gaps: list[DataGap] = []
+
+    for i in range(1, len(sorted_dates)):
+        prev_date = sorted_dates[i - 1]
+        curr_date = sorted_dates[i]
+
+        # Count trading days between the two dates (exclusive of both endpoints)
+        gap_start = prev_date + timedelta(days=1)
+        gap_end = curr_date - timedelta(days=1)
+
+        if gap_start > gap_end:
+            continue  # Consecutive dates, no gap
+
+        trading_days = _count_trading_days(gap_start, gap_end)
+
+        if trading_days >= min_gap_trading_days:
+            gaps.append(
+                DataGap(
+                    start=prev_date,
+                    end=curr_date,
+                    trading_days_missing=trading_days,
+                )
+            )
+
+    return gaps
+
+
+def _format_gap(gap: DataGap) -> str:
+    """Format a gap for display."""
+    return f"{gap.start} → {gap.end} ({gap.trading_days_missing} trading days)"
+
+
 def _scan_symbol(
     symbol: str,
     *,
@@ -211,13 +280,18 @@ def _scan_symbol(
     iv_dir: Path,
     earnings_file: Path,
     limits: dict[str, int],
-) -> tuple[str, SeriesWindow, SeriesWindow, SeriesWindow, list[date], int, list[str]]:
-    spot_window = _series_window(_load_series(spot_dir / f"{symbol}.json"))
+    min_gap_trading_days: int = 5,
+) -> tuple[str, SeriesWindow, SeriesWindow, SeriesWindow, list[date], int, list[str], list[DataGap]]:
+    spot_records = _load_series(spot_dir / f"{symbol}.json")
+    spot_window = _series_window(spot_records)
     hv_window = _series_window(_load_series(hv_dir / f"{symbol}.json"))
     iv_records = _load_series(iv_dir / f"{symbol}.json")
     iv_window = _series_window(iv_records)
     iv_history_count = _count_iv_records_with_atm(iv_records)
     earnings_dates = _load_earnings(earnings_file, symbol)
+
+    # Detect gaps in IV data (primary data source for backtesting)
+    iv_gaps = _detect_gaps(iv_records, min_gap_trading_days=min_gap_trading_days)
 
     issues: list[str] = []
     if spot_window.missing:
@@ -261,7 +335,12 @@ def _scan_symbol(
         if iv_window.end and spot_window.end and iv_window.end > spot_window.end:
             issues.append("iv_after_spot")
 
-    return symbol, spot_window, hv_window, iv_window, earnings_dates, iv_history_count, sorted(set(issues))
+    # Add issue if significant gaps found
+    if iv_gaps:
+        total_gap_days = sum(g.trading_days_missing for g in iv_gaps)
+        issues.append(f"iv_gaps({len(iv_gaps)}:{total_gap_days}d)")
+
+    return symbol, spot_window, hv_window, iv_window, earnings_dates, iv_history_count, sorted(set(issues)), iv_gaps
 
 
 def main(argv: list[str] | None = None) -> None:
@@ -269,6 +348,23 @@ def main(argv: list[str] | None = None) -> None:
     parser.add_argument(
         "--symbols",
         help="Komma-gescheiden lijst met symbolen (fallback: DEFAULT_SYMBOLS uit config)",
+    )
+    parser.add_argument(
+        "--min-gap-days",
+        type=int,
+        default=5,
+        help="Minimum gap grootte in trading dagen om te rapporteren (default: 5)",
+    )
+    parser.add_argument(
+        "--show-gaps",
+        action="store_true",
+        default=True,
+        help="Toon gedetailleerde gap informatie (default: True)",
+    )
+    parser.add_argument(
+        "--no-gaps",
+        action="store_true",
+        help="Verberg gedetailleerde gap informatie",
     )
     args = parser.parse_args(argv)
 
@@ -288,15 +384,22 @@ def main(argv: list[str] | None = None) -> None:
     limits = _thresholds()
 
     rows = []
+    all_gaps: dict[str, list[DataGap]] = {}
+
     for symbol in sorted({sym.upper() for sym in symbols}):
-        sym, spot, hv, iv, earnings_dates, iv_count, issues = _scan_symbol(
+        sym, spot, hv, iv, earnings_dates, iv_count, issues, iv_gaps = _scan_symbol(
             symbol,
             spot_dir=spot_dir,
             hv_dir=hv_dir,
             iv_dir=iv_dir,
             earnings_file=earnings_file,
             limits=limits,
+            min_gap_trading_days=args.min_gap_days,
         )
+        # Store gaps for detailed output
+        if iv_gaps:
+            all_gaps[sym] = iv_gaps
+
         # Format IV count with indicator if insufficient
         iv_count_str = str(iv_count)
         if iv_count < MIN_IV_HISTORY_DAYS:
@@ -315,6 +418,26 @@ def main(argv: list[str] | None = None) -> None:
 
     headers = ["Symbol", "Spot range", "HV range", "IV range", "IV#", "Earnings", "Issues"]
     print(tabulate(rows, headers=headers, tablefmt="github"))
+
+    # Show detailed gap information if requested and gaps exist
+    show_gaps = args.show_gaps and not args.no_gaps
+    if show_gaps and all_gaps:
+        print("\n")
+        print("=" * 80)
+        print("DATA GAPS DETECTED (IV data)")
+        print("=" * 80)
+        print(f"Minimum gap threshold: {args.min_gap_days} trading days\n")
+
+        for sym, gaps in sorted(all_gaps.items()):
+            total_days = sum(g.trading_days_missing for g in gaps)
+            print(f"{sym}: {len(gaps)} gap(s), {total_days} trading days missing")
+            for gap in gaps:
+                print(f"  • {_format_gap(gap)}")
+            print()
+
+        print("-" * 80)
+        print("Note: These gaps may affect IV percentile calculations around gap boundaries.")
+        print("Consider backfilling data or documenting the impact on backtest results.")
 
 
 if __name__ == "__main__":  # pragma: no cover - manual usage
