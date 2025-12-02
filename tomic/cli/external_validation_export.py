@@ -29,7 +29,6 @@ from tomic.backtest.results import (
     SimulatedTrade,
 )
 from tomic.backtest.signal_generator import SignalGenerator
-from tomic.cli.strategy_testing_ui import load_live_config
 from tomic.config import _load_yaml, _BASE_DIR
 from tomic.logutils import logger
 
@@ -124,6 +123,8 @@ class ExternalValidationExporter:
 
     def _load_configuration(self) -> None:
         """Load all configuration from YAML files."""
+        # Import here to avoid circular import
+        from tomic.cli.strategy_testing_ui import load_live_config
         self.live_config = load_live_config()
 
         # Load backtest config
