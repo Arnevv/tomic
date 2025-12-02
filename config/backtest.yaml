@@ -1,7 +1,7 @@
 version: 1
 strategy_type: iron_condor
 symbols:
-- TSLA
+- SPY
 start_date: '2019-01-01'
 end_date: '2025-11-30'
 target_dte: 45
