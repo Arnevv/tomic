@@ -8923,5 +8923,12 @@
     "close": 133.35,
     "volume": 5612641.0,
     "atr": null
+  },
+  {
+    "symbol": "DELL",
+    "date": "2025-12-01",
+    "close": 132.09,
+    "volume": 6801466.0,
+    "atr": null
   }
 ]
