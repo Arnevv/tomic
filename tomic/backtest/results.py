@@ -129,6 +129,7 @@ class SimulatedTrade:
     pnl_history: List[float] = field(default_factory=list)
     iv_history: List[float] = field(default_factory=list)
     spot_history: List[float] = field(default_factory=list)  # For Greeks-based model
+    date_history: List[date] = field(default_factory=list)  # Actual dates for each history entry
 
     # Greeks tracking (for GreeksBasedPnLModel)
     greeks_at_entry: Optional[Any] = None  # GreeksSnapshot at entry
