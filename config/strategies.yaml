@@ -1,5 +1,5 @@
 default:
-  min_risk_reward: 1.5
+  min_risk_reward: 2.0
   allow_unpriced_wings: false
   exclude_expiry_before_earnings: false
   min_days_until_earnings: 0
@@ -13,9 +13,9 @@ strategies:
     exclude_expiry_before_earnings: true
     min_days_until_earnings: 30
     min_rom: 1.2
-    min_edge: 0.08
-    min_pos: 0.65
-    min_ev: 0.06
+    min_edge: 0.06
+    min_pos: 0.6
+    min_ev: 0.04
     strike_to_strategy_config:
       short_call_delta_range:
       - 0.1
