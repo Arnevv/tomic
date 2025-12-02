@@ -61,6 +61,7 @@ class ExitEvaluator:
         trade: SimulatedTrade,
         current_date: date,
         current_iv: Optional[float],
+        current_spot: Optional[float] = None,
     ) -> ExitEvaluation:
         """Evaluate all exit conditions for a trade.
 
@@ -70,6 +71,7 @@ class ExitEvaluator:
             trade: The SimulatedTrade to evaluate
             current_date: Current simulation date
             current_iv: Current ATM IV for the symbol
+            current_spot: Current spot price (for delta breach detection)
 
         Returns:
             ExitEvaluation with decision and details.
@@ -101,7 +103,7 @@ class ExitEvaluator:
             self._check_profit_target(trade, pnl_estimate),
             self._check_stop_loss(trade, pnl_estimate),
             self._check_time_decay(remaining_dte),
-            self._check_delta_breach(trade, current_iv),
+            self._check_delta_breach(trade, current_iv, current_spot),
             self._check_iv_collapse(trade, current_iv),
             self._check_max_dit(days_in_trade),
             self._check_expiration(remaining_dte),
@@ -120,6 +122,8 @@ class ExitEvaluator:
                         estimated_credit=trade.estimated_credit,
                         max_risk=trade.max_risk,
                         exit_reason=evaluation.exit_reason.value,
+                        spot_at_entry=trade.spot_at_entry,
+                        spot_at_exit=current_spot,
                     )
                 return evaluation
 
@@ -166,32 +170,63 @@ class ExitEvaluator:
             )
         return ExitEvaluation(should_exit=False)
 
+    # Spot move thresholds for delta breach (percentage move from entry)
+    # For iron condors, short strikes are typically at 1-1.5 stddev
+    # A move of ~1 stddev puts us near short strike = delta breach territory
+    SPOT_MOVE_DELTA_BREACH = 5.0  # 5% spot move triggers delta breach
+
     def _check_delta_breach(
-        self, trade: SimulatedTrade, current_iv: Optional[float]
+        self,
+        trade: SimulatedTrade,
+        current_iv: Optional[float],
+        current_spot: Optional[float] = None,
     ) -> ExitEvaluation:
-        """Check for delta breach (proxied by large IV spike).
+        """Check for delta breach using spot movement and IV spike.
 
-        Since we don't have Greeks, we use a large IV spike as a proxy
-        for delta breach. Large IV spikes typically correlate with
-        large spot moves that would cause delta to exceed thresholds.
+        Delta breach detection now uses two methods:
+        1. Actual spot movement: If spot moves > 5% from entry, short strikes
+           are likely being tested (for 1.5 stddev wings at 30% IV)
+        2. IV spike proxy: Large IV spikes correlate with large spot moves
+
+        Both conditions are checked; either can trigger a breach.
         """
-        if current_iv is None:
-            return ExitEvaluation(should_exit=False)
+        # Method 1: Check actual spot movement (preferred if available)
+        if current_spot is not None and trade.spot_at_entry is not None:
+            spot_at_entry = trade.spot_at_entry
+            if spot_at_entry > 0:
+                spot_change_pct = abs((current_spot - spot_at_entry) / spot_at_entry) * 100
 
-        # Normalize IV values
-        iv_entry = trade.iv_at_entry if trade.iv_at_entry < 1 else trade.iv_at_entry / 100
-        iv_current = current_iv if current_iv < 1 else current_iv / 100
+                # Scale threshold by IV at entry - higher IV = wider strikes = more tolerance
+                iv_at_entry = trade.iv_at_entry if trade.iv_at_entry < 1 else trade.iv_at_entry / 100
+                # At 20% IV, threshold is 5%. At 40% IV, threshold is 10%
+                adjusted_threshold = self.SPOT_MOVE_DELTA_BREACH * (iv_at_entry / 0.20)
+                adjusted_threshold = max(3.0, min(15.0, adjusted_threshold))  # Clamp 3-15%
 
-        # Calculate IV change in vol points
-        iv_change = (iv_current - iv_entry) * 100
+                if spot_change_pct >= adjusted_threshold:
+                    direction = "up" if current_spot > spot_at_entry else "down"
+                    return ExitEvaluation(
+                        should_exit=True,
+                        exit_reason=ExitReason.DELTA_BREACH,
+                        message=f"Delta breach: spot {direction} {spot_change_pct:.1f}% (threshold: {adjusted_threshold:.1f}%)",
+                    )
 
-        # Large IV spike suggests large spot move -> delta breach
-        if iv_change >= self.IV_SPIKE_DELTA_PROXY:
-            return ExitEvaluation(
-                should_exit=True,
-                exit_reason=ExitReason.DELTA_BREACH,
-                message=f"Delta breach (IV spike proxy): IV up {iv_change:.1f} vol points",
-            )
+        # Method 2: IV spike proxy (fallback or additional check)
+        if current_iv is not None:
+            # Normalize IV values
+            iv_entry = trade.iv_at_entry if trade.iv_at_entry < 1 else trade.iv_at_entry / 100
+            iv_current = current_iv if current_iv < 1 else current_iv / 100
+
+            # Calculate IV change in vol points
+            iv_change = (iv_current - iv_entry) * 100
+
+            # Large IV spike suggests large spot move -> delta breach
+            if iv_change >= self.IV_SPIKE_DELTA_PROXY:
+                return ExitEvaluation(
+                    should_exit=True,
+                    exit_reason=ExitReason.DELTA_BREACH,
+                    message=f"Delta breach (IV spike): IV up {iv_change:.1f} vol points",
+                )
+
         return ExitEvaluation(should_exit=False)
 
     def _check_iv_collapse(

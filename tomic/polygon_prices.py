@@ -190,9 +190,7 @@ def request_bars(client: PolygonClient, symbol: str) -> tuple[list[dict], bool]:
         lows.append(rec.get("low"))
         closes.append(rec.get("close"))
         rec["atr"] = average_true_range(highs, lows, closes, period=14)
-        rec.pop("open", None)
-        rec.pop("high", None)
-        rec.pop("low", None)
+        # Keep OHLC for gap-risk simulation and realistic backtesting
     return records, requested
 
 
