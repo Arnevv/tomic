@@ -9,6 +9,7 @@ Loads and normalizes historical IV data from various sources:
 from __future__ import annotations
 
 import json
+from dataclasses import dataclass
 from datetime import date
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
@@ -17,6 +18,45 @@ from tomic.backtest.config import BacktestConfig
 from tomic.backtest.results import IVDataPoint
 from tomic.config import get as cfg_get
 from tomic.logutils import logger
+
+
+@dataclass
+class SpotOHLC:
+    """Spot price data with OHLC for gap-risk simulation."""
+
+    date: date
+    open: float
+    high: float
+    low: float
+    close: float
+
+    @property
+    def overnight_gap_pct(self) -> float:
+        """Calculate overnight gap as percentage from previous close to open.
+
+        Note: Requires previous day's close to be set externally.
+        This property returns 0 - use calculate_gap() with previous close.
+        """
+        return 0.0
+
+    def calculate_gap(self, prev_close: float) -> float:
+        """Calculate overnight gap percentage from previous close.
+
+        Args:
+            prev_close: Previous day's closing price
+
+        Returns:
+            Gap as percentage (e.g., -5.0 for a 5% gap down)
+        """
+        if prev_close <= 0:
+            return 0.0
+        return ((self.open - prev_close) / prev_close) * 100
+
+    def intraday_range_pct(self) -> float:
+        """Calculate intraday range as percentage of open."""
+        if self.open <= 0:
+            return 0.0
+        return ((self.high - self.low) / self.open) * 100
 
 
 class IVTimeSeries:
@@ -290,6 +330,49 @@ class DataLoader:
         self._price_data[symbol] = prices
         return prices
 
+    def load_spot_ohlc(self, symbol: str) -> Dict[date, SpotOHLC]:
+        """Load historical OHLC data for gap-risk simulation.
+
+        Returns:
+            Dictionary mapping date to SpotOHLC with full OHLC data.
+        """
+        price_dir = cfg_get("PRICE_HISTORY_DIR", "tomic/data/spot_prices")
+        base_dir = Path(__file__).resolve().parent.parent.parent
+        price_path = base_dir / price_dir / f"{symbol}.json"
+
+        ohlc_data: Dict[date, SpotOHLC] = {}
+
+        if price_path.exists():
+            try:
+                with open(price_path, "r", encoding="utf-8") as f:
+                    raw_data = json.load(f)
+
+                if isinstance(raw_data, list):
+                    for record in raw_data:
+                        try:
+                            dt = date.fromisoformat(record.get("date", ""))
+                            close = float(record.get("close", 0))
+                            # Use close as fallback for missing OHLC
+                            open_price = float(record.get("open", close) or close)
+                            high = float(record.get("high", close) or close)
+                            low = float(record.get("low", close) or close)
+
+                            if close > 0:
+                                ohlc_data[dt] = SpotOHLC(
+                                    date=dt,
+                                    open=open_price,
+                                    high=high,
+                                    low=low,
+                                    close=close,
+                                )
+                        except (ValueError, TypeError):
+                            continue
+
+            except Exception as e:
+                logger.debug(f"Could not load OHLC history for {symbol}: {e}")
+
+        return ohlc_data
+
     def get_iv_data(self, symbol: str) -> Optional[IVTimeSeries]:
         """Get loaded IV data for a symbol."""
         return self._iv_data.get(symbol)
@@ -360,4 +443,4 @@ class DataLoader:
         return summary
 
 
-__all__ = ["DataLoader", "IVTimeSeries"]
+__all__ = ["DataLoader", "IVTimeSeries", "SpotOHLC"]

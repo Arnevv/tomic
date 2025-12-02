@@ -210,13 +210,15 @@ class TradeSimulator:
         symbols_to_close: List[str] = []
 
         for symbol, trade in self._open_positions.items():
-            # Get current IV for the symbol
+            # Get current IV and spot price for the symbol
             ts = iv_data.get(symbol)
             current_iv = None
+            current_spot = None
             if ts:
                 dp = ts.get(current_date)
                 if dp:
                     current_iv = dp.atm_iv
+                    current_spot = dp.spot_price
 
             # Update days in trade
             trade.days_in_trade = (current_date - trade.entry_date).days
@@ -276,11 +278,12 @@ class TradeSimulator:
                 trade.current_pnl = pnl_estimate.total_pnl
                 trade.pnl_history.append(pnl_estimate.total_pnl)
 
-            # Evaluate exit conditions
+            # Evaluate exit conditions (pass spot for delta breach detection)
             evaluation = self.exit_evaluator.evaluate(
                 trade=trade,
                 current_date=current_date,
                 current_iv=current_iv,
+                current_spot=current_spot,
             )
 
             if evaluation.should_exit:
@@ -290,7 +293,7 @@ class TradeSimulator:
                     exit_reason=evaluation.exit_reason,
                     final_pnl=evaluation.exit_pnl,
                     iv_at_exit=current_iv,
-                    spot_at_exit=None,  # We don't track spot in this simulation
+                    spot_at_exit=current_spot,
                 )
                 symbols_to_close.append(symbol)
                 closed_trades.append(trade)

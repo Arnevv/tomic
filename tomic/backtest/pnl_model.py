@@ -214,12 +214,15 @@ class IronCondorPnLModel:
         estimated_credit: float,
         max_risk: float,
         exit_reason: str,
+        spot_at_entry: Optional[float] = None,
+        spot_at_exit: Optional[float] = None,
     ) -> float:
         """Estimate final P&L at exit.
 
         This is similar to estimate_pnl but applies exit-specific logic:
         - Profit target: Cap at target percentage
         - Stop loss: Apply full loss
+        - Delta breach: Apply realistic loss based on spot movement
         - Time-based exits: Use current estimated P&L
         """
         pnl_estimate = self.estimate_pnl(
@@ -246,8 +249,30 @@ class IronCondorPnLModel:
             # IV collapsed - likely profitable, use estimate
             return max(0, pnl_estimate.total_pnl)
 
+        elif exit_reason == "delta_breach":
+            # Delta breach means the underlying moved significantly against us
+            # This typically results in a loss, not a profit
+            # Calculate realistic loss based on spot movement if available
+            if spot_at_entry and spot_at_exit and spot_at_entry > 0:
+                spot_move_pct = abs((spot_at_exit - spot_at_entry) / spot_at_entry) * 100
+
+                # Loss scales with spot movement beyond expected range
+                # At 5% move: ~50% of max risk loss
+                # At 10% move: ~80% of max risk loss
+                # At 15%+ move: approaching max loss
+                loss_factor = min(1.0, spot_move_pct / 15.0) * 0.8 + 0.2
+
+                # Apply loss (negative P&L)
+                delta_breach_loss = -max_risk * loss_factor
+
+                # But don't lose more than max_risk
+                return max(delta_breach_loss, -max_risk)
+            else:
+                # No spot data: assume moderate loss (60% of max risk)
+                return -max_risk * 0.6
+
         else:
-            # Other exits (DTE, DIT, delta breach): use estimate
+            # Other exits (DTE, DIT): use estimate
             return pnl_estimate.total_pnl
 
     def _calculate_costs(self, num_legs: int) -> float:

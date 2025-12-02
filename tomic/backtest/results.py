@@ -42,6 +42,10 @@ class IVDataPoint:
     term_m1_m2: Optional[float] = None
     term_m1_m3: Optional[float] = None
     spot_price: Optional[float] = None
+    # OHLC for gap-risk simulation
+    spot_open: Optional[float] = None
+    spot_high: Optional[float] = None
+    spot_low: Optional[float] = None
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any], symbol: str) -> "IVDataPoint":
@@ -66,7 +70,10 @@ class IVDataPoint:
             skew=data.get("skew"),
             term_m1_m2=data.get("term_m1_m2"),
             term_m1_m3=data.get("term_m1_m3"),
-            spot_price=data.get("spot_price"),
+            spot_price=data.get("spot_price") or data.get("close"),
+            spot_open=data.get("open"),
+            spot_high=data.get("high"),
+            spot_low=data.get("low"),
         )
 
     def is_valid(self) -> bool:
