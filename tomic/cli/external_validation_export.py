@@ -133,7 +133,7 @@ class ExternalValidationExporter:
             config_data = _load_yaml(backtest_yaml)
             # Filter to single symbol
             config_data["symbols"] = [self.symbol]
-            self.config = BacktestConfig.from_dict(config_data)
+            self.config = BacktestConfig.model_validate(config_data)
 
     def _run_backtest_with_logging(self) -> None:
         """Run backtest while collecting detailed evaluation data."""
