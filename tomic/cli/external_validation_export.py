@@ -228,13 +228,26 @@ class ExternalValidationExporter:
             self.daily_evaluations.append(eval_record)
 
     def _collect_trade_snapshots(self) -> None:
-        """Collect daily snapshots for each trade."""
+        """Collect daily snapshots for each trade.
+
+        Exit triggers are checked in the same priority order as exit_evaluator.py:
+        1. Profit target (50% of credit)
+        2. Stop loss (100% of credit)
+        3. Time decay (min DTE)
+        4. Delta breach (IV spike >= 8 vol points)
+        5. IV collapse (IV drop >= threshold vol points)
+        6. Max days in trade
+        """
         if not self.backtest_result:
             return
 
         profit_target_pct = self.config.exit_rules.profit_target_pct
         stop_loss_pct = self.config.exit_rules.stop_loss_pct
         min_dte = self.config.exit_rules.min_dte
+        max_dit = self.config.exit_rules.max_days_in_trade
+        iv_collapse_threshold = self.config.exit_rules.iv_collapse_threshold
+        # Delta breach proxy: IV spike threshold (same as exit_evaluator.py)
+        delta_breach_iv_spike = 8.0
 
         for idx, trade in enumerate(self.backtest_result.trades):
             if trade.symbol != self.symbol:
@@ -254,8 +267,13 @@ class ExternalValidationExporter:
                 )
 
                 iv_change = None
+                iv_change_vol_points = None
                 if iv_current is not None:
                     iv_change = iv_current - trade.iv_at_entry
+                    # Normalize to vol points (handle both decimal and percentage formats)
+                    iv_entry_norm = trade.iv_at_entry if trade.iv_at_entry < 1 else trade.iv_at_entry / 100
+                    iv_current_norm = iv_current if iv_current < 1 else iv_current / 100
+                    iv_change_vol_points = (iv_current_norm - iv_entry_norm) * 100
 
                 pnl_pct = (pnl / trade.max_risk) * 100 if trade.max_risk else 0
 
@@ -263,13 +281,41 @@ class ExternalValidationExporter:
                 dte_at_entry = (trade.target_expiry - trade.entry_date).days
                 dte_remaining = max(0, dte_at_entry - day_idx)
 
-                # Check exit triggers
-                profit_target_triggered = pnl_pct >= profit_target_pct
-                stop_loss_triggered = pnl_pct <= -stop_loss_pct
+                # Check exit triggers - MUST match exit_evaluator.py logic exactly
+                # Profit target: compare P&L to percentage of CREDIT, not max_risk
+                profit_target_amount = trade.estimated_credit * (profit_target_pct / 100)
+                profit_target_triggered = pnl >= profit_target_amount
+
+                # Stop loss: compare P&L to percentage of CREDIT
+                stop_loss_amount = trade.estimated_credit * (stop_loss_pct / 100)
+                stop_loss_triggered = pnl <= -stop_loss_amount
+
+                # Time decay (min DTE)
                 min_dte_triggered = dte_remaining <= min_dte
 
+                # Delta breach: IV spike >= threshold (proxy for large spot move)
+                delta_breach_triggered = (
+                    iv_change_vol_points is not None
+                    and iv_change_vol_points >= delta_breach_iv_spike
+                )
+
+                # IV collapse: IV dropped >= threshold below entry
+                iv_collapse_triggered = (
+                    iv_change_vol_points is not None
+                    and iv_change_vol_points <= -iv_collapse_threshold
+                )
+
+                # Max days in trade
+                max_dit_triggered = day_idx >= max_dit
+
+                # Determine exit in priority order (same as exit_evaluator.py)
                 exit_triggered = (
-                    profit_target_triggered or stop_loss_triggered or min_dte_triggered
+                    profit_target_triggered
+                    or stop_loss_triggered
+                    or min_dte_triggered
+                    or delta_breach_triggered
+                    or iv_collapse_triggered
+                    or max_dit_triggered
                 )
                 exit_reason = None
                 if profit_target_triggered:
@@ -277,7 +323,13 @@ class ExternalValidationExporter:
                 elif stop_loss_triggered:
                     exit_reason = "stop_loss"
                 elif min_dte_triggered:
-                    exit_reason = "min_dte"
+                    exit_reason = "time_decay_dte"
+                elif delta_breach_triggered:
+                    exit_reason = "delta_breach"
+                elif iv_collapse_triggered:
+                    exit_reason = "iv_collapse"
+                elif max_dit_triggered:
+                    exit_reason = "max_days_in_trade"
 
                 # Calculate trade date
                 from datetime import timedelta
@@ -598,7 +650,7 @@ iv_percentile = (count of days where IV < current_IV) / (total days in lookback)
 ```
 
 ### Implementation Details:
-- Lookback window: 252 trading days
+- Lookback window: 252 **calendar** days (not trading days)
 - Minimum data points required: 20 (for statistical significance)
 - Formula: `percentile = (below_count / total_count) * 100`
 
@@ -616,6 +668,12 @@ if len(lookback_ivs) >= 20:
     below_count = sum(1 for iv in lookback_ivs if iv < current_iv)
     iv_percentile = (below_count / len(lookback_ivs)) * 100
 ```
+
+### Known Limitation: Data Gaps
+The 252-day lookback window uses **calendar days**, not trading days.
+When data gaps exist (e.g., missing March 2019), the percentile calculation
+includes different historical data than expected, causing deviations of
+10-25% around gap boundaries. This is expected behavior.
 
 ## 2. IV Rank Calculation
 
@@ -637,47 +695,68 @@ if max_iv > min_iv:
 
 Since we don't have historical bid/ask data, P&L is estimated using an IV-based model.
 
-### Credit Estimation (pnl_model.py:78-140):
-```
-base_credit_pct = 0.25 + (iv_at_entry * 0.5)  # 25-45% of wing width
-credit = wing_width * 100 * base_credit_pct
+### Credit Estimation (pnl_model.py:78-138):
+```python
+# Base credit ratio at 20% IV, 45 DTE, 1.5 stddev
+base_credit_ratio = 0.30  # 30% of wing width
+
+# Adjustments for market conditions
+iv_adjustment = iv_at_entry / 0.20  # Scale relative to 20% IV baseline
+dte_adjustment = min(1.2, target_dte / 45)  # More DTE = higher credit
+stddev_adjustment = (1.5 / stddev_range) ** 0.6  # Closer strikes = higher credit
+
+# Final credit ratio (capped between 20-50% of wing width)
+credit_ratio = base_credit_ratio * iv_adjustment * dte_adjustment * stddev_adjustment
+credit_ratio = clamp(credit_ratio, 0.20, 0.50)
+
+# Credit in dollars
+credit = wing_width * credit_ratio
 ```
 
 ### Daily P&L Components:
 
 #### Vega P&L (from IV change):
+```python
+VEGA_SENSITIVITY = 1.5  # $ per vol point per $100 max risk
+
+# IV change in vol points (positive = IV dropped = profit for short vega)
+iv_change = (iv_at_entry - iv_current) * 100  # Convert to vol points
+vega_pnl = iv_change * VEGA_SENSITIVITY * (max_risk / 100)
 ```
-vega_sensitivity = 1.0  # $ per vol point per $100 max risk
-vega_pnl = -iv_change * vega_sensitivity * (max_risk / 100)
-```
-Note: Negative because short vega (profits when IV drops)
 
 #### Theta P&L (time decay):
-```
-theta_decay_factor = 0.4
-days_elapsed_fraction = days_in_trade / target_dte
-theta_pnl = estimated_credit * theta_decay_factor * days_elapsed_fraction
+```python
+THETA_DECAY_FACTOR = 0.5
+
+# Time fraction with sqrt acceleration (theta accelerates near expiry)
+time_fraction = days_in_trade / target_dte
+theta_progress = sqrt(time_fraction)  # At 50% time elapsed, ~71% theta captured
+
+theta_pnl = estimated_credit * theta_progress * THETA_DECAY_FACTOR
 ```
 
 #### Total Estimated P&L:
-```
+```python
 total_pnl = vega_pnl + theta_pnl - costs
+total_pnl = min(estimated_credit, total_pnl)  # Cap at max profit (credit)
+total_pnl = max(-max_risk, total_pnl)  # Cap at max loss (wing width)
 ```
 
-### Exit Triggers:
-1. **Profit Target**: P&L >= 50% of max risk
-2. **Stop Loss**: P&L <= -100% of max risk (full loss)
-3. **Time Decay (DTE)**: Days to expiration <= 5
-4. **Max Days in Trade**: days_in_trade >= 45
-5. **IV Collapse**: IV drops 10+ vol points below entry
-6. **Delta Breach**: IV spikes 8+ vol points (large move)
+### Exit Triggers (checked in priority order):
+1. **Profit Target**: P&L >= 50% of **estimated_credit** (NOT max_risk)
+2. **Stop Loss**: P&L <= -100% of **estimated_credit**
+3. **Time Decay (DTE)**: Days to expiration <= 5 (avoid gamma risk)
+4. **Delta Breach**: IV spikes >= 8 vol points (proxy for large spot move)
+5. **IV Collapse**: IV drops >= 10 vol points below entry (thesis validated)
+6. **Max Days in Trade**: days_in_trade >= 45
 
 ## 4. Entry Signal Generation
 
 Entry signals are generated when ALL of the following are true:
-1. IV Percentile >= configured minimum (default: 60)
+1. IV Percentile >= configured minimum (default: 60%)
 2. No existing open position for the symbol
-3. Additional optional filters (skew, term structure) if configured
+3. Total positions < max_total_positions limit
+4. Additional optional filters (skew, term structure, IV-HV spread) if configured
 
 ## 5. Sample Split
 
