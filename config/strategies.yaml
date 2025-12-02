@@ -11,11 +11,12 @@ strategies:
   iron_condor:
     allow_unpriced_wings: true
     exclude_expiry_before_earnings: true
-    min_days_until_earnings: 30
-    min_rom: 1.2
-    min_edge: 0.08
-    min_pos: 0.65
-    min_ev: 0.06
+    min_days_until_earnings: 14
+    min_rom: 0.5
+    min_edge: 0.04
+    min_pos: 0.55
+    min_ev: 0.03
+    min_risk_reward: 2.5
     strike_to_strategy_config:
       short_call_delta_range:
       - 0.1
@@ -71,15 +72,21 @@ strategies:
       use_ATR: true
   calendar:
     allow_unpriced_wings: false
-    min_rom: 0.8
-    min_edge: 0.08
-    min_pos: 0.55
-    min_ev: 0.06
+    min_rom: 0.3
+    min_edge: 0.04
+    min_pos: 0.50
+    min_ev: 0.03
     strike_to_strategy_config:
       use_ATR: false
       base_strikes_relative_to_spot:
+      - 0.97
+      - 0.98
+      - 0.99
       - 1
-      expiry_gap_min_days: 10
+      - 1.01
+      - 1.02
+      - 1.03
+      expiry_gap_min_days: 7
   ratio_spread:
     allow_unpriced_wings: false
     strike_to_strategy_config:
