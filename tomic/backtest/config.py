@@ -158,6 +158,7 @@ class BacktestConfig(BaseModel):
 
     # P&L Model selection
     use_greeks_model: bool = False  # Use Greeks-based model instead of IV-based model
+    use_real_prices: bool = False  # Use real option chain prices from ORATS (requires cached data)
 
     model_config = ConfigDict(extra="forbid")
 

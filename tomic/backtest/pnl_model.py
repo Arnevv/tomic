@@ -13,8 +13,8 @@ The model uses the following principles:
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import date
-from typing import Optional
+from datetime import date, timedelta
+from typing import Any, Optional
 
 from tomic.backtest.config import BacktestConfig, CostConfig
 from tomic.backtest.results import IVDataPoint
@@ -520,4 +520,256 @@ class GreeksBasedPnLModel:
         return commission
 
 
-__all__ = ["IronCondorPnLModel", "SimplePnLModel", "PnLEstimate", "GreeksBasedPnLModel", "GreeksSnapshot"]
+class RealPricesPnLModel:
+    """P&L model using real option chain prices from ORATS.
+
+    This model calculates actual P&L by:
+    1. Looking up real bid/ask prices at entry
+    2. Looking up real bid/ask prices at exit
+    3. Applying realistic slippage (sell at bid, buy at ask)
+
+    This provides the most accurate P&L estimation but requires
+    historical option chain data to be available.
+    """
+
+    def __init__(self, config: BacktestConfig):
+        self.config = config
+        self.costs_config = config.costs
+
+        # Lazy import to avoid circular dependency
+        self._chain_loader = None
+
+    @property
+    def chain_loader(self):
+        """Lazy-load the option chain loader."""
+        if self._chain_loader is None:
+            from tomic.backtest.option_chain_loader import OptionChainLoader
+            self._chain_loader = OptionChainLoader()
+        return self._chain_loader
+
+    def get_entry_quotes(
+        self,
+        symbol: str,
+        entry_date: date,
+        target_dte: int,
+        short_put_delta: float = -0.20,
+        short_call_delta: float = 0.20,
+        wing_width: float = 5.0,
+    ) -> Optional[Any]:
+        """Get iron condor quotes at entry.
+
+        Args:
+            symbol: Stock symbol
+            entry_date: Trade entry date
+            target_dte: Target days to expiration
+            short_put_delta: Target delta for short put
+            short_call_delta: Target delta for short call
+            wing_width: Wing width in dollars
+
+        Returns:
+            IronCondorQuotes if found, None otherwise.
+        """
+        chain = self.chain_loader.load_chain(symbol, entry_date)
+        if chain is None:
+            return None
+
+        # Find expiry closest to target DTE
+        expiries = chain.get_expiries()
+        target_expiry = entry_date + timedelta(days=target_dte)
+
+        best_expiry = None
+        best_diff = float('inf')
+        for exp in expiries:
+            diff = abs((exp - target_expiry).days)
+            if diff < best_diff:
+                best_diff = diff
+                best_expiry = exp
+
+        if best_expiry is None:
+            return None
+
+        # Select iron condor strikes
+        return chain.select_iron_condor(
+            expiry=best_expiry,
+            short_put_delta=short_put_delta,
+            short_call_delta=short_call_delta,
+            wing_width=wing_width,
+        )
+
+    def get_exit_quotes(
+        self,
+        symbol: str,
+        exit_date: date,
+        entry_quotes: Any,
+    ) -> Optional[Any]:
+        """Get iron condor quotes at exit (same strikes as entry).
+
+        Args:
+            symbol: Stock symbol
+            exit_date: Trade exit date
+            entry_quotes: IronCondorQuotes from entry
+
+        Returns:
+            IronCondorQuotes at exit prices, or None if not available.
+        """
+        chain = self.chain_loader.load_chain(symbol, exit_date)
+        if chain is None:
+            return None
+
+        from tomic.backtest.option_chain_loader import IronCondorQuotes
+
+        # Find the same strikes in the exit chain
+        expiry = entry_quotes.expiry
+        options_at_expiry = chain.filter_by_expiry(expiry)
+
+        if not options_at_expiry:
+            return None
+
+        # Build lookup by (strike, type)
+        option_map = {
+            (opt.strike, opt.option_type): opt
+            for opt in options_at_expiry
+        }
+
+        # Find matching options
+        long_put = option_map.get((entry_quotes.long_put.strike, 'P'))
+        short_put = option_map.get((entry_quotes.short_put.strike, 'P'))
+        short_call = option_map.get((entry_quotes.short_call.strike, 'C'))
+        long_call = option_map.get((entry_quotes.long_call.strike, 'C'))
+
+        if not all([long_put, short_put, short_call, long_call]):
+            return None
+
+        return IronCondorQuotes(
+            symbol=symbol,
+            trade_date=exit_date,
+            expiry=expiry,
+            spot_price=chain.spot_price,
+            long_put=long_put,
+            short_put=short_put,
+            short_call=short_call,
+            long_call=long_call,
+        )
+
+    def calculate_entry_credit(
+        self,
+        entry_quotes: Any,
+        realistic: bool = True,
+    ) -> float:
+        """Calculate entry credit from quotes.
+
+        Args:
+            entry_quotes: IronCondorQuotes at entry
+            realistic: If True, use bid for selling, ask for buying
+
+        Returns:
+            Net credit received in dollars.
+        """
+        if realistic:
+            return entry_quotes.entry_credit_realistic() or 0.0
+        return entry_quotes.net_credit or 0.0
+
+    def calculate_exit_pnl(
+        self,
+        entry_quotes: Any,
+        exit_quotes: Any,
+        realistic: bool = True,
+    ) -> PnLEstimate:
+        """Calculate P&L using real entry and exit prices.
+
+        Args:
+            entry_quotes: IronCondorQuotes at entry
+            exit_quotes: IronCondorQuotes at exit
+            realistic: If True, apply realistic slippage
+
+        Returns:
+            PnLEstimate with actual P&L.
+        """
+        # Entry credit
+        if realistic:
+            entry_credit = entry_quotes.entry_credit_realistic() or 0.0
+        else:
+            entry_credit = entry_quotes.net_credit or 0.0
+
+        # Exit debit
+        if realistic:
+            exit_debit = entry_quotes.exit_debit_realistic(exit_quotes) or 0.0
+        else:
+            exit_debit = exit_quotes.net_credit or 0.0
+
+        # P&L = credit received - debit to close
+        total_pnl = entry_credit - exit_debit
+
+        # Transaction costs (4 legs in, 4 legs out)
+        num_contracts = 1
+        costs = self._calculate_costs(num_contracts * 8)  # 8 transactions total
+        total_pnl -= costs
+
+        # Max risk from entry quotes
+        max_risk = entry_quotes.max_risk or 200.0
+        pnl_pct = (total_pnl / max_risk * 100) if max_risk > 0 else 0
+
+        return PnLEstimate(
+            total_pnl=round(total_pnl, 2),
+            vega_pnl=0.0,  # Not tracked with real prices
+            theta_pnl=0.0,  # Not tracked with real prices
+            costs=round(costs, 2),
+            pnl_pct=round(pnl_pct, 2),
+        )
+
+    def estimate_current_pnl(
+        self,
+        entry_quotes: Any,
+        current_quotes: Any,
+        realistic: bool = True,
+    ) -> PnLEstimate:
+        """Estimate current P&L (mark-to-market).
+
+        Uses mid prices for current value estimation.
+
+        Args:
+            entry_quotes: IronCondorQuotes at entry
+            current_quotes: IronCondorQuotes at current date
+            realistic: If True, entry uses realistic slippage
+
+        Returns:
+            PnLEstimate with current P&L.
+        """
+        # Entry credit (what we received)
+        if realistic:
+            entry_credit = entry_quotes.entry_credit_realistic() or 0.0
+        else:
+            entry_credit = entry_quotes.net_credit or 0.0
+
+        # Current value (what it would cost to close at mid)
+        current_value = current_quotes.net_credit or 0.0
+
+        # P&L = entry credit - current value to close
+        total_pnl = entry_credit - current_value
+
+        # No costs yet (haven't exited)
+        max_risk = entry_quotes.max_risk or 200.0
+        pnl_pct = (total_pnl / max_risk * 100) if max_risk > 0 else 0
+
+        return PnLEstimate(
+            total_pnl=round(total_pnl, 2),
+            vega_pnl=0.0,
+            theta_pnl=0.0,
+            costs=0.0,
+            pnl_pct=round(pnl_pct, 2),
+        )
+
+    def _calculate_costs(self, num_legs: int) -> float:
+        """Calculate transaction costs."""
+        commission = num_legs * self.costs_config.commission_per_contract
+        return commission
+
+
+__all__ = [
+    "IronCondorPnLModel",
+    "SimplePnLModel",
+    "PnLEstimate",
+    "GreeksBasedPnLModel",
+    "GreeksSnapshot",
+    "RealPricesPnLModel",
+]
