@@ -8923,5 +8923,12 @@
     "close": 509.16,
     "volume": 1018906.0,
     "atr": null
+  },
+  {
+    "symbol": "CRWD",
+    "date": "2025-12-01",
+    "close": 504.13,
+    "volume": 2077017.0,
+    "atr": null
   }
 ]

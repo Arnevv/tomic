@@ -8923,5 +8923,12 @@
     "close": 332.37,
     "volume": 1234268.0,
     "atr": null
+  },
+  {
+    "symbol": "MDB",
+    "date": "2025-12-01",
+    "close": 328.87,
+    "volume": 4997613.0,
+    "atr": null
   }
 ]

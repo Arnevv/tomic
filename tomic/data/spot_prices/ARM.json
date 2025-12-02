@@ -3883,5 +3883,12 @@
     "close": 135.56,
     "volume": 1562622.0,
     "atr": null
+  },
+  {
+    "symbol": "ARM",
+    "date": "2025-12-01",
+    "close": 135.01,
+    "volume": 2364298.0,
+    "atr": null
   }
 ]

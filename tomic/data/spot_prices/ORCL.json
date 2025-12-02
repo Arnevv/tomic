@@ -9000,5 +9000,12 @@
     "close": 201.95,
     "volume": 13908837.0,
     "atr": null
+  },
+  {
+    "symbol": "ORCL",
+    "date": "2025-12-01",
+    "close": 200.94,
+    "volume": 13462980.0,
+    "atr": null
   }
 ]
