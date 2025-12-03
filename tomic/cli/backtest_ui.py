@@ -306,7 +306,7 @@ def _edit_symbols(config: BacktestConfig) -> None:
 
 
 def view_last_results() -> None:
-    """View the last backtest results."""
+    """View the last backtest results via submenu."""
     global _LAST_RESULT
 
     if _LAST_RESULT is None:
@@ -314,8 +314,75 @@ def view_last_results() -> None:
         print("Voer eerst een backtest uit.")
         return
 
-    print("\n")
-    print_backtest_report(_LAST_RESULT)
+    menu = Menu("📊 RESULTATEN BEKIJKEN")
+    menu.add("Volledig rapport", _view_full_report)
+    menu.add("Per-symbool overzicht", _view_symbol_table)
+    menu.add("Exit reasons breakdown", _view_exit_reasons)
+    menu.add("Equity curve", _view_equity_curve)
+    menu.run()
+
+
+def _view_full_report() -> None:
+    """Show the full backtest report."""
+    global _LAST_RESULT
+    if _LAST_RESULT:
+        print("\n")
+        print_backtest_report(_LAST_RESULT)
+
+
+def _view_symbol_table() -> None:
+    """Show detailed per-symbol performance table."""
+    global _LAST_RESULT
+    if _LAST_RESULT:
+        report = BacktestReport(_LAST_RESULT)
+        report.print_symbol_performance_table()
+
+
+def _view_exit_reasons() -> None:
+    """Show exit reasons breakdown."""
+    global _LAST_RESULT
+    if not _LAST_RESULT or not _LAST_RESULT.combined_metrics:
+        print("\nGeen exit reason data beschikbaar.")
+        return
+
+    exits = _LAST_RESULT.combined_metrics.exits_by_reason
+    if not exits:
+        print("\nGeen exit reason data beschikbaar.")
+        return
+
+    if RICH_AVAILABLE:
+        from rich.table import Table
+        console = Console()
+        table = Table(title="Exit Reasons Breakdown")
+        table.add_column("Exit Reason", style="cyan")
+        table.add_column("Count", justify="right")
+        table.add_column("Percentage", justify="right")
+
+        total = sum(exits.values())
+        for reason, count in sorted(exits.items(), key=lambda x: -x[1]):
+            pct = (count / total * 100) if total > 0 else 0
+            table.add_row(reason, str(count), f"{pct:.1f}%")
+
+        console.print()
+        console.print(table)
+        console.print()
+    else:
+        print("\nExit Reasons Breakdown:")
+        print("-" * 40)
+        total = sum(exits.values())
+        for reason, count in sorted(exits.items(), key=lambda x: -x[1]):
+            pct = (count / total * 100) if total > 0 else 0
+            print(f"  {reason}: {count} ({pct:.1f}%)")
+
+
+def _view_equity_curve() -> None:
+    """Show ASCII equity curve."""
+    global _LAST_RESULT
+    if not _LAST_RESULT:
+        return
+
+    report = BacktestReport(_LAST_RESULT)
+    report._print_equity_curve_ascii()
 
 
 def export_results() -> None:
