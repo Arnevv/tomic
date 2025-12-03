@@ -78,7 +78,7 @@ class OratsRecord:
     Metrics aligned with Polygon methodology:
     - Expiration filtering: Only Third Friday expirations (matching Polygon)
     - Deduplication: Remove duplicate (strike, type) combinations
-    - ATM IV: Single ATM call from front month (13-48 DTE)
+    - ATM IV: Single ATM call from front month (13-48 DTE preferred, fallback to >= 7 DTE)
     - Term structure: M1-M2 and M1-M3 using single ATM calls per month
     - Skew: Delta ±0.25 from front month only
     - IV Rank/Percentile: Based on 30-day rolling HV
@@ -405,9 +405,10 @@ class OratsBackfillFlow:
         """Calculate ATM IV, term structure, and skew from ORATS rows.
 
         ALIGNED WITH POLYGON METHODOLOGY (polygon_iv.py):
-        - Expiration selection: Only Third Friday expirations (13-48 DTE for front month)
+        - Expiration selection: Only Third Friday expirations (13-48 DTE for front month,
+          fallback to nearest expiration with DTE >= 7 if none in standard range)
         - Deduplication: Remove duplicate (strike, type) combinations
-        - ATM IV: Single ATM call from front month (13-48 DTE)
+        - ATM IV: Single ATM call from front month
         - Term structure: M1-M2 and M1-M3 using single ATM calls per month
         - Skew: Delta ±0.25 from front month only (not all expirations)
         - IV Rank/Percentile: Based on 30-day rolling HV
@@ -539,8 +540,21 @@ class OratsBackfillFlow:
                 front_month = exp_date
                 break
 
+        # Fallback: if no expiration in 13-48 DTE range, use nearest with DTE >= 7
         if not front_month:
-            logger.warning(f"Geen expiration tussen 13-48 DTE voor {ticker}")
+            sorted_by_dte = sorted(exp_groups.keys(), key=lambda x: exp_dte[x])
+            for exp_date in sorted_by_dte:
+                dte = exp_dte[exp_date]
+                if dte >= 7:  # Minimum 7 days to avoid very short-term noise
+                    front_month = exp_date
+                    logger.info(
+                        f"Fallback: using {exp_date} ({dte} DTE) for {ticker} - "
+                        f"geen expiration in standaard 13-48 DTE range"
+                    )
+                    break
+
+        if not front_month:
+            logger.warning(f"Geen bruikbare expiration gevonden voor {ticker}")
             return None
 
         # ================================================================
