@@ -184,13 +184,18 @@ def run_with_timeout(
     # Import here to avoid circular imports
     from tomic.services.entry_flow import execute_entry_flow
 
-    result_container = {"result": None, "error": None}
+    # Thread-safe container for passing results between threads
+    result_container: dict = {"result": None, "error": None}
+    result_lock = threading.Lock()
 
     def run_entry_flow():
         try:
-            result_container["result"] = execute_entry_flow()
+            result = execute_entry_flow()
+            with result_lock:
+                result_container["result"] = result
         except Exception as e:
-            result_container["error"] = e
+            with result_lock:
+                result_container["error"] = e
 
     thread = threading.Thread(target=run_entry_flow, daemon=True)
     thread.start()
@@ -219,11 +224,15 @@ def run_with_timeout(
     # Always cleanup stale connections after completion
     _force_cleanup_ib_connections()
 
-    if result_container["error"]:
-        logger.error("Entry flow exception: %s", result_container["error"])
+    # Thread-safe access to results
+    with result_lock:
+        error = result_container["error"]
+        result = result_container["result"]
+
+    if error:
+        logger.error("Entry flow exception: %s", error)
         return 1
 
-    result = result_container["result"]
     if result is None:
         logger.error("Entry flow returned None")
         return 1

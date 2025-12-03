@@ -5,7 +5,8 @@ default:
   min_days_until_earnings: 0
   strike_to_strategy_config:
     use_ATR: true
-    wing_width_sigma: 1.0
+    # wing_sigma_multiple: multiplier for ATR-based wing width calculation
+    wing_sigma_multiple: 1.0
     long_leg_distance_points: 0.1
 strategies:
   iron_condor:
@@ -24,7 +25,7 @@ strategies:
       short_put_delta_range:
       - -0.4
       - -0.1
-      wing_width_sigma: 1.0
+      wing_sigma_multiple: 1.0
       min_wing_width_atr: 2.0
       use_ATR: true
       long_wing_strike_tolerance_percent: 5.0
@@ -39,9 +40,8 @@ strategies:
     strike_to_strategy_config:
       center_strike_relative_to_spot:
       - 0
-      wing_width_sigma:
-      - 0.3
-      - 1.0
+      # wing_sigma_multiple: 0.5 is a balanced value (was range 0.3-1.0)
+      wing_sigma_multiple: 0.5
       min_wing_width_atr: 2.0
       use_ATR: true
   short_put_spread:

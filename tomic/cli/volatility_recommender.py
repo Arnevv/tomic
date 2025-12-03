@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import ast
+import operator
 import re
 from pathlib import Path
 from typing import Any, Dict, List, Optional
@@ -81,8 +83,90 @@ _RULES = _load_rules()
 
 _RANGE_RE = re.compile(r"^(\w+)\s+(\d+(?:\.\d+)?)\s*[-–]\s*(\d+(?:\.\d+)?)$")
 
+# Safe operators for expression evaluation
+_SAFE_OPERATORS = {
+    ast.Add: operator.add,
+    ast.Sub: operator.sub,
+    ast.Mult: operator.mul,
+    ast.Div: operator.truediv,
+    ast.Eq: operator.eq,
+    ast.NotEq: operator.ne,
+    ast.Lt: operator.lt,
+    ast.LtE: operator.le,
+    ast.Gt: operator.gt,
+    ast.GtE: operator.ge,
+    ast.And: lambda a, b: a and b,
+    ast.Or: lambda a, b: a or b,
+    ast.Not: operator.not_,
+    ast.USub: operator.neg,
+}
+
+
+def _safe_eval_node(node: ast.AST, context: Dict[str, Any]) -> Any:
+    """Recursively evaluate an AST node with restricted operations."""
+    if isinstance(node, ast.Expression):
+        return _safe_eval_node(node.body, context)
+    elif isinstance(node, ast.Constant):
+        return node.value
+    elif isinstance(node, ast.Num):  # Python 3.7 compatibility
+        return node.n
+    elif isinstance(node, ast.Name):
+        name = node.id
+        if name in context:
+            return context[name]
+        if name in ("True", "False", "None"):
+            return {"True": True, "False": False, "None": None}[name]
+        return None
+    elif isinstance(node, ast.BinOp):
+        op_type = type(node.op)
+        if op_type not in _SAFE_OPERATORS:
+            return None
+        left = _safe_eval_node(node.left, context)
+        right = _safe_eval_node(node.right, context)
+        if left is None or right is None:
+            return None
+        return _SAFE_OPERATORS[op_type](left, right)
+    elif isinstance(node, ast.UnaryOp):
+        op_type = type(node.op)
+        if op_type not in _SAFE_OPERATORS:
+            return None
+        operand = _safe_eval_node(node.operand, context)
+        if operand is None:
+            return None
+        return _SAFE_OPERATORS[op_type](operand)
+    elif isinstance(node, ast.Compare):
+        left = _safe_eval_node(node.left, context)
+        for op, comparator in zip(node.ops, node.comparators):
+            op_type = type(op)
+            if op_type not in _SAFE_OPERATORS:
+                return False
+            right = _safe_eval_node(comparator, context)
+            if left is None or right is None:
+                return False
+            if not _SAFE_OPERATORS[op_type](left, right):
+                return False
+            left = right
+        return True
+    elif isinstance(node, ast.BoolOp):
+        op_type = type(node.op)
+        values = [_safe_eval_node(v, context) for v in node.values]
+        if op_type == ast.And:
+            return all(values)
+        return any(values)
+    else:
+        return None
+
 
 def _check_expr(expr: str, metrics: Dict[str, Any]) -> bool:
+    """Safely evaluate expression against metrics.
+
+    Supports:
+    - Range expressions like "iv_rank 0.3-0.7"
+    - Comparison expressions like "iv_rank > 0.5"
+    - Boolean expressions like "iv_rank > 0.3 and hv < 30"
+
+    Uses AST parsing to prevent code injection attacks.
+    """
     expr = expr.strip()
     m = _RANGE_RE.match(expr)
     if m:
@@ -97,7 +181,9 @@ def _check_expr(expr: str, metrics: Dict[str, Any]) -> bool:
         except Exception:
             return False
     try:
-        return bool(eval(expr, {}, metrics))
+        tree = ast.parse(expr, mode="eval")
+        result = _safe_eval_node(tree, metrics)
+        return bool(result) if result is not None else False
     except Exception:
         return False
 
