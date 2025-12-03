@@ -32,6 +32,17 @@ from tomic.backtest.signal_generator import SignalGenerator
 from tomic.config import _load_yaml, _BASE_DIR
 from tomic.logutils import logger
 
+# Strategy type constants
+STRATEGY_IRON_CONDOR = "iron_condor"
+STRATEGY_CALENDAR = "calendar"
+STRATEGY_COMBINED = "combined"
+
+STRATEGY_DISPLAY_NAMES = {
+    STRATEGY_IRON_CONDOR: "Iron Condor",
+    STRATEGY_CALENDAR: "Calendar Spread",
+    STRATEGY_COMBINED: "Iron Condor + Calendar",
+}
+
 
 @dataclass
 class DailyEvaluation:
@@ -39,6 +50,7 @@ class DailyEvaluation:
 
     date: str
     symbol: str
+    strategy_type: str  # iron_condor, calendar, or combined
     atm_iv: Optional[float]
     iv_percentile: Optional[float]
     iv_rank: Optional[float]
@@ -46,9 +58,14 @@ class DailyEvaluation:
     skew: Optional[float]
     term_m1_m2: Optional[float]
     spot_price: Optional[float]
-    # Criteria evaluation
-    iv_percentile_min_required: float
-    iv_percentile_passed: bool
+    # Criteria evaluation - Iron Condor (high IV entry)
+    iv_percentile_min_required: Optional[float]
+    iv_percentile_min_passed: bool
+    # Criteria evaluation - Calendar (low IV entry)
+    iv_percentile_max_required: Optional[float]
+    iv_percentile_max_passed: bool
+    # Combined criteria result
+    entry_criteria_passed: bool
     has_open_position: bool
     entry_signal_generated: bool
     reason_no_entry: Optional[str]
@@ -60,19 +77,24 @@ class TradeDailySnapshot:
 
     trade_id: int
     date: str
+    strategy_type: str  # iron_condor or calendar
     days_in_trade: int
     iv_current: Optional[float]
     iv_change_from_entry: Optional[float]
     spot_current: Optional[float]
     estimated_pnl: float
     pnl_pct_of_max_risk: float
-    # Exit criteria evaluation
+    # Exit criteria evaluation - common
     profit_target_level: float
     stop_loss_level: float
     profit_target_triggered: bool
     stop_loss_triggered: bool
     dte_remaining: int
     min_dte_triggered: bool
+    # Calendar-specific: near leg DTE
+    near_leg_dte_remaining: Optional[int]
+    near_leg_dte_triggered: bool
+    # Final exit status
     exit_triggered: bool
     exit_reason: Optional[str]
 
@@ -80,13 +102,28 @@ class TradeDailySnapshot:
 class ExternalValidationExporter:
     """Handles export of all data needed for external validation."""
 
-    def __init__(self, symbol: str, output_dir: Path):
+    def __init__(
+        self,
+        symbol: str,
+        output_dir: Path,
+        strategy_type: str = STRATEGY_IRON_CONDOR,
+    ):
+        """Initialize exporter.
+
+        Args:
+            symbol: Symbol to export data for
+            output_dir: Directory to write export files to
+            strategy_type: Strategy type (iron_condor, calendar, or combined)
+        """
         self.symbol = symbol
         self.output_dir = output_dir
+        self.strategy_type = strategy_type
         self.config: Optional[BacktestConfig] = None
+        self.config_calendar: Optional[BacktestConfig] = None  # For combined mode
         self.live_config: Dict[str, Any] = {}
         self.data_loader: Optional[DataLoader] = None
         self.backtest_result: Optional[BacktestResult] = None
+        self.backtest_result_calendar: Optional[BacktestResult] = None  # For combined mode
         self.daily_evaluations: List[DailyEvaluation] = []
         self.trade_snapshots: List[TradeDailySnapshot] = []
 
@@ -99,9 +136,10 @@ class ExternalValidationExporter:
         Returns:
             Path to the export directory.
         """
-        # Create export directory
+        # Create export directory with strategy type in name
         timestamp = datetime.now().strftime("%Y-%m-%d_%H%M%S")
-        export_path = self.output_dir / f"external_validation_{self.symbol}_{timestamp}"
+        strategy_suffix = self.strategy_type.replace("_", "-")
+        export_path = self.output_dir / f"external_validation_{self.symbol}_{strategy_suffix}_{timestamp}"
         export_path.mkdir(parents=True, exist_ok=True)
 
         # Load configuration
@@ -122,18 +160,63 @@ class ExternalValidationExporter:
         return export_path
 
     def _load_configuration(self) -> None:
-        """Load all configuration from YAML files."""
+        """Load all configuration from YAML files based on strategy type."""
         # Import here to avoid circular import
         from tomic.cli.strategy_testing_ui import load_live_config
-        self.live_config = load_live_config()
 
-        # Load backtest config
-        backtest_yaml = _BASE_DIR / "config" / "backtest.yaml"
-        if backtest_yaml.exists():
-            config_data = _load_yaml(backtest_yaml)
-            # Filter to single symbol
+        if self.strategy_type == STRATEGY_COMBINED:
+            # Load both iron condor and calendar configs
+            self.live_config = load_live_config(STRATEGY_IRON_CONDOR)
+
+            # Load iron condor config
+            backtest_yaml = _BASE_DIR / "config" / "backtest.yaml"
+            if backtest_yaml.exists():
+                config_data = _load_yaml(backtest_yaml)
+                config_data["symbols"] = [self.symbol]
+                config_data["strategy_type"] = STRATEGY_IRON_CONDOR
+                self.config = BacktestConfig.model_validate(config_data)
+
+            # Load calendar config
+            calendar_yaml = _BASE_DIR / "config" / "backtest_calendar.yaml"
+            if calendar_yaml.exists():
+                config_data_cal = _load_yaml(calendar_yaml)
+                config_data_cal["symbols"] = [self.symbol]
+                config_data_cal["strategy_type"] = STRATEGY_CALENDAR
+                self.config_calendar = BacktestConfig.model_validate(config_data_cal)
+            else:
+                # Fallback to backtest.yaml with calendar strategy type
+                if backtest_yaml.exists():
+                    config_data_cal = _load_yaml(backtest_yaml)
+                    config_data_cal["symbols"] = [self.symbol]
+                    config_data_cal["strategy_type"] = STRATEGY_CALENDAR
+                    self.config_calendar = BacktestConfig.model_validate(config_data_cal)
+
+        elif self.strategy_type == STRATEGY_CALENDAR:
+            self.live_config = load_live_config(STRATEGY_CALENDAR)
+
+            # Load calendar config
+            calendar_yaml = _BASE_DIR / "config" / "backtest_calendar.yaml"
+            if calendar_yaml.exists():
+                config_data = _load_yaml(calendar_yaml)
+            else:
+                # Fallback to backtest.yaml
+                backtest_yaml = _BASE_DIR / "config" / "backtest.yaml"
+                config_data = _load_yaml(backtest_yaml) if backtest_yaml.exists() else {}
+
             config_data["symbols"] = [self.symbol]
+            config_data["strategy_type"] = STRATEGY_CALENDAR
             self.config = BacktestConfig.model_validate(config_data)
+
+        else:
+            # Default: iron condor
+            self.live_config = load_live_config(STRATEGY_IRON_CONDOR)
+
+            backtest_yaml = _BASE_DIR / "config" / "backtest.yaml"
+            if backtest_yaml.exists():
+                config_data = _load_yaml(backtest_yaml)
+                config_data["symbols"] = [self.symbol]
+                config_data["strategy_type"] = STRATEGY_IRON_CONDOR
+                self.config = BacktestConfig.model_validate(config_data)
 
     def _run_backtest_with_logging(self) -> None:
         """Run backtest while collecting detailed evaluation data."""
@@ -153,6 +236,11 @@ class ExternalValidationExporter:
         engine = BacktestEngine(self.config)
         self.backtest_result = engine.run()
 
+        # For combined mode, also run calendar backtest
+        if self.strategy_type == STRATEGY_COMBINED and self.config_calendar:
+            engine_calendar = BacktestEngine(self.config_calendar)
+            self.backtest_result_calendar = engine_calendar.run()
+
         # Now collect daily evaluations with knowledge of actual trades
         self._collect_daily_evaluations(iv_ts)
 
@@ -160,20 +248,41 @@ class ExternalValidationExporter:
         self._collect_trade_snapshots()
 
     def _collect_daily_evaluations(self, iv_ts) -> None:
-        """Collect daily entry evaluation data."""
-        iv_pct_min = self.config.entry_rules.iv_percentile_min or 0.0
+        """Collect daily entry evaluation data for all strategy types."""
+        # Get entry criteria based on strategy type
+        # Iron Condor: HIGH IV entry (iv_percentile >= min)
+        # Calendar: LOW IV entry (iv_percentile <= max)
+        iv_pct_min = self.config.entry_rules.iv_percentile_min
+        iv_pct_max = self.config.entry_rules.iv_percentile_max
 
-        # Build a set of dates when position was open based on actual trades
+        # For combined mode, get calendar criteria from calendar config
+        if self.strategy_type == STRATEGY_COMBINED and self.config_calendar:
+            iv_pct_max = self.config_calendar.entry_rules.iv_percentile_max
+
+        # Build sets of dates when positions were open and entries were made
         open_dates: set = set()
         entry_dates: set = set()
+        entry_dates_calendar: set = set()
+
+        # Collect from primary backtest result
         if self.backtest_result:
             for trade in self.backtest_result.trades:
                 if trade.symbol != self.symbol:
                     continue
                 entry_dates.add(trade.entry_date)
-                # Add all dates from entry to exit (exclusive of exit date)
                 if trade.exit_date:
-                    from datetime import timedelta
+                    current = trade.entry_date
+                    while current < trade.exit_date:
+                        open_dates.add(current)
+                        current += timedelta(days=1)
+
+        # Collect from calendar backtest result (combined mode)
+        if self.strategy_type == STRATEGY_COMBINED and self.backtest_result_calendar:
+            for trade in self.backtest_result_calendar.trades:
+                if trade.symbol != self.symbol:
+                    continue
+                entry_dates_calendar.add(trade.entry_date)
+                if trade.exit_date:
                     current = trade.entry_date
                     while current < trade.exit_date:
                         open_dates.add(current)
@@ -184,27 +293,47 @@ class ExternalValidationExporter:
 
         for dp in iv_ts:
             has_open = dp.date in open_dates
-            was_entry_date = dp.date in entry_dates
 
-            # Determine if entry criteria passed
-            iv_pct_passed = (
-                dp.iv_percentile is not None and dp.iv_percentile >= iv_pct_min
-            )
+            # Determine if entry criteria passed for each strategy type
+            # Iron Condor: HIGH IV entry
+            iv_min_passed = False
+            if iv_pct_min is not None and dp.iv_percentile is not None:
+                iv_min_passed = dp.iv_percentile >= iv_pct_min
+
+            # Calendar: LOW IV entry
+            iv_max_passed = False
+            if iv_pct_max is not None and dp.iv_percentile is not None:
+                iv_max_passed = dp.iv_percentile <= iv_pct_max
+
+            # Determine overall entry criteria based on strategy type
+            if self.strategy_type == STRATEGY_IRON_CONDOR:
+                entry_criteria_passed = iv_min_passed
+                was_entry_date = dp.date in entry_dates
+            elif self.strategy_type == STRATEGY_CALENDAR:
+                entry_criteria_passed = iv_max_passed
+                was_entry_date = dp.date in entry_dates
+            else:  # STRATEGY_COMBINED
+                entry_criteria_passed = iv_min_passed or iv_max_passed
+                was_entry_date = dp.date in entry_dates or dp.date in entry_dates_calendar
 
             # Determine reason for no entry
             reason = None
-            entry_generated = was_entry_date  # Use actual entry from backtest
+            entry_generated = was_entry_date
 
             if was_entry_date:
-                reason = None  # Entry was generated
+                reason = None
             elif has_open:
                 reason = "position_already_open"
             elif dp.iv_percentile is None:
                 reason = "iv_percentile_not_available"
-            elif not iv_pct_passed:
-                reason = f"iv_percentile_{dp.iv_percentile:.1f}_below_min_{iv_pct_min}"
+            elif not entry_criteria_passed:
+                if self.strategy_type == STRATEGY_IRON_CONDOR:
+                    reason = f"iv_percentile_{dp.iv_percentile:.1f}_below_min_{iv_pct_min}"
+                elif self.strategy_type == STRATEGY_CALENDAR:
+                    reason = f"iv_percentile_{dp.iv_percentile:.1f}_above_max_{iv_pct_max}"
+                else:
+                    reason = f"iv_percentile_{dp.iv_percentile:.1f}_not_in_range"
             else:
-                # Criteria passed but no entry - could be max positions or other rule
                 reason = "criteria_passed_but_no_entry_other_constraint"
 
             spot = spot_prices.get(dp.date)
@@ -212,6 +341,7 @@ class ExternalValidationExporter:
             eval_record = DailyEvaluation(
                 date=str(dp.date),
                 symbol=self.symbol,
+                strategy_type=self.strategy_type,
                 atm_iv=dp.atm_iv,
                 iv_percentile=dp.iv_percentile,
                 iv_rank=dp.iv_rank,
@@ -220,7 +350,10 @@ class ExternalValidationExporter:
                 term_m1_m2=dp.term_m1_m2,
                 spot_price=spot,
                 iv_percentile_min_required=iv_pct_min,
-                iv_percentile_passed=iv_pct_passed,
+                iv_percentile_min_passed=iv_min_passed,
+                iv_percentile_max_required=iv_pct_max,
+                iv_percentile_max_passed=iv_max_passed,
+                entry_criteria_passed=entry_criteria_passed,
                 has_open_position=has_open,
                 entry_signal_generated=entry_generated,
                 reason_no_entry=reason,
@@ -231,27 +364,40 @@ class ExternalValidationExporter:
         """Collect daily snapshots for each trade.
 
         Exit triggers are checked in the same priority order as exit_evaluator.py:
-        1. Profit target (50% of credit)
-        2. Stop loss (100% of credit)
-        3. Time decay (min DTE)
+        1. Profit target (50% of credit for IC, or profit % of max_risk for calendar)
+        2. Stop loss (100% of credit for IC, or loss % of max_risk for calendar)
+        3. Time decay (min DTE) - for calendars: near leg DTE
         4. Delta breach (IV spike >= 8 vol points)
         5. IV collapse (IV drop >= threshold vol points)
         6. Max days in trade
         """
-        if not self.backtest_result:
+        # Collect trades from primary backtest
+        trades_to_process: List[Tuple[SimulatedTrade, int, BacktestConfig]] = []
+
+        if self.backtest_result:
+            for idx, trade in enumerate(self.backtest_result.trades):
+                if trade.symbol == self.symbol:
+                    trades_to_process.append((trade, idx, self.config))
+
+        # For combined mode, also collect calendar trades
+        if self.strategy_type == STRATEGY_COMBINED and self.backtest_result_calendar:
+            base_idx = len(trades_to_process)
+            for idx, trade in enumerate(self.backtest_result_calendar.trades):
+                if trade.symbol == self.symbol:
+                    trades_to_process.append((trade, base_idx + idx, self.config_calendar))
+
+        if not trades_to_process:
             return
 
-        profit_target_pct = self.config.exit_rules.profit_target_pct
-        stop_loss_pct = self.config.exit_rules.stop_loss_pct
-        min_dte = self.config.exit_rules.min_dte
-        max_dit = self.config.exit_rules.max_days_in_trade
-        iv_collapse_threshold = self.config.exit_rules.iv_collapse_threshold
-        # Delta breach proxy: IV spike threshold (same as exit_evaluator.py)
-        delta_breach_iv_spike = 8.0
+        for trade, idx, config in trades_to_process:
+            profit_target_pct = config.exit_rules.profit_target_pct
+            stop_loss_pct = config.exit_rules.stop_loss_pct
+            min_dte = config.exit_rules.min_dte
+            max_dit = config.exit_rules.max_days_in_trade
+            iv_collapse_threshold = config.exit_rules.iv_collapse_threshold
+            delta_breach_iv_spike = 8.0
 
-        for idx, trade in enumerate(self.backtest_result.trades):
-            if trade.symbol != self.symbol:
-                continue
+            is_calendar = trade.is_calendar()
 
             # Create snapshots from trade history
             for day_idx, pnl in enumerate(trade.pnl_history):
@@ -265,41 +411,53 @@ class ExternalValidationExporter:
                     if day_idx < len(trade.spot_history)
                     else None
                 )
-                # Use actual date from date_history if available (fixes DTE calculation bug)
+                # Use actual date from date_history if available
                 if day_idx < len(trade.date_history):
                     trade_date = trade.date_history[day_idx]
                 else:
-                    # Fallback to calculated date (may be inaccurate if data gaps exist)
                     trade_date = trade.entry_date + timedelta(days=day_idx)
 
                 iv_change = None
                 iv_change_vol_points = None
                 if iv_current is not None:
                     iv_change = iv_current - trade.iv_at_entry
-                    # Normalize to vol points (handle both decimal and percentage formats)
                     iv_entry_norm = trade.iv_at_entry if trade.iv_at_entry < 1 else trade.iv_at_entry / 100
                     iv_current_norm = iv_current if iv_current < 1 else iv_current / 100
                     iv_change_vol_points = (iv_current_norm - iv_entry_norm) * 100
 
                 pnl_pct = (pnl / trade.max_risk) * 100 if trade.max_risk else 0
 
-                # Calculate DTE remaining using actual trade date
+                # Calculate DTE remaining
                 dte_remaining = max(0, (trade.target_expiry - trade_date).days)
                 days_in_trade_actual = (trade_date - trade.entry_date).days
 
-                # Check exit triggers - MUST match exit_evaluator.py logic exactly
-                # Profit target: compare P&L to percentage of CREDIT, not max_risk
-                profit_target_amount = trade.estimated_credit * (profit_target_pct / 100)
-                profit_target_triggered = pnl >= profit_target_amount
+                # Calendar-specific: near leg DTE
+                near_leg_dte = None
+                near_leg_dte_triggered = False
+                if is_calendar and trade.short_expiry:
+                    near_leg_dte = max(0, (trade.short_expiry - trade_date).days)
+                    near_leg_dte_triggered = near_leg_dte <= min_dte
 
-                # Stop loss: compare P&L to percentage of CREDIT
-                stop_loss_amount = trade.estimated_credit * (stop_loss_pct / 100)
+                # Exit triggers differ for iron condor vs calendar
+                if is_calendar:
+                    # Calendar: P&L target/stop based on max_risk (debit paid)
+                    profit_target_amount = trade.max_risk * (profit_target_pct / 100)
+                    stop_loss_amount = trade.max_risk * (stop_loss_pct / 100)
+                else:
+                    # Iron Condor: P&L target/stop based on credit received
+                    profit_target_amount = trade.estimated_credit * (profit_target_pct / 100)
+                    stop_loss_amount = trade.estimated_credit * (stop_loss_pct / 100)
+
+                profit_target_triggered = pnl >= profit_target_amount
                 stop_loss_triggered = pnl <= -stop_loss_amount
 
-                # Time decay (min DTE)
-                min_dte_triggered = dte_remaining <= min_dte
+                # Time decay (min DTE) - use near leg for calendars
+                if is_calendar and near_leg_dte is not None:
+                    min_dte_triggered = near_leg_dte_triggered
+                else:
+                    min_dte_triggered = dte_remaining <= min_dte
 
-                # Delta breach: IV spike >= threshold (proxy for large spot move)
+                # Delta breach: IV spike >= threshold
                 delta_breach_triggered = (
                     iv_change_vol_points is not None
                     and iv_change_vol_points >= delta_breach_iv_spike
@@ -311,10 +469,10 @@ class ExternalValidationExporter:
                     and iv_change_vol_points <= -iv_collapse_threshold
                 )
 
-                # Max days in trade (use actual days, not array index)
+                # Max days in trade
                 max_dit_triggered = days_in_trade_actual >= max_dit
 
-                # Determine exit in priority order (same as exit_evaluator.py)
+                # Determine exit in priority order
                 exit_triggered = (
                     profit_target_triggered
                     or stop_loss_triggered
@@ -329,7 +487,7 @@ class ExternalValidationExporter:
                 elif stop_loss_triggered:
                     exit_reason = "stop_loss"
                 elif min_dte_triggered:
-                    exit_reason = "time_decay_dte"
+                    exit_reason = "near_leg_dte" if is_calendar else "time_decay_dte"
                 elif delta_breach_triggered:
                     exit_reason = "delta_breach"
                 elif iv_collapse_triggered:
@@ -340,6 +498,7 @@ class ExternalValidationExporter:
                 snapshot = TradeDailySnapshot(
                     trade_id=idx,
                     date=str(trade_date),
+                    strategy_type=trade.strategy_type,
                     days_in_trade=days_in_trade_actual,
                     iv_current=iv_current,
                     iv_change_from_entry=iv_change,
@@ -352,6 +511,8 @@ class ExternalValidationExporter:
                     stop_loss_triggered=stop_loss_triggered,
                     dte_remaining=dte_remaining,
                     min_dte_triggered=min_dte_triggered,
+                    near_leg_dte_remaining=near_leg_dte,
+                    near_leg_dte_triggered=near_leg_dte_triggered,
                     exit_triggered=exit_triggered,
                     exit_reason=exit_reason,
                 )
@@ -360,6 +521,50 @@ class ExternalValidationExporter:
     def _export_config(self, config_dir: Path) -> None:
         """Export all configuration to JSON."""
         config_dir.mkdir(parents=True, exist_ok=True)
+
+        # Build strategy-specific config section
+        strategy_display = STRATEGY_DISPLAY_NAMES.get(self.strategy_type, self.strategy_type)
+
+        # Base backtest config
+        backtest_config = {
+            "strategy_type": self.strategy_type,
+            "strategy_display_name": strategy_display,
+            "target_dte": self.config.target_dte,
+        }
+
+        # Add iron condor specific params
+        if self.strategy_type in (STRATEGY_IRON_CONDOR, STRATEGY_COMBINED):
+            backtest_config["iron_condor"] = {
+                "wing_width": self.config.iron_condor_wing_width,
+                "short_delta": self.config.iron_condor_short_delta,
+            }
+
+        # Add calendar specific params
+        if self.strategy_type in (STRATEGY_CALENDAR, STRATEGY_COMBINED):
+            cal_config = self.config_calendar if self.config_calendar else self.config
+            backtest_config["calendar"] = {
+                "near_dte": cal_config.calendar_near_dte,
+                "far_dte": cal_config.calendar_far_dte,
+                "min_gap": cal_config.calendar_min_gap,
+            }
+
+        # Build entry rules - include both high IV and low IV criteria
+        entry_rules = {
+            "iv_percentile_min": self.config.entry_rules.iv_percentile_min,
+            "iv_percentile_max": self.config.entry_rules.iv_percentile_max,
+            "iv_rank_min": self.config.entry_rules.iv_rank_min,
+            "iv_rank_max": self.config.entry_rules.iv_rank_max,
+            "skew_min": self.config.entry_rules.skew_min,
+            "skew_max": self.config.entry_rules.skew_max,
+            "term_structure_min": self.config.entry_rules.term_structure_min,
+            "term_structure_max": self.config.entry_rules.term_structure_max,
+            "iv_hv_spread_min": self.config.entry_rules.iv_hv_spread_min,
+        }
+
+        # For combined mode, also include calendar entry rules
+        if self.strategy_type == STRATEGY_COMBINED and self.config_calendar:
+            entry_rules["calendar_iv_percentile_max"] = self.config_calendar.entry_rules.iv_percentile_max
+            entry_rules["calendar_iv_rank_max"] = self.config_calendar.entry_rules.iv_rank_max
 
         # Bundle all config
         config_bundle = {
@@ -371,21 +576,8 @@ class ExternalValidationExporter:
                     "end": self.config.end_date,
                 },
             },
-            "backtest_config": {
-                "strategy_type": self.config.strategy_type,
-                "target_dte": self.config.target_dte,
-                "iron_condor_wing_width": self.config.iron_condor_wing_width,
-                "iron_condor_short_delta": self.config.iron_condor_short_delta,
-            },
-            "entry_rules": {
-                "iv_percentile_min": self.config.entry_rules.iv_percentile_min,
-                "iv_rank_min": self.config.entry_rules.iv_rank_min,
-                "skew_min": self.config.entry_rules.skew_min,
-                "skew_max": self.config.entry_rules.skew_max,
-                "term_structure_min": self.config.entry_rules.term_structure_min,
-                "term_structure_max": self.config.entry_rules.term_structure_max,
-                "iv_hv_spread_min": self.config.entry_rules.iv_hv_spread_min,
-            },
+            "backtest_config": backtest_config,
+            "entry_rules": entry_rules,
             "exit_rules": {
                 "profit_target_pct": self.config.exit_rules.profit_target_pct,
                 "stop_loss_pct": self.config.exit_rules.stop_loss_pct,
@@ -487,6 +679,7 @@ class ExternalValidationExporter:
                 [
                     "date",
                     "symbol",
+                    "strategy_type",
                     "atm_iv",
                     "iv_percentile",
                     "iv_rank",
@@ -495,7 +688,10 @@ class ExternalValidationExporter:
                     "term_m1_m2",
                     "spot_price",
                     "iv_percentile_min_required",
-                    "iv_percentile_passed",
+                    "iv_percentile_min_passed",
+                    "iv_percentile_max_required",
+                    "iv_percentile_max_passed",
+                    "entry_criteria_passed",
                     "has_open_position",
                     "entry_signal_generated",
                     "reason_no_entry",
@@ -507,6 +703,7 @@ class ExternalValidationExporter:
                     [
                         ev.date,
                         ev.symbol,
+                        ev.strategy_type,
                         ev.atm_iv,
                         ev.iv_percentile,
                         ev.iv_rank,
@@ -515,7 +712,10 @@ class ExternalValidationExporter:
                         ev.term_m1_m2,
                         ev.spot_price,
                         ev.iv_percentile_min_required,
-                        ev.iv_percentile_passed,
+                        ev.iv_percentile_min_passed,
+                        ev.iv_percentile_max_required,
+                        ev.iv_percentile_max_passed,
+                        ev.entry_criteria_passed,
                         ev.has_open_position,
                         ev.entry_signal_generated,
                         ev.reason_no_entry,
@@ -528,10 +728,25 @@ class ExternalValidationExporter:
         """Export trade details with daily P&L breakdown."""
         trades_dir.mkdir(parents=True, exist_ok=True)
 
-        if not self.backtest_result:
+        # Collect all trades to export
+        all_trades: List[Tuple[SimulatedTrade, int]] = []
+
+        if self.backtest_result:
+            for idx, trade in enumerate(self.backtest_result.trades):
+                if trade.symbol == self.symbol:
+                    all_trades.append((trade, idx))
+
+        # For combined mode, also include calendar trades
+        if self.strategy_type == STRATEGY_COMBINED and self.backtest_result_calendar:
+            base_idx = len(all_trades)
+            for idx, trade in enumerate(self.backtest_result_calendar.trades):
+                if trade.symbol == self.symbol:
+                    all_trades.append((trade, base_idx + idx))
+
+        if not all_trades:
             return
 
-        # Export trade summary
+        # Export trade summary with calendar-specific fields
         summary_path = trades_dir / f"{self.symbol}_trades_summary.csv"
         with open(summary_path, "w", newline="", encoding="utf-8") as f:
             writer = csv.writer(f)
@@ -549,6 +764,9 @@ class ExternalValidationExporter:
                     "spot_at_exit",
                     "max_risk",
                     "estimated_credit",
+                    "entry_debit",
+                    "short_expiry",
+                    "long_expiry",
                     "final_pnl",
                     "pnl_pct",
                     "days_in_trade",
@@ -557,10 +775,7 @@ class ExternalValidationExporter:
                 ]
             )
 
-            for idx, trade in enumerate(self.backtest_result.trades):
-                if trade.symbol != self.symbol:
-                    continue
-
+            for trade, idx in all_trades:
                 pnl_pct = (
                     (trade.final_pnl / trade.max_risk) * 100 if trade.max_risk else 0
                 )
@@ -578,6 +793,9 @@ class ExternalValidationExporter:
                         trade.spot_at_exit,
                         trade.max_risk,
                         trade.estimated_credit,
+                        trade.entry_debit,
+                        trade.short_expiry,
+                        trade.long_expiry,
                         trade.final_pnl,
                         pnl_pct,
                         trade.days_in_trade,
@@ -586,7 +804,7 @@ class ExternalValidationExporter:
                     ]
                 )
 
-        # Export daily snapshots
+        # Export daily snapshots with calendar-specific fields
         if self.trade_snapshots:
             snapshots_path = trades_dir / f"{self.symbol}_trades_daily_snapshots.csv"
             with open(snapshots_path, "w", newline="", encoding="utf-8") as f:
@@ -595,6 +813,7 @@ class ExternalValidationExporter:
                     [
                         "trade_id",
                         "date",
+                        "strategy_type",
                         "days_in_trade",
                         "iv_current",
                         "iv_change_from_entry",
@@ -607,6 +826,8 @@ class ExternalValidationExporter:
                         "stop_loss_triggered",
                         "dte_remaining",
                         "min_dte_triggered",
+                        "near_leg_dte_remaining",
+                        "near_leg_dte_triggered",
                         "exit_triggered",
                         "exit_reason",
                     ]
@@ -617,6 +838,7 @@ class ExternalValidationExporter:
                         [
                             snap.trade_id,
                             snap.date,
+                            snap.strategy_type,
                             snap.days_in_trade,
                             snap.iv_current,
                             snap.iv_change_from_entry,
@@ -629,6 +851,8 @@ class ExternalValidationExporter:
                             snap.stop_loss_triggered,
                             snap.dte_remaining,
                             snap.min_dte_triggered,
+                            snap.near_leg_dte_remaining,
+                            snap.near_leg_dte_triggered,
                             snap.exit_triggered,
                             snap.exit_reason,
                         ]
@@ -640,7 +864,12 @@ class ExternalValidationExporter:
         """Export calculation formulas documentation."""
         formulas_dir.mkdir(parents=True, exist_ok=True)
 
-        formulas_md = """# Calculation Formulas
+        strategy_display = STRATEGY_DISPLAY_NAMES.get(self.strategy_type, self.strategy_type)
+
+        # Base formulas (common to all strategies)
+        formulas_md = f"""# Calculation Formulas
+
+## Strategy Type: {strategy_display}
 
 ## 1. IV Percentile Calculation
 
@@ -692,7 +921,11 @@ if max_iv > min_iv:
     iv_rank = ((current_iv - min_iv) / (max_iv - min_iv)) * 100
 ```
 
-## 3. P&L Estimation Model
+"""
+
+        # Add strategy-specific P&L model documentation
+        if self.strategy_type in (STRATEGY_IRON_CONDOR, STRATEGY_COMBINED):
+            formulas_md += """## 3. Iron Condor P&L Estimation Model
 
 Since we don't have historical bid/ask data, P&L is estimated using an IV-based model.
 
@@ -716,7 +949,7 @@ credit = wing_width * credit_ratio
 
 ### Daily P&L Components:
 
-#### Vega P&L (from IV change):
+#### Vega P&L (from IV change) - SHORT VEGA:
 ```python
 VEGA_SENSITIVITY = 1.5  # $ per vol point per $100 max risk
 
@@ -743,7 +976,7 @@ total_pnl = min(estimated_credit, total_pnl)  # Cap at max profit (credit)
 total_pnl = max(-max_risk, total_pnl)  # Cap at max loss (wing width)
 ```
 
-### Exit Triggers (checked in priority order):
+### Iron Condor Exit Triggers (checked in priority order):
 1. **Profit Target**: P&L >= 50% of **estimated_credit** (NOT max_risk)
 2. **Stop Loss**: P&L <= -100% of **estimated_credit**
 3. **Time Decay (DTE)**: Days to expiration <= 5 (avoid gamma risk)
@@ -751,13 +984,109 @@ total_pnl = max(-max_risk, total_pnl)  # Cap at max loss (wing width)
 5. **IV Collapse**: IV drops >= 10 vol points below entry (thesis validated)
 6. **Max Days in Trade**: days_in_trade >= 45
 
-## 4. Entry Signal Generation
+"""
 
-Entry signals are generated when ALL of the following are true:
-1. IV Percentile >= configured minimum (default: 60%)
+        if self.strategy_type in (STRATEGY_CALENDAR, STRATEGY_COMBINED):
+            formulas_md += """## 3. Calendar Spread P&L Estimation Model
+
+Calendar spreads are LONG VEGA positions that profit when IV increases.
+
+### Debit Estimation:
+```python
+# Calendar spread max risk = debit paid
+# Typical debit is 30-40% of the far-leg value
+base_debit_ratio = 0.35
+
+# Adjustments for IV level (lower IV = cheaper calendars)
+iv_adjustment = iv_at_entry / 0.20  # Scale relative to 20% IV baseline
+
+# Final debit (entry cost)
+entry_debit = estimated_far_leg_value * base_debit_ratio * iv_adjustment
+max_risk = entry_debit  # Calendar max risk = debit paid
+```
+
+### Daily P&L Components:
+
+#### Vega P&L (from IV change) - LONG VEGA:
+```python
+VEGA_SENSITIVITY = 1.5  # $ per vol point per $100 max risk
+
+# IV change in vol points (positive = IV increased = profit for long vega)
+iv_change = (iv_current - iv_at_entry) * 100  # Note: opposite sign vs iron condor
+vega_pnl = iv_change * VEGA_SENSITIVITY * (max_risk / 100)
+```
+
+#### Theta P&L (time decay):
+Calendar spreads benefit from the near-leg decaying faster than the far-leg.
+
+```python
+# Theta differential between near and far leg
+near_leg_theta = estimate_theta(near_dte)
+far_leg_theta = estimate_theta(far_dte)
+
+# Net theta = near_leg_theta - far_leg_theta (positive when near decays faster)
+net_theta_pnl = (near_leg_theta - far_leg_theta) * days_in_trade
+```
+
+#### Total Estimated P&L:
+```python
+total_pnl = vega_pnl + net_theta_pnl - costs
+total_pnl = max(-max_risk, total_pnl)  # Cap at max loss (debit paid)
+```
+
+### Calendar Exit Triggers (checked in priority order):
+1. **Profit Target**: P&L >= 50% of **max_risk** (debit paid)
+2. **Stop Loss**: P&L <= -100% of **max_risk**
+3. **Near Leg DTE**: Near leg days to expiration <= 5 (avoid pin risk)
+4. **Delta Breach**: IV spikes >= 8 vol points (but this benefits calendars!)
+5. **IV Collapse**: IV drops >= 10 vol points (negative for long vega)
+6. **Max Days in Trade**: days_in_trade >= 45
+
+"""
+
+        # Entry signal generation section (strategy-specific)
+        formulas_md += """## 4. Entry Signal Generation
+
+"""
+        if self.strategy_type == STRATEGY_IRON_CONDOR:
+            formulas_md += """Entry signals for **Iron Condor** are generated when ALL of the following are true:
+1. **IV Percentile >= configured minimum** (default: 60%) - HIGH IV entry
 2. No existing open position for the symbol
 3. Total positions < max_total_positions limit
 4. Additional optional filters (skew, term structure, IV-HV spread) if configured
+
+**Rationale**: Enter iron condors when IV is HIGH (elevated IV percentile) to collect
+maximum premium. Short vega position profits as IV mean-reverts downward.
+"""
+        elif self.strategy_type == STRATEGY_CALENDAR:
+            formulas_md += """Entry signals for **Calendar Spread** are generated when ALL of the following are true:
+1. **IV Percentile <= configured maximum** (default: 40%) - LOW IV entry
+2. No existing open position for the symbol
+3. Total positions < max_total_positions limit
+4. Optional: Term structure filter (front IV >= back IV for mispricing opportunity)
+
+**Rationale**: Enter calendars when IV is LOW (depressed IV percentile) to buy cheap
+options. Long vega position profits as IV mean-reverts upward.
+"""
+        else:  # STRATEGY_COMBINED
+            formulas_md += """Entry signals for **Combined Strategy** are generated when EITHER:
+
+### Iron Condor Entry:
+1. **IV Percentile >= configured minimum** (default: 60%) - HIGH IV entry
+2. No existing open position for the symbol
+3. Total positions < max_total_positions limit
+
+### Calendar Spread Entry:
+1. **IV Percentile <= configured maximum** (default: 40%) - LOW IV entry
+2. No existing open position for the symbol
+3. Total positions < max_total_positions limit
+
+**Rationale**: The combined strategy trades both extremes of IV:
+- When IV is HIGH: Enter short vega positions (iron condors) to profit from IV crush
+- When IV is LOW: Enter long vega positions (calendars) to profit from IV expansion
+"""
+
+        formulas_md += """
 
 ## 5. Sample Split
 
@@ -773,9 +1102,64 @@ Data is split into in-sample and out-of-sample periods:
 
     def _export_readme(self, export_path: Path) -> None:
         """Export README with instructions for external validator."""
+        strategy_display = STRATEGY_DISPLAY_NAMES.get(self.strategy_type, self.strategy_type)
+
+        # Build entry rules section based on strategy type
+        if self.strategy_type == STRATEGY_IRON_CONDOR:
+            entry_rules_section = f"""Entry Rules (Iron Condor - HIGH IV Entry):
+- IV Percentile Minimum: {self.config.entry_rules.iv_percentile_min}"""
+            entry_verification = """   - `iv_percentile_min_passed` = True if `iv_percentile >= iv_percentile_min_required`
+   - `entry_signal_generated` = True only if criteria passed AND no open position"""
+
+        elif self.strategy_type == STRATEGY_CALENDAR:
+            entry_rules_section = f"""Entry Rules (Calendar - LOW IV Entry):
+- IV Percentile Maximum: {self.config.entry_rules.iv_percentile_max}"""
+            entry_verification = """   - `iv_percentile_max_passed` = True if `iv_percentile <= iv_percentile_max_required`
+   - `entry_signal_generated` = True only if criteria passed AND no open position"""
+
+        else:  # STRATEGY_COMBINED
+            iv_pct_min = self.config.entry_rules.iv_percentile_min
+            iv_pct_max = self.config_calendar.entry_rules.iv_percentile_max if self.config_calendar else "N/A"
+            entry_rules_section = f"""Entry Rules (Combined Strategy):
+- Iron Condor: IV Percentile >= {iv_pct_min} (HIGH IV)
+- Calendar:    IV Percentile <= {iv_pct_max} (LOW IV)"""
+            entry_verification = """   - `iv_percentile_min_passed` = True for Iron Condor entry when IV is high
+   - `iv_percentile_max_passed` = True for Calendar entry when IV is low
+   - `entry_criteria_passed` = True if either strategy criteria is met
+   - `entry_signal_generated` = True only if criteria passed AND no open position"""
+
+        # Build strategy-specific config section
+        if self.strategy_type == STRATEGY_IRON_CONDOR:
+            strategy_config = f"""
+Iron Condor Parameters:
+- Wing Width: {self.config.iron_condor_wing_width}
+- Short Delta: {self.config.iron_condor_short_delta}
+- Target DTE: {self.config.target_dte}"""
+
+        elif self.strategy_type == STRATEGY_CALENDAR:
+            strategy_config = f"""
+Calendar Parameters:
+- Near Leg DTE: {self.config.calendar_near_dte}
+- Far Leg DTE: {self.config.calendar_far_dte}
+- Minimum Gap: {self.config.calendar_min_gap}"""
+
+        else:  # STRATEGY_COMBINED
+            cal_config = self.config_calendar if self.config_calendar else self.config
+            strategy_config = f"""
+Iron Condor Parameters:
+- Wing Width: {self.config.iron_condor_wing_width}
+- Short Delta: {self.config.iron_condor_short_delta}
+- Target DTE: {self.config.target_dte}
+
+Calendar Parameters:
+- Near Leg DTE: {cal_config.calendar_near_dte}
+- Far Leg DTE: {cal_config.calendar_far_dte}
+- Minimum Gap: {cal_config.calendar_min_gap}"""
+
         readme_content = f"""# External Validation Export Package
 
 ## Symbol: {self.symbol}
+## Strategy: {strategy_display}
 ## Export Date: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
 ## Backtest Period: {self.config.start_date} to {self.config.end_date}
 
@@ -784,7 +1168,7 @@ Data is split into in-sample and out-of-sample periods:
 ## Purpose
 
 This package contains all data needed to independently validate and reproduce
-the backtest results for the {self.symbol} Iron Condor strategy.
+the backtest results for the {self.symbol} {strategy_display} strategy.
 
 ## Package Contents
 
@@ -815,13 +1199,13 @@ the backtest results for the {self.symbol} Iron Condor strategy.
 ### Step 2: Verify Entry Decisions
 1. Load `evaluation/{self.symbol}_daily_decisions.csv`
 2. For each date, verify:
-   - `iv_percentile_passed` = True if `iv_percentile >= iv_percentile_min_required`
-   - `entry_signal_generated` = True only if criteria passed AND no open position
+{entry_verification}
 
 ### Step 3: Verify Trade P&L
 1. Load `trades/{self.symbol}_trades_daily_snapshots.csv`
 2. For each trade day, verify P&L calculation using formulas in `formulas/calculations.md`
 3. Verify exit triggers are correctly identified
+4. For calendar trades: also verify `near_leg_dte_remaining` and `near_leg_dte_triggered`
 
 ### Step 4: Verify Final Results
 1. Load `trades/{self.symbol}_trades_summary.csv`
@@ -830,14 +1214,14 @@ the backtest results for the {self.symbol} Iron Condor strategy.
 
 ## Key Configuration Values
 
-Entry Rules:
-- IV Percentile Minimum: {self.config.entry_rules.iv_percentile_min}
+{entry_rules_section}
 
 Exit Rules:
 - Profit Target: {self.config.exit_rules.profit_target_pct}% of max risk
 - Stop Loss: {self.config.exit_rules.stop_loss_pct}% of max risk
 - Min DTE: {self.config.exit_rules.min_dte} days
 - Max Days in Trade: {self.config.exit_rules.max_days_in_trade}
+{strategy_config}
 
 Position Sizing:
 - Max Risk per Trade: ${self.config.position_sizing.max_risk_per_trade}
@@ -869,6 +1253,32 @@ def get_available_symbols() -> List[str]:
     return []
 
 
+def _select_strategy_for_export() -> Optional[str]:
+    """Prompt user to select a strategy type for export.
+
+    Returns:
+        Strategy type string, or None if cancelled.
+    """
+    print("\n" + "-" * 50)
+    print("KIES STRATEGIE TYPE")
+    print("-" * 50)
+    print("1. Iron Condor       (credit, hoge IV entry)")
+    print("2. Calendar Spread   (debit, lage IV entry)")
+    print("3. Gecombineerd      (beide strategieën)")
+    print("4. Terug")
+
+    choice = input("\nMaak je keuze [1-4]: ").strip()
+
+    if choice == "1":
+        return STRATEGY_IRON_CONDOR
+    elif choice == "2":
+        return STRATEGY_CALENDAR
+    elif choice == "3":
+        return STRATEGY_COMBINED
+    else:
+        return None
+
+
 def run_external_validation_export() -> None:
     """Run the external validation export menu."""
     print("\n" + "=" * 70)
@@ -876,6 +1286,15 @@ def run_external_validation_export() -> None:
     print("=" * 70)
     print("\nGenereer een compleet exportpakket zodat een externe partij")
     print("de backtest logica kan valideren en reproduceren.")
+
+    # Select strategy type
+    strategy_type = _select_strategy_for_export()
+    if strategy_type is None:
+        print("Geannuleerd.")
+        return
+
+    strategy_display = STRATEGY_DISPLAY_NAMES.get(strategy_type, strategy_type)
+    print(f"\nGeselecteerde strategie: {strategy_display}")
 
     # Get available symbols
     symbols = get_available_symbols()
@@ -921,12 +1340,16 @@ def run_external_validation_export() -> None:
     output_dir.mkdir(exist_ok=True)
 
     print("\n" + "-" * 70)
-    print("Generating export...")
+    print(f"Generating {strategy_display} export...")
 
     for symbol in selected_symbols:
-        print(f"\nExporting {symbol}...")
+        print(f"\nExporting {symbol} ({strategy_display})...")
         try:
-            exporter = ExternalValidationExporter(symbol, output_dir)
+            exporter = ExternalValidationExporter(
+                symbol=symbol,
+                output_dir=output_dir,
+                strategy_type=strategy_type,
+            )
             export_path = exporter.run_export(include_all_data=include_all)
             print(f"  ✓ Export klaar: {export_path}")
         except Exception as e:
