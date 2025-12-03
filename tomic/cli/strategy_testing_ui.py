@@ -2,6 +2,10 @@
 
 Combines backtesting, what-if analysis, and parameter sweeps
 into a single coherent interface that works with live configuration.
+
+Supports multiple strategy types:
+- Iron Condor: Credit strategy, enter on HIGH IV
+- Calendar Spread: Debit strategy, enter on LOW IV
 """
 
 from __future__ import annotations
@@ -9,6 +13,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import datetime
 from functools import partial
+from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Tuple
 
 from tomic.cli.common import Menu, prompt, prompt_yes_no
@@ -27,25 +32,61 @@ except ImportError:
     RICH_AVAILABLE = False
 
 
+# Strategy type constants
+STRATEGY_IRON_CONDOR = "iron_condor"
+STRATEGY_CALENDAR = "calendar"
+
+STRATEGY_DISPLAY_NAMES = {
+    STRATEGY_IRON_CONDOR: "Iron Condor",
+    STRATEGY_CALENDAR: "Calendar Spread",
+}
+
+
+def _select_strategy_for_testing() -> Optional[str]:
+    """Prompt user to select a strategy type for testing.
+
+    Returns:
+        Strategy type string, or None if cancelled.
+    """
+    print("\n" + "-" * 50)
+    print("KIES STRATEGIE TYPE")
+    print("-" * 50)
+    print("1. Iron Condor  (credit, hoge IV entry)")
+    print("2. Calendar     (debit, lage IV entry)")
+    print("3. Terug")
+
+    choice = prompt("Maak je keuze [1-3]: ")
+
+    if choice == "1":
+        return STRATEGY_IRON_CONDOR
+    elif choice == "2":
+        return STRATEGY_CALENDAR
+    else:
+        return None
+
+
 # =============================================================================
 # Configuration Loading
 # =============================================================================
 
 
-def load_live_config() -> Dict[str, Any]:
+def load_live_config(strategy: str = STRATEGY_IRON_CONDOR) -> Dict[str, Any]:
     """Load all live configuration from YAML files.
+
+    Args:
+        strategy: Strategy type to load config for (iron_condor or calendar)
 
     Returns a merged dictionary with all parameters that affect strategy testing:
     - From strategies.yaml: min_risk_reward, min_rom, min_edge, min_pos, etc.
     - From criteria.yaml: acceptance criteria
-    - From backtest.yaml: entry/exit rules
+    - From backtest.yaml or backtest_calendar.yaml: entry/exit rules
     - From volatility_rules.yaml: IV/skew entry criteria per strategy
     - From strike_selection_rules.yaml: DTE range, delta range per strategy
     """
-    from pathlib import Path
     from tomic.config import _load_yaml, _BASE_DIR
 
     config: Dict[str, Any] = {}
+    config["strategy_type"] = strategy
 
     # Load strategies.yaml
     strategies_path = _BASE_DIR / "config" / "strategies.yaml"
@@ -54,8 +95,12 @@ def load_live_config() -> Dict[str, Any]:
         config["strategies"] = data.get("strategies", {})
         config["strategy_defaults"] = data.get("default", {})
 
-    # Load backtest.yaml
-    backtest_path = _BASE_DIR / "config" / "backtest.yaml"
+    # Load backtest config (strategy-specific)
+    if strategy == STRATEGY_CALENDAR:
+        backtest_path = _BASE_DIR / "config" / "backtest_calendar.yaml"
+    else:
+        backtest_path = _BASE_DIR / "config" / "backtest.yaml"
+
     if backtest_path.exists():
         config["backtest"] = _load_yaml(backtest_path)
 
@@ -105,9 +150,9 @@ def get_strategy_param(
     return default
 
 
-def get_testable_parameters(strategy: str = "iron_condor") -> List[Dict[str, Any]]:
+def get_testable_parameters(strategy: str = STRATEGY_IRON_CONDOR) -> List[Dict[str, Any]]:
     """Get list of parameters that can be tested for a strategy."""
-    config = load_live_config()
+    config = load_live_config(strategy)
 
     params = []
 
@@ -131,26 +176,41 @@ def get_testable_parameters(strategy: str = "iron_condor") -> List[Dict[str, Any
                 "source": "strategies.yaml",
             })
 
-    # Backtest parameters
+    # Backtest parameters (strategy-specific)
     backtest = config.get("backtest", {})
     entry_rules = backtest.get("entry_rules", {})
     exit_rules = backtest.get("exit_rules", {})
 
-    backtest_params = [
-        ("iv_percentile_min", "IV Percentile minimum", "entry", entry_rules.get("iv_percentile_min", 60.0)),
-        ("profit_target_pct", "Profit Target %", "exit", exit_rules.get("profit_target_pct", 50.0)),
-        ("stop_loss_pct", "Stop Loss %", "exit", exit_rules.get("stop_loss_pct", 100.0)),
-        ("max_days_in_trade", "Max Days in Trade", "exit", exit_rules.get("max_days_in_trade", 45)),
-    ]
+    # Different entry params based on strategy
+    if strategy == STRATEGY_CALENDAR:
+        # Calendar uses IV percentile MAX (low IV entry)
+        backtest_params = [
+            ("iv_percentile_max", "IV Percentile maximum", "entry", entry_rules.get("iv_percentile_max", 40.0)),
+            ("term_structure_min", "Term Structure minimum", "entry", entry_rules.get("term_structure_min", 0.0)),
+            ("profit_target_pct", "Profit Target %", "exit", exit_rules.get("profit_target_pct", 10.0)),
+            ("stop_loss_pct", "Stop Loss %", "exit", exit_rules.get("stop_loss_pct", 10.0)),
+            ("max_days_in_trade", "Max Days in Trade", "exit", exit_rules.get("max_days_in_trade", 10)),
+        ]
+        config_source = "backtest_calendar.yaml"
+    else:
+        # Iron Condor uses IV percentile MIN (high IV entry)
+        backtest_params = [
+            ("iv_percentile_min", "IV Percentile minimum", "entry", entry_rules.get("iv_percentile_min", 60.0)),
+            ("profit_target_pct", "Profit Target %", "exit", exit_rules.get("profit_target_pct", 50.0)),
+            ("stop_loss_pct", "Stop Loss %", "exit", exit_rules.get("stop_loss_pct", 100.0)),
+            ("max_days_in_trade", "Max Days in Trade", "exit", exit_rules.get("max_days_in_trade", 45)),
+        ]
+        config_source = "backtest.yaml"
 
     for param_key, description, category, current in backtest_params:
-        params.append({
-            "key": param_key,
-            "description": description,
-            "category": category,
-            "current_value": current,
-            "source": "backtest.yaml",
-        })
+        if current is not None:
+            params.append({
+                "key": param_key,
+                "description": description,
+                "category": category,
+                "current_value": current,
+                "source": config_source,
+            })
 
     # Strike selection parameters from strike_selection_rules.yaml
     strike_rules = config.get("strike_selection_rules", {})
@@ -290,15 +350,26 @@ def run_live_config_validation() -> None:
     print("LIVE CONFIG VALIDATIE")
     print("=" * 70)
     print("\nTest je huidige productie-configuratie tegen historische data.")
-    print("Gebruikt: strategies.yaml, criteria.yaml, backtest.yaml,")
+
+    # Select strategy
+    strategy = _select_strategy_for_testing()
+    if strategy is None:
+        return
+
+    strategy_name = STRATEGY_DISPLAY_NAMES.get(strategy, strategy)
+
+    # Show which config files are used
+    if strategy == STRATEGY_CALENDAR:
+        print("\nGebruikt: strategies.yaml, criteria.yaml, backtest_calendar.yaml,")
+    else:
+        print("\nGebruikt: strategies.yaml, criteria.yaml, backtest.yaml,")
     print("          volatility_rules.yaml, strike_selection_rules.yaml")
 
     # Load and show current config
-    config = load_live_config()
-    strategy = "iron_condor"  # Default for now
+    config = load_live_config(strategy)
 
     print("\n" + "-" * 50)
-    print("HUIDIGE CONFIGURATIE (iron_condor)")
+    print(f"HUIDIGE CONFIGURATIE ({strategy_name})")
     print("-" * 50)
 
     # Show key parameters grouped by category
@@ -599,7 +670,12 @@ def run_whatif_analysis() -> None:
     print("=" * 70)
     print("\nTest de impact van het wijzigen van een enkele parameter.")
 
-    strategy = "iron_condor"
+    # Select strategy
+    strategy = _select_strategy_for_testing()
+    if strategy is None:
+        return
+
+    strategy_name = STRATEGY_DISPLAY_NAMES.get(strategy, strategy)
     params = get_testable_parameters(strategy)
 
     # Show current config
@@ -902,7 +978,12 @@ def run_parameter_sweep() -> None:
     print("=" * 70)
     print("\nVind de optimale waarde voor een parameter door meerdere waarden te testen.")
 
-    strategy = "iron_condor"
+    # Select strategy
+    strategy = _select_strategy_for_testing()
+    if strategy is None:
+        return
+
+    strategy_name = STRATEGY_DISPLAY_NAMES.get(strategy, strategy)
     params = get_testable_parameters(strategy)
 
     # Show parameters
@@ -1068,12 +1149,27 @@ def run_custom_experiment() -> None:
     print("CUSTOM EXPERIMENT")
     print("=" * 70)
     print("\nVrij experimenteren met losse configuratie.")
-    print("Gebruikt config/backtest.yaml als basis.")
 
-    # Import existing backtest UI
-    from tomic.cli.backtest_ui import run_iron_condor_backtest
+    # Import backtest UI with strategy selection
+    from tomic.cli.backtest_ui import (
+        _select_strategy,
+        run_iron_condor_backtest,
+        run_calendar_backtest,
+        run_both_backtests,
+        STRATEGY_IRON_CONDOR as BT_IC,
+        STRATEGY_CALENDAR as BT_CAL,
+    )
 
-    run_iron_condor_backtest()
+    strategy = _select_strategy()
+
+    if strategy is None:
+        return
+    elif strategy == BT_IC:
+        run_iron_condor_backtest()
+    elif strategy == BT_CAL:
+        run_calendar_backtest()
+    elif strategy == "both":
+        run_both_backtests()
 
 
 # =============================================================================
@@ -1110,8 +1206,8 @@ def view_results() -> None:
 
 def configure_test_settings() -> None:
     """Configure test settings (period, symbols, etc.)."""
-    from tomic.cli.backtest_ui import configure_backtest_params
-    configure_backtest_params()
+    from tomic.cli.backtest_ui import _configure_with_strategy_choice
+    _configure_with_strategy_choice()
 
 
 # =============================================================================
