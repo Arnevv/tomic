@@ -11,13 +11,30 @@ from pydantic import BaseModel, ConfigDict
 
 
 class EntryRulesConfig(BaseModel):
-    """Entry rules configuration for backtest signals."""
+    """Entry rules configuration for backtest signals.
 
+    For Iron Condor (high IV entry):
+        - iv_percentile_min: 60.0 (enter when IV is elevated)
+        - iv_rank_min: 60.0
+
+    For Calendar Spread (low IV entry):
+        - iv_percentile_max: 40.0 (enter when IV is low - vega long)
+        - iv_rank_max: 40.0
+        - term_structure_min: 0.0 (front IV >= back IV for mispricing)
+    """
+
+    # High IV entry (Iron Condor, credit strategies)
     iv_percentile_min: float = 60.0
     iv_rank_min: Optional[float] = None
+
+    # Low IV entry (Calendar spread, vega long strategies)
+    iv_percentile_max: Optional[float] = None  # For calendar: 40.0
+    iv_rank_max: Optional[float] = None        # For calendar: 40.0
+
+    # Skew and term structure filters
     skew_min: Optional[float] = None
     skew_max: Optional[float] = None
-    term_structure_min: Optional[float] = None
+    term_structure_min: Optional[float] = None  # For calendar: 0.0 (front >= back)
     term_structure_max: Optional[float] = None
     iv_hv_spread_min: Optional[float] = None
 
@@ -140,7 +157,7 @@ class BacktestConfig(BaseModel):
     """Main backtest configuration model."""
 
     version: int = 1
-    strategy_type: str = "iron_condor"
+    strategy_type: str = "iron_condor"  # "iron_condor" or "calendar"
     symbols: List[str] = ["SPY", "QQQ", "IWM", "AAPL", "MSFT"]
 
     start_date: str = "2007-01-01"
@@ -153,14 +170,20 @@ class BacktestConfig(BaseModel):
     sample_split: SampleSplitConfig = SampleSplitConfig()
     costs: CostConfig = CostConfig()
 
+    # Iron Condor specific parameters
     iron_condor_wing_width: int = 5
     iron_condor_short_delta: float = 0.16
+
+    # Calendar Spread specific parameters
+    calendar_near_dte: int = 37   # Near leg DTE (30-45 days, default midpoint)
+    calendar_far_dte: int = 75    # Far leg DTE (60-90 days, default midpoint)
+    calendar_min_gap: int = 30    # Minimum gap between near and far leg
 
     # P&L Model selection
     use_greeks_model: bool = False  # Use Greeks-based model instead of IV-based model
     use_real_prices: bool = False  # Use real option chain prices from ORATS (requires cached data)
 
-    model_config = ConfigDict(extra="forbid")
+    model_config = ConfigDict(extra="allow")  # Allow extra fields for flexibility
 
     def get_in_sample_end_date(self) -> date:
         """Calculate the end date for in-sample period based on split ratio."""

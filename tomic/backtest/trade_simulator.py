@@ -14,8 +14,8 @@ from typing import Dict, List, Optional
 
 from tomic.backtest.config import BacktestConfig
 from tomic.backtest.data_loader import IVTimeSeries
-from tomic.backtest.exit_evaluator import ExitEvaluator, ExitEvaluation
-from tomic.backtest.pnl_model import IronCondorPnLModel, GreeksBasedPnLModel
+from tomic.backtest.exit_evaluator import ExitEvaluator, ExitEvaluation, CalendarExitEvaluator
+from tomic.backtest.pnl_model import IronCondorPnLModel, GreeksBasedPnLModel, CalendarSpreadPnLModel
 from tomic.backtest.results import (
     EntrySignal,
     ExitReason,
@@ -49,13 +49,25 @@ class TradeSimulator:
         strategy_config: Optional[Dict[str, any]] = None,
     ):
         self.config = config
-        self.pnl_model = IronCondorPnLModel(config)
-        self.greeks_model = GreeksBasedPnLModel(config) if use_greeks_model else None
         self.use_greeks_model = use_greeks_model
-        self.exit_evaluator = ExitEvaluator(config)
 
         # Strategy-specific config (min_risk_reward, min_rom, etc.)
         self.strategy_config = strategy_config or {}
+
+        # Initialize P&L model and exit evaluator based on strategy type
+        self.is_calendar = config.strategy_type == "calendar"
+
+        if self.is_calendar:
+            self.calendar_pnl_model = CalendarSpreadPnLModel(config)
+            self.calendar_exit_evaluator = CalendarExitEvaluator(config)
+            self.pnl_model = None  # Not used for calendar
+            self.exit_evaluator = None  # Not used for calendar
+        else:
+            self.pnl_model = IronCondorPnLModel(config)
+            self.greeks_model = GreeksBasedPnLModel(config) if use_greeks_model else None
+            self.exit_evaluator = ExitEvaluator(config)
+            self.calendar_pnl_model = None
+            self.calendar_exit_evaluator = None
 
         # Track open positions by symbol
         self._open_positions: Dict[str, SimulatedTrade] = {}
@@ -65,6 +77,9 @@ class TradeSimulator:
 
         # Track rejections for diagnostics
         self._rr_rejections: int = 0
+
+        # Track term structure at entry for calendar trades
+        self._term_at_entry: Dict[str, float] = {}
 
     def get_open_positions(self) -> Dict[str, SimulatedTrade]:
         """Get currently open positions."""
@@ -95,11 +110,16 @@ class TradeSimulator:
 
         return True
 
-    def open_trade(self, signal: EntrySignal) -> Optional[SimulatedTrade]:
+    def open_trade(
+        self,
+        signal: EntrySignal,
+        term_at_entry: Optional[float] = None,
+    ) -> Optional[SimulatedTrade]:
         """Open a new trade based on an entry signal.
 
         Args:
             signal: EntrySignal with entry details
+            term_at_entry: Term structure at entry (for calendar trades)
 
         Returns:
             SimulatedTrade if opened successfully, None otherwise.
@@ -108,6 +128,107 @@ class TradeSimulator:
             logger.debug(f"Cannot open position for {signal.symbol} - limit reached")
             return None
 
+        # Handle Calendar Spread trades differently
+        if self.is_calendar:
+            return self._open_calendar_trade(signal, term_at_entry)
+
+        # Iron Condor / other credit strategies
+        return self._open_iron_condor_trade(signal)
+
+    def _open_calendar_trade(
+        self,
+        signal: EntrySignal,
+        term_at_entry: Optional[float] = None,
+    ) -> Optional[SimulatedTrade]:
+        """Open a Calendar Spread trade.
+
+        Calendar spreads are debit trades with different entry logic:
+        - Near leg: 30-45 DTE (short call)
+        - Far leg: 60-90 DTE (long call)
+        - Entry when IV is LOW (vega long position)
+        - Entry when term structure shows mispricing
+
+        Args:
+            signal: EntrySignal with entry details
+            term_at_entry: Term structure (M1-M2) at entry
+
+        Returns:
+            SimulatedTrade if opened successfully, None otherwise.
+        """
+        # Calendar DTE configuration from strategy config or defaults
+        near_dte = self.strategy_config.get("near_dte", 37)  # Default: midpoint of 30-45
+        far_dte = self.strategy_config.get("far_dte", 75)    # Default: midpoint of 60-90
+
+        # Calculate expiry dates
+        short_expiry = signal.date + timedelta(days=near_dte)
+        long_expiry = signal.date + timedelta(days=far_dte)
+        target_expiry = short_expiry  # Primary expiry is the near leg
+
+        # Estimate debit paid
+        if signal.spot_at_entry:
+            entry_debit = self.calendar_pnl_model.estimate_debit(
+                iv_at_entry=signal.iv_at_entry,
+                spot_price=signal.spot_at_entry,
+                near_dte=near_dte,
+                far_dte=far_dte,
+            )
+        else:
+            # Fallback: estimate debit as $200 (conservative)
+            entry_debit = 200.0
+
+        # Apply slippage to debit (increases cost)
+        slippage_pct = self.config.costs.slippage_pct / 100
+        entry_debit = entry_debit * (1 + slippage_pct)
+
+        # Max risk for calendar = debit paid
+        max_risk = entry_debit
+
+        # Create calendar trade
+        trade = SimulatedTrade(
+            entry_date=signal.date,
+            symbol=signal.symbol,
+            strategy_type="calendar",
+            iv_at_entry=signal.iv_at_entry,
+            iv_percentile_at_entry=signal.iv_percentile_at_entry,
+            iv_rank_at_entry=signal.iv_rank_at_entry,
+            spot_at_entry=signal.spot_at_entry,
+            target_expiry=target_expiry,
+            short_expiry=short_expiry,
+            long_expiry=long_expiry,
+            entry_debit=entry_debit,
+            max_risk=max_risk,
+            estimated_credit=0.0,  # Calendar is a debit trade
+            num_contracts=1,
+            status=TradeStatus.OPEN,
+        )
+
+        # Store term structure at entry for P&L calculation
+        if term_at_entry is not None:
+            self._term_at_entry[signal.symbol] = term_at_entry
+        elif signal.term_at_entry is not None:
+            self._term_at_entry[signal.symbol] = signal.term_at_entry
+
+        # Track the trade
+        self._open_positions[signal.symbol] = trade
+        self._all_trades.append(trade)
+
+        logger.debug(
+            f"Opened calendar on {signal.symbol} "
+            f"@ IV {signal.iv_at_entry:.1%}, debit ${entry_debit:.2f}, "
+            f"near DTE {near_dte}, far DTE {far_dte}"
+        )
+
+        return trade
+
+    def _open_iron_condor_trade(self, signal: EntrySignal) -> Optional[SimulatedTrade]:
+        """Open an Iron Condor (or other credit strategy) trade.
+
+        Args:
+            signal: EntrySignal with entry details
+
+        Returns:
+            SimulatedTrade if opened successfully, None otherwise.
+        """
         # Calculate position parameters
         max_risk = self.config.position_sizing.max_risk_per_trade
         target_dte = self.config.target_dte
@@ -210,15 +331,17 @@ class TradeSimulator:
         symbols_to_close: List[str] = []
 
         for symbol, trade in self._open_positions.items():
-            # Get current IV and spot price for the symbol
+            # Get current IV, term structure, and spot price for the symbol
             ts = iv_data.get(symbol)
             current_iv = None
             current_spot = None
+            current_term = None
             if ts:
                 dp = ts.get(current_date)
                 if dp:
                     current_iv = dp.atm_iv
                     current_spot = dp.spot_price
+                    current_term = dp.term_m1_m2
 
             # Update days in trade
             trade.days_in_trade = (current_date - trade.entry_date).days
@@ -228,8 +351,27 @@ class TradeSimulator:
                 trade.iv_history.append(current_iv)
                 trade.date_history.append(current_date)
 
-                # Use Greeks-based P&L if available
-                if self.use_greeks_model and self.greeks_model and trade.greeks_at_entry and trade.spot_at_entry and ts:
+                # Handle Calendar trades
+                if trade.is_calendar() and self.calendar_pnl_model:
+                    # Get term structure at entry
+                    term_at_entry = self._term_at_entry.get(symbol)
+
+                    # Calculate near leg DTE at entry
+                    near_dte_at_entry = (trade.short_expiry - trade.entry_date).days if trade.short_expiry else 45
+                    entry_debit = trade.entry_debit if trade.entry_debit else trade.max_risk
+
+                    pnl_estimate = self.calendar_pnl_model.estimate_pnl(
+                        iv_at_entry=trade.iv_at_entry,
+                        iv_current=current_iv,
+                        term_at_entry=term_at_entry,
+                        term_current=current_term,
+                        days_in_trade=trade.days_in_trade,
+                        near_dte_at_entry=near_dte_at_entry,
+                        entry_debit=entry_debit,
+                    )
+
+                # Handle Iron Condor / other credit trades
+                elif self.use_greeks_model and self.greeks_model and trade.greeks_at_entry and trade.spot_at_entry and ts:
                     # Get current spot price
                     current_dp = ts.get(current_date)
                     current_spot = current_dp.spot_price if current_dp else trade.spot_at_entry
@@ -264,8 +406,8 @@ class TradeSimulator:
                             estimated_credit=trade.estimated_credit,
                             max_risk=trade.max_risk,
                         )
-                else:
-                    # Use standard IV-based model
+                elif self.pnl_model:
+                    # Use standard IV-based model for iron condor
                     pnl_estimate = self.pnl_model.estimate_pnl(
                         iv_at_entry=trade.iv_at_entry,
                         iv_current=current_iv,
@@ -274,17 +416,38 @@ class TradeSimulator:
                         estimated_credit=trade.estimated_credit,
                         max_risk=trade.max_risk,
                     )
+                else:
+                    # No P&L model available
+                    from tomic.backtest.pnl_model import PnLEstimate
+                    pnl_estimate = PnLEstimate(
+                        total_pnl=0, vega_pnl=0, theta_pnl=0, costs=0, pnl_pct=0
+                    )
 
                 trade.current_pnl = pnl_estimate.total_pnl
                 trade.pnl_history.append(pnl_estimate.total_pnl)
 
-            # Evaluate exit conditions (pass spot for delta breach detection)
-            evaluation = self.exit_evaluator.evaluate(
-                trade=trade,
-                current_date=current_date,
-                current_iv=current_iv,
-                current_spot=current_spot,
-            )
+            # Evaluate exit conditions based on strategy type
+            if trade.is_calendar() and self.calendar_exit_evaluator:
+                # Use calendar exit evaluator
+                term_at_entry = self._term_at_entry.get(symbol)
+                evaluation = self.calendar_exit_evaluator.evaluate(
+                    trade=trade,
+                    current_date=current_date,
+                    current_iv=current_iv,
+                    current_term=current_term,
+                    term_at_entry=term_at_entry,
+                )
+            elif self.exit_evaluator:
+                # Use standard exit evaluator for iron condor
+                evaluation = self.exit_evaluator.evaluate(
+                    trade=trade,
+                    current_date=current_date,
+                    current_iv=current_iv,
+                    current_spot=current_spot,
+                )
+            else:
+                # No evaluator available - don't exit
+                evaluation = ExitEvaluation(should_exit=False)
 
             if evaluation.should_exit:
                 # Close the trade
@@ -297,6 +460,10 @@ class TradeSimulator:
                 )
                 symbols_to_close.append(symbol)
                 closed_trades.append(trade)
+
+                # Clean up term structure tracking for calendar trades
+                if symbol in self._term_at_entry:
+                    del self._term_at_entry[symbol]
 
                 logger.debug(
                     f"Closed {trade.symbol} - {evaluation.exit_reason.value}: "

@@ -26,6 +26,8 @@ class ExitReason(Enum):
     DELTA_BREACH = "delta_breach"
     EXPIRATION = "expiration"
     MANUAL = "manual"
+    # Calendar-specific exit reasons
+    NEAR_LEG_DTE = "near_leg_dte"  # Exit before near-leg expiration
 
 
 @dataclass
@@ -113,11 +115,16 @@ class SimulatedTrade:
     iv_percentile_at_entry: float
     iv_rank_at_entry: Optional[float]
     spot_at_entry: Optional[float]
-    target_expiry: date  # Based on target DTE at entry
+    target_expiry: date  # Based on target DTE at entry (for iron condor: single expiry)
+
+    # Calendar spread specific fields (optional, only used for calendar strategy)
+    short_expiry: Optional[date] = None  # Near-leg expiration (30-45 DTE at entry)
+    long_expiry: Optional[date] = None   # Far-leg expiration (60-90 DTE at entry)
+    entry_debit: Optional[float] = None  # Debit paid for calendar spread
 
     # Position sizing
-    max_risk: float  # Always $200 in MVP
-    estimated_credit: float  # Estimated credit received
+    max_risk: float = 0.0  # For iron condor: wing width - credit. For calendar: debit paid
+    estimated_credit: float = 0.0  # Estimated credit received (iron condor) or 0 for calendar
     num_contracts: int = 1  # Number of contracts
 
     # Current state
@@ -167,6 +174,16 @@ class SimulatedTrade:
         if self.max_risk == 0:
             return 0.0
         return self.final_pnl / self.max_risk
+
+    def is_calendar(self) -> bool:
+        """Check if this is a calendar spread trade."""
+        return self.strategy_type == "calendar" and self.short_expiry is not None
+
+    def get_near_leg_dte(self, current_date: date) -> int:
+        """Get days to expiration for near leg (calendar spreads only)."""
+        if self.short_expiry is not None:
+            return (self.short_expiry - current_date).days
+        return (self.target_expiry - current_date).days
 
 
 @dataclass

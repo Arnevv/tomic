@@ -765,6 +765,241 @@ class RealPricesPnLModel:
         return commission
 
 
+class CalendarSpreadPnLModel:
+    """P&L estimation model for Calendar Spread positions.
+
+    Calendar Spread characteristics (ATM call calendar):
+    - Long vega (profits when IV increases)
+    - Net theta positive near ATM (near leg decays faster than far leg)
+    - Limited max loss (debit paid)
+    - Limited max profit (hard to estimate, depends on IV and spot at near expiry)
+
+    TOMIC Philosophy for Calendars:
+    - These are VOLATILITY MISPRICING trades, NOT theta trades
+    - Entry when IV is LOW (IV percentile <= 40%)
+    - Entry when term structure shows front-month IV >= back-month (contango)
+    - Exit quickly (5-10 days max) when mispricing corrects
+    - Profit target: 5-10% of debit
+    - Stop loss: 10% of debit
+
+    Model approach:
+    Since we don't have Greeks, we model P&L as a function of:
+    1. IV change since entry (vega component - calendars are vega LONG)
+    2. Term structure normalization
+    3. Time value differential decay
+    """
+
+    # Model parameters calibrated for calendar spreads
+    # Calendar is vega long, so profits when IV rises
+    VEGA_SENSITIVITY = 2.0  # $ per vol point per $100 debit (higher than IC because net long vega)
+    THETA_DECAY_DIFFERENTIAL = 0.15  # Fraction of debit captured from theta differential per 45 days
+
+    def __init__(self, config: "BacktestConfig"):
+        self.config = config
+        self.costs_config = config.costs
+
+    def estimate_debit(
+        self,
+        iv_at_entry: float,
+        spot_price: float,
+        near_dte: int,
+        far_dte: int,
+    ) -> float:
+        """Estimate debit paid for an ATM Call Calendar Spread.
+
+        Calendar spread debit depends on:
+        - Time value differential between near and far leg
+        - IV level (higher IV = higher premiums = higher debit)
+        - Strike distance from spot (ATM = max time value)
+
+        Args:
+            iv_at_entry: ATM IV at entry (as decimal, e.g., 0.20 for 20%)
+            spot_price: Current spot price
+            near_dte: Days to expiration for near (short) leg
+            far_dte: Days to expiration for far (long) leg
+
+        Returns:
+            Estimated debit paid in dollars per contract.
+        """
+        # Normalize IV
+        iv_normalized = iv_at_entry if iv_at_entry < 1 else iv_at_entry / 100
+
+        # ATM call time value approximation (simplified Black-Scholes)
+        # Time value ≈ 0.4 * spot * iv * sqrt(dte/365)
+        near_time_value = 0.4 * spot_price * iv_normalized * (near_dte / 365) ** 0.5
+        far_time_value = 0.4 * spot_price * iv_normalized * (far_dte / 365) ** 0.5
+
+        # Calendar debit = far leg premium - near leg premium
+        # We're buying the far leg and selling the near leg
+        debit = far_time_value - near_time_value
+
+        # Apply typical market conditions (bid-ask spread impact)
+        # Calendar spreads typically cost 60-80% of theoretical due to spread
+        debit = debit * 0.70
+
+        # Contract multiplier
+        debit_per_contract = debit * 100
+
+        # Minimum debit floor (calendars always cost something)
+        return max(debit_per_contract, 50.0)
+
+    def estimate_pnl(
+        self,
+        iv_at_entry: float,
+        iv_current: float,
+        term_at_entry: Optional[float],
+        term_current: Optional[float],
+        days_in_trade: int,
+        near_dte_at_entry: int,
+        entry_debit: float,
+    ) -> PnLEstimate:
+        """Estimate current P&L for an open Calendar Spread position.
+
+        Calendar P&L drivers:
+        1. Vega P&L: Calendars are vega LONG - profit when IV rises
+        2. Theta differential: Near leg decays faster than far leg
+        3. Term structure normalization: If term structure normalizes, position profits
+
+        Args:
+            iv_at_entry: ATM IV at entry
+            iv_current: Current ATM IV
+            term_at_entry: Term structure (M1-M2) at entry (positive = front > back)
+            term_current: Current term structure
+            days_in_trade: Days since entry
+            near_dte_at_entry: DTE of near leg at entry
+            entry_debit: Debit paid at entry
+
+        Returns:
+            PnLEstimate with breakdown of P&L components.
+        """
+        # Normalize IV values
+        iv_entry_norm = iv_at_entry if iv_at_entry < 1 else iv_at_entry / 100
+        iv_current_norm = iv_current if iv_current < 1 else iv_current / 100
+
+        # Calculate IV change in vol points
+        iv_change = (iv_current_norm - iv_entry_norm) * 100  # In vol points
+
+        # Vega P&L: Calendar is LONG vega, profits when IV rises
+        # Scale by debit (larger position = more vega exposure)
+        vega_pnl = iv_change * self.VEGA_SENSITIVITY * (entry_debit / 100)
+
+        # Theta differential P&L
+        # Near leg decays faster than far leg = net positive theta near ATM
+        # But this effect diminishes as near leg approaches expiry
+        time_fraction = days_in_trade / near_dte_at_entry if near_dte_at_entry > 0 else 0
+        theta_progress = min(1.0, time_fraction ** 0.7)
+        theta_pnl = entry_debit * theta_progress * self.THETA_DECAY_DIFFERENTIAL
+
+        # Term structure normalization P&L
+        # If term structure was inverted (front > back) and normalizes, we profit
+        term_pnl = 0.0
+        if term_at_entry is not None and term_current is not None:
+            # term_m1_m2: positive means front-month IV > back-month IV
+            # Calendar profits when this spread narrows (front IV drops relative to back)
+            term_change = term_at_entry - term_current  # Positive if spread narrowed
+            term_pnl = term_change * (entry_debit / 100) * 0.5  # 50 cents per point per $100
+
+        # Calculate costs
+        costs = self._calculate_costs(2)  # 2 legs for calendar
+
+        # Total P&L
+        total_pnl = vega_pnl + theta_pnl + term_pnl - costs
+
+        # Cap at reasonable bounds
+        # Max profit for calendar is typically 50-100% of debit
+        max_profit = entry_debit * 1.0
+        total_pnl = min(max_profit, total_pnl)
+
+        # Max loss is the debit paid
+        total_pnl = max(-entry_debit, total_pnl)
+
+        pnl_pct = (total_pnl / entry_debit * 100) if entry_debit > 0 else 0
+
+        return PnLEstimate(
+            total_pnl=round(total_pnl, 2),
+            vega_pnl=round(vega_pnl, 2),
+            theta_pnl=round(theta_pnl + term_pnl, 2),  # Combine theta and term structure
+            costs=round(costs, 2),
+            pnl_pct=round(pnl_pct, 2),
+        )
+
+    def estimate_exit_pnl(
+        self,
+        iv_at_entry: float,
+        iv_at_exit: float,
+        term_at_entry: Optional[float],
+        term_at_exit: Optional[float],
+        days_in_trade: int,
+        near_dte_at_entry: int,
+        entry_debit: float,
+        exit_reason: str,
+    ) -> float:
+        """Estimate final P&L at exit for calendar spread.
+
+        Args:
+            iv_at_entry: ATM IV at entry
+            iv_at_exit: ATM IV at exit
+            term_at_entry: Term structure at entry
+            term_at_exit: Term structure at exit
+            days_in_trade: Days in trade
+            near_dte_at_entry: Near leg DTE at entry
+            entry_debit: Debit paid
+            exit_reason: Reason for exit
+
+        Returns:
+            Final P&L in dollars.
+        """
+        pnl_estimate = self.estimate_pnl(
+            iv_at_entry=iv_at_entry,
+            iv_current=iv_at_exit,
+            term_at_entry=term_at_entry,
+            term_current=term_at_exit,
+            days_in_trade=days_in_trade,
+            near_dte_at_entry=near_dte_at_entry,
+            entry_debit=entry_debit,
+        )
+
+        # Apply exit-specific adjustments
+        if exit_reason == "profit_target":
+            # Cap at profit target (5-10% of debit)
+            # Use configured profit target
+            target_pct = getattr(self.config.exit_rules, 'profit_target_pct', 10.0)
+            target_profit = entry_debit * (target_pct / 100)
+            return min(pnl_estimate.total_pnl, target_profit)
+
+        elif exit_reason == "stop_loss":
+            # Apply stop loss (10% of debit for calendars)
+            stop_pct = getattr(self.config.exit_rules, 'stop_loss_pct', 10.0)
+            stop_loss = entry_debit * (stop_pct / 100)
+            return max(pnl_estimate.total_pnl, -stop_loss)
+
+        elif exit_reason == "near_leg_dte":
+            # Exiting before near leg expiration
+            # Use current P&L estimate
+            return pnl_estimate.total_pnl
+
+        elif exit_reason == "max_days_in_trade":
+            # Time limit hit - use current estimate
+            # For calendars, this often means the move didn't happen
+            return pnl_estimate.total_pnl
+
+        else:
+            # Other exits: use estimate
+            return pnl_estimate.total_pnl
+
+    def _calculate_costs(self, num_legs: int) -> float:
+        """Calculate transaction costs for a trade.
+
+        Args:
+            num_legs: Number of option legs in the trade
+
+        Returns:
+            Total costs in dollars.
+        """
+        commission = num_legs * self.costs_config.commission_per_contract
+        return commission
+
+
 __all__ = [
     "IronCondorPnLModel",
     "SimplePnLModel",
@@ -772,4 +1007,5 @@ __all__ = [
     "GreeksBasedPnLModel",
     "GreeksSnapshot",
     "RealPricesPnLModel",
+    "CalendarSpreadPnLModel",
 ]
