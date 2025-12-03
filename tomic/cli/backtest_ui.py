@@ -2,13 +2,17 @@
 
 Provides menu handlers for running and configuring backtests
 within the TOMIC control panel.
+
+Supports multiple strategy types:
+- Iron Condor: Credit strategy, enter on HIGH IV
+- Calendar Spread: Debit strategy, enter on LOW IV
 """
 
 from __future__ import annotations
 
 from functools import partial
 from pathlib import Path
-from typing import Optional
+from typing import List, Optional, Tuple
 
 from tomic.cli.common import Menu, prompt, prompt_yes_no
 from tomic.backtest.config import (
@@ -18,34 +22,101 @@ from tomic.backtest.config import (
 )
 from tomic.backtest.engine import BacktestEngine, run_backtest
 from tomic.backtest.reports import BacktestReport, print_backtest_report
+from tomic.backtest.results import BacktestResult
 from tomic.logutils import logger
 
 try:
     from rich.console import Console
     from rich.progress import Progress, SpinnerColumn, TextColumn
+    from rich.table import Table
 
     RICH_AVAILABLE = True
 except ImportError:
     RICH_AVAILABLE = False
 
 
-# Store last result for viewing
+# Store last results for viewing (per strategy type)
 _LAST_RESULT = None
+_LAST_RESULTS: dict[str, BacktestResult] = {}
+
+
+# Strategy type constants
+STRATEGY_IRON_CONDOR = "iron_condor"
+STRATEGY_CALENDAR = "calendar"
+
+
+def _load_calendar_config() -> BacktestConfig:
+    """Load calendar spread specific configuration."""
+    base_dir = Path(__file__).resolve().parent.parent.parent
+    calendar_config_path = base_dir / "config" / "backtest_calendar.yaml"
+
+    if calendar_config_path.exists():
+        return load_backtest_config(calendar_config_path)
+
+    # Fallback: create calendar config from defaults
+    config = BacktestConfig()
+    config.strategy_type = STRATEGY_CALENDAR
+    config.entry_rules.iv_percentile_min = 0.0
+    config.entry_rules.iv_percentile_max = 40.0
+    config.exit_rules.profit_target_pct = 10.0
+    config.exit_rules.stop_loss_pct = 10.0
+    config.exit_rules.max_days_in_trade = 10
+    return config
+
+
+def _select_strategy() -> Optional[str]:
+    """Prompt user to select a strategy type.
+
+    Returns:
+        Strategy type string, or None if cancelled.
+    """
+    print("\n" + "=" * 50)
+    print("KIES STRATEGIE TYPE")
+    print("=" * 50)
+    print("1. Iron Condor  (credit, hoge IV entry)")
+    print("2. Calendar     (debit, lage IV entry)")
+    print("3. Beide        (vergelijk IC vs Calendar)")
+    print("4. Terug")
+
+    choice = prompt("Maak je keuze [1-4]: ")
+
+    if choice == "1":
+        return STRATEGY_IRON_CONDOR
+    elif choice == "2":
+        return STRATEGY_CALENDAR
+    elif choice == "3":
+        return "both"
+    else:
+        return None
 
 
 def run_backtest_menu() -> None:
     """Run the backtesting submenu."""
     menu = Menu("📈 BACKTESTING")
-    menu.add("Iron Condor Backtest uitvoeren", run_iron_condor_backtest)
-    menu.add("Parameters configureren", configure_backtest_params)
+    menu.add("Backtest uitvoeren", _run_backtest_with_strategy_choice)
+    menu.add("Parameters configureren", _configure_with_strategy_choice)
     menu.add("Laatste resultaten bekijken", view_last_results)
     menu.add("Resultaten exporteren (JSON)", export_results)
     menu.run()
 
 
+def _run_backtest_with_strategy_choice() -> None:
+    """Run backtest after selecting strategy type."""
+    strategy = _select_strategy()
+
+    if strategy is None:
+        return
+    elif strategy == STRATEGY_IRON_CONDOR:
+        run_iron_condor_backtest()
+    elif strategy == STRATEGY_CALENDAR:
+        run_calendar_backtest()
+    elif strategy == "both":
+        run_both_backtests()
+
+
 def run_iron_condor_backtest() -> None:
     """Run a full Iron Condor backtest."""
-    global _LAST_RESULT
+    global _LAST_RESULT, _LAST_RESULTS
 
     print("\n" + "=" * 60)
     print("IRON CONDOR BACKTEST")
@@ -54,13 +125,14 @@ def run_iron_condor_backtest() -> None:
     # Load configuration
     try:
         config = load_backtest_config()
+        config.strategy_type = STRATEGY_IRON_CONDOR  # Ensure correct type
     except Exception as e:
         print(f"Fout bij laden configuratie: {e}")
         print("Gebruik standaard configuratie...")
         config = BacktestConfig()
 
     # Show configuration summary
-    print(f"\nStrategie: {config.strategy_type}")
+    print(f"\nStrategie: Iron Condor (credit, hoge IV entry)")
     print(f"Symbolen: {', '.join(config.symbols)}")
     print(f"Periode: {config.start_date} tot {config.end_date}")
     print(f"Entry: IV percentile >= {config.entry_rules.iv_percentile_min}%")
@@ -76,9 +148,138 @@ def run_iron_condor_backtest() -> None:
         print("Backtest geannuleerd.")
         return
 
-    print("\nBacktest wordt uitgevoerd...\n")
+    result = _execute_backtest(config, "Iron Condor")
+    if result:
+        _LAST_RESULT = result
+        _LAST_RESULTS[STRATEGY_IRON_CONDOR] = result
+        print("\n")
+        print_backtest_report(result)
 
-    # Run backtest with progress feedback
+        if prompt_yes_no("\nResultaten exporteren naar JSON?"):
+            export_results()
+
+
+def run_calendar_backtest() -> None:
+    """Run a full Calendar Spread backtest."""
+    global _LAST_RESULT, _LAST_RESULTS
+
+    print("\n" + "=" * 60)
+    print("CALENDAR SPREAD BACKTEST")
+    print("=" * 60)
+
+    # Load calendar-specific configuration
+    try:
+        config = _load_calendar_config()
+    except Exception as e:
+        print(f"Fout bij laden configuratie: {e}")
+        print("Gebruik standaard calendar configuratie...")
+        config = _load_calendar_config()
+
+    # Show configuration summary (calendar-specific)
+    print(f"\nStrategie: Calendar Spread (debit, lage IV entry)")
+    print(f"Symbolen: {', '.join(config.symbols)}")
+    print(f"Periode: {config.start_date} tot {config.end_date}")
+
+    iv_max = config.entry_rules.iv_percentile_max or 40.0
+    print(f"Entry: IV percentile <= {iv_max}%")
+
+    if config.entry_rules.term_structure_min is not None:
+        print(f"       Term structure >= {config.entry_rules.term_structure_min} (front >= back)")
+
+    print(f"Exit: Profit {config.exit_rules.profit_target_pct}%, "
+          f"Stop {config.exit_rules.stop_loss_pct}%, "
+          f"Max DIT {config.exit_rules.max_days_in_trade}d")
+    print(f"Near leg DTE: {config.calendar_near_dte}d, Far leg DTE: {config.calendar_far_dte}d")
+    print(f"Max risico per trade: ${config.position_sizing.max_risk_per_trade}")
+    print(f"Sample split: {config.sample_split.in_sample_ratio*100:.0f}% in-sample")
+
+    print("\n" + "-" * 60)
+
+    if not prompt_yes_no("Backtest starten met deze configuratie?"):
+        print("Backtest geannuleerd.")
+        return
+
+    result = _execute_backtest(config, "Calendar Spread")
+    if result:
+        _LAST_RESULT = result
+        _LAST_RESULTS[STRATEGY_CALENDAR] = result
+        print("\n")
+        print_backtest_report(result)
+
+        if prompt_yes_no("\nResultaten exporteren naar JSON?"):
+            export_results()
+
+
+def run_both_backtests() -> None:
+    """Run both Iron Condor and Calendar backtests and compare."""
+    global _LAST_RESULT, _LAST_RESULTS
+
+    print("\n" + "=" * 60)
+    print("VERGELIJKING: IRON CONDOR vs CALENDAR")
+    print("=" * 60)
+
+    # Load both configurations
+    try:
+        ic_config = load_backtest_config()
+        ic_config.strategy_type = STRATEGY_IRON_CONDOR
+    except Exception:
+        ic_config = BacktestConfig()
+
+    try:
+        cal_config = _load_calendar_config()
+    except Exception:
+        cal_config = _load_calendar_config()
+
+    print("\nDe volgende backtests worden uitgevoerd:")
+    print(f"  1. Iron Condor: {', '.join(ic_config.symbols[:3])}... ({ic_config.start_date} - {ic_config.end_date})")
+    print(f"  2. Calendar:    {', '.join(cal_config.symbols[:3])}... ({cal_config.start_date} - {cal_config.end_date})")
+
+    if not prompt_yes_no("\nBeide backtests uitvoeren?"):
+        print("Geannuleerd.")
+        return
+
+    results: dict[str, BacktestResult] = {}
+
+    # Run Iron Condor
+    print("\n" + "-" * 60)
+    print("STAP 1/2: Iron Condor Backtest")
+    print("-" * 60)
+    ic_result = _execute_backtest(ic_config, "Iron Condor")
+    if ic_result:
+        results[STRATEGY_IRON_CONDOR] = ic_result
+        _LAST_RESULTS[STRATEGY_IRON_CONDOR] = ic_result
+
+    # Run Calendar
+    print("\n" + "-" * 60)
+    print("STAP 2/2: Calendar Spread Backtest")
+    print("-" * 60)
+    cal_result = _execute_backtest(cal_config, "Calendar Spread")
+    if cal_result:
+        results[STRATEGY_CALENDAR] = cal_result
+        _LAST_RESULTS[STRATEGY_CALENDAR] = cal_result
+
+    # Print comparison
+    if len(results) == 2:
+        _print_comparison_report(results)
+
+        if prompt_yes_no("\nBeide resultaten exporteren naar JSON?"):
+            _export_comparison_results(results)
+    else:
+        print("\nNiet alle backtests zijn succesvol afgerond.")
+
+
+def _execute_backtest(config: BacktestConfig, name: str) -> Optional[BacktestResult]:
+    """Execute a backtest with progress feedback.
+
+    Args:
+        config: Backtest configuration
+        name: Display name for the backtest
+
+    Returns:
+        BacktestResult if successful, None otherwise
+    """
+    print(f"\n{name} backtest wordt uitgevoerd...\n")
+
     if RICH_AVAILABLE:
         console = Console()
         with Progress(
@@ -92,40 +293,133 @@ def run_iron_condor_backtest() -> None:
                 progress.update(task, description=message, completed=percent)
 
             try:
-                result = run_backtest(config=config, progress_callback=update_progress)
+                return run_backtest(config=config, progress_callback=update_progress)
             except Exception as e:
                 logger.error(f"Backtest fout: {e}")
                 print(f"\nFout tijdens backtest: {e}")
-                return
+                return None
     else:
-        # Simple progress without Rich
         def simple_progress(message: str, percent: float) -> None:
-            if percent % 20 == 0:  # Print every 20%
+            if percent % 20 == 0:
                 print(f"[{percent:.0f}%] {message}")
 
         try:
-            result = run_backtest(config=config, progress_callback=simple_progress)
+            return run_backtest(config=config, progress_callback=simple_progress)
         except Exception as e:
             logger.error(f"Backtest fout: {e}")
             print(f"\nFout tijdens backtest: {e}")
-            return
+            return None
 
-    # Store result
-    _LAST_RESULT = result
 
-    # Print results
-    print("\n")
-    print_backtest_report(result)
+def _print_comparison_report(results: dict[str, BacktestResult]) -> None:
+    """Print a comparison report of multiple strategy results."""
+    print("\n" + "=" * 70)
+    print("VERGELIJKING RESULTATEN")
+    print("=" * 70)
 
-    # Prompt to export
-    if prompt_yes_no("\nResultaten exporteren naar JSON?"):
-        export_results()
+    ic = results.get(STRATEGY_IRON_CONDOR)
+    cal = results.get(STRATEGY_CALENDAR)
+
+    if not ic or not cal:
+        print("Onvoldoende data voor vergelijking.")
+        return
+
+    ic_m = ic.combined_metrics
+    cal_m = cal.combined_metrics
+
+    if not ic_m or not cal_m:
+        print("Onvoldoende metrics voor vergelijking.")
+        return
+
+    # Header
+    print(f"\n{'Metric':<25} {'Iron Condor':>18} {'Calendar':>18} {'Winnaar':>12}")
+    print("-" * 73)
+
+    # Compare metrics
+    comparisons = [
+        ("Total Trades", ic_m.total_trades, cal_m.total_trades, "higher"),
+        ("Win Rate", f"{ic_m.win_rate:.1%}", f"{cal_m.win_rate:.1%}", "higher"),
+        ("Total P&L", f"${ic_m.total_pnl:.2f}", f"${cal_m.total_pnl:.2f}", "higher"),
+        ("Sharpe Ratio", f"{ic_m.sharpe_ratio:.2f}", f"{cal_m.sharpe_ratio:.2f}", "higher"),
+        ("Max Drawdown", f"{ic_m.max_drawdown_pct:.1f}%", f"{cal_m.max_drawdown_pct:.1f}%", "lower"),
+        ("Profit Factor", f"{ic_m.profit_factor:.2f}", f"{cal_m.profit_factor:.2f}", "higher"),
+        ("Expectancy", f"${ic_m.expectancy:.2f}", f"${cal_m.expectancy:.2f}", "higher"),
+    ]
+
+    for metric, ic_val, cal_val, prefer in comparisons:
+        # Determine winner
+        try:
+            ic_num = float(str(ic_val).replace("$", "").replace("%", ""))
+            cal_num = float(str(cal_val).replace("$", "").replace("%", ""))
+
+            if prefer == "higher":
+                winner = "IC" if ic_num > cal_num else ("CAL" if cal_num > ic_num else "Gelijk")
+            else:
+                winner = "IC" if ic_num < cal_num else ("CAL" if cal_num < ic_num else "Gelijk")
+        except (ValueError, TypeError):
+            winner = "-"
+
+        print(f"{metric:<25} {str(ic_val):>18} {str(cal_val):>18} {winner:>12}")
+
+    print("-" * 73)
+
+    # Overall recommendation
+    print("\n📊 SAMENVATTING:")
+    if ic_m.sharpe_ratio > cal_m.sharpe_ratio and ic_m.total_pnl > cal_m.total_pnl:
+        print("   Iron Condor presteert beter op zowel Sharpe als P&L")
+    elif cal_m.sharpe_ratio > ic_m.sharpe_ratio and cal_m.total_pnl > ic_m.total_pnl:
+        print("   Calendar Spread presteert beter op zowel Sharpe als P&L")
+    else:
+        print("   Gemengde resultaten - overweeg marktcondities en persoonlijke voorkeur")
+
+
+def _export_comparison_results(results: dict[str, BacktestResult]) -> None:
+    """Export comparison results to separate JSON files."""
+    from datetime import datetime
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+
+    base_dir = Path(__file__).resolve().parent.parent.parent
+    export_dir = base_dir / "exports"
+    export_dir.mkdir(exist_ok=True)
+
+    for strategy_type, result in results.items():
+        filename = f"backtest_{strategy_type}_{timestamp}.json"
+        export_path = export_dir / filename
+
+        try:
+            report = BacktestReport(result)
+            report.export_json(export_path)
+            print(f"  Geexporteerd: {export_path}")
+        except Exception as e:
+            print(f"  Fout bij exporteren {strategy_type}: {e}")
+
+
+def _configure_with_strategy_choice() -> None:
+    """Configure parameters after selecting strategy type."""
+    print("\n" + "=" * 50)
+    print("CONFIGURATIE - KIES STRATEGIE")
+    print("=" * 50)
+    print("1. Iron Condor parameters")
+    print("2. Calendar Spread parameters")
+    print("3. Terug")
+
+    choice = prompt("Maak je keuze [1-3]: ")
+
+    if choice == "1":
+        configure_iron_condor_params()
+    elif choice == "2":
+        configure_calendar_params()
 
 
 def configure_backtest_params() -> None:
-    """Interactive configuration of backtest parameters."""
+    """Interactive configuration of backtest parameters (Iron Condor)."""
+    configure_iron_condor_params()
+
+
+def configure_iron_condor_params() -> None:
+    """Interactive configuration of Iron Condor backtest parameters."""
     print("\n" + "=" * 60)
-    print("BACKTEST CONFIGURATIE")
+    print("IRON CONDOR CONFIGURATIE")
     print("=" * 60)
 
     # Load current config
@@ -134,7 +428,7 @@ def configure_backtest_params() -> None:
     except Exception:
         config = BacktestConfig()
 
-    menu = Menu("Configuratie Opties", exit_text="Terug (wijzigingen opslaan)")
+    menu = Menu("Iron Condor Opties", exit_text="Terug (wijzigingen opslaan)")
 
     # Entry rules
     menu.add(
@@ -187,14 +481,159 @@ def configure_backtest_params() -> None:
         print(f"\nFout bij opslaan: {e}")
 
 
+def configure_calendar_params() -> None:
+    """Interactive configuration of Calendar Spread backtest parameters."""
+    print("\n" + "=" * 60)
+    print("CALENDAR SPREAD CONFIGURATIE")
+    print("=" * 60)
+
+    # Load calendar config
+    base_dir = Path(__file__).resolve().parent.parent.parent
+    calendar_config_path = base_dir / "config" / "backtest_calendar.yaml"
+
+    try:
+        config = _load_calendar_config()
+    except Exception:
+        config = BacktestConfig()
+        config.strategy_type = STRATEGY_CALENDAR
+
+    menu = Menu("Calendar Spread Opties", exit_text="Terug (wijzigingen opslaan)")
+
+    # Date range
+    menu.add(
+        f"Startdatum [{config.start_date}]",
+        partial(_edit_start_date, config),
+    )
+    menu.add(
+        f"Einddatum [{config.end_date}]",
+        partial(_edit_end_date, config),
+    )
+
+    # Calendar-specific entry rules
+    iv_max = config.entry_rules.iv_percentile_max or 40.0
+    menu.add(
+        f"IV Percentile maximum [{iv_max}]",
+        partial(_edit_iv_percentile_max, config),
+    )
+
+    term_min = config.entry_rules.term_structure_min
+    term_min_str = str(term_min) if term_min is not None else "niet ingesteld"
+    menu.add(
+        f"Term structure minimum [{term_min_str}]",
+        partial(_edit_term_structure_min, config),
+    )
+
+    # Exit rules
+    menu.add(
+        f"Profit target [{config.exit_rules.profit_target_pct}%]",
+        partial(_edit_profit_target, config),
+    )
+    menu.add(
+        f"Stop loss [{config.exit_rules.stop_loss_pct}%]",
+        partial(_edit_stop_loss, config),
+    )
+    menu.add(
+        f"Max DIT [{config.exit_rules.max_days_in_trade}d]",
+        partial(_edit_max_dit, config),
+    )
+
+    # Calendar-specific parameters
+    menu.add(
+        f"Near leg DTE [{config.calendar_near_dte}d]",
+        partial(_edit_calendar_near_dte, config),
+    )
+    menu.add(
+        f"Far leg DTE [{config.calendar_far_dte}d]",
+        partial(_edit_calendar_far_dte, config),
+    )
+
+    # Position sizing
+    menu.add(
+        f"Max risico per trade [${config.position_sizing.max_risk_per_trade}]",
+        partial(_edit_max_risk, config),
+    )
+
+    # Symbols
+    menu.add(
+        f"Symbolen [{', '.join(config.symbols)}]",
+        partial(_edit_symbols, config),
+    )
+
+    menu.run()
+
+    # Save calendar config
+    try:
+        save_backtest_config(config, calendar_config_path)
+        print("\nConfiguratie opgeslagen naar config/backtest_calendar.yaml")
+    except Exception as e:
+        print(f"\nFout bij opslaan: {e}")
+
+
 def _edit_iv_percentile_min(config: BacktestConfig) -> None:
-    """Edit IV percentile minimum."""
+    """Edit IV percentile minimum (for Iron Condor - high IV entry)."""
     current = config.entry_rules.iv_percentile_min
     new_value = prompt(f"Nieuwe IV percentile minimum [{current}]: ")
     if new_value:
         try:
             config.entry_rules.iv_percentile_min = float(new_value)
             print(f"IV percentile minimum: {config.entry_rules.iv_percentile_min}")
+        except ValueError:
+            print("Ongeldige waarde")
+
+
+def _edit_iv_percentile_max(config: BacktestConfig) -> None:
+    """Edit IV percentile maximum (for Calendar - low IV entry)."""
+    current = config.entry_rules.iv_percentile_max or 40.0
+    new_value = prompt(f"Nieuwe IV percentile maximum [{current}]: ")
+    if new_value:
+        try:
+            config.entry_rules.iv_percentile_max = float(new_value)
+            print(f"IV percentile maximum: {config.entry_rules.iv_percentile_max}")
+        except ValueError:
+            print("Ongeldige waarde")
+
+
+def _edit_term_structure_min(config: BacktestConfig) -> None:
+    """Edit term structure minimum (for Calendar - front >= back IV)."""
+    current = config.entry_rules.term_structure_min
+    current_str = str(current) if current is not None else "niet ingesteld"
+    new_value = prompt(f"Nieuwe term structure minimum [{current_str}]: ")
+    if new_value:
+        try:
+            config.entry_rules.term_structure_min = float(new_value)
+            print(f"Term structure minimum: {config.entry_rules.term_structure_min}")
+        except ValueError:
+            print("Ongeldige waarde")
+
+
+def _edit_calendar_near_dte(config: BacktestConfig) -> None:
+    """Edit calendar near leg DTE."""
+    current = config.calendar_near_dte
+    new_value = prompt(f"Nieuwe near leg DTE [{current}]: ")
+    if new_value:
+        try:
+            new_dte = int(new_value)
+            if new_dte >= config.calendar_far_dte:
+                print("Near leg DTE moet kleiner zijn dan far leg DTE")
+                return
+            config.calendar_near_dte = new_dte
+            print(f"Near leg DTE: {config.calendar_near_dte} dagen")
+        except ValueError:
+            print("Ongeldige waarde")
+
+
+def _edit_calendar_far_dte(config: BacktestConfig) -> None:
+    """Edit calendar far leg DTE."""
+    current = config.calendar_far_dte
+    new_value = prompt(f"Nieuwe far leg DTE [{current}]: ")
+    if new_value:
+        try:
+            new_dte = int(new_value)
+            if new_dte <= config.calendar_near_dte:
+                print("Far leg DTE moet groter zijn dan near leg DTE")
+                return
+            config.calendar_far_dte = new_dte
+            print(f"Far leg DTE: {config.calendar_far_dte} dagen")
         except ValueError:
             print("Ongeldige waarde")
 
@@ -373,7 +812,11 @@ def quick_backtest(
 __all__ = [
     "run_backtest_menu",
     "run_iron_condor_backtest",
+    "run_calendar_backtest",
+    "run_both_backtests",
     "configure_backtest_params",
+    "configure_iron_condor_params",
+    "configure_calendar_params",
     "view_last_results",
     "export_results",
     "quick_backtest",
