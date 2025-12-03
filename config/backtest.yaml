@@ -1,7 +1,9 @@
 version: 1
 strategy_type: iron_condor
 symbols:
-- ADBE
+- AMD
+- ANET
+- ACHR
 start_date: '2019-01-01'
 end_date: '2025-11-30'
 target_dte: 45
@@ -35,4 +37,5 @@ costs:
   slippage_pct: 5.0
 iron_condor_wing_width: 5
 iron_condor_short_delta: 0.16
-use_greeks_model: false
+use_greeks_model: true
+use_real_prices: false

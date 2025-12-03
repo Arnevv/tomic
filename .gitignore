@@ -23,7 +23,6 @@ exports/
 tomic/exports/__pycache__/
 tomic/cli/exports/__pycache__/
 *.csv
-tomic\tomic\data
 
 # Backups
 Backups/
