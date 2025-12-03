@@ -1,0 +1,76 @@
+# Calendar Spread Backtest Configuration
+# =======================================
+# TOMIC Calendar Spread Strategy:
+# - Volatility mispricing trade (NOT a theta trade)
+# - Entry when IV is LOW (vega long position)
+# - Entry when term structure shows front-month IV >= back-month
+# - Quick exits: 5-10 days max
+# - Profit target: 5-10% of debit
+# - Stop loss: 10% of debit
+
+version: 1
+strategy_type: calendar
+
+symbols:
+- AMD
+- ANET
+- ACHR
+
+start_date: '2019-01-01'
+end_date: '2025-11-30'
+target_dte: 37  # Near leg DTE (primary reference)
+
+# Calendar Entry Rules (INVERSE of Iron Condor)
+# Enter when IV is LOW (calendars are vega long)
+entry_rules:
+  # For calendar: use MAX thresholds (enter when IV is low)
+  iv_percentile_min: 0.0      # No minimum - we want LOW IV
+  iv_percentile_max: 40.0     # Enter when IV percentile <= 40%
+  iv_rank_min: null
+  iv_rank_max: 40.0           # Enter when IV rank <= 40%
+  # Term structure filter: front-month IV >= back-month IV (mispricing)
+  term_structure_min: 0.0     # term_m1_m2 >= 0 means front >= back
+  term_structure_max: null
+  skew_min: null
+  skew_max: null
+  iv_hv_spread_min: null
+  dte_min: null
+  dte_max: null
+  min_days_until_earnings: 14
+  exclude_expiry_before_earnings: true
+
+# Calendar Exit Rules (much tighter than Iron Condor)
+# These are volatility mispricing trades - exit fast!
+exit_rules:
+  profit_target_pct: 10.0     # 5-10% of debit (use 10% as target)
+  stop_loss_pct: 10.0         # 10% of debit = exit
+  min_dte: 7                  # Exit 7-10 days before near-leg expiration
+  max_days_in_trade: 10       # Max 5-10 days - if move doesn't come, exit
+  iv_collapse_threshold: null # Not used for calendars (we WANT IV to rise)
+  delta_breach_threshold: null # Not used for calendars
+
+position_sizing:
+  type: fixed_risk
+  max_risk_per_trade: 200.0   # Max debit per trade
+  max_positions_per_symbol: 1
+  max_total_positions: 10
+
+sample_split:
+  in_sample_ratio: 0.3
+  method: chronological
+
+costs:
+  commission_per_contract: 1.0
+  slippage_pct: 5.0
+
+# Calendar Spread specific parameters
+calendar_near_dte: 37         # Near leg: 30-45 DTE (midpoint)
+calendar_far_dte: 75          # Far leg: 60-90 DTE (midpoint)
+calendar_min_gap: 30          # Minimum 30 days between legs
+
+# Iron Condor parameters (not used for calendar, but required by config)
+iron_condor_wing_width: 5
+iron_condor_short_delta: 0.16
+
+use_greeks_model: false       # Calendar uses its own P&L model
+use_real_prices: false

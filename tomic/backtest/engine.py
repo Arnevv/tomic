@@ -24,7 +24,7 @@ from tomic.backtest.results import (
     SimulatedTrade,
     TradeStatus,
 )
-from tomic.backtest.signal_generator import SignalGenerator, SignalFilter
+from tomic.backtest.signal_generator import SignalGenerator, SignalFilter, CalendarSignalGenerator
 from tomic.backtest.trade_simulator import TradeSimulator
 from tomic.logutils import logger
 
@@ -70,7 +70,13 @@ class BacktestEngine:
 
         # Initialize components
         self.data_loader = DataLoader(self.config)
-        self.signal_generator = SignalGenerator(self.config)
+
+        # Use CalendarSignalGenerator for calendar strategy, SignalGenerator for others
+        if self.config.strategy_type == "calendar":
+            self.signal_generator = CalendarSignalGenerator(self.config)
+        else:
+            self.signal_generator = SignalGenerator(self.config)
+
         self.metrics_calculator = MetricsCalculator()
 
     def _load_strategy_config(self) -> Dict[str, Any]:

@@ -16,7 +16,7 @@ from datetime import date, timedelta
 from typing import Optional, Tuple
 
 from tomic.backtest.config import BacktestConfig, ExitRulesConfig
-from tomic.backtest.pnl_model import IronCondorPnLModel, PnLEstimate
+from tomic.backtest.pnl_model import IronCondorPnLModel, CalendarSpreadPnLModel, PnLEstimate
 from tomic.backtest.results import ExitReason, IVDataPoint, SimulatedTrade
 
 
@@ -276,4 +276,162 @@ class ExitEvaluator:
         return ExitEvaluation(should_exit=False)
 
 
-__all__ = ["ExitEvaluator", "ExitEvaluation"]
+class CalendarExitEvaluator:
+    """Evaluates exit conditions for Calendar Spread trades.
+
+    TOMIC Calendar Exit Rules (in priority order):
+    1. Profit target: 5-10% of debit (take profits quickly)
+    2. Stop loss: 10% of debit (cut losses fast)
+    3. Near-leg DTE: Exit 7-10 days before near-leg expiration
+    4. Max DIT: 5-10 days (volatility mispricing trades should work fast)
+
+    Key Philosophy:
+    - Calendars are VOLATILITY MISPRICING trades, NOT theta trades
+    - If the move doesn't come in 5-10 days, exit
+    - Don't hold for theta decay - that's not the thesis
+    """
+
+    def __init__(self, config: BacktestConfig):
+        self.config = config
+        self.exit_rules = config.exit_rules
+        self.pnl_model = CalendarSpreadPnLModel(config)
+
+    def evaluate(
+        self,
+        trade: SimulatedTrade,
+        current_date: date,
+        current_iv: Optional[float],
+        current_term: Optional[float] = None,
+        term_at_entry: Optional[float] = None,
+    ) -> ExitEvaluation:
+        """Evaluate all exit conditions for a calendar trade.
+
+        Args:
+            trade: The SimulatedTrade to evaluate
+            current_date: Current simulation date
+            current_iv: Current ATM IV for the symbol
+            current_term: Current term structure (M1-M2)
+            term_at_entry: Term structure at entry
+
+        Returns:
+            ExitEvaluation with decision and details.
+        """
+        # Update days in trade
+        days_in_trade = (current_date - trade.entry_date).days
+
+        # Get entry debit (max_risk for calendars = debit paid)
+        entry_debit = trade.entry_debit if trade.entry_debit else trade.max_risk
+
+        # Calculate near leg DTE at entry
+        near_dte_at_entry = (trade.short_expiry - trade.entry_date).days if trade.short_expiry else 45
+
+        # Get current P&L estimate
+        if current_iv is not None and entry_debit > 0:
+            pnl_estimate = self.pnl_model.estimate_pnl(
+                iv_at_entry=trade.iv_at_entry,
+                iv_current=current_iv,
+                term_at_entry=term_at_entry,
+                term_current=current_term,
+                days_in_trade=days_in_trade,
+                near_dte_at_entry=near_dte_at_entry,
+                entry_debit=entry_debit,
+            )
+        else:
+            pnl_estimate = PnLEstimate(
+                total_pnl=0, vega_pnl=0, theta_pnl=0, costs=0, pnl_pct=0
+            )
+
+        # Calculate remaining DTE for near leg
+        if trade.short_expiry:
+            near_leg_dte = (trade.short_expiry - current_date).days
+        else:
+            near_leg_dte = (trade.target_expiry - current_date).days
+
+        # Check exit conditions in priority order
+        checks = [
+            self._check_profit_target(entry_debit, pnl_estimate),
+            self._check_stop_loss(entry_debit, pnl_estimate),
+            self._check_near_leg_dte(near_leg_dte),
+            self._check_max_dit(days_in_trade),
+        ]
+
+        # Return first triggered exit condition
+        for evaluation in checks:
+            if evaluation.should_exit:
+                # Calculate final P&L for this exit reason
+                if current_iv is not None:
+                    evaluation.exit_pnl = self.pnl_model.estimate_exit_pnl(
+                        iv_at_entry=trade.iv_at_entry,
+                        iv_at_exit=current_iv,
+                        term_at_entry=term_at_entry,
+                        term_at_exit=current_term,
+                        days_in_trade=days_in_trade,
+                        near_dte_at_entry=near_dte_at_entry,
+                        entry_debit=entry_debit,
+                        exit_reason=evaluation.exit_reason.value,
+                    )
+                return evaluation
+
+        # No exit triggered
+        return ExitEvaluation(should_exit=False)
+
+    def _check_profit_target(
+        self, entry_debit: float, pnl: PnLEstimate
+    ) -> ExitEvaluation:
+        """Check if profit target is reached (5-10% of debit for calendars)."""
+        # Calendar profit target is much lower than iron condor
+        target_pct = self.exit_rules.profit_target_pct  # Should be 5-10 for calendars
+        target_profit = entry_debit * (target_pct / 100)
+
+        if pnl.total_pnl >= target_profit:
+            return ExitEvaluation(
+                should_exit=True,
+                exit_reason=ExitReason.PROFIT_TARGET,
+                exit_pnl=target_profit,
+                message=f"Profit target reached: ${pnl.total_pnl:.2f} >= ${target_profit:.2f} ({target_pct}% of debit)",
+            )
+        return ExitEvaluation(should_exit=False)
+
+    def _check_stop_loss(
+        self, entry_debit: float, pnl: PnLEstimate
+    ) -> ExitEvaluation:
+        """Check if stop loss is triggered (10% of debit for calendars)."""
+        stop_pct = self.exit_rules.stop_loss_pct  # Should be 10 for calendars
+        stop_loss = entry_debit * (stop_pct / 100)
+
+        if pnl.total_pnl <= -stop_loss:
+            return ExitEvaluation(
+                should_exit=True,
+                exit_reason=ExitReason.STOP_LOSS,
+                exit_pnl=-stop_loss,
+                message=f"Stop loss triggered: ${pnl.total_pnl:.2f} <= -${stop_loss:.2f} ({stop_pct}% of debit)",
+            )
+        return ExitEvaluation(should_exit=False)
+
+    def _check_near_leg_dte(self, near_leg_dte: int) -> ExitEvaluation:
+        """Check if near leg is approaching expiration (7-10 days)."""
+        # Use min_dte from config (should be 7-10 for calendars)
+        min_dte = self.exit_rules.min_dte
+
+        if near_leg_dte <= min_dte:
+            return ExitEvaluation(
+                should_exit=True,
+                exit_reason=ExitReason.NEAR_LEG_DTE,
+                message=f"Near-leg DTE exit: {near_leg_dte} DTE <= {min_dte} DTE minimum",
+            )
+        return ExitEvaluation(should_exit=False)
+
+    def _check_max_dit(self, days_in_trade: int) -> ExitEvaluation:
+        """Check if maximum days in trade exceeded (5-10 days for calendars)."""
+        max_dit = self.exit_rules.max_days_in_trade  # Should be 5-10 for calendars
+
+        if days_in_trade >= max_dit:
+            return ExitEvaluation(
+                should_exit=True,
+                exit_reason=ExitReason.MAX_DIT,
+                message=f"Max DIT reached: {days_in_trade} days >= {max_dit} max (move didn't come)",
+            )
+        return ExitEvaluation(should_exit=False)
+
+
+__all__ = ["ExitEvaluator", "ExitEvaluation", "CalendarExitEvaluator"]
