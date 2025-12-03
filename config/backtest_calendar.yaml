@@ -73,4 +73,4 @@ iron_condor_wing_width: 5
 iron_condor_short_delta: 0.16
 
 use_greeks_model: false       # Calendar uses its own P&L model
-use_real_prices: false
+use_real_prices: true
