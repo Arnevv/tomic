@@ -142,39 +142,79 @@ class BacktestEngine:
             f"{data_summary['total_data_points']} total data points"
         )
 
-        # Step 2: Split data
+        # Step 2: Split data per symbol based on actual available data
         self._report_progress("Splitting data into in-sample / out-of-sample...", 10)
-        split_date = self.config.get_in_sample_end_date()
-        in_sample_data, out_sample_data = self.data_loader.split_by_date(split_date)
+        in_sample_ratio = self.config.sample_split.in_sample_ratio
 
         logger.info(
-            f"Split at {split_date}: "
+            f"Splitting data per symbol using {in_sample_ratio:.0%} in-sample ratio "
+            f"(based on actual data ranges):"
+        )
+        in_sample_data, out_sample_data, split_dates = self.data_loader.split_by_ratio(
+            in_sample_ratio
+        )
+
+        logger.info(
+            f"Split complete: "
             f"in-sample={sum(len(ts) for ts in in_sample_data.values())} points, "
             f"out-of-sample={sum(len(ts) for ts in out_sample_data.values())} points"
         )
 
+        # Determine effective date ranges from actual data
+        in_sample_start = None
+        in_sample_end = None
+        out_sample_start = None
+        out_sample_end = None
+
+        for ts in in_sample_data.values():
+            if ts.start_date:
+                if in_sample_start is None or ts.start_date < in_sample_start:
+                    in_sample_start = ts.start_date
+            if ts.end_date:
+                if in_sample_end is None or ts.end_date > in_sample_end:
+                    in_sample_end = ts.end_date
+
+        for ts in out_sample_data.values():
+            if ts.start_date:
+                if out_sample_start is None or ts.start_date < out_sample_start:
+                    out_sample_start = ts.start_date
+            if ts.end_date:
+                if out_sample_end is None or ts.end_date > out_sample_end:
+                    out_sample_end = ts.end_date
+
+        # Update result with actual effective dates
+        if in_sample_end:
+            result.in_sample_end_date = in_sample_end
+
         # Step 3: Run in-sample simulation
         self._report_progress("Running in-sample simulation...", 15)
-        in_sample_trades = self._run_simulation(
-            iv_data=in_sample_data,
-            start_date=result.start_date,
-            end_date=split_date,
-            period_name="in-sample",
-            progress_start=15,
-            progress_end=45,
-        )
+        in_sample_trades = []
+        if in_sample_start and in_sample_end:
+            in_sample_trades = self._run_simulation(
+                iv_data=in_sample_data,
+                start_date=in_sample_start,
+                end_date=in_sample_end,
+                period_name="in-sample",
+                progress_start=15,
+                progress_end=45,
+            )
+        else:
+            logger.warning("No in-sample data available")
 
         # Step 4: Run out-of-sample simulation
         self._report_progress("Running out-of-sample simulation...", 50)
-        out_sample_start = self.config.get_out_sample_start_date()
-        out_sample_trades = self._run_simulation(
-            iv_data=out_sample_data,
-            start_date=out_sample_start,
-            end_date=result.end_date,
-            period_name="out-of-sample",
-            progress_start=50,
-            progress_end=80,
-        )
+        out_sample_trades = []
+        if out_sample_start and out_sample_end:
+            out_sample_trades = self._run_simulation(
+                iv_data=out_sample_data,
+                start_date=out_sample_start,
+                end_date=out_sample_end,
+                period_name="out-of-sample",
+                progress_start=50,
+                progress_end=80,
+            )
+        else:
+            logger.warning("No out-of-sample data available")
 
         # Combine all trades
         result.trades = in_sample_trades + out_sample_trades
