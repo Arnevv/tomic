@@ -46,21 +46,24 @@ def _select_strategy_for_testing() -> Optional[str]:
     """Prompt user to select a strategy type for testing.
 
     Returns:
-        Strategy type string, or None if cancelled.
+        Strategy type string ('iron_condor', 'calendar', 'both'), or None if cancelled.
     """
-    print("\n" + "-" * 50)
+    print("\n" + "=" * 50)
     print("KIES STRATEGIE TYPE")
-    print("-" * 50)
+    print("=" * 50)
     print("1. Iron Condor  (credit, hoge IV entry)")
     print("2. Calendar     (debit, lage IV entry)")
-    print("3. Terug")
+    print("3. Beide        (vergelijk IC vs Calendar)")
+    print("4. Terug")
 
-    choice = prompt("Maak je keuze [1-3]: ")
+    choice = prompt("Maak je keuze [1-4]: ")
 
     if choice == "1":
         return STRATEGY_IRON_CONDOR
     elif choice == "2":
         return STRATEGY_CALENDAR
+    elif choice == "3":
+        return "both"
     else:
         return None
 
@@ -356,6 +359,11 @@ def run_live_config_validation() -> None:
     if strategy is None:
         return
 
+    # Handle "both" strategy comparison
+    if strategy == "both":
+        _run_both_strategies_validation()
+        return
+
     strategy_name = STRATEGY_DISPLAY_NAMES.get(strategy, strategy)
 
     # Show which config files are used
@@ -416,6 +424,134 @@ def run_live_config_validation() -> None:
 
         # Store for later viewing
         _store_result("live_validation", result)
+
+
+def _run_both_strategies_validation() -> None:
+    """Run validation for both Iron Condor and Calendar strategies and compare."""
+    print("\n" + "=" * 70)
+    print("VERGELIJKING: IRON CONDOR vs CALENDAR")
+    print("=" * 70)
+    print("\nBeide strategieen worden gevalideerd met hun live configuratie.")
+    print("Dit laat zien hoe ze presteren in verschillende marktomstandigheden.")
+
+    # Show config summary for both
+    for strat in [STRATEGY_IRON_CONDOR, STRATEGY_CALENDAR]:
+        strat_name = STRATEGY_DISPLAY_NAMES.get(strat, strat)
+        print(f"\n{'-' * 50}")
+        print(f"{strat_name.upper()} CONFIGURATIE")
+        print("-" * 50)
+
+        params = get_testable_parameters(strat)
+        # Show key entry/exit params
+        for p in params:
+            if p["category"] in ("entry", "exit"):
+                print(f"  {p['description']:30} = {p['current_value']}")
+
+    print("\n" + "-" * 50)
+
+    if not prompt_yes_no("\nBeide backtests starten?"):
+        print("Geannuleerd.")
+        return
+
+    # Run Iron Condor
+    print("\n" + "=" * 60)
+    print("1/2 - IRON CONDOR BACKTEST")
+    print("=" * 60)
+
+    ic_result = _run_backtest_with_config(
+        strategy=STRATEGY_IRON_CONDOR,
+        overrides={},
+        label="Iron Condor (Live Config)",
+        show_progress=True,
+    )
+
+    # Run Calendar
+    print("\n" + "=" * 60)
+    print("2/2 - CALENDAR SPREAD BACKTEST")
+    print("=" * 60)
+
+    cal_result = _run_backtest_with_config(
+        strategy=STRATEGY_CALENDAR,
+        overrides={},
+        label="Calendar Spread (Live Config)",
+        show_progress=True,
+    )
+
+    # Show comparison
+    if ic_result and cal_result:
+        _print_strategy_comparison(ic_result, cal_result)
+
+        # Store for later viewing
+        _store_result("live_validation_ic", ic_result)
+        _store_result("live_validation_cal", cal_result)
+    elif ic_result:
+        print("\nCalendar backtest mislukt. Alleen Iron Condor resultaat:")
+        _print_single_result(ic_result)
+    elif cal_result:
+        print("\nIron Condor backtest mislukt. Alleen Calendar resultaat:")
+        _print_single_result(cal_result)
+    else:
+        print("\nBeide backtests mislukt.")
+
+
+def _print_strategy_comparison(ic: TestResult, cal: TestResult) -> None:
+    """Print a side-by-side comparison of Iron Condor vs Calendar results."""
+    print("\n" + "=" * 80)
+    print("VERGELIJKING: IRON CONDOR vs CALENDAR")
+    print("=" * 80)
+
+    # Header
+    print(f"\n{'Metric':<20} {'IRON CONDOR':>18} {'CALENDAR':>18} {'VERSCHIL':>18}")
+    print("-" * 80)
+
+    # Helper for difference calculation
+    def diff_str(ic_val: float, cal_val: float, fmt: str = ".1f") -> str:
+        diff = ic_val - cal_val
+        sign = "+" if diff >= 0 else ""
+        return f"IC {sign}{diff:{fmt}}"
+
+    # Rows
+    print(f"{'Trades':<20} {ic.trades:>18} {cal.trades:>18} {diff_str(ic.trades, cal.trades, 'd'):>18}")
+    print(f"{'Win Rate':<20} {ic.win_rate:>17.1f}% {cal.win_rate:>17.1f}% {diff_str(ic.win_rate, cal.win_rate):>18}")
+    print(f"{'Total P&L':<20} ${ic.total_pnl:>16,.2f} ${cal.total_pnl:>16,.2f} {diff_str(ic.total_pnl, cal.total_pnl, ',.0f'):>18}")
+    print(f"{'Sharpe':<20} {ic.sharpe:>18.2f} {cal.sharpe:>18.2f} {diff_str(ic.sharpe, cal.sharpe, '.2f'):>18}")
+    print(f"{'Max Drawdown':<20} {ic.max_drawdown:>17.1f}% {cal.max_drawdown:>17.1f}% {diff_str(ic.max_drawdown, cal.max_drawdown):>18}")
+    print(f"{'Profit Factor':<20} {ic.profit_factor:>18.2f} {cal.profit_factor:>18.2f} {diff_str(ic.profit_factor, cal.profit_factor, '.2f'):>18}")
+
+    # Handle None values
+    ic_ret_dd_str = f"{ic.ret_dd:>18.2f}" if ic.ret_dd is not None else f"{'N/A':>18}"
+    cal_ret_dd_str = f"{cal.ret_dd:>18.2f}" if cal.ret_dd is not None else f"{'N/A':>18}"
+    ret_dd_diff = diff_str(ic.ret_dd, cal.ret_dd, '.2f') if (ic.ret_dd is not None and cal.ret_dd is not None) else "N/A"
+    print(f"{'Ret/DD':<20} {ic_ret_dd_str} {cal_ret_dd_str} {ret_dd_diff:>18}")
+
+    # Analysis section
+    print("\n" + "-" * 80)
+    print("ANALYSE:")
+
+    # Compare key metrics
+    if ic.sharpe > cal.sharpe + 0.1:
+        print("  Iron Condor heeft betere risk-adjusted returns (hogere Sharpe)")
+    elif cal.sharpe > ic.sharpe + 0.1:
+        print("  Calendar heeft betere risk-adjusted returns (hogere Sharpe)")
+    else:
+        print("  Beide strategieen hebben vergelijkbare risk-adjusted returns")
+
+    if ic.win_rate > cal.win_rate + 5:
+        print(f"  Iron Condor heeft hogere win rate (+{ic.win_rate - cal.win_rate:.1f}%)")
+    elif cal.win_rate > ic.win_rate + 5:
+        print(f"  Calendar heeft hogere win rate (+{cal.win_rate - ic.win_rate:.1f}%)")
+
+    if ic.max_drawdown < cal.max_drawdown - 2:
+        print("  Iron Condor heeft lagere drawdown (minder risico)")
+    elif cal.max_drawdown < ic.max_drawdown - 2:
+        print("  Calendar heeft lagere drawdown (minder risico)")
+
+    # Combined performance insight
+    print("\n" + "-" * 80)
+    print("DIVERSIFICATIE INZICHT:")
+    print("  Iron Condor: Beste in HOGE IV omgevingen (premium verkoop)")
+    print("  Calendar:    Beste in LAGE IV omgevingen (vol expansie)")
+    print("  Samen:       Potentieel stabielere returns door marktdiversificatie")
 
 
 def _run_backtest_with_config(
