@@ -547,7 +547,9 @@ class RealPricesPnLModel:
         """Lazy-load the option chain loader."""
         if self._chain_loader is None:
             from tomic.backtest.option_chain_loader import OptionChainLoader
-            self._chain_loader = OptionChainLoader()
+            self._chain_loader = OptionChainLoader(
+                use_real_prices=self.config.use_real_prices,
+            )
         return self._chain_loader
 
     def get_entry_quotes(

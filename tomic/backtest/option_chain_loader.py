@@ -400,16 +400,29 @@ class OptionChain:
 class OptionChainLoader:
     """Loads option chains from ORATS ZIP files for backtesting."""
 
-    def __init__(self, cache_dir: Optional[Path] = None):
+    def __init__(
+        self,
+        cache_dir: Optional[Path] = None,
+        use_real_prices: bool = True,
+        min_open_interest: int = 0,
+        max_spread_pct: Optional[float] = None,
+    ):
         """Initialize the loader.
 
         Args:
             cache_dir: Directory containing ORATS ZIP files.
                       Defaults to ORATS_CACHE_DIR from config.
+            use_real_prices: If True, use real bid/ask from ORATS data.
+                            If False, estimate prices from IV (legacy behavior).
+            min_open_interest: Minimum open interest filter (0 = no filter).
+            max_spread_pct: Maximum bid-ask spread as % of mid (None = no filter).
         """
         if cache_dir is None:
             cache_dir = Path(cfg_get("ORATS_CACHE_DIR", "tomic/data/orats_cache"))
         self.cache_dir = cache_dir.expanduser()
+        self.use_real_prices = use_real_prices
+        self.min_open_interest = min_open_interest
+        self.max_spread_pct = max_spread_pct
 
         # Cache loaded chains to avoid re-parsing
         self._chain_cache: Dict[Tuple[str, date], OptionChain] = {}
@@ -550,27 +563,37 @@ class OptionChainLoader:
     ) -> Optional[OptionQuote]:
         """Create an OptionQuote from a CSV row.
 
-        Reads real bid/ask prices and Greeks from ORATS data when available.
-        Falls back to estimation only if ORATS data is missing.
+        Behavior depends on self.use_real_prices:
+        - True: Use real bid/ask from ORATS when available, fall back to estimation
+        - False: Always use estimated prices (legacy behavior for reproducibility)
         """
         prefix = "c" if option_type == "C" else "p"
 
         # Get IV (mid, bid, ask)
         iv = self._safe_float(row.get(f"{prefix}MidIv"))
 
-        # Get real bid/ask prices from ORATS
-        bid = self._safe_float(row.get(f"{prefix}BidPx"))
-        ask = self._safe_float(row.get(f"{prefix}AskPx"))
+        # Get real bid/ask prices from ORATS (always read for data tracking)
+        orats_bid = self._safe_float(row.get(f"{prefix}BidPx"))
+        orats_ask = self._safe_float(row.get(f"{prefix}AskPx"))
         theoretical_value = self._safe_float(row.get(f"{prefix}Value"))
 
-        # Check if we have real ORATS prices
-        has_real_prices = bid is not None and ask is not None and bid > 0 and ask > 0
+        # Check if ORATS has valid real prices
+        orats_has_prices = (
+            orats_bid is not None and orats_ask is not None
+            and orats_bid > 0 and orats_ask > 0
+        )
 
-        if has_real_prices:
+        # Decide whether to use real prices based on config and availability
+        use_real = self.use_real_prices and orats_has_prices
+
+        if use_real:
             # Use real ORATS prices
+            bid = orats_bid
+            ask = orats_ask
             mid_price = (bid + ask) / 2
+            has_real_prices = True
         else:
-            # Fall back to estimation (for backwards compatibility with older data)
+            # Use estimated prices (legacy behavior)
             mid_price = self._estimate_option_price(
                 spot_price or 0, strike, iv or 0,
                 (expiry - trade_date).days, option_type
@@ -585,6 +608,7 @@ class OptionChainLoader:
             spread = mid_price * spread_pct
             bid = max(0.01, mid_price - spread / 2)
             ask = mid_price + spread / 2
+            has_real_prices = False
 
         # Get delta - ORATS has separate cDelta/pDelta fields
         delta = self._safe_float(row.get(f"{prefix}Delta"))
