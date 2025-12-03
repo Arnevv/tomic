@@ -43,8 +43,8 @@ def load_json(path: PathLike, *, default_factory: DefaultFactory | None = None) 
     try:
         with p.open("r", encoding="utf-8") as handle:
             return json.load(handle)
-    except Exception:
-        logger.error(f"Corrupted JSON at {p}")
+    except (json.JSONDecodeError, OSError, IOError) as exc:
+        logger.error(f"Corrupted or unreadable JSON at {p}: {exc}")
         return factory()
 
 

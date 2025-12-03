@@ -89,15 +89,16 @@ def generate_exit_alerts(strategy: dict, rule: dict | None) -> None:
                 alerts.append(
                     f"🚨 Spot {spot:.2f} boven exitniveau {rule['spot_above']}"
                 )
+        premium_entry = rule.get("premium_entry")
         if (
             pnl_val is not None
             and rule.get("target_profit_pct") is not None
-            and rule.get("premium_entry")
+            and premium_entry is not None
         ):
             # premium_entry is per-share price, multiply by 100 for contract value
             # profit_pct = (realized_pnl / total_premium) * 100
-            total_premium = abs(rule["premium_entry"]) * 100
-            profit_pct = (pnl_val / total_premium) * 100 if total_premium else 0.0
+            total_premium = abs(premium_entry) * 100
+            profit_pct = (pnl_val / total_premium) * 100 if total_premium > 0 else 0.0
             if profit_pct >= rule["target_profit_pct"]:
                 alerts.append(
                     f"🚨 PnL {profit_pct:.1f}% >= target {rule['target_profit_pct']:.1f}%"

@@ -581,7 +581,7 @@ class OptionChainClientLegacy(MarketClient):
                     pass
             # Allow IB time to process the cancel before reusing the ticker ID.
             delay = 0.5
-            time.sleep(delay)
+            await asyncio.sleep(delay)
 
             new_rid = rid
             if use_new_id:
@@ -1405,24 +1405,29 @@ class OptionChainClientLegacy(MarketClient):
                 self._pending_details[req_id] = info
             contract_map[req_id] = c
             await async_sem.acquire()
-            self._detail_semaphore.acquire()
-            await asyncio.sleep(0.01)
-            ok = await asyncio.to_thread(self._request_contract_details, c, req_id)
-            if not ok:
-                logger.warning(
-                    f"⚠️ Geen optiecontractdetails voor reqId {req_id}; marktdata overgeslagen"
-                )
-                self._pending_details.pop(req_id, None)
-                self._detail_semaphore.release()
-                with self.data_lock:
-                    self.invalid_contracts.add(req_id)
-                    rec = self.market_data.get(req_id, {})
-                    rec["status"] = "invalid"
-                    evt = rec.get("event")
-                if isinstance(evt, threading.Event) and not evt.is_set():
-                    evt.set()
-                self._mark_complete(req_id)
-            async_sem.release()
+            detail_sem_acquired = False
+            try:
+                self._detail_semaphore.acquire()
+                detail_sem_acquired = True
+                await asyncio.sleep(0.01)
+                ok = await asyncio.to_thread(self._request_contract_details, c, req_id)
+                if not ok:
+                    logger.warning(
+                        f"⚠️ Geen optiecontractdetails voor reqId {req_id}; marktdata overgeslagen"
+                    )
+                    self._pending_details.pop(req_id, None)
+                    with self.data_lock:
+                        self.invalid_contracts.add(req_id)
+                        rec = self.market_data.get(req_id, {})
+                        rec["status"] = "invalid"
+                        evt = rec.get("event")
+                    if isinstance(evt, threading.Event) and not evt.is_set():
+                        evt.set()
+                    self._mark_complete(req_id)
+            finally:
+                if detail_sem_acquired:
+                    self._detail_semaphore.release()
+                async_sem.release()
 
         tasks = []
         for e in self.expiries:

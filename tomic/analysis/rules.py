@@ -119,7 +119,8 @@ def _eval_condition(condition: str, context: Dict[str, Any]) -> bool:
         tree = ast.parse(condition, mode="eval")
         result = _safe_eval_node(tree, context)
         return bool(result) if result is not None else False
-    except Exception:
+    except (SyntaxError, ValueError, TypeError, KeyError, AttributeError):
+        # Catch all expected parsing/evaluation errors
         return False
 
 
@@ -143,7 +144,8 @@ def evaluate_rules(rules: Iterable[Dict[str, str]], context: Dict[str, Any]) -> 
         if _eval_condition(cond, context):
             try:
                 alerts.append(msg.format(**context))
-            except Exception:
+            except (KeyError, ValueError, IndexError):
+                # Fall back to unformatted message if formatting fails
                 alerts.append(msg)
     return alerts
 

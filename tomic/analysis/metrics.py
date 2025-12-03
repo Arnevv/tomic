@@ -45,7 +45,7 @@ def render_kpi_box(strategy: Dict[str, Any]) -> str:
     rom_str = f"{rom:+.1f}%" if rom is not None else "n.v.t."
     theta_eff = None
     rating = ""
-    if theta is not None and margin:
+    if theta is not None and margin and margin != 0:
         theta_eff = abs(theta / margin) * 100
         if theta_eff < 0.5:
             rating = "⚠️"
@@ -81,7 +81,12 @@ def historical_volatility(
     """
     if len(closes) < 2:
         return None
-    returns = [math.log(c2 / c1) for c1, c2 in zip(closes[:-1], closes[1:])]
+    # Guard against division by zero: skip pairs where c1 is zero or negative
+    returns = [
+        math.log(c2 / c1)
+        for c1, c2 in zip(closes[:-1], closes[1:])
+        if c1 > 0 and c2 > 0
+    ]
     if not returns:
         return None
     window_returns = returns[-window:]
@@ -111,6 +116,8 @@ def average_true_range(
     if not trs:
         return None
     period_trs = trs[-period:]
+    if not period_trs:
+        return None
     return sum(period_trs) / len(period_trs)
 
 

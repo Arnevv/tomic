@@ -68,7 +68,7 @@ def _build_strike_map(chain: List[Dict[str, Any]]) -> Dict[str, Dict[str, List[f
             expiry = str(opt.get("expiry"))
             right = get_leg_right(opt)
             strike = float(opt.get("strike"))
-        except Exception:
+        except (TypeError, ValueError, KeyError):
             continue
         strike_map.setdefault(expiry, {}).setdefault(right, set()).add(strike)
 
@@ -93,12 +93,12 @@ def _options_by_strike(
                 continue
             strike = float(opt.get("strike"))
             expiry = str(opt.get("expiry"))
-        except Exception:
+        except (TypeError, ValueError, KeyError):
             continue
         quote = resolve_option_mid(opt)
         try:
             mid_val = float(quote.mid) if quote.mid is not None else math.nan
-        except Exception:
+        except (TypeError, ValueError):
             mid_val = math.nan
         if math.isnan(mid_val):
             continue
@@ -183,7 +183,7 @@ def _find_option(
                 and math.isclose(opt_strike, target_strike, abs_tol=0.01)
             ):
                 return opt
-        except Exception:
+        except (TypeError, ValueError, KeyError):
             continue
     if strategy:
         attempted = (

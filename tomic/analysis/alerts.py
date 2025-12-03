@@ -9,6 +9,18 @@ from .rules import evaluate_rules
 
 rt = RULES.alerts.risk_thresholds
 
+# Delta thresholds for position bias alerts
+DELTA_STRONG_BULLISH = 0.30
+DELTA_WEAK_BULLISH = 0.15
+DELTA_STRONG_BEARISH = -0.30
+DELTA_WEAK_BEARISH = -0.15
+
+# Vega thresholds for combined alerts
+VEGA_LONG_THRESHOLD = 30
+VEGA_SHORT_THRESHOLD = -30
+IV_RANK_LOW_THRESHOLD = 0.30
+IV_RANK_HIGH_THRESHOLD = 0.60
+
 
 def check_entry_conditions(strategy: Dict[str, Any]) -> List[str]:
     """Return a list of entry warnings for ``strategy`` using declarative rules."""
@@ -30,13 +42,13 @@ def generate_risk_alerts(strategy: Dict[str, Any]) -> List[str]:
     alerts: List[str] = []
     delta = strategy.get("delta")
     if delta is not None:
-        if delta >= 0.30:
-            alerts.append("📈 Sterk bullish (≥ +0.30)")
-        elif delta >= 0.15:
+        if delta >= DELTA_STRONG_BULLISH:
+            alerts.append(f"📈 Sterk bullish (≥ +{DELTA_STRONG_BULLISH})")
+        elif delta >= DELTA_WEAK_BULLISH:
             alerts.append("📈 Licht bullish")
-        elif delta <= -0.30:
-            alerts.append("📉 Sterk bearish (≤ –0.30)")
-        elif delta <= -0.15:
+        elif delta <= DELTA_STRONG_BEARISH:
+            alerts.append(f"📉 Sterk bearish (≤ {DELTA_STRONG_BEARISH})")
+        elif delta <= DELTA_WEAK_BEARISH:
             alerts.append("📉 Licht bearish")
         else:
             alerts.append("⚖️ Neutraal")
@@ -78,11 +90,11 @@ def generate_risk_alerts(strategy: Dict[str, Any]) -> List[str]:
             alerts.append(rt.vega_long_low_ivr.message)
 
     if delta is not None and vega is not None and ivr is not None:
-        if delta >= 0.15 and vega > 30 and ivr < 0.30:
+        if delta >= DELTA_WEAK_BULLISH and vega > VEGA_LONG_THRESHOLD and ivr < IV_RANK_LOW_THRESHOLD:
             alerts.append(
                 "📈 Bullish + Long Vega in lage IV - time spread overwegen i.p.v. long call"
             )
-        if delta <= -0.15 and vega < -30 and ivr > 0.60:
+        if delta <= DELTA_WEAK_BEARISH and vega < VEGA_SHORT_THRESHOLD and ivr > IV_RANK_HIGH_THRESHOLD:
             alerts.append(
                 "📉 Bearish + Short Vega in hoog vol klimaat - oppassen voor squeeze"
             )
