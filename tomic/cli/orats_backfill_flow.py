@@ -1108,14 +1108,18 @@ class OratsBackfillFlow:
                 day_records = self._parse_orats_csv(zip_path, symbols_for_date)
 
                 if not day_records:
-                    # Show which symbols were not found (likely didn't exist yet)
+                    # Show which symbols were not found
                     not_found = sorted(symbols_for_date)
                     if len(not_found) <= 5:
                         symbols_str = ", ".join(not_found)
                     else:
                         symbols_str = f"{', '.join(not_found[:5])}... (+{len(not_found) - 5} meer)"
                     logger.warning(f"Symbolen niet gevonden in ORATS data voor {date_str}: {symbols_str}")
-                    logger.info(f"  ℹ️  Deze symbolen bestonden mogelijk nog niet op deze datum")
+                    logger.info(
+                        f"  ℹ️  Mogelijke oorzaken: (1) symbool bestond nog niet, "
+                        f"(2) geen optie data beschikbaar (lage volumes), "
+                        f"(3) geen Third Friday expirations"
+                    )
                     missing_symbols += len(symbols_needing_date)
                     continue
 
@@ -1128,7 +1132,7 @@ class OratsBackfillFlow:
                     else:
                         nf_sorted = sorted(not_found_symbols)
                         nf_str = f"{', '.join(nf_sorted[:3])}... (+{len(not_found_symbols) - 3})"
-                    print(f"  ⚠️  Niet gevonden: {nf_str} (bestond mogelijk nog niet)")
+                    print(f"  ⚠️  Niet gevonden: {nf_str} (geen optie data beschikbaar)")
 
                 # Update JSON files per symbol
                 for symbol, records in day_records.items():
