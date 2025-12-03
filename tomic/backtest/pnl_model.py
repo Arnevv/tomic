@@ -112,7 +112,8 @@ class IronCondorPnLModel:
 
         # Adjust for IV level (higher IV = higher credit)
         # Normalize IV to typical range
-        iv_normalized = iv_at_entry if iv_at_entry < 1 else iv_at_entry / 100
+        # Use threshold of 2 to handle high-IV stocks (IV > 200% is unrealistic)
+        iv_normalized = iv_at_entry if iv_at_entry <= 2 else iv_at_entry / 100
         iv_adjustment = iv_normalized / 0.20  # Scale relative to 20% IV
 
         # Adjust for DTE (more DTE = higher credit due to more time value)
@@ -162,8 +163,9 @@ class IronCondorPnLModel:
             PnLEstimate with breakdown of P&L components.
         """
         # Normalize IV values
-        iv_entry_norm = iv_at_entry if iv_at_entry < 1 else iv_at_entry / 100
-        iv_current_norm = iv_current if iv_current < 1 else iv_current / 100
+        # Use threshold of 2 to handle high-IV stocks (IV > 200% is unrealistic)
+        iv_entry_norm = iv_at_entry if iv_at_entry <= 2 else iv_at_entry / 100
+        iv_current_norm = iv_current if iv_current <= 2 else iv_current / 100
 
         # Calculate IV change in vol points
         iv_change = (iv_entry_norm - iv_current_norm) * 100  # In vol points
@@ -361,7 +363,8 @@ class GreeksBasedPnLModel:
             GreeksSnapshot with aggregated Greeks for the Iron Condor position
         """
         # Normalize IV
-        iv = atm_iv if atm_iv < 1 else atm_iv / 100
+        # Use threshold of 2 to handle high-IV stocks (IV > 200% is unrealistic)
+        iv = atm_iv if atm_iv <= 2 else atm_iv / 100
 
         # Estimate strikes based on IV and delta
         # For 0.20 delta, strike is roughly spot - 0.85*iv*spot
@@ -822,7 +825,8 @@ class CalendarSpreadPnLModel:
             Estimated debit paid in dollars per contract.
         """
         # Normalize IV
-        iv_normalized = iv_at_entry if iv_at_entry < 1 else iv_at_entry / 100
+        # Use threshold of 2 to handle high-IV stocks (IV > 200% is unrealistic)
+        iv_normalized = iv_at_entry if iv_at_entry <= 2 else iv_at_entry / 100
 
         # ATM call time value approximation (simplified Black-Scholes)
         # Time value ≈ 0.4 * spot * iv * sqrt(dte/365)
@@ -873,8 +877,11 @@ class CalendarSpreadPnLModel:
             PnLEstimate with breakdown of P&L components.
         """
         # Normalize IV values
-        iv_entry_norm = iv_at_entry if iv_at_entry < 1 else iv_at_entry / 100
-        iv_current_norm = iv_current if iv_current < 1 else iv_current / 100
+        # Use threshold of 2 instead of 1 to handle high-IV stocks correctly
+        # IV > 200% (2.0 as decimal) is unrealistic, so IV > 2 means it's a percentage
+        # This fixes the bug where IV=1.00 (100%) was incorrectly divided by 100
+        iv_entry_norm = iv_at_entry if iv_at_entry <= 2 else iv_at_entry / 100
+        iv_current_norm = iv_current if iv_current <= 2 else iv_current / 100
 
         # Calculate IV change in vol points
         iv_change = (iv_current_norm - iv_entry_norm) * 100  # In vol points
