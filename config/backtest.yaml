@@ -17,6 +17,8 @@ entry_rules:
   iv_hv_spread_min: null
   dte_min: null
   dte_max: null
+  min_days_until_earnings: 30
+  exclude_expiry_before_earnings: true
 exit_rules:
   profit_target_pct: 50.0
   stop_loss_pct: 100.0
