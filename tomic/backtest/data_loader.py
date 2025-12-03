@@ -415,6 +415,67 @@ class DataLoader:
 
         return in_sample, out_sample
 
+    def split_by_ratio(
+        self, in_sample_ratio: float
+    ) -> Tuple[Dict[str, IVTimeSeries], Dict[str, IVTimeSeries], Dict[str, date]]:
+        """Split data per symbol based on ratio of actual available data.
+
+        Each symbol is split independently based on its own date range,
+        ensuring both in-sample and out-of-sample periods have data.
+
+        Args:
+            in_sample_ratio: Ratio of data to use for in-sample (e.g., 0.3 for 30%)
+
+        Returns:
+            Tuple of (in_sample_data, out_sample_data, split_dates_per_symbol)
+        """
+        from datetime import timedelta
+
+        in_sample: Dict[str, IVTimeSeries] = {}
+        out_sample: Dict[str, IVTimeSeries] = {}
+        split_dates: Dict[str, date] = {}
+
+        for symbol, ts in self._iv_data.items():
+            if len(ts) == 0:
+                continue
+
+            # Get actual date range for this symbol
+            symbol_start = ts.start_date
+            symbol_end = ts.end_date
+
+            if symbol_start is None or symbol_end is None:
+                continue
+
+            # Calculate split date based on actual data range
+            total_days = (symbol_end - symbol_start).days
+            in_sample_days = int(total_days * in_sample_ratio)
+            symbol_split_date = symbol_start + timedelta(days=in_sample_days)
+
+            split_dates[symbol] = symbol_split_date
+
+            # Split the data
+            in_sample_points = []
+            out_sample_points = []
+
+            for dp in ts:
+                if dp.date <= symbol_split_date:
+                    in_sample_points.append(dp)
+                else:
+                    out_sample_points.append(dp)
+
+            if in_sample_points:
+                in_sample[symbol] = IVTimeSeries(symbol, in_sample_points)
+            if out_sample_points:
+                out_sample[symbol] = IVTimeSeries(symbol, out_sample_points)
+
+            logger.info(
+                f"  {symbol}: split at {symbol_split_date} "
+                f"(data: {symbol_start} to {symbol_end}, "
+                f"in-sample={len(in_sample_points)}, out-of-sample={len(out_sample_points)})"
+            )
+
+        return in_sample, out_sample, split_dates
+
     @staticmethod
     def _parse_float(value: Any) -> Optional[float]:
         """Safely parse a value to float."""
