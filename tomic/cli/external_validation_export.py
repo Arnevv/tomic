@@ -1336,9 +1336,11 @@ def run_external_validation_export() -> None:
     export_choice = input("\nKeuze [1]: ").strip() or "1"
     include_all = export_choice == "1"
 
-    # Run export
-    output_dir = Path("exports")
+    # Run export - use absolute path based on project root to ensure exports
+    # always go to the same location regardless of working directory
+    output_dir = _BASE_DIR / "exports"
     output_dir.mkdir(exist_ok=True)
+    print(f"\nExport locatie: {output_dir.resolve()}")
 
     print("\n" + "-" * 70)
     print(f"Generating {strategy_display} export...")
