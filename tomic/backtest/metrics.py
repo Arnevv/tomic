@@ -443,7 +443,11 @@ class MetricsCalculator:
     def _calculate_per_symbol(
         self, trades: List[SimulatedTrade]
     ) -> Dict[str, Dict[str, Any]]:
-        """Calculate metrics breakdown per symbol."""
+        """Calculate metrics breakdown per symbol.
+
+        Includes: total_trades, win_rate, total_pnl, avg_pnl,
+        avg_winner, avg_loser, profit_factor, sharpe_ratio.
+        """
         by_symbol: Dict[str, List[SimulatedTrade]] = defaultdict(list)
         for trade in trades:
             by_symbol[trade.symbol].append(trade)
@@ -451,16 +455,57 @@ class MetricsCalculator:
         results: Dict[str, Dict[str, Any]] = {}
         for symbol, symbol_trades in by_symbol.items():
             winners = [t for t in symbol_trades if t.final_pnl > 0]
+            losers = [t for t in symbol_trades if t.final_pnl <= 0]
             total_pnl = sum(t.final_pnl for t in symbol_trades)
 
+            # Basic metrics
+            total_trades = len(symbol_trades)
+            win_rate = len(winners) / total_trades if total_trades else 0
+
+            # Avg winner / loser
+            avg_winner = (
+                sum(t.final_pnl for t in winners) / len(winners) if winners else 0
+            )
+            avg_loser = (
+                abs(sum(t.final_pnl for t in losers)) / len(losers) if losers else 0
+            )
+
+            # Profit factor
+            gross_profit = sum(t.final_pnl for t in winners)
+            gross_loss = abs(sum(t.final_pnl for t in losers))
+            profit_factor = (
+                gross_profit / gross_loss if gross_loss > 0 else float("inf")
+            )
+
+            # Sharpe ratio for this symbol
+            sharpe_ratio = self._calculate_symbol_sharpe(symbol_trades)
+
             results[symbol] = {
-                "total_trades": len(symbol_trades),
-                "win_rate": len(winners) / len(symbol_trades) if symbol_trades else 0,
+                "total_trades": total_trades,
+                "win_rate": win_rate,
                 "total_pnl": total_pnl,
-                "avg_pnl": total_pnl / len(symbol_trades) if symbol_trades else 0,
+                "avg_pnl": total_pnl / total_trades if total_trades else 0,
+                "avg_winner": avg_winner,
+                "avg_loser": avg_loser,
+                "profit_factor": profit_factor,
+                "sharpe_ratio": sharpe_ratio,
             }
 
         return results
+
+    def _calculate_symbol_sharpe(self, trades: List[SimulatedTrade]) -> float:
+        """Calculate Sharpe ratio for a single symbol's trades."""
+        if len(trades) < 2:
+            return 0.0
+
+        # Build equity curve for this symbol
+        equity_curve = self._build_equity_curve(trades)
+        returns = self._calculate_daily_returns(equity_curve)
+
+        if not returns:
+            return 0.0
+
+        return self._calculate_sharpe(returns, equity_curve)
 
 
 def calculate_degradation_score(

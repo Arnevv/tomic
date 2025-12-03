@@ -201,7 +201,7 @@ class BacktestReport:
         self.console.print()
 
     def _print_symbol_breakdown(self) -> None:
-        """Print per-symbol performance breakdown."""
+        """Print per-symbol performance breakdown (compact version)."""
         if not self.result.combined_metrics:
             return
 
@@ -228,6 +228,113 @@ class BacktestReport:
 
         self.console.print(table)
         self.console.print()
+
+    def print_symbol_performance_table(self) -> None:
+        """Print detailed per-symbol performance table sorted by Total Profit.
+
+        Shows: Symbol | Trades | Win Rate | Avg Winner | Avg Loser |
+               Profit Factor | Sharpe | Total Profit
+        """
+        if not self.result.combined_metrics:
+            print("Geen resultaten beschikbaar.")
+            return
+
+        by_symbol = self.result.combined_metrics.metrics_by_symbol
+        if not by_symbol:
+            print("Geen per-symbool data beschikbaar.")
+            return
+
+        if RICH_AVAILABLE:
+            self._print_rich_symbol_table(by_symbol)
+        else:
+            self._print_plain_symbol_table(by_symbol)
+
+    def _print_rich_symbol_table(self, by_symbol: Dict[str, Any]) -> None:
+        """Print detailed symbol table with Rich formatting."""
+        console = self.console
+
+        console.print()
+        console.print(
+            Panel.fit(
+                "[bold]Per-symbool performance overzicht[/bold]\n"
+                "[dim]Gesorteerd op Total Profit (aflopend)[/dim]",
+                border_style="blue",
+            )
+        )
+
+        table = Table(show_header=True, header_style="bold")
+        table.add_column("Symbol", style="cyan", no_wrap=True)
+        table.add_column("Trades", justify="right")
+        table.add_column("Win Rate", justify="right")
+        table.add_column("Avg Winner", justify="right")
+        table.add_column("Avg Loser", justify="right")
+        table.add_column("Profit Factor", justify="right")
+        table.add_column("Sharpe", justify="right")
+        table.add_column("Total Profit", justify="right", style="bold")
+
+        # Sort by total_pnl descending
+        sorted_symbols = sorted(
+            by_symbol.items(),
+            key=lambda x: x[1]["total_pnl"],
+            reverse=True,
+        )
+
+        for symbol, m in sorted_symbols:
+            pnl_color = "green" if m["total_pnl"] > 0 else "red"
+
+            # Format profit factor (handle infinity)
+            pf = m.get("profit_factor", 0)
+            pf_str = "∞" if pf == float("inf") else f"{pf:.2f}"
+
+            # Format avg loser as negative
+            avg_loser = m.get("avg_loser", 0)
+            avg_loser_str = f"-${avg_loser:.2f}" if avg_loser > 0 else "-"
+
+            table.add_row(
+                symbol,
+                str(m["total_trades"]),
+                f"{m['win_rate']:.1%}",
+                f"${m.get('avg_winner', 0):.2f}",
+                avg_loser_str,
+                pf_str,
+                f"{m.get('sharpe_ratio', 0):.2f}",
+                f"[{pnl_color}]${m['total_pnl']:,.2f}[/{pnl_color}]",
+            )
+
+        console.print(table)
+        console.print()
+
+    def _print_plain_symbol_table(self, by_symbol: Dict[str, Any]) -> None:
+        """Print detailed symbol table without Rich (fallback)."""
+        print("\n" + "=" * 90)
+        print("Per-symbool performance overzicht (gesorteerd op Total Profit)")
+        print("=" * 90)
+        print(
+            f"{'Symbol':<8} {'Trades':>7} {'Win Rate':>9} {'Avg Win':>10} "
+            f"{'Avg Loss':>10} {'PF':>6} {'Sharpe':>7} {'Total Profit':>13}"
+        )
+        print("-" * 90)
+
+        sorted_symbols = sorted(
+            by_symbol.items(),
+            key=lambda x: x[1]["total_pnl"],
+            reverse=True,
+        )
+
+        for symbol, m in sorted_symbols:
+            pf = m.get("profit_factor", 0)
+            pf_str = "∞" if pf == float("inf") else f"{pf:.2f}"
+            avg_loser = m.get("avg_loser", 0)
+            avg_loser_str = f"-${avg_loser:.2f}" if avg_loser > 0 else "-"
+
+            print(
+                f"{symbol:<8} {m['total_trades']:>7} {m['win_rate']:>8.1%} "
+                f"${m.get('avg_winner', 0):>8.2f} {avg_loser_str:>10} "
+                f"{pf_str:>6} {m.get('sharpe_ratio', 0):>7.2f} "
+                f"${m['total_pnl']:>11,.2f}"
+            )
+
+        print("=" * 90)
 
     def _print_validation(self) -> None:
         """Print validation messages."""
