@@ -9,6 +9,10 @@ import statistics
 from tomic.helpers.dateutils import parse_date
 from tomic.helpers.account import _fmt_money
 
+# Default margin fallback when no margin info is available.
+# Used for theta efficiency calculations when init_margin and margin_used are both missing.
+DEFAULT_MARGIN_FALLBACK = 1000
+
 
 def compute_term_structure(strategies: Iterable[Dict[str, Any]]) -> None:
     """Annotate each strategy dict with a term structure slope."""
@@ -33,7 +37,7 @@ def render_kpi_box(strategy: Dict[str, Any]) -> str:
     """Return a formatted KPI summary for a strategy dict."""
     rom = strategy.get("rom")
     theta = strategy.get("theta")
-    margin = strategy.get("init_margin") or strategy.get("margin_used") or 1000
+    margin = strategy.get("init_margin") or strategy.get("margin_used") or DEFAULT_MARGIN_FALLBACK
     max_p = strategy.get("max_profit")
     max_l = strategy.get("max_loss")
     rr = strategy.get("risk_reward")

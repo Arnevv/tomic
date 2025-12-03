@@ -2,7 +2,6 @@ from __future__ import annotations
 
 """Polygon REST API client implementing :class:`MarketDataProvider`."""
 
-import os
 import random
 import time
 from typing import Any, Dict, List
@@ -13,13 +12,10 @@ from ... import config as cfg
 from ...logutils import logger
 from ...market_provider import MarketDataProvider
 
-# Enable full API key logging when TOMIC_SHOW_POLYGON_KEY is truthy
-_SHOW_POLYGON_KEY = os.getenv("TOMIC_SHOW_POLYGON_KEY", "0").lower() not in {
-    "0",
-    "",
-    "false",
-    "no",
-}
+# API key index for logging purposes (never log actual keys)
+def _mask_key_index(idx: int, total: int) -> str:
+    """Return a safe identifier for API key logging without exposing key content."""
+    return f"key_{idx + 1}_of_{total}" if total > 1 else "***"
 
 
 class PolygonClient(MarketDataProvider):
@@ -60,18 +56,18 @@ class PolygonClient(MarketDataProvider):
             raise RuntimeError("Client not connected")
         params = dict(params or {})
         api_key = self._next_api_key()
+        total_keys = len(self._api_keys)
+        current_key_idx = (self._api_idx - 1) % max(total_keys, 1)
         if api_key:
-            display_key = api_key if _SHOW_POLYGON_KEY else f"{api_key[:5]}***"
-            logger.debug(f"Using Polygon key: {display_key}")
+            logger.debug(f"Using Polygon {_mask_key_index(current_key_idx, total_keys)}")
         url = f"{self.BASE_URL.rstrip('/')}/{path.lstrip('/')}"
         attempts = 0
         key_attempts = 0
-        max_keys = max(len(self._api_keys), 1)
+        max_keys = max(total_keys, 1)
 
         while True:
             params["apiKey"] = api_key
-            masked_key = api_key if _SHOW_POLYGON_KEY else "***"
-            masked = {**params, "apiKey": masked_key}
+            masked = {**params, "apiKey": "***"}
             logger.debug(f"GET {url} params={masked}")
             resp = self._session.get(url, params=params, timeout=10)
             status = getattr(resp, "status_code", "n/a")
@@ -91,16 +87,14 @@ class PolygonClient(MarketDataProvider):
 
             if status == 403 and key_attempts < max_keys - 1:
                 key_attempts += 1
-                display_key = api_key if _SHOW_POLYGON_KEY else f"{api_key[:5]}***"
+                failed_key_id = _mask_key_index(current_key_idx, total_keys)
                 logger.warning(
-                    f"Polygon 403 for key {display_key} — trying next key."
+                    f"Polygon 403 for {failed_key_id} — trying next key."
                 )
                 api_key = self._next_api_key()
+                current_key_idx = (self._api_idx - 1) % max(total_keys, 1)
                 if api_key:
-                    display_key = (
-                        api_key if _SHOW_POLYGON_KEY else f"{api_key[:5]}***"
-                    )
-                    logger.debug(f"Using Polygon key: {display_key}")
+                    logger.debug(f"Using Polygon {_mask_key_index(current_key_idx, total_keys)}")
                 continue
 
             break

@@ -17,8 +17,19 @@ def update_all_margins() -> None:
         logger.error("⚠️ journal.json not found.")
         return
 
-    with open(JOURNAL_FILE, "r", encoding="utf-8") as f:
-        journal = json.load(f)
+    try:
+        with open(JOURNAL_FILE, "r", encoding="utf-8") as f:
+            journal = json.load(f)
+    except json.JSONDecodeError as exc:
+        logger.error(f"⚠️ Invalid JSON in journal file: {exc}")
+        return
+    except OSError as exc:
+        logger.error(f"⚠️ Could not read journal file: {exc}")
+        return
+
+    if not isinstance(journal, list):
+        logger.error("⚠️ Journal file does not contain a list")
+        return
 
     updated_count = 0
     for trade in journal:
@@ -38,9 +49,12 @@ def update_all_margins() -> None:
             logger.error(f"⚠️ Failed to calculate margin: {exc}")
 
     if updated_count:
-        with open(JOURNAL_FILE, "w", encoding="utf-8") as f:
-            json.dump(journal, f, indent=2)
-        logger.success(f"✅ Margins bijgewerkt voor {updated_count} trades.")
+        try:
+            with open(JOURNAL_FILE, "w", encoding="utf-8") as f:
+                json.dump(journal, f, indent=2)
+            logger.success(f"✅ Margins bijgewerkt voor {updated_count} trades.")
+        except OSError as exc:
+            logger.error(f"⚠️ Could not write journal file: {exc}")
 
 
 if __name__ == "__main__":

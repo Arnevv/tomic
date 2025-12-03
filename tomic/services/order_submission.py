@@ -17,7 +17,7 @@ try:  # pragma: no cover - optional during tests
     from ibapi.order import Order
     from ibapi.order_state import OrderState
     from ibapi.tag_value import TagValue
-except Exception:  # pragma: no cover
+except ImportError:  # pragma: no cover - IB API not installed
     class ComboLeg:  # type: ignore[no-redef]
         pass
 

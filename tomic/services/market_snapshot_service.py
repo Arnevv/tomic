@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from dataclasses import asdict, dataclass
 from datetime import date, datetime
 from pathlib import Path
@@ -112,7 +113,7 @@ def _parse_latest(data: Sequence[Mapping[str, Any]]) -> Mapping[str, Any] | None
         return None
     try:
         return sorted(data, key=lambda item: item.get("date", ""), reverse=True)[0]
-    except Exception:
+    except (IndexError, TypeError, KeyError):
         return None
 
 
@@ -133,7 +134,7 @@ def _parse_earnings(
             continue
         try:
             earn_date = datetime.strptime(raw, "%Y-%m-%d").date()
-        except Exception:
+        except ValueError:
             continue
         if earn_date >= today_fn():
             upcoming.append(earn_date)
@@ -156,7 +157,7 @@ def _read_metrics(
         summary_data = loader(summary_dir / f"{symbol}.json")
         hv_data = loader(hv_dir / f"{symbol}.json")
         spot_data = loader(spot_dir / f"{symbol}.json")
-    except Exception:
+    except (FileNotFoundError, PermissionError, json.JSONDecodeError, OSError):
         return None
 
     if not isinstance(summary_data, Sequence) or not isinstance(hv_data, Sequence) or not isinstance(spot_data, Sequence):

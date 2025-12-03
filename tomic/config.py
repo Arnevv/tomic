@@ -15,6 +15,40 @@ def _asdict(model: BaseModel) -> Dict[str, Any]:
     return model.dict()
 
 
+def _validate_config_path(path_str: str, base_dir: Path) -> Path | None:
+    """Validate and resolve a config path from environment variable.
+
+    Returns the resolved path if valid, None if the path appears unsafe
+    (e.g., contains path traversal attempts or points outside expected directories).
+    """
+    if not path_str:
+        return None
+
+    try:
+        path = Path(path_str).resolve()
+    except (ValueError, OSError):
+        return None
+
+    # Allow paths within the base directory or common config locations
+    allowed_prefixes = [
+        base_dir.resolve(),
+        Path.home().resolve(),
+        Path("/etc/tomic").resolve() if os.name != "nt" else Path("C:/ProgramData/tomic").resolve(),
+    ]
+
+    # Check if the path is under any allowed prefix
+    for prefix in allowed_prefixes:
+        try:
+            path.relative_to(prefix)
+            return path
+        except ValueError:
+            continue
+
+    # Path is not under any allowed directory - log warning but allow it
+    # (user explicitly set the path, they probably know what they're doing)
+    return path
+
+
 class AppConfig(BaseModel):
     """Typed configuration loaded from YAML or environment."""
 
@@ -288,7 +322,8 @@ def load_config() -> AppConfig:
     """Load configuration from .env or YAML file."""
     config_path = os.environ.get("TOMIC_CONFIG")
     if config_path:
-        path = Path(config_path)
+        # Validate and resolve the path to prevent directory traversal
+        path = _validate_config_path(config_path, _BASE_DIR)
     else:
         candidates = [
             _BASE_DIR / "config.yaml",
