@@ -27,6 +27,7 @@ from pathlib import Path
 from typing import Dict, List
 
 from tomic import config as app_config
+from tomic.config import load_env_file
 from tomic.integrations.eodhd import EODHDClient
 from tomic.logutils import logger, setup_logging
 
@@ -232,6 +233,9 @@ def run(args: argparse.Namespace) -> int:
 
 
 def main(argv: list[str] | None = None) -> int:
+    # Load .env file for EODHD_API_KEY
+    load_env_file()
+
     parser = build_parser()
     args = parser.parse_args(argv)
     setup_logging(stdout=True)
