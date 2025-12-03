@@ -99,6 +99,7 @@ def build_market_overview(
             "iv_percentile": r[8],
             "iv_vs_hv20": (r[2] - r[3]) if r[2] is not None and r[3] is not None else None,
             "iv_vs_hv90": (r[2] - r[5]) if r[2] is not None and r[5] is not None else None,
+            "term_m1_m2": r[9],
             "term_m1_m3": r[10],
             "skew": r[11],
         }
