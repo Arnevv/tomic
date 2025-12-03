@@ -17,6 +17,9 @@ from .logutils import logger
 from .criteria import CriteriaConfig, RULES, load_criteria
 from .strategies import StrategyName
 from .config import get as cfg_get
+
+# Whitelist of allowed strategy module names to prevent directory traversal attacks
+_ALLOWED_STRATEGY_TYPES = frozenset(s.value for s in StrategyName)
 from .helpers.normalize import normalize_config
 from .strategies.config_models import CONFIG_MODELS
 from .config import _asdict
@@ -290,10 +293,18 @@ def generate_strategy_candidates(
     """Load strategy module and generate candidates."""
     if spot is None:
         raise ValueError("spot price is required")
+
+    # Validate strategy_type against whitelist to prevent directory traversal
+    if strategy_type not in _ALLOWED_STRATEGY_TYPES:
+        raise ValueError(
+            f"Unknown strategy '{strategy_type}'. "
+            f"Allowed strategies: {sorted(_ALLOWED_STRATEGY_TYPES)}"
+        )
+
     try:
         mod = __import__(f"tomic.strategies.{strategy_type}", fromlist=["generate"])
     except Exception as e:
-        raise ValueError(f"Unknown strategy {strategy_type}") from e
+        raise ValueError(f"Failed to load strategy module '{strategy_type}'") from e
     cfg_data = config if config is not None else cfg_get("STRATEGY_CONFIG", {})
     base = cfg_data.get("default", {})
     strat_cfg = {**base, **cfg_data.get("strategies", {}).get(strategy_type, {})}

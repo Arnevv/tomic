@@ -388,7 +388,8 @@ def main(argv=None):
             i += 2
             continue
         if arg.startswith("--json-output="):
-            json_output = arg.split("=", 1)[1]
+            parts = arg.split("=", 1)
+            json_output = parts[1] if len(parts) > 1 else ""
             i += 1
             continue
         if arg == "--details":
@@ -400,7 +401,8 @@ def main(argv=None):
             i += 1
             continue
         if arg.startswith("--view="):
-            view_mode = arg.split("=")[1]
+            parts = arg.split("=", 1)
+            view_mode = parts[1] if len(parts) > 1 else "full"
             i += 1
             continue
         if arg == "--account":
