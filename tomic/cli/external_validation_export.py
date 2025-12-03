@@ -465,7 +465,8 @@ class ExternalValidationExporter:
 
                 # IV collapse: IV dropped >= threshold below entry
                 iv_collapse_triggered = (
-                    iv_change_vol_points is not None
+                    iv_collapse_threshold is not None
+                    and iv_change_vol_points is not None
                     and iv_change_vol_points <= -iv_collapse_threshold
                 )
 

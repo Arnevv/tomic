@@ -52,8 +52,9 @@ class ExitRulesConfig(BaseModel):
     stop_loss_pct: float = 100.0  # 100% of credit (can be 100-150%)
     min_dte: int = 5  # Exit at 5 DTE to avoid gamma risk
     max_days_in_trade: int = 45  # Dennis Chen max holding period
-    iv_collapse_threshold: float = 10.0  # Exit if IV drops 10 vol points
-    delta_breach_threshold: float = 20.0  # Exit if position delta > 20
+    # Optional: not all strategies use these thresholds (e.g., calendar spreads)
+    iv_collapse_threshold: Optional[float] = 10.0  # Exit if IV drops 10 vol points
+    delta_breach_threshold: Optional[float] = 20.0  # Exit if position delta > 20
 
     model_config = ConfigDict(extra="forbid")
 

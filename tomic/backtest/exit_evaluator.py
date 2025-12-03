@@ -237,7 +237,8 @@ class ExitEvaluator:
         IV collapse means our thesis played out (IV reverted).
         Take profits even if profit target not quite reached.
         """
-        if current_iv is None:
+        # Skip if threshold is disabled (None) or no current IV
+        if self.exit_rules.iv_collapse_threshold is None or current_iv is None:
             return ExitEvaluation(should_exit=False)
 
         # Normalize IV values
