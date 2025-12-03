@@ -36,7 +36,7 @@ entry_rules:
   iv_hv_spread_min: null
   dte_min: null
   dte_max: null
-  min_days_until_earnings: 14
+  min_days_until_earnings: 10
   exclude_expiry_before_earnings: true
 
 # Calendar Exit Rules (much tighter than Iron Condor)

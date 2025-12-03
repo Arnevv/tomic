@@ -11,7 +11,9 @@ Coordinates all components:
 
 from __future__ import annotations
 
+import json
 from datetime import date, timedelta
+from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional
 
 from tomic.backtest.config import BacktestConfig, load_backtest_config
@@ -79,6 +81,10 @@ class BacktestEngine:
 
         self.metrics_calculator = MetricsCalculator()
 
+        # Load earnings data for filtering
+        self._earnings_data: Dict[str, List[date]] = {}
+        self._load_earnings_data()
+
     def _load_strategy_config(self) -> Dict[str, Any]:
         """Load strategy-specific configuration from strategies.yaml."""
         from pathlib import Path
@@ -111,6 +117,51 @@ class BacktestEngine:
             return result
         except Exception:
             return {}
+
+    def _load_earnings_data(self) -> None:
+        """Load earnings dates from JSON file."""
+        base_dir = Path(__file__).resolve().parent.parent.parent
+        earnings_path = base_dir / "tomic" / "data" / "earnings_dates.json"
+
+        if not earnings_path.exists():
+            logger.debug(f"Earnings dates file not found: {earnings_path}")
+            return
+
+        try:
+            with open(earnings_path, "r", encoding="utf-8") as f:
+                raw_data = json.load(f)
+
+            for symbol, dates_list in raw_data.items():
+                if isinstance(dates_list, list):
+                    parsed_dates = []
+                    for date_str in dates_list:
+                        if isinstance(date_str, str):
+                            try:
+                                parsed_dates.append(date.fromisoformat(date_str))
+                            except ValueError:
+                                continue
+                    if parsed_dates:
+                        self._earnings_data[symbol.upper()] = sorted(parsed_dates)
+
+            logger.debug(f"Loaded earnings data for {len(self._earnings_data)} symbols")
+        except Exception as e:
+            logger.warning(f"Failed to load earnings data: {e}")
+
+    def _get_next_earnings(self, symbol: str, as_of_date: date) -> Optional[date]:
+        """Get the next earnings date for a symbol as of a given date.
+
+        Args:
+            symbol: Stock symbol
+            as_of_date: Date to check from (typically the trading date)
+
+        Returns:
+            Next earnings date, or None if not found.
+        """
+        dates = self._earnings_data.get(symbol.upper(), [])
+        for earnings_date in dates:
+            if earnings_date >= as_of_date:
+                return earnings_date
+        return None
 
     def run(self) -> BacktestResult:
         """Run the complete backtest.
@@ -305,10 +356,19 @@ class BacktestEngine:
 
             # Check for new entry signals
             open_positions = simulator.get_open_position_symbols()
+
+            # Build earnings data for this date
+            earnings_for_date: Dict[str, date] = {}
+            for symbol in iv_data.keys():
+                next_earnings = self._get_next_earnings(symbol, current_date)
+                if next_earnings is not None:
+                    earnings_for_date[symbol] = next_earnings
+
             signals = self.signal_generator.scan_for_signals(
                 iv_data=iv_data,
                 trading_date=current_date,
                 open_positions=open_positions,
+                earnings_data=earnings_for_date,
             )
 
             # Open new positions for valid signals
