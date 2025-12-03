@@ -9007,5 +9007,15 @@
     "close": 233.88,
     "volume": 43029186.0,
     "atr": null
+  },
+  {
+    "symbol": "AMZN",
+    "date": "2025-12-02",
+    "open": 235.005,
+    "high": 238.97,
+    "low": 233.55,
+    "close": 234.42,
+    "volume": 45776904.0,
+    "atr": null
   }
 ]

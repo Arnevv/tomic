@@ -8930,5 +8930,15 @@
     "close": 132.09,
     "volume": 6801466.0,
     "atr": null
+  },
+  {
+    "symbol": "DELL",
+    "date": "2025-12-02",
+    "open": 135.01,
+    "high": 138.04,
+    "low": 134.813,
+    "close": 135.95,
+    "volume": 6981263.0,
+    "atr": null
   }
 ]

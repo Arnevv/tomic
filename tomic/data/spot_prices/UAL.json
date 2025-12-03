@@ -8790,5 +8790,15 @@
     "close": 101.12,
     "volume": 3708864.0,
     "atr": null
+  },
+  {
+    "symbol": "UAL",
+    "date": "2025-12-02",
+    "open": 101.5,
+    "high": 105.46,
+    "low": 100.84,
+    "close": 104.38,
+    "volume": 7095152.0,
+    "atr": null
   }
 ]

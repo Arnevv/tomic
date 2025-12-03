@@ -8930,5 +8930,15 @@
     "close": 24.16,
     "volume": 9607305.0,
     "atr": null
+  },
+  {
+    "symbol": "MRNA",
+    "date": "2025-12-02",
+    "open": 24.22,
+    "high": 24.6341,
+    "low": 23.92,
+    "close": 24.06,
+    "volume": 10350076.0,
+    "atr": null
   }
 ]

@@ -8146,5 +8146,15 @@
     "close": 623.59,
     "volume": 4545080.0,
     "atr": null
+  },
+  {
+    "symbol": "APP",
+    "date": "2025-12-02",
+    "open": 632.53,
+    "high": 679.7,
+    "low": 631.19,
+    "close": 653,
+    "volume": 5199619.0,
+    "atr": null
   }
 ]
