@@ -1335,12 +1335,21 @@ def _store_result(category: str, result: TestResult) -> None:
 
 
 def view_results() -> None:
-    """View stored test results."""
+    """View stored test results via submenu."""
     if not _STORED_RESULTS:
         print("\nGeen opgeslagen resultaten.")
         print("Voer eerst een test uit.")
         return
 
+    menu = Menu("📊 RESULTATEN BEKIJKEN")
+    menu.add("Samenvatting", _view_results_summary)
+    menu.add("Per-symbool overzicht", _view_results_symbol_table)
+    menu.add("Volledig rapport", _view_results_full_report)
+    menu.run()
+
+
+def _view_results_summary() -> None:
+    """Show summary of all stored results."""
     print("\n" + "=" * 70)
     print("OPGESLAGEN RESULTATEN")
     print("=" * 70)
@@ -1349,6 +1358,46 @@ def view_results() -> None:
         print(f"\n{category}:")
         for r in results:
             print(f"  - {r.config_label}: Sharpe {r.sharpe:.2f}, P&L ${r.total_pnl:,.0f}")
+
+
+def _view_results_symbol_table() -> None:
+    """Show per-symbol performance table for the last result."""
+    # Find the most recent result with a backtest_result
+    last_result = None
+    for results in _STORED_RESULTS.values():
+        for r in reversed(results):
+            if r.backtest_result is not None:
+                last_result = r
+                break
+        if last_result:
+            break
+
+    if not last_result or not last_result.backtest_result:
+        print("\nGeen gedetailleerde resultaten beschikbaar.")
+        return
+
+    from tomic.backtest.reports import BacktestReport
+    report = BacktestReport(last_result.backtest_result)
+    report.print_symbol_performance_table()
+
+
+def _view_results_full_report() -> None:
+    """Show full backtest report for the last result."""
+    last_result = None
+    for results in _STORED_RESULTS.values():
+        for r in reversed(results):
+            if r.backtest_result is not None:
+                last_result = r
+                break
+        if last_result:
+            break
+
+    if not last_result or not last_result.backtest_result:
+        print("\nGeen gedetailleerde resultaten beschikbaar.")
+        return
+
+    from tomic.backtest.reports import print_backtest_report
+    print_backtest_report(last_result.backtest_result)
 
 
 def configure_test_settings() -> None:
