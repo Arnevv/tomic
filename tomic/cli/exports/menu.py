@@ -225,6 +225,42 @@ def build_export_menu(
             import traceback
             traceback.print_exc()
 
+    def sync_earnings_eodhd() -> None:
+        """Sync earnings dates from EODHD API."""
+        print("\n=== EODHD Earnings Sync ===")
+        print("1. Sync alle symbols (standaard)")
+        print("2. Full backfill vanaf 2018")
+        print("3. Specifieke symbols")
+        choice = prompt_fn("Keuze [1]: ", "1")
+
+        args: list[str] = []
+        if choice == "2":
+            args.append("--backfill")
+            print("Full backfill geselecteerd (2018 - heden + 1 jaar)")
+        elif choice == "3":
+            symbols_input = prompt_fn("Symbols (spatie-gescheiden): ", "")
+            if not symbols_input.strip():
+                print("❌ Geen symbols opgegeven")
+                return
+            args.extend(["--symbols"] + symbols_input.upper().split())
+
+        dry_run = prompt_yes_no_fn("Eerst dry-run uitvoeren?", True)
+        if dry_run:
+            args.append("--dry-run")
+
+        try:
+            run_module("tomic.cli.sync_earnings_eodhd", *args)
+        except Exception as exc:
+            print(f"❌ EODHD sync mislukt: {exc}")
+            return
+
+        if dry_run and prompt_yes_no_fn("Wijzigingen doorvoeren?", True):
+            args.remove("--dry-run")
+            try:
+                run_module("tomic.cli.sync_earnings_eodhd", *args)
+            except Exception as exc:
+                print(f"❌ EODHD sync mislukt: {exc}")
+
     menu = Menu("📁 DATA & MARKTDATA")
     menu.add("OptionChain ophalen via Polygon API", polygon_chain)
     menu.add("Controleer CSV-kwaliteit", csv_check)
@@ -236,6 +272,7 @@ def build_export_menu(
     menu.add("ATR Calculator", lambda: run_module("tomic.cli.atr_calculator"))
     menu.add("IV backfill (ORATS)", lambda: run_module("tomic.cli.orats_backfill_flow"))
     menu.add("Import nieuwe earning dates van MarketChameleon", import_market_chameleon_earnings)
+    menu.add("Sync earnings dates via EODHD API", sync_earnings_eodhd)
     menu.add(
         "Data quality monitoring per symbol (data-health-scan)",
         data_health_scan,
