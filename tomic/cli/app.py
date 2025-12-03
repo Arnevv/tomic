@@ -2,6 +2,8 @@
 from __future__ import annotations
 
 import argparse
+import sys
+import traceback
 
 from . import controlpanel
 from . import csv_quality_check
@@ -92,7 +94,15 @@ def main(argv: list[str] | None = None) -> None:
 
     args = parser.parse_args(argv)
     if hasattr(args, "func"):
-        args.func(args)
+        try:
+            args.func(args)
+        except KeyboardInterrupt:
+            print("\nOnderbroken door gebruiker (Ctrl+C)")
+            sys.exit(130)
+        except Exception as exc:
+            print(f"❌ Fout bij uitvoeren van commando: {exc}", file=sys.stderr)
+            traceback.print_exc()
+            sys.exit(1)
     else:
         parser.print_help()
 
