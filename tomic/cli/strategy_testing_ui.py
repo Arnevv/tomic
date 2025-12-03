@@ -311,6 +311,7 @@ class TestResult:
     ret_dd: Optional[float]
     degradation: Optional[float]
     is_baseline: bool = False
+    backtest_result: Optional[Any] = None  # Full BacktestResult for detailed views
 
 
 @dataclass
@@ -711,6 +712,7 @@ def _run_backtest_with_config(
                 profit_factor=m.profit_factor,
                 ret_dd=m.ret_dd,
                 degradation=bt_result.degradation_score or 0,
+                backtest_result=bt_result,  # Keep full result for detailed views
             )
     except Exception as e:
         logger.error(f"Backtest failed: {e}")
@@ -1317,10 +1319,19 @@ _STORED_RESULTS: Dict[str, List[TestResult]] = {}
 
 
 def _store_result(category: str, result: TestResult) -> None:
-    """Store a result for later viewing."""
+    """Store a result for later viewing.
+
+    Also updates backtest_ui._LAST_RESULT so the result can be viewed
+    via the backtest menu's "Resultaten bekijken" submenu.
+    """
     if category not in _STORED_RESULTS:
         _STORED_RESULTS[category] = []
     _STORED_RESULTS[category].append(result)
+
+    # Share with backtest_ui for cross-menu access
+    if result.backtest_result is not None:
+        import tomic.cli.backtest_ui as backtest_ui
+        backtest_ui._LAST_RESULT = result.backtest_result
 
 
 def view_results() -> None:
