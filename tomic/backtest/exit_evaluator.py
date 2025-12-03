@@ -197,7 +197,8 @@ class ExitEvaluator:
                 spot_change_pct = abs((current_spot - spot_at_entry) / spot_at_entry) * 100
 
                 # Scale threshold by IV at entry - higher IV = wider strikes = more tolerance
-                iv_at_entry = trade.iv_at_entry if trade.iv_at_entry < 1 else trade.iv_at_entry / 100
+                # Use threshold of 2 to handle high-IV stocks (IV > 200% is unrealistic)
+                iv_at_entry = trade.iv_at_entry if trade.iv_at_entry <= 2 else trade.iv_at_entry / 100
                 # At 20% IV, threshold is 5%. At 40% IV, threshold is 10%
                 adjusted_threshold = self.SPOT_MOVE_DELTA_BREACH * (iv_at_entry / 0.20)
                 adjusted_threshold = max(3.0, min(15.0, adjusted_threshold))  # Clamp 3-15%
@@ -213,8 +214,9 @@ class ExitEvaluator:
         # Method 2: IV spike proxy (fallback or additional check)
         if current_iv is not None:
             # Normalize IV values
-            iv_entry = trade.iv_at_entry if trade.iv_at_entry < 1 else trade.iv_at_entry / 100
-            iv_current = current_iv if current_iv < 1 else current_iv / 100
+            # Use threshold of 2 to handle high-IV stocks (IV > 200% is unrealistic)
+            iv_entry = trade.iv_at_entry if trade.iv_at_entry <= 2 else trade.iv_at_entry / 100
+            iv_current = current_iv if current_iv <= 2 else current_iv / 100
 
             # Calculate IV change in vol points
             iv_change = (iv_current - iv_entry) * 100
@@ -242,8 +244,9 @@ class ExitEvaluator:
             return ExitEvaluation(should_exit=False)
 
         # Normalize IV values
-        iv_entry = trade.iv_at_entry if trade.iv_at_entry < 1 else trade.iv_at_entry / 100
-        iv_current = current_iv if current_iv < 1 else current_iv / 100
+        # Use threshold of 2 to handle high-IV stocks (IV > 200% is unrealistic)
+        iv_entry = trade.iv_at_entry if trade.iv_at_entry <= 2 else trade.iv_at_entry / 100
+        iv_current = current_iv if current_iv <= 2 else current_iv / 100
 
         # Calculate IV drop in vol points
         iv_drop = (iv_entry - iv_current) * 100

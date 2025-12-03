@@ -421,8 +421,9 @@ class ExternalValidationExporter:
                 iv_change_vol_points = None
                 if iv_current is not None:
                     iv_change = iv_current - trade.iv_at_entry
-                    iv_entry_norm = trade.iv_at_entry if trade.iv_at_entry < 1 else trade.iv_at_entry / 100
-                    iv_current_norm = iv_current if iv_current < 1 else iv_current / 100
+                    # Use threshold of 2 to handle high-IV stocks (IV > 200% is unrealistic)
+                    iv_entry_norm = trade.iv_at_entry if trade.iv_at_entry <= 2 else trade.iv_at_entry / 100
+                    iv_current_norm = iv_current if iv_current <= 2 else iv_current / 100
                     iv_change_vol_points = (iv_current_norm - iv_entry_norm) * 100
 
                 pnl_pct = (pnl / trade.max_risk) * 100 if trade.max_risk else 0

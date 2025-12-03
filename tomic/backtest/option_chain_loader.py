@@ -516,7 +516,8 @@ class OptionChainLoader:
             return None
 
         # Normalize IV
-        sigma = iv if iv < 1 else iv / 100
+        # Use threshold of 2 to handle high-IV stocks (IV > 200% is unrealistic)
+        sigma = iv if iv <= 2 else iv / 100
 
         # Simplified price estimation based on IV and moneyness
         time_factor = (dte / 365) ** 0.5
