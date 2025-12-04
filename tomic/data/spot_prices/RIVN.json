@@ -7134,5 +7134,15 @@
     "close": 17.23,
     "volume": 34403939.0,
     "atr": null
+  },
+  {
+    "symbol": "RIVN",
+    "date": "2025-12-03",
+    "open": 17.2,
+    "high": 17.9,
+    "low": 16.9,
+    "close": 17.53,
+    "volume": 31964428.0,
+    "atr": null
   }
 ]

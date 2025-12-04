@@ -9017,5 +9017,15 @@
     "close": 43.47,
     "volume": 167121458.0,
     "atr": null
+  },
+  {
+    "symbol": "INTC",
+    "date": "2025-12-03",
+    "open": 43.385,
+    "high": 44.02,
+    "low": 42.51,
+    "close": 43.76,
+    "volume": 91797622.0,
+    "atr": null
   }
 ]

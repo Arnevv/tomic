@@ -8800,5 +8800,15 @@
     "close": 33.61,
     "volume": 10608029.0,
     "atr": null
+  },
+  {
+    "symbol": "DKNG",
+    "date": "2025-12-03",
+    "open": 33.65,
+    "high": 34.79,
+    "low": 33.61,
+    "close": 34.55,
+    "volume": 11867551.0,
+    "atr": null
   }
 ]

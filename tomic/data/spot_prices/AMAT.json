@@ -8940,5 +8940,15 @@
     "close": 265.33,
     "volume": 9195539.0,
     "atr": null
+  },
+  {
+    "symbol": "AMAT",
+    "date": "2025-12-03",
+    "open": 265.3,
+    "high": 269.15,
+    "low": 259.7101,
+    "close": 268.63,
+    "volume": 7998934.0,
+    "atr": null
   }
 ]

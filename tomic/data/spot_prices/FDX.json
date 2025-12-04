@@ -8800,5 +8800,15 @@
     "close": 270.37,
     "volume": 1615611.0,
     "atr": null
+  },
+  {
+    "symbol": "FDX",
+    "date": "2025-12-03",
+    "open": 270.89,
+    "high": 274.21,
+    "low": 268.71,
+    "close": 270.45,
+    "volume": 1707786.0,
+    "atr": null
   }
 ]

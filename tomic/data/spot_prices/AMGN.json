@@ -9017,5 +9017,15 @@
     "close": 338.36,
     "volume": 2446768.0,
     "atr": null
+  },
+  {
+    "symbol": "AMGN",
+    "date": "2025-12-03",
+    "open": 340.54,
+    "high": 346.38,
+    "low": 338.85,
+    "close": 345.42,
+    "volume": 2839372.0,
+    "atr": null
   }
 ]

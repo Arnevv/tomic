@@ -9017,5 +9017,15 @@
     "close": 201.1,
     "volume": 19851951.0,
     "atr": null
+  },
+  {
+    "symbol": "ORCL",
+    "date": "2025-12-03",
+    "open": 200.33,
+    "high": 207.92,
+    "low": 199.4,
+    "close": 207.73,
+    "volume": 19147193.0,
+    "atr": null
   }
 ]
