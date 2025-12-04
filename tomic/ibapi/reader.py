@@ -45,5 +45,5 @@ class EReader(Thread):
                         break
 
             logger.debug("EReader thread finished")
-        except:
+        except Exception:
             logger.exception("unhandled exception in EReader thread")

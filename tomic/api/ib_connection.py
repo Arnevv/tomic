@@ -374,8 +374,8 @@ def connect_ib(
             logger.warning(f"[connect_ib] duplicate client ID {client_id} detected")
             try:
                 app.disconnect()
-            except Exception:
-                pass
+            except (OSError, ConnectionError, RuntimeError):
+                pass  # Ignore disconnect errors during cleanup
             ACTIVE_CLIENT_IDS.discard(client_id)
             raise DuplicateClientIdError(
                 f"Client ID {client_id} is al in gebruik door een andere verbinding"
@@ -386,8 +386,8 @@ def connect_ib(
             logger.error(f"[connect_ib] timeout waiting for nextValidId after {timeout}s")
             try:
                 app.disconnect()
-            except Exception:
-                pass
+            except (OSError, ConnectionError, RuntimeError):
+                pass  # Ignore disconnect errors during cleanup
             ACTIVE_CLIENT_IDS.discard(client_id)
             raise TimeoutError(f"⏱ Timeout bij wachten op nextValidId na {timeout}s")
         time.sleep(0.1)

@@ -92,7 +92,7 @@ def extract_iv_points(
         target_strikes: list[float] = [atm]
         for d in deltas:
             d = float(d)
-            if d == 0.5:
+            if abs(d - 0.5) < 1e-9:  # Use epsilon comparison for float
                 continue
             c_strike = _nearest_strike_by_delta(exp_records, d, "call")
             if c_strike is not None:
