@@ -34,11 +34,11 @@ def _as_int(value: Any, fallback: int) -> int:
     if parsed is None:
         try:
             return int(value)  # type: ignore[arg-type]
-        except Exception:
+        except (TypeError, ValueError):
             return fallback
     try:
         return int(parsed)
-    except Exception:
+    except (TypeError, ValueError, OverflowError):
         return fallback
 
 

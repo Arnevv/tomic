@@ -22,7 +22,7 @@ def parse_date(d: DateLike) -> Optional[date]:
     for fmt in ("%Y%m%d", "%Y-%m-%d"):
         try:
             return datetime.strptime(str(d), fmt).date()
-        except Exception:
+        except (TypeError, ValueError):
             continue
     return None
 

@@ -224,7 +224,7 @@ def _export_option_chain(symbol: str, options: List[Dict[str, Any]]) -> None:
     def _round(val: Any) -> Any:
         try:
             return round(float(val), 4)
-        except Exception:
+        except (TypeError, ValueError):
             return val
 
     try:
@@ -240,7 +240,7 @@ def _export_option_chain(symbol: str, options: List[Dict[str, Any]]) -> None:
             try:
                 strike_f = float(strike_raw)
                 strike_out = int(strike_f) if strike_f.is_integer() else round(strike_f, 2)
-            except Exception:
+            except (TypeError, ValueError):
                 strike_out = strike_raw
             expiry = (
                 opt.get("expiration_date")

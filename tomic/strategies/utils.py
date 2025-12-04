@@ -228,7 +228,7 @@ def compute_sigma_width(short_opt: Dict[str, Any], *, spot: float, sigma_multipl
         exp = str(short_opt.get("expiry"))
         dte = dte_between_dates(today(), exp)
         return spot * sigma_multiple * iv * math.sqrt(max(dte, 0) / 365)
-    except Exception:
+    except (TypeError, ValueError, KeyError):
         return None
 
 
@@ -255,7 +255,7 @@ def compute_delta_width(
     try:
         long_opt = min(candidates, key=lambda o: abs(float(o["delta"]) - target_delta))
         return abs(float(short_opt.get("strike")) - float(long_opt.get("strike")))
-    except Exception:
+    except (TypeError, ValueError, KeyError):
         return None
 
 
@@ -265,7 +265,7 @@ def compute_atr_width(*, atr: float, atr_multiple: float, use_atr: bool) -> floa
     try:
         width = atr_multiple * (atr if use_atr else 1.0)
         return abs(width)
-    except Exception:
+    except (TypeError, ValueError):
         return None
 
 
