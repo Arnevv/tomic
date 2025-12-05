@@ -9027,5 +9027,15 @@
     "close": 54.09,
     "volume": 37101668.0,
     "atr": null
+  },
+  {
+    "symbol": "BAC",
+    "date": "2025-12-04",
+    "open": 54.21,
+    "high": 54.69,
+    "low": 54,
+    "close": 54.16,
+    "volume": 38507534.0,
+    "atr": null
   }
 ]

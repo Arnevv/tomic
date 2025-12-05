@@ -8810,5 +8810,15 @@
     "close": 92.98,
     "volume": 4452800.0,
     "atr": null
+  },
+  {
+    "symbol": "ROKU",
+    "date": "2025-12-04",
+    "open": 93.52,
+    "high": 95.95,
+    "low": 91.655,
+    "close": 94.53,
+    "volume": 2897949.0,
+    "atr": null
   }
 ]
