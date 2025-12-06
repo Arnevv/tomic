@@ -1,19 +1,11 @@
 from __future__ import annotations
 
-from typing import Any, Dict, Iterable, List, Mapping, Optional, Sequence, Tuple, TYPE_CHECKING
+from typing import Any, Dict, List, Mapping, Optional, Tuple, TYPE_CHECKING
 import math
 
-from ..core import LegView
-from ..core.pricing.mid_tags import (
-    MID_SOURCE_ORDER,
-    MidTagSnapshot,
-    PREVIEW_SOURCES,
-    normalize_mid_source,
-)
+from ..core.pricing.mid_tags import MidTagSnapshot
 from ..metrics import (
     MidPriceResolver,
-    PROPOSAL_GREEK_SCHEMA,
-    aggregate_greeks,
     calculate_credit,
     calculate_ev,
     calculate_pos,
@@ -24,11 +16,9 @@ from ..metrics import (
 )
 from ..pricing.margin_engine import compute_margin_and_rr
 from ..criteria import CriteriaConfig, RULES, load_criteria
-from ..helpers.dateutils import parse_date
 from ..helpers.numeric import safe_float
-from ..utils import normalize_leg, get_leg_qty, get_leg_right, today
+from ..utils import normalize_leg, get_leg_right
 from ..logutils import logger
-from ..config import get as cfg_get
 from ..mid_resolver import MidUsageSummary
 from ..strategy.reasons import (
     ReasonCategory,
@@ -36,515 +26,50 @@ from ..strategy.reasons import (
     dedupe_reasons,
     make_reason,
 )
-
-# Sanity check thresholds for suspicious metrics
-_CREDIT_TO_WIDTH_WARN_RATIO = 0.80  # Warn if credit > 80% of wing width
-_ROM_WARN_THRESHOLD = 500.0  # Warn if ROM > 500%
-_MARGIN_MIN_THRESHOLD = 50.0  # Warn if margin < $50 per contract
 from ..strategy.reason_engine import ReasonEngine
+
+# Import helpers and validators from extracted modules
+from .scoring_helpers import (
+    CREDIT_TO_WIDTH_WARN_RATIO,
+    ROM_WARN_THRESHOLD,
+    MARGIN_MIN_THRESHOLD,
+    clamp,
+    normalize_ratio,
+    normalize_pos,
+    normalize_risk_reward,
+    resolve_strategy_config,
+    resolve_min_risk_reward,
+    max_credit_for_strategy,
+    populate_additional_metrics,
+    bs_estimate_missing,
+)
+from .scoring_validators import (
+    validate_entry_quality,
+    validate_leg_metrics,
+    validate_exit_tradability,
+    check_liquidity,
+    fallback_limit_ok,
+    preview_penalty,
+)
 
 if TYPE_CHECKING:
     from tomic.strategy_candidates import StrategyProposal
 
 POSITIVE_CREDIT_STRATS = set(RULES.strategy.acceptance.require_positive_credit_for)
 
-
-_VALID_MID_SOURCES = set(MID_SOURCE_ORDER)
-_PREVIEW_SOURCES = set(PREVIEW_SOURCES)
-
 _REASON_ENGINE = ReasonEngine()
 
-
-def _resolve_strategy_config(strategy_name: str) -> Mapping[str, Any]:
-    cfg = cfg_get("STRATEGY_CONFIG") or {}
-    default_cfg = cfg.get("default", {}) if isinstance(cfg, Mapping) else {}
-    strat_cfg = cfg.get("strategies", {}).get(strategy_name, {}) if isinstance(cfg, Mapping) else {}
-    merged: dict[str, Any] = {}
-    if isinstance(default_cfg, Mapping):
-        merged.update(default_cfg)
-    if isinstance(strat_cfg, Mapping):
-        merged.update(strat_cfg)
-    return merged
-
-
-def resolve_min_risk_reward(
-    strategy_cfg: Mapping[str, Any], criteria: CriteriaConfig | None
-) -> float:
-    """Determine the effective minimum risk/reward threshold.
-
-    Priority order (highest to lowest):
-    1. Strategy-specific setting from strategies.yaml
-    2. Default from strategies.yaml
-    3. Fallback from criteria.yaml
-    """
-    # Try strategy config first (includes strategy-specific and default from strategies.yaml)
-    min_rr = safe_float(strategy_cfg.get("min_risk_reward"))
-
-    # Use criteria.yaml as fallback only if strategy config has no value
-    if min_rr is None and criteria is not None:
-        try:
-            min_rr = safe_float(criteria.strategy.acceptance.min_risk_reward)
-        except AttributeError:  # pragma: no cover - defensive
-            min_rr = None
-
-    # Final fallback to RULES
-    if min_rr is None:
-        fallback = safe_float(getattr(RULES.strategy.acceptance, "min_risk_reward", None))
-        min_rr = fallback if fallback is not None else 0.0
-
-    return max(0.0, float(min_rr))
-
-
-def _clamp(value: float, minimum: float = 0.0, maximum: float = 1.0) -> float:
-    return max(minimum, min(maximum, value))
-
-
-def _normalize_ratio(value: float | None, cap: float) -> float | None:
-    if value is None or cap <= 0:
-        return None
-    return _clamp(value / cap)
-
-
-def _normalize_pos(value: float | None, floor: float, span: float) -> float | None:
-    if value is None or span <= 0:
-        return None
-    return _clamp((value - floor) / span)
-
-
-def _normalize_risk_reward(value: float | None, criteria_cfg: CriteriaConfig) -> float | None:
-    if value is None:
-        return None
-    rr_floor = float(criteria_cfg.strategy.rr_floor)
-    if value <= rr_floor:
-        return 0.0
-
-    linear_cap = max(float(criteria_cfg.strategy.rr_linear_cap), rr_floor)
-    linear_ceiling = _clamp(float(criteria_cfg.strategy.rr_linear_ceiling), 0.0, 1.0)
-    exponent = float(criteria_cfg.strategy.rr_exponent)
-    rr_log_cap = max(float(criteria_cfg.strategy.rr_log_cap), linear_cap)
-    log_base = max(float(criteria_cfg.strategy.rr_log_base), 0.0)
-
-    if linear_cap <= rr_floor:
-        linear_component = 0.0
-    else:
-        ratio = (min(value, linear_cap) - rr_floor) / (linear_cap - rr_floor)
-        ratio = max(0.0, ratio)
-        try:
-            linear_component = ratio**exponent
-        except (TypeError, ValueError, OverflowError, ZeroDivisionError):
-            linear_component = ratio
-        linear_component = _clamp(linear_component) * linear_ceiling
-
-    if value <= linear_cap or rr_log_cap <= linear_cap:
-        return linear_component
-
-    excess = min(value, rr_log_cap) - linear_cap
-    log_range = rr_log_cap - linear_cap
-    if log_range <= 0:
-        return linear_component
-
-    if log_base > 0:
-        numerator = math.log1p(excess * log_base)
-        denominator = math.log1p(log_range * log_base)
-    else:
-        numerator = math.log1p(excess)
-        denominator = math.log1p(log_range)
-
-    if denominator <= 0:
-        log_component = 1.0
-    else:
-        log_component = _clamp(numerator / denominator)
-
-    return _clamp(linear_ceiling + (1.0 - linear_ceiling) * log_component)
-
-
-def _max_credit_for_strategy(strategy: str, legs: List[Dict[str, Any]]) -> float | None:
-    strat = strategy.lower()
-    if strat == "short_put_spread":
-        return _vertical_width(legs, "put")
-    if strat == "short_call_spread":
-        return _vertical_width(legs, "call")
-    if strat in {"iron_condor", "atm_iron_butterfly"}:
-        put_cap = _vertical_width(legs, "put")
-        call_cap = _vertical_width(legs, "call")
-        if put_cap is None and call_cap is None:
-            return None
-        values = [val for val in (put_cap, call_cap) if val is not None]
-        return max(values) if values else None
-    return None
-
-
-def _find_leg(
-    legs: List[Dict[str, Any]], right: str, *, short: bool
-) -> Dict[str, Any] | None:
-    for leg in legs:
-        if get_leg_right(leg) != right:
-            continue
-        position = get_signed_position(leg)
-        if short and position < 0:
-            return leg
-        if not short and position > 0:
-            return leg
-    return None
-
-
-def _vertical_width(legs: List[Dict[str, Any]], right: str) -> float | None:
-    short_leg = _find_leg(legs, right, short=True)
-    long_leg = _find_leg(legs, right, short=False)
-    if not short_leg or not long_leg:
-        return None
-    short_strike = safe_float(short_leg.get("strike"))
-    long_strike = safe_float(long_leg.get("strike"))
-    if short_strike is None or long_strike is None:
-        return None
-    if right == "put":
-        width = short_strike - long_strike
-    else:
-        width = long_strike - short_strike
-    if width <= 0:
-        return None
-    try:
-        qty = get_leg_qty(short_leg)
-    except (TypeError, ValueError, KeyError):
-        qty = 1
-    return width * max(qty, 1)
-
-
-def _collect_leg_values(legs: List[Dict[str, Any]], keys: Tuple[str, ...]) -> List[float]:
-    values: List[float] = []
-    targets = {key.lower().replace("_", "") for key in keys}
-    for leg in legs:
-        for raw_key, raw_value in leg.items():
-            canonical = str(raw_key).lower().replace("_", "")
-            if canonical not in targets:
-                continue
-            val = safe_float(raw_value)
-            if val is None:
-                continue
-            values.append(val)
-            break
-    return values
-def _infer_leg_dte(leg: Mapping[str, Any]) -> Optional[int]:
-    for key in ("dte", "days_to_expiry", "DTE"):
-        raw = leg.get(key)
-        if raw in (None, ""):
-            continue
-        val = safe_float(raw)
-        if val is None:
-            continue
-        return int(round(val))
-    expiry = leg.get("expiry") or leg.get("expiration")
-    if not expiry:
-        return None
-    exp_date = parse_date(str(expiry))
-    if exp_date is None:
-        return None
-    return (exp_date - today()).days
-
-
-def _compute_wing_metrics(legs: List[Dict[str, Any]]) -> tuple[Dict[str, float] | None, bool | None]:
-    widths: Dict[str, float] = {}
-    for right in ("call", "put"):
-        short_legs: List[Dict[str, Any]] = []
-        long_legs: List[Dict[str, Any]] = []
-        for leg in legs:
-            if get_leg_right(leg) != right:
-                continue
-            pos_val = get_signed_position(leg)
-            if pos_val == 0 or safe_float(leg.get("strike")) is None:
-                continue
-            if pos_val < 0:
-                short_legs.append(leg)
-            elif pos_val > 0:
-                long_legs.append(leg)
-        if not short_legs or not long_legs:
-            continue
-        distances: List[float] = []
-        long_strikes = [
-            safe_float(l.get("strike"))
-            for l in long_legs
-            if safe_float(l.get("strike")) is not None
-        ]
-        long_strikes = [v for v in long_strikes if v is not None]
-        for short in short_legs:
-            short_strike = safe_float(short.get("strike"))
-            if short_strike is None:
-                continue
-            candidates: List[float] = []
-            for long in long_strikes:
-                if long is None:
-                    continue
-                if right == "call" and long <= short_strike:
-                    continue
-                if right == "put" and long >= short_strike:
-                    continue
-                candidates.append(abs(long - short_strike))
-            if not candidates:
-                candidates = [
-                    abs(long - short_strike) for long in long_strikes if long is not None
-                ]
-            if candidates:
-                distances.append(min(candidates))
-        if distances:
-            widths[right] = sum(distances) / len(distances)
-    if not widths:
-        return None, None
-    symmetry: bool | None = None
-    if "call" in widths and "put" in widths:
-        call_width = abs(widths["call"])
-        put_width = abs(widths["put"])
-        max_width = max(call_width, put_width, 1e-6)
-        symmetry = abs(call_width - put_width) <= max_width * 0.05
-    return widths, symmetry
-
-
-def _populate_additional_metrics(
-    proposal: "StrategyProposal", legs: List[Dict[str, Any]], spot: float | None
-) -> None:
-    greek_totals = aggregate_greeks(legs, schema=PROPOSAL_GREEK_SCHEMA)
-    proposal.greeks = dict(greek_totals)
-    proposal.greeks_sum = {key.capitalize(): value for key, value in greek_totals.items()}
-
-    atr_values = _collect_leg_values(legs, ("ATR14", "atr14", "atr"))
-    if getattr(proposal, "atr", None) is None and atr_values:
-        proposal.atr = atr_values[0]
-
-    iv_rank_vals = _collect_leg_values(legs, ("IV_Rank", "iv_rank"))
-    if iv_rank_vals:
-        proposal.iv_rank = sum(iv_rank_vals) / len(iv_rank_vals)
-
-    iv_percentile_vals = _collect_leg_values(legs, ("IV_Percentile", "iv_percentile"))
-    if iv_percentile_vals:
-        proposal.iv_percentile = sum(iv_percentile_vals) / len(iv_percentile_vals)
-
-    hv20_vals = _collect_leg_values(legs, ("HV20", "hv20"))
-    if hv20_vals:
-        proposal.hv20 = sum(hv20_vals) / len(hv20_vals)
-
-    hv30_vals = _collect_leg_values(legs, ("HV30", "hv30"))
-    if hv30_vals:
-        proposal.hv30 = sum(hv30_vals) / len(hv30_vals)
-
-    hv90_vals = _collect_leg_values(legs, ("HV90", "hv90"))
-    if hv90_vals:
-        proposal.hv90 = sum(hv90_vals) / len(hv90_vals)
-
-    dte_by_expiry: Dict[str, int] = {}
-    for leg in legs:
-        expiry = leg.get("expiry") or leg.get("expiration")
-        if not expiry:
-            continue
-        dte_val = _infer_leg_dte(leg)
-        if dte_val is None:
-            continue
-        dte_by_expiry[str(expiry)] = dte_val
-    if dte_by_expiry:
-        unique_values = sorted(set(dte_by_expiry.values()))
-        proposal.dte = {
-            "min": min(unique_values),
-            "max": max(unique_values),
-            "values": unique_values,
-            "by_expiry": dte_by_expiry,
-        }
-    else:
-        proposal.dte = None
-
-    widths, symmetry = _compute_wing_metrics(legs)
-    proposal.wing_width = widths
-    proposal.wing_symmetry = symmetry
-
-    distances: List[float] = []
-    percents: List[float] = []
-    spot_val = safe_float(spot)
-    if spot_val not in (None, 0):
-        for be in getattr(proposal, "breakevens", []) or []:
-            be_val = safe_float(be)
-            if be_val is None:
-                continue
-            diff = abs(be_val - spot_val)
-            distances.append(diff)
-            percents.append((diff / spot_val) * 100)
-    proposal.breakeven_distances = {
-        "dollar": distances,
-        "percent": percents,
-    }
-
-
-def _bs_estimate_missing(legs: List[Dict[str, Any]]) -> None:
-    """Fill missing model price and delta using Black-Scholes."""
-    from ..helpers.bs_utils import populate_model_delta
-
-    for leg in legs:
-        populate_model_delta(leg)
-
-
-def _fallback_limit_ok(
-    strategy_name: str, legs: Sequence[Dict[str, Any] | LegView]
-) -> tuple[bool, int, int, str | None]:
-    limit_per_four = int(cfg_get("MID_FALLBACK_MAX_PER_4", 2) or 0)
-    leg_views = list(iter_leg_views(legs, price_resolver=MidPriceResolver))
-    leg_count = len(leg_views)
-    if leg_count == 0:
-        return True, 0, 0, None
-    if limit_per_four <= 0:
-        allowed = 0
-    else:
-        allowed = math.ceil(limit_per_four * leg_count / 4)
-
-    strat_label = getattr(strategy_name, "value", strategy_name)
-
-    def _source(view: LegView) -> str:
-        return normalize_mid_source(view.mid_source) or ""
-
-    def _is_long(view: LegView) -> bool:
-        return view.signed_position > 0
-
-    fallback_sources = {"model", "close", "parity_close"}
-    long_fallbacks = [
-        view for view in leg_views if _is_long(view) and _source(view) in fallback_sources
-    ]
-    short_fallbacks = [
-        view for view in leg_views if not _is_long(view) and _source(view) in fallback_sources
-    ]
-    total_fallbacks = len(long_fallbacks) + len(short_fallbacks)
-
-    def _warn_short_fallbacks() -> None:
-        if not short_fallbacks:
-            return
-        for view in short_fallbacks:
-            strike = view.strike
-            expiry = view.expiry
-            right = (view.right or "?").upper()
-            logger.warning(
-                f"[{strat_label}] ⚠️ short leg fallback via {_source(view)} — "
-                f"{right} {strike} {expiry}"
-            )
-
-    if strat_label in {
-        "iron_condor",
-        "atm_iron_butterfly",
-        "ratio_spread",
-        "backspread_put",
-    }:
-        allowed = min(allowed, 2) if allowed else 0
-        _warn_short_fallbacks()
-        long_count = len(long_fallbacks)
-        if long_count > allowed:
-            reason = "te veel fallback-legs op long wings"
-            return False, long_count, allowed, reason
-        return long_count <= allowed, long_count, allowed, None
-
-    if strat_label in {"short_call_spread", "short_put_spread"}:
-        allowed = min(allowed, 1) if allowed else 0
-        _warn_short_fallbacks()
-        long_count = len(long_fallbacks)
-        if long_count > allowed:
-            reason = "te veel fallback-legs op long hedge"
-            return False, long_count, allowed, reason
-        return long_count <= allowed, long_count, allowed, None
-
-    if strat_label == "calendar":
-        allowed = min(allowed, 1) if allowed else 0
-        long_fallback_legs = [
-            view for view in leg_views if _is_long(view) and _source(view) in fallback_sources
-        ]
-        _warn_short_fallbacks()
-        long_count = len(long_fallback_legs)
-        if any(_source(view) == "model" for view in long_fallback_legs):
-            return False, long_count, allowed, "calendar long leg vereist parity of close"
-        if long_count > allowed:
-            reason = "te veel fallback-legs op long hedge"
-            return False, long_count, allowed, reason
-        return long_count <= allowed, long_count, allowed, None
-
-    if strat_label == "naked_put":
-        allowed = min(allowed, 1) if allowed else 0
-        for view in leg_views:
-            if _source(view) in fallback_sources:
-                logger.info(
-                    "[naked_put] short leg fallback geaccepteerd via %s",
-                    _source(view),
-                )
-        return total_fallbacks <= allowed, total_fallbacks, allowed, None
-
-    return total_fallbacks <= allowed, total_fallbacks, allowed, None
-
-
-def _preview_penalty(
-    strategy_name: str,
-    fallback_summary: Mapping[str, int],
-    *,
-    preview_sources: Iterable[str],
-    short_preview_legs: int,
-    long_preview_legs: int,
-    total_legs: int,
-    fallback_count: int,
-    fallback_allowed: int,
-    fallback_reason: str | None,
-    fallback_warning: str | None,
-) -> tuple[float, ReasonDetail | None, bool]:
-    preview_leg_count = sum(fallback_summary.get(src, 0) for src in _PREVIEW_SOURCES)
-    if preview_leg_count <= 0 or total_legs <= 0:
-        return 0.0, None, False
-
-    scoring_cfg = cfg_get("SCORING", {}) or {}
-    preview_cfg = scoring_cfg.get("mid_preview") or {}
-    per_leg = float(preview_cfg.get("penalty_per_leg", 1.5))
-    max_ratio = float(preview_cfg.get("max_preview_ratio", 0.5) or 0.0)
-    max_penalty = float(preview_cfg.get("penalty_cap", per_leg * total_legs))
-    short_multiplier = float(preview_cfg.get("short_leg_multiplier", 1.0))
-    min_penalty = float(preview_cfg.get("min_penalty", 0.0))
-
-    ratio = preview_leg_count / total_legs if total_legs else 0.0
-    severity = 1.0
-    if max_ratio > 0:
-        severity = min(max(ratio / max_ratio, 0.0), 1.0)
-
-    penalty = per_leg * preview_leg_count * severity
-    if short_preview_legs > 0 and short_multiplier > 0:
-        penalty *= max(short_multiplier, 0.0)
-    if max_penalty > 0:
-        penalty = min(penalty, max_penalty)
-    if min_penalty > 0:
-        penalty = max(penalty, min_penalty)
-
-    penalty = round(penalty, 2)
-    data: dict[str, Any] = {
-        "strategy": strategy_name,
-        "preview_sources": sorted(set(preview_sources)),
-        "preview_leg_count": preview_leg_count,
-        "total_leg_count": total_legs,
-        "preview_ratio": round(ratio, 4),
-        "max_preview_ratio": max_ratio if max_ratio > 0 else None,
-        "short_preview_legs": short_preview_legs or None,
-        "long_preview_legs": long_preview_legs or None,
-        "penalty_per_leg": per_leg,
-        "penalty_severity": round(severity, 4),
-        "penalty_cap": max_penalty if max_penalty > 0 else None,
-        "estimated_penalty": penalty,
-        "score_impact": 0.0,
-        "fallback_limit_count": fallback_count,
-        "fallback_limit_allowed": fallback_allowed,
-        "fallback_limit_reason": fallback_reason,
-    }
-    data = {key: value for key, value in data.items() if value not in (None, [])}
-
-    message = (
-        f"preview mids gebruikt voor {preview_leg_count}/{total_legs} legs"
-        if total_legs
-        else "preview mids gebruikt"
-    )
-    limit_message = fallback_warning or fallback_reason
-    if limit_message:
-        data["fallback_limit_message"] = limit_message
-        message = f"{message} — {limit_message}"
-    detail = make_reason(
-        ReasonCategory.PREVIEW_QUALITY,
-        "MID_PREVIEW_PENALTY",
-        message,
-        data=data,
-    )
-    return penalty, detail, True
+# Internal aliases for backward compatibility with underscore-prefixed names
+_clamp = clamp
+_normalize_ratio = normalize_ratio
+_normalize_pos = normalize_pos
+_normalize_risk_reward = normalize_risk_reward
+_max_credit_for_strategy = max_credit_for_strategy
+_resolve_strategy_config = resolve_strategy_config
+_fallback_limit_ok = fallback_limit_ok
+_preview_penalty = preview_penalty
+_populate_additional_metrics = populate_additional_metrics
+_bs_estimate_missing = bs_estimate_missing
 
 
 def calculate_breakevens(
@@ -585,218 +110,13 @@ def calculate_breakevens(
     return None
 
 
-def _parse_mid_value(raw_mid: Any) -> tuple[bool, float | None]:
-    mid_val = safe_float(raw_mid, accept_nan=False)
-    if mid_val is None:
-        return False, None
-    return True, mid_val
-
-
-def _resolve_mid_source(leg: Mapping[str, Any]) -> str:
-    return (
-        normalize_mid_source(
-            leg.get("mid_source"),
-            (leg.get("mid_fallback"),),
-        )
-        or ""
-    )
-
-
-def validate_entry_quality(
-    strategy_name: str, legs: List[Dict[str, Any]]
-) -> Tuple[bool, List[ReasonDetail]]:
-    """Ensure required leg metrics are present for fresh entries."""
-    cfg = cfg_get("STRATEGY_CONFIG") or {}
-    strat_cfg = cfg.get("strategies", {}).get(strategy_name, {})
-    default_cfg = cfg.get("default", {})
-    allow_unpriced_wings = bool(
-        strat_cfg.get(
-            "allow_unpriced_wings",
-            default_cfg.get("allow_unpriced_wings", False),
-        )
-    )
-
-    missing_fields: set[str] = set()
-    for leg in legs:
-        missing: List[str] = []
-        has_mid, mid_val = _parse_mid_value(leg.get("mid"))
-        if has_mid and mid_val is not None:
-            leg["mid"] = mid_val
-        source = _resolve_mid_source(leg)
-        source_ok = (not source) or (source in _VALID_MID_SOURCES)
-        has_price = has_mid and source_ok
-        leg_type = leg.get("type") or leg.get("right") or leg.get("secType") or "?"
-        strike = leg.get("strike")
-        strike_suffix = "" if strike in {None, ""} else str(strike)
-        mid_display = mid_val if has_mid else leg.get("mid")
-        logger.debug(
-            f"[mid-check] {strategy_name} leg {leg_type}{strike_suffix} -> has_mid={has_price} "
-            f"(value={mid_display}, source={source or '—'}, bid={leg.get('bid')}, "
-            f"ask={leg.get('ask')}, close={leg.get('close')}, source_ok={source_ok})"
-        )
-        if not has_price:
-            missing.append("mid")
-        if leg.get("model") is None:
-            missing.append("model")
-        if leg.get("delta") is None:
-            missing.append("delta")
-        leg["missing_metrics"] = missing
-        if missing:
-            strike_display = leg.get("strike", "?")
-            expiry_display = leg.get("expiry") or leg.get("expiration") or "?"
-            if allow_unpriced_wings and (leg.get("position", 0) > 0):
-                leg["metrics_ignored"] = True
-                logger.info(
-                    f"[leg-missing-allowed] {leg_type} {strike_display} {expiry_display}: {', '.join(missing)}"
-                )
-                continue
-            logger.info(
-                f"[leg-missing] {leg_type} {strike_display} {expiry_display}: {', '.join(missing)}"
-            )
-            missing_fields.update(missing)
-    if missing_fields:
-        logger.info(
-            f"[❌ voorstel afgewezen] {strategy_name} — reason: ontbrekende metrics (details in debug)"
-        )
-        missing_str = ", ".join(sorted(missing_fields))
-        message = f"{missing_str} ontbreken — metrics kunnen niet worden berekend"
-        return False, [make_reason(ReasonCategory.MISSING_DATA, "METRICS_MISSING", message)]
-    return True, []
-
-
-def validate_leg_metrics(
-    strategy_name: str, legs: List[Dict[str, Any]]
-) -> Tuple[bool, List[ReasonDetail]]:
-    """Backward compatible wrapper for entry metric validation."""
-
-    return validate_entry_quality(strategy_name, legs)
-
-
-def validate_exit_tradability(
-    strategy_name: str, legs: List[Dict[str, Any]]
-) -> Tuple[bool, List[ReasonDetail]]:
-    """Check whether ``legs`` contain enough data to close an existing combo."""
-
-    missing_contract: list[str] = []
-    missing_quotes: list[str] = []
-    invalid_quotes: list[str] = []
-
-    for idx, leg in enumerate(legs, start=1):
-        normalize_leg(leg)
-        con_id = leg.get("conId") or leg.get("con_id")
-        if con_id in (None, ""):
-            missing_contract.append(f"leg{idx}")
-
-        bid = safe_float(leg.get("bid"))
-        ask = safe_float(leg.get("ask"))
-
-        if bid is None or ask is None:
-            missing_quotes.append(f"leg{idx}")
-            logger.info(
-                f"[exit-metrics] {strategy_name} leg{idx} ontbrekende quotes"
-            )
-            continue
-
-        if bid < 0 or ask < 0 or bid > ask + 1e-9:
-            invalid_quotes.append(f"leg{idx}")
-            logger.info(
-                f"[exit-metrics] {strategy_name} leg{idx} ongeldige quotes bid={bid} ask={ask}"
-            )
-
-    if missing_contract:
-        message = "contractgegevens ontbreken"
-        return False, [
-            make_reason(
-                ReasonCategory.MISSING_DATA,
-                "EXIT_CONTRACT_INCOMPLETE",
-                message,
-                data={"legs": missing_contract},
-            )
-        ]
-
-    if missing_quotes:
-        message = "niet verhandelbaar (geen quote)"
-        return False, [
-            make_reason(
-                ReasonCategory.MISSING_DATA,
-                "EXIT_QUOTES_MISSING",
-                message,
-                data={"legs": missing_quotes},
-            )
-        ]
-
-    if invalid_quotes:
-        message = "niet verhandelbaar (ongeldige quote)"
-        return False, [
-            make_reason(
-                ReasonCategory.MISSING_DATA,
-                "EXIT_QUOTES_INVALID",
-                message,
-                data={"legs": invalid_quotes},
-            )
-        ]
-
-    return True, []
-
-
-def check_liquidity(
-    strategy_name: str, legs: List[Dict[str, Any]], crit: CriteriaConfig
-) -> Tuple[bool, List[ReasonDetail]]:
-    """Validate option volume and open interest against minimum thresholds."""
-    min_vol = float(crit.market_data.min_option_volume)
-    min_oi = float(crit.market_data.min_option_open_interest)
-    if min_vol <= 0 and min_oi <= 0:
-        return True, []
-
-    low_liq: List[dict[str, object]] = []
-    for leg in legs:
-        vol_raw = leg.get("volume")
-        try:
-            vol = float(vol_raw) if vol_raw not in (None, "") else None
-        except (TypeError, ValueError):
-            vol = None
-        oi_raw = leg.get("open_interest")
-        try:
-            oi = float(oi_raw) if oi_raw not in (None, "") else None
-        except (TypeError, ValueError):
-            oi = None
-        exp = leg.get("expiry") or leg.get("expiration")
-        strike = leg.get("strike")
-        if isinstance(strike, float) and strike.is_integer():
-            strike = int(strike)
-        if (
-            (min_vol > 0 and vol is not None and vol < min_vol)
-            or (min_oi > 0 and oi is not None and oi < min_oi)
-        ):
-            low_liq.append(
-                {
-                    "strike": strike,
-                    "volume": vol if vol is not None else 0,
-                    "open_interest": oi if oi is not None else 0,
-                    "expiry": exp,
-                }
-            )
-    if low_liq:
-        formatted = [
-            f"{entry.get('strike')} [{entry.get('volume')}, {entry.get('open_interest')}, {entry.get('expiry')}]"
-            for entry in low_liq
-        ]
-        logger.info(
-            f"[{strategy_name}] Onvoldoende volume/open interest voor strikes {', '.join(formatted)}"
-        )
-        # Vind de laagste waarden
-        min_volume = min(entry.get("volume", 0) for entry in low_liq)
-        min_oi = min(entry.get("open_interest", 0) for entry in low_liq)
-        message = f"onvoldoende volume/open interest (min vol: {min_volume}, min OI: {min_oi})"
-        return False, [
-            make_reason(
-                ReasonCategory.LOW_LIQUIDITY,
-                "LOW_LIQUIDITY_VOLUME",
-                message,
-                data={"legs": list(low_liq)},
-            )
-        ]
-    return True, []
+# Note: The following functions are now imported from scoring_validators:
+# - validate_entry_quality
+# - validate_leg_metrics
+# - validate_exit_tradability
+# - check_liquidity
+# - fallback_limit_ok
+# - preview_penalty
 
 
 def compute_proposal_metrics(
