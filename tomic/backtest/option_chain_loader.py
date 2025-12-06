@@ -315,6 +315,163 @@ class IronCondorQuotes:
 
 
 @dataclass
+class CalendarSpreadQuotes:
+    """Quotes for both legs of a calendar spread.
+
+    A calendar spread consists of:
+    - Short near-term option (sell, lower DTE)
+    - Long far-term option (buy, higher DTE)
+    Both options have the same strike (ATM typically).
+    """
+
+    symbol: str
+    trade_date: date
+    strike: float
+    spot_price: float
+    option_type: str  # 'C' for call calendar, 'P' for put calendar
+
+    # Near-term leg (short, sell to open)
+    short_leg: Optional[OptionQuote] = None
+    # Far-term leg (long, buy to open)
+    long_leg: Optional[OptionQuote] = None
+
+    @property
+    def is_complete(self) -> bool:
+        """Check if both legs have quotes."""
+        return self.short_leg is not None and self.long_leg is not None
+
+    @property
+    def net_debit(self) -> Optional[float]:
+        """Net debit paid (using mid prices).
+
+        Calendar spreads are debit trades: long leg costs more than short leg credit.
+        """
+        if not self.is_complete:
+            return None
+
+        # Pay for long (far-term), receive credit for short (near-term)
+        long_cost = self.long_leg.mid or 0
+        short_credit = self.short_leg.mid or 0
+        return (long_cost - short_credit) * 100  # Per contract
+
+    @property
+    def total_spread_cost(self) -> Optional[float]:
+        """Total bid-ask spread cost for both legs."""
+        if not self.is_complete:
+            return None
+
+        total = 0
+        for leg in [self.short_leg, self.long_leg]:
+            if leg.spread is not None:
+                total += leg.spread * 100  # Per contract
+        return total
+
+    def entry_debit_realistic(self) -> Optional[float]:
+        """Realistic entry debit accounting for slippage.
+
+        For buying (long leg): use ask price (what we pay)
+        For selling (short leg): use bid price (what we receive)
+        """
+        if not self.is_complete:
+            return None
+
+        # Buy long leg at ask
+        long_cost = self.long_leg.ask or 0
+        # Sell short leg at bid
+        short_credit = self.short_leg.bid or 0
+        return (long_cost - short_credit) * 100
+
+    @property
+    def min_liquidity_score(self) -> float:
+        """Minimum liquidity score across both legs (weakest link)."""
+        if not self.is_complete:
+            return 0.0
+        return min(self.short_leg.liquidity_score, self.long_leg.liquidity_score)
+
+    @property
+    def avg_liquidity_score(self) -> float:
+        """Average liquidity score across both legs."""
+        if not self.is_complete:
+            return 0.0
+        return (self.short_leg.liquidity_score + self.long_leg.liquidity_score) / 2
+
+    @property
+    def min_volume(self) -> int:
+        """Minimum volume across both legs."""
+        if not self.is_complete:
+            return 0
+        return min(self.short_leg.volume or 0, self.long_leg.volume or 0)
+
+    @property
+    def min_open_interest(self) -> int:
+        """Minimum open interest across both legs."""
+        if not self.is_complete:
+            return 0
+        return min(self.short_leg.open_interest or 0, self.long_leg.open_interest or 0)
+
+    @property
+    def max_spread_pct(self) -> float:
+        """Maximum spread percentage across both legs (worst liquidity indicator)."""
+        if not self.is_complete:
+            return 100.0
+        spreads = []
+        for leg in [self.short_leg, self.long_leg]:
+            if leg.spread_pct is not None:
+                spreads.append(leg.spread_pct)
+        return max(spreads) if spreads else 100.0
+
+    @property
+    def short_dte(self) -> int:
+        """Days to expiration for short (near-term) leg."""
+        if self.short_leg:
+            return self.short_leg.dte()
+        return 0
+
+    @property
+    def long_dte(self) -> int:
+        """Days to expiration for long (far-term) leg."""
+        if self.long_leg:
+            return self.long_leg.dte()
+        return 0
+
+    def passes_liquidity_check(
+        self,
+        min_volume: int = 0,
+        min_oi: int = 0,
+        max_spread_pct: float = 100.0,
+        min_liquidity_score: float = 0.0,
+    ) -> tuple[bool, list[str]]:
+        """Check if both legs meet minimum liquidity requirements.
+
+        Returns:
+            Tuple of (passes, list of rejection reasons)
+        """
+        if not self.is_complete:
+            return False, ["Incomplete calendar spread - missing legs"]
+
+        reasons = []
+
+        for name, leg in [
+            ("short_leg", self.short_leg),
+            ("long_leg", self.long_leg),
+        ]:
+            if not leg.passes_liquidity_threshold(min_volume, min_oi, max_spread_pct):
+                vol = leg.volume or 0
+                oi = leg.open_interest or 0
+                spread = leg.spread_pct or 0
+                reasons.append(
+                    f"{name} (DTE={leg.dte()}): vol={vol}, OI={oi}, spread={spread:.1f}%"
+                )
+
+        if min_liquidity_score > 0 and self.min_liquidity_score < min_liquidity_score:
+            reasons.append(
+                f"Min liquidity score {self.min_liquidity_score:.1f} < {min_liquidity_score}"
+            )
+
+        return len(reasons) == 0, reasons
+
+
+@dataclass
 class OptionChain:
     """Full option chain for a symbol on a given date."""
 
@@ -500,6 +657,94 @@ class OptionChain:
             short_call=short_call,
             long_call=long_call,
         )
+
+    def select_calendar_spread(
+        self,
+        near_expiry: date,
+        far_expiry: date,
+        option_type: str = "C",
+        target_strike: Optional[float] = None,
+        strike_tolerance_pct: float = 2.0,
+    ) -> Optional[CalendarSpreadQuotes]:
+        """Select strikes for a calendar spread.
+
+        Calendar spreads have two legs at the same strike but different expirations:
+        - Short near-term option (sell)
+        - Long far-term option (buy)
+
+        Args:
+            near_expiry: Near-term expiration (for short leg)
+            far_expiry: Far-term expiration (for long leg)
+            option_type: 'C' for call calendar, 'P' for put calendar
+            target_strike: Target strike price (default: ATM based on spot)
+            strike_tolerance_pct: Acceptable deviation from target strike
+
+        Returns:
+            CalendarSpreadQuotes with both legs, or None if not possible.
+        """
+        # Default to ATM strike
+        if target_strike is None:
+            target_strike = self.spot_price
+
+        # Get options for both expirations
+        if option_type == "C":
+            near_options = self.get_calls(near_expiry)
+            far_options = self.get_calls(far_expiry)
+        else:
+            near_options = self.get_puts(near_expiry)
+            far_options = self.get_puts(far_expiry)
+
+        if not near_options or not far_options:
+            return None
+
+        # Find nearest strike to target for near-term leg
+        short_leg = self._find_by_strike(near_options, target_strike, strike_tolerance_pct)
+        if not short_leg:
+            return None
+
+        # Find same strike for far-term leg
+        long_leg = self._find_by_strike(far_options, short_leg.strike, strike_tolerance_pct)
+        if not long_leg:
+            return None
+
+        return CalendarSpreadQuotes(
+            symbol=self.symbol,
+            trade_date=self.trade_date,
+            strike=short_leg.strike,
+            spot_price=self.spot_price,
+            option_type=option_type,
+            short_leg=short_leg,
+            long_leg=long_leg,
+        )
+
+    def find_expiry_near_dte(
+        self,
+        target_dte: int,
+        dte_tolerance: int = 7,
+    ) -> Optional[date]:
+        """Find an expiration date near the target DTE.
+
+        Args:
+            target_dte: Target days to expiration
+            dte_tolerance: Acceptable deviation from target
+
+        Returns:
+            Expiration date closest to target DTE within tolerance, or None.
+        """
+        target_date = self.trade_date + timedelta(days=target_dte)
+        expiries = self.get_expiries()
+
+        best_expiry = None
+        best_diff = float('inf')
+
+        for expiry in expiries:
+            dte = (expiry - self.trade_date).days
+            diff = abs(dte - target_dte)
+            if diff < best_diff and diff <= dte_tolerance:
+                best_diff = diff
+                best_expiry = expiry
+
+        return best_expiry
 
     def _find_by_delta(
         self,
