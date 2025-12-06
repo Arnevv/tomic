@@ -131,7 +131,7 @@ def _normalize_risk_reward(value: float | None, criteria_cfg: CriteriaConfig) ->
         ratio = max(0.0, ratio)
         try:
             linear_component = ratio**exponent
-        except Exception:
+        except (TypeError, ValueError, OverflowError, ZeroDivisionError):
             linear_component = ratio
         linear_component = _clamp(linear_component) * linear_ceiling
 
@@ -205,7 +205,7 @@ def _vertical_width(legs: List[Dict[str, Any]], right: str) -> float | None:
         return None
     try:
         qty = get_leg_qty(short_leg)
-    except Exception:
+    except (TypeError, ValueError, KeyError):
         qty = 1
     return width * max(qty, 1)
 
@@ -753,12 +753,12 @@ def check_liquidity(
         vol_raw = leg.get("volume")
         try:
             vol = float(vol_raw) if vol_raw not in (None, "") else None
-        except Exception:
+        except (TypeError, ValueError):
             vol = None
         oi_raw = leg.get("open_interest")
         try:
             oi = float(oi_raw) if oi_raw not in (None, "") else None
-        except Exception:
+        except (TypeError, ValueError):
             oi = None
         exp = leg.get("expiry") or leg.get("expiration")
         strike = leg.get("strike")
@@ -835,7 +835,7 @@ def compute_proposal_metrics(
         if get_signed_position(leg) < 0:
             try:
                 edge_val = float(leg.get("edge"))
-            except Exception:
+            except (TypeError, ValueError):
                 edge_val = math.nan
             if not math.isnan(edge_val):
                 short_edges.append(edge_val)

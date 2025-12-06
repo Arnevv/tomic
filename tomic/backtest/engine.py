@@ -115,7 +115,7 @@ class BacktestEngine:
                 result.update(strategies[strategy_type])
 
             return result
-        except Exception:
+        except (OSError, json.JSONDecodeError, KeyError, TypeError):
             return {}
 
     def _load_earnings_data(self) -> None:
