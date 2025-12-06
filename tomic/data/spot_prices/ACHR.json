@@ -7420,5 +7420,15 @@
     "close": 8.95,
     "volume": 66898121.0,
     "atr": null
+  },
+  {
+    "symbol": "ACHR",
+    "date": "2025-12-05",
+    "open": 8.8,
+    "high": 8.95,
+    "low": 8.57,
+    "close": 8.6,
+    "volume": 40676469.0,
+    "atr": null
   }
 ]

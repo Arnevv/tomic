@@ -9037,5 +9037,15 @@
     "close": 95.03,
     "volume": 8366217.0,
     "atr": null
+  },
+  {
+    "symbol": "SCHW",
+    "date": "2025-12-05",
+    "open": 94.7,
+    "high": 95.615,
+    "low": 93.79,
+    "close": 93.82,
+    "volume": 9042725.0,
+    "atr": null
   }
 ]

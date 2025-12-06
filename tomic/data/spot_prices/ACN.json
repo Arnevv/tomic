@@ -8960,5 +8960,15 @@
     "close": 269.34,
     "volume": 4119224.0,
     "atr": null
+  },
+  {
+    "symbol": "ACN",
+    "date": "2025-12-05",
+    "open": 268.1,
+    "high": 271,
+    "low": 266.07,
+    "close": 266.59,
+    "volume": 3785410.0,
+    "atr": null
   }
 ]
