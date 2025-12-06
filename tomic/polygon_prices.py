@@ -109,8 +109,11 @@ def request_bars(client: PolygonClient, symbol: str) -> tuple[list[dict], bool]:
                     data = [r for r in data if r.get("date") != last_date]
                     save_json(data, file)
                 _, last_date = _load_latest_close(symbol)
-        except Exception:
-            pass
+        except (ValueError, TypeError, KeyError, OSError) as exc:
+            # Log parsing/IO errors but continue - stale metadata shouldn't block fetching
+            logger.debug(
+                "Could not parse price metadata timestamp for %s: %s", symbol, exc
+            )
     params = {"adjusted": "true"}
     base_path = f"v2/aggs/ticker/{symbol}/range/1/day"
     path = base_path
