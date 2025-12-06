@@ -16,7 +16,11 @@ from dataclasses import dataclass
 from typing import Any, Dict, List, Optional, Tuple
 
 from tomic.backtest.config import LiquidityRulesConfig
-from tomic.backtest.option_chain_loader import IronCondorQuotes, OptionQuote
+from tomic.backtest.option_chain_loader import (
+    CalendarSpreadQuotes,
+    IronCondorQuotes,
+    OptionQuote,
+)
 from tomic.logutils import logger
 
 # Import the existing check_liquidity function and reason helpers
@@ -103,6 +107,36 @@ def iron_condor_to_legs(quotes: IronCondorQuotes) -> List[Dict[str, Any]]:
         ("short_put", quotes.short_put),
         ("short_call", quotes.short_call),
         ("long_call", quotes.long_call),
+    ]:
+        leg = {
+            "strike": quote.strike,
+            "expiry": str(quote.expiry),
+            "volume": quote.volume,
+            "open_interest": quote.open_interest,
+            "bid": quote.bid,
+            "ask": quote.ask,
+            "mid": quote.mid,
+            "delta": quote.delta,
+            "type": quote.option_type,
+            "position": -1 if "short" in name else 1,
+        }
+        legs.append(leg)
+
+    return legs
+
+
+def calendar_spread_to_legs(quotes: CalendarSpreadQuotes) -> List[Dict[str, Any]]:
+    """Convert CalendarSpreadQuotes to leg dictionaries for check_liquidity.
+
+    This ensures compatibility with the existing pipeline's check_liquidity function.
+    """
+    if not quotes.is_complete:
+        return []
+
+    legs = []
+    for name, quote in [
+        ("short_leg", quotes.short_leg),
+        ("long_leg", quotes.long_leg),
     ]:
         leg = {
             "strike": quote.strike,
@@ -227,6 +261,146 @@ class LiquidityFilter:
                 logger.debug(f"Soft filter warnings: {', '.join(reason_msgs)}")
 
         return passes, reasons, metrics
+
+    def filter_calendar_spread(
+        self,
+        quotes: CalendarSpreadQuotes,
+        strategy_name: str = "calendar",
+    ) -> Tuple[bool, List[ReasonDetail], LiquidityMetrics]:
+        """Filter a calendar spread based on liquidity rules.
+
+        Uses the existing check_liquidity function from analysis/scoring.py
+        for the core volume/OI check, plus additional spread checks.
+
+        Args:
+            quotes: CalendarSpreadQuotes with both legs
+            strategy_name: Strategy name for logging (default: "calendar")
+
+        Returns:
+            Tuple of:
+            - passes: True if trade passes liquidity filter
+            - reasons: List of ReasonDetail objects (empty if passes)
+            - metrics: LiquidityMetrics with detailed statistics
+        """
+        if self.config.mode == "off":
+            # Return basic metrics without filtering
+            metrics = self._calculate_calendar_metrics(quotes)
+            return True, [], metrics
+
+        metrics = self._calculate_calendar_metrics(quotes)
+        reasons: List[ReasonDetail] = []
+
+        # Convert to legs for the existing check_liquidity function
+        legs = calendar_spread_to_legs(quotes)
+
+        if legs:
+            # Use the existing check_liquidity function for volume/OI checks
+            passes_vol_oi, vol_oi_reasons = check_liquidity(
+                strategy_name, legs, self._criteria_adapter
+            )
+            if not passes_vol_oi:
+                reasons.extend(vol_oi_reasons)
+
+        # Additional spread check (backtest-specific)
+        if self.config.max_spread_pct < 100:
+            if metrics.max_spread_pct > self.config.max_spread_pct:
+                reasons.append(
+                    make_reason(
+                        ReasonCategory.LOW_LIQUIDITY,
+                        "WIDE_SPREAD",
+                        f"bid-ask spread te breed ({metrics.max_spread_pct:.1f}% > {self.config.max_spread_pct}%)",
+                        data={"max_spread_pct": metrics.max_spread_pct},
+                    )
+                )
+
+        # Additional liquidity score check (backtest-specific)
+        if self.config.min_liquidity_score > 0:
+            if metrics.min_liquidity_score < self.config.min_liquidity_score:
+                reasons.append(
+                    make_reason(
+                        ReasonCategory.LOW_LIQUIDITY,
+                        "LOW_LIQUIDITY_SCORE",
+                        f"liquiditeitsscore te laag ({metrics.min_liquidity_score:.1f} < {self.config.min_liquidity_score})",
+                        data={"min_liquidity_score": metrics.min_liquidity_score},
+                    )
+                )
+
+        # In hard mode, any failure rejects the trade
+        if self.config.mode == "hard":
+            passes = len(reasons) == 0
+        else:
+            # Soft mode: always passes but with warnings logged
+            passes = True
+            if reasons:
+                reason_msgs = [r.message for r in reasons]
+                logger.debug(f"Soft filter warnings (calendar): {', '.join(reason_msgs)}")
+
+        return passes, reasons, metrics
+
+    def _calculate_calendar_metrics(self, quotes: CalendarSpreadQuotes) -> LiquidityMetrics:
+        """Calculate comprehensive liquidity metrics for a calendar spread."""
+        if not quotes.is_complete:
+            return LiquidityMetrics(
+                min_volume=0,
+                min_open_interest=0,
+                max_spread_pct=100.0,
+                min_liquidity_score=0.0,
+                avg_liquidity_score=0.0,
+                total_spread_cost=0.0,
+                realistic_entry_credit=None,
+                mid_entry_credit=None,
+                slippage_cost=None,
+                low_volume_legs=[],
+                high_spread_legs=[],
+            )
+
+        legs = [
+            ("short_leg", quotes.short_leg),
+            ("long_leg", quotes.long_leg),
+        ]
+
+        # Collect per-leg metrics
+        volumes = []
+        ois = []
+        spreads = []
+        scores = []
+        low_volume_legs = []
+        high_spread_legs = []
+
+        for name, leg in legs:
+            volumes.append(leg.volume or 0)
+            ois.append(leg.open_interest or 0)
+            spreads.append(leg.spread_pct or 0)
+            scores.append(leg.liquidity_score)
+
+            # Track warning flags
+            if (leg.volume or 0) < self.config.min_option_volume:
+                low_volume_legs.append(f"{name} (vol={leg.volume or 0})")
+            if (leg.spread_pct or 0) > self.config.max_spread_pct:
+                high_spread_legs.append(f"{name} (spread={leg.spread_pct:.1f}%)")
+
+        # Calculate execution costs (calendar is debit, not credit)
+        mid_debit = quotes.net_debit
+        realistic_debit = quotes.entry_debit_realistic()
+        slippage = None
+        if mid_debit is not None and realistic_debit is not None:
+            # For debit trades, slippage increases cost (realistic > mid)
+            slippage = realistic_debit - mid_debit
+
+        return LiquidityMetrics(
+            min_volume=min(volumes),
+            min_open_interest=min(ois),
+            max_spread_pct=max(spreads),
+            min_liquidity_score=min(scores),
+            avg_liquidity_score=sum(scores) / len(scores),
+            total_spread_cost=quotes.total_spread_cost or 0.0,
+            # For debit trades, we use negative values to indicate debit
+            realistic_entry_credit=-realistic_debit if realistic_debit else None,
+            mid_entry_credit=-mid_debit if mid_debit else None,
+            slippage_cost=slippage,
+            low_volume_legs=low_volume_legs,
+            high_spread_legs=high_spread_legs,
+        )
 
     def _calculate_metrics(self, quotes: IronCondorQuotes) -> LiquidityMetrics:
         """Calculate comprehensive liquidity metrics for an iron condor."""
@@ -401,4 +575,5 @@ __all__ = [
     "LiquidityMetrics",
     "filter_by_liquidity",
     "iron_condor_to_legs",
+    "calendar_spread_to_legs",
 ]

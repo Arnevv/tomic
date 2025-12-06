@@ -16,7 +16,11 @@ from tomic.backtest.config import BacktestConfig
 from tomic.backtest.data_loader import IVTimeSeries
 from tomic.backtest.exit_evaluator import ExitEvaluator, ExitEvaluation, CalendarExitEvaluator
 from tomic.backtest.liquidity_filter import LiquidityFilter, LiquidityMetrics
-from tomic.backtest.option_chain_loader import OptionChainLoader, IronCondorQuotes
+from tomic.backtest.option_chain_loader import (
+    CalendarSpreadQuotes,
+    IronCondorQuotes,
+    OptionChainLoader,
+)
 from tomic.backtest.pnl_model import IronCondorPnLModel, GreeksBasedPnLModel, CalendarSpreadPnLModel
 from tomic.backtest.results import (
     EntrySignal,
@@ -185,21 +189,49 @@ class TradeSimulator:
         long_expiry = signal.date + timedelta(days=far_dte)
         target_expiry = short_expiry  # Primary expiry is the near leg
 
-        # Estimate debit paid
-        if signal.spot_at_entry:
-            entry_debit = self.calendar_pnl_model.estimate_debit(
-                iv_at_entry=signal.iv_at_entry,
-                spot_price=signal.spot_at_entry,
-                near_dte=near_dte,
-                far_dte=far_dte,
-            )
+        # Initialize liquidity metrics (will be populated if using real prices)
+        liquidity_metrics: Optional[LiquidityMetrics] = None
+        cal_quotes: Optional[CalendarSpreadQuotes] = None
+
+        # Try to load real option chain data for liquidity filtering
+        if self.config.use_real_prices or self.config.liquidity_rules.mode != "off":
+            cal_quotes = self._load_calendar_spread_quotes(signal, near_dte, far_dte)
+
+            if cal_quotes is not None:
+                # Apply liquidity filter
+                passes, reasons, liquidity_metrics = self.liquidity_filter.filter_calendar_spread(
+                    cal_quotes
+                )
+
+                if not passes:
+                    # ReasonDetail objects have a .message property
+                    reason_msgs = [r.message for r in reasons]
+                    logger.debug(
+                        f"Rejected calendar {signal.symbol} - liquidity: {', '.join(reason_msgs)}"
+                    )
+                    self._liquidity_rejections += 1
+                    return None
+
+        # Estimate debit paid - use real prices if available
+        if cal_quotes is not None and self.config.liquidity_rules.use_realistic_execution:
+            realistic_debit = cal_quotes.entry_debit_realistic()
+            mid_debit = cal_quotes.net_debit
+            if realistic_debit is not None:
+                entry_debit = realistic_debit
+            else:
+                entry_debit = mid_debit or self._estimate_calendar_debit(
+                    signal, near_dte, far_dte
+                )
+        elif signal.spot_at_entry:
+            entry_debit = self._estimate_calendar_debit(signal, near_dte, far_dte)
         else:
             # Fallback: estimate debit as $200 (conservative)
             entry_debit = 200.0
 
-        # Apply slippage to debit (increases cost)
-        slippage_pct = self.config.costs.slippage_pct / 100
-        entry_debit = entry_debit * (1 + slippage_pct)
+        # Apply slippage to debit (increases cost) if not using realistic prices
+        if cal_quotes is None or not self.config.liquidity_rules.use_realistic_execution:
+            slippage_pct = self.config.costs.slippage_pct / 100
+            entry_debit = entry_debit * (1 + slippage_pct)
 
         # Max risk for calendar = debit paid
         max_risk = entry_debit
@@ -223,6 +255,16 @@ class TradeSimulator:
             status=TradeStatus.OPEN,
         )
 
+        # Store liquidity metrics on the trade
+        if liquidity_metrics is not None:
+            trade.liquidity_score = liquidity_metrics.min_liquidity_score
+            trade.min_volume = liquidity_metrics.min_volume
+            trade.min_open_interest = liquidity_metrics.min_open_interest
+            trade.max_spread_pct = liquidity_metrics.max_spread_pct
+            # For debit trades, realistic_entry_credit is negative (debit)
+            trade.realistic_credit = liquidity_metrics.realistic_entry_credit
+            trade.slippage_cost = liquidity_metrics.slippage_cost
+
         # Store term structure at entry for P&L calculation
         if term_at_entry is not None:
             self._term_at_entry[signal.symbol] = term_at_entry
@@ -233,13 +275,80 @@ class TradeSimulator:
         self._open_positions[signal.symbol] = trade
         self._all_trades.append(trade)
 
+        # Log with liquidity info if available
+        liq_info = ""
+        if trade.liquidity_score is not None:
+            liq_info = f", liq={trade.liquidity_score:.0f}"
+
         logger.debug(
             f"Opened calendar on {signal.symbol} "
             f"@ IV {signal.iv_at_entry:.1%}, debit ${entry_debit:.2f}, "
-            f"near DTE {near_dte}, far DTE {far_dte}"
+            f"near DTE {near_dte}, far DTE {far_dte}{liq_info}"
         )
 
         return trade
+
+    def _estimate_calendar_debit(
+        self,
+        signal: EntrySignal,
+        near_dte: int,
+        far_dte: int,
+    ) -> float:
+        """Estimate calendar debit when real option chain data is not available."""
+        if signal.spot_at_entry:
+            return self.calendar_pnl_model.estimate_debit(
+                iv_at_entry=signal.iv_at_entry,
+                spot_price=signal.spot_at_entry,
+                near_dte=near_dte,
+                far_dte=far_dte,
+            )
+        return 200.0  # Fallback estimate
+
+    def _load_calendar_spread_quotes(
+        self,
+        signal: EntrySignal,
+        near_dte: int,
+        far_dte: int,
+        option_type: str = "C",
+    ) -> Optional[CalendarSpreadQuotes]:
+        """Load calendar spread quotes from ORATS option chain data.
+
+        Args:
+            signal: Entry signal with symbol and date
+            near_dte: Target days to expiration for near (short) leg
+            far_dte: Target days to expiration for far (long) leg
+            option_type: 'C' for call calendar, 'P' for put calendar
+
+        Returns:
+            CalendarSpreadQuotes if data available, None otherwise.
+        """
+        # Load option chain for the entry date
+        chain = self.chain_loader.load_chain(signal.symbol, signal.date)
+        if chain is None:
+            logger.debug(f"No option chain data for {signal.symbol} on {signal.date}")
+            return None
+
+        # Find expiry closest to near_dte
+        near_expiry = chain.find_expiry_near_dte(near_dte, dte_tolerance=10)
+        if near_expiry is None:
+            logger.debug(f"No near expiry found for {signal.symbol} near DTE {near_dte}")
+            return None
+
+        # Find expiry closest to far_dte
+        far_expiry = chain.find_expiry_near_dte(far_dte, dte_tolerance=14)
+        if far_expiry is None:
+            logger.debug(f"No far expiry found for {signal.symbol} near DTE {far_dte}")
+            return None
+
+        # Select calendar spread at ATM strike
+        cal_quotes = chain.select_calendar_spread(
+            near_expiry=near_expiry,
+            far_expiry=far_expiry,
+            option_type=option_type,
+            target_strike=signal.spot_at_entry,  # ATM
+        )
+
+        return cal_quotes
 
     def _open_iron_condor_trade(self, signal: EntrySignal) -> Optional[SimulatedTrade]:
         """Open an Iron Condor (or other credit strategy) trade.
