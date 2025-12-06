@@ -12,19 +12,11 @@ import asyncio
 import threading
 import time
 import math
-from datetime import datetime, timedelta, timezone, tzinfo
+from datetime import datetime, timezone
 from zoneinfo import ZoneInfo
 from typing import Any, Dict
 
 from ibapi.ticktype import TickTypeEnum
-
-try:  # pragma: no cover - optional dependency during tests
-    from ibapi.utils import floatMaxString
-except Exception:  # pragma: no cover - tests provide stub
-
-    def floatMaxString(val: float) -> str:  # type: ignore[misc]
-        return str(val)
-
 
 from tomic.api.base_client import BaseIBApp
 from tomic.config import get as cfg_get
@@ -34,102 +26,18 @@ from tomic.logutils import log_result, logger
 from tomic.models import OptionContract
 from tomic.utils import extract_expiries, _is_weekly, _is_third_friday, today
 from .historical_iv import fetch_historical_option_data
+from .market_client_utils import (
+    DATA_TYPE_DESCRIPTIONS,
+    contract_repr,
+    is_market_open,
+    market_hours_today,
+)
+from .request_timer import RequestTimerManager
 
 try:  # pragma: no cover - optional dependency during tests
     from ibapi.contract import Contract
 except Exception:  # pragma: no cover - tests provide stubs
     Contract = object  # type: ignore[misc]
-
-
-def contract_repr(contract):
-    return (
-        f"{contract.secType} {contract.symbol} "
-        f"{contract.lastTradeDateOrContractMonth or ''} "
-        f"{contract.right or ''}{floatMaxString(contract.strike)} "
-        f"{contract.exchange or ''} {contract.currency or ''} "
-        f"(conId={getattr(contract, 'conId', None)})"
-    ).strip()
-
-
-def is_market_open(trading_hours: str, now: datetime, tz: tzinfo | None = None) -> bool:
-    """Return ``True`` if ``now`` falls within ``trading_hours``.
-
-    ``trading_hours`` should contain **regular** trading sessions only. If a
-    string with extended hours is provided, ensure it has been filtered to
-    regular hours first.
-    """
-
-    tz = tz or now.tzinfo
-    day = now.strftime("%Y%m%d")
-    for part in trading_hours.split(";"):
-        if ":" not in part:
-            continue
-        date_part, hours_part = part.split(":", 1)
-        if date_part != day:
-            continue
-        if hours_part == "CLOSED":
-            return False
-        for session in hours_part.split(","):
-            try:
-                start_str, end_str = session.split("-")
-            except ValueError:
-                continue
-            # remove any appended date information (e.g. "1700-0611:2000")
-            start_str = start_str.split(":")[-1][:4]
-            end_str = end_str.split(":")[0][:4]
-            start_dt = datetime.strptime(day + start_str, "%Y%m%d%H%M").replace(tzinfo=tz)
-            end_dt = datetime.strptime(day + end_str, "%Y%m%d%H%M").replace(tzinfo=tz)
-            # handle sessions that cross midnight
-            if end_dt <= start_dt:
-                end_dt += timedelta(days=1)
-            if start_dt <= now <= end_dt:
-                return True
-        return False
-    return False
-
-
-def market_hours_today(
-    trading_hours: str, now: datetime, tz: tzinfo | None = None
-) -> tuple[str, str] | None:
-    """Return the market open and close time (HH:MM) for ``now``.
-
-    ``trading_hours`` should represent regular trading hours. The function
-    returns ``None`` if the market is closed or no session matches ``now``'s
-    date.
-    """
-
-    tz = tz or now.tzinfo
-    day = now.strftime("%Y%m%d")
-    for part in trading_hours.split(";"):
-        if ":" not in part:
-            continue
-        date_part, hours_part = part.split(":", 1)
-        if date_part != day:
-            continue
-        if hours_part == "CLOSED":
-            return None
-        session = hours_part.split(",")[0]
-        try:
-            start_str, end_str = session.split("-")
-        except ValueError:
-            return None
-        start_str = start_str.split(":")[-1][:4]
-        end_str = end_str.split(":")[0][:4]
-        start_dt = datetime.strptime(day + start_str, "%Y%m%d%H%M").replace(tzinfo=tz)
-        end_dt = datetime.strptime(day + end_str, "%Y%m%d%H%M").replace(tzinfo=tz)
-        if end_dt <= start_dt:
-            end_dt += timedelta(days=1)
-        return start_dt.strftime("%H:%M"), end_dt.strftime("%H:%M")
-    return None
-
-
-# Descriptions for Interactive Brokers market data types
-DATA_TYPE_DESCRIPTIONS: dict[int, str] = {
-    1: "realtime",
-    2: "frozen",
-    3: "delayed",
-    4: "delayed frozen",
-}
 
 
 class MarketClient(IncrementingIdMixin, BaseIBApp):
@@ -398,8 +306,13 @@ class MarketClient(IncrementingIdMixin, BaseIBApp):
         self._details_event.set()
 
 
-class OptionChainClientLegacy(MarketClient):
-    """IB client that retrieves a basic option chain."""
+class OptionChainClientLegacy(RequestTimerManager, MarketClient):
+    """IB client that retrieves a basic option chain.
+
+    This class inherits from:
+    - RequestTimerManager: Handles request timeouts and retries
+    - MarketClient: Base IB client functionality
+    """
 
     def __init__(
         self,
@@ -407,6 +320,8 @@ class OptionChainClientLegacy(MarketClient):
         primary_exchange: str | None = None,
         max_concurrent_requests: int | None = None,
     ) -> None:
+        # Initialize RequestTimerManager first for timer state
+        RequestTimerManager.__init__(self)
         super().__init__(symbol, primary_exchange=primary_exchange)
         if max_concurrent_requests is None:
             max_concurrent_requests = int(cfg_get("MAX_CONCURRENT_REQUESTS", 5))
@@ -440,18 +355,12 @@ class OptionChainClientLegacy(MarketClient):
         self.all_data_event = threading.Event()
         self.iv_event = threading.Event()
         self.expected_contracts = 0
-        self._completed_requests: set[int] = set()
         self._logged_data: set[int] = set()
         self._step6_logged = False
         self._step7_logged = False
         self._step8_logged = False
         self._step9_logged = False
-        # Timers for delayed invalidation of option market data requests
-        self._invalid_timers: dict[int, threading.Timer] = {}
-        self._max_data_timer: threading.Timer | None = None
         self._use_snapshot: bool = False
-        self._retry_rounds = int(cfg_get("OPTION_DATA_RETRIES", 0))
-        self._request_retries: dict[int, int] = {}
         self.use_hist_iv: bool = False
 
     def _log_step9_start(self) -> None:
@@ -462,83 +371,11 @@ class OptionChainClientLegacy(MarketClient):
         )
         self._step9_logged = True
 
-    def _mark_complete(self, req_id: int) -> None:
-        """Record completion of a contract request and set ``all_data_event`` when done."""
-        with self.data_lock:
-            if req_id in self._completed_requests:
-                return
-            # Cancel streaming market data since generic ticks cannot be
-            # requested as snapshots.
-            try:
-                self.cancelMktData(req_id)
-            except Exception:
-                pass
-            self._request_retries.pop(req_id, None)
-            self._completed_requests.add(req_id)
-            if (
-                self.expected_contracts
-                and len(self._completed_requests) >= self.expected_contracts
-            ):
-                self.all_data_event.set()
-                self._stop_max_data_timer()
-
-    def _invalidate_request(self, req_id: int) -> None:
-        """Mark request ``req_id`` as invalid and cancel streaming data."""
-        with self.data_lock:
-            self._invalid_timers.pop(req_id, None)
-            self.invalid_contracts.add(req_id)
-            rec = self.market_data.get(req_id, {})
-            rec["status"] = "timeout"
-            evt = rec.get("event")
-        if isinstance(evt, threading.Event) and not evt.is_set():
-            evt.set()
-        self._mark_complete(req_id)
-
-    def _retry_or_invalidate(self, req_id: int) -> None:
-        """Retry a request when retries remain; otherwise invalidate it."""
-        retries = self._request_retries.get(req_id, 0)
-        if retries > 0:
-            self._request_retries[req_id] = retries - 1
-            # Use a new request id when retrying to avoid ``duplicate ticker id``
-            # errors that may occur if the previous id is reused too quickly.
-            self.retry_incomplete_requests([req_id], wait=False, use_new_id=True)
-        else:
-            self._invalidate_request(req_id)
-
-    def _cancel_invalid_timer(self, req_id: int) -> None:
-        with self.data_lock:
-            timer = self._invalid_timers.pop(req_id, None)
-            if timer is not None:
-                timer.cancel()
-            self._request_retries.pop(req_id, None)
-
-    def _schedule_invalid_timer(self, req_id: int) -> None:
-        timeout = cfg_get("BID_ASK_TIMEOUT", 5)
-        if timeout <= 0:
-            self._retry_or_invalidate(req_id)
-            return
-        timer = threading.Timer(timeout, self._retry_or_invalidate, args=[req_id])
-        timer.daemon = True
-        with self.data_lock:
-            if req_id in self._invalid_timers:
-                return
-            self._invalid_timers[req_id] = timer
-            self._request_retries.setdefault(req_id, self._retry_rounds)
-            timer.start()
-
-    def incomplete_requests(self) -> list[int]:
-        """Return request IDs missing essential market data."""
-        if self.use_hist_iv:
-            required = ["iv", "close"]
-        else:
-            required = ["bid", "ask", "iv", "delta", "gamma", "vega", "theta"]
-        with self.data_lock:
-            return [
-                rid
-                for rid, rec in self.market_data.items()
-                if rid not in self.invalid_contracts
-                and any(rec.get(k) is None for k in required)
-            ]
+    # Timer management methods are inherited from RequestTimerManager:
+    # - _mark_complete, _invalidate_request, _retry_or_invalidate
+    # - _cancel_invalid_timer, _schedule_invalid_timer
+    # - incomplete_requests, all_data_received
+    # - _start_max_data_timer, _stop_max_data_timer
 
     async def retry_incomplete_requests_async(
         self,
@@ -634,34 +471,6 @@ class OptionChainClientLegacy(MarketClient):
         return asyncio.run(
             self.retry_incomplete_requests_async(ids, wait=wait, use_new_id=use_new_id)
         )
-
-    def all_data_received(self) -> bool:
-        """Return ``True`` when all requested option data has been received."""
-        return self.all_data_event.is_set()
-
-    def _start_max_data_timer(self) -> None:
-        limit = int(cfg_get("OPTION_MAX_MARKETDATA_TIME", 0))
-        if limit <= 0 or self._max_data_timer is not None:
-            return
-
-        def timeout() -> None:
-            missing = self.incomplete_requests()
-            if missing:
-                logger.warning(
-                    f"⚠️ Hard timeout na {limit}s: {len(missing)} contracten ontbreken"
-                )
-            self.all_data_event.set()
-
-        timer = threading.Timer(limit, timeout)
-        timer.daemon = True
-        self._max_data_timer = timer
-        timer.start()
-
-    def _stop_max_data_timer(self) -> None:
-        timer = self._max_data_timer
-        if timer is not None:
-            timer.cancel()
-            self._max_data_timer = None
 
     def _merge_historical_data(
         self,
@@ -1788,4 +1597,9 @@ __all__ = [
     "await_market_data",
     "compute_iv_term_structure",
     "fetch_market_metrics",
+    # Re-exported from market_client_utils for backward compatibility
+    "contract_repr",
+    "is_market_open",
+    "market_hours_today",
+    "DATA_TYPE_DESCRIPTIONS",
 ]
