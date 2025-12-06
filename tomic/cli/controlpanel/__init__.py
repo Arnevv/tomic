@@ -230,6 +230,12 @@ def _open_settings_menu(session: ControlPanelSession, services: ControlPanelServ
     _sync_state()
 
 
+def _open_symbol_menu(session: ControlPanelSession, services: ControlPanelServices) -> None:
+    from tomic.cli.symbol_menu import run_symbol_menu
+
+    run_symbol_menu()
+
+
 ROOT_SECTIONS: list[MenuSection] = [
     MenuSection(
         "Analyse & Strategie",
@@ -241,6 +247,12 @@ ROOT_SECTIONS: list[MenuSection] = [
         "Data & Marktdata",
         [
             MenuItem("Data-exporteurs", _open_data_menu),
+        ],
+    ),
+    MenuSection(
+        "Symbolen & Basket",
+        [
+            MenuItem("Symbolen beheren", _open_symbol_menu),
         ],
     ),
     MenuSection(

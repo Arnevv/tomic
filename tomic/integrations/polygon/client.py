@@ -146,3 +146,62 @@ class PolygonClient(MarketDataProvider):
             return float(price) if price is not None else None
         except Exception:
             return None
+
+    def fetch_ticker_details(self, symbol: str) -> Dict[str, Any]:
+        """Fetch ticker details including sector and industry information.
+
+        Args:
+            symbol: Stock ticker symbol.
+
+        Returns:
+            Dictionary with ticker details including:
+            - name: Company name
+            - market: Market type (stocks, otc, etc.)
+            - locale: Market locale
+            - primary_exchange: Primary exchange
+            - type: Security type
+            - sic_code: SIC industry code
+            - sic_description: SIC industry description
+            - market_cap: Market capitalization
+        """
+        try:
+            data = self._request(f"v3/reference/tickers/{symbol.upper()}")
+            results = data.get("results", {})
+
+            return {
+                "symbol": symbol.upper(),
+                "name": results.get("name"),
+                "market": results.get("market"),
+                "locale": results.get("locale"),
+                "primary_exchange": results.get("primary_exchange"),
+                "type": results.get("type"),
+                "sic_code": results.get("sic_code"),
+                "sic_description": results.get("sic_description"),
+                "market_cap": results.get("market_cap"),
+                "currency": results.get("currency_name"),
+            }
+        except Exception as exc:
+            logger.warning(f"Failed to fetch ticker details for {symbol}: {exc}")
+            return {"symbol": symbol.upper()}
+
+    def fetch_ticker_details_batch(
+        self, symbols: List[str]
+    ) -> Dict[str, Dict[str, Any]]:
+        """Fetch ticker details for multiple symbols.
+
+        Args:
+            symbols: List of stock ticker symbols.
+
+        Returns:
+            Dictionary mapping symbol to ticker details.
+        """
+        results = {}
+        sleep_time = cfg.get("POLYGON_SLEEP_BETWEEN", 1.2)
+
+        for i, symbol in enumerate(symbols):
+            results[symbol.upper()] = self.fetch_ticker_details(symbol)
+            # Rate limiting between requests
+            if i < len(symbols) - 1:
+                time.sleep(sleep_time)
+
+        return results
