@@ -3900,5 +3900,35 @@
     "close": 136.48,
     "volume": 2184748.0,
     "atr": null
+  },
+  {
+    "symbol": "ARM",
+    "date": "2025-12-03",
+    "open": 137.36,
+    "high": 139.56,
+    "low": 135.8075,
+    "close": 139.19,
+    "volume": 2151977.0,
+    "atr": null
+  },
+  {
+    "symbol": "ARM",
+    "date": "2025-12-04",
+    "open": 139.695,
+    "high": 141.3999,
+    "low": 138.2179,
+    "close": 140.47,
+    "volume": 1811521.0,
+    "atr": null
+  },
+  {
+    "symbol": "ARM",
+    "date": "2025-12-05",
+    "open": 143.21,
+    "high": 144.25,
+    "low": 140.49,
+    "close": 141.31,
+    "volume": 2445139.0,
+    "atr": null
   }
 ]

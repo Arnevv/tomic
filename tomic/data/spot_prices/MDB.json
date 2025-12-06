@@ -8940,5 +8940,35 @@
     "close": 401.99,
     "volume": 9487423.0,
     "atr": null
+  },
+  {
+    "symbol": "MDB",
+    "date": "2025-12-03",
+    "open": 404.785,
+    "high": 411.45,
+    "low": 396.37,
+    "close": 405.94,
+    "volume": 2574040.0,
+    "atr": null
+  },
+  {
+    "symbol": "MDB",
+    "date": "2025-12-04",
+    "open": 405.62,
+    "high": 407.52,
+    "low": 394,
+    "close": 396.34,
+    "volume": 2149114.0,
+    "atr": null
+  },
+  {
+    "symbol": "MDB",
+    "date": "2025-12-05",
+    "open": 397.39,
+    "high": 411.24,
+    "low": 393.53,
+    "close": 409.62,
+    "volume": 2100893.0,
+    "atr": null
   }
 ]

@@ -8940,5 +8940,35 @@
     "close": 381.57,
     "volume": 22204322.0,
     "atr": null
+  },
+  {
+    "symbol": "AVGO",
+    "date": "2025-12-03",
+    "open": 380,
+    "high": 382.3,
+    "low": 370.65,
+    "close": 380.61,
+    "volume": 21335804.0,
+    "atr": null
+  },
+  {
+    "symbol": "AVGO",
+    "date": "2025-12-04",
+    "open": 380.68,
+    "high": 383.89,
+    "low": 376.53,
+    "close": 381.33,
+    "volume": 11476349.0,
+    "atr": null
+  },
+  {
+    "symbol": "AVGO",
+    "date": "2025-12-05",
+    "open": 386.165,
+    "high": 393.53,
+    "low": 385.1452,
+    "close": 390.24,
+    "volume": 24777937.0,
+    "atr": null
   }
 ]

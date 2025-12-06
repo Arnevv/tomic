@@ -8940,5 +8940,35 @@
     "close": 156.48,
     "volume": 5738746.0,
     "atr": null
+  },
+  {
+    "symbol": "DDOG",
+    "date": "2025-12-03",
+    "open": 156.14,
+    "high": 156.3899,
+    "low": 153.19,
+    "close": 155.83,
+    "volume": 3728654.0,
+    "atr": null
+  },
+  {
+    "symbol": "DDOG",
+    "date": "2025-12-04",
+    "open": 155.18,
+    "high": 155.72,
+    "low": 151.66,
+    "close": 153.025,
+    "volume": 2790963.0,
+    "atr": null
+  },
+  {
+    "symbol": "DDOG",
+    "date": "2025-12-05",
+    "open": 153,
+    "high": 153.05,
+    "low": 150.075,
+    "close": 151.41,
+    "volume": 6440928.0,
+    "atr": null
   }
 ]

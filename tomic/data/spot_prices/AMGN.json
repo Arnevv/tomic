@@ -9017,5 +9017,35 @@
     "close": 338.36,
     "volume": 2446768.0,
     "atr": null
+  },
+  {
+    "symbol": "AMGN",
+    "date": "2025-12-03",
+    "open": 340.54,
+    "high": 346.38,
+    "low": 338.85,
+    "close": 345.42,
+    "volume": 2839372.0,
+    "atr": null
+  },
+  {
+    "symbol": "AMGN",
+    "date": "2025-12-04",
+    "open": 344.23,
+    "high": 346.33,
+    "low": 338.94,
+    "close": 340.325,
+    "volume": 2854416.0,
+    "atr": null
+  },
+  {
+    "symbol": "AMGN",
+    "date": "2025-12-05",
+    "open": 340.36,
+    "high": 340.88,
+    "low": 328.63,
+    "close": 329.89,
+    "volume": 2897745.0,
+    "atr": null
   }
 ]

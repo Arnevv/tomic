@@ -42,6 +42,10 @@ class EntryRulesConfig(BaseModel):
     dte_min: Optional[int] = None
     dte_max: Optional[int] = None
 
+    # Earnings-related filters
+    min_days_until_earnings: Optional[int] = None  # Minimum days before earnings to enter
+    exclude_expiry_before_earnings: bool = False   # Reject if expiry is after earnings date
+
     model_config = ConfigDict(extra="allow")
 
 

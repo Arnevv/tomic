@@ -9017,5 +9017,35 @@
     "close": 224.37,
     "volume": 5096774.0,
     "atr": null
+  },
+  {
+    "symbol": "ABBV",
+    "date": "2025-12-03",
+    "open": 224.84,
+    "high": 230.79,
+    "low": 224.52,
+    "close": 230.24,
+    "volume": 4873148.0,
+    "atr": null
+  },
+  {
+    "symbol": "ABBV",
+    "date": "2025-12-04",
+    "open": 230.11,
+    "high": 230.94,
+    "low": 227.59,
+    "close": 228.71,
+    "volume": 3732920.0,
+    "atr": null
+  },
+  {
+    "symbol": "ABBV",
+    "date": "2025-12-05",
+    "open": 228.93,
+    "high": 229.25,
+    "low": 225.05,
+    "close": 226.08,
+    "volume": 3985141.0,
+    "atr": null
   }
 ]

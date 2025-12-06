@@ -36,6 +36,7 @@ class SignalGenerator:
         iv_data: Dict[str, IVTimeSeries],
         trading_date: date,
         open_positions: Dict[str, bool],
+        earnings_data: Optional[Dict[str, date]] = None,
     ) -> List[EntrySignal]:
         """Scan all symbols for entry signals on a given date.
 
@@ -43,11 +44,13 @@ class SignalGenerator:
             iv_data: Dictionary of symbol -> IVTimeSeries
             trading_date: Date to check for signals
             open_positions: Dict of symbol -> True if position is open
+            earnings_data: Dict of symbol -> next earnings date (optional)
 
         Returns:
             List of EntrySignal objects for symbols meeting criteria.
         """
         signals = []
+        earnings_data = earnings_data or {}
 
         for symbol, ts in iv_data.items():
             # Skip if we already have a position in this symbol
@@ -59,12 +62,42 @@ class SignalGenerator:
             if data_point is None or not data_point.is_valid():
                 continue
 
+            # Check earnings constraint
+            next_earnings = earnings_data.get(symbol)
+            if not self._check_earnings_constraint(trading_date, next_earnings):
+                continue
+
             # Check if entry criteria are met
             signal = self._evaluate_entry(data_point)
             if signal is not None:
                 signals.append(signal)
 
         return signals
+
+    def _check_earnings_constraint(
+        self, trading_date: date, next_earnings: Optional[date]
+    ) -> bool:
+        """Check if earnings constraint is satisfied.
+
+        Args:
+            trading_date: Current trading date
+            next_earnings: Next earnings date for the symbol (None if unknown)
+
+        Returns:
+            True if constraint is satisfied, False if entry should be rejected.
+        """
+        if next_earnings is None:
+            return True  # No earnings data - allow entry
+
+        rules = self.entry_rules
+        min_days = rules.min_days_until_earnings
+
+        if min_days is not None and min_days > 0:
+            days_until = (next_earnings - trading_date).days
+            if days_until < min_days:
+                return False  # Too close to earnings
+
+        return True
 
     def _evaluate_entry(self, dp: IVDataPoint) -> Optional[EntrySignal]:
         """Evaluate if a data point meets entry criteria.
@@ -234,6 +267,7 @@ class CalendarSignalGenerator:
         iv_data: Dict[str, IVTimeSeries],
         trading_date: date,
         open_positions: Dict[str, bool],
+        earnings_data: Optional[Dict[str, date]] = None,
     ) -> List[EntrySignal]:
         """Scan all symbols for calendar entry signals on a given date.
 
@@ -241,11 +275,13 @@ class CalendarSignalGenerator:
             iv_data: Dictionary of symbol -> IVTimeSeries
             trading_date: Date to check for signals
             open_positions: Dict of symbol -> True if position is open
+            earnings_data: Dict of symbol -> next earnings date (optional)
 
         Returns:
             List of EntrySignal objects for symbols meeting calendar criteria.
         """
         signals = []
+        earnings_data = earnings_data or {}
 
         for symbol, ts in iv_data.items():
             # Skip if we already have a position in this symbol
@@ -257,12 +293,42 @@ class CalendarSignalGenerator:
             if data_point is None or not data_point.is_valid():
                 continue
 
+            # Check earnings constraint
+            next_earnings = earnings_data.get(symbol)
+            if not self._check_earnings_constraint(trading_date, next_earnings):
+                continue
+
             # Check if calendar entry criteria are met
             signal = self._evaluate_calendar_entry(data_point)
             if signal is not None:
                 signals.append(signal)
 
         return signals
+
+    def _check_earnings_constraint(
+        self, trading_date: date, next_earnings: Optional[date]
+    ) -> bool:
+        """Check if earnings constraint is satisfied.
+
+        Args:
+            trading_date: Current trading date
+            next_earnings: Next earnings date for the symbol (None if unknown)
+
+        Returns:
+            True if constraint is satisfied, False if entry should be rejected.
+        """
+        if next_earnings is None:
+            return True  # No earnings data - allow entry
+
+        rules = self.entry_rules
+        min_days = rules.min_days_until_earnings
+
+        if min_days is not None and min_days > 0:
+            days_until = (next_earnings - trading_date).days
+            if days_until < min_days:
+                return False  # Too close to earnings
+
+        return True
 
     def _evaluate_calendar_entry(self, dp: IVDataPoint) -> Optional[EntrySignal]:
         """Evaluate if a data point meets calendar entry criteria.

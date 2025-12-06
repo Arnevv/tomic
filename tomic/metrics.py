@@ -80,7 +80,7 @@ def _option_direction(leg: Mapping[str, Any]) -> int:
     if pos is not None:
         try:
             return 1 if float(pos) > 0 else -1
-        except Exception:
+        except (TypeError, ValueError):
             return 1
     return 1
 
@@ -109,7 +109,7 @@ def get_signed_position(leg: Mapping[str, Any]) -> float:
 
     try:
         qty = get_leg_qty(leg)
-    except Exception:
+    except (TypeError, ValueError, KeyError):
         qty = 1.0
     direction = _option_direction(leg)
     return direction * qty
@@ -153,7 +153,7 @@ def aggregate_greeks(
     for leg in legs:
         try:
             qty_raw = schema.quantity_getter(leg)
-        except Exception:
+        except (TypeError, ValueError, KeyError, AttributeError):
             qty_raw = None
         qty = safe_float(qty_raw)
         if qty in (None, 0.0):
@@ -163,7 +163,7 @@ def aggregate_greeks(
         if schema.multiplier_getter is not None:
             try:
                 mult_val = schema.multiplier_getter(leg)
-            except Exception:
+            except (TypeError, ValueError, KeyError, AttributeError):
                 mult_val = None
             mult_float = safe_float(mult_val)
             if mult_float not in (None, 0.0):
@@ -240,7 +240,7 @@ def iter_leg_views(
         if abs_qty == 0:
             try:
                 abs_qty = float(get_leg_qty(leg))
-            except Exception:
+            except (TypeError, ValueError, KeyError):
                 abs_qty = 0.0
 
         mid, resolved_source, resolved_quote_age = resolver(leg)

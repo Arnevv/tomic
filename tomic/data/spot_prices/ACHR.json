@@ -7400,5 +7400,35 @@
     "close": 7.65,
     "volume": 45435932.0,
     "atr": null
+  },
+  {
+    "symbol": "ACHR",
+    "date": "2025-12-03",
+    "open": 7.67,
+    "high": 8.35,
+    "low": 7.55,
+    "close": 8.35,
+    "volume": 47736024.0,
+    "atr": null
+  },
+  {
+    "symbol": "ACHR",
+    "date": "2025-12-04",
+    "open": 8.3,
+    "high": 9.06,
+    "low": 8.23,
+    "close": 8.95,
+    "volume": 66898121.0,
+    "atr": null
+  },
+  {
+    "symbol": "ACHR",
+    "date": "2025-12-05",
+    "open": 8.8,
+    "high": 8.95,
+    "low": 8.57,
+    "close": 8.6,
+    "volume": 40676469.0,
+    "atr": null
   }
 ]

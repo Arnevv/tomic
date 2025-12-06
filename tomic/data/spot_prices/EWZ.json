@@ -8940,5 +8940,35 @@
     "close": 34.03,
     "volume": 25694509.0,
     "atr": null
+  },
+  {
+    "symbol": "EWZ",
+    "date": "2025-12-03",
+    "open": 34.165,
+    "high": 34.34,
+    "low": 34.0401,
+    "close": 34.2,
+    "volume": 20849208.0,
+    "atr": null
+  },
+  {
+    "symbol": "EWZ",
+    "date": "2025-12-04",
+    "open": 34.7,
+    "high": 34.8,
+    "low": 34.545,
+    "close": 34.72,
+    "volume": 34975708.0,
+    "atr": null
+  },
+  {
+    "symbol": "EWZ",
+    "date": "2025-12-05",
+    "open": 34.57,
+    "high": 34.695,
+    "low": 32.43,
+    "close": 32.53,
+    "volume": 135365364.0,
+    "atr": null
   }
 ]

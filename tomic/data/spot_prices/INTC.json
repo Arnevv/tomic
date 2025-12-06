@@ -9017,5 +9017,35 @@
     "close": 43.47,
     "volume": 167121458.0,
     "atr": null
+  },
+  {
+    "symbol": "INTC",
+    "date": "2025-12-03",
+    "open": 43.385,
+    "high": 44.02,
+    "low": 42.51,
+    "close": 43.76,
+    "volume": 91797622.0,
+    "atr": null
+  },
+  {
+    "symbol": "INTC",
+    "date": "2025-12-04",
+    "open": 43.26,
+    "high": 43.2801,
+    "low": 40.14,
+    "close": 40.375,
+    "volume": 97084898.0,
+    "atr": null
+  },
+  {
+    "symbol": "INTC",
+    "date": "2025-12-05",
+    "open": 41.155,
+    "high": 42.83,
+    "low": 41.15,
+    "close": 41.41,
+    "volume": 102936122.0,
+    "atr": null
   }
 ]

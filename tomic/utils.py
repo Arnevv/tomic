@@ -250,6 +250,25 @@ def get_leg_qty(leg: dict) -> float:
     )
 
 
+def get_signed_position(leg: dict) -> int:
+    """Return signed position for ``leg``.
+
+    The position may be specified under the ``"position"``, ``"qty"`` or
+    ``"quantity"`` keys. Positive values indicate long positions, negative
+    values indicate short positions. If none of these keys are present, a
+    default of ``1`` (long) is assumed.
+    """
+
+    for key in ("position", "qty", "quantity"):
+        val = leg.get(key)
+        if val is not None:
+            try:
+                return int(float(val))
+            except (TypeError, ValueError):
+                continue
+    return 1
+
+
 def latest_atr(symbol: str) -> float | None:
     """Return the most recent ATR value for ``symbol`` from price history."""
 

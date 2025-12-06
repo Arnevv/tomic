@@ -8940,5 +8940,35 @@
     "close": 78.22,
     "volume": 5897518.0,
     "atr": null
+  },
+  {
+    "symbol": "ARKK",
+    "date": "2025-12-03",
+    "open": 78.35,
+    "high": 80.94,
+    "low": 77.9025,
+    "close": 80.75,
+    "volume": 8186453.0,
+    "atr": null
+  },
+  {
+    "symbol": "ARKK",
+    "date": "2025-12-04",
+    "open": 80.7,
+    "high": 82.8,
+    "low": 80.07,
+    "close": 82.65,
+    "volume": 9298760.0,
+    "atr": null
+  },
+  {
+    "symbol": "ARKK",
+    "date": "2025-12-05",
+    "open": 82.21,
+    "high": 82.81,
+    "low": 81.67,
+    "close": 81.91,
+    "volume": 8022931.0,
+    "atr": null
   }
 ]

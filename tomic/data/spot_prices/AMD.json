@@ -9017,5 +9017,35 @@
     "close": 215.24,
     "volume": 41999404.0,
     "atr": null
+  },
+  {
+    "symbol": "AMD",
+    "date": "2025-12-03",
+    "open": 216.26,
+    "high": 218.2,
+    "low": 211.7686,
+    "close": 217.6,
+    "volume": 28542674.0,
+    "atr": null
+  },
+  {
+    "symbol": "AMD",
+    "date": "2025-12-04",
+    "open": 216.875,
+    "high": 219.12,
+    "low": 214.14,
+    "close": 215.86,
+    "volume": 22052946.0,
+    "atr": null
+  },
+  {
+    "symbol": "AMD",
+    "date": "2025-12-05",
+    "open": 217.165,
+    "high": 223.642,
+    "low": 216.24,
+    "close": 217.97,
+    "volume": 33289258.0,
+    "atr": null
   }
 ]

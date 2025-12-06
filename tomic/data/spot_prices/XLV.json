@@ -8800,5 +8800,35 @@
     "close": 154.36,
     "volume": 16120508.0,
     "atr": null
+  },
+  {
+    "symbol": "XLV",
+    "date": "2025-12-03",
+    "open": 154.67,
+    "high": 155.78,
+    "low": 154.66,
+    "close": 155.08,
+    "volume": 12699294.0,
+    "atr": null
+  },
+  {
+    "symbol": "XLV",
+    "date": "2025-12-04",
+    "open": 155,
+    "high": 155.03,
+    "low": 153.3701,
+    "close": 153.9,
+    "volume": 13635100.0,
+    "atr": null
+  },
+  {
+    "symbol": "XLV",
+    "date": "2025-12-05",
+    "open": 154.45,
+    "high": 154.63,
+    "low": 152.96,
+    "close": 153.26,
+    "volume": 8850025.0,
+    "atr": null
   }
 ]

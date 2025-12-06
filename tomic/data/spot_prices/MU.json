@@ -9017,5 +9017,35 @@
     "close": 239.49,
     "volume": 18165621.0,
     "atr": null
+  },
+  {
+    "symbol": "MU",
+    "date": "2025-12-03",
+    "open": 236.39,
+    "high": 237.8,
+    "low": 228.09,
+    "close": 234.16,
+    "volume": 19186725.0,
+    "atr": null
+  },
+  {
+    "symbol": "MU",
+    "date": "2025-12-04",
+    "open": 230.28,
+    "high": 234.16,
+    "low": 223.33,
+    "close": 225.9151,
+    "volume": 19968047.0,
+    "atr": null
+  },
+  {
+    "symbol": "MU",
+    "date": "2025-12-05",
+    "open": 228.945,
+    "high": 240.57,
+    "low": 226.685,
+    "close": 237.22,
+    "volume": 21159560.0,
+    "atr": null
   }
 ]

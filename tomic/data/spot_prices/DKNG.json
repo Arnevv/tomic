@@ -8800,5 +8800,35 @@
     "close": 33.61,
     "volume": 10608029.0,
     "atr": null
+  },
+  {
+    "symbol": "DKNG",
+    "date": "2025-12-03",
+    "open": 33.65,
+    "high": 34.79,
+    "low": 33.61,
+    "close": 34.55,
+    "volume": 11867551.0,
+    "atr": null
+  },
+  {
+    "symbol": "DKNG",
+    "date": "2025-12-04",
+    "open": 34.49,
+    "high": 35.69,
+    "low": 34.03,
+    "close": 35.24,
+    "volume": 15795564.0,
+    "atr": null
+  },
+  {
+    "symbol": "DKNG",
+    "date": "2025-12-05",
+    "open": 35.23,
+    "high": 35.84,
+    "low": 33.73,
+    "close": 34,
+    "volume": 19337585.0,
+    "atr": null
   }
 ]

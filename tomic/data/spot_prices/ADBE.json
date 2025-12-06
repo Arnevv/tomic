@@ -8940,5 +8940,35 @@
     "close": 322.81,
     "volume": 3959213.0,
     "atr": null
+  },
+  {
+    "symbol": "ADBE",
+    "date": "2025-12-03",
+    "open": 321.98,
+    "high": 326.99,
+    "low": 320.63,
+    "close": 326.78,
+    "volume": 3082182.0,
+    "atr": null
+  },
+  {
+    "symbol": "ADBE",
+    "date": "2025-12-04",
+    "open": 328.57,
+    "high": 330.89,
+    "low": 324.12,
+    "close": 328.74,
+    "volume": 2942906.0,
+    "atr": null
+  },
+  {
+    "symbol": "ADBE",
+    "date": "2025-12-05",
+    "open": 330.6,
+    "high": 348.59,
+    "low": 329.71,
+    "close": 346.26,
+    "volume": 7650266.0,
+    "atr": null
   }
 ]

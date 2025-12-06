@@ -8800,5 +8800,35 @@
     "close": 98.26,
     "volume": 2717930.0,
     "atr": null
+  },
+  {
+    "symbol": "ROKU",
+    "date": "2025-12-03",
+    "open": 97.35,
+    "high": 97.59,
+    "low": 91.77,
+    "close": 92.98,
+    "volume": 4452800.0,
+    "atr": null
+  },
+  {
+    "symbol": "ROKU",
+    "date": "2025-12-04",
+    "open": 93.52,
+    "high": 95.95,
+    "low": 91.655,
+    "close": 94.53,
+    "volume": 2897949.0,
+    "atr": null
+  },
+  {
+    "symbol": "ROKU",
+    "date": "2025-12-05",
+    "open": 93,
+    "high": 101.29,
+    "low": 92.88,
+    "close": 100.09,
+    "volume": 4984244.0,
+    "atr": null
   }
 ]

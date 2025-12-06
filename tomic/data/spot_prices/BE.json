@@ -8940,5 +8940,35 @@
     "close": 105,
     "volume": 15928989.0,
     "atr": null
+  },
+  {
+    "symbol": "BE",
+    "date": "2025-12-03",
+    "open": 102.425,
+    "high": 104.7,
+    "low": 99.12,
+    "close": 102.5,
+    "volume": 8390759.0,
+    "atr": null
+  },
+  {
+    "symbol": "BE",
+    "date": "2025-12-04",
+    "open": 102.92,
+    "high": 119.6399,
+    "low": 101.54,
+    "close": 118.09,
+    "volume": 20119310.0,
+    "atr": null
+  },
+  {
+    "symbol": "BE",
+    "date": "2025-12-05",
+    "open": 115.5,
+    "high": 119.825,
+    "low": 112.53,
+    "close": 119.18,
+    "volume": 13591210.0,
+    "atr": null
   }
 ]

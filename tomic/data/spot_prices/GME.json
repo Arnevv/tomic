@@ -8940,5 +8940,35 @@
     "close": 22.81,
     "volume": 8085525.0,
     "atr": null
+  },
+  {
+    "symbol": "GME",
+    "date": "2025-12-03",
+    "open": 22.91,
+    "high": 23.28,
+    "low": 22.715,
+    "close": 23.21,
+    "volume": 11060742.0,
+    "atr": null
+  },
+  {
+    "symbol": "GME",
+    "date": "2025-12-04",
+    "open": 23.26,
+    "high": 23.47,
+    "low": 22.645,
+    "close": 22.95,
+    "volume": 7180827.0,
+    "atr": null
+  },
+  {
+    "symbol": "GME",
+    "date": "2025-12-05",
+    "open": 23,
+    "high": 23.07,
+    "low": 22.53,
+    "close": 23,
+    "volume": 5676390.0,
+    "atr": null
   }
 ]

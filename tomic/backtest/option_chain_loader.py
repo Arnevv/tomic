@@ -28,16 +28,19 @@ class OptionQuote:
     strike: float
     option_type: str  # 'C' or 'P'
 
-    # Pricing
+    # Pricing (from ORATS: cBidPx, cAskPx, pBidPx, pAskPx, cValue, pValue)
     bid: Optional[float] = None
     ask: Optional[float] = None
     mid: Optional[float] = None
+    theoretical_value: Optional[float] = None  # cValue/pValue from ORATS
 
-    # Greeks
+    # Greeks (from ORATS: delta, gamma, theta, vega, rho, phi)
     delta: Optional[float] = None
     gamma: Optional[float] = None
     vega: Optional[float] = None
     theta: Optional[float] = None
+    rho: Optional[float] = None
+    phi: Optional[float] = None
     iv: Optional[float] = None
 
     # Underlying
@@ -336,6 +339,91 @@ class OptionChain:
             if min_dte <= opt.dte() <= max_dte
         ]
 
+    def filter_by_liquidity(
+        self,
+        min_volume: int = 0,
+        min_open_interest: int = 10,
+    ) -> List[OptionQuote]:
+        """Filter options by liquidity criteria.
+
+        Args:
+            min_volume: Minimum daily volume (0 = no filter)
+            min_open_interest: Minimum open interest (default 10)
+
+        Returns:
+            List of options meeting liquidity criteria.
+        """
+        return [
+            opt for opt in self.options
+            if (opt.volume is None or opt.volume >= min_volume)
+            and (opt.open_interest is None or opt.open_interest >= min_open_interest)
+        ]
+
+    def filter_by_spread(
+        self,
+        max_spread_pct: float = 20.0,
+    ) -> List[OptionQuote]:
+        """Filter options by bid-ask spread.
+
+        Args:
+            max_spread_pct: Maximum spread as percentage of mid price
+
+        Returns:
+            List of options with acceptable spreads.
+        """
+        result = []
+        for opt in self.options:
+            if opt.spread_pct is None:
+                # Include if we can't calculate spread
+                result.append(opt)
+            elif opt.spread_pct <= max_spread_pct:
+                result.append(opt)
+        return result
+
+    def get_liquid_options(
+        self,
+        min_open_interest: int = 10,
+        max_spread_pct: float = 20.0,
+    ) -> List[OptionQuote]:
+        """Get options that meet liquidity and spread criteria.
+
+        Args:
+            min_open_interest: Minimum open interest
+            max_spread_pct: Maximum spread as percentage of mid
+
+        Returns:
+            List of liquid options with reasonable spreads.
+        """
+        return [
+            opt for opt in self.options
+            if (opt.open_interest is None or opt.open_interest >= min_open_interest)
+            and (opt.spread_pct is None or opt.spread_pct <= max_spread_pct)
+        ]
+
+    def liquidity_stats(self) -> Dict[str, Any]:
+        """Get statistics about data quality and liquidity.
+
+        Returns:
+            Dict with stats about real prices, spreads, volume, etc.
+        """
+        if not self.options:
+            return {}
+
+        real_prices_count = sum(1 for o in self.options if o.has_real_prices)
+        spreads = [o.spread_pct for o in self.options if o.spread_pct is not None]
+        volumes = [o.volume for o in self.options if o.volume is not None]
+        oi_values = [o.open_interest for o in self.options if o.open_interest is not None]
+
+        return {
+            "total_options": len(self.options),
+            "real_prices_count": real_prices_count,
+            "real_prices_pct": round(100 * real_prices_count / len(self.options), 1),
+            "avg_spread_pct": round(sum(spreads) / len(spreads), 2) if spreads else None,
+            "median_spread_pct": round(sorted(spreads)[len(spreads) // 2], 2) if spreads else None,
+            "avg_volume": round(sum(volumes) / len(volumes)) if volumes else None,
+            "avg_open_interest": round(sum(oi_values) / len(oi_values)) if oi_values else None,
+        }
+
     def get_calls(self, expiry: Optional[date] = None) -> List[OptionQuote]:
         """Get all call options, optionally filtered by expiry."""
         calls = [opt for opt in self.options if opt.option_type == 'C']
@@ -616,7 +704,7 @@ class OptionChainLoader:
         """
         prefix = "c" if option_type == "C" else "p"
 
-        # Get IV
+        # Get IV (mid, bid, ask)
         iv = self._safe_float(row.get(f"{prefix}MidIv"))
 
         # Get real bid/ask prices from ORATS (cBidPx, cAskPx, pBidPx, pAskPx)
@@ -696,7 +784,8 @@ class OptionChainLoader:
             return None
 
         # Normalize IV
-        sigma = iv if iv < 1 else iv / 100
+        # Use threshold of 2 to handle high-IV stocks (IV > 200% is unrealistic)
+        sigma = iv if iv <= 2 else iv / 100
 
         # Simplified price estimation based on IV and moneyness
         time_factor = (dte / 365) ** 0.5

@@ -212,7 +212,7 @@ class MetricsCalculator:
         variance = sum((r - mean_r) ** 2 for r in r_multiples) / len(r_multiples)
         std_r = math.sqrt(variance)
 
-        if std_r == 0:
+        if std_r < 1e-10:  # Use epsilon comparison for float
             return 0.0
 
         # SQN = √N × (Mean R / Std R)
@@ -320,7 +320,7 @@ class MetricsCalculator:
         mean_return = sum(returns) / len(returns)
         volatility = self._calculate_volatility(returns, equity_curve) / 100
 
-        if volatility == 0:
+        if volatility < 1e-10:  # Use epsilon comparison for float
             return 0
 
         # Annualize mean return based on actual trading period
@@ -349,7 +349,7 @@ class MetricsCalculator:
         downside_variance = sum(r ** 2 for r in negative_returns) / len(returns)
         downside_dev = math.sqrt(downside_variance)
 
-        if downside_dev == 0:
+        if downside_dev < 1e-10:  # Use epsilon comparison for float
             return float("inf")
 
         # Annualize based on actual trading period

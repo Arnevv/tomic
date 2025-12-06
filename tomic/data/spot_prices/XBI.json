@@ -8800,5 +8800,35 @@
     "close": 118.46,
     "volume": 21972198.0,
     "atr": null
+  },
+  {
+    "symbol": "XBI",
+    "date": "2025-12-03",
+    "open": 118.76,
+    "high": 121.955,
+    "low": 118.74,
+    "close": 121.83,
+    "volume": 10770118.0,
+    "atr": null
+  },
+  {
+    "symbol": "XBI",
+    "date": "2025-12-04",
+    "open": 121.22,
+    "high": 123.61,
+    "low": 120.78,
+    "close": 123.25,
+    "volume": 10924713.0,
+    "atr": null
+  },
+  {
+    "symbol": "XBI",
+    "date": "2025-12-05",
+    "open": 123.77,
+    "high": 124.18,
+    "low": 122.69,
+    "close": 123.41,
+    "volume": 7523693.0,
+    "atr": null
   }
 ]

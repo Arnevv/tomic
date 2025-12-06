@@ -9017,5 +9017,35 @@
     "close": 182.4,
     "volume": 2362239.0,
     "atr": null
+  },
+  {
+    "symbol": "LULU",
+    "date": "2025-12-03",
+    "open": 182.66,
+    "high": 185.07,
+    "low": 178.9,
+    "close": 182.3,
+    "volume": 2742215.0,
+    "atr": null
+  },
+  {
+    "symbol": "LULU",
+    "date": "2025-12-04",
+    "open": 182.71,
+    "high": 184.9,
+    "low": 179.5935,
+    "close": 183.6,
+    "volume": 2515625.0,
+    "atr": null
+  },
+  {
+    "symbol": "LULU",
+    "date": "2025-12-05",
+    "open": 184.62,
+    "high": 191.85,
+    "low": 184.62,
+    "close": 190.01,
+    "volume": 4641529.0,
+    "atr": null
   }
 ]

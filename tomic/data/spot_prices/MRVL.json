@@ -8940,5 +8940,35 @@
     "close": 92.89,
     "volume": 38227426.0,
     "atr": null
+  },
+  {
+    "symbol": "MRVL",
+    "date": "2025-12-03",
+    "open": 100.035,
+    "high": 102.11,
+    "low": 95.79,
+    "close": 100.2,
+    "volume": 52829637.0,
+    "atr": null
+  },
+  {
+    "symbol": "MRVL",
+    "date": "2025-12-04",
+    "open": 99.405,
+    "high": 102.77,
+    "low": 97.18,
+    "close": 97.53,
+    "volume": 18209794.0,
+    "atr": null
+  },
+  {
+    "symbol": "MRVL",
+    "date": "2025-12-05",
+    "open": 100.4,
+    "high": 102.64,
+    "low": 97.31,
+    "close": 98.91,
+    "volume": 22218585.0,
+    "atr": null
   }
 ]

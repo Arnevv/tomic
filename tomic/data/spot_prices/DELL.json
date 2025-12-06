@@ -8940,5 +8940,35 @@
     "close": 135.95,
     "volume": 6981263.0,
     "atr": null
+  },
+  {
+    "symbol": "DELL",
+    "date": "2025-12-03",
+    "open": 135.4,
+    "high": 136.105,
+    "low": 133.24,
+    "close": 133.63,
+    "volume": 5632232.0,
+    "atr": null
+  },
+  {
+    "symbol": "DELL",
+    "date": "2025-12-04",
+    "open": 134,
+    "high": 139.31,
+    "low": 132.61,
+    "close": 138.99,
+    "volume": 6857240.0,
+    "atr": null
+  },
+  {
+    "symbol": "DELL",
+    "date": "2025-12-05",
+    "open": 138.95,
+    "high": 139.2,
+    "low": 136.11,
+    "close": 138.91,
+    "volume": 5001362.0,
+    "atr": null
   }
 ]

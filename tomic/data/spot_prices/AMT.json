@@ -9017,5 +9017,35 @@
     "close": 175.81,
     "volume": 2467106.0,
     "atr": null
+  },
+  {
+    "symbol": "AMT",
+    "date": "2025-12-03",
+    "open": 176.03,
+    "high": 176.77,
+    "low": 174.35,
+    "close": 176.18,
+    "volume": 2692655.0,
+    "atr": null
+  },
+  {
+    "symbol": "AMT",
+    "date": "2025-12-04",
+    "open": 175.57,
+    "high": 179.105,
+    "low": 175.4,
+    "close": 178.83,
+    "volume": 2804189.0,
+    "atr": null
+  },
+  {
+    "symbol": "AMT",
+    "date": "2025-12-05",
+    "open": 178.82,
+    "high": 180.365,
+    "low": 178.1,
+    "close": 178.86,
+    "volume": 2998112.0,
+    "atr": null
   }
 ]
