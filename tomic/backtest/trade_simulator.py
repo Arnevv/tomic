@@ -15,6 +15,8 @@ from typing import Dict, List, Optional
 from tomic.backtest.config import BacktestConfig
 from tomic.backtest.data_loader import IVTimeSeries
 from tomic.backtest.exit_evaluator import ExitEvaluator, ExitEvaluation, CalendarExitEvaluator
+from tomic.backtest.liquidity_filter import LiquidityFilter, LiquidityMetrics
+from tomic.backtest.option_chain_loader import OptionChainLoader, IronCondorQuotes
 from tomic.backtest.pnl_model import IronCondorPnLModel, GreeksBasedPnLModel, CalendarSpreadPnLModel
 from tomic.backtest.results import (
     EntrySignal,
@@ -77,9 +79,28 @@ class TradeSimulator:
 
         # Track rejections for diagnostics
         self._rr_rejections: int = 0
+        self._liquidity_rejections: int = 0
 
         # Track term structure at entry for calendar trades
         self._term_at_entry: Dict[str, float] = {}
+
+        # Liquidity filtering (lazy-loaded when needed)
+        self._liquidity_filter: Optional[LiquidityFilter] = None
+        self._chain_loader: Optional[OptionChainLoader] = None
+
+    @property
+    def liquidity_filter(self) -> LiquidityFilter:
+        """Lazy-load the liquidity filter."""
+        if self._liquidity_filter is None:
+            self._liquidity_filter = LiquidityFilter(self.config.liquidity_rules)
+        return self._liquidity_filter
+
+    @property
+    def chain_loader(self) -> OptionChainLoader:
+        """Lazy-load the option chain loader."""
+        if self._chain_loader is None:
+            self._chain_loader = OptionChainLoader()
+        return self._chain_loader
 
     def get_open_positions(self) -> Dict[str, SimulatedTrade]:
         """Get currently open positions."""
@@ -239,26 +260,48 @@ class TradeSimulator:
         # Get stddev_range from strategy config (affects credit calculation)
         stddev_range = self.strategy_config.get("stddev_range")
 
-        # Estimate credit received
-        if self.use_greeks_model and self.greeks_model and signal.spot_at_entry:
-            estimated_credit = self.greeks_model.estimate_credit_from_greeks(
-                spot_price=signal.spot_at_entry,
-                atm_iv=signal.iv_at_entry,
-                dte=target_dte,
-                max_risk=max_risk,
-                stddev_range=stddev_range,
-            )
-        else:
-            estimated_credit = self.pnl_model.estimate_credit(
-                iv_at_entry=signal.iv_at_entry,
-                max_risk=max_risk,
-                target_dte=target_dte,
-                stddev_range=stddev_range,
-            )
+        # Initialize liquidity metrics (will be populated if using real prices)
+        liquidity_metrics: Optional[LiquidityMetrics] = None
+        ic_quotes: Optional[IronCondorQuotes] = None
 
-        # Apply slippage to credit
-        slippage_pct = self.config.costs.slippage_pct / 100
-        estimated_credit = estimated_credit * (1 - slippage_pct)
+        # Try to load real option chain data for liquidity filtering
+        if self.config.use_real_prices or self.config.liquidity_rules.mode != "off":
+            ic_quotes = self._load_iron_condor_quotes(signal, target_dte)
+
+            if ic_quotes is not None:
+                # Apply liquidity filter
+                passes, reasons, liquidity_metrics = self.liquidity_filter.filter_iron_condor(
+                    ic_quotes
+                )
+
+                if not passes:
+                    # ReasonDetail objects have a .message property
+                    reason_msgs = [r.message for r in reasons]
+                    logger.debug(
+                        f"Rejected {signal.symbol} - liquidity: {', '.join(reason_msgs)}"
+                    )
+                    self._liquidity_rejections += 1
+                    return None
+
+        # Calculate credit - use real prices if available, otherwise estimate
+        if ic_quotes is not None and self.config.liquidity_rules.use_realistic_execution:
+            # Use realistic entry credit from bid/ask prices
+            realistic_credit = ic_quotes.entry_credit_realistic()
+            mid_credit = ic_quotes.net_credit
+            if realistic_credit is not None:
+                estimated_credit = realistic_credit
+            else:
+                estimated_credit = mid_credit or self._estimate_credit(
+                    signal, target_dte, max_risk, stddev_range
+                )
+        else:
+            # Fall back to estimation
+            estimated_credit = self._estimate_credit(
+                signal, target_dte, max_risk, stddev_range
+            )
+            # Apply slippage to estimated credit
+            slippage_pct = self.config.costs.slippage_pct / 100
+            estimated_credit = estimated_credit * (1 - slippage_pct)
 
         # Check minimum risk/reward ratio from strategy config
         # R/R = max_loss / max_profit (TOMIC definition: risk per unit reward)
@@ -292,6 +335,15 @@ class TradeSimulator:
             status=TradeStatus.OPEN,
         )
 
+        # Store liquidity metrics on the trade
+        if liquidity_metrics is not None:
+            trade.liquidity_score = liquidity_metrics.min_liquidity_score
+            trade.min_volume = liquidity_metrics.min_volume
+            trade.min_open_interest = liquidity_metrics.min_open_interest
+            trade.max_spread_pct = liquidity_metrics.max_spread_pct
+            trade.realistic_credit = liquidity_metrics.realistic_entry_credit
+            trade.slippage_cost = liquidity_metrics.slippage_cost
+
         # Calculate and store Greeks at entry (if using Greeks model)
         if self.use_greeks_model and self.greeks_model and signal.spot_at_entry:
             trade.greeks_at_entry = self.greeks_model.calculate_ic_greeks(
@@ -304,12 +356,91 @@ class TradeSimulator:
         self._open_positions[signal.symbol] = trade
         self._all_trades.append(trade)
 
+        # Log with liquidity info if available
+        liq_info = ""
+        if trade.liquidity_score is not None:
+            liq_info = f", liq={trade.liquidity_score:.0f}"
+
         logger.debug(
             f"Opened {trade.strategy_type} on {signal.symbol} "
-            f"@ IV {signal.iv_at_entry:.1%}, credit ${estimated_credit:.2f}"
+            f"@ IV {signal.iv_at_entry:.1%}, credit ${estimated_credit:.2f}{liq_info}"
         )
 
         return trade
+
+    def _estimate_credit(
+        self,
+        signal: EntrySignal,
+        target_dte: int,
+        max_risk: float,
+        stddev_range: Optional[float],
+    ) -> float:
+        """Estimate credit when real option chain data is not available."""
+        if self.use_greeks_model and self.greeks_model and signal.spot_at_entry:
+            return self.greeks_model.estimate_credit_from_greeks(
+                spot_price=signal.spot_at_entry,
+                atm_iv=signal.iv_at_entry,
+                dte=target_dte,
+                max_risk=max_risk,
+                stddev_range=stddev_range,
+            )
+        else:
+            return self.pnl_model.estimate_credit(
+                iv_at_entry=signal.iv_at_entry,
+                max_risk=max_risk,
+                target_dte=target_dte,
+                stddev_range=stddev_range,
+            )
+
+    def _load_iron_condor_quotes(
+        self,
+        signal: EntrySignal,
+        target_dte: int,
+    ) -> Optional[IronCondorQuotes]:
+        """Load iron condor quotes from ORATS option chain data.
+
+        Args:
+            signal: Entry signal with symbol and date
+            target_dte: Target days to expiration
+
+        Returns:
+            IronCondorQuotes if data available, None otherwise.
+        """
+        # Load option chain for the entry date
+        chain = self.chain_loader.load_chain(signal.symbol, signal.date)
+        if chain is None:
+            logger.debug(f"No option chain data for {signal.symbol} on {signal.date}")
+            return None
+
+        # Find expiry closest to target DTE
+        expiries = chain.get_expiries()
+        if not expiries:
+            return None
+
+        target_expiry = signal.date + timedelta(days=target_dte)
+        best_expiry = None
+        best_diff = float('inf')
+        for exp in expiries:
+            diff = abs((exp - target_expiry).days)
+            if diff < best_diff:
+                best_diff = diff
+                best_expiry = exp
+
+        if best_expiry is None:
+            return None
+
+        # Select iron condor strikes based on delta targets
+        short_delta = self.config.iron_condor_short_delta
+        wing_width = float(self.config.iron_condor_wing_width)
+
+        ic_quotes = chain.select_iron_condor(
+            expiry=best_expiry,
+            short_put_delta=-short_delta,  # Negative for puts
+            short_call_delta=short_delta,  # Positive for calls
+            wing_width=wing_width,
+        )
+
+        return ic_quotes
 
     def process_day(
         self,
@@ -525,6 +656,17 @@ class TradeSimulator:
 
         total_pnl = sum(t.final_pnl for t in closed_trades)
 
+        # Calculate liquidity statistics for trades that have liquidity data
+        trades_with_liq = [t for t in all_trades if t.liquidity_score is not None]
+        avg_liquidity_score = (
+            sum(t.liquidity_score for t in trades_with_liq) / len(trades_with_liq)
+            if trades_with_liq else None
+        )
+        total_slippage = (
+            sum(t.slippage_cost or 0 for t in trades_with_liq)
+            if trades_with_liq else None
+        )
+
         return {
             "total_trades": len(all_trades),
             "closed_trades": len(closed_trades),
@@ -535,6 +677,10 @@ class TradeSimulator:
             "total_pnl": total_pnl,
             "avg_pnl": total_pnl / len(closed_trades) if closed_trades else 0,
             "rr_rejections": self._rr_rejections,
+            "liquidity_rejections": self._liquidity_rejections,
+            "trades_with_liquidity_data": len(trades_with_liq),
+            "avg_liquidity_score": avg_liquidity_score,
+            "total_slippage_cost": total_slippage,
         }
 
 

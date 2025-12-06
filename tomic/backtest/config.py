@@ -92,6 +92,39 @@ class CostConfig(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
 
+class LiquidityRulesConfig(BaseModel):
+    """Liquidity filtering rules for backtesting.
+
+    These rules filter out trades where options don't meet minimum
+    liquidity requirements. This prevents backtesting on illiquid
+    options where execution would be unrealistic.
+
+    Filtering modes:
+    - 'hard': Reject trades that don't meet thresholds (default)
+    - 'soft': Allow trades but penalize signal strength
+    - 'off': No liquidity filtering (legacy behavior)
+
+    Note: Field names align with MarketDataRules from criteria.py for consistency.
+    """
+
+    # Filtering mode
+    mode: str = "hard"  # 'hard', 'soft', or 'off'
+
+    # Minimum requirements per leg (aligned with MarketDataRules naming)
+    min_option_volume: int = 10  # Minimum daily volume (same as criteria.yaml)
+    min_option_open_interest: int = 100  # Minimum open interest (same as criteria.yaml)
+
+    # Additional backtest-specific rules
+    max_spread_pct: float = 20.0  # Maximum bid-ask spread as % of mid
+    min_liquidity_score: float = 20.0  # Minimum liquidity score (0-100)
+
+    # Execution modeling
+    use_realistic_execution: bool = True  # Use bid/ask instead of mid
+    volume_impact_threshold: float = 0.10  # Warn if position > 10% of volume
+
+    model_config = ConfigDict(extra="forbid")
+
+
 class BacktestConfig(BaseModel):
     """Main backtest configuration model.
 
@@ -174,6 +207,7 @@ class BacktestConfig(BaseModel):
     position_sizing: PositionSizingConfig = PositionSizingConfig()
     sample_split: SampleSplitConfig = SampleSplitConfig()
     costs: CostConfig = CostConfig()
+    liquidity_rules: LiquidityRulesConfig = LiquidityRulesConfig()
 
     # Iron Condor specific parameters
     iron_condor_wing_width: int = 5
@@ -250,6 +284,8 @@ def load_backtest_config(path: Optional[Path] = None) -> BacktestConfig:
         data["sample_split"] = SampleSplitConfig(**data["sample_split"])
     if "costs" in data and isinstance(data["costs"], dict):
         data["costs"] = CostConfig(**data["costs"])
+    if "liquidity_rules" in data and isinstance(data["liquidity_rules"], dict):
+        data["liquidity_rules"] = LiquidityRulesConfig(**data["liquidity_rules"])
 
     return BacktestConfig(**data)
 
@@ -290,6 +326,7 @@ __all__ = [
     "PositionSizingConfig",
     "SampleSplitConfig",
     "CostConfig",
+    "LiquidityRulesConfig",
     "load_backtest_config",
     "save_backtest_config",
 ]

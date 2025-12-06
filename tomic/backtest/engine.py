@@ -383,13 +383,27 @@ class BacktestEngine:
         trades = simulator.get_all_trades()
         summary = simulator.get_summary()
 
+        # Build rejection message
         rr_rejections = summary.get('rr_rejections', 0)
-        rejection_msg = f", {rr_rejections} R/R filtered" if rr_rejections > 0 else ""
+        liq_rejections = summary.get('liquidity_rejections', 0)
+        rejection_parts = []
+        if rr_rejections > 0:
+            rejection_parts.append(f"{rr_rejections} R/R filtered")
+        if liq_rejections > 0:
+            rejection_parts.append(f"{liq_rejections} liquidity filtered")
+        rejection_msg = f", {', '.join(rejection_parts)}" if rejection_parts else ""
+
+        # Build liquidity info message
+        liq_info = ""
+        if summary.get('avg_liquidity_score') is not None:
+            liq_info = f", avg liq score: {summary['avg_liquidity_score']:.1f}"
+        if summary.get('total_slippage_cost') is not None and summary['total_slippage_cost'] > 0:
+            liq_info += f", slippage: ${summary['total_slippage_cost']:.2f}"
 
         logger.info(
             f"{period_name} complete: {summary['total_trades']} trades, "
             f"win rate {summary['win_rate']:.1%}, "
-            f"total P&L ${summary['total_pnl']:.2f}{rejection_msg}"
+            f"total P&L ${summary['total_pnl']:.2f}{rejection_msg}{liq_info}"
         )
 
         return trades
