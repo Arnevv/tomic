@@ -149,6 +149,14 @@ class SimulatedTrade:
     greeks_at_entry: Optional[Any] = None  # GreeksSnapshot at entry
     greeks_history: List[Any] = field(default_factory=list)  # Daily Greeks updates
 
+    # Liquidity metrics at entry (from ORATS data)
+    liquidity_score: Optional[float] = None  # Min liquidity score across legs (0-100)
+    min_volume: Optional[int] = None  # Minimum volume across legs
+    min_open_interest: Optional[int] = None  # Minimum open interest across legs
+    max_spread_pct: Optional[float] = None  # Maximum bid-ask spread % across legs
+    realistic_credit: Optional[float] = None  # Credit using bid/ask (not mid)
+    slippage_cost: Optional[float] = None  # Difference between mid and realistic credit
+
     def close(
         self,
         exit_date: date,
