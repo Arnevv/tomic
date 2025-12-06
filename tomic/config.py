@@ -337,7 +337,12 @@ def load_config() -> AppConfig:
         if path.suffix in {".yaml", ".yml"}:
             try:
                 data = _load_yaml(path)
-            except Exception:
+            except (OSError, IOError, ValueError, TypeError) as exc:
+                # Log config loading errors but fall back to defaults
+                import logging
+                logging.getLogger(__name__).warning(
+                    "Failed to load config from %s: %s. Using defaults.", path, exc
+                )
                 data = {}
         else:
             data = _load_env(path)
@@ -405,10 +410,14 @@ def save_symbols(symbols: List[str], path: Path | None = None) -> None:
         CONFIG.DEFAULT_SYMBOLS = symbol_list
 
 
-CONFIG = load_config()
+# Lock must be defined BEFORE loading config to ensure thread-safe initialization
 LOCK = threading.Lock()
-STRATEGY_SCENARIOS = _load_strategy_scenarios()
-STRATEGY_CONFIG = _load_strategy_config()
+
+# Load configuration with lock protection
+with LOCK:
+    CONFIG = load_config()
+    STRATEGY_SCENARIOS = _load_strategy_scenarios()
+    STRATEGY_CONFIG = _load_strategy_config()
 
 
 def get(name: str, default: Any | None = None) -> Any:
