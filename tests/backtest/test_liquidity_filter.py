@@ -9,8 +9,10 @@ from tomic.backtest.liquidity_filter import (
     LiquidityFilter,
     LiquidityMetrics,
     filter_by_liquidity,
+    iron_condor_to_legs,
 )
 from tomic.backtest.option_chain_loader import OptionQuote, IronCondorQuotes
+from tomic.strategy.reasons import ReasonCategory
 
 
 def make_option_quote(
@@ -198,8 +200,8 @@ class TestLiquidityFilter:
         """Test hard mode passes for liquid option."""
         config = LiquidityRulesConfig(
             mode="hard",
-            min_volume_per_leg=50,
-            min_open_interest_per_leg=200,
+            min_option_volume=50,
+            min_option_open_interest=200,
             max_spread_pct=15.0,
         )
         filter_obj = LiquidityFilter(config)
@@ -214,7 +216,7 @@ class TestLiquidityFilter:
         """Test hard mode rejects low volume."""
         config = LiquidityRulesConfig(
             mode="hard",
-            min_volume_per_leg=50,
+            min_option_volume=50,
         )
         filter_obj = LiquidityFilter(config)
 
@@ -222,7 +224,8 @@ class TestLiquidityFilter:
 
         passes, reasons, metrics = filter_obj.filter_iron_condor(ic)
         assert not passes
-        assert any("volume" in r.lower() for r in reasons)
+        # Reasons are now ReasonDetail objects with LOW_LIQUIDITY category
+        assert any(r.category == ReasonCategory.LOW_LIQUIDITY for r in reasons)
 
     def test_filter_mode_hard_fail_spread(self):
         """Test hard mode rejects wide spread."""
@@ -236,13 +239,14 @@ class TestLiquidityFilter:
 
         passes, reasons, metrics = filter_obj.filter_iron_condor(ic)
         assert not passes
-        assert any("spread" in r.lower() for r in reasons)
+        # Reasons are now ReasonDetail objects
+        assert any("spread" in r.message.lower() for r in reasons)
 
     def test_filter_mode_soft(self):
         """Test soft mode passes but logs warnings."""
         config = LiquidityRulesConfig(
             mode="soft",
-            min_volume_per_leg=100,
+            min_option_volume=100,
         )
         filter_obj = LiquidityFilter(config)
 
@@ -255,8 +259,8 @@ class TestLiquidityFilter:
     def test_calculate_signal_penalty_good_liquidity(self):
         """Test signal penalty for good liquidity."""
         config = LiquidityRulesConfig(
-            min_volume_per_leg=50,
-            min_open_interest_per_leg=200,
+            min_option_volume=50,
+            min_option_open_interest=200,
             max_spread_pct=15.0,
         )
         filter_obj = LiquidityFilter(config)
@@ -281,8 +285,8 @@ class TestLiquidityFilter:
     def test_calculate_signal_penalty_poor_liquidity(self):
         """Test signal penalty for poor liquidity."""
         config = LiquidityRulesConfig(
-            min_volume_per_leg=50,
-            min_open_interest_per_leg=200,
+            min_option_volume=50,
+            min_option_open_interest=200,
             max_spread_pct=15.0,
         )
         filter_obj = LiquidityFilter(config)
@@ -312,7 +316,7 @@ class TestFilterByLiquidity:
         """Test convenience function passes."""
         config = LiquidityRulesConfig(
             mode="hard",
-            min_volume_per_leg=10,
+            min_option_volume=10,
         )
         ic = make_iron_condor(volume=100)
 
@@ -323,13 +327,32 @@ class TestFilterByLiquidity:
         """Test convenience function fails."""
         config = LiquidityRulesConfig(
             mode="hard",
-            min_volume_per_leg=100,
+            min_option_volume=100,
         )
         ic = make_iron_condor(volume=10)
 
         passes, reasons = filter_by_liquidity(ic, config)
         assert not passes
         assert len(reasons) > 0
+
+
+class TestIronCondorToLegs:
+    """Tests for iron_condor_to_legs conversion function."""
+
+    def test_conversion(self):
+        """Test conversion from IronCondorQuotes to leg dicts."""
+        ic = make_iron_condor(volume=100, open_interest=500)
+        legs = iron_condor_to_legs(ic)
+
+        assert len(legs) == 4
+        # Check that each leg has the expected fields
+        for leg in legs:
+            assert "strike" in leg
+            assert "expiry" in leg
+            assert "volume" in leg
+            assert "open_interest" in leg
+            assert leg["volume"] == 100
+            assert leg["open_interest"] == 500
 
 
 class TestLiquidityMetrics:

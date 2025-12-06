@@ -275,8 +275,10 @@ class TradeSimulator:
                 )
 
                 if not passes:
+                    # ReasonDetail objects have a .message property
+                    reason_msgs = [r.message for r in reasons]
                     logger.debug(
-                        f"Rejected {signal.symbol} - liquidity: {', '.join(reasons)}"
+                        f"Rejected {signal.symbol} - liquidity: {', '.join(reason_msgs)}"
                     )
                     self._liquidity_rejections += 1
                     return None

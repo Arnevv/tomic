@@ -99,17 +99,19 @@ class LiquidityRulesConfig(BaseModel):
     - 'hard': Reject trades that don't meet thresholds (default)
     - 'soft': Allow trades but penalize signal strength
     - 'off': No liquidity filtering (legacy behavior)
+
+    Note: Field names align with MarketDataRules from criteria.py for consistency.
     """
 
     # Filtering mode
     mode: str = "hard"  # 'hard', 'soft', or 'off'
 
-    # Minimum requirements per leg
-    min_volume_per_leg: int = 10  # Minimum daily volume
-    min_open_interest_per_leg: int = 100  # Minimum open interest
-    max_spread_pct: float = 20.0  # Maximum bid-ask spread as % of mid
+    # Minimum requirements per leg (aligned with MarketDataRules naming)
+    min_option_volume: int = 10  # Minimum daily volume (same as criteria.yaml)
+    min_option_open_interest: int = 100  # Minimum open interest (same as criteria.yaml)
 
-    # Aggregate requirements for the structure
+    # Additional backtest-specific rules
+    max_spread_pct: float = 20.0  # Maximum bid-ask spread as % of mid
     min_liquidity_score: float = 20.0  # Minimum liquidity score (0-100)
 
     # Execution modeling

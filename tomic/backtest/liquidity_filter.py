@@ -1,22 +1,50 @@
-"""Liquidity filtering and scoring for backtesting.
+"""Liquidity filtering for backtesting.
 
-This module provides tools to filter and score option strategies
-based on liquidity metrics (volume, open interest, bid-ask spread).
+This module provides tools to filter option strategies based on liquidity metrics
+(volume, open interest, bid-ask spread). It reuses the existing check_liquidity
+function from analysis/scoring.py for consistency with the normal pipeline.
 
 Key components:
 - LiquidityFilter: Filter iron condors based on liquidity rules
 - LiquidityMetrics: Aggregate liquidity statistics for a trade
-- calculate_execution_cost: Estimate real execution cost with slippage
+- iron_condor_to_legs: Convert IronCondorQuotes to leg dicts for check_liquidity
 """
 
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Optional, Tuple, List
+from typing import Any, Dict, List, Optional, Tuple
 
 from tomic.backtest.config import LiquidityRulesConfig
 from tomic.backtest.option_chain_loader import IronCondorQuotes, OptionQuote
 from tomic.logutils import logger
+
+# Import the existing check_liquidity function and reason helpers
+from tomic.analysis.scoring import check_liquidity
+from tomic.strategy.reasons import ReasonDetail, ReasonCategory, make_reason
+
+
+class _MarketDataAdapter:
+    """Adapter to provide market_data interface for check_liquidity.
+
+    This allows the backtest LiquidityRulesConfig to work with the
+    existing check_liquidity function which expects crit.market_data.
+    """
+
+    def __init__(self, min_option_volume: int, min_option_open_interest: int):
+        self.min_option_volume = min_option_volume
+        self.min_option_open_interest = min_option_open_interest
+
+
+class _CriteriaAdapter:
+    """Adapter to provide CriteriaConfig interface for check_liquidity.
+
+    The check_liquidity function only uses crit.market_data, so we provide
+    a minimal adapter that exposes just that property.
+    """
+
+    def __init__(self, market_data: _MarketDataAdapter):
+        self.market_data = market_data
 
 
 @dataclass
@@ -61,33 +89,88 @@ class LiquidityMetrics:
         return None
 
 
+def iron_condor_to_legs(quotes: IronCondorQuotes) -> List[Dict[str, Any]]:
+    """Convert IronCondorQuotes to leg dictionaries for check_liquidity.
+
+    This ensures compatibility with the existing pipeline's check_liquidity function.
+    """
+    if not quotes.is_complete:
+        return []
+
+    legs = []
+    for name, quote in [
+        ("long_put", quotes.long_put),
+        ("short_put", quotes.short_put),
+        ("short_call", quotes.short_call),
+        ("long_call", quotes.long_call),
+    ]:
+        leg = {
+            "strike": quote.strike,
+            "expiry": str(quote.expiry),
+            "volume": quote.volume,
+            "open_interest": quote.open_interest,
+            "bid": quote.bid,
+            "ask": quote.ask,
+            "mid": quote.mid,
+            "delta": quote.delta,
+            "type": quote.option_type,
+            "position": -1 if "short" in name else 1,
+        }
+        legs.append(leg)
+
+    return legs
+
+
+def _make_criteria_adapter(liquidity_rules: LiquidityRulesConfig) -> _CriteriaAdapter:
+    """Create a CriteriaConfig adapter from LiquidityRulesConfig for check_liquidity.
+
+    This bridges the backtest config to the existing pipeline's expected format.
+    The check_liquidity function only uses crit.market_data, so we use a minimal
+    adapter instead of requiring the full CriteriaConfig with all its fields.
+    """
+    market_data = _MarketDataAdapter(
+        min_option_volume=liquidity_rules.min_option_volume,
+        min_option_open_interest=liquidity_rules.min_option_open_interest,
+    )
+    return _CriteriaAdapter(market_data=market_data)
+
+
 class LiquidityFilter:
     """Filter and score option strategies based on liquidity.
 
     This class applies configurable liquidity rules to iron condors
-    and other option structures. It can operate in three modes:
+    and other option structures. It reuses the existing check_liquidity
+    function from analysis/scoring.py for consistency.
 
+    Modes:
     - 'hard': Reject trades that don't meet thresholds
-    - 'soft': Allow trades but penalize signal strength
+    - 'soft': Allow trades but log warnings
     - 'off': No filtering (legacy behavior)
     """
 
     def __init__(self, config: LiquidityRulesConfig):
         self.config = config
+        # Create adapter for the existing check_liquidity function
+        self._criteria_adapter = _make_criteria_adapter(config)
 
     def filter_iron_condor(
         self,
         quotes: IronCondorQuotes,
-    ) -> Tuple[bool, List[str], LiquidityMetrics]:
+        strategy_name: str = "iron_condor",
+    ) -> Tuple[bool, List[ReasonDetail], LiquidityMetrics]:
         """Filter an iron condor based on liquidity rules.
+
+        Uses the existing check_liquidity function from analysis/scoring.py
+        for the core volume/OI check, plus additional spread checks.
 
         Args:
             quotes: IronCondorQuotes with all four legs
+            strategy_name: Strategy name for logging (default: "iron_condor")
 
         Returns:
             Tuple of:
             - passes: True if trade passes liquidity filter
-            - reasons: List of rejection reasons (empty if passes)
+            - reasons: List of ReasonDetail objects (empty if passes)
             - metrics: LiquidityMetrics with detailed statistics
         """
         if self.config.mode == "off":
@@ -96,31 +179,42 @@ class LiquidityFilter:
             return True, [], metrics
 
         metrics = self._calculate_metrics(quotes)
-        reasons: List[str] = []
+        reasons: List[ReasonDetail] = []
 
-        # Check minimum volume per leg
-        if metrics.min_volume < self.config.min_volume_per_leg:
-            reasons.append(
-                f"Min volume {metrics.min_volume} < {self.config.min_volume_per_leg}"
-            )
+        # Convert to legs for the existing check_liquidity function
+        legs = iron_condor_to_legs(quotes)
 
-        # Check minimum open interest per leg
-        if metrics.min_open_interest < self.config.min_open_interest_per_leg:
-            reasons.append(
-                f"Min OI {metrics.min_open_interest} < {self.config.min_open_interest_per_leg}"
+        if legs:
+            # Use the existing check_liquidity function for volume/OI checks
+            passes_vol_oi, vol_oi_reasons = check_liquidity(
+                strategy_name, legs, self._criteria_adapter
             )
+            if not passes_vol_oi:
+                reasons.extend(vol_oi_reasons)
 
-        # Check maximum spread percentage
-        if metrics.max_spread_pct > self.config.max_spread_pct:
-            reasons.append(
-                f"Max spread {metrics.max_spread_pct:.1f}% > {self.config.max_spread_pct}%"
-            )
+        # Additional spread check (backtest-specific)
+        if self.config.max_spread_pct < 100:
+            if metrics.max_spread_pct > self.config.max_spread_pct:
+                reasons.append(
+                    make_reason(
+                        ReasonCategory.LOW_LIQUIDITY,
+                        "WIDE_SPREAD",
+                        f"bid-ask spread te breed ({metrics.max_spread_pct:.1f}% > {self.config.max_spread_pct}%)",
+                        data={"max_spread_pct": metrics.max_spread_pct},
+                    )
+                )
 
-        # Check minimum liquidity score
-        if metrics.min_liquidity_score < self.config.min_liquidity_score:
-            reasons.append(
-                f"Min liquidity score {metrics.min_liquidity_score:.1f} < {self.config.min_liquidity_score}"
-            )
+        # Additional liquidity score check (backtest-specific)
+        if self.config.min_liquidity_score > 0:
+            if metrics.min_liquidity_score < self.config.min_liquidity_score:
+                reasons.append(
+                    make_reason(
+                        ReasonCategory.LOW_LIQUIDITY,
+                        "LOW_LIQUIDITY_SCORE",
+                        f"liquiditeitsscore te laag ({metrics.min_liquidity_score:.1f} < {self.config.min_liquidity_score})",
+                        data={"min_liquidity_score": metrics.min_liquidity_score},
+                    )
+                )
 
         # In hard mode, any failure rejects the trade
         if self.config.mode == "hard":
@@ -129,7 +223,8 @@ class LiquidityFilter:
             # Soft mode: always passes but with warnings logged
             passes = True
             if reasons:
-                logger.debug(f"Soft filter warnings: {', '.join(reasons)}")
+                reason_msgs = [r.message for r in reasons]
+                logger.debug(f"Soft filter warnings: {', '.join(reason_msgs)}")
 
         return passes, reasons, metrics
 
@@ -172,7 +267,7 @@ class LiquidityFilter:
             scores.append(leg.liquidity_score)
 
             # Track warning flags
-            if (leg.volume or 0) < self.config.min_volume_per_leg:
+            if (leg.volume or 0) < self.config.min_option_volume:
                 low_volume_legs.append(f"{name} (vol={leg.volume or 0})")
             if (leg.spread_pct or 0) > self.config.max_spread_pct:
                 high_spread_legs.append(f"{name} (spread={leg.spread_pct:.1f}%)")
@@ -212,19 +307,18 @@ class LiquidityFilter:
         penalty = 1.0
 
         # Penalize low volume (up to 30% reduction)
-        if metrics.min_volume < self.config.min_volume_per_leg * 2:
-            vol_ratio = metrics.min_volume / (self.config.min_volume_per_leg * 2)
+        if metrics.min_volume < self.config.min_option_volume * 2:
+            vol_ratio = metrics.min_volume / max(1, self.config.min_option_volume * 2)
             penalty *= 0.7 + (0.3 * vol_ratio)
 
         # Penalize low open interest (up to 30% reduction)
-        if metrics.min_open_interest < self.config.min_open_interest_per_leg * 2:
-            oi_ratio = metrics.min_open_interest / (self.config.min_open_interest_per_leg * 2)
+        if metrics.min_open_interest < self.config.min_option_open_interest * 2:
+            oi_ratio = metrics.min_open_interest / max(1, self.config.min_option_open_interest * 2)
             penalty *= 0.7 + (0.3 * oi_ratio)
 
         # Penalize wide spreads (up to 40% reduction)
         if metrics.max_spread_pct > self.config.max_spread_pct / 2:
-            # Linear penalty from half threshold to threshold
-            spread_excess = (metrics.max_spread_pct - self.config.max_spread_pct / 2) / (self.config.max_spread_pct / 2)
+            spread_excess = (metrics.max_spread_pct - self.config.max_spread_pct / 2) / max(1, self.config.max_spread_pct / 2)
             spread_excess = min(1.0, spread_excess)
             penalty *= 1.0 - (0.4 * spread_excess)
 
@@ -287,7 +381,7 @@ class LiquidityFilter:
 def filter_by_liquidity(
     quotes: IronCondorQuotes,
     config: LiquidityRulesConfig,
-) -> Tuple[bool, List[str]]:
+) -> Tuple[bool, List[ReasonDetail]]:
     """Convenience function to filter an iron condor by liquidity.
 
     Args:
@@ -306,4 +400,5 @@ __all__ = [
     "LiquidityFilter",
     "LiquidityMetrics",
     "filter_by_liquidity",
+    "iron_condor_to_legs",
 ]
