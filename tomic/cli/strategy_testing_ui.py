@@ -190,6 +190,7 @@ def get_testable_parameters(strategy: str = STRATEGY_IRON_CONDOR) -> List[Dict[s
         backtest_params = [
             ("iv_percentile_max", "IV Percentile maximum", "entry", entry_rules.get("iv_percentile_max", 40.0)),
             ("term_structure_min", "Term Structure minimum", "entry", entry_rules.get("term_structure_min", 0.0)),
+            ("min_days_until_earnings", "Min dagen tot earnings", "entry", entry_rules.get("min_days_until_earnings", 10)),
             ("profit_target_pct", "Profit Target %", "exit", exit_rules.get("profit_target_pct", 10.0)),
             ("stop_loss_pct", "Stop Loss %", "exit", exit_rules.get("stop_loss_pct", 10.0)),
             ("max_days_in_trade", "Max Days in Trade", "exit", exit_rules.get("max_days_in_trade", 10)),
@@ -199,6 +200,7 @@ def get_testable_parameters(strategy: str = STRATEGY_IRON_CONDOR) -> List[Dict[s
         # Iron Condor uses IV percentile MIN (high IV entry)
         backtest_params = [
             ("iv_percentile_min", "IV Percentile minimum", "entry", entry_rules.get("iv_percentile_min", 60.0)),
+            ("min_days_until_earnings", "Min dagen tot earnings", "entry", entry_rules.get("min_days_until_earnings", 10)),
             ("profit_target_pct", "Profit Target %", "exit", exit_rules.get("profit_target_pct", 50.0)),
             ("stop_loss_pct", "Stop Loss %", "exit", exit_rules.get("stop_loss_pct", 100.0)),
             ("max_days_in_trade", "Max Days in Trade", "exit", exit_rules.get("max_days_in_trade", 45)),
@@ -1012,6 +1014,12 @@ def _apply_parameter_change(param: Dict[str, Any], new_value: Any, strategy: str
         _update_yaml_value(path, ["strategies", strategy, key], new_value)
     elif source == "backtest.yaml":
         path = _BASE_DIR / "config" / "backtest.yaml"
+        if param["category"] == "entry":
+            _update_yaml_value(path, ["entry_rules", key], new_value)
+        else:
+            _update_yaml_value(path, ["exit_rules", key], new_value)
+    elif source == "backtest_calendar.yaml":
+        path = _BASE_DIR / "config" / "backtest_calendar.yaml"
         if param["category"] == "entry":
             _update_yaml_value(path, ["entry_rules", key], new_value)
         else:
