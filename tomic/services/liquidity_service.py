@@ -5,13 +5,175 @@ Uses ORATS cached data to calculate average liquidity metrics for symbols.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+import csv
+import io
+import zipfile
+from collections import defaultdict
+from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor, as_completed
+from dataclasses import dataclass, field
 from datetime import date, timedelta
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
 from tomic.config import get as cfg_get
 from tomic.logutils import logger
+
+
+def _safe_float(value: Optional[str]) -> Optional[float]:
+    """Safely convert string to float."""
+    if value is None or value == "" or value == "null":
+        return None
+    try:
+        return float(value)
+    except (ValueError, TypeError):
+        return None
+
+
+def _safe_int(value: Optional[str]) -> Optional[int]:
+    """Safely convert string to int."""
+    if value is None or value == "" or value == "null":
+        return None
+    try:
+        return int(float(value))
+    except (ValueError, TypeError):
+        return None
+
+
+def _process_date_for_atm(
+    cache_dir: Path,
+    trade_date: date,
+    dte_range: Tuple[int, int] = (20, 60),
+) -> Dict[str, Dict[str, Optional[int]]]:
+    """Process a single date's ORATS file and extract ATM metrics for ALL symbols.
+
+    This is the core optimization: instead of processing per-symbol (5812 times),
+    we process per-date once and extract all symbols in a single pass.
+
+    Args:
+        cache_dir: Path to ORATS cache directory.
+        trade_date: Date to process.
+        dte_range: DTE range for ATM options (min, max).
+
+    Returns:
+        Dict mapping symbol to {call_volume, call_oi, put_volume, put_oi}.
+    """
+    year = trade_date.strftime("%Y")
+    date_str = trade_date.strftime("%Y%m%d")
+    zip_path = cache_dir / year / f"ORATS_SMV_Strikes_{date_str}.zip"
+
+    if not zip_path.exists():
+        return {}
+
+    min_dte, max_dte = dte_range
+    results: Dict[str, Dict[str, Optional[int]]] = {}
+
+    # Temporary storage for ATM options per symbol
+    # {symbol: {"spot": float, "options": [{"type": "C/P", "strike": float, "volume": int, "oi": int}]}}
+    symbol_options: Dict[str, Dict] = defaultdict(
+        lambda: {"spot": None, "options": []}
+    )
+
+    try:
+        with zipfile.ZipFile(zip_path, "r") as zf:
+            csv_files = [n for n in zf.namelist() if n.endswith(".csv")]
+            if not csv_files:
+                return {}
+
+            csv_name = csv_files[0]
+            with zf.open(csv_name) as csv_file:
+                text_stream = io.TextIOWrapper(csv_file, encoding="utf-8")
+
+                # Detect delimiter
+                sample = text_stream.read(10000)
+                text_stream.seek(0)
+                delimiter = ","
+                for delim in [",", "\t", ";", "|"]:
+                    if sample.split("\n")[0].count(delim) > 20:
+                        delimiter = delim
+                        break
+
+                reader = csv.DictReader(text_stream, delimiter=delimiter)
+
+                # Single pass through CSV - extract all symbols
+                for row in reader:
+                    ticker = row.get("ticker", "").strip().upper()
+                    if not ticker:
+                        continue
+
+                    # Get expiration and calculate DTE
+                    expiry_str = row.get("expirDate", "")
+                    try:
+                        expiry = date(
+                            int(expiry_str[:4]),
+                            int(expiry_str[5:7]),
+                            int(expiry_str[8:10]),
+                        )
+                        dte = (expiry - trade_date).days
+                    except (ValueError, IndexError):
+                        continue
+
+                    # Filter by DTE range
+                    if dte < min_dte or dte > max_dte:
+                        continue
+
+                    # Get spot price
+                    spot = _safe_float(row.get("stkPx"))
+                    if spot is None or spot <= 0:
+                        continue
+
+                    strike = _safe_float(row.get("strike"))
+                    if strike is None:
+                        continue
+
+                    # Check if ATM (within 2% of spot)
+                    if abs(strike - spot) > spot * 0.02:
+                        continue
+
+                    # Store spot price
+                    if symbol_options[ticker]["spot"] is None:
+                        symbol_options[ticker]["spot"] = spot
+
+                    # Extract call metrics
+                    call_vol = _safe_int(row.get("cVolu"))
+                    call_oi = _safe_int(row.get("cOi"))
+                    if call_vol is not None or call_oi is not None:
+                        symbol_options[ticker]["options"].append({
+                            "type": "C",
+                            "volume": call_vol,
+                            "oi": call_oi,
+                        })
+
+                    # Extract put metrics
+                    put_vol = _safe_int(row.get("pVolu"))
+                    put_oi = _safe_int(row.get("pOi"))
+                    if put_vol is not None or put_oi is not None:
+                        symbol_options[ticker]["options"].append({
+                            "type": "P",
+                            "volume": put_vol,
+                            "oi": put_oi,
+                        })
+
+        # Aggregate ATM metrics per symbol
+        for symbol, data in symbol_options.items():
+            if not data["options"]:
+                continue
+
+            call_vols = [o["volume"] for o in data["options"] if o["type"] == "C" and o["volume"] is not None]
+            call_ois = [o["oi"] for o in data["options"] if o["type"] == "C" and o["oi"] is not None]
+            put_vols = [o["volume"] for o in data["options"] if o["type"] == "P" and o["volume"] is not None]
+            put_ois = [o["oi"] for o in data["options"] if o["type"] == "P" and o["oi"] is not None]
+
+            results[symbol] = {
+                "call_volume": sum(call_vols) if call_vols else None,
+                "call_oi": sum(call_ois) if call_ois else None,
+                "put_volume": sum(put_vols) if put_vols else None,
+                "put_oi": sum(put_ois) if put_ois else None,
+            }
+
+    except Exception:
+        return {}
+
+    return results
 
 
 @dataclass
@@ -207,6 +369,114 @@ class LiquidityService:
                     "avg_atm_oi": None,
                     "days_analyzed": 0,
                 })
+
+        # Sort by avg_atm_volume descending (None values at the end)
+        results.sort(
+            key=lambda x: (x["avg_atm_volume"] is None, -(x["avg_atm_volume"] or 0))
+        )
+
+        return results
+
+    def get_all_symbols_overview_optimized(
+        self,
+        lookback_days: int = 252,
+        progress_callback: Optional[callable] = None,
+        max_workers: int = 8,
+        use_threads: bool = False,
+    ) -> List[Dict[str, Any]]:
+        """Get liquidity overview for all symbols - OPTIMIZED VERSION.
+
+        Instead of processing each symbol individually (O(symbols × dates × rows)),
+        this processes each date once and extracts all symbols (O(dates × rows)).
+        This is ~5800x faster for 5812 symbols.
+
+        Args:
+            lookback_days: Number of trading days to analyze (default 252 = 1 year).
+            progress_callback: Optional callback for progress updates (date_str, idx, total).
+            max_workers: Number of parallel workers for date processing.
+            use_threads: Use ThreadPoolExecutor instead of ProcessPoolExecutor.
+                        Useful for testing or when multiprocessing has issues.
+
+        Returns:
+            List of dicts with symbol, avg_atm_volume, avg_atm_oi, sorted by avg_atm_volume desc.
+        """
+        available_dates = self._get_available_dates(lookback_days)
+
+        if not available_dates:
+            logger.warning("No ORATS data available for liquidity calculation")
+            return []
+
+        logger.info(f"Processing {len(available_dates)} dates with {max_workers} workers")
+
+        # Collect ATM metrics per symbol across all dates
+        # Structure: {symbol: {"call_volumes": [], "call_ois": [], "put_volumes": [], "put_ois": []}}
+        symbol_data: Dict[str, Dict[str, List[int]]] = defaultdict(
+            lambda: {"call_volumes": [], "call_ois": [], "put_volumes": [], "put_ois": []}
+        )
+
+        total_dates = len(available_dates)
+
+        # Process dates in parallel - use threads or processes
+        Executor = ThreadPoolExecutor if use_threads else ProcessPoolExecutor
+        with Executor(max_workers=max_workers) as executor:
+            # Submit all date processing tasks
+            future_to_date = {
+                executor.submit(_process_date_for_atm, self.cache_dir, d): d
+                for d in available_dates
+            }
+
+            for idx, future in enumerate(as_completed(future_to_date), 1):
+                trade_date = future_to_date[future]
+
+                if progress_callback:
+                    progress_callback(str(trade_date), idx, total_dates)
+
+                try:
+                    date_results = future.result()
+
+                    # Merge results into symbol_data
+                    for symbol, metrics in date_results.items():
+                        if metrics["call_volume"] is not None:
+                            symbol_data[symbol]["call_volumes"].append(metrics["call_volume"])
+                        if metrics["call_oi"] is not None:
+                            symbol_data[symbol]["call_ois"].append(metrics["call_oi"])
+                        if metrics["put_volume"] is not None:
+                            symbol_data[symbol]["put_volumes"].append(metrics["put_volume"])
+                        if metrics["put_oi"] is not None:
+                            symbol_data[symbol]["put_ois"].append(metrics["put_oi"])
+
+                except Exception as e:
+                    logger.debug(f"Error processing date {trade_date}: {e}")
+
+        # Calculate averages for each symbol
+        results = []
+        for symbol, data in symbol_data.items():
+            avg_call_vol = int(sum(data["call_volumes"]) / len(data["call_volumes"])) if data["call_volumes"] else None
+            avg_call_oi = int(sum(data["call_ois"]) / len(data["call_ois"])) if data["call_ois"] else None
+            avg_put_vol = int(sum(data["put_volumes"]) / len(data["put_volumes"])) if data["put_volumes"] else None
+            avg_put_oi = int(sum(data["put_ois"]) / len(data["put_ois"])) if data["put_ois"] else None
+
+            total_vol = None
+            if avg_call_vol is not None or avg_put_vol is not None:
+                total_vol = (avg_call_vol or 0) + (avg_put_vol or 0)
+
+            total_oi = None
+            if avg_call_oi is not None or avg_put_oi is not None:
+                total_oi = (avg_call_oi or 0) + (avg_put_oi or 0)
+
+            days_with_data = max(
+                len(data["call_volumes"]),
+                len(data["put_volumes"]),
+                len(data["call_ois"]),
+                len(data["put_ois"]),
+            )
+
+            results.append({
+                "symbol": symbol,
+                "avg_atm_volume": total_vol,
+                "avg_atm_oi": total_oi,
+                "days_analyzed": days_with_data,
+            })
 
         # Sort by avg_atm_volume descending (None values at the end)
         results.sort(

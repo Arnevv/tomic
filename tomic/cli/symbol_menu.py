@@ -360,17 +360,20 @@ def show_orats_symbol_overview(liquidity_service: Optional[LiquidityService] = N
         return
 
     print()
-    print("Berekenen van liquiditeitsmetrics...")
+    print("Berekenen van liquiditeitsmetrics (geoptimaliseerd)...")
+    print("Verwerking per datum (parallel) in plaats van per symbool...")
+    print()
 
-    # Progress callback
-    def progress(symbol: str, idx: int, total: int) -> None:
+    # Progress callback - now tracks dates instead of symbols
+    def progress(date_str: str, idx: int, total: int) -> None:
         pct = int(idx / total * 100)
-        print(f"\r  [{idx}/{total}] {pct}% - {symbol}...".ljust(50), end="", flush=True)
+        print(f"\r  [{idx}/{total}] {pct}% - Datum {date_str}...".ljust(60), end="", flush=True)
 
-    # Calculate metrics
-    results = service.get_all_symbols_overview(
+    # Calculate metrics using optimized method
+    results = service.get_all_symbols_overview_optimized(
         lookback_days=252,
         progress_callback=progress,
+        max_workers=8,
     )
 
     print("\r" + " " * 60 + "\r", end="")  # Clear progress line

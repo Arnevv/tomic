@@ -4,10 +4,15 @@ import pytest
 from pathlib import Path
 from datetime import date
 from unittest.mock import MagicMock, patch
+import zipfile
+import io
 
 from tomic.services.liquidity_service import (
     LiquidityService,
     LiquidityMetrics,
+    _process_date_for_atm,
+    _safe_float,
+    _safe_int,
 )
 
 
@@ -224,3 +229,209 @@ class TestLiquidityServiceCalculation:
         assert "AAPL" in results
         assert "MSFT" in results
         assert mock_calc.call_count == 2
+
+
+class TestHelperFunctions:
+    """Tests for helper functions."""
+
+    def test_safe_float_valid(self):
+        """Test safe_float with valid input."""
+        assert _safe_float("123.45") == 123.45
+        assert _safe_float("0") == 0.0
+
+    def test_safe_float_invalid(self):
+        """Test safe_float with invalid input."""
+        assert _safe_float(None) is None
+        assert _safe_float("") is None
+        assert _safe_float("null") is None
+        assert _safe_float("invalid") is None
+
+    def test_safe_int_valid(self):
+        """Test safe_int with valid input."""
+        assert _safe_int("123") == 123
+        assert _safe_int("123.7") == 123  # Truncates
+
+    def test_safe_int_invalid(self):
+        """Test safe_int with invalid input."""
+        assert _safe_int(None) is None
+        assert _safe_int("") is None
+        assert _safe_int("null") is None
+        assert _safe_int("invalid") is None
+
+
+class TestProcessDateForATM:
+    """Tests for _process_date_for_atm function."""
+
+    def _create_mock_orats_zip(self, tmp_path, trade_date, rows):
+        """Create a mock ORATS ZIP file with test data."""
+        year = trade_date.strftime("%Y")
+        date_str = trade_date.strftime("%Y%m%d")
+
+        year_dir = tmp_path / year
+        year_dir.mkdir(exist_ok=True)
+
+        zip_path = year_dir / f"ORATS_SMV_Strikes_{date_str}.zip"
+
+        # Create CSV content
+        header = "ticker,stkPx,expirDate,strike,cVolu,cOi,pVolu,pOi,cMidIv,pMidIv"
+        csv_lines = [header] + rows
+
+        csv_content = "\n".join(csv_lines)
+
+        # Create ZIP with CSV
+        with zipfile.ZipFile(zip_path, "w") as zf:
+            zf.writestr(f"ORATS_SMV_Strikes_{date_str}.csv", csv_content)
+
+        return zip_path
+
+    def test_process_date_empty_cache(self, tmp_path):
+        """Test processing with no data file."""
+        result = _process_date_for_atm(tmp_path, date(2024, 1, 15))
+        assert result == {}
+
+    def test_process_date_single_symbol(self, tmp_path):
+        """Test processing a single symbol from ORATS data."""
+        trade_date = date(2024, 1, 15)
+        expiry_date = date(2024, 2, 15)  # 31 DTE, within range
+
+        # AAPL at $150, ATM strike at $150 (within 2%)
+        rows = [
+            f"AAPL,150.0,{expiry_date},150,1000,5000,900,4500,0.25,0.26",
+        ]
+
+        self._create_mock_orats_zip(tmp_path, trade_date, rows)
+
+        result = _process_date_for_atm(tmp_path, trade_date)
+
+        assert "AAPL" in result
+        assert result["AAPL"]["call_volume"] == 1000
+        assert result["AAPL"]["call_oi"] == 5000
+        assert result["AAPL"]["put_volume"] == 900
+        assert result["AAPL"]["put_oi"] == 4500
+
+    def test_process_date_multiple_symbols(self, tmp_path):
+        """Test processing multiple symbols from ORATS data."""
+        trade_date = date(2024, 1, 15)
+        expiry_date = date(2024, 2, 15)
+
+        rows = [
+            f"AAPL,150.0,{expiry_date},150,1000,5000,900,4500,0.25,0.26",
+            f"MSFT,400.0,{expiry_date},400,800,4000,700,3500,0.22,0.23",
+            f"GOOGL,140.0,{expiry_date},140,600,3000,500,2500,0.28,0.29",
+        ]
+
+        self._create_mock_orats_zip(tmp_path, trade_date, rows)
+
+        result = _process_date_for_atm(tmp_path, trade_date)
+
+        assert len(result) == 3
+        assert "AAPL" in result
+        assert "MSFT" in result
+        assert "GOOGL" in result
+
+    def test_process_date_filters_out_of_dte_range(self, tmp_path):
+        """Test that options outside DTE range are filtered."""
+        trade_date = date(2024, 1, 15)
+        near_expiry = date(2024, 1, 20)  # 5 DTE, below min range (20)
+        far_expiry = date(2024, 6, 15)  # ~150 DTE, above max range (60)
+
+        rows = [
+            f"AAPL,150.0,{near_expiry},150,1000,5000,900,4500,0.25,0.26",
+            f"MSFT,400.0,{far_expiry},400,800,4000,700,3500,0.22,0.23",
+        ]
+
+        self._create_mock_orats_zip(tmp_path, trade_date, rows)
+
+        result = _process_date_for_atm(tmp_path, trade_date)
+
+        # Both should be filtered out
+        assert len(result) == 0
+
+    def test_process_date_filters_non_atm(self, tmp_path):
+        """Test that non-ATM options are filtered out."""
+        trade_date = date(2024, 1, 15)
+        expiry_date = date(2024, 2, 15)
+
+        # AAPL at $150, but strike at $200 (>2% from spot)
+        rows = [
+            f"AAPL,150.0,{expiry_date},200,1000,5000,900,4500,0.25,0.26",
+        ]
+
+        self._create_mock_orats_zip(tmp_path, trade_date, rows)
+
+        result = _process_date_for_atm(tmp_path, trade_date)
+
+        # Should be filtered out as non-ATM
+        assert len(result) == 0
+
+    def test_process_date_aggregates_multiple_strikes(self, tmp_path):
+        """Test that multiple ATM strikes for same symbol are aggregated."""
+        trade_date = date(2024, 1, 15)
+        expiry_date = date(2024, 2, 15)
+
+        # AAPL at $150 with two ATM strikes (both within 2%)
+        rows = [
+            f"AAPL,150.0,{expiry_date},149,500,2500,450,2000,0.25,0.26",
+            f"AAPL,150.0,{expiry_date},150,600,3000,500,2500,0.25,0.26",
+            f"AAPL,150.0,{expiry_date},151,400,2000,350,1500,0.25,0.26",
+        ]
+
+        self._create_mock_orats_zip(tmp_path, trade_date, rows)
+
+        result = _process_date_for_atm(tmp_path, trade_date)
+
+        assert "AAPL" in result
+        # Should aggregate all three strikes
+        assert result["AAPL"]["call_volume"] == 500 + 600 + 400
+        assert result["AAPL"]["put_volume"] == 450 + 500 + 350
+
+
+class TestOptimizedOverview:
+    """Tests for the optimized symbol overview method."""
+
+    def test_get_all_symbols_overview_optimized_empty(self, tmp_path):
+        """Test optimized overview with empty cache."""
+        service = LiquidityService(cache_dir=tmp_path)
+        results = service.get_all_symbols_overview_optimized(lookback_days=30)
+        assert results == []
+
+    def test_get_all_symbols_overview_optimized_with_data(self, tmp_path):
+        """Test optimized overview with mock data."""
+        service = LiquidityService(cache_dir=tmp_path)
+
+        # Mock _get_available_dates and _process_date_for_atm
+        with patch.object(service, "_get_available_dates") as mock_dates:
+            mock_dates.return_value = [date(2024, 1, 15), date(2024, 1, 16)]
+
+            with patch(
+                "tomic.services.liquidity_service._process_date_for_atm"
+            ) as mock_process:
+                # Return mock data for each date
+                mock_process.side_effect = [
+                    # Day 1
+                    {
+                        "AAPL": {"call_volume": 1000, "call_oi": 5000, "put_volume": 900, "put_oi": 4500},
+                        "MSFT": {"call_volume": 800, "call_oi": 4000, "put_volume": 700, "put_oi": 3500},
+                    },
+                    # Day 2
+                    {
+                        "AAPL": {"call_volume": 1200, "call_oi": 5500, "put_volume": 1100, "put_oi": 5000},
+                        "MSFT": {"call_volume": 900, "call_oi": 4200, "put_volume": 800, "put_oi": 3700},
+                    },
+                ]
+
+                results = service.get_all_symbols_overview_optimized(
+                    lookback_days=30, max_workers=1, use_threads=True
+                )
+
+        assert len(results) == 2
+
+        # Results should be sorted by volume descending
+        # AAPL avg: (1000+900+1200+1100)/2 = 2100 total
+        # MSFT avg: (800+700+900+800)/2 = 1600 total
+        assert results[0]["symbol"] == "AAPL"
+        assert results[1]["symbol"] == "MSFT"
+
+        # Check averaging
+        assert results[0]["days_analyzed"] == 2
+        assert results[1]["days_analyzed"] == 2
