@@ -13,6 +13,7 @@ from functools import partial
 from typing import Optional
 
 from tomic.cli.common import Menu, prompt, prompt_yes_no
+from tomic.services.liquidity_service import LiquidityService, get_liquidity_service
 from tomic.services.symbol_manager import SymbolManager, get_symbol_manager
 
 
@@ -314,6 +315,106 @@ def show_orphaned_data(manager: Optional[SymbolManager] = None) -> None:
     print()
 
 
+def show_orats_symbol_overview(liquidity_service: Optional[LiquidityService] = None) -> None:
+    """Show overview of all symbols from most recent ORATS file.
+
+    Displays symbols sorted by average ATM volume (252 days) with average OI.
+    """
+    service = liquidity_service or get_liquidity_service()
+
+    _print_header("\U0001f4ca ORATS SYMBOOL OVERZICHT")
+
+    # Find most recent file
+    most_recent = service.get_most_recent_orats_file()
+    if most_recent is None:
+        print("Geen ORATS bestanden gevonden in cache.")
+        print("Voer eerst een ORATS backfill uit om data te downloaden.")
+        print()
+        return
+
+    # Extract date from filename
+    try:
+        date_str = most_recent.stem.split("_")[-1]
+        file_date = f"{date_str[:4]}-{date_str[4:6]}-{date_str[6:8]}"
+    except (ValueError, IndexError):
+        file_date = "onbekend"
+
+    print(f"Meest recente ORATS bestand: {most_recent.name}")
+    print(f"Datum: {file_date}")
+    print()
+
+    # Get all symbols from file
+    symbols = service.get_symbols_from_orats_file(most_recent)
+    if not symbols:
+        print("Geen symbolen gevonden in ORATS bestand.")
+        print()
+        return
+
+    print(f"Gevonden: {len(symbols)} symbolen")
+    print()
+
+    # Ask for confirmation since this can take a while
+    print("Let op: Het berekenen van gemiddelden over 252 dagen kan even duren.")
+    if not prompt_yes_no(f"Doorgaan met analyse van {len(symbols)} symbolen?", True):
+        print("Geannuleerd.")
+        return
+
+    print()
+    print("Berekenen van liquiditeitsmetrics...")
+
+    # Progress callback
+    def progress(symbol: str, idx: int, total: int) -> None:
+        pct = int(idx / total * 100)
+        print(f"\r  [{idx}/{total}] {pct}% - {symbol}...".ljust(50), end="", flush=True)
+
+    # Calculate metrics
+    results = service.get_all_symbols_overview(
+        lookback_days=252,
+        progress_callback=progress,
+    )
+
+    print("\r" + " " * 60 + "\r", end="")  # Clear progress line
+    print()
+
+    if not results:
+        print("Geen resultaten beschikbaar.")
+        print()
+        return
+
+    # Display results
+    _print_header(f"OVERZICHT ({len(results)} symbolen, gesorteerd op ATM Volume)")
+
+    print(f"{'#':<5} {'Symbol':<8} {'Gem. ATM Volume':>18} {'Gem. ATM OI':>18} {'Dagen':>8}")
+    print("\u2500" * 60)
+
+    for idx, r in enumerate(results, 1):
+        vol = _format_number(r["avg_atm_volume"])
+        oi = _format_number(r["avg_atm_oi"])
+        days = r["days_analyzed"]
+
+        print(f"{idx:<5} {r['symbol']:<8} {vol:>18} {oi:>18} {days:>8}")
+
+    # Summary
+    print("\u2500" * 60)
+
+    # Calculate totals for symbols with data
+    symbols_with_data = [r for r in results if r["avg_atm_volume"] is not None]
+    symbols_without_data = len(results) - len(symbols_with_data)
+
+    if symbols_with_data:
+        total_vol = sum(r["avg_atm_volume"] for r in symbols_with_data)
+        total_oi = sum(r["avg_atm_oi"] or 0 for r in symbols_with_data)
+        avg_vol = total_vol // len(symbols_with_data)
+        avg_oi = total_oi // len(symbols_with_data)
+
+        print(f"Symbolen met data: {len(symbols_with_data)}")
+        print(f"Symbolen zonder data: {symbols_without_data}")
+        print(f"Gemiddelde ATM Volume: {_format_number(avg_vol)}")
+        print(f"Gemiddelde ATM OI: {_format_number(avg_oi)}")
+
+    print()
+
+
 def validate_all_data(manager: Optional[SymbolManager] = None) -> None:
     """Validate data for all symbols."""
     manager = manager or get_symbol_manager()
@@ -361,6 +462,7 @@ def run_symbol_menu(manager: Optional[SymbolManager] = None) -> None:
     menu = Menu("\U0001f4e6 SYMBOLEN & BASKET")
 
     menu.add("Basket overzicht", partial(show_basket_overview, manager))
+    menu.add("ORATS symbool overzicht (ATM Vol/OI)", show_orats_symbol_overview)
     menu.add("Symbool toevoegen", partial(add_symbols_interactive, manager))
     menu.add("Symbool verwijderen", partial(remove_symbols_interactive, manager))
     menu.add("Basket analyse", partial(show_sector_analysis, manager))
@@ -379,6 +481,7 @@ def build_symbol_menu(manager: Optional[SymbolManager] = None) -> Menu:
     menu = Menu("\U0001f4e6 SYMBOLEN & BASKET")
 
     menu.add("Basket overzicht", partial(show_basket_overview, manager))
+    menu.add("ORATS symbool overzicht (ATM Vol/OI)", show_orats_symbol_overview)
     menu.add("Symbool toevoegen", partial(add_symbols_interactive, manager))
     menu.add("Symbool verwijderen", partial(remove_symbols_interactive, manager))
     menu.add("Basket analyse", partial(show_sector_analysis, manager))
