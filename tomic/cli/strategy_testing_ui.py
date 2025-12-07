@@ -10,9 +10,10 @@ Supports multiple strategy types:
 
 from __future__ import annotations
 
+import json
 import os
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from dataclasses import dataclass
+from dataclasses import dataclass, asdict
 from datetime import datetime
 from functools import partial
 from pathlib import Path
@@ -1410,6 +1411,164 @@ def run_custom_experiment() -> None:
 
 
 _STORED_RESULTS: Dict[str, List[TestResult]] = {}
+_SYMBOL_STRATEGY_METRICS: Dict[str, Dict[str, Dict[str, Dict[str, Any]]]] = {}  # category -> symbol -> strategy -> metrics
+_RESULTS_FILE = Path("tomic/data/test_results.json")
+
+
+def _test_result_to_dict(result: TestResult) -> Dict[str, Any]:
+    """Convert TestResult to a JSON-serializable dict."""
+    data = {
+        "config_label": result.config_label,
+        "param_value": result.param_value,
+        "trades": result.trades,
+        "win_rate": result.win_rate,
+        "total_pnl": result.total_pnl,
+        "sharpe": result.sharpe,
+        "max_drawdown": result.max_drawdown,
+        "profit_factor": result.profit_factor,
+        "ret_dd": result.ret_dd,
+        "degradation": result.degradation,
+        "is_baseline": result.is_baseline,
+        # Note: full backtest_result is not serialized (too complex)
+    }
+
+    # Extract per-symbol-per-strategy metrics if backtest_result is available
+    if result.backtest_result is not None and result.backtest_result.trades:
+        symbol_strategy_metrics = _extract_symbol_strategy_metrics(result.backtest_result.trades)
+        if symbol_strategy_metrics:
+            data["symbol_strategy_metrics"] = symbol_strategy_metrics
+
+    return data
+
+
+def _extract_symbol_strategy_metrics(trades: List[Any]) -> Dict[str, Dict[str, Dict[str, Any]]]:
+    """Extract per-symbol-per-strategy metrics from trades for persistence."""
+    from collections import defaultdict
+
+    # Group by symbol and strategy
+    by_symbol: Dict[str, Dict[str, List[Any]]] = defaultdict(lambda: {"iron_condor": [], "calendar": []})
+
+    for trade in trades:
+        if hasattr(trade, 'status') and trade.status.value == "closed":
+            by_symbol[trade.symbol][trade.strategy_type].append(trade)
+
+    # Calculate metrics for each group
+    result: Dict[str, Dict[str, Dict[str, Any]]] = {}
+    for symbol, strategies in by_symbol.items():
+        result[symbol] = {}
+        for strategy_type, strategy_trades in strategies.items():
+            if strategy_trades:
+                winners = [t for t in strategy_trades if t.final_pnl > 0]
+                total_pnl = sum(t.final_pnl for t in strategy_trades)
+                result[symbol][strategy_type] = {
+                    "trades": len(strategy_trades),
+                    "win_rate": len(winners) / len(strategy_trades),
+                    "total_pnl": total_pnl,
+                    "avg_pnl": total_pnl / len(strategy_trades),
+                }
+
+    return result
+
+
+def _dict_to_test_result(d: Dict[str, Any]) -> TestResult:
+    """Convert a dict back to TestResult."""
+    return TestResult(
+        config_label=d["config_label"],
+        param_value=d["param_value"],
+        trades=d["trades"],
+        win_rate=d["win_rate"],
+        total_pnl=d["total_pnl"],
+        sharpe=d["sharpe"],
+        max_drawdown=d["max_drawdown"],
+        profit_factor=d["profit_factor"],
+        ret_dd=d.get("ret_dd"),
+        degradation=d.get("degradation"),
+        is_baseline=d.get("is_baseline", False),
+        backtest_result=None,  # Cannot restore full backtest result
+    )
+
+
+def _save_results() -> None:
+    """Persist stored results to JSON file."""
+    global _STORED_RESULTS, _SYMBOL_STRATEGY_METRICS
+    if not _STORED_RESULTS:
+        return
+
+    # Convert to serializable format
+    data = {
+        "version": 2,
+        "saved_at": datetime.now().isoformat(),
+        "results": {
+            category: [_test_result_to_dict(r) for r in results]
+            for category, results in _STORED_RESULTS.items()
+        },
+        "symbol_strategy_metrics": _SYMBOL_STRATEGY_METRICS,
+    }
+
+    # Ensure directory exists
+    _RESULTS_FILE.parent.mkdir(parents=True, exist_ok=True)
+
+    with open(_RESULTS_FILE, "w", encoding="utf-8") as f:
+        json.dump(data, f, indent=2, default=str)
+
+    logger.info(f"Test resultaten opgeslagen naar {_RESULTS_FILE}")
+
+
+def _load_results() -> bool:
+    """Load stored results from JSON file.
+
+    Returns:
+        True if results were loaded, False if no file exists.
+    """
+    global _STORED_RESULTS, _SYMBOL_STRATEGY_METRICS
+
+    if not _RESULTS_FILE.exists():
+        return False
+
+    try:
+        with open(_RESULTS_FILE, "r", encoding="utf-8") as f:
+            data = json.load(f)
+
+        # Convert back to TestResult objects
+        _STORED_RESULTS = {
+            category: [_dict_to_test_result(d) for d in results]
+            for category, results in data.get("results", {}).items()
+        }
+
+        # Load symbol-strategy metrics (version 2+)
+        _SYMBOL_STRATEGY_METRICS = data.get("symbol_strategy_metrics", {})
+
+        # Also extract from individual results if available (backward compatibility)
+        for category, results_dicts in data.get("results", {}).items():
+            for d in results_dicts:
+                if "symbol_strategy_metrics" in d:
+                    if category not in _SYMBOL_STRATEGY_METRICS:
+                        _SYMBOL_STRATEGY_METRICS[category] = {}
+                    # Merge metrics
+                    for symbol, strategies in d["symbol_strategy_metrics"].items():
+                        if symbol not in _SYMBOL_STRATEGY_METRICS[category]:
+                            _SYMBOL_STRATEGY_METRICS[category][symbol] = {}
+                        _SYMBOL_STRATEGY_METRICS[category][symbol].update(strategies)
+
+        saved_at = data.get("saved_at", "onbekend")
+        logger.info(f"Test resultaten geladen van {_RESULTS_FILE} (opgeslagen: {saved_at})")
+        return True
+
+    except (json.JSONDecodeError, KeyError) as e:
+        logger.warning(f"Kon test resultaten niet laden: {e}")
+        return False
+
+
+def _clear_persisted_results() -> None:
+    """Clear persisted results file."""
+    global _STORED_RESULTS, _SYMBOL_STRATEGY_METRICS
+    _STORED_RESULTS = {}
+    _SYMBOL_STRATEGY_METRICS = {}
+    if _RESULTS_FILE.exists():
+        _RESULTS_FILE.unlink()
+        print("Opgeslagen resultaten gewist.")
+    else:
+        print("Geen opgeslagen resultaten om te wissen.")
 
 
 def _store_result(category: str, result: TestResult) -> None:
@@ -1417,7 +1576,10 @@ def _store_result(category: str, result: TestResult) -> None:
 
     Also updates backtest_ui._LAST_RESULT so the result can be viewed
     via the backtest menu's "Resultaten bekijken" submenu.
+    Results are automatically persisted to disk.
     """
+    global _SYMBOL_STRATEGY_METRICS
+
     if category not in _STORED_RESULTS:
         _STORED_RESULTS[category] = []
     _STORED_RESULTS[category].append(result)
@@ -1427,18 +1589,41 @@ def _store_result(category: str, result: TestResult) -> None:
         import tomic.cli.backtest_ui as backtest_ui
         backtest_ui._LAST_RESULT = result.backtest_result
 
+        # Extract and store symbol-strategy metrics for persistence
+        if result.backtest_result.trades:
+            metrics = _extract_symbol_strategy_metrics(result.backtest_result.trades)
+            if metrics:
+                if category not in _SYMBOL_STRATEGY_METRICS:
+                    _SYMBOL_STRATEGY_METRICS[category] = {}
+                # Merge with existing
+                for symbol, strategies in metrics.items():
+                    if symbol not in _SYMBOL_STRATEGY_METRICS[category]:
+                        _SYMBOL_STRATEGY_METRICS[category][symbol] = {}
+                    _SYMBOL_STRATEGY_METRICS[category][symbol].update(strategies)
+
+    # Persist to disk
+    _save_results()
+
 
 def view_results() -> None:
     """View stored test results via submenu."""
+    global _STORED_RESULTS
+
+    # Try to load from disk if memory is empty
+    if not _STORED_RESULTS:
+        _load_results()
+
     if not _STORED_RESULTS:
         print("\nGeen opgeslagen resultaten.")
         print("Voer eerst een test uit.")
         return
 
-    menu = Menu("📊 RESULTATEN BEKIJKEN")
+    menu = Menu("RESULTATEN BEKIJKEN")
     menu.add("Samenvatting", _view_results_summary)
     menu.add("Per-symbool overzicht", _view_results_symbol_table)
+    menu.add("Per-symbool per strategie (IC/Cal)", _view_results_by_strategy)
     menu.add("Volledig rapport", _view_results_full_report)
+    menu.add("Resultaten wissen", _clear_persisted_results)
     menu.run()
 
 
@@ -1492,6 +1677,332 @@ def _view_results_full_report() -> None:
 
     from tomic.backtest.reports import print_backtest_report
     print_backtest_report(last_result.backtest_result)
+
+
+def _view_results_by_strategy() -> None:
+    """Show per-symbol performance split by strategy type (IC vs Calendar)."""
+    # Collect all backtest results from stored results
+    ic_result = None
+    cal_result = None
+
+    # Look for separate IC and Calendar results first (from memory)
+    if "live_validation_ic" in _STORED_RESULTS:
+        for r in reversed(_STORED_RESULTS["live_validation_ic"]):
+            if r.backtest_result is not None:
+                ic_result = r.backtest_result
+                break
+
+    if "live_validation_cal" in _STORED_RESULTS:
+        for r in reversed(_STORED_RESULTS["live_validation_cal"]):
+            if r.backtest_result is not None:
+                cal_result = r.backtest_result
+                break
+
+    # If found in memory, use the full backtest results
+    if ic_result is not None or cal_result is not None:
+        _print_strategy_comparison_table(ic_result, cal_result)
+        return
+
+    # If not found in memory, try to get from a combined result with trades
+    for category, results in _STORED_RESULTS.items():
+        for r in reversed(results):
+            if r.backtest_result is not None and r.backtest_result.trades:
+                # Check if trades have mixed strategy types
+                strategy_types = {t.strategy_type for t in r.backtest_result.trades}
+                if len(strategy_types) > 1 or strategy_types:
+                    # Use this result and split by strategy type
+                    _print_strategy_breakdown_from_trades(r.backtest_result.trades)
+                    return
+
+    # Fallback: Use persisted symbol-strategy metrics
+    if _SYMBOL_STRATEGY_METRICS:
+        _print_strategy_breakdown_from_persisted_metrics()
+        return
+
+    print("\nGeen gedetailleerde resultaten beschikbaar.")
+    print("Voer eerst een backtest uit met 'Beide' strategieen.")
+
+
+def _print_strategy_breakdown_from_trades(trades: List[Any]) -> None:
+    """Print per-symbol breakdown from mixed trades."""
+    from collections import defaultdict
+
+    # Split trades by symbol and strategy
+    by_symbol: Dict[str, Dict[str, List[Any]]] = defaultdict(lambda: {"iron_condor": [], "calendar": []})
+
+    for trade in trades:
+        if trade.status.value == "closed":
+            by_symbol[trade.symbol][trade.strategy_type].append(trade)
+
+    if not by_symbol:
+        print("\nGeen gesloten trades beschikbaar.")
+        return
+
+    _print_combined_strategy_table(by_symbol)
+
+
+def _print_strategy_comparison_table(ic_result: Optional[Any], cal_result: Optional[Any]) -> None:
+    """Print comparison table from separate IC and Calendar results."""
+    from collections import defaultdict
+
+    # Build per-symbol metrics from both results
+    by_symbol: Dict[str, Dict[str, List[Any]]] = defaultdict(lambda: {"iron_condor": [], "calendar": []})
+
+    if ic_result and ic_result.trades:
+        for trade in ic_result.trades:
+            if trade.status.value == "closed":
+                by_symbol[trade.symbol]["iron_condor"].append(trade)
+
+    if cal_result and cal_result.trades:
+        for trade in cal_result.trades:
+            if trade.status.value == "closed":
+                by_symbol[trade.symbol]["calendar"].append(trade)
+
+    if not by_symbol:
+        print("\nGeen gesloten trades beschikbaar.")
+        return
+
+    _print_combined_strategy_table(by_symbol)
+
+
+def _print_strategy_breakdown_from_persisted_metrics() -> None:
+    """Print per-symbol breakdown from persisted metrics (no trades in memory)."""
+    # Combine metrics from all categories
+    combined_by_symbol: Dict[str, Dict[str, Dict[str, Any]]] = {}
+
+    for category, symbols in _SYMBOL_STRATEGY_METRICS.items():
+        for symbol, strategies in symbols.items():
+            if symbol not in combined_by_symbol:
+                combined_by_symbol[symbol] = {"iron_condor": None, "calendar": None}
+
+            for strategy_type, metrics in strategies.items():
+                # Use the most recent metrics for this symbol/strategy
+                combined_by_symbol[symbol][strategy_type] = metrics
+
+    if not combined_by_symbol:
+        print("\nGeen opgeslagen per-symbool metrics beschikbaar.")
+        return
+
+    # Build symbol_data for the table
+    symbol_data = []
+    for symbol in sorted(combined_by_symbol.keys()):
+        ic_metrics = combined_by_symbol[symbol].get("iron_condor") or {
+            "trades": 0, "win_rate": 0.0, "total_pnl": 0.0, "avg_pnl": 0.0
+        }
+        cal_metrics = combined_by_symbol[symbol].get("calendar") or {
+            "trades": 0, "win_rate": 0.0, "total_pnl": 0.0, "avg_pnl": 0.0
+        }
+
+        # Calculate total
+        total_trades = ic_metrics["trades"] + cal_metrics["trades"]
+        total_pnl = ic_metrics["total_pnl"] + cal_metrics["total_pnl"]
+
+        total_metrics = {
+            "trades": total_trades,
+            "win_rate": 0.0,  # Can't calculate without individual trade data
+            "total_pnl": total_pnl,
+            "avg_pnl": total_pnl / total_trades if total_trades > 0 else 0.0,
+        }
+
+        symbol_data.append({
+            "symbol": symbol,
+            "ic": ic_metrics,
+            "cal": cal_metrics,
+            "total": total_metrics,
+        })
+
+    # Sort by total P&L descending
+    symbol_data.sort(key=lambda x: x["total"]["total_pnl"], reverse=True)
+
+    print("\n" + "=" * 100)
+    print("PER-SYMBOOL STRATEGIE OVERZICHT (van opgeslagen resultaten)")
+    print("=" * 100)
+
+    if RICH_AVAILABLE:
+        _print_rich_strategy_table(symbol_data)
+    else:
+        _print_plain_strategy_table(symbol_data)
+
+
+def _calculate_metrics_for_trades(trades: List[Any]) -> Dict[str, Any]:
+    """Calculate basic metrics for a list of trades."""
+    if not trades:
+        return {
+            "trades": 0,
+            "win_rate": 0.0,
+            "total_pnl": 0.0,
+            "avg_pnl": 0.0,
+        }
+
+    winners = [t for t in trades if t.final_pnl > 0]
+    total_pnl = sum(t.final_pnl for t in trades)
+
+    return {
+        "trades": len(trades),
+        "win_rate": len(winners) / len(trades) if trades else 0,
+        "total_pnl": total_pnl,
+        "avg_pnl": total_pnl / len(trades) if trades else 0,
+    }
+
+
+def _print_combined_strategy_table(by_symbol: Dict[str, Dict[str, List[Any]]]) -> None:
+    """Print combined table showing IC, Calendar, and Total per symbol."""
+    print("\n" + "=" * 100)
+    print("PER-SYMBOOL STRATEGIE OVERZICHT")
+    print("=" * 100)
+
+    # Calculate totals per symbol
+    symbol_data = []
+    for symbol in sorted(by_symbol.keys()):
+        ic_trades = by_symbol[symbol]["iron_condor"]
+        cal_trades = by_symbol[symbol]["calendar"]
+        all_trades = ic_trades + cal_trades
+
+        ic_metrics = _calculate_metrics_for_trades(ic_trades)
+        cal_metrics = _calculate_metrics_for_trades(cal_trades)
+        total_metrics = _calculate_metrics_for_trades(all_trades)
+
+        symbol_data.append({
+            "symbol": symbol,
+            "ic": ic_metrics,
+            "cal": cal_metrics,
+            "total": total_metrics,
+        })
+
+    # Sort by total P&L descending
+    symbol_data.sort(key=lambda x: x["total"]["total_pnl"], reverse=True)
+
+    if RICH_AVAILABLE:
+        _print_rich_strategy_table(symbol_data)
+    else:
+        _print_plain_strategy_table(symbol_data)
+
+
+def _print_rich_strategy_table(symbol_data: List[Dict[str, Any]]) -> None:
+    """Print strategy comparison table with Rich formatting."""
+    console = Console()
+
+    console.print()
+    console.print(
+        Panel(
+            "[bold]Per-symbool strategie vergelijking[/bold]\n"
+            "[dim]IC = Iron Condor | Cal = Calendar | Gesorteerd op Total P&L[/dim]",
+            border_style="blue",
+        )
+    )
+
+    table = Table(show_header=True, header_style="bold")
+    table.add_column("Symbol", style="cyan", no_wrap=True)
+    table.add_column("IC #", justify="right")
+    table.add_column("IC Win%", justify="right")
+    table.add_column("IC P&L", justify="right")
+    table.add_column("Cal #", justify="right")
+    table.add_column("Cal Win%", justify="right")
+    table.add_column("Cal P&L", justify="right")
+    table.add_column("Total #", justify="right")
+    table.add_column("Total P&L", justify="right", style="bold")
+
+    # Totals
+    total_ic_trades = 0
+    total_ic_pnl = 0.0
+    total_cal_trades = 0
+    total_cal_pnl = 0.0
+    total_all_trades = 0
+    total_all_pnl = 0.0
+
+    for row in symbol_data:
+        ic = row["ic"]
+        cal = row["cal"]
+        total = row["total"]
+
+        # Accumulate totals
+        total_ic_trades += ic["trades"]
+        total_ic_pnl += ic["total_pnl"]
+        total_cal_trades += cal["trades"]
+        total_cal_pnl += cal["total_pnl"]
+        total_all_trades += total["trades"]
+        total_all_pnl += total["total_pnl"]
+
+        # Colors
+        ic_color = "green" if ic["total_pnl"] > 0 else "red" if ic["total_pnl"] < 0 else "white"
+        cal_color = "green" if cal["total_pnl"] > 0 else "red" if cal["total_pnl"] < 0 else "white"
+        total_color = "green" if total["total_pnl"] > 0 else "red" if total["total_pnl"] < 0 else "white"
+
+        table.add_row(
+            row["symbol"],
+            str(ic["trades"]) if ic["trades"] > 0 else "-",
+            f"{ic['win_rate']:.0%}" if ic["trades"] > 0 else "-",
+            f"[{ic_color}]${ic['total_pnl']:,.0f}[/{ic_color}]" if ic["trades"] > 0 else "-",
+            str(cal["trades"]) if cal["trades"] > 0 else "-",
+            f"{cal['win_rate']:.0%}" if cal["trades"] > 0 else "-",
+            f"[{cal_color}]${cal['total_pnl']:,.0f}[/{cal_color}]" if cal["trades"] > 0 else "-",
+            str(total["trades"]),
+            f"[{total_color}]${total['total_pnl']:,.0f}[/{total_color}]",
+        )
+
+    # Add totals row
+    ic_total_color = "green" if total_ic_pnl > 0 else "red"
+    cal_total_color = "green" if total_cal_pnl > 0 else "red"
+    all_total_color = "green" if total_all_pnl > 0 else "red"
+
+    table.add_row(
+        "[bold]TOTAAL[/bold]",
+        f"[bold]{total_ic_trades}[/bold]",
+        "",
+        f"[bold {ic_total_color}]${total_ic_pnl:,.0f}[/bold {ic_total_color}]",
+        f"[bold]{total_cal_trades}[/bold]",
+        "",
+        f"[bold {cal_total_color}]${total_cal_pnl:,.0f}[/bold {cal_total_color}]",
+        f"[bold]{total_all_trades}[/bold]",
+        f"[bold {all_total_color}]${total_all_pnl:,.0f}[/bold {all_total_color}]",
+        style="on grey23",
+    )
+
+    console.print(table)
+    console.print()
+
+
+def _print_plain_strategy_table(symbol_data: List[Dict[str, Any]]) -> None:
+    """Print strategy comparison table without Rich (fallback)."""
+    header = (
+        f"{'Symbol':<8} {'IC #':>5} {'IC Win%':>8} {'IC P&L':>10} "
+        f"{'Cal #':>5} {'Cal Win%':>8} {'Cal P&L':>10} "
+        f"{'Total #':>7} {'Total P&L':>12}"
+    )
+    print(header)
+    print("-" * 100)
+
+    total_ic_trades = 0
+    total_ic_pnl = 0.0
+    total_cal_trades = 0
+    total_cal_pnl = 0.0
+    total_all_trades = 0
+    total_all_pnl = 0.0
+
+    for row in symbol_data:
+        ic = row["ic"]
+        cal = row["cal"]
+        total = row["total"]
+
+        total_ic_trades += ic["trades"]
+        total_ic_pnl += ic["total_pnl"]
+        total_cal_trades += cal["trades"]
+        total_cal_pnl += cal["total_pnl"]
+        total_all_trades += total["trades"]
+        total_all_pnl += total["total_pnl"]
+
+        ic_str = f"{ic['trades']:>5} {ic['win_rate']:>7.0%} ${ic['total_pnl']:>9,.0f}" if ic["trades"] > 0 else "    -        -          -"
+        cal_str = f"{cal['trades']:>5} {cal['win_rate']:>7.0%} ${cal['total_pnl']:>9,.0f}" if cal["trades"] > 0 else "    -        -          -"
+
+        print(f"{row['symbol']:<8} {ic_str} {cal_str} {total['trades']:>7} ${total['total_pnl']:>11,.0f}")
+
+    print("-" * 100)
+    print(
+        f"{'TOTAAL':<8} {total_ic_trades:>5}          ${total_ic_pnl:>9,.0f} "
+        f"{total_cal_trades:>5}          ${total_cal_pnl:>9,.0f} "
+        f"{total_all_trades:>7} ${total_all_pnl:>11,.0f}"
+    )
+    print()
 
 
 def configure_test_settings() -> None:
