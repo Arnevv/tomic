@@ -4,7 +4,7 @@
   criteria:
   - iv_rank >= 0.6
   - iv_percentile >= 0.6
-  - skew <= 2.0
+  - skew <= 1.5
   - iv_vs_hv20 > 0
 - key: atm_iron_butterfly
   strategy: ATM Iron Butterfly

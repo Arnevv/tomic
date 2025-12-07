@@ -1,37 +1,23 @@
-# =========================
-# TOMIC criteria.yaml
-# Centrale bron voor alle kwantitatieve parameters
-# =========================
-
-# Tip: zet `EXPLAIN_FILTERS=true` of start met `--show-filter-stats` om te
-# zien hoeveel combinaties elke regel wegfiltert.
-
-# Schema version
 version: 1
-
-# 1) GENERIC STRIKE FILTERS
 strike:
   delta_min: -0.99
-  delta_max:  0.99
-  min_rom:    0.10      # minimaal 10% ROM
-  min_edge:   0.05
-  min_pos:    0.55
-  min_ev:     0.05
-  skew_min:  -20.0
-  skew_max:   20.0
-  term_min:  -20.0
-  term_max:   20.0
-  max_gamma:  null
-  max_vega:   null
-  min_theta:  null
-
-# 2) STRATEGY SCORING & ACCEPTANCE
+  delta_max: 0.99
+  min_rom: 0.65
+  min_edge: 0.03
+  min_pos: 0.55
+  min_ev: 0.05
+  skew_min: -20.0
+  skew_max: 20.0
+  term_min: -20.0
+  term_max: 20.0
+  max_gamma: null
+  max_vega: null
+  min_theta: null
 strategy:
-  # The following score weights must sum to 1.0
-  score_weight_rom: 0.40
+  score_weight_rom: 0.4
   score_weight_pos: 0.25
-  score_weight_ev:  0.20
-  score_weight_rr:  0.15
+  score_weight_ev: 0.2
+  score_weight_rr: 0.15
   pos_floor_pct: 50.0
   pos_span_pct: 50.0
   rom_cap_pct: 20.0
@@ -48,83 +34,63 @@ strategy:
     borderline_min: 45.0
   acceptance:
     require_positive_credit_for:
-      - iron_condor
-      - atm_iron_butterfly
-      - short_put_spread
-      - short_call_spread
-      - naked_put
-    min_risk_reward: 2.0    # default min R/R voor alle creditstrategieën
-
-# 3) MARKET DATA FILTERS
+    - iron_condor
+    - atm_iron_butterfly
+    - short_put_spread
+    - short_call_spread
+    - naked_put
+    min_risk_reward: 2.0
 market_data:
-  min_option_volume:        2 #normaal is dit 50
-  min_option_open_interest: 20 #normaal is dit 500
-
-# 4) ALERTS
+  min_option_volume: 2
+  min_option_open_interest: 20
 alerts:
   nearest_strike_tolerance_percent: 2.0
   skew_threshold: 0.05
   iv_hv_min_spread: 0.05
-  iv_rank_threshold: 0.30
-
+  iv_rank_threshold: 0.3
   entry_checks:
-    - condition: "avg_iv - HV30 < 0"
-      message:  "⏬ IV onder HV – liever niet instappen"
-    - condition: "0 <= avg_iv - HV30 < iv_hv_min_spread"
-      message:  "⚠️ IV slechts beperkt boven HV30"
-    - condition: "avg_iv - HV30 >= iv_hv_min_spread"
-      message:  "✅ IV significant boven HV30"
-    - condition: "abs(skew) > skew_threshold"
-      message:  "⚠️ Skew buiten range"
-    - condition: "IV_Rank < iv_rank_threshold"
-      message:  "⚠️ IV Rank onder minimum"
-
+  - condition: avg_iv - HV30 < 0
+    message: ⏬ IV onder HV – liever niet instappen
+  - condition: 0 <= avg_iv - HV30 < iv_hv_min_spread
+    message: ⚠️ IV slechts beperkt boven HV30
+  - condition: avg_iv - HV30 >= iv_hv_min_spread
+    message: ✅ IV significant boven HV30
+  - condition: abs(skew) > skew_threshold
+    message: ⚠️ Skew buiten range
+  - condition: IV_Rank < iv_rank_threshold
+    message: ⚠️ IV Rank onder minimum
   risk_thresholds:
     delta_dollar_max_abs: 15000
     delta_dollar_min_abs: 3000
     vega_abs_alert: 50
-
     vega_short_high_ivr:
       vega: -30
-      iv_rank_min: 0.60
-      message: "⚠️ Short vega bij hoge IVR — squeeze-risico"
-
+      iv_rank_min: 0.6
+      message: ⚠️ Short vega bij hoge IVR — squeeze-risico
     vega_long_low_ivr:
       vega: 30
-      iv_rank_max: 0.30
-      message: "ℹ️ Long vega bij lage IVR — mean reversion kans"
-
+      iv_rank_max: 0.3
+      message: ℹ️ Long vega bij lage IVR — mean reversion kans
     iv_hv_bands:
-      high:  0.05
-      low:  -0.05
-
+      high: 0.05
+      low: -0.05
     rom_bands:
-      high_min: 0.20
-      mid_min:  0.10
-      low_max:  0.05
-
-    theta_efficiency_bands: [0.5, 1.5, 2.5]
+      high_min: 0.2
+      mid_min: 0.1
+      low_max: 0.05
+    theta_efficiency_bands:
+    - 0.5
+    - 1.5
+    - 2.5
     dte_close_threshold: 10
     days_in_trade_close_threshold: 99
-
     pnl_theta:
-      take_profit_pct_of_premium: 0.70
-      reconsider_loss_abs:         100
-
-# 5) PORTFOLIO GATES
+      take_profit_pct_of_premium: 0.7
+      reconsider_loss_abs: 100
 portfolio:
-  # routing op vega-bias
-  vega_to_condor:    50
+  vega_to_condor: 50
   vega_to_calendar: -50
-
-  condor_gates: #ik gebruik deze gates nu niet, want ik snap ze niet echt
-    iv_rank_min:        0.01
-    #iv_percentile_min:  0.60
-    #rom_min:            0.10
-    #rr_min:             1.00
-
-  calendar_gates: #ik gebruik deze gates nu niet, want ik snap ze niet echt
-    iv_rank_max:        1.00
-    #iv_percentile_max:  0.40
-    #term_m1_m3_max:     0.00
-    #rom_min:            0.10
+  condor_gates:
+    iv_rank_min: 0.01
+  calendar_gates:
+    iv_rank_max: 1.0

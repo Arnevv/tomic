@@ -12,10 +12,10 @@ strategies:
     allow_unpriced_wings: true
     exclude_expiry_before_earnings: true
     min_days_until_earnings: 14
-    min_rom: 0.5
-    min_edge: 0.04
+    min_rom: 0.15
+    min_edge: 0.03
     min_pos: 0.7
-    min_ev: 0.03
+    min_ev: 0.02
     min_risk_reward: 1.5
     strike_to_strategy_config:
       short_call_delta_range:
@@ -25,7 +25,7 @@ strategies:
       - -0.4
       - -0.1
       wing_sigma_multiple: 1.0
-      min_wing_width_atr: 2.0
+      min_wing_width_atr: 1.5
       use_ATR: true
       long_wing_strike_tolerance_percent: 5.0
   atm_iron_butterfly:

@@ -10,9 +10,9 @@ default:
 iron_condor:
   method: stddev_range
   stddev_range: 2.0
-  dte_range:
-  - 19
-  - 61
+  dte_range: !!python/tuple
+  - 25
+  - 55
 atm_iron_butterfly:
   method: spot_distance
   dte_range:

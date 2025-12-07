@@ -94,6 +94,14 @@ sample_split:
 costs:
   commission_per_contract: 1.0
   slippage_pct: 5.0
+liquidity_rules:
+  mode: hard
+  min_option_volume: 10
+  min_option_open_interest: 100
+  max_spread_pct: 20.0
+  min_liquidity_score: 20.0
+  use_realistic_execution: true
+  volume_impact_threshold: 0.1
 iron_condor_wing_width: 5
 iron_condor_short_delta: 0.16
 calendar_near_dte: 37
