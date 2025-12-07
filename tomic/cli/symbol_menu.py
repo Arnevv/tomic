@@ -14,6 +14,12 @@ from typing import Any, Dict, List, Optional
 
 from tomic.cli.common import Menu, prompt, prompt_yes_no
 from tomic.services.liquidity_service import LiquidityService, get_liquidity_service
+from tomic.services.qualification_service import (
+    QualificationService,
+    get_qualification_service,
+    STRATEGIES,
+    VALID_STATUSES,
+)
 from tomic.services.symbol_manager import SymbolManager, get_symbol_manager
 
 
@@ -524,6 +530,143 @@ def validate_all_data(manager: Optional[SymbolManager] = None) -> None:
         print()
 
 
+def _format_qual_status(status: str) -> str:
+    """Format qualification status with icon."""
+    if status == "qualified":
+        return "\u2705"  # ✅
+    if status == "disqualified":
+        return "\u274c"  # ❌
+    return "\u26a0\ufe0f"  # ⚠️ (watchlist)
+
+
+def show_qualification_matrix(
+    manager: Optional[SymbolManager] = None,
+    qual_service: Optional[QualificationService] = None,
+) -> None:
+    """Show qualification matrix for all configured symbols."""
+    manager = manager or get_symbol_manager()
+    qual_service = qual_service or get_qualification_service()
+
+    symbols = manager.symbol_service.get_configured_symbols()
+    matrix = qual_service.get_matrix(symbols)
+
+    _print_header("\U0001f3af KWALIFICATIE MATRIX")
+
+    # Count qualified per strategy
+    cal_qual = sum(1 for m in matrix if m["calendar_status"] == "qualified")
+    ic_qual = sum(1 for m in matrix if m["iron_condor_status"] == "qualified")
+
+    print(f"{'Symbol':<8} {'Calendar':^10} {'Iron Condor':^12} {'Notes':<40}")
+    print("\u2500" * 75)
+
+    for m in sorted(matrix, key=lambda x: x["symbol"]):
+        cal_icon = _format_qual_status(m["calendar_status"])
+        ic_icon = _format_qual_status(m["iron_condor_status"])
+
+        # Combine reasons for notes column
+        notes = []
+        if m["calendar_reason"] and m["calendar_status"] != "qualified":
+            notes.append(f"CAL: {m['calendar_reason']}")
+        if m["iron_condor_reason"] and m["iron_condor_status"] != "qualified":
+            notes.append(f"IC: {m['iron_condor_reason']}")
+        notes_str = " | ".join(notes)[:40]
+
+        print(f"{m['symbol']:<8} {cal_icon:^10} {ic_icon:^12} {notes_str:<40}")
+
+    print("\u2500" * 75)
+    print(f"Gekwalificeerd: Calendar {cal_qual}/{len(matrix)} | Iron Condor {ic_qual}/{len(matrix)}")
+    print()
+
+
+def update_qualification_interactive(
+    manager: Optional[SymbolManager] = None,
+    qual_service: Optional[QualificationService] = None,
+) -> None:
+    """Interactive qualification update."""
+    manager = manager or get_symbol_manager()
+    qual_service = qual_service or get_qualification_service()
+
+    _print_header("\U0001f4dd KWALIFICATIE UPDATEN")
+
+    # Show current symbols
+    symbols = manager.symbol_service.get_configured_symbols()
+    print(f"Beschikbare symbolen: {', '.join(sorted(symbols)[:15])}")
+    if len(symbols) > 15:
+        print(f"  ... en {len(symbols) - 15} meer")
+    print()
+
+    # Get symbol
+    symbol_input = prompt("Symbool: ", "").strip().upper()
+    if not symbol_input:
+        print("Geen symbool opgegeven.")
+        return
+
+    if symbol_input not in symbols:
+        print(f"Symbool {symbol_input} niet in basket.")
+        if not prompt_yes_no("Toch doorgaan?", False):
+            return
+
+    # Show current status
+    current = qual_service.get(symbol_input)
+    print(f"\nHuidige status voor {symbol_input}:")
+    print(f"  Calendar:    {_format_qual_status(current.calendar.status)} {current.calendar.status}")
+    if current.calendar.reason:
+        print(f"               {current.calendar.reason}")
+    print(f"  Iron Condor: {_format_qual_status(current.iron_condor.status)} {current.iron_condor.status}")
+    if current.iron_condor.reason:
+        print(f"               {current.iron_condor.reason}")
+    print()
+
+    # Select strategy
+    print("Strategie:")
+    print("  1. Calendar")
+    print("  2. Iron Condor")
+    print("  3. Beide")
+    strategy_choice = prompt("Keuze [1-3]: ", "3")
+
+    if strategy_choice == "1":
+        strategies_to_update = ["calendar"]
+    elif strategy_choice == "2":
+        strategies_to_update = ["iron_condor"]
+    else:
+        strategies_to_update = ["calendar", "iron_condor"]
+
+    # Select status
+    print("\nNieuwe status:")
+    print("  1. Qualified (geschikt)")
+    print("  2. Disqualified (ongeschikt)")
+    print("  3. Watchlist (afwachten)")
+    status_choice = prompt("Keuze [1-3]: ", "1")
+
+    if status_choice == "1":
+        new_status = "qualified"
+    elif status_choice == "2":
+        new_status = "disqualified"
+    else:
+        new_status = "watchlist"
+
+    # Get reason
+    reason = ""
+    if new_status != "qualified":
+        reason = prompt("Reden (optioneel): ", "")
+
+    # Confirm and update
+    print(f"\nUpdate {symbol_input}:")
+    for strategy in strategies_to_update:
+        print(f"  {strategy} -> {new_status}" + (f" ({reason})" if reason else ""))
+
+    if not prompt_yes_no("Doorgaan?", True):
+        print("Geannuleerd.")
+        return
+
+    # Apply updates
+    for strategy in strategies_to_update:
+        qual_service.update(symbol_input, strategy, new_status, reason)
+
+    print(f"\n\u2713 {symbol_input} bijgewerkt.")
+    print()
+
+
 def run_symbol_menu(manager: Optional[SymbolManager] = None) -> None:
     """Run the symbol management menu."""
     manager = manager or get_symbol_manager()
@@ -532,6 +675,8 @@ def run_symbol_menu(manager: Optional[SymbolManager] = None) -> None:
 
     menu.add("Basket overzicht", partial(show_basket_overview, manager))
     menu.add("ORATS symbool overzicht (Gem. Vol/OI)", show_orats_symbol_overview)
+    menu.add("Kwalificatie matrix", partial(show_qualification_matrix, manager))
+    menu.add("Kwalificatie updaten", partial(update_qualification_interactive, manager))
     menu.add("Symbool toevoegen", partial(add_symbols_interactive, manager))
     menu.add("Symbool verwijderen", partial(remove_symbols_interactive, manager))
     menu.add("Basket analyse", partial(show_sector_analysis, manager))
@@ -551,6 +696,8 @@ def build_symbol_menu(manager: Optional[SymbolManager] = None) -> Menu:
 
     menu.add("Basket overzicht", partial(show_basket_overview, manager))
     menu.add("ORATS symbool overzicht (Gem. Vol/OI)", show_orats_symbol_overview)
+    menu.add("Kwalificatie matrix", partial(show_qualification_matrix, manager))
+    menu.add("Kwalificatie updaten", partial(update_qualification_interactive, manager))
     menu.add("Symbool toevoegen", partial(add_symbols_interactive, manager))
     menu.add("Symbool verwijderen", partial(remove_symbols_interactive, manager))
     menu.add("Basket analyse", partial(show_sector_analysis, manager))
