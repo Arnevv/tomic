@@ -10,6 +10,8 @@ Supports multiple strategy types:
 
 from __future__ import annotations
 
+import os
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass
 from datetime import datetime
 from functools import partial
@@ -72,12 +74,25 @@ def _select_strategy_for_testing() -> Optional[str]:
 # Configuration Loading
 # =============================================================================
 
+# Module-level cache for configuration to avoid repeated YAML parsing
+_CONFIG_CACHE: Dict[str, Dict[str, Any]] = {}
 
-def load_live_config(strategy: str = STRATEGY_IRON_CONDOR) -> Dict[str, Any]:
+
+def clear_config_cache() -> None:
+    """Clear the configuration cache.
+
+    Call this after modifying config files to ensure fresh values are loaded.
+    """
+    global _CONFIG_CACHE
+    _CONFIG_CACHE.clear()
+
+
+def load_live_config(strategy: str = STRATEGY_IRON_CONDOR, use_cache: bool = True) -> Dict[str, Any]:
     """Load all live configuration from YAML files.
 
     Args:
         strategy: Strategy type to load config for (iron_condor or calendar)
+        use_cache: If True (default), use cached config if available
 
     Returns a merged dictionary with all parameters that affect strategy testing:
     - From strategies.yaml: min_risk_reward, min_rom, min_edge, min_pos, etc.
@@ -86,6 +101,10 @@ def load_live_config(strategy: str = STRATEGY_IRON_CONDOR) -> Dict[str, Any]:
     - From volatility_rules.yaml: IV/skew entry criteria per strategy
     - From strike_selection_rules.yaml: DTE range, delta range per strategy
     """
+    # Check cache first
+    if use_cache and strategy in _CONFIG_CACHE:
+        return _CONFIG_CACHE[strategy]
+
     from tomic.config import _load_yaml, _BASE_DIR
 
     config: Dict[str, Any] = {}
@@ -129,6 +148,10 @@ def load_live_config(strategy: str = STRATEGY_IRON_CONDOR) -> Dict[str, Any]:
     if strike_path.exists():
         strike_rules = _load_yaml(strike_path)
         config["strike_selection_rules"] = strike_rules or {}
+
+    # Cache the result for subsequent calls
+    if use_cache:
+        _CONFIG_CACHE[strategy] = config
 
     return config
 
@@ -1040,6 +1063,9 @@ def _apply_parameter_change(param: Dict[str, Any], new_value: Any, strategy: str
         print(f"\n⚠ Onbekende bron: {source} - wijziging niet opgeslagen")
         return
 
+    # Clear config cache so next load picks up the changes
+    clear_config_cache()
+
     print(f"\n✓ Parameter '{key}' bijgewerkt naar {new_value} in {source}")
 
 
@@ -1204,23 +1230,59 @@ def run_parameter_sweep() -> None:
     if not prompt_yes_no("\nSweep starten?"):
         return
 
-    # Run sweep
+    # Run sweep - use parallel processing for better performance
     results: List[TestResult] = []
 
-    for i, value in enumerate(values):
-        print(f"\n[{i+1}/{len(values)}] Testen {selected_param['key']} = {value}")
+    # Determine number of workers (use CPU count, max 4 to avoid overwhelming)
+    max_workers = min(4, os.cpu_count() or 2, len(values))
 
-        result = _run_backtest_with_config(
-            strategy=strategy,
-            overrides={selected_param["key"]: value},
-            label=f"{selected_param['key']}={value}",
-            show_progress=False,  # Minimize output for sweeps
-        )
+    def run_single_backtest(value: Any) -> Optional[Tuple[Any, TestResult]]:
+        """Run a single backtest for a parameter value."""
+        try:
+            result = _run_backtest_with_config(
+                strategy=strategy,
+                overrides={selected_param["key"]: value},
+                label=f"{selected_param['key']}={value}",
+                show_progress=False,
+            )
+            if result:
+                result.param_value = value
+                result.is_baseline = (value == current)
+                return (value, result)
+        except Exception as e:
+            logger.error(f"Backtest failed for {selected_param['key']}={value}: {e}")
+        return None
 
-        if result:
-            result.param_value = value
-            result.is_baseline = (value == current)
-            results.append(result)
+    # Run backtests in parallel
+    if len(values) > 1 and max_workers > 1:
+        print(f"\nDraait {len(values)} backtests parallel (max {max_workers} workers)...")
+
+        with ThreadPoolExecutor(max_workers=max_workers) as executor:
+            # Submit all tasks
+            future_to_value = {
+                executor.submit(run_single_backtest, value): value
+                for value in values
+            }
+
+            # Process results as they complete
+            completed = 0
+            for future in as_completed(future_to_value):
+                completed += 1
+                value = future_to_value[future]
+                print(f"  [{completed}/{len(values)}] {selected_param['key']}={value} voltooid")
+
+                result_tuple = future.result()
+                if result_tuple:
+                    _, result = result_tuple
+                    results.append(result)
+    else:
+        # Sequential fallback for single value
+        for i, value in enumerate(values):
+            print(f"\n[{i+1}/{len(values)}] Testen {selected_param['key']} = {value}")
+            result_tuple = run_single_backtest(value)
+            if result_tuple:
+                _, result = result_tuple
+                results.append(result)
 
     if not results:
         print("\nGeen resultaten verkregen.")

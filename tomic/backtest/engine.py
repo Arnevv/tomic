@@ -335,10 +335,11 @@ class BacktestEngine:
         )
 
         # Get all trading dates in period
-        all_dates = []
+        # Use set directly for O(n) instead of O(n²) with list.extend + set conversion
+        all_dates_set: set = set()
         for ts in iv_data.values():
-            all_dates.extend(ts.dates())
-        trading_dates = sorted(set(d for d in all_dates if start_date <= d <= end_date))
+            all_dates_set.update(ts.dates())
+        trading_dates = sorted(d for d in all_dates_set if start_date <= d <= end_date)
 
         if not trading_dates:
             logger.warning(f"No trading dates found for {period_name} period")
