@@ -1,6 +1,7 @@
-"""Liquidity metrics service for calculating ATM volume and open interest.
+"""Liquidity metrics service for calculating average volume and open interest.
 
 Uses ORATS cached data to calculate average liquidity metrics for symbols.
+Calculates total daily volume/OI across all strikes and expiries per symbol.
 """
 
 from __future__ import annotations
@@ -279,7 +280,7 @@ class LiquidityMetrics:
 
     @property
     def total_avg_volume(self) -> Optional[int]:
-        """Total average ATM volume (calls + puts)."""
+        """Total average volume (calls + puts)."""
         if self.avg_atm_call_volume is None and self.avg_atm_put_volume is None:
             return None
         call_vol = self.avg_atm_call_volume or 0
@@ -288,7 +289,7 @@ class LiquidityMetrics:
 
     @property
     def total_avg_oi(self) -> Optional[int]:
-        """Total average ATM open interest (calls + puts)."""
+        """Total average open interest (calls + puts)."""
         if self.avg_atm_call_oi is None and self.avg_atm_put_oi is None:
             return None
         call_oi = self.avg_atm_call_oi or 0
@@ -472,10 +473,10 @@ class LiquidityService:
         max_workers: int = 8,
         use_threads: bool = False,
     ) -> List[Dict[str, Any]]:
-        """Get liquidity overview for all symbols - SIMPLE TOTAL VOLUME VERSION.
+        """Get liquidity overview for all symbols using total daily volume.
 
         Sums all call+put volume and OI across all strikes and expiries per symbol.
-        This is simpler and more robust than ATM-only filtering.
+        Returns average daily total volume/OI over the lookback period.
 
         Args:
             lookback_days: Number of trading days to analyze (default 30 = ~6 weeks).
