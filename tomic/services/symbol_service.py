@@ -538,6 +538,177 @@ class SymbolService:
             "avg_oi": int(sum(ois) / len(ois)) if ois else None,
         }
 
+    # -------------------------------------------------------------------------
+    # Sector Mapping (separate file for manual upload)
+    # -------------------------------------------------------------------------
+
+    def _get_sector_mapping_path(self) -> Path:
+        """Get path to sector mapping file."""
+        return self._get_data_dir() / "sector_mapping.json"
+
+    def load_sector_mapping(self) -> Dict[str, Dict[str, str]]:
+        """Load sector mapping from file.
+
+        Returns:
+            Dictionary mapping symbol to {sector, industry}.
+        """
+        path = self._get_sector_mapping_path()
+        if not path.exists():
+            return {}
+
+        try:
+            with open(path, "r", encoding="utf-8") as f:
+                return json.load(f)
+        except (json.JSONDecodeError, OSError) as e:
+            logger.warning(f"Failed to load sector mapping: {e}")
+            return {}
+
+    def save_sector_mapping(self, mapping: Dict[str, Dict[str, str]]) -> None:
+        """Save sector mapping to file.
+
+        Args:
+            mapping: Dictionary mapping symbol to {sector, industry}.
+        """
+        path = self._get_sector_mapping_path()
+        path.parent.mkdir(parents=True, exist_ok=True)
+
+        try:
+            with open(path, "w", encoding="utf-8") as f:
+                json.dump(mapping, f, indent=2, sort_keys=True)
+            logger.info(f"Saved sector mapping for {len(mapping)} symbols")
+        except OSError as e:
+            logger.error(f"Failed to save sector mapping: {e}")
+
+    def get_sector_for_symbol(self, symbol: str) -> Optional[Dict[str, str]]:
+        """Get sector info for a symbol from mapping.
+
+        Args:
+            symbol: The symbol to look up.
+
+        Returns:
+            Dict with 'sector' and 'industry' or None if not found.
+        """
+        mapping = self.load_sector_mapping()
+        return mapping.get(symbol.upper())
+
+    def update_sector_mapping_from_metadata(self) -> int:
+        """Populate sector mapping from existing metadata.
+
+        Useful for initial setup - extracts sector/industry from symbol_metadata.json
+        and saves to sector_mapping.json.
+
+        Returns:
+            Number of symbols added to mapping.
+        """
+        metadata = self.load_all_metadata()
+        existing_mapping = self.load_sector_mapping()
+
+        added = 0
+        for symbol, meta in metadata.items():
+            if symbol not in existing_mapping and (meta.sector or meta.industry):
+                existing_mapping[symbol] = {
+                    "sector": meta.sector or "Unknown",
+                    "industry": meta.industry or "",
+                }
+                added += 1
+
+        if added > 0:
+            self.save_sector_mapping(existing_mapping)
+
+        return added
+
+    # -------------------------------------------------------------------------
+    # Liquidity Cache (ORATS overview results)
+    # -------------------------------------------------------------------------
+
+    def _get_liquidity_cache_path(self) -> Path:
+        """Get path to liquidity cache file."""
+        return self._get_data_dir() / "liquidity_cache.json"
+
+    def load_liquidity_cache(self) -> Optional[Dict[str, Any]]:
+        """Load liquidity cache from file.
+
+        Returns:
+            Cache dict with 'timestamp', 'lookback_days', 'results' or None.
+        """
+        path = self._get_liquidity_cache_path()
+        if not path.exists():
+            return None
+
+        try:
+            with open(path, "r", encoding="utf-8") as f:
+                return json.load(f)
+        except (json.JSONDecodeError, OSError) as e:
+            logger.warning(f"Failed to load liquidity cache: {e}")
+            return None
+
+    def save_liquidity_cache(
+        self,
+        results: List[Dict[str, Any]],
+        lookback_days: int,
+    ) -> None:
+        """Save liquidity cache to file.
+
+        Args:
+            results: List of {symbol, avg_atm_volume, avg_atm_oi, days_analyzed}.
+            lookback_days: Number of lookback days used.
+        """
+        path = self._get_liquidity_cache_path()
+        path.parent.mkdir(parents=True, exist_ok=True)
+
+        cache = {
+            "timestamp": datetime.now().isoformat(),
+            "lookback_days": lookback_days,
+            "results": results,
+        }
+
+        try:
+            with open(path, "w", encoding="utf-8") as f:
+                json.dump(cache, f, indent=2)
+            logger.info(f"Saved liquidity cache for {len(results)} symbols")
+        except OSError as e:
+            logger.error(f"Failed to save liquidity cache: {e}")
+
+    def is_liquidity_cache_valid(self, max_age_days: int = 7) -> bool:
+        """Check if liquidity cache is still valid.
+
+        Args:
+            max_age_days: Maximum age in days for cache to be valid.
+
+        Returns:
+            True if cache exists and is not too old.
+        """
+        cache = self.load_liquidity_cache()
+        if cache is None:
+            return False
+
+        try:
+            timestamp = datetime.fromisoformat(cache["timestamp"])
+            age = datetime.now() - timestamp
+            return age.days < max_age_days
+        except (KeyError, ValueError):
+            return False
+
+    def get_liquidity_for_symbol(self, symbol: str) -> Optional[Dict[str, Any]]:
+        """Get cached liquidity data for a symbol.
+
+        Args:
+            symbol: The symbol to look up.
+
+        Returns:
+            Dict with liquidity metrics or None if not in cache.
+        """
+        cache = self.load_liquidity_cache()
+        if cache is None:
+            return None
+
+        symbol = symbol.upper()
+        for result in cache.get("results", []):
+            if result.get("symbol") == symbol:
+                return result
+
+        return None
+
 
 # Module-level instance for convenience
 _service: Optional[SymbolService] = None

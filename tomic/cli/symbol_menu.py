@@ -10,7 +10,7 @@ Provides UI for managing symbols in the basket including:
 from __future__ import annotations
 
 from functools import partial
-from typing import Optional
+from typing import Any, Dict, List, Optional
 
 from tomic.cli.common import Menu, prompt, prompt_yes_no
 from tomic.services.liquidity_service import LiquidityService, get_liquidity_service
@@ -253,7 +253,7 @@ def remove_symbols_interactive(manager: Optional[SymbolManager] = None) -> None:
 
 
 def sync_metadata_interactive(manager: Optional[SymbolManager] = None) -> None:
-    """Interactive metadata sync with optimized batch processing."""
+    """Interactive metadata sync with ultra-fast cached processing."""
     manager = manager or get_symbol_manager()
 
     _print_header("\U0001f504 DATA SYNCHRONISEREN")
@@ -262,36 +262,46 @@ def sync_metadata_interactive(manager: Optional[SymbolManager] = None) -> None:
     print(f"Symbolen om te synchroniseren: {len(current)}")
     print()
 
-    refresh_sector = prompt_yes_no("Sector informatie verversen?", True)
-    refresh_liquidity = prompt_yes_no("Liquiditeit metrics verversen?", True)
+    # Check cache status
+    has_sector_mapping = bool(manager.symbol_service.load_sector_mapping())
+    has_liquidity_cache = manager.symbol_service.is_liquidity_cache_valid()
+
+    print("Cache status:")
+    print(f"  - Sector mapping: {'✓ beschikbaar' if has_sector_mapping else '✗ leeg (run optie 2 eerst)'}")
+    print(f"  - Liquidity cache: {'✓ geldig' if has_liquidity_cache else '✗ verouderd/leeg (run optie 2 eerst)'}")
+    print()
+
+    if not has_sector_mapping and not has_liquidity_cache:
+        print("Tip: Run eerst 'ORATS symbool overzicht' (optie 2) om de liquidity cache te vullen.")
+        print()
+
+    refresh_sector = prompt_yes_no("Sector info uit cache gebruiken?", has_sector_mapping)
+    refresh_liquidity = prompt_yes_no("Liquiditeit uit cache gebruiken?", has_liquidity_cache)
+    force_refresh = prompt_yes_no("Forceer update van alle symbolen?", False)
 
     if not prompt_yes_no(f"Doorgaan met sync van {len(current)} symbolen?", True):
         print("Geannuleerd.")
         return
 
-    print("\nSynchroniseren (geoptimaliseerd)...")
-    print("  - In-memory metadata (1x laden, batch saves)")
-    if refresh_liquidity:
-        print("  - Parallelle liquiditeitsberekening")
+    print("\nSynchroniseren (ultra-snel)...")
+    print("  - Sector en liquiditeit uit cache (O(1) lookup)")
+    print("  - Incrementele sync (skip recente updates)")
     print()
 
-    # Progress callback - handles both symbol updates and status messages
     def progress(symbol: str, status: str) -> None:
         if symbol:
             print(f"  {symbol}: {status}")
         else:
-            # Status-only message (liquidity progress, checkpoint saves)
             print(f"  {status}")
 
     results = manager.sync_metadata(
         refresh_sector=refresh_sector,
         refresh_liquidity=refresh_liquidity,
         progress_callback=progress,
-        batch_size=5,  # Checkpoint save every 5 symbols
-        max_liquidity_workers=4,  # Parallel liquidity calculation
+        force_refresh=force_refresh,
     )
 
-    print(f"\n\u2713 {len(results)} symbolen gesynchroniseerd.")
+    print(f"\n✓ {len(results)} symbolen gesynchroniseerd.")
     print()
 
 
@@ -325,14 +335,36 @@ def show_orphaned_data(manager: Optional[SymbolManager] = None) -> None:
     print()
 
 
-def show_orats_symbol_overview(liquidity_service: Optional[LiquidityService] = None) -> None:
+def show_orats_symbol_overview(
+    liquidity_service: Optional[LiquidityService] = None,
+    manager: Optional[SymbolManager] = None,
+) -> None:
     """Show overview of all symbols from most recent ORATS file.
 
-    Displays symbols sorted by average ATM volume (252 days) with average OI.
+    Displays symbols sorted by average ATM volume (30 days) with average OI.
+    Results are cached for fast future lookups.
     """
     service = liquidity_service or get_liquidity_service()
+    manager = manager or get_symbol_manager()
 
     _print_header("\U0001f4ca ORATS SYMBOOL OVERZICHT")
+
+    # Check if we have a valid cache
+    if manager.symbol_service.is_liquidity_cache_valid():
+        cache = manager.symbol_service.load_liquidity_cache()
+        cache_date = cache.get("timestamp", "")[:10] if cache else ""
+        cache_days = cache.get("lookback_days", 0) if cache else 0
+        cache_count = len(cache.get("results", [])) if cache else 0
+
+        print(f"Cache beschikbaar: {cache_date} ({cache_count} symbolen, {cache_days} dagen)")
+        print()
+
+        use_cache = prompt_yes_no("Gecachte resultaten gebruiken?", True)
+        if use_cache:
+            results = cache.get("results", [])
+            if results:
+                _display_liquidity_results(results)
+                return
 
     # Find most recent file
     most_recent = service.get_most_recent_orats_file()
@@ -363,14 +395,18 @@ def show_orats_symbol_overview(liquidity_service: Optional[LiquidityService] = N
     print(f"Gevonden: {len(symbols)} symbolen")
     print()
 
-    # Ask for confirmation since this can take a while
-    print("Let op: Het berekenen van gemiddelden over 252 dagen kan even duren.")
-    if not prompt_yes_no(f"Doorgaan met analyse van {len(symbols)} symbolen?", True):
-        print("Geannuleerd.")
-        return
+    # Ask for lookback days (default 30)
+    lookback_days = 30
+    print(f"Standaard lookback: {lookback_days} dagen (~6 weken)")
+    if prompt_yes_no("Andere lookback periode gebruiken?", False):
+        try:
+            lookback_days = int(input("Aantal dagen (bijv. 30, 60, 90): ").strip())
+        except ValueError:
+            lookback_days = 30
+            print(f"Ongeldige invoer, gebruik {lookback_days} dagen.")
 
     print()
-    print("Berekenen van liquiditeitsmetrics (geoptimaliseerd)...")
+    print(f"Berekenen van liquiditeitsmetrics ({lookback_days} dagen)...")
     print("Verwerking per datum (parallel) in plaats van per symbool...")
     print()
 
@@ -381,7 +417,7 @@ def show_orats_symbol_overview(liquidity_service: Optional[LiquidityService] = N
 
     # Calculate metrics using optimized method
     results = service.get_all_symbols_overview_optimized(
-        lookback_days=252,
+        lookback_days=lookback_days,
         progress_callback=progress,
         max_workers=8,
     )
@@ -389,6 +425,17 @@ def show_orats_symbol_overview(liquidity_service: Optional[LiquidityService] = N
     print("\r" + " " * 60 + "\r", end="")  # Clear progress line
     print()
 
+    # Save to cache automatically
+    if results:
+        manager.symbol_service.save_liquidity_cache(results, lookback_days)
+        print(f"✓ Resultaten gecached naar liquidity_cache.json")
+        print()
+
+    _display_liquidity_results(results)
+
+
+def _display_liquidity_results(results: List[Dict[str, Any]]) -> None:
+    """Display liquidity results in a formatted table."""
     if not results:
         print("Geen resultaten beschikbaar.")
         print()
@@ -401,9 +448,9 @@ def show_orats_symbol_overview(liquidity_service: Optional[LiquidityService] = N
     print("\u2500" * 60)
 
     for idx, r in enumerate(results, 1):
-        vol = _format_number(r["avg_atm_volume"])
-        oi = _format_number(r["avg_atm_oi"])
-        days = r["days_analyzed"]
+        vol = _format_number(r.get("avg_atm_volume"))
+        oi = _format_number(r.get("avg_atm_oi"))
+        days = r.get("days_analyzed", 0)
 
         print(f"{idx:<5} {r['symbol']:<8} {vol:>18} {oi:>18} {days:>8}")
 
@@ -411,12 +458,12 @@ def show_orats_symbol_overview(liquidity_service: Optional[LiquidityService] = N
     print("\u2500" * 60)
 
     # Calculate totals for symbols with data
-    symbols_with_data = [r for r in results if r["avg_atm_volume"] is not None]
+    symbols_with_data = [r for r in results if r.get("avg_atm_volume") is not None]
     symbols_without_data = len(results) - len(symbols_with_data)
 
     if symbols_with_data:
         total_vol = sum(r["avg_atm_volume"] for r in symbols_with_data)
-        total_oi = sum(r["avg_atm_oi"] or 0 for r in symbols_with_data)
+        total_oi = sum(r.get("avg_atm_oi") or 0 for r in symbols_with_data)
         avg_vol = total_vol // len(symbols_with_data)
         avg_oi = total_oi // len(symbols_with_data)
 
