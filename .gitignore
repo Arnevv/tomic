@@ -33,6 +33,7 @@ tomic/data/account_info.json
 tomic/cli/account_info.json
 tomic/data/positions.json
 tomic/cli/positions.json
+tomic/data/symbol_qualification.json
 journal.json
 config.yaml
 portfolio_meta.json
