@@ -12,7 +12,7 @@ import json
 from dataclasses import dataclass
 from datetime import date
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, ClassVar, Dict, List, Optional, Tuple
 
 from tomic.backtest.config import BacktestConfig
 from tomic.backtest.results import IVDataPoint
@@ -114,7 +114,32 @@ class IVTimeSeries:
 
 
 class DataLoader:
-    """Loads and manages historical IV data for backtesting."""
+    """Loads and manages historical IV data for backtesting.
+
+    Uses a class-level cache to avoid reloading the same data files
+    across multiple backtest runs (e.g., during parameter sweeps).
+    """
+
+    # Class-level cache for raw file data (shared across instances)
+    # Key: (symbol, source) where source is "orats" or "iv_summary"
+    # Value: raw data from JSON file
+    _raw_data_cache: Dict[Tuple[str, str], Any] = {}
+
+    @classmethod
+    def clear_cache(cls) -> None:
+        """Clear the data loading cache.
+
+        Call this if data files have been updated and need to be reloaded.
+        """
+        cls._raw_data_cache.clear()
+        logger.debug("DataLoader cache cleared")
+
+    @classmethod
+    def get_cache_stats(cls) -> Dict[str, int]:
+        """Get cache statistics."""
+        return {
+            "cached_files": len(cls._raw_data_cache),
+        }
 
     def __init__(self, config: BacktestConfig):
         self.config = config
@@ -165,19 +190,29 @@ class DataLoader:
             - hv30: 30-day historical volatility
             - skew: Put/call skew
             - contango: Term structure
+
+        Uses class-level cache for raw file data to avoid repeated I/O.
         """
-        base_dir = Path(__file__).resolve().parent.parent.parent
-        orats_path = base_dir / "tomic" / "data" / "orats_historical" / f"{symbol}.json"
+        cache_key = (symbol.upper(), "orats")
 
-        if not orats_path.exists():
-            return None
+        # Check cache first
+        if cache_key in DataLoader._raw_data_cache:
+            raw_data = DataLoader._raw_data_cache[cache_key]
+        else:
+            base_dir = Path(__file__).resolve().parent.parent.parent
+            orats_path = base_dir / "tomic" / "data" / "orats_historical" / f"{symbol}.json"
 
-        try:
-            with open(orats_path, "r", encoding="utf-8") as f:
-                raw_data = json.load(f)
-        except Exception as e:
-            logger.debug(f"Could not load ORATS data for {symbol}: {e}")
-            return None
+            if not orats_path.exists():
+                return None
+
+            try:
+                with open(orats_path, "r", encoding="utf-8") as f:
+                    raw_data = json.load(f)
+                # Cache the raw data
+                DataLoader._raw_data_cache[cache_key] = raw_data
+            except Exception as e:
+                logger.debug(f"Could not load ORATS data for {symbol}: {e}")
+                return None
 
         if not isinstance(raw_data, list):
             return None
@@ -224,20 +259,30 @@ class DataLoader:
 
         For older data that lacks iv_percentile, we calculate it using a
         rolling 252-day (1 year) window of ATM IV values.
+
+        Uses class-level cache for raw file data to avoid repeated I/O.
         """
-        iv_dir = cfg_get("IV_DAILY_SUMMARY_DIR", "tomic/data/iv_daily_summary")
-        base_dir = Path(__file__).resolve().parent.parent.parent
-        iv_path = base_dir / iv_dir / f"{symbol}.json"
+        cache_key = (symbol.upper(), "iv_summary")
 
-        if not iv_path.exists():
-            return None
+        # Check cache first
+        if cache_key in DataLoader._raw_data_cache:
+            raw_data = DataLoader._raw_data_cache[cache_key]
+        else:
+            iv_dir = cfg_get("IV_DAILY_SUMMARY_DIR", "tomic/data/iv_daily_summary")
+            base_dir = Path(__file__).resolve().parent.parent.parent
+            iv_path = base_dir / iv_dir / f"{symbol}.json"
 
-        try:
-            with open(iv_path, "r", encoding="utf-8") as f:
-                raw_data = json.load(f)
-        except Exception as e:
-            logger.debug(f"Could not load IV summary for {symbol}: {e}")
-            return None
+            if not iv_path.exists():
+                return None
+
+            try:
+                with open(iv_path, "r", encoding="utf-8") as f:
+                    raw_data = json.load(f)
+                # Cache the raw data
+                DataLoader._raw_data_cache[cache_key] = raw_data
+            except Exception as e:
+                logger.debug(f"Could not load IV summary for {symbol}: {e}")
+                return None
 
         if not isinstance(raw_data, list):
             return None
