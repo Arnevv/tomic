@@ -343,12 +343,12 @@ class BacktestEngine:
 
         # Simulate each day
         for i, current_date in enumerate(trading_dates):
-            # Progress update
+            # Progress update - report every 50 days for better feedback
             if total_days > 0:
                 progress = progress_start + (progress_end - progress_start) * (i / total_days)
-                if i % 100 == 0:  # Update every 100 days
+                if i % 50 == 0:  # Update every 50 days for better visibility
                     self._report_progress(
-                        f"Simulating {period_name}: {current_date}", progress
+                        f"Simulating {period_name}: day {i}/{total_days}", progress
                     )
 
             # Process existing positions (check exits)
@@ -375,6 +375,11 @@ class BacktestEngine:
             for signal in signals:
                 if simulator.can_open_position(signal.symbol):
                     simulator.open_trade(signal)
+
+        # Report completion of this simulation period
+        self._report_progress(
+            f"{period_name} simulation complete", progress_end
+        )
 
         # Force close any remaining positions at end of period
         if simulator.get_open_positions():

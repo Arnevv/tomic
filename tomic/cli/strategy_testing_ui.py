@@ -693,9 +693,15 @@ def _run_backtest_with_config(
                 engine.progress_callback = update
                 bt_result = engine.run()
         else:
+            # Track last printed percentage to avoid duplicate output
+            last_printed = [-1]
+
             def simple(msg: str, pct: float) -> None:
-                if pct % 25 == 0:
-                    print(f"[{pct:.0f}%] {msg}")
+                # Print at 10% intervals (0, 10, 20, ..., 100)
+                threshold = int(pct / 10) * 10
+                if threshold > last_printed[0]:
+                    print(f"[{int(pct)}%] {msg}")
+                    last_printed[0] = threshold
 
             engine.progress_callback = simple
             bt_result = engine.run()
