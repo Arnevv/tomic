@@ -39,6 +39,92 @@ def _safe_int(value: Optional[str]) -> Optional[int]:
         return None
 
 
+def _process_date_for_liquidity(
+    cache_dir: Path,
+    trade_date: date,
+) -> Dict[str, Any]:
+    """Process a single date's ORATS file and extract total volume/OI for ALL symbols.
+
+    Simple approach: sum all call and put volume/OI across all strikes and expiries.
+    This gives a good indication of overall liquidity without needing ATM logic.
+
+    Args:
+        cache_dir: Path to ORATS cache directory.
+        trade_date: Date to process.
+
+    Returns:
+        Dict with 'symbols' mapping symbol to {total_volume, total_oi, strike_count},
+        and optionally 'error' if failed.
+    """
+    year = trade_date.strftime("%Y")
+    date_str = trade_date.strftime("%Y%m%d")
+    zip_path = cache_dir / year / f"ORATS_SMV_Strikes_{date_str}.zip"
+
+    if not zip_path.exists():
+        return {"symbols": {}, "error": f"File not found: {zip_path}"}
+
+    # Simple aggregation: {symbol: {"total_vol": int, "total_oi": int, "count": int}}
+    symbol_totals: Dict[str, Dict[str, int]] = defaultdict(
+        lambda: {"total_vol": 0, "total_oi": 0, "count": 0}
+    )
+
+    try:
+        with zipfile.ZipFile(zip_path, "r") as zf:
+            csv_files = [n for n in zf.namelist() if n.endswith(".csv")]
+            if not csv_files:
+                return {"symbols": {}, "error": f"No CSV in ZIP: {zip_path}"}
+
+            csv_name = csv_files[0]
+            with zf.open(csv_name) as csv_file:
+                text_stream = io.TextIOWrapper(csv_file, encoding="utf-8")
+
+                # Detect delimiter
+                sample = text_stream.read(10000)
+                text_stream.seek(0)
+                delimiter = ","
+                for delim in [",", "\t", ";", "|"]:
+                    if sample.split("\n")[0].count(delim) > 20:
+                        delimiter = delim
+                        break
+
+                reader = csv.DictReader(text_stream, delimiter=delimiter)
+
+                # Single pass - just sum up all volume and OI per symbol
+                for row in reader:
+                    ticker = row.get("ticker", "").strip().upper()
+                    if not ticker:
+                        continue
+
+                    # Sum call volume + put volume
+                    c_vol = _safe_int(row.get("cVolu")) or 0
+                    p_vol = _safe_int(row.get("pVolu")) or 0
+                    total_vol = c_vol + p_vol
+
+                    # Sum call OI + put OI
+                    c_oi = _safe_int(row.get("cOi")) or 0
+                    p_oi = _safe_int(row.get("pOi")) or 0
+                    total_oi = c_oi + p_oi
+
+                    symbol_totals[ticker]["total_vol"] += total_vol
+                    symbol_totals[ticker]["total_oi"] += total_oi
+                    symbol_totals[ticker]["count"] += 1
+
+    except Exception as e:
+        return {"symbols": {}, "error": f"Exception processing {zip_path}: {e}"}
+
+    # Convert to results format
+    results = {
+        symbol: {
+            "total_volume": data["total_vol"] if data["total_vol"] > 0 else None,
+            "total_oi": data["total_oi"] if data["total_oi"] > 0 else None,
+            "strike_count": data["count"],
+        }
+        for symbol, data in symbol_totals.items()
+    }
+
+    return {"symbols": results}
+
+
 def _process_date_for_atm(
     cache_dir: Path,
     trade_date: date,
@@ -386,21 +472,20 @@ class LiquidityService:
         max_workers: int = 8,
         use_threads: bool = False,
     ) -> List[Dict[str, Any]]:
-        """Get liquidity overview for all symbols - OPTIMIZED VERSION.
+        """Get liquidity overview for all symbols - SIMPLE TOTAL VOLUME VERSION.
 
-        Instead of processing each symbol individually (O(symbols × dates × rows)),
-        this processes each date once and extracts all symbols (O(dates × rows)).
-        This is ~5800x faster for 5812 symbols.
+        Sums all call+put volume and OI across all strikes and expiries per symbol.
+        This is simpler and more robust than ATM-only filtering.
 
         Args:
             lookback_days: Number of trading days to analyze (default 30 = ~6 weeks).
             progress_callback: Optional callback for progress updates (date_str, idx, total).
             max_workers: Number of parallel workers for date processing.
             use_threads: Use ThreadPoolExecutor instead of ProcessPoolExecutor.
-                        Useful for testing or when multiprocessing has issues.
+                        Recommended on Windows where multiprocessing can have issues.
 
         Returns:
-            List of dicts with symbol, avg_atm_volume, avg_atm_oi, sorted by avg_atm_volume desc.
+            List of dicts with symbol, avg_atm_volume, avg_atm_oi, sorted by volume desc.
         """
         available_dates = self._get_available_dates(lookback_days)
 
@@ -410,21 +495,21 @@ class LiquidityService:
 
         logger.info(f"Processing {len(available_dates)} dates with {max_workers} workers")
 
-        # Collect ATM metrics per symbol across all dates
-        # Structure: {symbol: {"call_volumes": [], "call_ois": [], "put_volumes": [], "put_ois": []}}
+        # Collect total volume/OI per symbol across all dates
+        # Structure: {symbol: {"volumes": [int], "ois": [int], "strike_counts": [int]}}
         symbol_data: Dict[str, Dict[str, List[int]]] = defaultdict(
-            lambda: {"call_volumes": [], "call_ois": [], "put_volumes": [], "put_ois": []}
+            lambda: {"volumes": [], "ois": [], "strike_counts": []}
         )
 
         total_dates = len(available_dates)
         errors_logged = 0
 
-        # Process dates in parallel - use threads or processes
+        # Process dates in parallel - use threads by default for better Windows compatibility
         Executor = ThreadPoolExecutor if use_threads else ProcessPoolExecutor
         with Executor(max_workers=max_workers) as executor:
-            # Submit all date processing tasks
+            # Submit all date processing tasks using the SIMPLE function
             future_to_date = {
-                executor.submit(_process_date_for_atm, self.cache_dir, d): d
+                executor.submit(_process_date_for_liquidity, self.cache_dir, d): d
                 for d in available_dates
             }
 
@@ -447,14 +532,12 @@ class LiquidityService:
                     # Merge symbol results into symbol_data
                     symbols_metrics = result.get("symbols", {})
                     for symbol, metrics in symbols_metrics.items():
-                        if metrics["call_volume"] is not None:
-                            symbol_data[symbol]["call_volumes"].append(metrics["call_volume"])
-                        if metrics["call_oi"] is not None:
-                            symbol_data[symbol]["call_ois"].append(metrics["call_oi"])
-                        if metrics["put_volume"] is not None:
-                            symbol_data[symbol]["put_volumes"].append(metrics["put_volume"])
-                        if metrics["put_oi"] is not None:
-                            symbol_data[symbol]["put_ois"].append(metrics["put_oi"])
+                        if metrics["total_volume"] is not None:
+                            symbol_data[symbol]["volumes"].append(metrics["total_volume"])
+                        if metrics["total_oi"] is not None:
+                            symbol_data[symbol]["ois"].append(metrics["total_oi"])
+                        if metrics["strike_count"]:
+                            symbol_data[symbol]["strike_counts"].append(metrics["strike_count"])
 
                 except Exception as e:
                     if errors_logged < 3:
@@ -467,7 +550,7 @@ class LiquidityService:
         if not symbol_data and not use_threads:
             fallback_msg = (
                 "ProcessPoolExecutor returned no data. "
-                "Retrying with ThreadPoolExecutor (this may be slower)..."
+                "Retrying with ThreadPoolExecutor..."
             )
             logger.warning(fallback_msg)
             print(f"\n  {fallback_msg}\n")
@@ -481,34 +564,20 @@ class LiquidityService:
         # Calculate averages for each symbol
         results = []
         for symbol, data in symbol_data.items():
-            avg_call_vol = int(sum(data["call_volumes"]) / len(data["call_volumes"])) if data["call_volumes"] else None
-            avg_call_oi = int(sum(data["call_ois"]) / len(data["call_ois"])) if data["call_ois"] else None
-            avg_put_vol = int(sum(data["put_volumes"]) / len(data["put_volumes"])) if data["put_volumes"] else None
-            avg_put_oi = int(sum(data["put_ois"]) / len(data["put_ois"])) if data["put_ois"] else None
-
-            total_vol = None
-            if avg_call_vol is not None or avg_put_vol is not None:
-                total_vol = (avg_call_vol or 0) + (avg_put_vol or 0)
-
-            total_oi = None
-            if avg_call_oi is not None or avg_put_oi is not None:
-                total_oi = (avg_call_oi or 0) + (avg_put_oi or 0)
-
-            days_with_data = max(
-                len(data["call_volumes"]),
-                len(data["put_volumes"]),
-                len(data["call_ois"]),
-                len(data["put_ois"]),
-            )
+            avg_volume = int(sum(data["volumes"]) / len(data["volumes"])) if data["volumes"] else None
+            avg_oi = int(sum(data["ois"]) / len(data["ois"])) if data["ois"] else None
+            avg_strikes = int(sum(data["strike_counts"]) / len(data["strike_counts"])) if data["strike_counts"] else 0
+            days_with_data = len(data["volumes"])
 
             results.append({
                 "symbol": symbol,
-                "avg_atm_volume": total_vol,
-                "avg_atm_oi": total_oi,
+                "avg_atm_volume": avg_volume,  # Keep same key for compatibility
+                "avg_atm_oi": avg_oi,
                 "days_analyzed": days_with_data,
+                "avg_strike_count": avg_strikes,
             })
 
-        # Sort by avg_atm_volume descending (None values at the end)
+        # Sort by volume descending (None values at the end)
         results.sort(
             key=lambda x: (x["avg_atm_volume"] is None, -(x["avg_atm_volume"] or 0))
         )
