@@ -10,7 +10,7 @@ default:
 iron_condor:
   method: stddev_range
   stddev_range: 2.0
-  dte_range: !!python/tuple
+  dte_range:
   - 25
   - 55
 atm_iron_butterfly:
