@@ -803,6 +803,8 @@ class OptionChainLoader:
 
         # Cache loaded chains to avoid re-parsing
         self._chain_cache: Dict[Tuple[str, date], OptionChain] = {}
+        # Cache dates where ZIP files don't exist (negative cache)
+        self._missing_dates: set = set()
 
     def get_zip_path(self, trade_date: date) -> Path:
         """Get the expected ZIP file path for a date."""
@@ -812,6 +814,9 @@ class OptionChainLoader:
 
     def has_data(self, trade_date: date) -> bool:
         """Check if we have data for a specific date."""
+        # Check negative cache first
+        if trade_date in self._missing_dates:
+            return False
         return self.get_zip_path(trade_date).exists()
 
     def load_chain(
@@ -832,8 +837,14 @@ class OptionChainLoader:
         if cache_key in self._chain_cache:
             return self._chain_cache[cache_key]
 
+        # Check negative cache - if we already know the ZIP doesn't exist, skip
+        if trade_date in self._missing_dates:
+            return None
+
         zip_path = self.get_zip_path(trade_date)
         if not zip_path.exists():
+            # Add to negative cache so we don't check again
+            self._missing_dates.add(trade_date)
             logger.debug(f"No ORATS data for {trade_date}: {zip_path}")
             return None
 

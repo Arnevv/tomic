@@ -11,6 +11,7 @@ Coordinates all components:
 
 from __future__ import annotations
 
+import bisect
 import json
 from datetime import date, timedelta
 from pathlib import Path
@@ -150,6 +151,8 @@ class BacktestEngine:
     def _get_next_earnings(self, symbol: str, as_of_date: date) -> Optional[date]:
         """Get the next earnings date for a symbol as of a given date.
 
+        Uses binary search for O(log n) lookup since dates are sorted.
+
         Args:
             symbol: Stock symbol
             as_of_date: Date to check from (typically the trading date)
@@ -158,9 +161,12 @@ class BacktestEngine:
             Next earnings date, or None if not found.
         """
         dates = self._earnings_data.get(symbol.upper(), [])
-        for earnings_date in dates:
-            if earnings_date >= as_of_date:
-                return earnings_date
+        if not dates:
+            return None
+        # Binary search for the first date >= as_of_date
+        idx = bisect.bisect_left(dates, as_of_date)
+        if idx < len(dates):
+            return dates[idx]
         return None
 
     def run(self) -> BacktestResult:
