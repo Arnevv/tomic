@@ -43,7 +43,7 @@ def _process_date_for_atm(
     cache_dir: Path,
     trade_date: date,
     dte_range: Tuple[int, int] = (20, 60),
-) -> Dict[str, Dict[str, Optional[int]]]:
+) -> Dict[str, Any]:
     """Process a single date's ORATS file and extract ATM metrics for ALL symbols.
 
     This is the core optimization: instead of processing per-symbol (5812 times),
@@ -55,14 +55,14 @@ def _process_date_for_atm(
         dte_range: DTE range for ATM options (min, max).
 
     Returns:
-        Dict mapping symbol to {call_volume, call_oi, put_volume, put_oi}.
+        Dict with 'symbols' mapping symbol to metrics, and optionally 'error' if failed.
     """
     year = trade_date.strftime("%Y")
     date_str = trade_date.strftime("%Y%m%d")
     zip_path = cache_dir / year / f"ORATS_SMV_Strikes_{date_str}.zip"
 
     if not zip_path.exists():
-        return {}
+        return {"symbols": {}, "error": f"File not found: {zip_path}"}
 
     min_dte, max_dte = dte_range
     results: Dict[str, Dict[str, Optional[int]]] = {}
@@ -77,7 +77,7 @@ def _process_date_for_atm(
         with zipfile.ZipFile(zip_path, "r") as zf:
             csv_files = [n for n in zf.namelist() if n.endswith(".csv")]
             if not csv_files:
-                return {}
+                return {"symbols": {}, "error": f"No CSV in ZIP: {zip_path}"}
 
             csv_name = csv_files[0]
             with zf.open(csv_name) as csv_file:
@@ -95,7 +95,9 @@ def _process_date_for_atm(
                 reader = csv.DictReader(text_stream, delimiter=delimiter)
 
                 # Single pass through CSV - extract all symbols
+                row_count = 0
                 for row in reader:
+                    row_count += 1
                     ticker = row.get("ticker", "").strip().upper()
                     if not ticker:
                         continue
@@ -170,10 +172,10 @@ def _process_date_for_atm(
                 "put_oi": sum(put_ois) if put_ois else None,
             }
 
-    except Exception:
-        return {}
+    except Exception as e:
+        return {"symbols": {}, "error": f"Exception processing {zip_path}: {e}"}
 
-    return results
+    return {"symbols": results}
 
 
 @dataclass
@@ -415,6 +417,7 @@ class LiquidityService:
         )
 
         total_dates = len(available_dates)
+        errors_logged = 0
 
         # Process dates in parallel - use threads or processes
         Executor = ThreadPoolExecutor if use_threads else ProcessPoolExecutor
@@ -432,10 +435,18 @@ class LiquidityService:
                     progress_callback(str(trade_date), idx, total_dates)
 
                 try:
-                    date_results = future.result()
+                    result = future.result()
 
-                    # Merge results into symbol_data
-                    for symbol, metrics in date_results.items():
+                    # Check for errors from subprocess
+                    if "error" in result and errors_logged < 3:
+                        error_msg = f"Date {trade_date}: {result['error']}"
+                        logger.warning(error_msg)
+                        print(f"  WARNING: {error_msg}")
+                        errors_logged += 1
+
+                    # Merge symbol results into symbol_data
+                    symbols_metrics = result.get("symbols", {})
+                    for symbol, metrics in symbols_metrics.items():
                         if metrics["call_volume"] is not None:
                             symbol_data[symbol]["call_volumes"].append(metrics["call_volume"])
                         if metrics["call_oi"] is not None:
@@ -446,7 +457,26 @@ class LiquidityService:
                             symbol_data[symbol]["put_ois"].append(metrics["put_oi"])
 
                 except Exception as e:
-                    logger.debug(f"Error processing date {trade_date}: {e}")
+                    if errors_logged < 3:
+                        error_msg = f"Error processing date {trade_date}: {e}"
+                        logger.warning(error_msg)
+                        print(f"  WARNING: {error_msg}")
+                        errors_logged += 1
+
+        # Fallback: if ProcessPoolExecutor returned no data, try with threads
+        if not symbol_data and not use_threads:
+            fallback_msg = (
+                "ProcessPoolExecutor returned no data. "
+                "Retrying with ThreadPoolExecutor (this may be slower)..."
+            )
+            logger.warning(fallback_msg)
+            print(f"\n  {fallback_msg}\n")
+            return self.get_all_symbols_overview_optimized(
+                lookback_days=lookback_days,
+                progress_callback=progress_callback,
+                max_workers=max_workers,
+                use_threads=True,
+            )
 
         # Calculate averages for each symbol
         results = []
