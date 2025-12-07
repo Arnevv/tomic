@@ -679,6 +679,7 @@ class SymbolManager:
         """
         symbols = self.symbol_service.get_configured_symbols()
         metadata = self.symbol_service.load_all_metadata()
+        sector_mapping = self.symbol_service.load_sector_mapping()
         validations = self.symbol_service.validate_all_symbols()
 
         # Load liquidity cache as fallback for symbols without metadata liquidity
@@ -693,6 +694,10 @@ class SymbolManager:
         for symbol in sorted(symbols):
             meta = metadata.get(symbol, SymbolMetadata(symbol=symbol))
             validation = validations.get(symbol)
+            sector_info = sector_mapping.get(symbol, {})
+
+            sector = meta.sector or sector_info.get("sector") or "Unknown"
+            industry = meta.industry or sector_info.get("industry")
 
             # Get liquidity: prefer metadata, fallback to cache
             avg_vol = meta.avg_atm_call_volume
@@ -703,8 +708,8 @@ class SymbolManager:
 
             symbol_details.append({
                 "symbol": symbol,
-                "sector": meta.sector or "Unknown",
-                "industry": meta.industry,
+                "sector": sector,
+                "industry": industry,
                 "avg_atm_volume": avg_vol,
                 "avg_atm_oi": avg_oi,
                 "data_status": validation.status if validation else "unknown",
