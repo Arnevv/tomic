@@ -253,7 +253,7 @@ def remove_symbols_interactive(manager: Optional[SymbolManager] = None) -> None:
 
 
 def sync_metadata_interactive(manager: Optional[SymbolManager] = None) -> None:
-    """Interactive metadata sync."""
+    """Interactive metadata sync with optimized batch processing."""
     manager = manager or get_symbol_manager()
 
     _print_header("\U0001f504 DATA SYNCHRONISEREN")
@@ -269,16 +269,26 @@ def sync_metadata_interactive(manager: Optional[SymbolManager] = None) -> None:
         print("Geannuleerd.")
         return
 
-    print("\nSynchroniseren...")
+    print("\nSynchroniseren (geoptimaliseerd)...")
+    print("  - In-memory metadata (1x laden, batch saves)")
+    if refresh_liquidity:
+        print("  - Parallelle liquiditeitsberekening")
+    print()
 
-    # Progress callback
+    # Progress callback - handles both symbol updates and status messages
     def progress(symbol: str, status: str) -> None:
-        print(f"  {symbol}: {status}")
+        if symbol:
+            print(f"  {symbol}: {status}")
+        else:
+            # Status-only message (liquidity progress, checkpoint saves)
+            print(f"  {status}")
 
     results = manager.sync_metadata(
         refresh_sector=refresh_sector,
         refresh_liquidity=refresh_liquidity,
         progress_callback=progress,
+        batch_size=5,  # Checkpoint save every 5 symbols
+        max_liquidity_workers=4,  # Parallel liquidity calculation
     )
 
     print(f"\n\u2713 {len(results)} symbolen gesynchroniseerd.")

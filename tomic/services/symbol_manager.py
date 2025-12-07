@@ -10,6 +10,7 @@ Orchestrates symbol management operations including:
 from __future__ import annotations
 
 import time
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
@@ -460,14 +461,23 @@ class SymbolManager:
         refresh_sector: bool = True,
         refresh_liquidity: bool = True,
         progress_callback: Optional[Callable[[str, str], None]] = None,
+        batch_size: int = 5,
+        max_liquidity_workers: int = 4,
     ) -> Dict[str, SymbolMetadata]:
-        """Sync metadata for symbols.
+        """Sync metadata for symbols with optimized batch processing.
+
+        Optimizations:
+        - In-memory metadata: Load once, save periodically (every batch_size symbols)
+        - Parallel liquidity: Calculate liquidity metrics using thread pool
+        - Checkpoint saves: Progress is saved every batch_size symbols
 
         Args:
             symbols: Symbols to sync. If None, syncs all configured.
             refresh_sector: Whether to refresh sector information.
             refresh_liquidity: Whether to refresh liquidity metrics.
             progress_callback: Optional callback for progress updates.
+            batch_size: Number of symbols to process before checkpoint save.
+            max_liquidity_workers: Max parallel workers for liquidity calculation.
 
         Returns:
             Dictionary mapping symbol to updated metadata.
@@ -475,21 +485,37 @@ class SymbolManager:
         if symbols is None:
             symbols = self.symbol_service.get_configured_symbols()
 
-        results = {}
+        # Load all metadata once at the start (O(1) instead of O(n))
+        all_metadata = self.symbol_service.load_all_metadata()
+        results: Dict[str, SymbolMetadata] = {}
+        batch_updates: Dict[str, SymbolMetadata] = {}
         sleep_time = cfg_get("POLYGON_SLEEP_BETWEEN", 1.2)
 
+        # Pre-calculate liquidity for all symbols in parallel if requested
+        liquidity_cache: Dict[str, LiquidityMetrics] = {}
+        if refresh_liquidity:
+            if progress_callback:
+                progress_callback("", "Pre-calculating liquidity metrics...")
+
+            liquidity_cache = self._calculate_liquidity_parallel(
+                symbols,
+                max_workers=max_liquidity_workers,
+                progress_callback=progress_callback,
+            )
+
+        total = len(symbols)
         for i, symbol in enumerate(symbols):
             symbol = symbol.upper()
 
             if progress_callback:
-                progress_callback(symbol, f"Syncing ({i + 1}/{len(symbols)})...")
+                progress_callback(symbol, f"Syncing ({i + 1}/{total})...")
 
-            # Load existing metadata or create new
-            metadata = self.symbol_service.get_symbol_metadata(symbol)
+            # Get existing metadata from in-memory cache or create new
+            metadata = all_metadata.get(symbol)
             if metadata is None:
                 metadata = SymbolMetadata(symbol=symbol)
 
-            # Refresh sector
+            # Refresh sector (requires API call with rate limiting)
             if refresh_sector:
                 try:
                     client = self._get_polygon_client()
@@ -500,27 +526,89 @@ class SymbolManager:
                 except Exception as e:
                     logger.warning(f"Failed to refresh sector for {symbol}: {e}")
 
-            # Refresh liquidity
-            if refresh_liquidity:
-                try:
-                    liquidity = self.liquidity_service.calculate_liquidity(symbol)
-                    metadata.avg_atm_call_volume = liquidity.avg_atm_call_volume
-                    metadata.avg_atm_call_oi = liquidity.avg_atm_call_oi
-                except Exception as e:
-                    logger.warning(f"Failed to refresh liquidity for {symbol}: {e}")
+            # Use pre-calculated liquidity from cache
+            if refresh_liquidity and symbol in liquidity_cache:
+                liquidity = liquidity_cache[symbol]
+                metadata.avg_atm_call_volume = liquidity.avg_atm_call_volume
+                metadata.avg_atm_call_oi = liquidity.avg_atm_call_oi
 
             # Update validation status
             validation = self.symbol_service.validate_symbol_data(symbol)
             metadata.data_status = validation.status
             metadata.last_updated = datetime.now().isoformat()
 
-            # Save
-            self.symbol_service.update_symbol_metadata(metadata)
+            # Store in results and batch
             results[symbol] = metadata
+            batch_updates[symbol] = metadata
+            all_metadata[symbol] = metadata
 
-            # Rate limiting
-            if refresh_sector and i < len(symbols) - 1:
+            # Checkpoint save every batch_size symbols
+            if len(batch_updates) >= batch_size:
+                self.symbol_service.update_symbols_metadata_batch(
+                    batch_updates, existing_metadata=all_metadata
+                )
+                batch_updates.clear()
+                if progress_callback:
+                    progress_callback("", f"Checkpoint saved ({i + 1}/{total})")
+
+            # Rate limiting for sector API calls
+            if refresh_sector and i < total - 1:
                 time.sleep(sleep_time)
+
+        # Final save for remaining symbols
+        if batch_updates:
+            self.symbol_service.update_symbols_metadata_batch(
+                batch_updates, existing_metadata=all_metadata
+            )
+
+        return results
+
+    def _calculate_liquidity_parallel(
+        self,
+        symbols: List[str],
+        max_workers: int = 4,
+        progress_callback: Optional[Callable[[str, str], None]] = None,
+    ) -> Dict[str, LiquidityMetrics]:
+        """Calculate liquidity metrics for multiple symbols in parallel.
+
+        Args:
+            symbols: List of symbols to calculate liquidity for.
+            max_workers: Maximum number of parallel workers.
+            progress_callback: Optional callback for progress updates.
+
+        Returns:
+            Dictionary mapping symbol to liquidity metrics.
+        """
+        results: Dict[str, LiquidityMetrics] = {}
+
+        def calculate_single(symbol: str) -> Tuple[str, Optional[LiquidityMetrics]]:
+            """Calculate liquidity for a single symbol."""
+            try:
+                liquidity = self.liquidity_service.calculate_liquidity(symbol)
+                return (symbol, liquidity)
+            except Exception as e:
+                logger.warning(f"Failed to calculate liquidity for {symbol}: {e}")
+                return (symbol, None)
+
+        # Use ThreadPoolExecutor for parallel calculation
+        with ThreadPoolExecutor(max_workers=max_workers) as executor:
+            futures = {
+                executor.submit(calculate_single, s.upper()): s.upper()
+                for s in symbols
+            }
+
+            completed = 0
+            total = len(futures)
+            for future in as_completed(futures):
+                symbol, liquidity = future.result()
+                if liquidity is not None:
+                    results[symbol] = liquidity
+                completed += 1
+
+                if progress_callback and completed % 10 == 0:
+                    progress_callback(
+                        "", f"Liquidity: {completed}/{total} symbols..."
+                    )
 
         return results
 

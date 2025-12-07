@@ -456,6 +456,32 @@ class SymbolService:
         all_meta[metadata.symbol.upper()] = metadata
         self.save_all_metadata(all_meta)
 
+    def update_symbols_metadata_batch(
+        self,
+        metadata_dict: Dict[str, SymbolMetadata],
+        existing_metadata: Optional[Dict[str, SymbolMetadata]] = None,
+    ) -> None:
+        """Update metadata for multiple symbols in a single write.
+
+        This is much more efficient than calling update_symbol_metadata()
+        for each symbol individually, as it avoids repeated file I/O.
+
+        Args:
+            metadata_dict: Dictionary mapping symbol to metadata to update.
+            existing_metadata: Optional pre-loaded metadata to merge with.
+                             If None, loads from file.
+        """
+        if existing_metadata is None:
+            all_meta = self.load_all_metadata()
+        else:
+            all_meta = existing_metadata.copy()
+
+        # Update all symbols
+        for symbol, metadata in metadata_dict.items():
+            all_meta[symbol.upper()] = metadata
+
+        self.save_all_metadata(all_meta)
+
     def _remove_symbol_metadata(self, symbol: str) -> bool:
         """Remove symbol from metadata file."""
         all_meta = self.load_all_metadata()
