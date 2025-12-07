@@ -70,9 +70,9 @@ strategies:
       use_ATR: true
   calendar:
     allow_unpriced_wings: false
-    min_rom: 0.3
+    min_rom: 0.1
     min_edge: 0.04
-    min_pos: 0.5
+    min_pos: 0.4
     min_ev: 0.03
     strike_to_strategy_config:
       use_ATR: false
@@ -84,7 +84,7 @@ strategies:
       - 1.01
       - 1.02
       - 1.03
-      expiry_gap_min_days: 7
+      expiry_gap_min_days: 15
   ratio_spread:
     allow_unpriced_wings: false
     strike_to_strategy_config:

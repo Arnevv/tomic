@@ -2,10 +2,10 @@ version: 1
 strike:
   delta_min: -0.99
   delta_max: 0.99
-  min_rom: 0.65
+  min_rom: 0.05
   min_edge: 0.03
-  min_pos: 0.55
-  min_ev: 0.05
+  min_pos: 0.45
+  min_ev: 0.03
   skew_min: -20.0
   skew_max: 20.0
   term_min: -20.0

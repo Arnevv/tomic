@@ -1,8 +1,8 @@
 default:
   method: spot_distance
   delta_range:
-  - -1.0
-  - 1.0
+  - -0.2
+  - 0.2
   dte_range:
   - 20
   - 120

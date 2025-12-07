@@ -77,7 +77,7 @@ entry_rules:
   min_days_until_earnings: 10
   exclude_expiry_before_earnings: true
 exit_rules:
-  profit_target_pct: 50.0
+  profit_target_pct: 10.0
   stop_loss_pct: 100.0
   min_dte: 5
   max_days_in_trade: 45
@@ -107,5 +107,5 @@ iron_condor_short_delta: 0.16
 calendar_near_dte: 37
 calendar_far_dte: 75
 calendar_min_gap: 30
-use_greeks_model: true
+use_greeks_model: false
 use_real_prices: false
