@@ -479,29 +479,39 @@ def _run_both_strategies_validation() -> None:
         print("Geannuleerd.")
         return
 
-    # Run Iron Condor
+    # Run both strategies in parallel for better performance
     print("\n" + "=" * 60)
-    print("1/2 - IRON CONDOR BACKTEST")
+    print("BACKTESTS DRAAIEN PARALLEL...")
     print("=" * 60)
 
-    ic_result = _run_backtest_with_config(
-        strategy=STRATEGY_IRON_CONDOR,
-        overrides={},
-        label="Iron Condor (Live Config)",
-        show_progress=True,
-    )
+    ic_result = None
+    cal_result = None
 
-    # Run Calendar
-    print("\n" + "=" * 60)
-    print("2/2 - CALENDAR SPREAD BACKTEST")
-    print("=" * 60)
+    def run_ic():
+        return _run_backtest_with_config(
+            strategy=STRATEGY_IRON_CONDOR,
+            overrides={},
+            label="Iron Condor (Live Config)",
+            show_progress=False,
+        )
 
-    cal_result = _run_backtest_with_config(
-        strategy=STRATEGY_CALENDAR,
-        overrides={},
-        label="Calendar Spread (Live Config)",
-        show_progress=True,
-    )
+    def run_cal():
+        return _run_backtest_with_config(
+            strategy=STRATEGY_CALENDAR,
+            overrides={},
+            label="Calendar Spread (Live Config)",
+            show_progress=False,
+        )
+
+    with ThreadPoolExecutor(max_workers=2) as executor:
+        ic_future = executor.submit(run_ic)
+        cal_future = executor.submit(run_cal)
+
+        # Wait for both to complete
+        ic_result = ic_future.result()
+        cal_result = cal_future.result()
+
+    print("Beide backtests voltooid.")
 
     # Show comparison
     if ic_result and cal_result:
@@ -898,17 +908,35 @@ def run_whatif_analysis() -> None:
     if not prompt_yes_no("\nVergelijking starten?"):
         return
 
-    # Run baseline
+    # Run baseline and what-if in parallel for better performance
     print("\n" + "=" * 50)
-    print("BASELINE (huidige config)")
+    print("BASELINE & WHAT-IF DRAAIEN PARALLEL...")
     print("=" * 50)
 
-    baseline = _run_backtest_with_config(
-        strategy=strategy,
-        overrides={},
-        label=f"Baseline ({selected_param['key']}={current})",
-        show_progress=True,
-    )
+    def run_baseline():
+        return _run_backtest_with_config(
+            strategy=strategy,
+            overrides={},
+            label=f"Baseline ({selected_param['key']}={current})",
+            show_progress=False,
+        )
+
+    def run_whatif():
+        return _run_backtest_with_config(
+            strategy=strategy,
+            overrides={selected_param["key"]: new_value},
+            label=f"What-If ({selected_param['key']}={new_value})",
+            show_progress=False,
+        )
+
+    with ThreadPoolExecutor(max_workers=2) as executor:
+        baseline_future = executor.submit(run_baseline)
+        whatif_future = executor.submit(run_whatif)
+
+        baseline = baseline_future.result()
+        whatif = whatif_future.result()
+
+    print("Beide backtests voltooid.")
 
     if not baseline:
         print("Baseline backtest mislukt.")
@@ -916,18 +944,6 @@ def run_whatif_analysis() -> None:
 
     baseline.is_baseline = True
     baseline.param_value = current
-
-    # Run what-if
-    print("\n" + "=" * 50)
-    print(f"WHAT-IF ({selected_param['key']}={new_value})")
-    print("=" * 50)
-
-    whatif = _run_backtest_with_config(
-        strategy=strategy,
-        overrides={selected_param["key"]: new_value},
-        label=f"What-If ({selected_param['key']}={new_value})",
-        show_progress=True,
-    )
 
     if not whatif:
         print("What-If backtest mislukt.")
@@ -1233,8 +1249,10 @@ def run_parameter_sweep() -> None:
     # Run sweep - use parallel processing for better performance
     results: List[TestResult] = []
 
-    # Determine number of workers (use CPU count, max 4 to avoid overwhelming)
-    max_workers = min(4, os.cpu_count() or 2, len(values))
+    # Determine number of workers - optimized for multi-core systems
+    # Use up to 16 workers (or half of available cores) for parallel backtests
+    cpu_count = os.cpu_count() or 4
+    max_workers = min(16, cpu_count // 2 + 4, len(values))
 
     def run_single_backtest(value: Any) -> Optional[Tuple[Any, TestResult]]:
         """Run a single backtest for a parameter value."""
