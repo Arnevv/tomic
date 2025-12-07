@@ -272,7 +272,7 @@ def sync_metadata_interactive(manager: Optional[SymbolManager] = None) -> None:
     print()
 
     if not has_sector_mapping and not has_liquidity_cache:
-        print("Tip: Run eerst 'ORATS symbool overzicht' (optie 2) om de liquidity cache te vullen.")
+        print("Tip: Run eerst 'ORATS symbool overzicht (Gem. Vol/OI)' (optie 2) om de liquidity cache te vullen.")
         print()
 
     refresh_sector = prompt_yes_no("Sector info uit cache gebruiken?", has_sector_mapping)
@@ -341,7 +341,7 @@ def show_orats_symbol_overview(
 ) -> None:
     """Show overview of all symbols from most recent ORATS file.
 
-    Displays symbols sorted by average ATM volume (30 days) with average OI.
+    Displays top 100 symbols sorted by average total volume with average OI.
     Results are cached for fast future lookups.
     """
     service = liquidity_service or get_liquidity_service()
@@ -434,20 +434,29 @@ def show_orats_symbol_overview(
     _display_liquidity_results(results)
 
 
-def _display_liquidity_results(results: List[Dict[str, Any]]) -> None:
-    """Display liquidity results in a formatted table."""
+def _display_liquidity_results(results: List[Dict[str, Any]], top_n: int = 100) -> None:
+    """Display liquidity results in a formatted table.
+
+    Args:
+        results: List of liquidity results sorted by volume descending.
+        top_n: Number of top symbols to display (default 100).
+    """
     if not results:
         print("Geen resultaten beschikbaar.")
         print()
         return
 
-    # Display results
-    _print_header(f"OVERZICHT ({len(results)} symbolen, gesorteerd op ATM Volume)")
+    # Limit to top N results
+    display_results = results[:top_n]
+    total_count = len(results)
 
-    print(f"{'#':<5} {'Symbol':<8} {'Gem. ATM Volume':>18} {'Gem. ATM OI':>18} {'Dagen':>8}")
+    # Display results
+    _print_header(f"TOP {len(display_results)} VAN {total_count} SYMBOLEN (gesorteerd op Gem. Volume)")
+
+    print(f"{'#':<5} {'Symbol':<8} {'Gem. Volume':>18} {'Gem. OI':>18} {'Dagen':>8}")
     print("\u2500" * 60)
 
-    for idx, r in enumerate(results, 1):
+    for idx, r in enumerate(display_results, 1):
         vol = _format_number(r.get("avg_atm_volume"))
         oi = _format_number(r.get("avg_atm_oi"))
         days = r.get("days_analyzed", 0)
@@ -457,9 +466,9 @@ def _display_liquidity_results(results: List[Dict[str, Any]]) -> None:
     # Summary
     print("\u2500" * 60)
 
-    # Calculate totals for symbols with data
+    # Calculate totals for ALL symbols with data (not just displayed)
     symbols_with_data = [r for r in results if r.get("avg_atm_volume") is not None]
-    symbols_without_data = len(results) - len(symbols_with_data)
+    symbols_without_data = total_count - len(symbols_with_data)
 
     if symbols_with_data:
         total_vol = sum(r["avg_atm_volume"] for r in symbols_with_data)
@@ -467,10 +476,10 @@ def _display_liquidity_results(results: List[Dict[str, Any]]) -> None:
         avg_vol = total_vol // len(symbols_with_data)
         avg_oi = total_oi // len(symbols_with_data)
 
-        print(f"Symbolen met data: {len(symbols_with_data)}")
-        print(f"Symbolen zonder data: {symbols_without_data}")
-        print(f"Gemiddelde ATM Volume: {_format_number(avg_vol)}")
-        print(f"Gemiddelde ATM OI: {_format_number(avg_oi)}")
+        print(f"Totaal symbolen: {total_count} ({len(symbols_with_data)} met data)")
+        print(f"Getoond: top {len(display_results)} op Gem. Volume")
+        print(f"Gemiddeld Volume (alle): {_format_number(avg_vol)}")
+        print(f"Gemiddeld OI (alle): {_format_number(avg_oi)}")
 
     print()
 
@@ -522,7 +531,7 @@ def run_symbol_menu(manager: Optional[SymbolManager] = None) -> None:
     menu = Menu("\U0001f4e6 SYMBOLEN & BASKET")
 
     menu.add("Basket overzicht", partial(show_basket_overview, manager))
-    menu.add("ORATS symbool overzicht (ATM Vol/OI)", show_orats_symbol_overview)
+    menu.add("ORATS symbool overzicht (Gem. Vol/OI)", show_orats_symbol_overview)
     menu.add("Symbool toevoegen", partial(add_symbols_interactive, manager))
     menu.add("Symbool verwijderen", partial(remove_symbols_interactive, manager))
     menu.add("Basket analyse", partial(show_sector_analysis, manager))
@@ -541,7 +550,7 @@ def build_symbol_menu(manager: Optional[SymbolManager] = None) -> Menu:
     menu = Menu("\U0001f4e6 SYMBOLEN & BASKET")
 
     menu.add("Basket overzicht", partial(show_basket_overview, manager))
-    menu.add("ORATS symbool overzicht (ATM Vol/OI)", show_orats_symbol_overview)
+    menu.add("ORATS symbool overzicht (Gem. Vol/OI)", show_orats_symbol_overview)
     menu.add("Symbool toevoegen", partial(add_symbols_interactive, manager))
     menu.add("Symbool verwijderen", partial(remove_symbols_interactive, manager))
     menu.add("Basket analyse", partial(show_sector_analysis, manager))

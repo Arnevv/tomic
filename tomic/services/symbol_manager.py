@@ -681,18 +681,32 @@ class SymbolManager:
         metadata = self.symbol_service.load_all_metadata()
         validations = self.symbol_service.validate_all_symbols()
 
+        # Load liquidity cache as fallback for symbols without metadata liquidity
+        liquidity_cache = self.symbol_service.load_liquidity_cache()
+        liquidity_lookup: Dict[str, Dict[str, Any]] = {}
+        if liquidity_cache:
+            for item in liquidity_cache.get("results", []):
+                liquidity_lookup[item["symbol"]] = item
+
         # Build per-symbol details
         symbol_details = []
         for symbol in sorted(symbols):
             meta = metadata.get(symbol, SymbolMetadata(symbol=symbol))
             validation = validations.get(symbol)
 
+            # Get liquidity: prefer metadata, fallback to cache
+            avg_vol = meta.avg_atm_call_volume
+            avg_oi = meta.avg_atm_call_oi
+            if avg_vol is None and symbol in liquidity_lookup:
+                avg_vol = liquidity_lookup[symbol].get("avg_atm_volume")
+                avg_oi = liquidity_lookup[symbol].get("avg_atm_oi")
+
             symbol_details.append({
                 "symbol": symbol,
                 "sector": meta.sector or "Unknown",
                 "industry": meta.industry,
-                "avg_atm_volume": meta.avg_atm_call_volume,
-                "avg_atm_oi": meta.avg_atm_call_oi,
+                "avg_atm_volume": avg_vol,
+                "avg_atm_oi": avg_oi,
                 "data_status": validation.status if validation else "unknown",
                 "spot_days": validation.spot_price_days if validation else 0,
                 "iv_days": validation.iv_summary_days if validation else 0,
