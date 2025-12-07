@@ -461,23 +461,26 @@ class SymbolManager:
         refresh_sector: bool = True,
         refresh_liquidity: bool = True,
         progress_callback: Optional[Callable[[str, str], None]] = None,
-        batch_size: int = 5,
-        max_liquidity_workers: int = 4,
+        batch_size: int = 50,
+        max_age_days: int = 7,
+        force_refresh: bool = False,
     ) -> Dict[str, SymbolMetadata]:
-        """Sync metadata for symbols with optimized batch processing.
+        """Sync metadata for symbols with ultra-fast cached processing.
 
         Optimizations:
-        - In-memory metadata: Load once, save periodically (every batch_size symbols)
-        - Parallel liquidity: Calculate liquidity metrics using thread pool
-        - Checkpoint saves: Progress is saved every batch_size symbols
+        - Sector mapping: Uses sector_mapping.json (no API calls)
+        - Liquidity cache: Uses pre-computed liquidity_cache.json (O(1) lookup)
+        - Incremental sync: Only updates symbols older than max_age_days
+        - Batch saves: Single save at end (no checkpoint overhead)
 
         Args:
             symbols: Symbols to sync. If None, syncs all configured.
-            refresh_sector: Whether to refresh sector information.
-            refresh_liquidity: Whether to refresh liquidity metrics.
+            refresh_sector: Whether to update sector from sector_mapping.json.
+            refresh_liquidity: Whether to update liquidity from cache.
             progress_callback: Optional callback for progress updates.
-            batch_size: Number of symbols to process before checkpoint save.
-            max_liquidity_workers: Max parallel workers for liquidity calculation.
+            batch_size: Number of symbols per progress update.
+            max_age_days: Skip symbols updated within this many days.
+            force_refresh: Force refresh all symbols regardless of age.
 
         Returns:
             Dictionary mapping symbol to updated metadata.
@@ -485,132 +488,184 @@ class SymbolManager:
         if symbols is None:
             symbols = self.symbol_service.get_configured_symbols()
 
-        # Load all metadata once at the start (O(1) instead of O(n))
+        # Load all data once at start
         all_metadata = self.symbol_service.load_all_metadata()
+        sector_mapping = self.symbol_service.load_sector_mapping()
+        liquidity_cache = self.symbol_service.load_liquidity_cache()
+
+        # Build liquidity lookup dict for O(1) access
+        liquidity_lookup: Dict[str, Dict[str, Any]] = {}
+        if liquidity_cache and refresh_liquidity:
+            for item in liquidity_cache.get("results", []):
+                liquidity_lookup[item["symbol"]] = item
+
         results: Dict[str, SymbolMetadata] = {}
-        batch_updates: Dict[str, SymbolMetadata] = {}
-        sleep_time = cfg_get("POLYGON_SLEEP_BETWEEN", 1.2)
-
-        # Pre-calculate liquidity for all symbols in parallel if requested
-        liquidity_cache: Dict[str, LiquidityMetrics] = {}
-        if refresh_liquidity:
-            if progress_callback:
-                progress_callback("", "Pre-calculating liquidity metrics...")
-
-            liquidity_cache = self._calculate_liquidity_parallel(
-                symbols,
-                max_workers=max_liquidity_workers,
-                progress_callback=progress_callback,
-            )
-
+        updated_count = 0
+        skipped_count = 0
         total = len(symbols)
+
+        if progress_callback:
+            progress_callback("", f"Syncing {total} symbols...")
+
         for i, symbol in enumerate(symbols):
             symbol = symbol.upper()
 
-            if progress_callback:
-                progress_callback(symbol, f"Syncing ({i + 1}/{total})...")
-
-            # Get existing metadata from in-memory cache or create new
+            # Get existing metadata or create new
             metadata = all_metadata.get(symbol)
             if metadata is None:
                 metadata = SymbolMetadata(symbol=symbol)
 
-            # Refresh sector (requires API call with rate limiting)
-            if refresh_sector:
+            # Check if we can skip (incremental sync)
+            if not force_refresh and metadata.last_updated:
                 try:
-                    client = self._get_polygon_client()
-                    details = client.fetch_ticker_details(symbol)
-                    metadata.sector = self._get_sector_for_symbol(symbol, details)
-                    metadata.industry = details.get("sic_description")
-                    metadata.market_cap = details.get("market_cap")
-                except Exception as e:
-                    logger.warning(f"Failed to refresh sector for {symbol}: {e}")
+                    last_update = datetime.fromisoformat(metadata.last_updated)
+                    age = datetime.now() - last_update
+                    if age.days < max_age_days:
+                        results[symbol] = metadata
+                        skipped_count += 1
+                        continue
+                except ValueError:
+                    pass  # Invalid date, proceed with update
 
-            # Use pre-calculated liquidity from cache
-            if refresh_liquidity and symbol in liquidity_cache:
-                liquidity = liquidity_cache[symbol]
-                metadata.avg_atm_call_volume = liquidity.avg_atm_call_volume
-                metadata.avg_atm_call_oi = liquidity.avg_atm_call_oi
+            # Update sector from mapping (O(1) lookup, no API)
+            if refresh_sector and symbol in sector_mapping:
+                sector_info = sector_mapping[symbol]
+                metadata.sector = sector_info.get("sector")
+                metadata.industry = sector_info.get("industry")
+
+            # Update liquidity from cache (O(1) lookup)
+            if refresh_liquidity and symbol in liquidity_lookup:
+                liq = liquidity_lookup[symbol]
+                metadata.avg_atm_call_volume = liq.get("avg_atm_volume")
+                metadata.avg_atm_call_oi = liq.get("avg_atm_oi")
 
             # Update validation status
             validation = self.symbol_service.validate_symbol_data(symbol)
             metadata.data_status = validation.status
             metadata.last_updated = datetime.now().isoformat()
 
-            # Store in results and batch
+            # Store results
             results[symbol] = metadata
-            batch_updates[symbol] = metadata
             all_metadata[symbol] = metadata
+            updated_count += 1
 
-            # Checkpoint save every batch_size symbols
-            if len(batch_updates) >= batch_size:
-                self.symbol_service.update_symbols_metadata_batch(
-                    batch_updates, existing_metadata=all_metadata
-                )
-                batch_updates.clear()
-                if progress_callback:
-                    progress_callback("", f"Checkpoint saved ({i + 1}/{total})")
+            # Progress update
+            if progress_callback and (i + 1) % batch_size == 0:
+                progress_callback("", f"Progress: {i + 1}/{total}")
 
-            # Rate limiting for sector API calls
-            if refresh_sector and i < total - 1:
-                time.sleep(sleep_time)
+        # Single save at end
+        if updated_count > 0:
+            self.symbol_service.save_all_metadata(all_metadata)
 
-        # Final save for remaining symbols
-        if batch_updates:
-            self.symbol_service.update_symbols_metadata_batch(
-                batch_updates, existing_metadata=all_metadata
+        if progress_callback:
+            progress_callback(
+                "",
+                f"Done: {updated_count} updated, {skipped_count} skipped"
             )
 
         return results
 
-    def _calculate_liquidity_parallel(
+    def sync_metadata_with_api(
         self,
-        symbols: List[str],
-        max_workers: int = 4,
+        symbols: Optional[List[str]] = None,
         progress_callback: Optional[Callable[[str, str], None]] = None,
-    ) -> Dict[str, LiquidityMetrics]:
-        """Calculate liquidity metrics for multiple symbols in parallel.
+    ) -> Dict[str, SymbolMetadata]:
+        """Sync metadata using Polygon API (slow, use sparingly).
+
+        Only use this when you need fresh sector data from the API.
+        Results are automatically saved to sector_mapping.json for future use.
 
         Args:
-            symbols: List of symbols to calculate liquidity for.
-            max_workers: Maximum number of parallel workers.
+            symbols: Symbols to sync. If None, syncs all configured.
             progress_callback: Optional callback for progress updates.
 
         Returns:
-            Dictionary mapping symbol to liquidity metrics.
+            Dictionary mapping symbol to updated metadata.
         """
-        results: Dict[str, LiquidityMetrics] = {}
+        if symbols is None:
+            symbols = self.symbol_service.get_configured_symbols()
 
-        def calculate_single(symbol: str) -> Tuple[str, Optional[LiquidityMetrics]]:
-            """Calculate liquidity for a single symbol."""
+        all_metadata = self.symbol_service.load_all_metadata()
+        sector_mapping = self.symbol_service.load_sector_mapping()
+        sleep_time = cfg_get("POLYGON_SLEEP_BETWEEN", 1.2)
+
+        results: Dict[str, SymbolMetadata] = {}
+        total = len(symbols)
+
+        for i, symbol in enumerate(symbols):
+            symbol = symbol.upper()
+
+            if progress_callback:
+                progress_callback(symbol, f"API sync ({i + 1}/{total})...")
+
+            metadata = all_metadata.get(symbol)
+            if metadata is None:
+                metadata = SymbolMetadata(symbol=symbol)
+
             try:
-                liquidity = self.liquidity_service.calculate_liquidity(symbol)
-                return (symbol, liquidity)
+                client = self._get_polygon_client()
+                details = client.fetch_ticker_details(symbol)
+                metadata.sector = self._get_sector_for_symbol(symbol, details)
+                metadata.industry = details.get("sic_description")
+                metadata.market_cap = details.get("market_cap")
+
+                # Update sector mapping for future use
+                sector_mapping[symbol] = {
+                    "sector": metadata.sector or "Unknown",
+                    "industry": metadata.industry or "",
+                }
             except Exception as e:
-                logger.warning(f"Failed to calculate liquidity for {symbol}: {e}")
-                return (symbol, None)
+                logger.warning(f"Failed to fetch sector for {symbol}: {e}")
 
-        # Use ThreadPoolExecutor for parallel calculation
-        with ThreadPoolExecutor(max_workers=max_workers) as executor:
-            futures = {
-                executor.submit(calculate_single, s.upper()): s.upper()
-                for s in symbols
-            }
+            metadata.last_updated = datetime.now().isoformat()
+            results[symbol] = metadata
+            all_metadata[symbol] = metadata
 
-            completed = 0
-            total = len(futures)
-            for future in as_completed(futures):
-                symbol, liquidity = future.result()
-                if liquidity is not None:
-                    results[symbol] = liquidity
-                completed += 1
+            if i < total - 1:
+                time.sleep(sleep_time)
 
-                if progress_callback and completed % 10 == 0:
-                    progress_callback(
-                        "", f"Liquidity: {completed}/{total} symbols..."
-                    )
+        # Save both metadata and sector mapping
+        self.symbol_service.save_all_metadata(all_metadata)
+        self.symbol_service.save_sector_mapping(sector_mapping)
 
         return results
+
+    def refresh_liquidity_cache(
+        self,
+        lookback_days: int = 30,
+        progress_callback: Optional[Callable[[str, str], None]] = None,
+        max_workers: int = 8,
+    ) -> int:
+        """Refresh the liquidity cache using optimized ORATS processing.
+
+        This runs the optimized O(d×r) algorithm once and caches results.
+        Call this periodically (e.g., weekly) to update liquidity data.
+
+        Args:
+            lookback_days: Number of trading days to analyze.
+            progress_callback: Optional callback for progress updates.
+            max_workers: Number of parallel workers.
+
+        Returns:
+            Number of symbols in the cache.
+        """
+        if progress_callback:
+            progress_callback("", f"Calculating liquidity ({lookback_days} days)...")
+
+        # Use the optimized function
+        results = self.liquidity_service.get_all_symbols_overview_optimized(
+            lookback_days=lookback_days,
+            progress_callback=progress_callback,
+            max_workers=max_workers,
+        )
+
+        # Save to cache
+        self.symbol_service.save_liquidity_cache(results, lookback_days)
+
+        if progress_callback:
+            progress_callback("", f"Cached liquidity for {len(results)} symbols")
+
+        return len(results)
 
     # -------------------------------------------------------------------------
     # Analysis

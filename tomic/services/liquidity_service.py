@@ -379,7 +379,7 @@ class LiquidityService:
 
     def get_all_symbols_overview_optimized(
         self,
-        lookback_days: int = 252,
+        lookback_days: int = 30,
         progress_callback: Optional[callable] = None,
         max_workers: int = 8,
         use_threads: bool = False,
@@ -391,7 +391,7 @@ class LiquidityService:
         This is ~5800x faster for 5812 symbols.
 
         Args:
-            lookback_days: Number of trading days to analyze (default 252 = 1 year).
+            lookback_days: Number of trading days to analyze (default 30 = ~6 weeks).
             progress_callback: Optional callback for progress updates (date_str, idx, total).
             max_workers: Number of parallel workers for date processing.
             use_threads: Use ThreadPoolExecutor instead of ProcessPoolExecutor.
