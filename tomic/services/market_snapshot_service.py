@@ -212,10 +212,10 @@ class MarketSnapshotService:
         self._today = today_fn
 
     def _default_symbols(self) -> list[str]:
-        symbols = self._get("DEFAULT_SYMBOLS", []) or []
-        if not isinstance(symbols, Iterable):
-            return []
-        return [str(sym).upper() for sym in symbols if isinstance(sym, str)]
+        from tomic.services.symbol_service import get_symbol_service
+        symbol_service = get_symbol_service()
+        # get_active_symbols() returns only symbols not disqualified for any strategy
+        return symbol_service.get_active_symbols()
 
     def load_snapshot(self, filters: Mapping[str, Any] | None = None) -> MarketSnapshot:
         filters = dict(filters or {})

@@ -110,16 +110,11 @@ class EntryFlowResult:
 
 
 def _default_symbols() -> list[str]:
-    """Load the configured symbol universe."""
-    raw = cfg.get("DEFAULT_SYMBOLS", []) or []
-    symbols: list[str] = []
-    for value in raw:
-        if not isinstance(value, (str, bytes)):
-            continue
-        cleaned = str(value).strip()
-        if cleaned:
-            symbols.append(cleaned.upper())
-    return symbols
+    """Load the configured symbol universe, excluding disqualified symbols."""
+    from tomic.services.symbol_service import get_symbol_service
+    symbol_service = get_symbol_service()
+    # get_active_symbols() returns only symbols not disqualified for any strategy
+    return symbol_service.get_active_symbols()
 
 
 def _snapshot_row_mapping(row: object) -> dict[str, Any]:

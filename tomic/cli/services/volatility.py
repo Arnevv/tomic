@@ -22,8 +22,13 @@ def fetch_iv30d(symbol: str) -> float | None:
 
 def compute_volatility_stats(symbols: Sequence[str] | None = None) -> list[str]:
     """Compute and persist volatility stats for ``symbols``."""
-    configured = cfg_get("DEFAULT_SYMBOLS", [])
-    target_symbols = [s.upper() for s in symbols] if symbols else [s.upper() for s in configured]
+    if symbols:
+        target_symbols = [s.upper() for s in symbols]
+    else:
+        from tomic.services.symbol_service import get_symbol_service
+        symbol_service = get_symbol_service()
+        # Use active symbols (excludes disqualified) when no specific symbols provided
+        target_symbols = symbol_service.get_active_symbols()
     if not target_symbols:
         logger.warning("No symbols configured for volatility computation")
         return []

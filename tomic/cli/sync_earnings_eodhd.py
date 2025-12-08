@@ -138,7 +138,10 @@ def run(args: argparse.Namespace) -> int:
     if args.symbols:
         symbols = [s.upper() for s in args.symbols]
     else:
-        symbols = app_config.get("DEFAULT_SYMBOLS", [])
+        from tomic.services.symbol_service import get_symbol_service
+        symbol_service = get_symbol_service()
+        # Use active symbols (excludes disqualified) when no specific symbols provided
+        symbols = symbol_service.get_active_symbols()
         if not symbols:
             logger.error("No symbols configured. Use --symbols or set DEFAULT_SYMBOLS in config.yaml")
             return 1

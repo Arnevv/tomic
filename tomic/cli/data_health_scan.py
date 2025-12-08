@@ -371,7 +371,10 @@ def main(argv: list[str] | None = None) -> None:
     if args.symbols:
         symbols = [item.strip().upper() for item in args.symbols.split(",") if item.strip()]
     else:
-        symbols = [sym.upper() for sym in cfg_get("DEFAULT_SYMBOLS", []) or []]
+        from tomic.services.symbol_service import get_symbol_service
+        symbol_service = get_symbol_service()
+        # Use active symbols (excludes disqualified) when no specific symbols provided
+        symbols = symbol_service.get_active_symbols()
 
     if not symbols:
         print("Geen symbolen opgegeven via --symbols of DEFAULT_SYMBOLS.")

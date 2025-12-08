@@ -10,7 +10,7 @@ import json
 from dataclasses import dataclass, field, asdict
 from datetime import date, datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Literal, Optional, Tuple
 
 from tomic.config import get as cfg_get, update as cfg_update
 from tomic.logutils import logger
@@ -88,6 +88,9 @@ class SymbolService:
             base_dir = Path(__file__).resolve().parent.parent.parent
         self.base_dir = base_dir
         self._metadata_cache: Dict[str, SymbolMetadata] = {}
+        # Import here to avoid circular imports
+        from tomic.services.qualification_service import get_qualification_service
+        self._qualification_service = get_qualification_service()
 
     # -------------------------------------------------------------------------
     # Path helpers
@@ -164,6 +167,42 @@ class SymbolService:
             self.set_configured_symbols(new_list)
 
         return to_remove
+
+    def get_active_symbols(self, strategy: Literal["calendar", "iron_condor"] | None = None) -> List[str]:
+        """Get configured symbols, filtering out disqualified ones.
+
+        Args:
+            strategy: The strategy to filter for. If provided, only returns symbols
+                     qualified for that strategy. If None, returns symbols not disqualified
+                     for either strategy.
+
+        Returns:
+            List of active (non-disqualified) symbols.
+        """
+        configured = self.get_configured_symbols()
+
+        if strategy is None:
+            # Return symbols that are qualified for at least one strategy
+            # (i.e., not disqualified for both)
+            all_quals = self._qualification_service.load_all()
+            active = []
+            for symbol in configured:
+                symbol_upper = symbol.upper()
+                if symbol_upper not in all_quals:
+                    # Not in qualification file = qualified by default
+                    active.append(symbol)
+                else:
+                    qual = all_quals[symbol_upper]
+                    # Include if qualified for at least one strategy
+                    if (qual.calendar.status == "qualified" or
+                        qual.iron_condor.status == "qualified"):
+                        active.append(symbol)
+            return active
+        else:
+            # Return only symbols qualified for the specific strategy
+            return self._qualification_service.get_qualified_symbols(
+                strategy, configured
+            )
 
     # -------------------------------------------------------------------------
     # Data file management
