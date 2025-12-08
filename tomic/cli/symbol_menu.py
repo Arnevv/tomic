@@ -896,39 +896,47 @@ def update_qualification_interactive(
     manager: Optional[SymbolManager] = None,
     qual_service: Optional[QualificationService] = None,
 ) -> None:
-    """Interactive qualification update."""
+    """Interactive qualification update for one or more symbols."""
     manager = manager or get_symbol_manager()
     qual_service = qual_service or get_qualification_service()
 
     _print_header("\U0001f4dd KWALIFICATIE UPDATEN")
 
     # Show current symbols
-    symbols = manager.symbol_service.get_configured_symbols()
-    print(f"Beschikbare symbolen: {', '.join(sorted(symbols)[:15])}")
-    if len(symbols) > 15:
-        print(f"  ... en {len(symbols) - 15} meer")
+    configured_symbols = manager.symbol_service.get_configured_symbols()
+    print(f"Beschikbare symbolen: {', '.join(sorted(configured_symbols)[:15])}")
+    if len(configured_symbols) > 15:
+        print(f"  ... en {len(configured_symbols) - 15} meer")
     print()
 
-    # Get symbol
-    symbol_input = prompt("Symbool: ", "").strip().upper()
+    # Get symbols (comma-separated)
+    symbol_input = prompt("Symbool(en) (komma-gescheiden): ", "").strip().upper()
     if not symbol_input:
         print("Geen symbool opgegeven.")
         return
 
-    if symbol_input not in symbols:
-        print(f"Symbool {symbol_input} niet in basket.")
-        if not prompt_yes_no("Toch doorgaan?", False):
+    # Parse comma-separated symbols
+    symbols_to_update = [s.strip() for s in symbol_input.split(",") if s.strip()]
+    if not symbols_to_update:
+        print("Geen geldige symbolen opgegeven.")
+        return
+
+    # Check which symbols are not in basket
+    not_in_basket = [s for s in symbols_to_update if s not in configured_symbols]
+    if not_in_basket:
+        print(f"Symbolen niet in basket: {', '.join(not_in_basket)}")
+        if not prompt_yes_no("Toch doorgaan met alle symbolen?", False):
             return
 
-    # Show current status
-    current = qual_service.get(symbol_input)
-    print(f"\nHuidige status voor {symbol_input}:")
-    print(f"  Calendar:    {_format_qual_status(current.calendar.status)} {current.calendar.status}")
-    if current.calendar.reason:
-        print(f"               {current.calendar.reason}")
-    print(f"  Iron Condor: {_format_qual_status(current.iron_condor.status)} {current.iron_condor.status}")
-    if current.iron_condor.reason:
-        print(f"               {current.iron_condor.reason}")
+    # Show current status for all symbols
+    print(f"\nHuidige status voor {len(symbols_to_update)} symbolen:")
+    print("\u2500" * 60)
+    for symbol in symbols_to_update:
+        current = qual_service.get(symbol)
+        cal_icon = _format_qual_status(current.calendar.status)
+        ic_icon = _format_qual_status(current.iron_condor.status)
+        print(f"  {symbol:<8} Calendar: {cal_icon} {current.calendar.status:<12} "
+              f"IC: {ic_icon} {current.iron_condor.status}")
     print()
 
     # Select strategy
@@ -965,19 +973,21 @@ def update_qualification_interactive(
         reason = prompt("Reden (optioneel): ", "")
 
     # Confirm and update
-    print(f"\nUpdate {symbol_input}:")
-    for strategy in strategies_to_update:
-        print(f"  {strategy} -> {new_status}" + (f" ({reason})" if reason else ""))
+    symbols_str = ", ".join(symbols_to_update)
+    strategies_str = " & ".join(strategies_to_update)
+    print(f"\nUpdate {len(symbols_to_update)} symbolen: {symbols_str}")
+    print(f"  {strategies_str} -> {new_status}" + (f" ({reason})" if reason else ""))
 
     if not prompt_yes_no("Doorgaan?", True):
         print("Geannuleerd.")
         return
 
-    # Apply updates
-    for strategy in strategies_to_update:
-        qual_service.update(symbol_input, strategy, new_status, reason)
+    # Apply updates to all symbols
+    for symbol in symbols_to_update:
+        for strategy in strategies_to_update:
+            qual_service.update(symbol, strategy, new_status, reason)
 
-    print(f"\n\u2713 {symbol_input} bijgewerkt.")
+    print(f"\n\u2713 {len(symbols_to_update)} symbolen bijgewerkt.")
     print()
 
 
