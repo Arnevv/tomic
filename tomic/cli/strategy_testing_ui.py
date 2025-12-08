@@ -247,6 +247,10 @@ def get_testable_parameters(strategy: str = STRATEGY_IRON_CONDOR) -> List[Dict[s
         ("min_option_volume", "Minimum Option Volume", "liquidity", liquidity_rules.get("min_option_volume", 10)),
         ("min_option_open_interest", "Minimum Open Interest", "liquidity", liquidity_rules.get("min_option_open_interest", 100)),
         ("max_spread_pct", "Max Bid-Ask Spread %", "liquidity", liquidity_rules.get("max_spread_pct", 20.0)),
+        # Exit liquidity parameters - simulate inability to close positions at low volume
+        ("check_exit_liquidity", "Check Exit Liquidity", "liquidity", liquidity_rules.get("check_exit_liquidity", False)),
+        ("min_exit_volume", "Min Exit Volume per Leg", "liquidity", liquidity_rules.get("min_exit_volume", 5)),
+        ("min_exit_open_interest", "Min Exit OI per Leg", "liquidity", liquidity_rules.get("min_exit_open_interest", 50)),
     ]
 
     for param_key, description, category, current in liquidity_params:
@@ -692,6 +696,13 @@ def _run_backtest_with_config(
         config.liquidity_rules.min_option_open_interest = int(overrides["min_option_open_interest"])
     if "max_spread_pct" in overrides:
         config.liquidity_rules.max_spread_pct = float(overrides["max_spread_pct"])
+    # Exit liquidity overrides
+    if "check_exit_liquidity" in overrides:
+        config.liquidity_rules.check_exit_liquidity = bool(overrides["check_exit_liquidity"])
+    if "min_exit_volume" in overrides:
+        config.liquidity_rules.min_exit_volume = int(overrides["min_exit_volume"])
+    if "min_exit_open_interest" in overrides:
+        config.liquidity_rules.min_exit_open_interest = int(overrides["min_exit_open_interest"])
 
     # Get effective min_risk_reward (override or live config)
     min_rr = overrides.get(

@@ -28,6 +28,8 @@ class ExitReason(Enum):
     MANUAL = "manual"
     # Calendar-specific exit reasons
     NEAR_LEG_DTE = "near_leg_dte"  # Exit before near-leg expiration
+    # Liquidity-related exit (used when exit was delayed due to low volume)
+    LOW_LIQUIDITY_DELAYED = "low_liquidity_delayed"  # Exit after liquidity delay
 
 
 @dataclass
@@ -157,6 +159,12 @@ class SimulatedTrade:
     realistic_credit: Optional[float] = None  # Credit using bid/ask (not mid)
     slippage_cost: Optional[float] = None  # Difference between mid and realistic credit
 
+    # Exit liquidity tracking - simulates when closing is blocked due to low volume
+    exit_delay_days: int = 0  # Number of days exit was delayed due to low liquidity
+    exit_blocked_dates: List[date] = field(default_factory=list)  # Dates when exit was blocked
+    pending_exit_reason: Optional["ExitReason"] = None  # Original exit reason before delay
+    pending_exit_pnl: Optional[float] = None  # P&L at time of first exit attempt
+
     def close(
         self,
         exit_date: date,
@@ -243,6 +251,13 @@ class PerformanceMetrics:
 
     # Per-symbol breakdown
     metrics_by_symbol: Dict[str, Dict[str, Any]] = field(default_factory=dict)
+
+    # Exit liquidity delay statistics (simulates low volume closing)
+    exits_delayed_by_liquidity: int = 0  # Number of exits delayed due to low volume
+    total_exit_delay_days: int = 0  # Total days of delay across all trades
+    avg_exit_delay_days: float = 0.0  # Average delay per delayed trade
+    max_exit_delay_days: int = 0  # Maximum delay for any single trade
+    pnl_impact_from_delays: float = 0.0  # P&L difference due to delayed exits
 
 
 @dataclass

@@ -570,10 +570,155 @@ def filter_by_liquidity(
     return passes, reasons
 
 
+@dataclass
+class ClosingLiquidityResult:
+    """Result of checking if a position can be closed based on liquidity."""
+
+    can_close: bool
+    blocking_legs: List[str]  # Names of legs blocking the close
+    min_volume: int
+    min_open_interest: int
+    message: str
+
+
+def check_closing_liquidity_iron_condor(
+    quotes: IronCondorQuotes,
+    min_volume: int,
+    min_open_interest: int,
+) -> ClosingLiquidityResult:
+    """Check if an iron condor position can be closed based on liquidity.
+
+    This simulates the real-world scenario where you cannot close a position
+    if one or more legs have insufficient volume or open interest.
+
+    Args:
+        quotes: IronCondorQuotes with current market data
+        min_volume: Minimum volume required per leg to allow closing
+        min_open_interest: Minimum open interest required per leg
+
+    Returns:
+        ClosingLiquidityResult with decision and details.
+    """
+    if not quotes.is_complete:
+        return ClosingLiquidityResult(
+            can_close=False,
+            blocking_legs=["incomplete_quotes"],
+            min_volume=0,
+            min_open_interest=0,
+            message="Option chain data incomplete",
+        )
+
+    blocking_legs = []
+    volumes = []
+    ois = []
+
+    legs = [
+        ("long_put", quotes.long_put),
+        ("short_put", quotes.short_put),
+        ("short_call", quotes.short_call),
+        ("long_call", quotes.long_call),
+    ]
+
+    for name, leg in legs:
+        vol = leg.volume or 0
+        oi = leg.open_interest or 0
+        volumes.append(vol)
+        ois.append(oi)
+
+        # Check if this leg blocks the close
+        if vol < min_volume:
+            blocking_legs.append(f"{name} (vol={vol})")
+        elif oi < min_open_interest:
+            blocking_legs.append(f"{name} (OI={oi})")
+
+    can_close = len(blocking_legs) == 0
+    min_vol = min(volumes) if volumes else 0
+    min_oi = min(ois) if ois else 0
+
+    if can_close:
+        message = f"Closing allowed (min_vol={min_vol}, min_OI={min_oi})"
+    else:
+        message = f"Closing blocked by: {', '.join(blocking_legs)}"
+
+    return ClosingLiquidityResult(
+        can_close=can_close,
+        blocking_legs=blocking_legs,
+        min_volume=min_vol,
+        min_open_interest=min_oi,
+        message=message,
+    )
+
+
+def check_closing_liquidity_calendar(
+    quotes: CalendarSpreadQuotes,
+    min_volume: int,
+    min_open_interest: int,
+) -> ClosingLiquidityResult:
+    """Check if a calendar spread position can be closed based on liquidity.
+
+    Args:
+        quotes: CalendarSpreadQuotes with current market data
+        min_volume: Minimum volume required per leg to allow closing
+        min_open_interest: Minimum open interest required per leg
+
+    Returns:
+        ClosingLiquidityResult with decision and details.
+    """
+    if not quotes.is_complete:
+        return ClosingLiquidityResult(
+            can_close=False,
+            blocking_legs=["incomplete_quotes"],
+            min_volume=0,
+            min_open_interest=0,
+            message="Option chain data incomplete",
+        )
+
+    blocking_legs = []
+    volumes = []
+    ois = []
+
+    legs = [
+        ("short_leg", quotes.short_leg),
+        ("long_leg", quotes.long_leg),
+    ]
+
+    for name, leg in legs:
+        vol = leg.volume or 0
+        oi = leg.open_interest or 0
+        volumes.append(vol)
+        ois.append(oi)
+
+        # Check if this leg blocks the close
+        if vol < min_volume:
+            blocking_legs.append(f"{name} (vol={vol})")
+        elif oi < min_open_interest:
+            blocking_legs.append(f"{name} (OI={oi})")
+
+    can_close = len(blocking_legs) == 0
+    min_vol = min(volumes) if volumes else 0
+    min_oi = min(ois) if ois else 0
+
+    if can_close:
+        message = f"Closing allowed (min_vol={min_vol}, min_OI={min_oi})"
+    else:
+        message = f"Closing blocked by: {', '.join(blocking_legs)}"
+
+    return ClosingLiquidityResult(
+        can_close=can_close,
+        blocking_legs=blocking_legs,
+        min_volume=min_vol,
+        min_open_interest=min_oi,
+        message=message,
+    )
+
+
 __all__ = [
     "LiquidityFilter",
     "LiquidityMetrics",
+    "ClosingLiquidityResult",
     "filter_by_liquidity",
     "iron_condor_to_legs",
     "calendar_spread_to_legs",
+    "check_closing_liquidity_iron_condor",
+    "check_closing_liquidity_calendar",
 ]

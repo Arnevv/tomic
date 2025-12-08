@@ -122,6 +122,12 @@ class LiquidityRulesConfig(BaseModel):
     use_realistic_execution: bool = True  # Use bid/ask instead of mid
     volume_impact_threshold: float = 0.10  # Warn if position > 10% of volume
 
+    # Exit/closing liquidity check - simulates inability to close positions
+    # when one or more legs have insufficient volume
+    check_exit_liquidity: bool = False  # Enable exit liquidity checks
+    min_exit_volume: int = 5  # Minimum volume per leg to allow closing
+    min_exit_open_interest: int = 50  # Minimum OI per leg to allow closing
+
     model_config = ConfigDict(extra="forbid")
 
 
