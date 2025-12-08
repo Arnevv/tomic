@@ -418,11 +418,11 @@ class IBMarketDataService:
 
         trigger_label = trigger or "manual"
         timeout = timeout or float(cfg_value("MARKET_DATA_TIMEOUT", 15))
-        port = int(cfg_value("IB_PORT", 7497))
+        port = int(cfg_value("IB_PORT", 4002))
         if bool(cfg_value("IB_PAPER_MODE", True)):
-            port = int(cfg_value("IB_PORT", 7497))
+            port = int(cfg_value("IB_PORT", 4002))
         else:
-            port = int(cfg_value("IB_LIVE_PORT", 7496))
+            port = int(cfg_value("IB_LIVE_PORT", 4001))
         client_id = int(cfg_value("IB_MARKETDATA_CLIENT_ID", 901))
         host = str(cfg_value("IB_HOST", "127.0.0.1"))
 

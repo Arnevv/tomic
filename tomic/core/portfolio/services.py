@@ -256,7 +256,7 @@ def prepare_order(
     host = str(cfg.get("IB_HOST", "127.0.0.1"))
     paper_mode = bool(cfg.get("IB_PAPER_MODE", True))
     port_key = "IB_PORT" if paper_mode else "IB_LIVE_PORT"
-    port = int(cfg.get(port_key, 7497 if paper_mode else 7496))
+    port = int(cfg.get(port_key, 4002 if paper_mode else 4001))
     client_id = int(cfg.get("IB_ORDER_CLIENT_ID", cfg.get("IB_CLIENT_ID", 100)))
     timeout = int(cfg.get("DOWNLOAD_TIMEOUT", 5))
     service = OrderSubmissionService()

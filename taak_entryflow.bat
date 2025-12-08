@@ -47,7 +47,7 @@ echo [%time%] TWS bereikbaarheidscheck...
 "%PYTHON_EXE%" "%REPO_ROOT%\scripts\tws_connection_test.py" >nul 2>&1
 if %errorlevel% neq 0 (
     echo [%time%] FOUT: TWS/IB Gateway niet bereikbaar of connectie mislukt.
-    echo [%time%] Controleer of TWS draait en API connecties accepteert op poort 7497.
+    echo [%time%] Controleer of IB Gateway draait en API connecties accepteert op poort 4002.
     pause
     endlocal & exit /b 2
 )

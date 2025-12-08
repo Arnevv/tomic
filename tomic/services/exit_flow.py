@@ -77,7 +77,7 @@ class ExitFlowConfig:
         host = str(cfg_get("IB_HOST", "127.0.0.1"))
         paper_mode = bool(cfg_get("IB_PAPER_MODE", True))
         port_key = "IB_PORT" if paper_mode else "IB_LIVE_PORT"
-        default_port = 7497 if paper_mode else 7496
+        default_port = 4002 if paper_mode else 4001  # IB Gateway ports
         port = int(cfg_get(port_key, default_port))
         client_id = int(cfg_get("IB_ORDER_CLIENT_ID", cfg_get("IB_CLIENT_ID", 100)))
         account_raw = str(cfg_get("IB_ACCOUNT_ALIAS", "") or "").strip()

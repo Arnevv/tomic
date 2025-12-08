@@ -2,17 +2,17 @@
     "python-envs.pythonProjects": [],
     "terminal.integrated.env.linux": {
         "TWS_HOST": "127.0.0.1",
-        "TWS_PORT": "7497",
+        "TWS_PORT": "4002",
         "TWS_CLIENT_ID": "101"
     },
     "terminal.integrated.env.osx": {
         "TWS_HOST": "127.0.0.1",
-        "TWS_PORT": "7497",
+        "TWS_PORT": "4002",
         "TWS_CLIENT_ID": "101"
     },
     "terminal.integrated.env.windows": {
         "TWS_HOST": "127.0.0.1",
-        "TWS_PORT": "7497",
+        "TWS_PORT": "4002",
         "TWS_CLIENT_ID": "101"
     }
 }

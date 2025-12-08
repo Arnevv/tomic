@@ -57,8 +57,8 @@ if %ERRORLEVEL% neq 0 (
 )
 echo.
 
-echo === STAP 5: Controleer TWS poort 7497 ===
-powershell -NoProfile -Command "if ((Test-NetConnection -ComputerName '127.0.0.1' -Port 7497 -WarningAction SilentlyContinue).TcpTestSucceeded) { Write-Host '[OK] TWS/IB Gateway bereikbaar op poort 7497' } else { Write-Host '[FOUT] TWS/IB Gateway NIET bereikbaar op poort 7497' }"
+echo === STAP 5: Controleer IB Gateway poort 4002 ===
+powershell -NoProfile -Command "if ((Test-NetConnection -ComputerName '127.0.0.1' -Port 4002 -WarningAction SilentlyContinue).TcpTestSucceeded) { Write-Host '[OK] IB Gateway bereikbaar op poort 4002' } else { Write-Host '[FOUT] IB Gateway NIET bereikbaar op poort 4002' }"
 echo.
 
 echo === STAP 6: Controleer exit_logs directory ===

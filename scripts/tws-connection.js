@@ -5,7 +5,7 @@ const { EventEmitter } = require('events');
 
 const DEFAULT_CONFIG = {
   host: process.env.TWS_HOST || '127.0.0.1',
-  port: Number(process.env.TWS_PORT) || 7497,
+  port: Number(process.env.TWS_PORT) || 4002,  // IB Gateway paper trading port
   clientId: Number(process.env.TWS_CLIENT_ID) || 0,
   reconnectIntervalMs: 1_000,
   maxRetries: 10,

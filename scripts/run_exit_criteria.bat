@@ -6,7 +6,7 @@ setlocal EnableDelayedExpansion
 REM === CONFIGURATIE ===
 set "TOMIC_DIR=C:\Users\Gebruiker\VSCode Projects\Tomic\tomic"
 set "TWS_HOST=127.0.0.1"
-set "TWS_PORT=7497"
+set "TWS_PORT=4002"
 set "MAX_RUNTIME_SECONDS=300"
 set "TWS_CHECK_TIMEOUT=5"
 
@@ -53,7 +53,7 @@ if %errorlevel% equ 2 (
     echo       Controleer of:
     echo       - TWS/IB Gateway is gestart
     echo       - API connections zijn ingeschakeld (Configure ^> API ^> Settings)
-    echo       - Socket port klopt (%TWS_PORT% voor paper, 7496 voor live)
+    echo       - Socket port klopt (%TWS_PORT% voor paper, 4001 voor live)
     exit /b 2
 )
 echo [OK] TWS bereikbaar

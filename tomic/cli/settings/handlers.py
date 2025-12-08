@@ -113,7 +113,7 @@ def change_host(session: "ControlPanelSession" | None, services: "ControlPanelSe
     """Prompt for IB host/port combination."""
 
     host_default = cfg.get("IB_HOST", "127.0.0.1")
-    port_default = cfg.get("IB_PORT", 7497)
+    port_default = cfg.get("IB_PORT", 4002)
     host = prompt(f"Host ({host_default}): ", str(host_default))
     port_raw = prompt(f"Poort ({port_default}): ")
     port = port_default
