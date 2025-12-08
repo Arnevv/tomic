@@ -237,6 +237,7 @@ def _sector_recommendations_submenu(
         print("Opties:")
         print("  [A] Symbool toevoegen aan basket")
         print("  [C] Correlatie details voor symbool")
+        print("  [P] Prijsdata ophalen voor correlatie")
         print("  [T] Terug")
         print()
 
@@ -250,6 +251,9 @@ def _sector_recommendations_submenu(
 
         elif choice == "C":
             _show_correlation_details(manager)
+
+        elif choice == "P":
+            _fetch_price_data_for_candidates(recommendations)
 
         else:
             print("Ongeldige keuze.")
@@ -362,6 +366,64 @@ def _show_correlation_details(manager: SymbolManager) -> None:
         print("\u26a0 Matige correlatie - redelijke diversificatie")
     else:
         print("\u26a0 Hoge correlatie - overweeg andere opties")
+
+    print()
+
+
+def _fetch_price_data_for_candidates(recommendations: Dict[str, Any]) -> None:
+    """Fetch historical price data for candidates missing correlation data."""
+    from tomic.services.correlation_service import get_correlation_service
+    from tomic.cli.services.price_history_polygon import fetch_polygon_price_history
+
+    # Collect all candidate symbols
+    all_candidates: Set[str] = set()
+    for sector, data in recommendations.items():
+        for c in data.get("candidates", []):
+            all_candidates.add(c["symbol"])
+
+    if not all_candidates:
+        print("Geen kandidaten beschikbaar.")
+        return
+
+    # Check which symbols are missing price data
+    corr_service = get_correlation_service()
+    missing = corr_service.get_symbols_missing_price_data(list(all_candidates))
+
+    if not missing:
+        print("\n\u2713 Alle kandidaten hebben al prijsdata voor correlatie.")
+        print()
+        return
+
+    print(f"\n\U0001f4ca {len(missing)} symbolen missen historische prijsdata:")
+    for i, sym in enumerate(missing[:10], 1):
+        print(f"  {i}. {sym}")
+    if len(missing) > 10:
+        print(f"  ... en {len(missing) - 10} meer")
+
+    print()
+    confirm = prompt_yes_no(f"Prijsdata ophalen voor {len(missing)} symbolen via Polygon?", default=False)
+
+    if not confirm:
+        print("Geannuleerd.")
+        return
+
+    print("\n\U0001f504 Prijsdata ophalen...")
+
+    # Clear the price cache so new data is loaded
+    corr_service.clear_cache()
+
+    # Fetch price history for missing symbols
+    try:
+        processed = fetch_polygon_price_history(missing, run_volstats=False)
+        if processed:
+            print(f"\n\u2713 Prijsdata opgehaald voor {len(processed)} symbolen: {', '.join(processed[:5])}")
+            if len(processed) > 5:
+                print(f"  ... en {len(processed) - 5} meer")
+            print("\nCorrelatie data is nu beschikbaar. Gebruik [C] om details te bekijken.")
+        else:
+            print("\n\u26a0 Geen prijsdata opgehaald. Controleer Polygon API configuratie.")
+    except Exception as e:
+        print(f"\n\u274c Fout bij ophalen prijsdata: {e}")
 
     print()
 

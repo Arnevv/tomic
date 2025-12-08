@@ -260,6 +260,39 @@ class CorrelationService:
         """Clear the price cache."""
         self._price_cache.clear()
 
+    def has_sufficient_price_data(self, symbol: str, min_days: int = 20) -> bool:
+        """Check if a symbol has sufficient historical price data for correlation.
+
+        Args:
+            symbol: Stock symbol.
+            min_days: Minimum number of data points required.
+
+        Returns:
+            True if symbol has enough data, False otherwise.
+        """
+        prices = self._load_spot_prices(symbol)
+        return len(prices) >= min_days
+
+    def get_symbols_missing_price_data(
+        self,
+        symbols: List[str],
+        min_days: int = 20,
+    ) -> List[str]:
+        """Get list of symbols that don't have sufficient price data.
+
+        Args:
+            symbols: List of symbols to check.
+            min_days: Minimum number of data points required.
+
+        Returns:
+            List of symbols missing price data.
+        """
+        missing = []
+        for symbol in symbols:
+            if not self.has_sufficient_price_data(symbol, min_days):
+                missing.append(symbol.upper())
+        return missing
+
 
 # Module-level instance
 _service: Optional[CorrelationService] = None
