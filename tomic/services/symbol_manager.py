@@ -392,9 +392,9 @@ class SymbolManager:
         from tomic.cli.services import price_history_polygon
 
         try:
-            # Use existing price history fetcher
-            price_history_polygon.fetch_symbol(symbol)
-            return True
+            # Use existing price history fetcher (pass symbol as list)
+            result = price_history_polygon.fetch_polygon_price_history([symbol])
+            return bool(result)
         except Exception as e:
             logger.warning(f"Failed to fetch price history for {symbol}: {e}")
             return False
