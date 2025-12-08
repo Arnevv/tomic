@@ -278,21 +278,28 @@ def _add_from_recommendations(
     if len(all_candidates) > 15:
         print(f"  ... en {len(all_candidates) - 15} meer")
 
-    symbol = prompt("Symbool om toe te voegen: ", "").strip().upper()
-    if not symbol:
+    raw_input = prompt("Symbool om toe te voegen: ", "").strip().upper()
+    if not raw_input:
+        print("Geen symbool opgegeven.")
+        return
+
+    # Support comma-separated symbols
+    symbols = [s.strip() for s in raw_input.split(",") if s.strip()]
+    if not symbols:
         print("Geen symbool opgegeven.")
         return
 
     # Options
     fetch_data = prompt_yes_no("Historische data ophalen?", True)
 
-    print(f"\nToevoegen van {symbol}...")
+    symbols_str = ", ".join(symbols) if len(symbols) > 1 else symbols[0]
+    print(f"\nToevoegen van {symbols_str}...")
 
     def progress(sym: str, status: str) -> None:
         print(f"  {sym}: {status}")
 
     results = manager.add_symbols(
-        [symbol],
+        symbols,
         fetch_data=fetch_data,
         fetch_sector=True,
         fetch_liquidity=True,
