@@ -15,7 +15,12 @@ from typing import Dict, List, Optional
 from tomic.backtest.config import BacktestConfig
 from tomic.backtest.data_loader import IVTimeSeries
 from tomic.backtest.exit_evaluator import ExitEvaluator, ExitEvaluation, CalendarExitEvaluator
-from tomic.backtest.liquidity_filter import LiquidityFilter, LiquidityMetrics
+from tomic.backtest.liquidity_filter import (
+    LiquidityFilter,
+    LiquidityMetrics,
+    check_closing_liquidity_iron_condor,
+    check_closing_liquidity_calendar,
+)
 from tomic.backtest.option_chain_loader import (
     CalendarSpreadQuotes,
     IronCondorQuotes,
@@ -559,6 +564,8 @@ class TradeSimulator:
         """Process all open positions for a given day.
 
         Checks exit conditions and closes trades as needed.
+        If check_exit_liquidity is enabled, also checks if the position
+        can actually be closed based on volume/OI of the legs.
 
         Args:
             current_date: Current simulation date
@@ -569,6 +576,9 @@ class TradeSimulator:
         """
         closed_trades: List[SimulatedTrade] = []
         symbols_to_close: List[str] = []
+
+        # Check if exit liquidity checking is enabled
+        check_exit_liq = self.config.liquidity_rules.check_exit_liquidity
 
         for symbol, trade in self._open_positions.items():
             # Get current IV, term structure, and spot price for the symbol
@@ -666,55 +676,228 @@ class TradeSimulator:
                 trade.current_pnl = pnl_estimate.total_pnl
                 trade.pnl_history.append(pnl_estimate.total_pnl)
 
-            # Evaluate exit conditions based on strategy type
-            if trade.is_calendar() and self.calendar_exit_evaluator:
-                # Use calendar exit evaluator
-                term_at_entry = self._term_at_entry.get(symbol)
-                evaluation = self.calendar_exit_evaluator.evaluate(
-                    trade=trade,
-                    current_date=current_date,
-                    current_iv=current_iv,
-                    current_term=current_term,
-                    term_at_entry=term_at_entry,
-                )
-            elif self.exit_evaluator:
-                # Use standard exit evaluator for iron condor
-                evaluation = self.exit_evaluator.evaluate(
-                    trade=trade,
-                    current_date=current_date,
-                    current_iv=current_iv,
-                    current_spot=current_spot,
-                )
+            # Check if there's a pending exit from a previous day (blocked by low liquidity)
+            has_pending_exit = trade.pending_exit_reason is not None
+
+            # Evaluate exit conditions based on strategy type (only if no pending exit)
+            if not has_pending_exit:
+                if trade.is_calendar() and self.calendar_exit_evaluator:
+                    # Use calendar exit evaluator
+                    term_at_entry = self._term_at_entry.get(symbol)
+                    evaluation = self.calendar_exit_evaluator.evaluate(
+                        trade=trade,
+                        current_date=current_date,
+                        current_iv=current_iv,
+                        current_term=current_term,
+                        term_at_entry=term_at_entry,
+                    )
+                elif self.exit_evaluator:
+                    # Use standard exit evaluator for iron condor
+                    evaluation = self.exit_evaluator.evaluate(
+                        trade=trade,
+                        current_date=current_date,
+                        current_iv=current_iv,
+                        current_spot=current_spot,
+                    )
+                else:
+                    # No evaluator available - don't exit
+                    evaluation = ExitEvaluation(should_exit=False)
             else:
-                # No evaluator available - don't exit
-                evaluation = ExitEvaluation(should_exit=False)
-
-            if evaluation.should_exit:
-                # Close the trade
-                trade.close(
-                    exit_date=current_date,
-                    exit_reason=evaluation.exit_reason,
-                    final_pnl=evaluation.exit_pnl,
-                    iv_at_exit=current_iv,
-                    spot_at_exit=current_spot,
+                # Use the pending exit - we already want to exit
+                evaluation = ExitEvaluation(
+                    should_exit=True,
+                    exit_reason=trade.pending_exit_reason,
+                    exit_pnl=trade.current_pnl,  # Use current P&L (may have changed)
                 )
-                symbols_to_close.append(symbol)
-                closed_trades.append(trade)
 
-                # Clean up term structure tracking for calendar trades
-                if symbol in self._term_at_entry:
-                    del self._term_at_entry[symbol]
+            # Determine if we want to exit
+            wants_to_exit = evaluation.should_exit or has_pending_exit
 
-                logger.debug(
-                    f"Closed {trade.symbol} - {evaluation.exit_reason.value}: "
-                    f"P&L ${evaluation.exit_pnl:.2f}, DIT {trade.days_in_trade}d"
-                )
+            if wants_to_exit:
+                # Check if we can actually close due to liquidity
+                can_close = True
+                liquidity_blocked_msg = ""
+
+                if check_exit_liq:
+                    can_close, liquidity_blocked_msg = self._check_closing_liquidity(
+                        trade=trade,
+                        current_date=current_date,
+                    )
+
+                if can_close:
+                    # Determine final exit reason
+                    if has_pending_exit:
+                        # Use original exit reason but note it was delayed
+                        final_exit_reason = trade.pending_exit_reason
+                        # If there was a delay, we could optionally change the reason
+                        # to LOW_LIQUIDITY_DELAYED, but we keep original for better analysis
+                    else:
+                        final_exit_reason = evaluation.exit_reason
+
+                    # Close the trade
+                    trade.close(
+                        exit_date=current_date,
+                        exit_reason=final_exit_reason,
+                        final_pnl=evaluation.exit_pnl if not has_pending_exit else trade.current_pnl,
+                        iv_at_exit=current_iv,
+                        spot_at_exit=current_spot,
+                    )
+                    symbols_to_close.append(symbol)
+                    closed_trades.append(trade)
+
+                    # Clean up term structure tracking for calendar trades
+                    if symbol in self._term_at_entry:
+                        del self._term_at_entry[symbol]
+
+                    delay_info = f", delayed {trade.exit_delay_days}d" if trade.exit_delay_days > 0 else ""
+                    logger.debug(
+                        f"Closed {trade.symbol} - {final_exit_reason.value}: "
+                        f"P&L ${trade.final_pnl:.2f}, DIT {trade.days_in_trade}d{delay_info}"
+                    )
+                else:
+                    # Cannot close due to low liquidity - defer to next day
+                    if not has_pending_exit:
+                        # First time we wanted to exit but couldn't
+                        trade.pending_exit_reason = evaluation.exit_reason
+                        trade.pending_exit_pnl = evaluation.exit_pnl
+
+                    trade.exit_delay_days += 1
+                    trade.exit_blocked_dates.append(current_date)
+
+                    logger.debug(
+                        f"Exit blocked for {trade.symbol}: {liquidity_blocked_msg} "
+                        f"(delay: {trade.exit_delay_days}d)"
+                    )
 
         # Remove closed positions from tracking
         for symbol in symbols_to_close:
             del self._open_positions[symbol]
 
         return closed_trades
+
+    def _check_closing_liquidity(
+        self,
+        trade: SimulatedTrade,
+        current_date: date,
+    ) -> tuple[bool, str]:
+        """Check if a position can be closed based on liquidity.
+
+        Loads the option chain for the current date and checks if all legs
+        have sufficient volume and open interest to allow closing.
+
+        Args:
+            trade: The trade to check
+            current_date: Current simulation date
+
+        Returns:
+            Tuple of (can_close: bool, message: str)
+        """
+        min_vol = self.config.liquidity_rules.min_exit_volume
+        min_oi = self.config.liquidity_rules.min_exit_open_interest
+
+        # Load option chain for current date
+        chain = self.chain_loader.load_chain(trade.symbol, current_date)
+        if chain is None:
+            # No data available - assume we can close (conservative)
+            logger.debug(f"No option chain data for {trade.symbol} on {current_date}, allowing close")
+            return True, ""
+
+        if trade.is_calendar():
+            # For calendar spreads, we need to find the same strikes/expiries
+            cal_quotes = self._find_calendar_quotes_for_exit(trade, chain, current_date)
+            if cal_quotes is None:
+                # Cannot find matching quotes - assume we can close
+                return True, ""
+
+            result = check_closing_liquidity_calendar(cal_quotes, min_vol, min_oi)
+            return result.can_close, result.message
+        else:
+            # For iron condors, we need to find the same strikes/expiry
+            ic_quotes = self._find_iron_condor_quotes_for_exit(trade, chain, current_date)
+            if ic_quotes is None:
+                # Cannot find matching quotes - assume we can close
+                return True, ""
+
+            result = check_closing_liquidity_iron_condor(ic_quotes, min_vol, min_oi)
+            return result.can_close, result.message
+
+    def _find_iron_condor_quotes_for_exit(
+        self,
+        trade: SimulatedTrade,
+        chain,
+        current_date: date,
+    ) -> Optional[IronCondorQuotes]:
+        """Find the current quotes for an existing iron condor position.
+
+        This attempts to find quotes for the same expiry and approximate strikes
+        as the original trade.
+        """
+        # Calculate remaining DTE
+        remaining_dte = (trade.target_expiry - current_date).days
+        if remaining_dte <= 0:
+            return None
+
+        # Find the closest expiry to target
+        expiries = chain.get_expiries()
+        if not expiries:
+            return None
+
+        best_expiry = None
+        best_diff = float('inf')
+        for exp in expiries:
+            diff = abs((exp - trade.target_expiry).days)
+            if diff < best_diff:
+                best_diff = diff
+                best_expiry = exp
+
+        if best_expiry is None or best_diff > 7:  # Allow up to 7 days tolerance
+            return None
+
+        # Select iron condor at current market conditions
+        short_delta = self.config.iron_condor_short_delta
+        wing_width = float(self.config.iron_condor_wing_width)
+
+        ic_quotes = chain.select_iron_condor(
+            expiry=best_expiry,
+            short_put_delta=-short_delta,
+            short_call_delta=short_delta,
+            wing_width=wing_width,
+        )
+
+        return ic_quotes
+
+    def _find_calendar_quotes_for_exit(
+        self,
+        trade: SimulatedTrade,
+        chain,
+        current_date: date,
+    ) -> Optional[CalendarSpreadQuotes]:
+        """Find the current quotes for an existing calendar spread position."""
+        if trade.short_expiry is None or trade.long_expiry is None:
+            return None
+
+        # Find closest expiries
+        near_expiry = chain.find_expiry_near_dte(
+            (trade.short_expiry - current_date).days,
+            dte_tolerance=7,
+        )
+        far_expiry = chain.find_expiry_near_dte(
+            (trade.long_expiry - current_date).days,
+            dte_tolerance=14,
+        )
+
+        if near_expiry is None or far_expiry is None:
+            return None
+
+        # Select calendar spread at ATM (or use original strike if available)
+        cal_quotes = chain.select_calendar_spread(
+            near_expiry=near_expiry,
+            far_expiry=far_expiry,
+            option_type="C",
+            target_strike=trade.spot_at_entry,  # Use original ATM
+        )
+
+        return cal_quotes
 
     def force_close_all(
         self,
@@ -776,6 +959,19 @@ class TradeSimulator:
             if trades_with_liq else None
         )
 
+        # Calculate exit delay statistics (for low volume closing simulation)
+        trades_with_delay = [t for t in closed_trades if t.exit_delay_days > 0]
+        num_delayed_exits = len(trades_with_delay)
+        total_delay_days = sum(t.exit_delay_days for t in trades_with_delay)
+        avg_delay_days = total_delay_days / num_delayed_exits if num_delayed_exits > 0 else 0
+        max_delay_days = max((t.exit_delay_days for t in trades_with_delay), default=0)
+
+        # Calculate P&L impact of delays (difference between intended exit P&L and actual)
+        pnl_impact_from_delays = sum(
+            (t.final_pnl - t.pending_exit_pnl) if t.pending_exit_pnl is not None else 0
+            for t in trades_with_delay
+        )
+
         return {
             "total_trades": len(all_trades),
             "closed_trades": len(closed_trades),
@@ -790,6 +986,12 @@ class TradeSimulator:
             "trades_with_liquidity_data": len(trades_with_liq),
             "avg_liquidity_score": avg_liquidity_score,
             "total_slippage_cost": total_slippage,
+            # Exit delay statistics (low volume closing simulation)
+            "exits_delayed_by_liquidity": num_delayed_exits,
+            "total_exit_delay_days": total_delay_days,
+            "avg_exit_delay_days": avg_delay_days,
+            "max_exit_delay_days": max_delay_days,
+            "pnl_impact_from_delays": pnl_impact_from_delays,
         }
 
 

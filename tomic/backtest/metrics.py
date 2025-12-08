@@ -157,6 +157,14 @@ class MetricsCalculator:
         # Per-symbol breakdown
         metrics.metrics_by_symbol = self._calculate_per_symbol(closed_trades)
 
+        # Exit liquidity delay statistics
+        exit_delay_stats = self._calculate_exit_delay_stats(closed_trades)
+        metrics.exits_delayed_by_liquidity = exit_delay_stats["num_delayed"]
+        metrics.total_exit_delay_days = exit_delay_stats["total_delay_days"]
+        metrics.avg_exit_delay_days = exit_delay_stats["avg_delay_days"]
+        metrics.max_exit_delay_days = exit_delay_stats["max_delay_days"]
+        metrics.pnl_impact_from_delays = exit_delay_stats["pnl_impact"]
+
         return metrics
 
     def _calculate_expectancy(self, trades: List[SimulatedTrade]) -> float:
@@ -506,6 +514,45 @@ class MetricsCalculator:
             return 0.0
 
         return self._calculate_sharpe(returns, equity_curve)
+
+    def _calculate_exit_delay_stats(
+        self, trades: List[SimulatedTrade]
+    ) -> Dict[str, Any]:
+        """Calculate statistics for exit delays due to low liquidity.
+
+        This tracks trades that couldn't be closed due to insufficient volume
+        and had to wait for better liquidity conditions.
+        """
+        # Find trades that had their exit delayed
+        trades_with_delay = [t for t in trades if t.exit_delay_days > 0]
+
+        if not trades_with_delay:
+            return {
+                "num_delayed": 0,
+                "total_delay_days": 0,
+                "avg_delay_days": 0.0,
+                "max_delay_days": 0,
+                "pnl_impact": 0.0,
+            }
+
+        num_delayed = len(trades_with_delay)
+        total_delay_days = sum(t.exit_delay_days for t in trades_with_delay)
+        avg_delay_days = total_delay_days / num_delayed
+        max_delay_days = max(t.exit_delay_days for t in trades_with_delay)
+
+        # Calculate P&L impact (difference between intended exit P&L and actual)
+        pnl_impact = sum(
+            (t.final_pnl - t.pending_exit_pnl) if t.pending_exit_pnl is not None else 0.0
+            for t in trades_with_delay
+        )
+
+        return {
+            "num_delayed": num_delayed,
+            "total_delay_days": total_delay_days,
+            "avg_delay_days": avg_delay_days,
+            "max_delay_days": max_delay_days,
+            "pnl_impact": pnl_impact,
+        }
 
 
 def calculate_degradation_score(
