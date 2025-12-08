@@ -830,6 +830,195 @@ class SymbolManager:
 
         return sorted(warnings, key=lambda x: x["avg_volume"] or 0)
 
+    def get_sector_exposure_recommendations(
+        self,
+        top_n: int = 5,
+        min_volume: int = 10000,
+        lookback_days: int = 60,
+    ) -> Dict[str, Any]:
+        """Get concrete symbol recommendations for underexposed sectors.
+
+        For each missing or underweight sector, returns candidate symbols:
+        - Not currently in basket
+        - Not disqualified
+        - Sorted by liquidity (descending)
+        - With correlation to existing basket
+
+        Args:
+            top_n: Number of candidates per sector.
+            min_volume: Minimum average volume for candidates.
+            lookback_days: Days for correlation calculation.
+
+        Returns:
+            Dictionary with recommendations per sector.
+        """
+        from tomic.services.correlation_service import get_correlation_service
+        from tomic.services.qualification_service import get_qualification_service
+
+        # Get current analysis
+        analysis = self.get_sector_analysis()
+        current_symbols = set(self.symbol_service.get_configured_symbols())
+
+        # Load liquidity cache for all available symbols
+        liquidity_cache = self.symbol_service.load_liquidity_cache()
+        if not liquidity_cache or not liquidity_cache.get("results"):
+            return {
+                "error": "No liquidity cache available. Run ORATS symbol overview first.",
+                "recommendations": {},
+            }
+
+        # Build liquidity lookup
+        liquidity_lookup: Dict[str, Dict[str, Any]] = {}
+        for item in liquidity_cache.get("results", []):
+            liquidity_lookup[item["symbol"]] = item
+
+        # Load sector mapping for all symbols
+        sector_mapping = self.symbol_service.load_sector_mapping()
+
+        # Get qualification service
+        qual_service = get_qualification_service()
+        all_quals = qual_service.load_all()
+
+        # Get correlation service
+        corr_service = get_correlation_service()
+
+        # Identify sectors needing attention
+        missing_sectors = set(analysis.get("missing_sectors", []))
+        underweight_sectors = self._get_underweight_sectors(analysis)
+
+        recommendations: Dict[str, Dict[str, Any]] = {}
+
+        # Process each sector needing attention
+        for sector in missing_sectors | underweight_sectors:
+            sector_type = "missing" if sector in missing_sectors else "underweight"
+
+            # Find candidates for this sector
+            candidates = []
+            for symbol, liq_data in liquidity_lookup.items():
+                # Skip if already in basket
+                if symbol in current_symbols:
+                    continue
+
+                # Skip if low liquidity
+                avg_vol = liq_data.get("avg_atm_volume")
+                if avg_vol is None or avg_vol < min_volume:
+                    continue
+
+                # Check sector
+                symbol_sector = sector_mapping.get(symbol, {}).get("sector", "Unknown")
+                if not self._sector_matches(symbol_sector, sector):
+                    continue
+
+                # Check qualification status
+                qual = all_quals.get(symbol)
+                if qual:
+                    # Disqualified for both strategies = skip
+                    if (qual.calendar.status == "disqualified" and
+                            qual.iron_condor.status == "disqualified"):
+                        continue
+
+                # Calculate correlation with basket
+                basket_corr = corr_service.calculate_basket_correlation(
+                    symbol,
+                    list(current_symbols),
+                    lookback_days=lookback_days,
+                )
+
+                # Determine qualification status for display
+                qual_status = "qualified"
+                if qual:
+                    if qual.calendar.status == "disqualified":
+                        qual_status = "disq_calendar"
+                    elif qual.iron_condor.status == "disqualified":
+                        qual_status = "disq_ic"
+                    elif qual.calendar.status == "watchlist" or qual.iron_condor.status == "watchlist":
+                        qual_status = "watchlist"
+
+                candidates.append({
+                    "symbol": symbol,
+                    "avg_volume": avg_vol,
+                    "avg_oi": liq_data.get("avg_atm_oi"),
+                    "basket_correlation": basket_corr,
+                    "qualification_status": qual_status,
+                    "industry": sector_mapping.get(symbol, {}).get("industry", ""),
+                })
+
+            # Sort by liquidity (descending)
+            candidates.sort(key=lambda x: x["avg_volume"] or 0, reverse=True)
+
+            # Take top N
+            recommendations[sector] = {
+                "type": sector_type,
+                "candidates": candidates[:top_n],
+                "total_available": len(candidates),
+            }
+
+        return {
+            "recommendations": recommendations,
+            "basket_size": len(current_symbols),
+            "lookback_days": lookback_days,
+        }
+
+    def _get_underweight_sectors(
+        self,
+        analysis: Dict[str, Any],
+        threshold_pct: float = 5.0,
+    ) -> set:
+        """Identify sectors that are underweight (< threshold%).
+
+        Args:
+            analysis: Sector analysis result.
+            threshold_pct: Percentage threshold for underweight.
+
+        Returns:
+            Set of underweight sector names.
+        """
+        major_sectors = {"Technology", "Financials", "Healthcare", "Consumer Discretionary", "Energy"}
+        underweight = set()
+
+        sectors = analysis.get("sectors", {})
+        for sector in major_sectors:
+            if sector in sectors:
+                pct = sectors[sector].get("percentage", 0)
+                if pct < threshold_pct:
+                    underweight.add(sector)
+
+        return underweight
+
+    def _sector_matches(self, symbol_sector: str, target_sector: str) -> bool:
+        """Check if a symbol's sector matches the target sector.
+
+        Handles ETF sector variations (e.g., "ETF - Energy" matches "Energy").
+
+        Args:
+            symbol_sector: The symbol's sector from mapping.
+            target_sector: The target sector to match.
+
+        Returns:
+            True if sectors match.
+        """
+        if symbol_sector == target_sector:
+            return True
+
+        # Handle ETF variations
+        if symbol_sector.startswith("ETF - "):
+            etf_sector = symbol_sector.replace("ETF - ", "")
+            if etf_sector == target_sector:
+                return True
+
+        # Handle sector name variations
+        sector_aliases = {
+            "Consumer Discretionary": ["Consumer Cyclical"],
+            "Consumer Staples": ["Consumer Defensive"],
+            "Financials": ["Financial Services"],
+        }
+
+        if target_sector in sector_aliases:
+            if symbol_sector in sector_aliases[target_sector]:
+                return True
+
+        return False
+
 
 # Module-level instance for convenience
 _manager: Optional[SymbolManager] = None
