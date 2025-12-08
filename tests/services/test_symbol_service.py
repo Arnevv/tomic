@@ -440,3 +440,148 @@ class TestSymbolServiceBasketSummary:
         assert summary["data_complete"] == 2
         assert "Technology" in summary["sectors"]
         assert summary["avg_volume"] == 75000  # (100000 + 50000) / 2
+
+
+class TestSymbolValidation:
+    """Tests for symbol validation and normalization."""
+
+    def test_add_to_config_splits_comma_separated(self, symbol_service, monkeypatch):
+        """Test that comma-separated symbols are split correctly."""
+        current_symbols = []
+        updated_symbols = []
+
+        def mock_get(key, default=None):
+            if key == "DEFAULT_SYMBOLS":
+                return current_symbols
+            return default
+
+        def mock_update(values):
+            nonlocal updated_symbols
+            updated_symbols = values.get("DEFAULT_SYMBOLS", [])
+
+        monkeypatch.setattr("tomic.services.symbol_service.cfg_get", mock_get)
+        monkeypatch.setattr("tomic.services.symbol_service.cfg_update", mock_update)
+
+        # Add comma-separated string as single element
+        added = symbol_service.add_to_config(["SOFI, HOOD, MARA"])
+
+        # Should split into individual symbols
+        assert sorted(added) == ["HOOD", "MARA", "SOFI"]
+        assert sorted(updated_symbols) == ["HOOD", "MARA", "SOFI"]
+
+    def test_add_to_config_rejects_invalid_symbols(self, symbol_service, monkeypatch):
+        """Test that invalid symbols are rejected."""
+        current_symbols = []
+        updated_symbols = []
+
+        def mock_get(key, default=None):
+            if key == "DEFAULT_SYMBOLS":
+                return current_symbols
+            return default
+
+        def mock_update(values):
+            nonlocal updated_symbols
+            updated_symbols = values.get("DEFAULT_SYMBOLS", [])
+
+        monkeypatch.setattr("tomic.services.symbol_service.cfg_get", mock_get)
+        monkeypatch.setattr("tomic.services.symbol_service.cfg_update", mock_update)
+
+        # Try to add symbols with invalid entries
+        added = symbol_service.add_to_config([
+            "AAPL",
+            "THIS IS TOO LONG TO BE A SYMBOL",
+            "MSFT",
+            "",  # empty
+            "   ",  # whitespace
+        ])
+
+        # Only valid symbols should be added
+        assert sorted(added) == ["AAPL", "MSFT"]
+        assert sorted(updated_symbols) == ["AAPL", "MSFT"]
+
+    def test_cleanup_invalid_symbols(self, symbol_service, monkeypatch):
+        """Test cleanup of invalid symbol entries."""
+        # Simulate a corrupted config with a comma-separated string as one entry
+        corrupted_symbols = [
+            "AAPL",
+            "SOFI, HOOD, MARA, IREN",  # This should be split
+            "MSFT",
+        ]
+        updated_symbols = []
+
+        def mock_get(key, default=None):
+            if key == "DEFAULT_SYMBOLS":
+                return corrupted_symbols
+            return default
+
+        def mock_update(values):
+            nonlocal updated_symbols
+            updated_symbols = values.get("DEFAULT_SYMBOLS", [])
+
+        monkeypatch.setattr("tomic.services.symbol_service.cfg_get", mock_get)
+        monkeypatch.setattr("tomic.services.symbol_service.cfg_update", mock_update)
+
+        # Cleanup should find and fix the invalid entry
+        invalid = symbol_service.cleanup_invalid_symbols()
+
+        assert len(invalid) == 1
+        assert "SOFI, HOOD, MARA, IREN" in invalid
+        # The cleaned list should have individual symbols
+        assert sorted(updated_symbols) == ["AAPL", "HOOD", "IREN", "MARA", "MSFT", "SOFI"]
+
+
+class TestConfigNormalization:
+    """Tests for config-level symbol normalization."""
+
+    def test_normalize_symbols_string_input(self):
+        """Test normalization of string input."""
+        from tomic.config import _normalize_symbols
+
+        result = _normalize_symbols("AAPL, MSFT, GOOGL")
+        assert result == ["AAPL", "MSFT", "GOOGL"]
+
+    def test_normalize_symbols_list_with_comma_entry(self):
+        """Test normalization of list containing comma-separated entry."""
+        from tomic.config import _normalize_symbols
+
+        result = _normalize_symbols(["AAPL", "SOFI, HOOD, MARA", "MSFT"])
+        assert sorted(result) == ["AAPL", "HOOD", "MARA", "MSFT", "SOFI"]
+
+    def test_normalize_symbols_removes_duplicates(self):
+        """Test that duplicates are removed."""
+        from tomic.config import _normalize_symbols
+
+        result = _normalize_symbols(["AAPL", "MSFT", "AAPL", "MSFT"])
+        assert result == ["AAPL", "MSFT"]
+
+    def test_normalize_symbols_filters_invalid(self):
+        """Test that invalid symbols are filtered out."""
+        from tomic.config import _normalize_symbols
+
+        result = _normalize_symbols([
+            "AAPL",
+            "THIS IS WAY TOO LONG",
+            "",
+            "   ",
+            "MSFT",
+        ])
+        assert result == ["AAPL", "MSFT"]
+
+    def test_is_valid_symbol(self):
+        """Test symbol validation."""
+        from tomic.config import _is_valid_symbol
+
+        # Valid symbols
+        assert _is_valid_symbol("AAPL") is True
+        assert _is_valid_symbol("MSFT") is True
+        assert _is_valid_symbol("BRK.B") is True  # Dots allowed
+        assert _is_valid_symbol("A") is True  # Single char
+        assert _is_valid_symbol("GOOGL") is True
+
+        # Invalid symbols
+        assert _is_valid_symbol("") is False
+        assert _is_valid_symbol("   ") is False
+        assert _is_valid_symbol("AAPL MSFT") is False  # Space
+        assert _is_valid_symbol("AAPL,MSFT") is False  # Comma
+        assert _is_valid_symbol("VERYLONGSYMBOLNAME") is False  # Too long
+        assert _is_valid_symbol(None) is False

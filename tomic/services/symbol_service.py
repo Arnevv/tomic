@@ -12,7 +12,12 @@ from datetime import date, datetime
 from pathlib import Path
 from typing import Any, Dict, List, Literal, Optional, Tuple
 
-from tomic.config import get as cfg_get, update as cfg_update
+from tomic.config import (
+    get as cfg_get,
+    update as cfg_update,
+    _is_valid_symbol,
+    _normalize_symbols,
+)
 from tomic.logutils import logger
 
 
@@ -135,20 +140,52 @@ class SymbolService:
     def add_to_config(self, symbols: List[str]) -> List[str]:
         """Add symbols to configuration.
 
+        Validates symbols before adding:
+        - Splits comma-separated entries
+        - Filters out invalid symbols (too long, contains spaces, etc.)
+        - Converts to uppercase
+
         Args:
             symbols: List of symbols to add.
 
         Returns:
-            List of newly added symbols (excludes already existing).
+            List of newly added valid symbols (excludes already existing and invalid).
         """
+        # Normalize and validate the input symbols
+        normalized = _normalize_symbols(symbols)
+
         current = set(self.get_configured_symbols())
-        to_add = [s.upper() for s in symbols if s.upper() not in current]
+        to_add = [s for s in normalized if s not in current]
 
         if to_add:
             new_list = sorted(current | set(to_add))
             self.set_configured_symbols(new_list)
 
         return to_add
+
+    def cleanup_invalid_symbols(self) -> List[str]:
+        """Remove any invalid symbols from the configuration.
+
+        This fixes issues where comma-separated symbol strings were incorrectly
+        stored as single entries.
+
+        Returns:
+            List of removed invalid symbols.
+        """
+        current = cfg_get("DEFAULT_SYMBOLS", [])
+        if not isinstance(current, list):
+            current = []
+
+        # Find invalid symbols
+        invalid = [s for s in current if not _is_valid_symbol(s)]
+
+        if invalid:
+            # Normalize will clean up the list
+            cleaned = _normalize_symbols(current)
+            self.set_configured_symbols(cleaned)
+            logger.info(f"Cleaned up {len(invalid)} invalid symbol entries: {invalid[:5]}...")
+
+        return invalid
 
     def remove_from_config(self, symbols: List[str]) -> List[str]:
         """Remove symbols from configuration.

@@ -287,6 +287,71 @@ def _load_legacy_symbols() -> List[str]:
     raise ValueError("symbols.yaml must contain a YAML list of symbols")
 
 
+def _is_valid_symbol(symbol: str) -> bool:
+    """Check if a symbol is valid (no spaces, commas, or other invalid chars).
+
+    A valid symbol:
+    - Contains only alphanumeric characters and dots (for symbols like BRK.B)
+    - Is 1-10 characters long
+    - Does not contain spaces or commas
+    """
+    if not symbol or not isinstance(symbol, str):
+        return False
+    # Strip whitespace first
+    symbol = symbol.strip()
+    if not symbol:
+        return False
+    # Check length (typical stock symbols are 1-5 chars, but allow up to 10)
+    if len(symbol) > 10:
+        return False
+    # Only allow alphanumeric and dots
+    return all(c.isalnum() or c == "." for c in symbol)
+
+
+def _normalize_symbols(symbols: Any) -> List[str]:
+    """Normalize and validate a list of symbols.
+
+    Handles:
+    - Comma-separated strings (splits them)
+    - Lists with comma-separated entries (expands them)
+    - Filters out invalid symbols
+    - Converts to uppercase
+    - Removes duplicates while preserving order
+
+    Args:
+        symbols: A list of symbols or a comma-separated string.
+
+    Returns:
+        List of unique, valid, uppercase symbols.
+    """
+    if symbols is None:
+        return []
+
+    # Handle string input (e.g., from environment variable)
+    if isinstance(symbols, str):
+        symbols = [s.strip() for s in symbols.split(",") if s.strip()]
+
+    if not isinstance(symbols, list):
+        return []
+
+    # Expand any comma-separated entries within the list and validate
+    result: List[str] = []
+    seen: set = set()
+
+    for item in symbols:
+        if not isinstance(item, str):
+            item = str(item)
+
+        # Split on commas in case an entry contains multiple symbols
+        for symbol in item.split(","):
+            symbol = symbol.strip().upper()
+            if symbol and _is_valid_symbol(symbol) and symbol not in seen:
+                result.append(symbol)
+                seen.add(symbol)
+
+    return result
+
+
 def _load_strategy_scenarios() -> Dict[str, List[StrategyScenario]]:
     """Load strategy scenarios from the default YAML configuration file."""
 
@@ -364,6 +429,10 @@ def load_config() -> AppConfig:
         cfg["POLYGON_API_KEYS"] = [
             k.strip() for k in cfg["POLYGON_API_KEYS"].split(",") if k.strip()
         ]
+
+    # Handle DEFAULT_SYMBOLS: split comma-separated strings and validate symbols
+    cfg["DEFAULT_SYMBOLS"] = _normalize_symbols(cfg.get("DEFAULT_SYMBOLS", []))
+
     return AppConfig(**cfg)
 
 
@@ -381,7 +450,14 @@ def save_config(config: AppConfig, path: Path | None = None) -> None:
 
 
 def save_symbols(symbols: List[str], path: Path | None = None) -> None:
-    """Persist default symbols to ``config.yaml`` and update CONFIG."""
+    """Persist default symbols to ``config.yaml`` and update CONFIG.
+
+    This function normalizes and validates symbols before saving:
+    - Splits any comma-separated entries
+    - Filters out invalid symbols
+    - Converts to uppercase
+    - Removes duplicates
+    """
     if path is None:
         env_path = os.environ.get("TOMIC_CONFIG")
         path = Path(env_path) if env_path else _BASE_DIR / "config.yaml"
@@ -400,7 +476,8 @@ def save_symbols(symbols: List[str], path: Path | None = None) -> None:
     except Exception as exc:  # pragma: no cover - optional dependency
         raise RuntimeError("PyYAML required for YAML config") from exc
 
-    symbol_list = [str(s) for s in symbols]
+    # Normalize and validate symbols before saving
+    symbol_list = _normalize_symbols(symbols)
     existing["DEFAULT_SYMBOLS"] = symbol_list
 
     with open(path, "w", encoding="utf-8") as f:
