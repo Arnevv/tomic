@@ -1,8 +1,8 @@
 # TOMIC Web Interface - UX Design Document
 
-> **Versie**: 1.0
+> **Versie**: 2.0
 > **Datum**: 2025-12-08
-> **Status**: Conceptontwerp voor review
+> **Status**: Definitief ontwerp - Klaar voor wireframing
 
 ---
 
@@ -14,6 +14,18 @@ Dit document beschrijft het UX-ontwerp voor de TOMIC web-interface, die de huidi
 2. **Portfolio-first**: Risico en exposure staan centraal in elke view
 
 De interface is ontworpen voor **minimale kliks**, **niet-blokkerende operaties**, en **volledige transparantie** in alle beslissingen.
+
+---
+
+## Design Beslissingen (Definitief)
+
+| Aspect | Keuze | Toelichting |
+|--------|-------|-------------|
+| **Kleurenschema** | Light mode (default) + Dark mode toggle | Overdag light, langere sessies dark |
+| **Data density** | Compact | Veel symbols, snelle scanbaarheid prioriteit |
+| **Chart library** | ECharts of Plotly | Clean, snel, interactief, zoom, hover |
+| **Iconografie** | Outlined | Professioneel, rustig, consistent |
+| **Primair apparaat** | Desktop/Laptop first | Mobile alleen voor monitoring |
 
 ---
 
@@ -866,13 +878,330 @@ Settings
 
 ---
 
-## Deel 10: Open Vragen voor Volgende Ronde
+## Deel 10: Non-Functional Requirements
 
-1. **Kleurenschema**: Voorkeur voor light/dark mode? Of beide met toggle?
-2. **Grafieken**: Welke chart library voorkeur? (Chart.js, D3, Recharts)
-3. **Data density**: Voorkeur voor compacte tabellen of meer whitespace?
-4. **Iconografie**: Voorkeur voor icon style? (outlined, filled, emoji-style)
-5. **Navigatie**: Tab-based of sidebar-based voor submenu's?
+### 10.1 Performance
+
+| Requirement | Target | Rationale |
+|-------------|--------|-----------|
+| Dashboard laadtijd | < 1 seconde | Snelle dagelijkse check |
+| Scanner resultaten | < 2-3 seconden | 100+ symbols moet vlot laden |
+| Page transitions | < 200ms | Geen merkbare vertraging |
+| Chart rendering | < 500ms | Ook bij 2500+ datapunten |
+
+**Kritieke Eisen:**
+- **Geen blocking UI**: Elke zware taak draait in de achtergrond
+- **Geen full-page reloads**: Alleen component-based renders
+- **Progress indicators verplicht**: Echte voortgang, geen spinners alleen
+- **UI blijft volledig bruikbaar** tijdens lopende processen
+
+### 10.2 Responsiveness & Breakpoints
+
+| Breakpoint | Layout | Functionaliteit |
+|------------|--------|-----------------|
+| ≥ 1400px | Multi-pane + volledige data density | Alle features |
+| 1000-1400px | Één hoofdpaneel + collapsible sidebars | Alle features |
+| 800-1000px | Tablet layout, detail als overlay | Beperkte edit flows |
+| < 800px | Mobile: alleen critical info | Monitoring only |
+
+**Mobile Scope:**
+- Status, alerts, journal summary
+- Geen complexe tabellen
+- Geen edit flows
+
+### 10.3 Data Freshness & Staleness
+
+De UI moet **altijd duidelijk aangeven** wanneer data vers of stale is.
+
+```
+Freshness Indicators:
+├─ "Portfolio laatst geüpdatet: 2m geleden"      → Groen
+├─ "Market data: 45m geleden"                     → Geel
+├─ "Market data: 10m stale"                       → Oranje (waarschuwing)
+└─ "Portfolio sync failed: 2h ago"                → Rood (alert)
+```
+
+**Connection Status Display:**
+
+| Status | Indicator | Details |
+|--------|-----------|---------|
+| Connected | ● Groen | Uptime, laatste data timestamp |
+| Connected (no data) | ● Geel | "No data received for X min" |
+| Degraded | ● Oranje | Attempt counter, retry status |
+| Disconnected | ● Rood | Last successful connect, error msg |
+
+### 10.4 Stabiliteit & Foutafhandeling
+
+**Error Handling Principles:**
+
+1. **Foutmeldingen verdwijnen NOOIT vanzelf**
+   - Persistent banners of toast notifications
+   - Dismissable door gebruiker
+   - Altijd traceerbaar in logs
+
+2. **Reconnect-logica zichtbaar**
+   ```
+   IB Gateway: Reconnecting...
+   ├─ Attempt: 3/5
+   ├─ Last success: 14:28
+   └─ Next retry: 5s
+   ```
+
+3. **Graceful degradation**
+   - Bij IB disconnect: toon cached data met stale indicator
+   - Bij Polygon fail: toon laatst bekende waarden
+   - Nooit een lege pagina zonder uitleg
+
+### 10.5 Security
+
+| Requirement | Implementation |
+|-------------|----------------|
+| Geen gevoelige info in URLs | Query params alleen voor navigatie |
+| Auto-lock | Configureerbaar (default: 30 min idle) |
+| Console logging | Geen portfolio details in browser console |
+| Session management | Secure session tokens, HTTPS only |
+
+### 10.6 Table Interactions
+
+Alle tabellen moeten ondersteunen:
+
+| Feature | Beschrijving |
+|---------|--------------|
+| Sorteren | Klik op kolomheader, toggle asc/desc |
+| Column visibility | Toggle kolommen aan/uit |
+| Persistent filters | Opgeslagen in localStorage |
+| Quick search | Filter input boven elke tabel |
+| Multi-select | Checkbox voor bulk actions |
+| Keyboard navigation | Tab, arrows, Enter voor selectie |
+
+**Drilldown Navigatie (Consistent):**
+```
+Scanner → Symbol → Strategy → Trade Candidate
+   ↑         ↑         ↑           ↑
+   └─────────┴─────────┴───────────┘
+        Breadcrumb altijd zichtbaar
+```
+
+### 10.7 Background Tasks
+
+**Alle async taken:**
+- Option chain pulls
+- Backfills (IV, HV)
+- Volatility scrapes
+- Earnings fetch
+- Journal updates
+- Batch scans
+- Portfolio sync
+
+**Task Center Requirements:**
+
+```
+┌─────────────────────────────────────────────────────────┐
+│ TASK: IV Backfill TSLA                                 │
+├─────────────────────────────────────────────────────────┤
+│ Status:    Running                                      │
+│ Started:   14:32:15                                     │
+│ Progress:  ████████████░░░░░░░░ 62% (310/500 days)     │
+│ ETA:       ~2 min                                       │
+│ Logs:      [View] [Download]                            │
+│ Error:     (none)                                       │
+│                                                         │
+│ [Cancel] [Pause]                                        │
+└─────────────────────────────────────────────────────────┘
+```
+
+### 10.8 Transparantie & Beslisverklaring
+
+**KRITIEK: TOMIC mag geen black box zijn.**
+
+Elke automatische beslissing krijgt een "Details" optie:
+
+```
+┌─────────────────────────────────────────────────────────┐
+│ 🔍 DECISION DETAILS: AAPL Iron Condor                   │
+├─────────────────────────────────────────────────────────┤
+│                                                         │
+│ INPUT DATA                                              │
+│ ├─ Spot: $245.50                                        │
+│ ├─ IV: 35.2%                                            │
+│ ├─ IV Rank: 72%                                         │
+│ ├─ Earnings: 45 days                                    │
+│ └─ Portfolio exposure: None                             │
+│                                                         │
+│ FILTERS APPLIED                                         │
+│ ├─ ✓ IV Rank ≥ 50%           (72% ≥ 50%)               │
+│ ├─ ✓ Earnings > 14 days      (45 > 14)                 │
+│ ├─ ✓ Not in portfolio        (true)                    │
+│ ├─ ✓ Liquidity sufficient    (vol: 1,250 ≥ 100)        │
+│ └─ ✓ Score ≥ 55              (72 ≥ 55)                 │
+│                                                         │
+│ CALCULATED METRICS                                      │
+│ ├─ ROM: 8.2%                                            │
+│ ├─ PoS: 68%                                             │
+│ ├─ EV: $45 (12% of margin)                              │
+│ └─ Composite Score: 72                                  │
+│                                                         │
+│ RESULT: ★ RECOMMENDED                                   │
+│                                                         │
+└─────────────────────────────────────────────────────────┘
+```
+
+**Rejection Details (even belangrijk):**
+```
+✗ Rejected: Calendar Spread
+  Reason: Back-month liquidity insufficient
+  Details: Jan OI=45,000 (OK), Feb OI=850 (< 1,000 min)
+```
+
+### 10.9 Accessibility
+
+| Requirement | Target |
+|-------------|--------|
+| Contrast ratio | Minimaal WCAG AA (4.5:1 voor tekst) |
+| Keyboard navigation | Alle tabellen, modals, forms |
+| Focus indicators | Duidelijk zichtbaar bij tab navigatie |
+| Screen reader | Semantic HTML, ARIA labels |
+| Hover → Click | Alle hover-info ook via click beschikbaar (mobile) |
+
+### 10.10 Charts & Visualisaties
+
+**Interactie Requirements:**
+
+| Feature | Beschrijving |
+|---------|--------------|
+| Hover tooltips | Exacte waarden bij hover |
+| Zoom | In/uitzoomen op tijdas |
+| Pan | Slepen om te navigeren |
+| Series toggle | Hide/show individuele lijnen |
+| Export | PNG/SVG download |
+| Responsive | Schalen met container |
+
+**Performance:**
+- Max render tijd: 500ms bij 2500+ datapunten
+- Lazy loading voor historische data
+- Virtualisatie voor lange tijdreeksen
+
+### 10.11 Design Consistency
+
+**Component Library (Unified):**
+
+Alle componenten moeten 1:1 consistent zijn:
+
+| Component | Gedrag |
+|-----------|--------|
+| Primary Button | Filled, accent kleur, hover state |
+| Secondary Button | Outlined, hover state |
+| Danger Button | Rood accent, confirmation required |
+| Dropdown | Consistent arrow, search bij >10 items |
+| Modal | Centered, backdrop blur, escape to close |
+| Toast | Bottom-right, auto-dismiss (behalve errors) |
+| Card | Consistent border-radius, shadow, padding |
+| Table Row | Hover highlight, click selectable |
+
+**Icon Guidelines:**
+- Stijl: Outlined (niet filled, niet emoji)
+- Grootte: 16px (inline), 20px (buttons), 24px (nav)
+- Kleur: Inherit van parent, accent voor actions
+
+---
+
+## Deel 11: Design System Specificaties
+
+### 11.1 Kleurenpalet
+
+**Light Mode:**
+```
+Background:
+├─ Primary:    #FFFFFF
+├─ Secondary:  #F8F9FA
+└─ Tertiary:   #E9ECEF
+
+Text:
+├─ Primary:    #212529
+├─ Secondary:  #6C757D
+└─ Muted:      #ADB5BD
+
+Accent:
+├─ Primary:    #0D6EFD (blue)
+├─ Success:    #198754 (green)
+├─ Warning:    #FFC107 (yellow)
+├─ Danger:     #DC3545 (red)
+└─ Info:       #0DCAF0 (cyan)
+
+Status Indicators:
+├─ Healthy:    #198754
+├─ Warning:    #FFC107
+├─ Error:      #DC3545
+└─ Neutral:    #6C757D
+```
+
+**Dark Mode:**
+```
+Background:
+├─ Primary:    #1A1D21
+├─ Secondary:  #212529
+└─ Tertiary:   #2C3034
+
+Text:
+├─ Primary:    #F8F9FA
+├─ Secondary:  #ADB5BD
+└─ Muted:      #6C757D
+
+Accent: (same as light, slightly adjusted for contrast)
+```
+
+### 11.2 Typography
+
+```
+Font Family: Inter, -apple-system, BlinkMacSystemFont, sans-serif
+Monospace:   JetBrains Mono, Consolas, monospace (voor data/code)
+
+Scale:
+├─ H1:        24px / 700 / 1.2 line-height
+├─ H2:        20px / 600 / 1.3 line-height
+├─ H3:        16px / 600 / 1.4 line-height
+├─ Body:      14px / 400 / 1.5 line-height
+├─ Small:     12px / 400 / 1.4 line-height
+└─ Caption:   11px / 400 / 1.4 line-height
+
+Table Data:  13px / 400 / monospace voor getallen
+```
+
+### 11.3 Spacing
+
+```
+Base unit: 4px
+
+Scale:
+├─ xs:   4px
+├─ sm:   8px
+├─ md:   16px
+├─ lg:   24px
+├─ xl:   32px
+└─ xxl:  48px
+
+Component spacing:
+├─ Card padding:     16px
+├─ Table cell:       8px 12px
+├─ Button padding:   8px 16px
+├─ Input padding:    8px 12px
+└─ Section gap:      24px
+```
+
+### 11.4 Border & Shadow
+
+```
+Border radius:
+├─ Small (buttons, inputs):  4px
+├─ Medium (cards, modals):   8px
+└─ Large (containers):       12px
+
+Shadows:
+├─ sm:  0 1px 2px rgba(0,0,0,0.05)
+├─ md:  0 4px 6px rgba(0,0,0,0.1)
+├─ lg:  0 10px 15px rgba(0,0,0,0.1)
+└─ xl:  0 20px 25px rgba(0,0,0,0.15)
+```
 
 ---
 
@@ -906,4 +1235,32 @@ Settings
 
 ---
 
-*Document gegenereerd voor UX review. Wireframes en visueel ontwerp volgen in volgende iteratie.*
+## Appendix C: UX Principes Samenvatting
+
+### Core Design Principles
+
+1. **Portfolio-First** - Risico & exposure altijd bovenaan
+2. **Transparantie** - Elke beslissing uitlegbaar
+3. **Non-Blocking** - UI nooit geblokkeerd door taken
+4. **Minimale Kliks** - Direct naar relevante informatie
+5. **Data Freshness** - Altijd duidelijk hoe vers data is
+
+### Wat TOMIC WEL is
+
+- Een data-intensieve beslissingsapp
+- Transparant in alle automatische beslissingen
+- Snel en responsief
+- Compact in presentatie
+- Vertrouwenwekkend door zichtbaarheid
+
+### Wat TOMIC NIET is
+
+- Een black box
+- Een trage, blokkerende applicatie
+- Over-designed met veel whitespace
+- Een mobiel-first app
+
+---
+
+*Document versie 2.0 - Definitief ontwerp klaar voor wireframing fase.*
+*Alle design beslissingen zijn gemaakt. Geen open vragen meer.*
