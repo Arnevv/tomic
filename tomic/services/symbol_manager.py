@@ -809,20 +809,37 @@ class SymbolManager:
     def get_liquidity_warnings(self, min_volume: int = 10000) -> List[Dict[str, Any]]:
         """Get symbols with low liquidity.
 
+        Excludes symbols that are disqualified for both strategies.
+
         Args:
             min_volume: Minimum acceptable average volume.
 
         Returns:
             List of symbols with liquidity warnings.
         """
+        from tomic.services.qualification_service import get_qualification_service
+
         overview = self.get_basket_overview()
         warnings = []
 
+        # Load qualification data to filter out disqualified symbols
+        qual_service = get_qualification_service()
+        all_quals = qual_service.load_all()
+
         for symbol_data in overview["symbols"]:
+            symbol = symbol_data["symbol"]
+
+            # Skip symbols that are disqualified for both strategies
+            qual = all_quals.get(symbol)
+            if qual:
+                if (qual.calendar.status == "disqualified" and
+                        qual.iron_condor.status == "disqualified"):
+                    continue
+
             vol = symbol_data["avg_atm_volume"]
             if vol is not None and vol < min_volume:
                 warnings.append({
-                    "symbol": symbol_data["symbol"],
+                    "symbol": symbol,
                     "avg_volume": vol,
                     "avg_oi": symbol_data["avg_atm_oi"],
                     "message": f"Low volume ({vol:,} < {min_volume:,})",
