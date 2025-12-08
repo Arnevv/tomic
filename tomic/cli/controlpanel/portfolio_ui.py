@@ -530,9 +530,11 @@ def show_market_info(session: ControlPanelSession, services: ControlPanelService
     recs, table_rows, meta = _build_overview(rows)
 
     earnings_filtered: dict[str, Sequence[str]] = {}
+    disqualified_filtered: dict[str, Sequence[str]] = {}
     iv_history_insufficient: list[str] = []
     if isinstance(meta, dict):
         earnings_filtered = meta.get("earnings_filtered", {}) or {}
+        disqualified_filtered = meta.get("disqualified_filtered", {}) or {}
         iv_history_insufficient = meta.get("iv_history_insufficient", []) or []
     if earnings_filtered:
         total_hidden = sum(len(strategies) for strategies in earnings_filtered.values())
@@ -544,6 +546,17 @@ def show_market_info(session: ControlPanelSession, services: ControlPanelService
         print(
             f"ℹ️ {total_hidden} aanbevelingen verborgen vanwege earnings-filter"
             + (f" ({detail_msg})" if detail_msg else "")
+        )
+    if disqualified_filtered:
+        total_disq = sum(len(strategies) for strategies in disqualified_filtered.values())
+        disq_detail_parts = []
+        for symbol in sorted(disqualified_filtered):
+            strategies = ", ".join(disqualified_filtered[symbol])
+            disq_detail_parts.append(f"{symbol}: {strategies}")
+        disq_detail_msg = "; ".join(disq_detail_parts)
+        print(
+            f"ℹ️ {total_disq} aanbevelingen verborgen vanwege kwalificatie"
+            + (f" ({disq_detail_msg})" if disq_detail_msg else "")
         )
     if iv_history_insufficient:
         symbols_str = ", ".join(sorted(iv_history_insufficient))

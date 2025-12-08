@@ -44,7 +44,7 @@ def test_build_market_overview_with_recommendations(monkeypatch):
     assert table[0][4] == "Long"
     assert table[0][5] == "Short"
     assert table[1][5] == "Long"
-    assert meta == {"earnings_filtered": {}}
+    assert meta == {"earnings_filtered": {}, "disqualified_filtered": {}, "iv_history_insufficient": []}
 
 
 def test_build_market_overview_no_recommendations(monkeypatch):
@@ -58,7 +58,7 @@ def test_build_market_overview_no_recommendations(monkeypatch):
     recs, table, meta = build_market_overview(rows)
     assert recs == []
     assert table == []
-    assert meta == {"earnings_filtered": {}}
+    assert meta == {"earnings_filtered": {}, "disqualified_filtered": {}, "iv_history_insufficient": []}
 
 
 def test_build_market_overview_filters_on_strategy_setting(monkeypatch):
@@ -101,4 +101,4 @@ def test_build_market_overview_filters_on_strategy_setting(monkeypatch):
     assert len(recs) == 1
     assert recs[0]["strategy"] == "Short Put Spread"
     assert len(table) == 1
-    assert meta == {"earnings_filtered": {"CCC": ["Iron Condor"]}}
+    assert meta == {"earnings_filtered": {"CCC": ["Iron Condor"]}, "disqualified_filtered": {}, "iv_history_insufficient": []}
