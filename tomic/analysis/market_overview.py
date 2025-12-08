@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from collections import defaultdict
 from datetime import date
-from typing import Any, Dict, List, Tuple
+from typing import Any, Dict, List, Literal, Optional, Tuple
 
 from tomic import config as cfg
 from tomic.cli.volatility_recommender import recommend_strategies
@@ -14,6 +14,31 @@ from tomic.helpers.strategy_config import (
     coerce_int,
     get_strategy_setting,
 )
+from tomic.services.qualification_service import (
+    QualificationService,
+    StrategyType,
+    get_qualification_service,
+)
+
+
+def _strategy_to_qualification_type(strategy_name: str) -> Optional[StrategyType]:
+    """Map strategy name to qualification type.
+
+    Returns the qualification type to check for the given strategy,
+    or None if no qualification check is required.
+    """
+    canonical = canonical_strategy_name(strategy_name)
+
+    # Calendar strategy
+    if canonical == "calendar":
+        return "calendar"
+
+    # Iron Condor family (premium selling, vega short strategies)
+    if canonical in ("iron_condor", "atm_iron_butterfly"):
+        return "iron_condor"
+
+    # Other strategies don't require qualification check
+    return None
 
 
 def categorize(exposure: str) -> str:
@@ -78,7 +103,12 @@ def build_market_overview(
     recs: List[Dict[str, Any]] = []
     config_data = cfg.get("STRATEGY_CONFIG") or {}
     filtered_meta_sets: Dict[str, set[str]] = defaultdict(set)
+    disqualified_meta_sets: Dict[str, set[str]] = defaultdict(set)
     iv_history_insufficient: List[str] = []
+
+    # Load qualification data for strategy-specific filtering
+    qual_service = get_qualification_service()
+    all_quals = qual_service.load_all()
 
     for r in rows:
         symbol = r[0]
@@ -128,6 +158,18 @@ def build_market_overview(
             ):
                 filtered_meta_sets[symbol].add(strategy_name)
                 continue
+
+            # Check if symbol is qualified for this specific strategy
+            qual_type = _strategy_to_qualification_type(strategy_name)
+            if qual_type is not None:
+                symbol_upper = symbol.upper()
+                if symbol_upper in all_quals:
+                    qual = all_quals[symbol_upper]
+                    strat_qual = qual.get_strategy(qual_type)
+                    if strat_qual.status != "qualified":
+                        disqualified_meta_sets[symbol].add(strategy_name)
+                        continue
+
             recs.append(
                 {
                     "symbol": symbol,
@@ -157,9 +199,15 @@ def build_market_overview(
         for symbol, strategies in filtered_meta_sets.items()
     }
 
+    disqualified_meta: Dict[str, List[str]] = {
+        symbol: sorted(strategies)
+        for symbol, strategies in disqualified_meta_sets.items()
+    }
+
     if not recs:
         return [], [], {
             "earnings_filtered": filtered_meta,
+            "disqualified_filtered": disqualified_meta,
             "iv_history_insufficient": iv_history_insufficient,
         }
 
@@ -212,6 +260,7 @@ def build_market_overview(
 
     return recs, table_rows, {
         "earnings_filtered": filtered_meta,
+        "disqualified_filtered": disqualified_meta,
         "iv_history_insufficient": iv_history_insufficient,
     }
 

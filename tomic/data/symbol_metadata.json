@@ -54,10 +54,5 @@
     "market_cap": 51918016314.979996,
     "last_updated": "2025-12-08T19:54:39.736645",
     "data_status": "incomplete"
-  },
-  "SOFI, HOOD, MARA, IREN, CIFR, OXY, ET, RIG, HAL, CVX, NIO, JD, QS, PDD, LCID": {
-    "sector": "Unknown",
-    "last_updated": "2025-12-08T20:01:13.645709",
-    "data_status": "missing"
   }
 }
