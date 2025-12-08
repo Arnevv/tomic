@@ -126,7 +126,7 @@
     "baseline_as_of": null
   },
   "CVX": {
-    "fetched_at": null,
+    "fetched_at": "2025-12-08T13:51:22.043583-05:00",
     "source": null,
     "baseline_active": false,
     "baseline_as_of": null
@@ -240,7 +240,7 @@
     "baseline_as_of": null
   },
   "HAL": {
-    "fetched_at": null,
+    "fetched_at": "2025-12-08T13:51:08.334662-05:00",
     "source": null,
     "baseline_active": false,
     "baseline_as_of": null
@@ -408,7 +408,7 @@
     "baseline_as_of": null
   },
   "OXY": {
-    "fetched_at": null,
+    "fetched_at": "2025-12-08T13:51:11.401156-05:00",
     "source": null,
     "baseline_active": false,
     "baseline_as_of": null
@@ -870,7 +870,7 @@
     "baseline_as_of": null
   },
   "HOOD": {
-    "fetched_at": "2025-11-01T13:02:47.781173-04:00",
+    "fetched_at": "2025-12-08T13:51:17.506331-05:00",
     "source": null,
     "baseline_active": false,
     "baseline_as_of": null
@@ -942,7 +942,7 @@
     "baseline_as_of": null
   },
   "PDD": {
-    "fetched_at": "2025-11-01T13:03:07.315350-04:00",
+    "fetched_at": "2025-12-08T13:51:06.789971-05:00",
     "source": null,
     "baseline_active": false,
     "baseline_as_of": null
@@ -996,7 +996,7 @@
     "baseline_as_of": null
   },
   "SOFI": {
-    "fetched_at": "2025-11-06T21:48:06.726665",
+    "fetched_at": "2025-12-08T13:51:05.248717-05:00",
     "source": null,
     "baseline_active": false,
     "baseline_as_of": null
@@ -1126,5 +1126,41 @@
     "source": null,
     "baseline_active": false,
     "baseline_as_of": null
+  },
+  "NIO": {
+    "fetched_at": "2025-12-08T13:51:02.171593-05:00",
+    "source": "polygon-history"
+  },
+  "ET": {
+    "fetched_at": "2025-12-08T13:51:03.712845-05:00",
+    "source": "polygon-history"
+  },
+  "MARA": {
+    "fetched_at": "2025-12-08T13:51:09.862202-05:00",
+    "source": "polygon-history"
+  },
+  "F": {
+    "fetched_at": "2025-12-08T13:51:12.940561-05:00",
+    "source": "polygon-history"
+  },
+  "QS": {
+    "fetched_at": "2025-12-08T13:51:14.465792-05:00",
+    "source": "polygon-history"
+  },
+  "CIFR": {
+    "fetched_at": "2025-12-08T13:51:15.974378-05:00",
+    "source": "polygon-history"
+  },
+  "JD": {
+    "fetched_at": "2025-12-08T13:51:19.036032-05:00",
+    "source": "polygon-history"
+  },
+  "IREN": {
+    "fetched_at": "2025-12-08T13:51:20.516108-05:00",
+    "source": "polygon-history"
+  },
+  "RIG": {
+    "fetched_at": "2025-12-08T13:51:23.571658-05:00",
+    "source": "polygon-history"
   }
 }
