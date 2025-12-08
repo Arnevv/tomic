@@ -107,5 +107,5 @@ iron_condor_short_delta: 0.16
 calendar_near_dte: 37
 calendar_far_dte: 75
 calendar_min_gap: 30
-use_greeks_model: false
-use_real_prices: false
+use_greeks_model: true
+use_real_prices: true

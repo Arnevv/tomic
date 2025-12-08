@@ -1,0 +1,1694 @@
+{
+  "version": 2,
+  "saved_at": "2025-12-07T23:34:10.829705",
+  "results": {
+    "live_validation_ic": [
+      {
+        "config_label": "Iron Condor (Live Config)",
+        "param_value": null,
+        "trades": 1788,
+        "win_rate": 79.97762863534675,
+        "total_pnl": -8186.235793264546,
+        "sharpe": -1.1640509678958095,
+        "max_drawdown": 88.98465166862431,
+        "profit_factor": 0.8056449241865018,
+        "ret_dd": -0.9199604246078075,
+        "degradation": 0,
+        "is_baseline": false,
+        "symbol_strategy_metrics": {
+          "ARKK": {
+            "iron_condor": {
+              "trades": 4,
+              "win_rate": 1.0,
+              "total_pnl": 93.077160523719,
+              "avg_pnl": 23.26929013092975
+            }
+          },
+          "GME": {
+            "iron_condor": {
+              "trades": 144,
+              "win_rate": 0.7986111111111112,
+              "total_pnl": -748.75,
+              "avg_pnl": -5.199652777777778
+            }
+          },
+          "BE": {
+            "iron_condor": {
+              "trades": 92,
+              "win_rate": 0.7391304347826086,
+              "total_pnl": -1265.0,
+              "avg_pnl": -13.75
+            }
+          },
+          "MRNA": {
+            "iron_condor": {
+              "trades": 100,
+              "win_rate": 0.88,
+              "total_pnl": 650.0,
+              "avg_pnl": 6.5
+            }
+          },
+          "ENPH": {
+            "iron_condor": {
+              "trades": 19,
+              "win_rate": 0.7894736842105263,
+              "total_pnl": -123.75,
+              "avg_pnl": -6.5131578947368425
+            }
+          },
+          "AMD": {
+            "iron_condor": {
+              "trades": 13,
+              "win_rate": 0.9230769230769231,
+              "total_pnl": 165.0,
+              "avg_pnl": 12.692307692307692
+            }
+          },
+          "BYND": {
+            "iron_condor": {
+              "trades": 240,
+              "win_rate": 0.7541666666666667,
+              "total_pnl": -2661.25,
+              "avg_pnl": -11.088541666666666
+            }
+          },
+          "NFLX": {
+            "iron_condor": {
+              "trades": 1,
+              "win_rate": 1.0,
+              "total_pnl": 23.75,
+              "avg_pnl": 23.75
+            }
+          },
+          "DDOG": {
+            "iron_condor": {
+              "trades": 24,
+              "win_rate": 0.875,
+              "total_pnl": 138.75,
+              "avg_pnl": 5.78125
+            }
+          },
+          "SNAP": {
+            "iron_condor": {
+              "trades": 80,
+              "win_rate": 0.675,
+              "total_pnl": -1837.5,
+              "avg_pnl": -22.96875
+            }
+          },
+          "NET": {
+            "iron_condor": {
+              "trades": 70,
+              "win_rate": 0.8142857142857143,
+              "total_pnl": -206.25,
+              "avg_pnl": -2.9464285714285716
+            }
+          },
+          "CVS": {
+            "iron_condor": {
+              "trades": 1,
+              "win_rate": 0.0,
+              "total_pnl": -120.0,
+              "avg_pnl": -120.0
+            }
+          },
+          "CRWD": {
+            "iron_condor": {
+              "trades": 24,
+              "win_rate": 0.8333333333333334,
+              "total_pnl": -5.0,
+              "avg_pnl": -0.20833333333333334
+            }
+          },
+          "ABBV": {
+            "iron_condor": {
+              "trades": 1,
+              "win_rate": 1.0,
+              "total_pnl": 23.75,
+              "avg_pnl": 23.75
+            }
+          },
+          "AMZN": {
+            "iron_condor": {
+              "trades": 7,
+              "win_rate": 0.8571428571428571,
+              "total_pnl": 22.5,
+              "avg_pnl": 3.2142857142857144
+            }
+          },
+          "ROKU": {
+            "iron_condor": {
+              "trades": 46,
+              "win_rate": 0.8695652173913043,
+              "total_pnl": 349.66898578494136,
+              "avg_pnl": 7.601499690976986
+            }
+          },
+          "UAL": {
+            "iron_condor": {
+              "trades": 41,
+              "win_rate": 0.8536585365853658,
+              "total_pnl": 231.25,
+              "avg_pnl": 5.640243902439025
+            }
+          },
+          "DKNG": {
+            "iron_condor": {
+              "trades": 80,
+              "win_rate": 0.7625,
+              "total_pnl": -711.25,
+              "avg_pnl": -8.890625
+            }
+          },
+          "SQ": {
+            "iron_condor": {
+              "trades": 35,
+              "win_rate": 0.8571428571428571,
+              "total_pnl": 112.5,
+              "avg_pnl": 3.2142857142857144
+            }
+          },
+          "BABA": {
+            "iron_condor": {
+              "trades": 5,
+              "win_rate": 1.0,
+              "total_pnl": 115.84920362205413,
+              "avg_pnl": 23.169840724410825
+            }
+          },
+          "FDX": {
+            "iron_condor": {
+              "trades": 2,
+              "win_rate": 0.5,
+              "total_pnl": -96.25,
+              "avg_pnl": -48.125
+            }
+          },
+          "AAPL": {
+            "iron_condor": {
+              "trades": 1,
+              "win_rate": 1.0,
+              "total_pnl": 23.75,
+              "avg_pnl": 23.75
+            }
+          },
+          "ADBE": {
+            "iron_condor": {
+              "trades": 4,
+              "win_rate": 0.75,
+              "total_pnl": -48.75,
+              "avg_pnl": -12.1875
+            }
+          },
+          "PFE": {
+            "iron_condor": {
+              "trades": 12,
+              "win_rate": 0.9166666666666666,
+              "total_pnl": 141.25,
+              "avg_pnl": 11.770833333333334
+            }
+          },
+          "BIDU": {
+            "iron_condor": {
+              "trades": 30,
+              "win_rate": 0.7666666666666667,
+              "total_pnl": -173.89925278235967,
+              "avg_pnl": -5.796641759411989
+            }
+          },
+          "SCHW": {
+            "iron_condor": {
+              "trades": 2,
+              "win_rate": 0.5,
+              "total_pnl": -96.25,
+              "avg_pnl": -48.125
+            }
+          },
+          "MRVL": {
+            "iron_condor": {
+              "trades": 13,
+              "win_rate": 0.8461538461538461,
+              "total_pnl": 141.25,
+              "avg_pnl": 10.865384615384615
+            }
+          },
+          "AFRM": {
+            "iron_condor": {
+              "trades": 63,
+              "win_rate": 0.8412698412698413,
+              "total_pnl": 58.75,
+              "avg_pnl": 0.9325396825396826
+            }
+          },
+          "ASTS": {
+            "iron_condor": {
+              "trades": 241,
+              "win_rate": 0.8215767634854771,
+              "total_pnl": -459.81,
+              "avg_pnl": -1.9079253112033194
+            }
+          },
+          "ACHR": {
+            "iron_condor": {
+              "trades": 165,
+              "win_rate": 0.8,
+              "total_pnl": -825.0,
+              "avg_pnl": -5.0
+            }
+          },
+          "RIVN": {
+            "iron_condor": {
+              "trades": 73,
+              "win_rate": 0.821917808219178,
+              "total_pnl": -15.0,
+              "avg_pnl": -0.2054794520547945
+            }
+          },
+          "APP": {
+            "iron_condor": {
+              "trades": 23,
+              "win_rate": 0.6956521739130435,
+              "total_pnl": -460.0,
+              "avg_pnl": -20.0
+            }
+          },
+          "ARM": {
+            "iron_condor": {
+              "trades": 28,
+              "win_rate": 0.7857142857142857,
+              "total_pnl": -197.5,
+              "avg_pnl": -7.053571428571429
+            }
+          },
+          "MU": {
+            "iron_condor": {
+              "trades": 14,
+              "win_rate": 0.6428571428571429,
+              "total_pnl": -389.7913439202231,
+              "avg_pnl": -27.842238851444506
+            }
+          },
+          "ANET": {
+            "iron_condor": {
+              "trades": 6,
+              "win_rate": 0.8333333333333334,
+              "total_pnl": -6.943908411670851,
+              "avg_pnl": -1.1573180686118085
+            }
+          },
+          "AMAT": {
+            "iron_condor": {
+              "trades": 2,
+              "win_rate": 1.0,
+              "total_pnl": 43.39158720125312,
+              "avg_pnl": 21.69579360062656
+            }
+          },
+          "CMG": {
+            "iron_condor": {
+              "trades": 1,
+              "win_rate": 0.0,
+              "total_pnl": -120.0,
+              "avg_pnl": -120.0
+            }
+          },
+          "EWZ": {
+            "iron_condor": {
+              "trades": 1,
+              "win_rate": 1.0,
+              "total_pnl": 23.75,
+              "avg_pnl": 23.75
+            }
+          },
+          "MDB": {
+            "iron_condor": {
+              "trades": 14,
+              "win_rate": 0.5,
+              "total_pnl": -673.75,
+              "avg_pnl": -48.125
+            }
+          },
+          "AVGO": {
+            "iron_condor": {
+              "trades": 5,
+              "win_rate": 0.8,
+              "total_pnl": -31.48104409283726,
+              "avg_pnl": -6.296208818567452
+            }
+          },
+          "COIN": {
+            "iron_condor": {
+              "trades": 39,
+              "win_rate": 0.9230769230769231,
+              "total_pnl": 495.0,
+              "avg_pnl": 12.692307692307692
+            }
+          },
+          "ORCL": {
+            "iron_condor": {
+              "trades": 7,
+              "win_rate": 0.8571428571428571,
+              "total_pnl": 22.5,
+              "avg_pnl": 3.2142857142857144
+            }
+          },
+          "INTC": {
+            "iron_condor": {
+              "trades": 11,
+              "win_rate": 0.9090909090909091,
+              "total_pnl": 116.20281881057707,
+              "avg_pnl": 10.56389261914337
+            }
+          },
+          "DELL": {
+            "iron_condor": {
+              "trades": 1,
+              "win_rate": 1.0,
+              "total_pnl": 23.75,
+              "avg_pnl": 23.75
+            }
+          },
+          "LULU": {
+            "iron_condor": {
+              "trades": 3,
+              "win_rate": 1.0,
+              "total_pnl": 71.25,
+              "avg_pnl": 23.75
+            }
+          }
+        }
+      }
+    ],
+    "live_validation_cal": [
+      {
+        "config_label": "Calendar Spread (Live Config)",
+        "param_value": null,
+        "trades": 1494,
+        "win_rate": 95.78313253012048,
+        "total_pnl": 27393.14,
+        "sharpe": 13.626300152680033,
+        "max_drawdown": 1.5127605804254711,
+        "profit_factor": 19.36149020028421,
+        "ret_dd": 181.08047204862748,
+        "degradation": 23.003162072040237,
+        "is_baseline": false,
+        "symbol_strategy_metrics": {
+          "ENPH": {
+            "calendar": {
+              "trades": 16,
+              "win_rate": 0.9375,
+              "total_pnl": 297.79,
+              "avg_pnl": 18.611875
+            }
+          },
+          "EWZ": {
+            "calendar": {
+              "trades": 31,
+              "win_rate": 1.0,
+              "total_pnl": 613.32,
+              "avg_pnl": 19.78451612903226
+            }
+          },
+          "MRVL": {
+            "calendar": {
+              "trades": 6,
+              "win_rate": 0.8333333333333334,
+              "total_pnl": 86.26,
+              "avg_pnl": 14.376666666666667
+            }
+          },
+          "AMT": {
+            "calendar": {
+              "trades": 44,
+              "win_rate": 1.0,
+              "total_pnl": 907.96,
+              "avg_pnl": 20.635454545454547
+            }
+          },
+          "AVGO": {
+            "calendar": {
+              "trades": 30,
+              "win_rate": 1.0,
+              "total_pnl": 610.7,
+              "avg_pnl": 20.35666666666667
+            }
+          },
+          "ORCL": {
+            "calendar": {
+              "trades": 9,
+              "win_rate": 1.0,
+              "total_pnl": 189.0,
+              "avg_pnl": 21.0
+            }
+          },
+          "FDX": {
+            "calendar": {
+              "trades": 15,
+              "win_rate": 1.0,
+              "total_pnl": 303.4,
+              "avg_pnl": 20.226666666666667
+            }
+          },
+          "CVS": {
+            "calendar": {
+              "trades": 13,
+              "win_rate": 1.0,
+              "total_pnl": 273.0,
+              "avg_pnl": 21.0
+            }
+          },
+          "GME": {
+            "calendar": {
+              "trades": 30,
+              "win_rate": 0.9,
+              "total_pnl": 317.02,
+              "avg_pnl": 10.567333333333332
+            }
+          },
+          "UAL": {
+            "calendar": {
+              "trades": 3,
+              "win_rate": 0.6666666666666666,
+              "total_pnl": 30.049999999999997,
+              "avg_pnl": 10.016666666666666
+            }
+          },
+          "NFLX": {
+            "calendar": {
+              "trades": 15,
+              "win_rate": 0.8,
+              "total_pnl": 207.96,
+              "avg_pnl": 13.864
+            }
+          },
+          "AAPL": {
+            "calendar": {
+              "trades": 68,
+              "win_rate": 0.9558823529411765,
+              "total_pnl": 1292.63,
+              "avg_pnl": 19.009264705882355
+            }
+          },
+          "ABBV": {
+            "calendar": {
+              "trades": 72,
+              "win_rate": 0.9861111111111112,
+              "total_pnl": 1416.99,
+              "avg_pnl": 19.680416666666666
+            }
+          },
+          "ACN": {
+            "calendar": {
+              "trades": 54,
+              "win_rate": 1.0,
+              "total_pnl": 1065.29,
+              "avg_pnl": 19.727592592592593
+            }
+          },
+          "AMD": {
+            "calendar": {
+              "trades": 76,
+              "win_rate": 0.9078947368421053,
+              "total_pnl": 674.36,
+              "avg_pnl": 8.873157894736842
+            }
+          },
+          "AXP": {
+            "calendar": {
+              "trades": 36,
+              "win_rate": 1.0,
+              "total_pnl": 689.59,
+              "avg_pnl": 19.15527777777778
+            }
+          },
+          "BABA": {
+            "calendar": {
+              "trades": 30,
+              "win_rate": 0.9666666666666667,
+              "total_pnl": 567.53,
+              "avg_pnl": 18.917666666666666
+            }
+          },
+          "BA": {
+            "calendar": {
+              "trades": 25,
+              "win_rate": 0.88,
+              "total_pnl": 362.55,
+              "avg_pnl": 14.502
+            }
+          },
+          "AMAT": {
+            "calendar": {
+              "trades": 56,
+              "win_rate": 0.9821428571428571,
+              "total_pnl": 1121.71,
+              "avg_pnl": 20.030535714285715
+            }
+          },
+          "AMZN": {
+            "calendar": {
+              "trades": 49,
+              "win_rate": 0.9591836734693877,
+              "total_pnl": 962.39,
+              "avg_pnl": 19.64061224489796
+            }
+          },
+          "AMGN": {
+            "calendar": {
+              "trades": 48,
+              "win_rate": 1.0,
+              "total_pnl": 992.82,
+              "avg_pnl": 20.68375
+            }
+          },
+          "ANET": {
+            "calendar": {
+              "trades": 44,
+              "win_rate": 1.0,
+              "total_pnl": 860.79,
+              "avg_pnl": 19.56340909090909
+            }
+          },
+          "ARKK": {
+            "calendar": {
+              "trades": 48,
+              "win_rate": 0.8958333333333334,
+              "total_pnl": 722.93,
+              "avg_pnl": 15.061041666666666
+            }
+          },
+          "BAC": {
+            "calendar": {
+              "trades": 33,
+              "win_rate": 0.9696969696969697,
+              "total_pnl": 610.35,
+              "avg_pnl": 18.495454545454546
+            }
+          },
+          "BIDU": {
+            "calendar": {
+              "trades": 30,
+              "win_rate": 1.0,
+              "total_pnl": 617.68,
+              "avg_pnl": 20.589333333333332
+            }
+          },
+          "ADBE": {
+            "calendar": {
+              "trades": 57,
+              "win_rate": 1.0,
+              "total_pnl": 1175.6,
+              "avg_pnl": 20.62456140350877
+            }
+          },
+          "CRM": {
+            "calendar": {
+              "trades": 24,
+              "win_rate": 0.9166666666666666,
+              "total_pnl": 459.24,
+              "avg_pnl": 19.135
+            }
+          },
+          "DE": {
+            "calendar": {
+              "trades": 16,
+              "win_rate": 1.0,
+              "total_pnl": 333.63,
+              "avg_pnl": 20.851875
+            }
+          },
+          "DELL": {
+            "calendar": {
+              "trades": 27,
+              "win_rate": 0.8888888888888888,
+              "total_pnl": 479.04,
+              "avg_pnl": 17.742222222222225
+            }
+          },
+          "C": {
+            "calendar": {
+              "trades": 21,
+              "win_rate": 1.0,
+              "total_pnl": 411.98,
+              "avg_pnl": 19.61809523809524
+            }
+          },
+          "BE": {
+            "calendar": {
+              "trades": 21,
+              "win_rate": 0.9047619047619048,
+              "total_pnl": 396.49,
+              "avg_pnl": 18.88047619047619
+            }
+          },
+          "CMG": {
+            "calendar": {
+              "trades": 14,
+              "win_rate": 1.0,
+              "total_pnl": 257.27,
+              "avg_pnl": 18.37642857142857
+            }
+          },
+          "MDB": {
+            "calendar": {
+              "trades": 23,
+              "win_rate": 1.0,
+              "total_pnl": 483.0,
+              "avg_pnl": 21.0
+            }
+          },
+          "DAL": {
+            "calendar": {
+              "trades": 15,
+              "win_rate": 0.7333333333333333,
+              "total_pnl": 177.06,
+              "avg_pnl": 11.804
+            }
+          },
+          "SQ": {
+            "calendar": {
+              "trades": 5,
+              "win_rate": 1.0,
+              "total_pnl": 104.59,
+              "avg_pnl": 20.918
+            }
+          },
+          "MRNA": {
+            "calendar": {
+              "trades": 15,
+              "win_rate": 0.8666666666666667,
+              "total_pnl": 272.14,
+              "avg_pnl": 18.142666666666667
+            }
+          },
+          "ROKU": {
+            "calendar": {
+              "trades": 15,
+              "win_rate": 0.9333333333333333,
+              "total_pnl": 260.54,
+              "avg_pnl": 17.369333333333334
+            }
+          },
+          "SNAP": {
+            "calendar": {
+              "trades": 6,
+              "win_rate": 1.0,
+              "total_pnl": 126.0,
+              "avg_pnl": 21.0
+            }
+          },
+          "LULU": {
+            "calendar": {
+              "trades": 12,
+              "win_rate": 1.0,
+              "total_pnl": 252.0,
+              "avg_pnl": 21.0
+            }
+          },
+          "MU": {
+            "calendar": {
+              "trades": 11,
+              "win_rate": 1.0,
+              "total_pnl": 193.01,
+              "avg_pnl": 17.546363636363637
+            }
+          },
+          "PFE": {
+            "calendar": {
+              "trades": 5,
+              "win_rate": 1.0,
+              "total_pnl": 92.27,
+              "avg_pnl": 18.454
+            }
+          },
+          "SCHW": {
+            "calendar": {
+              "trades": 12,
+              "win_rate": 1.0,
+              "total_pnl": 200.84,
+              "avg_pnl": 16.736666666666668
+            }
+          },
+          "NKE": {
+            "calendar": {
+              "trades": 5,
+              "win_rate": 1.0,
+              "total_pnl": 105.0,
+              "avg_pnl": 21.0
+            }
+          },
+          "CRWD": {
+            "calendar": {
+              "trades": 34,
+              "win_rate": 0.9705882352941176,
+              "total_pnl": 666.42,
+              "avg_pnl": 19.600588235294115
+            }
+          },
+          "NET": {
+            "calendar": {
+              "trades": 15,
+              "win_rate": 0.8,
+              "total_pnl": 205.14,
+              "avg_pnl": 13.675999999999998
+            }
+          },
+          "DDOG": {
+            "calendar": {
+              "trades": 30,
+              "win_rate": 0.9,
+              "total_pnl": 524.95,
+              "avg_pnl": 17.498333333333335
+            }
+          },
+          "AFRM": {
+            "calendar": {
+              "trades": 37,
+              "win_rate": 0.972972972972973,
+              "total_pnl": 737.26,
+              "avg_pnl": 19.925945945945944
+            }
+          },
+          "BYND": {
+            "calendar": {
+              "trades": 3,
+              "win_rate": 1.0,
+              "total_pnl": 63.0,
+              "avg_pnl": 21.0
+            }
+          },
+          "COIN": {
+            "calendar": {
+              "trades": 18,
+              "win_rate": 0.8888888888888888,
+              "total_pnl": 306.57,
+              "avg_pnl": 17.031666666666666
+            }
+          },
+          "DKNG": {
+            "calendar": {
+              "trades": 18,
+              "win_rate": 1.0,
+              "total_pnl": 370.3,
+              "avg_pnl": 20.572222222222223
+            }
+          },
+          "APP": {
+            "calendar": {
+              "trades": 33,
+              "win_rate": 0.9696969696969697,
+              "total_pnl": 657.25,
+              "avg_pnl": 19.916666666666668
+            }
+          },
+          "ACHR": {
+            "calendar": {
+              "trades": 67,
+              "win_rate": 0.9552238805970149,
+              "total_pnl": 1324.97,
+              "avg_pnl": 19.775671641791046
+            }
+          },
+          "RIVN": {
+            "calendar": {
+              "trades": 10,
+              "win_rate": 1.0,
+              "total_pnl": 184.57,
+              "avg_pnl": 18.457
+            }
+          },
+          "ASTS": {
+            "calendar": {
+              "trades": 15,
+              "win_rate": 0.9333333333333333,
+              "total_pnl": 223.69,
+              "avg_pnl": 14.912666666666667
+            }
+          },
+          "ARM": {
+            "calendar": {
+              "trades": 19,
+              "win_rate": 0.9473684210526315,
+              "total_pnl": 361.12,
+              "avg_pnl": 19.006315789473685
+            }
+          },
+          "INTC": {
+            "calendar": {
+              "trades": 4,
+              "win_rate": 1.0,
+              "total_pnl": 79.74,
+              "avg_pnl": 19.935
+            }
+          },
+          "XLV": {
+            "calendar": {
+              "trades": 4,
+              "win_rate": 1.0,
+              "total_pnl": 72.39,
+              "avg_pnl": 18.0975
+            }
+          },
+          "XBI": {
+            "calendar": {
+              "trades": 2,
+              "win_rate": 1.0,
+              "total_pnl": 42.0,
+              "avg_pnl": 21.0
+            }
+          }
+        }
+      }
+    ]
+  },
+  "symbol_strategy_metrics": {
+    "live_validation_ic": {
+      "ARKK": {
+        "iron_condor": {
+          "trades": 4,
+          "win_rate": 1.0,
+          "total_pnl": 93.077160523719,
+          "avg_pnl": 23.26929013092975
+        }
+      },
+      "GME": {
+        "iron_condor": {
+          "trades": 144,
+          "win_rate": 0.7986111111111112,
+          "total_pnl": -748.75,
+          "avg_pnl": -5.199652777777778
+        }
+      },
+      "BE": {
+        "iron_condor": {
+          "trades": 92,
+          "win_rate": 0.7391304347826086,
+          "total_pnl": -1265.0,
+          "avg_pnl": -13.75
+        }
+      },
+      "MRNA": {
+        "iron_condor": {
+          "trades": 100,
+          "win_rate": 0.88,
+          "total_pnl": 650.0,
+          "avg_pnl": 6.5
+        }
+      },
+      "ENPH": {
+        "iron_condor": {
+          "trades": 19,
+          "win_rate": 0.7894736842105263,
+          "total_pnl": -123.75,
+          "avg_pnl": -6.5131578947368425
+        }
+      },
+      "AMD": {
+        "iron_condor": {
+          "trades": 13,
+          "win_rate": 0.9230769230769231,
+          "total_pnl": 165.0,
+          "avg_pnl": 12.692307692307692
+        }
+      },
+      "BYND": {
+        "iron_condor": {
+          "trades": 240,
+          "win_rate": 0.7541666666666667,
+          "total_pnl": -2661.25,
+          "avg_pnl": -11.088541666666666
+        }
+      },
+      "NFLX": {
+        "iron_condor": {
+          "trades": 1,
+          "win_rate": 1.0,
+          "total_pnl": 23.75,
+          "avg_pnl": 23.75
+        }
+      },
+      "DDOG": {
+        "iron_condor": {
+          "trades": 24,
+          "win_rate": 0.875,
+          "total_pnl": 138.75,
+          "avg_pnl": 5.78125
+        }
+      },
+      "SNAP": {
+        "iron_condor": {
+          "trades": 80,
+          "win_rate": 0.675,
+          "total_pnl": -1837.5,
+          "avg_pnl": -22.96875
+        }
+      },
+      "NET": {
+        "iron_condor": {
+          "trades": 70,
+          "win_rate": 0.8142857142857143,
+          "total_pnl": -206.25,
+          "avg_pnl": -2.9464285714285716
+        }
+      },
+      "CVS": {
+        "iron_condor": {
+          "trades": 1,
+          "win_rate": 0.0,
+          "total_pnl": -120.0,
+          "avg_pnl": -120.0
+        }
+      },
+      "CRWD": {
+        "iron_condor": {
+          "trades": 24,
+          "win_rate": 0.8333333333333334,
+          "total_pnl": -5.0,
+          "avg_pnl": -0.20833333333333334
+        }
+      },
+      "ABBV": {
+        "iron_condor": {
+          "trades": 1,
+          "win_rate": 1.0,
+          "total_pnl": 23.75,
+          "avg_pnl": 23.75
+        }
+      },
+      "AMZN": {
+        "iron_condor": {
+          "trades": 7,
+          "win_rate": 0.8571428571428571,
+          "total_pnl": 22.5,
+          "avg_pnl": 3.2142857142857144
+        }
+      },
+      "ROKU": {
+        "iron_condor": {
+          "trades": 46,
+          "win_rate": 0.8695652173913043,
+          "total_pnl": 349.66898578494136,
+          "avg_pnl": 7.601499690976986
+        }
+      },
+      "UAL": {
+        "iron_condor": {
+          "trades": 41,
+          "win_rate": 0.8536585365853658,
+          "total_pnl": 231.25,
+          "avg_pnl": 5.640243902439025
+        }
+      },
+      "DKNG": {
+        "iron_condor": {
+          "trades": 80,
+          "win_rate": 0.7625,
+          "total_pnl": -711.25,
+          "avg_pnl": -8.890625
+        }
+      },
+      "SQ": {
+        "iron_condor": {
+          "trades": 35,
+          "win_rate": 0.8571428571428571,
+          "total_pnl": 112.5,
+          "avg_pnl": 3.2142857142857144
+        }
+      },
+      "BABA": {
+        "iron_condor": {
+          "trades": 5,
+          "win_rate": 1.0,
+          "total_pnl": 115.84920362205413,
+          "avg_pnl": 23.169840724410825
+        }
+      },
+      "FDX": {
+        "iron_condor": {
+          "trades": 2,
+          "win_rate": 0.5,
+          "total_pnl": -96.25,
+          "avg_pnl": -48.125
+        }
+      },
+      "AAPL": {
+        "iron_condor": {
+          "trades": 1,
+          "win_rate": 1.0,
+          "total_pnl": 23.75,
+          "avg_pnl": 23.75
+        }
+      },
+      "ADBE": {
+        "iron_condor": {
+          "trades": 4,
+          "win_rate": 0.75,
+          "total_pnl": -48.75,
+          "avg_pnl": -12.1875
+        }
+      },
+      "PFE": {
+        "iron_condor": {
+          "trades": 12,
+          "win_rate": 0.9166666666666666,
+          "total_pnl": 141.25,
+          "avg_pnl": 11.770833333333334
+        }
+      },
+      "BIDU": {
+        "iron_condor": {
+          "trades": 30,
+          "win_rate": 0.7666666666666667,
+          "total_pnl": -173.89925278235967,
+          "avg_pnl": -5.796641759411989
+        }
+      },
+      "SCHW": {
+        "iron_condor": {
+          "trades": 2,
+          "win_rate": 0.5,
+          "total_pnl": -96.25,
+          "avg_pnl": -48.125
+        }
+      },
+      "MRVL": {
+        "iron_condor": {
+          "trades": 13,
+          "win_rate": 0.8461538461538461,
+          "total_pnl": 141.25,
+          "avg_pnl": 10.865384615384615
+        }
+      },
+      "AFRM": {
+        "iron_condor": {
+          "trades": 63,
+          "win_rate": 0.8412698412698413,
+          "total_pnl": 58.75,
+          "avg_pnl": 0.9325396825396826
+        }
+      },
+      "ASTS": {
+        "iron_condor": {
+          "trades": 241,
+          "win_rate": 0.8215767634854771,
+          "total_pnl": -459.81,
+          "avg_pnl": -1.9079253112033194
+        }
+      },
+      "ACHR": {
+        "iron_condor": {
+          "trades": 165,
+          "win_rate": 0.8,
+          "total_pnl": -825.0,
+          "avg_pnl": -5.0
+        }
+      },
+      "RIVN": {
+        "iron_condor": {
+          "trades": 73,
+          "win_rate": 0.821917808219178,
+          "total_pnl": -15.0,
+          "avg_pnl": -0.2054794520547945
+        }
+      },
+      "APP": {
+        "iron_condor": {
+          "trades": 23,
+          "win_rate": 0.6956521739130435,
+          "total_pnl": -460.0,
+          "avg_pnl": -20.0
+        }
+      },
+      "ARM": {
+        "iron_condor": {
+          "trades": 28,
+          "win_rate": 0.7857142857142857,
+          "total_pnl": -197.5,
+          "avg_pnl": -7.053571428571429
+        }
+      },
+      "MU": {
+        "iron_condor": {
+          "trades": 14,
+          "win_rate": 0.6428571428571429,
+          "total_pnl": -389.7913439202231,
+          "avg_pnl": -27.842238851444506
+        }
+      },
+      "ANET": {
+        "iron_condor": {
+          "trades": 6,
+          "win_rate": 0.8333333333333334,
+          "total_pnl": -6.943908411670851,
+          "avg_pnl": -1.1573180686118085
+        }
+      },
+      "AMAT": {
+        "iron_condor": {
+          "trades": 2,
+          "win_rate": 1.0,
+          "total_pnl": 43.39158720125312,
+          "avg_pnl": 21.69579360062656
+        }
+      },
+      "CMG": {
+        "iron_condor": {
+          "trades": 1,
+          "win_rate": 0.0,
+          "total_pnl": -120.0,
+          "avg_pnl": -120.0
+        }
+      },
+      "EWZ": {
+        "iron_condor": {
+          "trades": 1,
+          "win_rate": 1.0,
+          "total_pnl": 23.75,
+          "avg_pnl": 23.75
+        }
+      },
+      "MDB": {
+        "iron_condor": {
+          "trades": 14,
+          "win_rate": 0.5,
+          "total_pnl": -673.75,
+          "avg_pnl": -48.125
+        }
+      },
+      "AVGO": {
+        "iron_condor": {
+          "trades": 5,
+          "win_rate": 0.8,
+          "total_pnl": -31.48104409283726,
+          "avg_pnl": -6.296208818567452
+        }
+      },
+      "COIN": {
+        "iron_condor": {
+          "trades": 39,
+          "win_rate": 0.9230769230769231,
+          "total_pnl": 495.0,
+          "avg_pnl": 12.692307692307692
+        }
+      },
+      "ORCL": {
+        "iron_condor": {
+          "trades": 7,
+          "win_rate": 0.8571428571428571,
+          "total_pnl": 22.5,
+          "avg_pnl": 3.2142857142857144
+        }
+      },
+      "INTC": {
+        "iron_condor": {
+          "trades": 11,
+          "win_rate": 0.9090909090909091,
+          "total_pnl": 116.20281881057707,
+          "avg_pnl": 10.56389261914337
+        }
+      },
+      "DELL": {
+        "iron_condor": {
+          "trades": 1,
+          "win_rate": 1.0,
+          "total_pnl": 23.75,
+          "avg_pnl": 23.75
+        }
+      },
+      "LULU": {
+        "iron_condor": {
+          "trades": 3,
+          "win_rate": 1.0,
+          "total_pnl": 71.25,
+          "avg_pnl": 23.75
+        }
+      }
+    },
+    "live_validation_cal": {
+      "ENPH": {
+        "calendar": {
+          "trades": 16,
+          "win_rate": 0.9375,
+          "total_pnl": 297.79,
+          "avg_pnl": 18.611875
+        }
+      },
+      "EWZ": {
+        "calendar": {
+          "trades": 31,
+          "win_rate": 1.0,
+          "total_pnl": 613.32,
+          "avg_pnl": 19.78451612903226
+        }
+      },
+      "MRVL": {
+        "calendar": {
+          "trades": 6,
+          "win_rate": 0.8333333333333334,
+          "total_pnl": 86.26,
+          "avg_pnl": 14.376666666666667
+        }
+      },
+      "AMT": {
+        "calendar": {
+          "trades": 44,
+          "win_rate": 1.0,
+          "total_pnl": 907.96,
+          "avg_pnl": 20.635454545454547
+        }
+      },
+      "AVGO": {
+        "calendar": {
+          "trades": 30,
+          "win_rate": 1.0,
+          "total_pnl": 610.7,
+          "avg_pnl": 20.35666666666667
+        }
+      },
+      "ORCL": {
+        "calendar": {
+          "trades": 9,
+          "win_rate": 1.0,
+          "total_pnl": 189.0,
+          "avg_pnl": 21.0
+        }
+      },
+      "FDX": {
+        "calendar": {
+          "trades": 15,
+          "win_rate": 1.0,
+          "total_pnl": 303.4,
+          "avg_pnl": 20.226666666666667
+        }
+      },
+      "CVS": {
+        "calendar": {
+          "trades": 13,
+          "win_rate": 1.0,
+          "total_pnl": 273.0,
+          "avg_pnl": 21.0
+        }
+      },
+      "GME": {
+        "calendar": {
+          "trades": 30,
+          "win_rate": 0.9,
+          "total_pnl": 317.02,
+          "avg_pnl": 10.567333333333332
+        }
+      },
+      "UAL": {
+        "calendar": {
+          "trades": 3,
+          "win_rate": 0.6666666666666666,
+          "total_pnl": 30.049999999999997,
+          "avg_pnl": 10.016666666666666
+        }
+      },
+      "NFLX": {
+        "calendar": {
+          "trades": 15,
+          "win_rate": 0.8,
+          "total_pnl": 207.96,
+          "avg_pnl": 13.864
+        }
+      },
+      "AAPL": {
+        "calendar": {
+          "trades": 68,
+          "win_rate": 0.9558823529411765,
+          "total_pnl": 1292.63,
+          "avg_pnl": 19.009264705882355
+        }
+      },
+      "ABBV": {
+        "calendar": {
+          "trades": 72,
+          "win_rate": 0.9861111111111112,
+          "total_pnl": 1416.99,
+          "avg_pnl": 19.680416666666666
+        }
+      },
+      "ACN": {
+        "calendar": {
+          "trades": 54,
+          "win_rate": 1.0,
+          "total_pnl": 1065.29,
+          "avg_pnl": 19.727592592592593
+        }
+      },
+      "AMD": {
+        "calendar": {
+          "trades": 76,
+          "win_rate": 0.9078947368421053,
+          "total_pnl": 674.36,
+          "avg_pnl": 8.873157894736842
+        }
+      },
+      "AXP": {
+        "calendar": {
+          "trades": 36,
+          "win_rate": 1.0,
+          "total_pnl": 689.59,
+          "avg_pnl": 19.15527777777778
+        }
+      },
+      "BABA": {
+        "calendar": {
+          "trades": 30,
+          "win_rate": 0.9666666666666667,
+          "total_pnl": 567.53,
+          "avg_pnl": 18.917666666666666
+        }
+      },
+      "BA": {
+        "calendar": {
+          "trades": 25,
+          "win_rate": 0.88,
+          "total_pnl": 362.55,
+          "avg_pnl": 14.502
+        }
+      },
+      "AMAT": {
+        "calendar": {
+          "trades": 56,
+          "win_rate": 0.9821428571428571,
+          "total_pnl": 1121.71,
+          "avg_pnl": 20.030535714285715
+        }
+      },
+      "AMZN": {
+        "calendar": {
+          "trades": 49,
+          "win_rate": 0.9591836734693877,
+          "total_pnl": 962.39,
+          "avg_pnl": 19.64061224489796
+        }
+      },
+      "AMGN": {
+        "calendar": {
+          "trades": 48,
+          "win_rate": 1.0,
+          "total_pnl": 992.82,
+          "avg_pnl": 20.68375
+        }
+      },
+      "ANET": {
+        "calendar": {
+          "trades": 44,
+          "win_rate": 1.0,
+          "total_pnl": 860.79,
+          "avg_pnl": 19.56340909090909
+        }
+      },
+      "ARKK": {
+        "calendar": {
+          "trades": 48,
+          "win_rate": 0.8958333333333334,
+          "total_pnl": 722.93,
+          "avg_pnl": 15.061041666666666
+        }
+      },
+      "BAC": {
+        "calendar": {
+          "trades": 33,
+          "win_rate": 0.9696969696969697,
+          "total_pnl": 610.35,
+          "avg_pnl": 18.495454545454546
+        }
+      },
+      "BIDU": {
+        "calendar": {
+          "trades": 30,
+          "win_rate": 1.0,
+          "total_pnl": 617.68,
+          "avg_pnl": 20.589333333333332
+        }
+      },
+      "ADBE": {
+        "calendar": {
+          "trades": 57,
+          "win_rate": 1.0,
+          "total_pnl": 1175.6,
+          "avg_pnl": 20.62456140350877
+        }
+      },
+      "CRM": {
+        "calendar": {
+          "trades": 24,
+          "win_rate": 0.9166666666666666,
+          "total_pnl": 459.24,
+          "avg_pnl": 19.135
+        }
+      },
+      "DE": {
+        "calendar": {
+          "trades": 16,
+          "win_rate": 1.0,
+          "total_pnl": 333.63,
+          "avg_pnl": 20.851875
+        }
+      },
+      "DELL": {
+        "calendar": {
+          "trades": 27,
+          "win_rate": 0.8888888888888888,
+          "total_pnl": 479.04,
+          "avg_pnl": 17.742222222222225
+        }
+      },
+      "C": {
+        "calendar": {
+          "trades": 21,
+          "win_rate": 1.0,
+          "total_pnl": 411.98,
+          "avg_pnl": 19.61809523809524
+        }
+      },
+      "BE": {
+        "calendar": {
+          "trades": 21,
+          "win_rate": 0.9047619047619048,
+          "total_pnl": 396.49,
+          "avg_pnl": 18.88047619047619
+        }
+      },
+      "CMG": {
+        "calendar": {
+          "trades": 14,
+          "win_rate": 1.0,
+          "total_pnl": 257.27,
+          "avg_pnl": 18.37642857142857
+        }
+      },
+      "MDB": {
+        "calendar": {
+          "trades": 23,
+          "win_rate": 1.0,
+          "total_pnl": 483.0,
+          "avg_pnl": 21.0
+        }
+      },
+      "DAL": {
+        "calendar": {
+          "trades": 15,
+          "win_rate": 0.7333333333333333,
+          "total_pnl": 177.06,
+          "avg_pnl": 11.804
+        }
+      },
+      "SQ": {
+        "calendar": {
+          "trades": 5,
+          "win_rate": 1.0,
+          "total_pnl": 104.59,
+          "avg_pnl": 20.918
+        }
+      },
+      "MRNA": {
+        "calendar": {
+          "trades": 15,
+          "win_rate": 0.8666666666666667,
+          "total_pnl": 272.14,
+          "avg_pnl": 18.142666666666667
+        }
+      },
+      "ROKU": {
+        "calendar": {
+          "trades": 15,
+          "win_rate": 0.9333333333333333,
+          "total_pnl": 260.54,
+          "avg_pnl": 17.369333333333334
+        }
+      },
+      "SNAP": {
+        "calendar": {
+          "trades": 6,
+          "win_rate": 1.0,
+          "total_pnl": 126.0,
+          "avg_pnl": 21.0
+        }
+      },
+      "LULU": {
+        "calendar": {
+          "trades": 12,
+          "win_rate": 1.0,
+          "total_pnl": 252.0,
+          "avg_pnl": 21.0
+        }
+      },
+      "MU": {
+        "calendar": {
+          "trades": 11,
+          "win_rate": 1.0,
+          "total_pnl": 193.01,
+          "avg_pnl": 17.546363636363637
+        }
+      },
+      "PFE": {
+        "calendar": {
+          "trades": 5,
+          "win_rate": 1.0,
+          "total_pnl": 92.27,
+          "avg_pnl": 18.454
+        }
+      },
+      "SCHW": {
+        "calendar": {
+          "trades": 12,
+          "win_rate": 1.0,
+          "total_pnl": 200.84,
+          "avg_pnl": 16.736666666666668
+        }
+      },
+      "NKE": {
+        "calendar": {
+          "trades": 5,
+          "win_rate": 1.0,
+          "total_pnl": 105.0,
+          "avg_pnl": 21.0
+        }
+      },
+      "CRWD": {
+        "calendar": {
+          "trades": 34,
+          "win_rate": 0.9705882352941176,
+          "total_pnl": 666.42,
+          "avg_pnl": 19.600588235294115
+        }
+      },
+      "NET": {
+        "calendar": {
+          "trades": 15,
+          "win_rate": 0.8,
+          "total_pnl": 205.14,
+          "avg_pnl": 13.675999999999998
+        }
+      },
+      "DDOG": {
+        "calendar": {
+          "trades": 30,
+          "win_rate": 0.9,
+          "total_pnl": 524.95,
+          "avg_pnl": 17.498333333333335
+        }
+      },
+      "AFRM": {
+        "calendar": {
+          "trades": 37,
+          "win_rate": 0.972972972972973,
+          "total_pnl": 737.26,
+          "avg_pnl": 19.925945945945944
+        }
+      },
+      "BYND": {
+        "calendar": {
+          "trades": 3,
+          "win_rate": 1.0,
+          "total_pnl": 63.0,
+          "avg_pnl": 21.0
+        }
+      },
+      "COIN": {
+        "calendar": {
+          "trades": 18,
+          "win_rate": 0.8888888888888888,
+          "total_pnl": 306.57,
+          "avg_pnl": 17.031666666666666
+        }
+      },
+      "DKNG": {
+        "calendar": {
+          "trades": 18,
+          "win_rate": 1.0,
+          "total_pnl": 370.3,
+          "avg_pnl": 20.572222222222223
+        }
+      },
+      "APP": {
+        "calendar": {
+          "trades": 33,
+          "win_rate": 0.9696969696969697,
+          "total_pnl": 657.25,
+          "avg_pnl": 19.916666666666668
+        }
+      },
+      "ACHR": {
+        "calendar": {
+          "trades": 67,
+          "win_rate": 0.9552238805970149,
+          "total_pnl": 1324.97,
+          "avg_pnl": 19.775671641791046
+        }
+      },
+      "RIVN": {
+        "calendar": {
+          "trades": 10,
+          "win_rate": 1.0,
+          "total_pnl": 184.57,
+          "avg_pnl": 18.457
+        }
+      },
+      "ASTS": {
+        "calendar": {
+          "trades": 15,
+          "win_rate": 0.9333333333333333,
+          "total_pnl": 223.69,
+          "avg_pnl": 14.912666666666667
+        }
+      },
+      "ARM": {
+        "calendar": {
+          "trades": 19,
+          "win_rate": 0.9473684210526315,
+          "total_pnl": 361.12,
+          "avg_pnl": 19.006315789473685
+        }
+      },
+      "INTC": {
+        "calendar": {
+          "trades": 4,
+          "win_rate": 1.0,
+          "total_pnl": 79.74,
+          "avg_pnl": 19.935
+        }
+      },
+      "XLV": {
+        "calendar": {
+          "trades": 4,
+          "win_rate": 1.0,
+          "total_pnl": 72.39,
+          "avg_pnl": 18.0975
+        }
+      },
+      "XBI": {
+        "calendar": {
+          "trades": 2,
+          "win_rate": 1.0,
+          "total_pnl": 42.0,
+          "avg_pnl": 21.0
+        }
+      }
+    }
+  }
+}
