@@ -1,0 +1,1329 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TOMIC - Interactive Wireframes</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <!-- Top Bar -->
+  <header class="top-bar">
+    <div class="logo">TOMIC</div>
+    <div class="mode-toggle">
+      <button class="mode-btn active" data-mode="monitor">Monitor</button>
+      <button class="mode-btn" data-mode="decide">Decide</button>
+    </div>
+    <div class="top-actions">
+      <button class="icon-btn" id="theme-toggle" title="Toggle dark mode">
+        <span class="icon">🌙</span>
+      </button>
+      <button class="icon-btn" id="settings-btn" title="Settings">
+        <span class="icon">⚙️</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- Main Layout -->
+  <div class="main-layout">
+    <!-- Navigation Rail -->
+    <nav class="nav-rail" id="nav-rail">
+      <!-- Monitor Mode Nav -->
+      <div class="nav-items monitor-nav">
+        <button class="nav-item active" data-view="dashboard" title="Dashboard [1]">
+          <span class="nav-icon">📊</span>
+          <span class="nav-label">Dashboard</span>
+        </button>
+        <button class="nav-item" data-view="portfolio" title="Portfolio [2]">
+          <span class="nav-icon">💼</span>
+          <span class="nav-label">Portfolio</span>
+        </button>
+        <button class="nav-item" data-view="system" title="System [3]">
+          <span class="nav-icon">🖥️</span>
+          <span class="nav-label">System</span>
+        </button>
+        <button class="nav-item" data-view="logs" title="Logs [4]">
+          <span class="nav-icon">📋</span>
+          <span class="nav-label">Logs</span>
+        </button>
+      </div>
+      <!-- Decide Mode Nav -->
+      <div class="nav-items decide-nav hidden">
+        <button class="nav-item active" data-view="scanner" title="Scanner [1]">
+          <span class="nav-icon">🔍</span>
+          <span class="nav-label">Scanner</span>
+        </button>
+        <button class="nav-item" data-view="journal" title="Journal [2]">
+          <span class="nav-icon">📓</span>
+          <span class="nav-label">Journal</span>
+        </button>
+      </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="main-content" id="main-content">
+      <!-- Dashboard View -->
+      <section class="view active" id="dashboard-view">
+        <div class="view-header">
+          <h1>Dashboard</h1>
+          <span class="data-timestamp">Last refresh: 2m ago</span>
+        </div>
+
+        <div class="dashboard-cards">
+          <div class="card health-card">
+            <h3>System Health</h3>
+            <div class="health-items">
+              <div class="health-item healthy">
+                <span class="status-dot"></span>
+                <span>IB Gateway</span>
+              </div>
+              <div class="health-item healthy">
+                <span class="status-dot"></span>
+                <span>Data Sync</span>
+              </div>
+              <div class="health-item healthy">
+                <span class="status-dot"></span>
+                <span>Batch Jobs</span>
+              </div>
+            </div>
+            <div class="health-summary healthy">All Systems ✓</div>
+          </div>
+
+          <div class="card portfolio-summary-card">
+            <h3>Portfolio</h3>
+            <div class="portfolio-quick-stats">
+              <div class="stat">
+                <span class="stat-value">5</span>
+                <span class="stat-label">Positions</span>
+              </div>
+              <div class="stat">
+                <span class="stat-value delta-positive">Δ +12.5</span>
+                <span class="stat-label">Delta</span>
+              </div>
+              <div class="stat">
+                <span class="stat-value">θ +$45/day</span>
+                <span class="stat-label">Theta</span>
+              </div>
+            </div>
+            <div class="risk-indicator normal">Risk: Normal</div>
+          </div>
+
+          <div class="card alerts-card">
+            <h3>Today's Alerts</h3>
+            <div class="alert-summary">
+              <div class="alert-item warning">
+                <span class="alert-icon">⚠</span>
+                <span>2 Warnings</span>
+              </div>
+              <div class="alert-item error">
+                <span class="alert-icon">✗</span>
+                <span>0 Errors</span>
+              </div>
+              <div class="alert-item info">
+                <span class="alert-icon">ℹ</span>
+                <span>3 Info</span>
+              </div>
+            </div>
+            <button class="link-btn">View All →</button>
+          </div>
+        </div>
+
+        <div class="card batch-status-card">
+          <div class="card-header">
+            <h3>Batch Status</h3>
+            <button class="btn btn-secondary">Run Now ▾</button>
+          </div>
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Job</th>
+                <th>Last Run</th>
+                <th>Status</th>
+                <th>Next Run</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Market Data Fetch</td>
+                <td>14:30</td>
+                <td><span class="status-badge success">✓ Success</span></td>
+                <td>16:30</td>
+              </tr>
+              <tr>
+                <td>IV Daily Summary</td>
+                <td>06:15</td>
+                <td><span class="status-badge success">✓ Success</span></td>
+                <td>Tomorrow</td>
+              </tr>
+              <tr>
+                <td>Portfolio Sync</td>
+                <td>14:28</td>
+                <td><span class="status-badge success">✓ Success</span></td>
+                <td>14:33</td>
+              </tr>
+              <tr>
+                <td>Recommendations Gen</td>
+                <td>06:20</td>
+                <td><span class="status-badge success">✓ Success</span></td>
+                <td>Tomorrow</td>
+              </tr>
+              <tr>
+                <td>Health Scan</td>
+                <td>06:00</td>
+                <td><span class="status-badge warning">⚠ 2 issues</span></td>
+                <td>Tomorrow</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="card activity-card">
+          <h3>Recent Activity</h3>
+          <div class="activity-list">
+            <div class="activity-item">
+              <span class="activity-time">14:30</span>
+              <span class="activity-text">Market data updated for 47 symbols</span>
+            </div>
+            <div class="activity-item">
+              <span class="activity-time">14:28</span>
+              <span class="activity-text">Portfolio synced: 5 positions, $12,450 margin used</span>
+            </div>
+            <div class="activity-item">
+              <span class="activity-time">14:15</span>
+              <span class="activity-text">Recommendation generated: AAPL Short Put Spread (Score 72)</span>
+            </div>
+            <div class="activity-item">
+              <span class="activity-time">06:20</span>
+              <span class="activity-text">Daily scan complete: 8 opportunities found</span>
+            </div>
+            <div class="activity-item">
+              <span class="activity-time">06:15</span>
+              <span class="activity-text">IV summary: 12 symbols above 70th percentile</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Portfolio View -->
+      <section class="view" id="portfolio-view">
+        <div class="view-header">
+          <h1>Portfolio</h1>
+          <div class="view-actions">
+            <span class="data-timestamp">Synced: 2 min ago</span>
+            <button class="btn btn-secondary">Refresh</button>
+          </div>
+        </div>
+
+        <div class="portfolio-overview">
+          <div class="card greeks-card">
+            <h3>Portfolio Greeks</h3>
+            <div class="greek-bars">
+              <div class="greek-row">
+                <span class="greek-label">Delta</span>
+                <span class="greek-value">+12.5</span>
+                <div class="greek-bar"><div class="greek-fill" style="width: 50%"></div></div>
+              </div>
+              <div class="greek-row">
+                <span class="greek-label">Gamma</span>
+                <span class="greek-value">-0.045</span>
+                <div class="greek-bar"><div class="greek-fill" style="width: 25%"></div></div>
+              </div>
+              <div class="greek-row">
+                <span class="greek-label">Theta</span>
+                <span class="greek-value">+$45</span>
+                <div class="greek-bar"><div class="greek-fill" style="width: 62%"></div></div>
+              </div>
+              <div class="greek-row">
+                <span class="greek-label">Vega</span>
+                <span class="greek-value">-124</span>
+                <div class="greek-bar"><div class="greek-fill" style="width: 38%"></div></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="card risk-card">
+            <h3>Risk Summary</h3>
+            <div class="risk-metrics">
+              <div class="risk-metric">
+                <span class="metric-label">Margin Used</span>
+                <span class="metric-value">42%</span>
+                <div class="metric-bar"><div class="metric-fill warning" style="width: 42%"></div></div>
+              </div>
+              <div class="risk-metric">
+                <span class="metric-label">Buying Power</span>
+                <span class="metric-value">$18,000</span>
+              </div>
+              <div class="risk-metric">
+                <span class="metric-label">Correlation</span>
+                <span class="metric-value good">Low</span>
+              </div>
+              <div class="risk-metric">
+                <span class="metric-label">Concentration</span>
+                <span class="metric-value good">OK</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card positions-card">
+          <div class="card-header">
+            <h3>Positions</h3>
+            <button class="btn btn-secondary">Export CSV</button>
+          </div>
+          <table class="data-table clickable-rows">
+            <thead>
+              <tr>
+                <th>Symbol</th>
+                <th>Strategy</th>
+                <th>Entry</th>
+                <th>Current</th>
+                <th>DTE</th>
+                <th>P&L</th>
+                <th>Status</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr class="position-row" data-symbol="AAPL">
+                <td class="symbol">AAPL</td>
+                <td>Iron Condor</td>
+                <td>12/01</td>
+                <td class="positive">+$85</td>
+                <td>18</td>
+                <td class="positive">+23%</td>
+                <td><span class="status-badge normal">● Normal</span></td>
+                <td><button class="icon-btn small">→</button></td>
+              </tr>
+              <tr class="position-row" data-symbol="MSFT">
+                <td class="symbol">MSFT</td>
+                <td>Short Put</td>
+                <td>12/03</td>
+                <td class="positive">+$120</td>
+                <td>25</td>
+                <td class="positive">+18%</td>
+                <td><span class="status-badge normal">● Normal</span></td>
+                <td><button class="icon-btn small">→</button></td>
+              </tr>
+              <tr class="position-row" data-symbol="NVDA">
+                <td class="symbol">NVDA</td>
+                <td>Put Spread</td>
+                <td>12/05</td>
+                <td class="negative">-$45</td>
+                <td>12</td>
+                <td class="negative">-8%</td>
+                <td><span class="status-badge warning">⚠ Monitor</span></td>
+                <td><button class="icon-btn small">→</button></td>
+              </tr>
+              <tr class="position-row highlight" data-symbol="SPY">
+                <td class="symbol">SPY</td>
+                <td>Iron Condor</td>
+                <td>11/28</td>
+                <td class="positive">+$210</td>
+                <td>8</td>
+                <td class="positive">+65%</td>
+                <td><span class="status-badge success">★ TP Ready</span></td>
+                <td><button class="icon-btn small">→</button></td>
+              </tr>
+              <tr class="position-row" data-symbol="QQQ">
+                <td class="symbol">QQQ</td>
+                <td>Put Spread</td>
+                <td>12/02</td>
+                <td class="positive">+$55</td>
+                <td>15</td>
+                <td class="positive">+12%</td>
+                <td><span class="status-badge normal">● Normal</span></td>
+                <td><button class="icon-btn small">→</button></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="card alerts-panel">
+          <h3>⚠ Alerts</h3>
+          <div class="alert-list">
+            <div class="alert-item-full warning">
+              <span class="alert-symbol">SPY:</span>
+              <span>Take profit target (65%) reached</span>
+            </div>
+            <div class="alert-item-full warning">
+              <span class="alert-symbol">NVDA:</span>
+              <span>Approaching lower breakeven (within 2%)</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- System View -->
+      <section class="view" id="system-view">
+        <div class="view-header">
+          <h1>System</h1>
+        </div>
+
+        <div class="card">
+          <h3>IB Gateway Connection</h3>
+          <div class="connection-details">
+            <div class="connection-row">
+              <span class="label">Status:</span>
+              <span class="value"><span class="status-dot healthy"></span> Connected</span>
+            </div>
+            <div class="connection-row">
+              <span class="label">Host:</span>
+              <span class="value mono">localhost:7497</span>
+            </div>
+            <div class="connection-row">
+              <span class="label">Client ID:</span>
+              <span class="value mono">1</span>
+            </div>
+            <div class="connection-row">
+              <span class="label">Uptime:</span>
+              <span class="value">4h 23m</span>
+            </div>
+            <div class="connection-row">
+              <span class="label">Last Data:</span>
+              <span class="value">2 minutes ago</span>
+            </div>
+            <div class="connection-row">
+              <span class="label">Today:</span>
+              <span class="value">47 requests │ 2 timeouts │ 0 errors</span>
+            </div>
+          </div>
+          <div class="button-group">
+            <button class="btn btn-secondary">Test Connection</button>
+            <button class="btn btn-secondary">View Logs</button>
+            <button class="btn btn-secondary">Reconnect</button>
+          </div>
+        </div>
+
+        <div class="card">
+          <h3>Data Pipelines</h3>
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Pipeline</th>
+                <th>Source</th>
+                <th>Last Success</th>
+                <th>Health</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Spot Prices</td>
+                <td>Polygon</td>
+                <td>14:30</td>
+                <td><span class="status-badge success">● Healthy</span></td>
+              </tr>
+              <tr>
+                <td>Option Chains</td>
+                <td>Polygon</td>
+                <td>14:30</td>
+                <td><span class="status-badge success">● Healthy</span></td>
+              </tr>
+              <tr>
+                <td>IV Calculations</td>
+                <td>Internal</td>
+                <td>06:15</td>
+                <td><span class="status-badge success">● Healthy</span></td>
+              </tr>
+              <tr>
+                <td>Earnings Data</td>
+                <td>EODHD</td>
+                <td>06:00</td>
+                <td><span class="status-badge warning">⚠ 3 missing</span></td>
+              </tr>
+              <tr>
+                <td>Portfolio Sync</td>
+                <td>IB Gateway</td>
+                <td>14:28</td>
+                <td><span class="status-badge success">● Healthy</span></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <h3>Background Tasks</h3>
+            <button class="link-btn">View All</button>
+          </div>
+          <div class="task-section">
+            <h4>Currently Running: 1</h4>
+            <div class="task-item">
+              <span class="task-name">IV Backfill for TSLA</span>
+              <div class="progress-bar">
+                <div class="progress-fill" style="width: 52%"></div>
+              </div>
+              <span class="task-progress">52%</span>
+            </div>
+          </div>
+          <div class="task-section">
+            <h4>Queued: 2</h4>
+            <div class="task-item queued">
+              <span class="task-name">Option Chain Download (AMZN)</span>
+            </div>
+            <div class="task-item queued">
+              <span class="task-name">Health Scan (Full)</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Logs View -->
+      <section class="view" id="logs-view">
+        <div class="view-header">
+          <h1>Logs</h1>
+          <div class="view-actions">
+            <select class="filter-select">
+              <option value="all">All Levels</option>
+              <option value="error">Errors</option>
+              <option value="warning">Warnings</option>
+              <option value="info">Info</option>
+            </select>
+            <button class="btn btn-secondary">Export</button>
+          </div>
+        </div>
+
+        <div class="card logs-card">
+          <div class="log-entries">
+            <div class="log-entry info">
+              <span class="log-time">14:30:45</span>
+              <span class="log-level">INFO</span>
+              <span class="log-message">Market data updated for 47 symbols</span>
+            </div>
+            <div class="log-entry info">
+              <span class="log-time">14:28:12</span>
+              <span class="log-level">INFO</span>
+              <span class="log-message">Portfolio synced successfully: 5 positions</span>
+            </div>
+            <div class="log-entry warning">
+              <span class="log-time">14:25:33</span>
+              <span class="log-level">WARN</span>
+              <span class="log-message">SPY position approaching take profit target</span>
+            </div>
+            <div class="log-entry warning">
+              <span class="log-time">14:20:18</span>
+              <span class="log-level">WARN</span>
+              <span class="log-message">NVDA approaching lower breakeven</span>
+            </div>
+            <div class="log-entry info">
+              <span class="log-time">14:15:00</span>
+              <span class="log-level">INFO</span>
+              <span class="log-message">Recommendation generated: AAPL Short Put Spread (Score 72)</span>
+            </div>
+            <div class="log-entry info">
+              <span class="log-time">06:20:00</span>
+              <span class="log-level">INFO</span>
+              <span class="log-message">Daily scan complete: 8 opportunities found</span>
+            </div>
+            <div class="log-entry info">
+              <span class="log-time">06:15:00</span>
+              <span class="log-level">INFO</span>
+              <span class="log-message">IV summary complete: 12 symbols above 70th percentile</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Scanner View -->
+      <section class="view" id="scanner-view">
+        <div class="view-header">
+          <h1>Scanner</h1>
+          <div class="view-actions">
+            <span class="data-timestamp">Data: 14:30</span>
+            <button class="btn btn-primary">Refresh All</button>
+          </div>
+        </div>
+
+        <div class="card filters-card">
+          <div class="card-header">
+            <h3>Filters (Persistent)</h3>
+            <div class="button-group">
+              <button class="btn btn-secondary small">Save</button>
+              <button class="btn btn-secondary small">Reset</button>
+            </div>
+          </div>
+          <div class="filters-grid">
+            <div class="filter-group">
+              <label>IV Rank</label>
+              <div class="range-filter">
+                <input type="number" value="50" class="filter-input small"> -
+                <input type="number" value="100" class="filter-input small">
+              </div>
+            </div>
+            <div class="filter-group">
+              <label>IV %ile</label>
+              <select class="filter-select">
+                <option>Any</option>
+                <option>≥50%</option>
+                <option>≥70%</option>
+              </select>
+            </div>
+            <div class="filter-group">
+              <label>Earnings</label>
+              <select class="filter-select">
+                <option>>14 days</option>
+                <option>>7 days</option>
+                <option>>30 days</option>
+              </select>
+            </div>
+            <div class="filter-group">
+              <label>Strategy</label>
+              <select class="filter-select">
+                <option>All</option>
+                <option>Iron Condor</option>
+                <option>Short Put Spread</option>
+                <option>Short Call Spread</option>
+              </select>
+            </div>
+            <div class="filter-group">
+              <label>Score</label>
+              <select class="filter-select">
+                <option>≥55</option>
+                <option>≥65</option>
+                <option>≥75</option>
+              </select>
+            </div>
+            <div class="filter-group">
+              <label>In Portfolio</label>
+              <select class="filter-select">
+                <option>Hide</option>
+                <option>Show</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <div class="view-controls">
+          <div class="view-toggle">
+            <label class="radio-label"><input type="radio" name="scanner-view" checked> Grid</label>
+            <label class="radio-label"><input type="radio" name="scanner-view"> List</label>
+            <label class="radio-label"><input type="radio" name="scanner-view"> Heatmap</label>
+          </div>
+          <div class="sort-control">
+            Sort: <select class="filter-select small"><option>Score ▾</option><option>IV Rank</option><option>Symbol</option></select>
+          </div>
+        </div>
+
+        <div class="scanner-summary">
+          <span>47 symbols</span>
+          <span>│</span>
+          <span>23 with opportunities</span>
+          <span>│</span>
+          <span class="highlight">8 recommended</span>
+        </div>
+
+        <div class="symbol-grid" id="symbol-grid">
+          <!-- Symbol cards will be rendered here -->
+        </div>
+
+        <div class="card scan-history">
+          <div class="card-header">
+            <h3>Scan History</h3>
+            <button class="link-btn">View All</button>
+          </div>
+          <div class="history-list">
+            <div class="history-item">Today 06:20: 8 opportunities (AAPL, MSFT, AMZN, GOOGL, ...)</div>
+            <div class="history-item">Yesterday 06:20: 5 opportunities</div>
+            <div class="history-item">2 days ago: 12 opportunities</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Symbol Detail View -->
+      <section class="view" id="symbol-detail-view">
+        <div class="view-header">
+          <button class="btn btn-back" id="back-to-scanner">← Scanner</button>
+          <h1><span id="symbol-detail-name">AAPL</span> - <span id="symbol-detail-company">Apple Inc.</span></h1>
+          <span class="recommended-badge">★ Recommended</span>
+        </div>
+
+        <div class="card quick-facts">
+          <div class="fact">Spot: <strong>$245.50</strong> <span class="positive">(+1.2%)</span></div>
+          <div class="fact">ATR: <strong>$4.25</strong> (1.7%)</div>
+          <div class="fact">Earnings: <strong>45 days</strong></div>
+          <span class="data-timestamp">Data: 14:30</span>
+        </div>
+
+        <div class="detail-grid">
+          <div class="card volatility-card">
+            <h3>Volatility Profile</h3>
+            <table class="metrics-table">
+              <tr><td>IV</td><td>35.2%</td><td><div class="mini-bar"><div class="mini-fill" style="width: 60%"></div></div></td></tr>
+              <tr><td>IV Rank</td><td>72%</td><td><div class="mini-bar"><div class="mini-fill" style="width: 72%"></div></div></td></tr>
+              <tr><td>IV %ile</td><td>68%</td><td><div class="mini-bar"><div class="mini-fill" style="width: 68%"></div></div></td></tr>
+              <tr><td>HV20</td><td>28.1%</td><td><div class="mini-bar"><div class="mini-fill" style="width: 45%"></div></div></td></tr>
+              <tr><td>HV30</td><td>30.2%</td><td><div class="mini-bar"><div class="mini-fill" style="width: 50%"></div></div></td></tr>
+              <tr><td>Term Str.</td><td>+0.02</td><td><span class="badge info">Contango</span></td></tr>
+              <tr><td>Skew</td><td>-1.5</td><td><span class="badge">Normal</span></td></tr>
+            </table>
+          </div>
+
+          <div class="card chart-card">
+            <h3>IV vs HV Chart</h3>
+            <div class="chart-placeholder">
+              <svg viewBox="0 0 300 150" class="mini-chart">
+                <polyline fill="none" stroke="var(--accent-primary)" stroke-width="2"
+                  points="10,100 50,80 90,90 130,60 170,70 210,50 250,65 290,55"/>
+                <polyline fill="none" stroke="var(--text-muted)" stroke-width="1" stroke-dasharray="5,5"
+                  points="10,110 50,100 90,95 130,85 170,90 210,80 250,85 290,82"/>
+                <text x="280" y="50" font-size="10" fill="var(--accent-primary)">IV</text>
+                <text x="280" y="80" font-size="10" fill="var(--text-muted)">HV20</text>
+              </svg>
+            </div>
+          </div>
+        </div>
+
+        <div class="card strategies-card">
+          <h3>Strategy Opportunities</h3>
+          <table class="data-table clickable-rows">
+            <thead>
+              <tr>
+                <th>Strategy</th>
+                <th>Expiry</th>
+                <th>Score</th>
+                <th>ROM</th>
+                <th>PoS</th>
+                <th>EV</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr class="strategy-row" data-strategy="iron-condor-jan24">
+                <td>Iron Condor</td>
+                <td>Jan 24</td>
+                <td><span class="score recommended">★72</span></td>
+                <td>8.2%</td>
+                <td>68%</td>
+                <td>$45</td>
+                <td><button class="btn btn-small btn-primary">Evaluate →</button></td>
+              </tr>
+              <tr class="strategy-row" data-strategy="short-put-jan24">
+                <td>Short Put Spread</td>
+                <td>Jan 24</td>
+                <td><span class="score recommended">★68</span></td>
+                <td>6.5%</td>
+                <td>72%</td>
+                <td>$38</td>
+                <td><button class="btn btn-small btn-secondary">Evaluate →</button></td>
+              </tr>
+              <tr class="strategy-row">
+                <td>Iron Condor</td>
+                <td>Jan 31</td>
+                <td><span class="score">65</span></td>
+                <td>7.1%</td>
+                <td>65%</td>
+                <td>$42</td>
+                <td><button class="btn btn-small btn-secondary">Evaluate →</button></td>
+              </tr>
+              <tr class="strategy-row">
+                <td>Short Call Spread</td>
+                <td>Jan 24</td>
+                <td><span class="score">58</span></td>
+                <td>5.2%</td>
+                <td>70%</td>
+                <td>$28</td>
+                <td><button class="btn btn-small btn-secondary">Evaluate →</button></td>
+              </tr>
+              <tr class="strategy-row disabled">
+                <td>Naked Put</td>
+                <td>Jan 24</td>
+                <td>--</td>
+                <td>--</td>
+                <td>--</td>
+                <td>--</td>
+                <td><span class="status-badge error">✗ Margin</span></td>
+              </tr>
+              <tr class="strategy-row disabled">
+                <td>Calendar</td>
+                <td>Jan/Feb</td>
+                <td>--</td>
+                <td>--</td>
+                <td>--</td>
+                <td>--</td>
+                <td><span class="status-badge error">✗ Liquidity</span></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="card why-card">
+          <div class="card-header">
+            <h3>Why Recommended / Why Not</h3>
+            <button class="link-btn">Expand All</button>
+          </div>
+          <div class="criteria-list">
+            <div class="criteria-item passed">✓ IV Rank (72%) above threshold (50%)</div>
+            <div class="criteria-item passed">✓ No earnings within 14 days</div>
+            <div class="criteria-item passed">✓ Not currently in portfolio</div>
+            <div class="criteria-item passed">✓ Sufficient liquidity (volume: 1,250, OI: 45,000)</div>
+            <div class="criteria-item passed">✓ Score (72) above minimum (55)</div>
+            <hr>
+            <div class="criteria-item info">ℹ Naked Put rejected: Margin requirement exceeds limit</div>
+            <div class="criteria-item info">ℹ Calendar rejected: Back-month liquidity insufficient</div>
+          </div>
+        </div>
+
+        <div class="card portfolio-context-card">
+          <h3>Portfolio Context</h3>
+          <div class="context-content">
+            <p>Current AAPL exposure: <strong>None</strong></p>
+            <p>Sector exposure (Tech): 2 positions, Δ +8.5</p>
+            <p>Adding Iron Condor would change portfolio:</p>
+            <ul class="impact-list">
+              <li>Delta: +12.5 → +12.0 <span class="change negative">(-0.5)</span></li>
+              <li>Theta: +$45 → +$52 <span class="change positive">(+$7)</span></li>
+              <li>Margin: 42% → 48% <span class="change warning">(+6%)</span></li>
+            </ul>
+          </div>
+        </div>
+      </section>
+
+      <!-- Trade Builder View -->
+      <section class="view" id="trade-builder-view">
+        <div class="view-header">
+          <button class="btn btn-back" id="back-to-symbol">← AAPL</button>
+          <h1>Trade Builder: Iron Condor Jan 24</h1>
+          <span class="score-badge">Score: 72</span>
+        </div>
+
+        <div class="card proposal-summary">
+          <h3>Proposal Summary</h3>
+          <div class="summary-grid">
+            <div class="summary-item">
+              <span class="label">Credit</span>
+              <span class="value">$1.30</span>
+            </div>
+            <div class="summary-item">
+              <span class="label">Max Profit</span>
+              <span class="value positive">$130</span>
+            </div>
+            <div class="summary-item">
+              <span class="label">Max Loss</span>
+              <span class="value negative">$370</span>
+            </div>
+            <div class="summary-item">
+              <span class="label">ROM</span>
+              <span class="value">8.2%</span>
+            </div>
+            <div class="summary-item">
+              <span class="label">PoS</span>
+              <span class="value">68%</span>
+            </div>
+            <div class="summary-item">
+              <span class="label">EV</span>
+              <span class="value positive">$45 (12%)</span>
+            </div>
+            <div class="summary-item wide">
+              <span class="label">Breakevens</span>
+              <span class="value">$237.70 - $253.30</span>
+            </div>
+            <div class="summary-item">
+              <span class="label">Width</span>
+              <span class="value">$15.60 (6.4%)</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="card legs-card">
+          <div class="card-header">
+            <h3>Legs</h3>
+            <button class="btn btn-secondary">Refresh IB</button>
+          </div>
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Type</th>
+                <th>Strike</th>
+                <th>Exp</th>
+                <th>Bid</th>
+                <th>Ask</th>
+                <th>Mid</th>
+                <th>Δ</th>
+                <th>θ</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>1</td>
+                <td>Short Call</td>
+                <td>255</td>
+                <td>Jan24</td>
+                <td>0.85</td>
+                <td>0.90</td>
+                <td>0.875</td>
+                <td>0.15</td>
+                <td>-2.1</td>
+              </tr>
+              <tr>
+                <td>2</td>
+                <td>Long Call</td>
+                <td>260</td>
+                <td>Jan24</td>
+                <td>0.20</td>
+                <td>0.25</td>
+                <td>0.225</td>
+                <td>0.05</td>
+                <td>-0.8</td>
+              </tr>
+              <tr>
+                <td>3</td>
+                <td>Short Put</td>
+                <td>240</td>
+                <td>Jan24</td>
+                <td>0.80</td>
+                <td>0.85</td>
+                <td>0.825</td>
+                <td>-0.15</td>
+                <td>-2.0</td>
+              </tr>
+              <tr>
+                <td>4</td>
+                <td>Long Put</td>
+                <td>235</td>
+                <td>Jan24</td>
+                <td>0.18</td>
+                <td>0.22</td>
+                <td>0.200</td>
+                <td>-0.05</td>
+                <td>-0.7</td>
+              </tr>
+              <tr class="total-row">
+                <td colspan="4"><strong>NET</strong></td>
+                <td>1.25</td>
+                <td>1.35</td>
+                <td>1.30</td>
+                <td>0.00</td>
+                <td>-4.2</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="card scenario-card">
+          <h3>Scenario Analysis</h3>
+          <div class="pnl-chart">
+            <div class="chart-title">P&L at Expiration</div>
+            <svg viewBox="0 0 400 200" class="pnl-diagram">
+              <!-- Y axis labels -->
+              <text x="5" y="30" font-size="10" fill="var(--text-secondary)">+$130</text>
+              <text x="5" y="100" font-size="10" fill="var(--text-secondary)">$0</text>
+              <text x="5" y="170" font-size="10" fill="var(--text-secondary)">-$370</text>
+
+              <!-- Grid lines -->
+              <line x1="50" y1="25" x2="390" y2="25" stroke="var(--border-color)" stroke-dasharray="3"/>
+              <line x1="50" y1="100" x2="390" y2="100" stroke="var(--border-color)"/>
+              <line x1="50" y1="170" x2="390" y2="170" stroke="var(--border-color)" stroke-dasharray="3"/>
+
+              <!-- P&L line -->
+              <polyline fill="none" stroke="var(--accent-primary)" stroke-width="2"
+                points="50,170 100,170 130,25 270,25 300,170 390,170"/>
+
+              <!-- Current price indicator -->
+              <line x1="200" y1="20" x2="200" y2="180" stroke="var(--accent-success)" stroke-dasharray="5,5"/>
+              <text x="200" y="190" font-size="10" fill="var(--accent-success)" text-anchor="middle">$245.50</text>
+
+              <!-- X axis labels -->
+              <text x="50" y="195" font-size="9" fill="var(--text-muted)">230</text>
+              <text x="100" y="195" font-size="9" fill="var(--text-muted)">235</text>
+              <text x="150" y="195" font-size="9" fill="var(--text-muted)">240</text>
+              <text x="250" y="195" font-size="9" fill="var(--text-muted)">250</text>
+              <text x="300" y="195" font-size="9" fill="var(--text-muted)">255</text>
+              <text x="350" y="195" font-size="9" fill="var(--text-muted)">260</text>
+            </svg>
+          </div>
+          <div class="scenario-list">
+            <div class="scenario-item"><span>Spot @ $230:</span> <span class="negative">-$370 (max loss)</span></div>
+            <div class="scenario-item"><span>Spot @ $240:</span> <span class="positive">+$130 (max profit)</span></div>
+            <div class="scenario-item highlight"><span>Spot @ $245:</span> <span class="positive">+$130 (max profit)</span></div>
+            <div class="scenario-item"><span>Spot @ $255:</span> <span class="positive">+$130 (max profit)</span></div>
+            <div class="scenario-item"><span>Spot @ $265:</span> <span class="negative">-$370 (max loss)</span></div>
+          </div>
+        </div>
+
+        <div class="card score-breakdown-card">
+          <h3>Score Breakdown</h3>
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Component</th>
+                <th>Weight</th>
+                <th>Value</th>
+                <th>Score</th>
+                <th>Contribution</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>ROM</td>
+                <td>40%</td>
+                <td>8.2%</td>
+                <td>78</td>
+                <td>31.2</td>
+              </tr>
+              <tr>
+                <td>PoS</td>
+                <td>25%</td>
+                <td>68%</td>
+                <td>72</td>
+                <td>18.0</td>
+              </tr>
+              <tr>
+                <td>EV</td>
+                <td>20%</td>
+                <td>12%</td>
+                <td>65</td>
+                <td>13.0</td>
+              </tr>
+              <tr>
+                <td>Risk/Reward</td>
+                <td>15%</td>
+                <td>2.8</td>
+                <td>62</td>
+                <td>9.3</td>
+              </tr>
+              <tr class="total-row">
+                <td><strong>TOTAL</strong></td>
+                <td>100%</td>
+                <td></td>
+                <td colspan="2"><strong class="score recommended">★72</strong></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="card actions-card">
+          <h3>Actions</h3>
+          <div class="button-group centered">
+            <button class="btn btn-secondary">Export to CSV</button>
+            <button class="btn btn-secondary">Add to Journal</button>
+            <button class="btn btn-primary">Submit to IB (Draft)</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- Journal View -->
+      <section class="view" id="journal-view">
+        <div class="view-header">
+          <h1>Journal</h1>
+        </div>
+
+        <div class="tabs">
+          <button class="tab active" data-tab="open">Open Trades (5)</button>
+          <button class="tab" data-tab="closed">Closed (47)</button>
+          <button class="tab" data-tab="analytics">Analytics</button>
+        </div>
+
+        <div class="tab-content active" id="open-tab">
+          <div class="card">
+            <div class="card-header">
+              <h3>Open Trades</h3>
+              <button class="btn btn-primary">+ New Entry</button>
+            </div>
+            <table class="data-table clickable-rows">
+              <thead>
+                <tr>
+                  <th>Symbol</th>
+                  <th>Strategy</th>
+                  <th>Entry</th>
+                  <th>Credit</th>
+                  <th>Current</th>
+                  <th>P&L</th>
+                  <th>DTE</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr class="journal-row" data-trade="aapl-ic">
+                  <td class="symbol">AAPL</td>
+                  <td>IC</td>
+                  <td>Dec 01</td>
+                  <td>$1.30</td>
+                  <td>$0.45</td>
+                  <td class="positive">+65%</td>
+                  <td>18</td>
+                  <td><span class="status-badge success">★ TP</span></td>
+                </tr>
+                <tr class="journal-row">
+                  <td class="symbol">MSFT</td>
+                  <td>SPS</td>
+                  <td>Dec 03</td>
+                  <td>$0.85</td>
+                  <td>$0.72</td>
+                  <td class="positive">+15%</td>
+                  <td>25</td>
+                  <td><span class="status-badge normal">● Hold</span></td>
+                </tr>
+                <tr class="journal-row">
+                  <td class="symbol">NVDA</td>
+                  <td>SPS</td>
+                  <td>Dec 05</td>
+                  <td>$1.10</td>
+                  <td>$1.25</td>
+                  <td class="negative">-14%</td>
+                  <td>12</td>
+                  <td><span class="status-badge warning">⚠ Watch</span></td>
+                </tr>
+                <tr class="journal-row selected">
+                  <td class="symbol">SPY</td>
+                  <td>IC</td>
+                  <td>Nov 28</td>
+                  <td>$2.10</td>
+                  <td>$0.73</td>
+                  <td class="positive">+65%</td>
+                  <td>8</td>
+                  <td><span class="status-badge success">★ TP</span></td>
+                </tr>
+                <tr class="journal-row">
+                  <td class="symbol">QQQ</td>
+                  <td>SPS</td>
+                  <td>Dec 02</td>
+                  <td>$0.95</td>
+                  <td>$0.82</td>
+                  <td class="positive">+14%</td>
+                  <td>15</td>
+                  <td><span class="status-badge normal">● Hold</span></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="card trade-detail-card">
+            <h3>Selected: SPY Iron Condor</h3>
+            <div class="trade-detail-content">
+              <div class="detail-section">
+                <h4>Entry Context</h4>
+                <ul class="detail-list">
+                  <li>Spot at entry: $595.20</li>
+                  <li>IV at entry: 18.5%</li>
+                  <li>IV Rank: 65%</li>
+                  <li>Reasoning: High IV rank post-election volatility</li>
+                </ul>
+              </div>
+              <div class="detail-section">
+                <h4>Exit Rules</h4>
+                <ul class="detail-list">
+                  <li>Take Profit: 50% of credit ($1.05) <span class="badge success">✓ REACHED</span></li>
+                  <li>Stop Loss: 200% of credit ($4.20)</li>
+                  <li>Time Exit: 7 DTE</li>
+                  <li>Tent Breach: Short strike touched</li>
+                </ul>
+              </div>
+              <div class="detail-section">
+                <div class="section-header">
+                  <h4>Snapshots (3)</h4>
+                  <button class="btn btn-small btn-secondary">Add Snapshot</button>
+                </div>
+                <ul class="detail-list snapshots">
+                  <li>Dec 01: Entry $2.10</li>
+                  <li>Dec 05: $1.45 (+31%)</li>
+                  <li>Dec 08: $0.73 (+65%) ★</li>
+                </ul>
+              </div>
+              <div class="button-group">
+                <button class="btn btn-secondary">Prepare Exit Order</button>
+                <button class="btn btn-secondary">Update Rules</button>
+                <button class="btn btn-primary">Close Trade</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="tab-content" id="closed-tab">
+          <div class="card">
+            <h3>Closed Trades</h3>
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Symbol</th>
+                  <th>Strategy</th>
+                  <th>Entry</th>
+                  <th>Exit</th>
+                  <th>P&L</th>
+                  <th>Result</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td class="symbol">TSLA</td>
+                  <td>IC</td>
+                  <td>Nov 15</td>
+                  <td>Nov 28</td>
+                  <td class="positive">+$185</td>
+                  <td><span class="status-badge success">Win</span></td>
+                </tr>
+                <tr>
+                  <td class="symbol">AMD</td>
+                  <td>SPS</td>
+                  <td>Nov 10</td>
+                  <td>Nov 22</td>
+                  <td class="positive">+$95</td>
+                  <td><span class="status-badge success">Win</span></td>
+                </tr>
+                <tr>
+                  <td class="symbol">META</td>
+                  <td>IC</td>
+                  <td>Nov 01</td>
+                  <td>Nov 15</td>
+                  <td class="negative">-$220</td>
+                  <td><span class="status-badge error">Loss</span></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="tab-content" id="analytics-tab">
+          <div class="analytics-header">
+            <h3>Performance Analytics</h3>
+            <select class="filter-select">
+              <option>Last 90 Days</option>
+              <option>Last 30 Days</option>
+              <option>YTD</option>
+              <option>All Time</option>
+            </select>
+          </div>
+
+          <div class="analytics-summary">
+            <div class="summary-card">
+              <span class="summary-value">47</span>
+              <span class="summary-label">Total Trades</span>
+            </div>
+            <div class="summary-card">
+              <span class="summary-value positive">72%</span>
+              <span class="summary-label">Win Rate</span>
+            </div>
+            <div class="summary-card">
+              <span class="summary-value positive">+$4,250</span>
+              <span class="summary-label">Total P&L</span>
+            </div>
+            <div class="summary-card">
+              <span class="summary-value">+$90</span>
+              <span class="summary-label">Avg P&L/Trade</span>
+            </div>
+          </div>
+
+          <div class="card">
+            <h3>P&L Curve</h3>
+            <div class="chart-placeholder pnl-curve">
+              <svg viewBox="0 0 400 150" class="curve-chart">
+                <polyline fill="none" stroke="var(--accent-success)" stroke-width="2"
+                  points="20,130 80,120 140,100 200,80 260,60 320,50 380,40"/>
+                <text x="20" y="145" font-size="9" fill="var(--text-muted)">Sep</text>
+                <text x="140" y="145" font-size="9" fill="var(--text-muted)">Oct</text>
+                <text x="260" y="145" font-size="9" fill="var(--text-muted)">Nov</text>
+                <text x="380" y="145" font-size="9" fill="var(--text-muted)">Dec</text>
+                <text x="5" y="130" font-size="9" fill="var(--text-muted)">$0</text>
+                <text x="5" y="40" font-size="9" fill="var(--text-muted)">$4k</text>
+              </svg>
+            </div>
+          </div>
+
+          <div class="analytics-grid">
+            <div class="card">
+              <h3>By Strategy</h3>
+              <table class="data-table compact">
+                <tbody>
+                  <tr><td>Iron Condor</td><td>18</td><td>78%</td><td class="positive">+$2.1k</td></tr>
+                  <tr><td>Short Put Sp</td><td>15</td><td>73%</td><td class="positive">+$1.2k</td></tr>
+                  <tr><td>Short Call Sp</td><td>8</td><td>63%</td><td class="positive">+$650</td></tr>
+                  <tr><td>Naked Put</td><td>6</td><td>67%</td><td class="positive">+$300</td></tr>
+                </tbody>
+              </table>
+            </div>
+            <div class="card">
+              <h3>By Symbol</h3>
+              <table class="data-table compact">
+                <tbody>
+                  <tr><td>SPY</td><td>12</td><td>75%</td><td class="positive">+$1.8k</td></tr>
+                  <tr><td>QQQ</td><td>8</td><td>70%</td><td class="positive">+$850</td></tr>
+                  <tr><td>AAPL</td><td>6</td><td>83%</td><td class="positive">+$720</td></tr>
+                  <tr><td>MSFT</td><td>5</td><td>80%</td><td class="positive">+$480</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <!-- Detail Panel (Slide-out) -->
+    <aside class="detail-panel hidden" id="detail-panel">
+      <div class="panel-header">
+        <h3 id="panel-title">Position Details</h3>
+        <button class="icon-btn" id="close-panel">✕</button>
+      </div>
+      <div class="panel-content" id="panel-content">
+        <!-- Dynamic content -->
+      </div>
+    </aside>
+  </div>
+
+  <!-- Status Bar -->
+  <footer class="status-bar">
+    <div class="status-item">
+      <span class="status-dot healthy"></span>
+      <span>IB: Connected (4h 23m)</span>
+    </div>
+    <div class="status-item">
+      <span>Data: 2m ago</span>
+    </div>
+    <div class="status-item clickable" id="tasks-status">
+      <span>Tasks: 1 running</span>
+    </div>
+    <div class="status-item clickable warning" id="alerts-status">
+      <span>⚠ 2 alerts</span>
+    </div>
+  </footer>
+
+  <!-- Quick Actions Modal -->
+  <div class="modal hidden" id="quick-actions-modal">
+    <div class="modal-backdrop"></div>
+    <div class="modal-content quick-actions">
+      <div class="modal-header">
+        <h3>Quick Actions</h3>
+        <span class="shortcut">Esc to close</span>
+      </div>
+      <input type="text" class="search-input" placeholder="Search symbols, trades, logs..." autofocus>
+      <div class="quick-section">
+        <h4>Recent</h4>
+        <div class="quick-item">AAPL - View Symbol</div>
+        <div class="quick-item">SPY Iron Condor - View Trade</div>
+        <div class="quick-item">Portfolio - Dashboard</div>
+      </div>
+      <div class="quick-section">
+        <h4>Actions</h4>
+        <div class="quick-item"><span>↻ Refresh Portfolio</span><span class="shortcut">Cmd+R</span></div>
+        <div class="quick-item"><span>+ New Journal Entry</span><span class="shortcut">Cmd+N</span></div>
+        <div class="quick-item"><span>⬇ Download Option Chain</span><span class="shortcut">Cmd+D</span></div>
+        <div class="quick-item"><span>📊 Run Full Scan</span><span class="shortcut">Cmd+S</span></div>
+        <div class="quick-item"><span>⚙ Settings</span><span class="shortcut">Cmd+,</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Keyboard Shortcuts Modal -->
+  <div class="modal hidden" id="shortcuts-modal">
+    <div class="modal-backdrop"></div>
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>Keyboard Shortcuts</h3>
+        <button class="icon-btn" onclick="closeModal('shortcuts-modal')">✕</button>
+      </div>
+      <div class="shortcuts-grid">
+        <div class="shortcut-item"><kbd>M</kbd> Toggle Monitor/Decide mode</div>
+        <div class="shortcut-item"><kbd>1</kbd> Go to Dashboard</div>
+        <div class="shortcut-item"><kbd>2</kbd> Go to Portfolio / Journal</div>
+        <div class="shortcut-item"><kbd>3</kbd> Go to Scanner</div>
+        <div class="shortcut-item"><kbd>4</kbd> Go to System / Settings</div>
+        <div class="shortcut-item"><kbd>/</kbd> Open Quick Search</div>
+        <div class="shortcut-item"><kbd>Cmd+K</kbd> Open Quick Actions</div>
+        <div class="shortcut-item"><kbd>Cmd+R</kbd> Refresh current view</div>
+        <div class="shortcut-item"><kbd>Esc</kbd> Close panel / Go back</div>
+        <div class="shortcut-item"><kbd>?</kbd> Show shortcuts</div>
+      </div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
