@@ -318,7 +318,7 @@ def test_place_orders_uses_parent_child(monkeypatch):
     app, order_ids = service.place_orders(
         instructions,
         host="127.0.0.1",
-        port=7497,
+        port=4002,
         client_id=123,
         timeout=1,
     )
@@ -803,7 +803,7 @@ def test_place_orders_rejects_multi_leg_non_guaranteed(monkeypatch):
         service.place_orders(
             instructions,
             host="127.0.0.1",
-            port=7497,
+            port=4002,
             client_id=123,
         )
 
@@ -894,7 +894,7 @@ def test_place_orders_retries_after_10043(monkeypatch, caplog):
     app, order_ids = service.place_orders(
         instructions,
         host="127.0.0.1",
-        port=7497,
+        port=4002,
         client_id=123,
     )
 

@@ -19,7 +19,7 @@ def main():
     """Connect to TWS with client ID 999 and disconnect."""
     client_id = 999
     host = "127.0.0.1"
-    port = 7497  # Paper trading port
+    port = 4002  # IB Gateway paper trading port
 
     print(f"TWS Connection Test")
     print(f"==================")

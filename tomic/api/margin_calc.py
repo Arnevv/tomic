@@ -55,7 +55,7 @@ def calculate_trade_margin(
     """Return required initial margin for the given option legs."""
     expiry = expiry.replace("-", "")
     host = host or cfg_get("IB_HOST", "127.0.0.1")
-    port = int(port or cfg_get("IB_PORT", 7497))
+    port = int(port or cfg_get("IB_PORT", 4002))
     cid = client_id if client_id is not None else int(cfg_get("IB_CLIENT_ID", 100))
     app = MarginApp()
     try:

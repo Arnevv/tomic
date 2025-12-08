@@ -27,7 +27,7 @@ def test_ibclient():
         app = connect_ib(
             client_id=997,
             host="127.0.0.1",
-            port=7497,
+            port=4002,  # IB Gateway
             timeout=10,
             connect_timeout=15.0,
         )
@@ -55,7 +55,7 @@ def test_quotesnapshotapp():
         connect_ib(
             client_id=996,
             host="127.0.0.1",
-            port=7497,
+            port=4002,  # IB Gateway
             timeout=10,
             app=app,
             connect_timeout=15.0,

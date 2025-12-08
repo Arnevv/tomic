@@ -20,7 +20,7 @@ def main():
     """Connect to TWS using QuoteSnapshotApp (same as exit_flow)."""
     client_id = 998  # Different from 999 to avoid conflicts
     host = "127.0.0.1"
-    port = 7497
+    port = 4002  # IB Gateway paper trading port
 
     print("TWS Connection Test (QuoteSnapshotApp)")
     print("=" * 45)

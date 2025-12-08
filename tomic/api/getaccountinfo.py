@@ -445,7 +445,7 @@ def main(client_id: int | None = None) -> None:
     logger.info("🚀 Ophalen van accountinformatie")
     app = IBApp()
     host = cfg_get("IB_HOST", "127.0.0.1")
-    port = int(cfg_get("IB_PORT", 7497))
+    port = int(cfg_get("IB_PORT", 4002))
     client = client_id if client_id is not None else int(cfg_get("IB_CLIENT_ID", 100))
 
     retrieve_positions_and_orders(app, host, port, client)

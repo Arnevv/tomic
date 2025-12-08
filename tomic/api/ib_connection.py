@@ -303,7 +303,7 @@ class IBClient(EClient, EWrapper):
 def connect_ib(
     client_id: int | None = None,
     host: str = "127.0.0.1",
-    port: int = 7497,
+    port: int = 4002,  # IB Gateway paper trading port
     timeout: int = 5,
     *,
     unique: bool = False,
@@ -399,7 +399,7 @@ def connect_ib(
 def connect_ib_with_retry(
     client_id: int | None = None,
     host: str = "127.0.0.1",
-    port: int = 7497,
+    port: int = 4002,  # IB Gateway paper trading port
     timeout: int = 5,
     *,
     unique: bool = False,

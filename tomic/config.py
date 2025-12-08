@@ -73,8 +73,8 @@ class AppConfig(BaseModel):
     ORATS_CACHE_DIR: str = "tomic/data/orats_cache"
     EXPORT_DIR: str = "exports"
     IB_HOST: str = "127.0.0.1"
-    IB_PORT: int = 7497
-    IB_LIVE_PORT: int = 7496
+    IB_PORT: int = 4002  # IB Gateway paper trading port (was 7497 for TWS)
+    IB_LIVE_PORT: int = 4001  # IB Gateway live trading port (was 7496 for TWS)
     IB_CLIENT_ID: int = 100
     IB_MARKETDATA_CLIENT_ID: int = 901
     IB_ORDER_CLIENT_ID: int = 902
