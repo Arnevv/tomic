@@ -20,8 +20,13 @@ from .volatility import compute_polygon_volatility_stats
 
 def fetch_polygon_price_history(symbols: Sequence[str] | None = None, *, run_volstats: bool = True) -> list[str]:
     """Fetch Polygon daily history for provided ``symbols``."""
-    configured = cfg_get("DEFAULT_SYMBOLS", [])
-    target_symbols = [s.upper() for s in symbols] if symbols else [s.upper() for s in configured]
+    if symbols:
+        target_symbols = [s.upper() for s in symbols]
+    else:
+        from tomic.services.symbol_service import get_symbol_service
+        symbol_service = get_symbol_service()
+        # Use active symbols (excludes disqualified) when no specific symbols provided
+        target_symbols = symbol_service.get_active_symbols()
     if not target_symbols:
         logger.warning("No symbols configured for Polygon price fetch")
         return []

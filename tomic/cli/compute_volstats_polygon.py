@@ -155,7 +155,13 @@ def main(argv: List[str] | None = None) -> None:
     logger.info("🚀 Computing volatility stats (Polygon)")
     if argv is None:
         argv = []
-    symbols = [s.upper() for s in argv] if argv else [s.upper() for s in cfg_get("DEFAULT_SYMBOLS", [])]
+    if argv:
+        symbols = [s.upper() for s in argv]
+    else:
+        from tomic.services.symbol_service import get_symbol_service
+        symbol_service = get_symbol_service()
+        # Use active symbols (excludes disqualified) when no specific symbols provided
+        symbols = symbol_service.get_active_symbols()
     raw_max = cfg_get("MAX_SYMBOLS_PER_RUN")
     try:
         max_syms = int(raw_max) if raw_max is not None else None

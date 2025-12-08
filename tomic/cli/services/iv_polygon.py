@@ -17,8 +17,13 @@ from tomic.providers.polygon_iv import fetch_polygon_iv30d
 
 def fetch_polygon_iv_data(symbols: Sequence[str] | None = None) -> list[str]:
     """Fetch and store Polygon IV metrics for ``symbols``."""
-    configured = cfg_get("DEFAULT_SYMBOLS", [])
-    target_symbols = [s.upper() for s in symbols] if symbols else [s.upper() for s in configured]
+    if symbols:
+        target_symbols = [s.upper() for s in symbols]
+    else:
+        from tomic.services.symbol_service import get_symbol_service
+        symbol_service = get_symbol_service()
+        # Use active symbols (excludes disqualified) when no specific symbols provided
+        target_symbols = symbol_service.get_active_symbols()
     if not target_symbols:
         logger.warning("No symbols configured for Polygon IV fetch")
         return []
