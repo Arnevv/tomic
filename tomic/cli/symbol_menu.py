@@ -10,7 +10,7 @@ Provides UI for managing symbols in the basket including:
 from __future__ import annotations
 
 from functools import partial
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Set
 
 from tomic.cli.common import Menu, prompt, prompt_yes_no
 from tomic.services.liquidity_service import LiquidityService, get_liquidity_service
@@ -117,6 +117,251 @@ def show_sector_analysis(manager: Optional[SymbolManager] = None) -> None:
         print("Aanbevelingen:")
         for rec in analysis["recommendations"]:
             print(f"  \u2022 {rec}")
+
+    print()
+
+    # Offer to show concrete recommendations
+    if analysis.get("missing_sectors") or analysis.get("overweight"):
+        if prompt_yes_no("Wil je concrete symbool-aanbevelingen bekijken?", False):
+            show_sector_exposure_recommendations(manager)
+
+
+def show_sector_exposure_recommendations(manager: Optional[SymbolManager] = None) -> None:
+    """Show concrete symbol recommendations for underexposed sectors."""
+    manager = manager or get_symbol_manager()
+
+    _print_header("\U0001f4c8 SECTOR EXPOSURE AANBEVELINGEN")
+
+    print("Kandidaten worden gezocht...")
+    print("  - Niet in huidige basket")
+    print("  - Niet gediskwalificeerd")
+    print("  - Gesorteerd op liquiditeit")
+    print("  - Met correlatie analyse")
+    print()
+
+    result = manager.get_sector_exposure_recommendations(
+        top_n=5,
+        min_volume=10000,
+        lookback_days=60,
+    )
+
+    if "error" in result:
+        print(f"\u26a0 {result['error']}")
+        print()
+        return
+
+    recommendations = result.get("recommendations", {})
+
+    if not recommendations:
+        print("\u2713 Geen aanbevelingen - basket is goed gediversifieerd!")
+        print()
+        return
+
+    # Display recommendations per sector
+    for sector, data in sorted(recommendations.items()):
+        sector_type = data["type"]
+        candidates = data["candidates"]
+        total = data["total_available"]
+
+        # Header for sector
+        if sector_type == "missing":
+            icon = "\U0001f534"  # Red circle
+            label = "Missing"
+        else:
+            icon = "\U0001f7e1"  # Yellow circle
+            label = "Underweight"
+
+        print(f"{icon} {label}: {sector}")
+        print("\u2500" * 75)
+
+        if not candidates:
+            print("  Geen geschikte kandidaten gevonden (check liquidity cache)")
+            print()
+            continue
+
+        # Table header
+        print(f"{'#':<3} {'Symbol':<8} {'Gem. Volume':>14} {'Gem. OI':>12} {'Korr.':>8} {'Status':<12}")
+        print("\u2500" * 75)
+
+        for idx, c in enumerate(candidates, 1):
+            vol = _format_number(c["avg_volume"])
+            oi = _format_number(c["avg_oi"])
+
+            # Format correlation
+            corr = c.get("basket_correlation")
+            if corr is not None:
+                corr_str = f"{corr:.2f}"
+                # Add indicator
+                if corr < 0.3:
+                    corr_str += " \u2193"  # Low (good)
+                elif corr > 0.7:
+                    corr_str += " \u2191"  # High (less good)
+            else:
+                corr_str = "-"
+
+            # Format qualification status
+            qual = c["qualification_status"]
+            if qual == "qualified":
+                qual_str = "\u2713 qualified"
+            elif qual == "watchlist":
+                qual_str = "\u26a0 watchlist"
+            elif qual == "disq_calendar":
+                qual_str = "\u2717 cal"
+            elif qual == "disq_ic":
+                qual_str = "\u2717 IC"
+            else:
+                qual_str = qual
+
+            print(f"{idx:<3} {c['symbol']:<8} {vol:>14} {oi:>12} {corr_str:>8} {qual_str:<12}")
+
+        if total > len(candidates):
+            print(f"    ... en {total - len(candidates)} meer kandidaten beschikbaar")
+
+        print()
+
+    # Legend
+    print("Legenda correlatie: \u2193 = laag (<0.3, goed) | \u2191 = hoog (>0.7)")
+    print()
+
+    # Interactive submenu
+    _sector_recommendations_submenu(manager, recommendations)
+
+
+def _sector_recommendations_submenu(
+    manager: SymbolManager,
+    recommendations: Dict[str, Any],
+) -> None:
+    """Interactive submenu for sector recommendations."""
+    while True:
+        print("\u2500" * 75)
+        print("Opties:")
+        print("  [A] Symbool toevoegen aan basket")
+        print("  [C] Correlatie details voor symbool")
+        print("  [T] Terug")
+        print()
+
+        choice = prompt("Keuze: ", "T").strip().upper()
+
+        if choice == "T" or choice == "":
+            break
+
+        elif choice == "A":
+            _add_from_recommendations(manager, recommendations)
+
+        elif choice == "C":
+            _show_correlation_details(manager)
+
+        else:
+            print("Ongeldige keuze.")
+
+
+def _add_from_recommendations(
+    manager: SymbolManager,
+    recommendations: Dict[str, Any],
+) -> None:
+    """Add a symbol from recommendations to the basket."""
+    # Collect all candidate symbols
+    all_candidates = []
+    for sector, data in recommendations.items():
+        for c in data.get("candidates", []):
+            all_candidates.append(c["symbol"])
+
+    if not all_candidates:
+        print("Geen kandidaten beschikbaar.")
+        return
+
+    print(f"\nBeschikbare kandidaten: {', '.join(all_candidates[:15])}")
+    if len(all_candidates) > 15:
+        print(f"  ... en {len(all_candidates) - 15} meer")
+
+    symbol = prompt("Symbool om toe te voegen: ", "").strip().upper()
+    if not symbol:
+        print("Geen symbool opgegeven.")
+        return
+
+    # Options
+    fetch_data = prompt_yes_no("Historische data ophalen?", True)
+
+    print(f"\nToevoegen van {symbol}...")
+
+    def progress(sym: str, status: str) -> None:
+        print(f"  {sym}: {status}")
+
+    results = manager.add_symbols(
+        [symbol],
+        fetch_data=fetch_data,
+        fetch_sector=True,
+        fetch_liquidity=True,
+        progress_callback=progress,
+    )
+
+    for result in results:
+        if result.success:
+            print(f"\n\u2713 {result.symbol} toegevoegd aan basket!")
+            if result.metadata:
+                print(f"   Sector: {result.metadata.sector or 'Unknown'}")
+        else:
+            print(f"\n\u2717 {result.symbol}: {result.message}")
+
+    print()
+
+
+def _show_correlation_details(manager: SymbolManager) -> None:
+    """Show detailed correlation for a symbol with basket."""
+    from tomic.services.correlation_service import get_correlation_service
+
+    symbol = prompt("Symbool voor correlatie analyse: ", "").strip().upper()
+    if not symbol:
+        print("Geen symbool opgegeven.")
+        return
+
+    corr_service = get_correlation_service()
+    basket_symbols = manager.symbol_service.get_configured_symbols()
+
+    print(f"\nCorrelatie van {symbol} met basket symbolen:")
+    print("\u2500" * 50)
+
+    correlations = []
+    for basket_sym in sorted(basket_symbols):
+        result = corr_service.calculate_correlation(symbol, basket_sym, lookback_days=60)
+        if result:
+            correlations.append((basket_sym, result.correlation, result.days_overlap))
+
+    if not correlations:
+        print("  Geen correlatie data beschikbaar (check spot price data)")
+        print()
+        return
+
+    # Sort by correlation descending
+    correlations.sort(key=lambda x: x[1], reverse=True)
+
+    print(f"{'Symbol':<8} {'Correlatie':>12} {'Dagen':>8}")
+    print("\u2500" * 30)
+
+    for sym, corr, days in correlations:
+        # Color indicator
+        if corr > 0.7:
+            indicator = "\U0001f534"  # High
+        elif corr > 0.4:
+            indicator = "\U0001f7e1"  # Medium
+        else:
+            indicator = "\U0001f7e2"  # Low
+
+        print(f"{sym:<8} {corr:>10.3f} {indicator} {days:>6}")
+
+    # Average
+    avg_corr = sum(c[1] for c in correlations) / len(correlations)
+    print("\u2500" * 30)
+    print(f"Gemiddeld: {avg_corr:.3f}")
+
+    # Interpretation
+    print()
+    if avg_corr < 0.3:
+        print("\u2713 Lage correlatie - goed voor diversificatie!")
+    elif avg_corr < 0.5:
+        print("\u26a0 Matige correlatie - redelijke diversificatie")
+    else:
+        print("\u26a0 Hoge correlatie - overweeg andere opties")
 
     print()
 

@@ -358,3 +358,95 @@ class TestAddRemoveSymbolResults:
             message="Removed",
         )
         assert result.files_deleted == []
+
+
+class TestSectorExposureRecommendations:
+    """Tests for sector exposure recommendations."""
+
+    def test_get_sector_exposure_recommendations_no_cache(
+        self, symbol_manager, mock_symbol_service
+    ):
+        """Test recommendations when no liquidity cache exists."""
+        mock_symbol_service.load_liquidity_cache.return_value = None
+
+        result = symbol_manager.get_sector_exposure_recommendations()
+
+        assert "error" in result
+        assert "liquidity cache" in result["error"].lower()
+
+    def test_get_sector_exposure_recommendations_with_cache(
+        self, symbol_manager, mock_symbol_service
+    ):
+        """Test recommendations with liquidity cache."""
+        # Setup mock data
+        mock_symbol_service.get_configured_symbols.return_value = ["AAPL", "MSFT"]
+        mock_symbol_service.load_all_metadata.return_value = {
+            "AAPL": SymbolMetadata(symbol="AAPL", sector="Technology"),
+            "MSFT": SymbolMetadata(symbol="MSFT", sector="Technology"),
+        }
+        mock_symbol_service.validate_all_symbols.return_value = {
+            "AAPL": MagicMock(status="complete"),
+            "MSFT": MagicMock(status="complete"),
+        }
+        mock_symbol_service.load_liquidity_cache.return_value = {
+            "results": [
+                {"symbol": "XOM", "avg_atm_volume": 50000, "avg_atm_oi": 30000},
+                {"symbol": "CVX", "avg_atm_volume": 40000, "avg_atm_oi": 25000},
+            ]
+        }
+        mock_symbol_service.load_sector_mapping.return_value = {
+            "XOM": {"sector": "Energy", "industry": "Oil & Gas"},
+            "CVX": {"sector": "Energy", "industry": "Oil & Gas"},
+        }
+
+        # Mock qualification and correlation services
+        with patch("tomic.services.symbol_manager.get_qualification_service") as mock_qual:
+            with patch("tomic.services.symbol_manager.get_correlation_service") as mock_corr:
+                mock_qual_service = MagicMock()
+                mock_qual_service.load_all.return_value = {}
+                mock_qual.return_value = mock_qual_service
+
+                mock_corr_service = MagicMock()
+                mock_corr_service.calculate_basket_correlation.return_value = 0.35
+                mock_corr.return_value = mock_corr_service
+
+                result = symbol_manager.get_sector_exposure_recommendations()
+
+        assert "recommendations" in result
+        assert "basket_size" in result
+        assert result["basket_size"] == 2
+
+    def test_sector_matches_exact(self, symbol_manager):
+        """Test exact sector matching."""
+        assert symbol_manager._sector_matches("Technology", "Technology") is True
+        assert symbol_manager._sector_matches("Energy", "Financials") is False
+
+    def test_sector_matches_etf_variation(self, symbol_manager):
+        """Test ETF sector matching."""
+        assert symbol_manager._sector_matches("ETF - Energy", "Energy") is True
+        assert symbol_manager._sector_matches("ETF - Financials", "Energy") is False
+
+    def test_sector_matches_aliases(self, symbol_manager):
+        """Test sector alias matching."""
+        assert symbol_manager._sector_matches(
+            "Consumer Cyclical", "Consumer Discretionary"
+        ) is True
+        assert symbol_manager._sector_matches(
+            "Financial Services", "Financials"
+        ) is True
+
+    def test_get_underweight_sectors(self, symbol_manager, mock_symbol_service):
+        """Test identifying underweight sectors."""
+        analysis = {
+            "sectors": {
+                "Technology": {"percentage": 60, "count": 6},
+                "Energy": {"percentage": 3, "count": 1},
+                "Financials": {"percentage": 2, "count": 1},
+            }
+        }
+
+        underweight = symbol_manager._get_underweight_sectors(analysis, threshold_pct=5.0)
+
+        assert "Energy" in underweight
+        assert "Financials" in underweight
+        assert "Technology" not in underweight
