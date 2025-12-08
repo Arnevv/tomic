@@ -241,6 +241,24 @@ def get_testable_parameters(strategy: str = STRATEGY_IRON_CONDOR) -> List[Dict[s
                 "source": config_source,
             })
 
+    # Liquidity parameters from backtest config
+    liquidity_rules = backtest.get("liquidity_rules", {})
+    liquidity_params = [
+        ("min_option_volume", "Minimum Option Volume", "liquidity", liquidity_rules.get("min_option_volume", 10)),
+        ("min_option_open_interest", "Minimum Open Interest", "liquidity", liquidity_rules.get("min_option_open_interest", 100)),
+        ("max_spread_pct", "Max Bid-Ask Spread %", "liquidity", liquidity_rules.get("max_spread_pct", 20.0)),
+    ]
+
+    for param_key, description, category, current in liquidity_params:
+        if current is not None:
+            params.append({
+                "key": param_key,
+                "description": description,
+                "category": category,
+                "current_value": current,
+                "source": config_source,
+            })
+
     # Strike selection parameters from strike_selection_rules.yaml
     strike_rules = config.get("strike_selection_rules", {})
     default_strike = strike_rules.get("default", {})
@@ -666,6 +684,14 @@ def _run_backtest_with_config(
         config.exit_rules.stop_loss_pct = overrides["stop_loss_pct"]
     if "max_days_in_trade" in overrides:
         config.exit_rules.max_days_in_trade = int(overrides["max_days_in_trade"])
+
+    # Apply liquidity rules overrides
+    if "min_option_volume" in overrides:
+        config.liquidity_rules.min_option_volume = int(overrides["min_option_volume"])
+    if "min_option_open_interest" in overrides:
+        config.liquidity_rules.min_option_open_interest = int(overrides["min_option_open_interest"])
+    if "max_spread_pct" in overrides:
+        config.liquidity_rules.max_spread_pct = float(overrides["max_spread_pct"])
 
     # Get effective min_risk_reward (override or live config)
     min_rr = overrides.get(
