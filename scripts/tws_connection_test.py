@@ -1,82 +1,47 @@
 """
-Simple TWS Connection Test Script
+Simple TWS/IB Gateway Availability Test Script
 
-Connects to TWS with client ID 999, verifies the connection, and disconnects cleanly.
+Checks if IB Gateway is running and accepting connections on the configured port.
+Uses a simple TCP socket check to avoid client ID conflicts with other running
+applications (like the web backend).
 """
 
+import socket
 import sys
-import time
-from pathlib import Path
 
-# Add project root to path for imports
-project_root = Path(__file__).parent.parent
-sys.path.insert(0, str(project_root))
 
-from tomic.api.ib_connection import connect_ib
+def check_port_open(host: str, port: int, timeout: float = 3.0) -> bool:
+    """Check if a TCP port is open and accepting connections."""
+    try:
+        with socket.create_connection((host, port), timeout=timeout):
+            return True
+    except (ConnectionRefusedError, TimeoutError, OSError):
+        return False
 
 
 def main():
-    """Connect to TWS with client ID 999 and disconnect."""
-    client_id = 999
+    """Check if IB Gateway is reachable on port 4002."""
     host = "127.0.0.1"
     port = 4002  # IB Gateway paper trading port
 
-    print(f"TWS Connection Test")
-    print(f"==================")
+    print("IB Gateway Availability Test")
+    print("=============================")
     print(f"Host: {host}")
     print(f"Port: {port}")
-    print(f"Client ID: {client_id}")
     print()
 
-    app = None
-    try:
-        print("Connecting to TWS...")
-        app = connect_ib(
-            client_id=client_id,
-            host=host,
-            port=port,
-            timeout=10,
-            connect_timeout=15.0,
-        )
+    print("Checking if IB Gateway is accepting connections...")
 
-        print(f"Connected! Next valid order ID: {app.next_valid_id}")
-
-        # Small delay to ensure connection is stable
-        time.sleep(1)
-
-        print("Disconnecting...")
-        app.disconnect()
-        app = None  # Mark as disconnected
-
+    if check_port_open(host, port):
         print()
-        print("SUCCESS: TWS connection test completed successfully!")
+        print("SUCCESS: IB Gateway is reachable on port 4002!")
+        print("(Using TCP check to avoid client ID conflicts with web backend)")
         return 0
-
-    except ConnectionRefusedError:
+    else:
         print()
-        print("ERROR: Connection refused.")
-        print("Make sure TWS/IB Gateway is running and accepting connections.")
+        print("ERROR: IB Gateway not reachable on port 4002.")
+        print("Make sure IB Gateway is running and API connections are enabled.")
         return 1
-
-    except TimeoutError as e:
-        print()
-        print(f"ERROR: Connection timed out: {e}")
-        print("Check if TWS/IB Gateway is running on the correct port.")
-        return 1
-
-    except Exception as e:
-        print()
-        print(f"ERROR: {type(e).__name__}: {e}")
-        return 1
-
-    finally:
-        # Always clean up the connection to avoid leaving sessions open
-        if app is not None:
-            try:
-                print("Cleaning up connection...")
-                app.disconnect()
-            except Exception:
-                pass  # Ignore errors during cleanup
 
 
 if __name__ == "__main__":
