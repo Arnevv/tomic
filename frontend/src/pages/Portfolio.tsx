@@ -131,8 +131,9 @@ export function Portfolio() {
             <tr>
               <th>Symbol</th>
               <th>Strategy</th>
-              <th>Entry</th>
               <th>DTE</th>
+              <th>Delta</th>
+              <th>Theta</th>
               <th>P&L</th>
               <th>Status</th>
             </tr>
@@ -142,11 +143,14 @@ export function Portfolio() {
               <tr key={i} style={{ cursor: 'pointer' }}>
                 <td style={{ fontWeight: '600' }}>{pos.symbol}</td>
                 <td>{pos.strategy || '-'}</td>
-                <td className="mono" style={{ fontSize: '12px' }}>
-                  {pos.entry_date || '-'}
-                </td>
                 <td className="mono">
                   {pos.days_to_expiry !== null ? pos.days_to_expiry : '-'}
+                </td>
+                <td className="mono" style={{ color: pos.greeks?.delta && pos.greeks.delta > 0 ? 'var(--status-healthy)' : 'inherit' }}>
+                  {pos.greeks?.delta?.toFixed(1) ?? '-'}
+                </td>
+                <td className="mono" style={{ color: pos.greeks?.theta && pos.greeks.theta > 0 ? 'var(--status-healthy)' : 'inherit' }}>
+                  {pos.greeks?.theta ? `$${pos.greeks.theta.toFixed(0)}` : '-'}
                 </td>
                 <td className="mono">
                   {formatPnlPercent(pos.pnl_percent)}
@@ -156,7 +160,7 @@ export function Portfolio() {
             ))}
             {data.positions.length === 0 && (
               <tr>
-                <td colSpan={6} style={{ textAlign: 'center', color: 'var(--text-muted)', padding: 'var(--space-xl)' }}>
+                <td colSpan={7} style={{ textAlign: 'center', color: 'var(--text-muted)', padding: 'var(--space-xl)' }}>
                   No open positions
                 </td>
               </tr>

@@ -165,6 +165,35 @@ def load_journal() -> list[dict[str, Any]]:
     return journal if isinstance(journal, list) else []
 
 
+def _compute_position_greeks(
+    symbol: str,
+    expiry: str | None,
+    raw_positions: list[dict[str, Any]],
+) -> PortfolioGreeks | None:
+    """Compute aggregated Greeks for a specific position (symbol + expiry)."""
+    matching = [
+        p for p in raw_positions
+        if p.get("symbol") == symbol
+        and (expiry is None or p.get("lastTradeDate") == expiry)
+    ]
+
+    if not matching:
+        return None
+
+    greeks_data = compute_portfolio_greeks(matching)
+
+    # Only return if we have actual values
+    if not any(greeks_data.values()):
+        return None
+
+    return PortfolioGreeks(
+        delta=greeks_data.get("Delta") if greeks_data.get("Delta") else None,
+        gamma=greeks_data.get("Gamma") if greeks_data.get("Gamma") else None,
+        theta=greeks_data.get("Theta") if greeks_data.get("Theta") else None,
+        vega=greeks_data.get("Vega") if greeks_data.get("Vega") else None,
+    )
+
+
 def build_portfolio_summary() -> PortfolioSummary:
     """Build portfolio summary from positions and journal."""
     raw_positions = load_positions()
@@ -178,17 +207,21 @@ def build_portfolio_summary() -> PortfolioSummary:
 
     for trade in open_trades:
         symbol = trade.get("Symbol", trade.get("symbol", ""))
+        expiry = trade.get("Expiry")
         legs: list[PositionLeg] = []
 
         # Extract legs if available
         trade_legs = trade.get("Legs", trade.get("legs", []))
         if isinstance(trade_legs, list):
             for leg in trade_legs:
+                leg_expiry = leg.get("expiry") or leg.get("lastTradeDate")
+                if not expiry and leg_expiry:
+                    expiry = leg_expiry
                 legs.append(PositionLeg(
                     symbol=leg.get("symbol", symbol),
                     right=leg.get("right"),
                     strike=leg.get("strike"),
-                    expiry=leg.get("expiry") or leg.get("lastTradeDate"),
+                    expiry=leg_expiry,
                     position=leg.get("position", 0),
                     avg_cost=leg.get("avgCost"),
                 ))
@@ -213,6 +246,9 @@ def build_portfolio_summary() -> PortfolioSummary:
         elif any("exit" in str(a).lower() or "beheer" in str(a).lower() or "monitor" in str(a).lower() for a in alerts):
             status = "monitor"
 
+        # Calculate position-level Greeks
+        position_greeks = _compute_position_greeks(symbol, expiry, raw_positions)
+
         positions.append(Position(
             symbol=symbol,
             strategy=trade.get("Strategy", trade.get("strategy")),
@@ -225,6 +261,7 @@ def build_portfolio_summary() -> PortfolioSummary:
             days_to_expiry=trade.get("days_to_expiry"),
             status=status,
             alerts=alerts if isinstance(alerts, list) else [],
+            greeks=position_greeks,
         ))
 
     # Calculate totals
