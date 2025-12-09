@@ -3,7 +3,7 @@ import { useApi } from '../hooks/useApi';
 import type { PortfolioSummary, Position } from '../types';
 
 export function Portfolio() {
-  const { data, loading, error, refetch } = useApi<PortfolioSummary>(() => api.getPortfolio(), []);
+  const { data, loading, error, refetch } = useApi<PortfolioSummary>(() => api.getPortfolio());
 
   if (loading) {
     return <div className="loading">Loading portfolio...</div>;

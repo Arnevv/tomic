@@ -3,7 +3,7 @@ import { useApi } from '../hooks/useApi';
 import type { DashboardData } from '../types';
 
 export function Dashboard() {
-  const { data, loading, error, refetch } = useApi<DashboardData>(() => api.getDashboard(), []);
+  const { data, loading, error, refetch } = useApi<DashboardData>(() => api.getDashboard());
 
   if (loading) {
     return <div className="loading">Loading dashboard...</div>;

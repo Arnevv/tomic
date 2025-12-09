@@ -16,7 +16,7 @@ function App() {
   const [decideView, setDecideView] = useState<DecideView>('scanner');
   const [theme, setTheme] = useState<'light' | 'dark'>('light');
 
-  const { data: health } = useApi<SystemHealth>(() => api.getHealth(), []);
+  const { data: health } = useApi<SystemHealth>(() => api.getHealth());
 
   const toggleTheme = () => {
     const newTheme = theme === 'light' ? 'dark' : 'light';
