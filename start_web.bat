@@ -59,7 +59,17 @@ echo === Servers gestart in aparte vensters ===
 echo Backend:  http://localhost:8000
 echo Frontend: http://localhost:5173
 echo.
-echo Open http://localhost:5173 in je browser
+
+REM Wacht tot frontend is opgestart (Vite heeft even nodig)
+echo Wachten tot frontend is opgestart...
+timeout /t 5 /nobreak >nul
+
+REM Open de browser automatisch
+echo Browser openen naar http://localhost:5173...
+start "" http://localhost:5173
+
+echo.
+echo === Alles is gestart! ===
 echo Sluit de terminal vensters om de servers te stoppen
 echo.
 pause
