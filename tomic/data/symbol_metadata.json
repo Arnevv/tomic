@@ -54,5 +54,74 @@
     "market_cap": 51918016314.979996,
     "last_updated": "2025-12-08T19:54:39.736645",
     "data_status": "incomplete"
+  },
+  "PYPL": {
+    "sector": "Technology",
+    "industry": "SERVICES-BUSINESS SERVICES, NEC",
+    "market_cap": 58272403632.840004,
+    "last_updated": "2025-12-09T08:12:40.975516",
+    "data_status": "complete"
+  },
+  "WULF": {
+    "sector": "Financials",
+    "industry": "FINANCE SERVICES",
+    "market_cap": 6070887274.5,
+    "last_updated": "2025-12-09T08:14:24.218367",
+    "data_status": "incomplete"
+  },
+  "CORZ": {
+    "sector": "Financials",
+    "industry": "FINANCE SERVICES",
+    "market_cap": 5305148843.0,
+    "last_updated": "2025-12-09T08:17:10.668858",
+    "data_status": "incomplete"
+  },
+  "BITF": {
+    "sector": "Unknown",
+    "market_cap": 1745936579.12,
+    "last_updated": "2025-12-09T08:20:02.727279",
+    "data_status": "incomplete"
+  },
+  "RKT": {
+    "sector": "Financials",
+    "industry": "MORTGAGE BANKERS & LOAN CORRESPONDENTS",
+    "market_cap": 53586386928.36,
+    "last_updated": "2025-12-09T08:21:46.314424",
+    "data_status": "incomplete"
+  },
+  "TSLA": {
+    "sector": "Industrials",
+    "industry": "MOTOR VEHICLES & PASSENGER CAR BODIES",
+    "market_cap": 1513247720985.0,
+    "last_updated": "2025-12-09T08:23:26.945173",
+    "data_status": "complete"
+  },
+  "TGT": {
+    "sector": "Consumer Discretionary",
+    "industry": "RETAIL-VARIETY STORES",
+    "market_cap": 41744223675.42,
+    "last_updated": "2025-12-09T08:25:07.155112",
+    "data_status": "complete"
+  },
+  "CVNA": {
+    "sector": "Consumer Discretionary",
+    "industry": "RETAIL-AUTO DEALERS & GASOLINE STATIONS",
+    "market_cap": 56536749865.61,
+    "last_updated": "2025-12-09T08:26:47.886391",
+    "data_status": "incomplete"
+  },
+  "SBUX": {
+    "sector": "Consumer Discretionary",
+    "industry": "RETAIL-EATING & DRINKING PLACES",
+    "market_cap": 96789952000.0,
+    "last_updated": "2025-12-09T08:28:28.518041",
+    "data_status": "complete"
+  },
+  "CC": {
+    "sector": "Healthcare",
+    "industry": "CHEMICALS & ALLIED PRODUCTS",
+    "market_cap": 1903627790.3999999,
+    "last_updated": "2025-12-09T08:30:14.343489",
+    "data_status": "complete"
   }
 }

@@ -468,7 +468,7 @@
     "baseline_as_of": null
   },
   "SBUX": {
-    "fetched_at": "2025-10-30T19:11:49.439219",
+    "fetched_at": "2025-12-09T02:08:15.990560-05:00",
     "source": null,
     "baseline_active": false,
     "baseline_as_of": null
@@ -516,7 +516,7 @@
     "baseline_as_of": null
   },
   "TGT": {
-    "fetched_at": "2025-11-19T21:53:50.743992",
+    "fetched_at": "2025-12-09T02:08:12.946365-05:00",
     "source": null,
     "baseline_active": false,
     "baseline_as_of": null
@@ -528,7 +528,7 @@
     "baseline_as_of": null
   },
   "TSLA": {
-    "fetched_at": null,
+    "fetched_at": "2025-12-09T02:08:11.398411-05:00",
     "source": null,
     "baseline_active": false,
     "baseline_as_of": null
@@ -954,7 +954,7 @@
     "baseline_as_of": null
   },
   "PYPL": {
-    "fetched_at": "2025-11-01T11:29:41.783697-04:00",
+    "fetched_at": "2025-12-09T02:08:17.528292-05:00",
     "source": null,
     "baseline_active": false,
     "baseline_as_of": null
@@ -1183,6 +1183,54 @@
   },
   "SOFI, HOOD, MARA, IREN, CIFR, OXY, ET, RIG, HAL, CVX, NIO, JD, QS, PDD, LCID": {
     "fetched_at": null,
+    "source": null,
+    "baseline_active": false,
+    "baseline_as_of": null
+  },
+  "LCID": {
+    "fetched_at": null,
+    "source": null,
+    "baseline_active": false,
+    "baseline_as_of": null
+  },
+  "RKT": {
+    "fetched_at": "2025-12-09T02:08:05.269953-05:00",
+    "source": "polygon-history",
+    "baseline_active": false,
+    "baseline_as_of": null
+  },
+  "CORZ": {
+    "fetched_at": "2025-12-09T02:08:06.714880-05:00",
+    "source": "polygon-history",
+    "baseline_active": false,
+    "baseline_as_of": null
+  },
+  "BITF": {
+    "fetched_at": "2025-12-09T02:08:08.236461-05:00",
+    "source": "polygon-history",
+    "baseline_active": false,
+    "baseline_as_of": null
+  },
+  "CVNA": {
+    "fetched_at": "2025-12-09T02:08:09.781196-05:00",
+    "source": "polygon-history",
+    "baseline_active": false,
+    "baseline_as_of": null
+  },
+  "WULF": {
+    "fetched_at": "2025-12-09T02:08:14.446318-05:00",
+    "source": "polygon-history",
+    "baseline_active": false,
+    "baseline_as_of": null
+  },
+  "CCL": {
+    "fetched_at": "2025-12-09T02:08:19.056420-05:00",
+    "source": "polygon-history",
+    "baseline_active": false,
+    "baseline_as_of": null
+  },
+  "CC": {
+    "fetched_at": "2025-12-09T02:28:29.548616-05:00",
     "source": null,
     "baseline_active": false,
     "baseline_as_of": null
