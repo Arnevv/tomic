@@ -31,7 +31,10 @@ function App() {
     <div className="app-layout">
       {/* Header */}
       <header className="app-header">
-        <h1>TOMIC</h1>
+        <div style={{ display: 'flex', alignItems: 'baseline', gap: '12px' }}>
+          <h1 style={{ color: 'var(--cobra-orange)' }}>TOMIC</h1>
+          <span className="tagline">implementing happiness</span>
+        </div>
 
         <div className="mode-toggle">
           <button
@@ -48,8 +51,12 @@ function App() {
           </button>
         </div>
 
-        <button className="btn btn-secondary" onClick={toggleTheme}>
-          {theme === 'light' ? '🌙' : '☀️'}
+        <button
+          className="btn btn-secondary"
+          onClick={toggleTheme}
+          style={{ fontSize: '12px', padding: '6px 12px' }}
+        >
+          {theme === 'light' ? 'Dark' : 'Light'}
         </button>
       </header>
 
@@ -63,31 +70,31 @@ function App() {
                 className={`nav-item ${monitorView === 'dashboard' ? 'active' : ''}`}
                 onClick={() => setMonitorView('dashboard')}
               >
-                <span>📊</span> Dashboard
+                Dashboard
               </div>
               <div
                 className={`nav-item ${monitorView === 'portfolio' ? 'active' : ''}`}
                 onClick={() => setMonitorView('portfolio')}
               >
-                <span>💼</span> Portfolio
+                Portfolio
               </div>
               <div
                 className={`nav-item ${monitorView === 'manage' ? 'active' : ''}`}
                 onClick={() => setMonitorView('manage')}
               >
-                <span>🎯</span> Manage
+                Manage
               </div>
               <div
                 className={`nav-item ${monitorView === 'system' ? 'active' : ''}`}
                 onClick={() => setMonitorView('system')}
               >
-                <span>⚙️</span> System
+                System
               </div>
               <div
                 className={`nav-item ${monitorView === 'logs' ? 'active' : ''}`}
                 onClick={() => setMonitorView('logs')}
               >
-                <span>📋</span> Logs
+                Logs
               </div>
             </>
           ) : (
@@ -96,13 +103,13 @@ function App() {
                 className={`nav-item ${decideView === 'scanner' ? 'active' : ''}`}
                 onClick={() => setDecideView('scanner')}
               >
-                <span>🔍</span> Scanner
+                Scanner
               </div>
               <div
                 className={`nav-item ${decideView === 'journal' ? 'active' : ''}`}
                 onClick={() => setDecideView('journal')}
               >
-                <span>📓</span> Journal
+                Journal
               </div>
             </>
           )}
