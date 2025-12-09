@@ -43,3 +43,6 @@ account_info.json
 
 # ORATS cache (large ZIP files)
 tomic/data/orats_cache/
+
+#frontend
+frontend/node_modules
