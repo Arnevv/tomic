@@ -1,33 +1,41 @@
 /* TOMIC Wireframes - Design System */
+/* Cobra Consultancy Brand Guidelines Applied */
 
 /* CSS Variables - Light Mode (Default) */
 :root {
-  /* Background colors */
-  --bg-primary: #FFFFFF;
-  --bg-secondary: #F8F9FA;
-  --bg-tertiary: #E9ECEF;
-  --bg-hover: #F1F3F5;
+  /* Cobra Brand Colors */
+  --cobra-oxford-blue: #02033B;
+  --cobra-orange: #EB5E28;
+  --cobra-jungle-green: #048A81;
+  --cobra-white: #FFFCF2;
+  --cobra-grey: #E5E2DC;
 
-  /* Text colors */
-  --text-primary: #212529;
-  --text-secondary: #6C757D;
-  --text-muted: #ADB5BD;
+  /* Background colors - Cobra themed */
+  --bg-primary: #FFFCF2;
+  --bg-secondary: #F5F3ED;
+  --bg-tertiary: #E5E2DC;
+  --bg-hover: #EBE8E2;
 
-  /* Accent colors */
-  --accent-primary: #0D6EFD;
-  --accent-success: #198754;
-  --accent-warning: #FFC107;
-  --accent-danger: #DC3545;
-  --accent-info: #0DCAF0;
+  /* Text colors - Cobra Oxford Blue based */
+  --text-primary: #02033B;
+  --text-secondary: #3D3E5C;
+  --text-muted: #6B6C8A;
 
-  /* Border */
-  --border-color: #DEE2E6;
-  --border-light: #E9ECEF;
+  /* Accent colors - Cobra branded */
+  --accent-primary: #EB5E28;
+  --accent-success: #048A81;
+  --accent-warning: #E89B3C;
+  --accent-danger: #D64545;
+  --accent-info: #048A81;
+
+  /* Border - Cobra grey tones */
+  --border-color: #D5D2CC;
+  --border-light: #E5E2DC;
 
   /* Shadow */
-  --shadow-sm: 0 1px 2px rgba(0,0,0,0.05);
-  --shadow-md: 0 4px 6px rgba(0,0,0,0.1);
-  --shadow-lg: 0 10px 15px rgba(0,0,0,0.1);
+  --shadow-sm: 0 1px 2px rgba(2,3,59,0.05);
+  --shadow-md: 0 4px 6px rgba(2,3,59,0.1);
+  --shadow-lg: 0 10px 15px rgba(2,3,59,0.1);
 
   /* Spacing */
   --spacing-xs: 4px;
@@ -36,33 +44,36 @@
   --spacing-lg: 24px;
   --spacing-xl: 32px;
 
-  /* Border radius */
+  /* Border radius - Cobra uses rounded buttons */
   --radius-sm: 4px;
   --radius-md: 8px;
   --radius-lg: 12px;
+  --radius-pill: 2rem;
 
-  /* Font */
-  --font-family: Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  /* Font - Cobra Typography */
+  --font-family: 'Karla', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-heading: 'Montserrat', -apple-system, BlinkMacSystemFont, sans-serif;
   --font-mono: 'JetBrains Mono', Consolas, Monaco, monospace;
+  --heading-letter-spacing: -0.02em;
 }
 
-/* Dark Mode */
+/* Dark Mode - Cobra Oxford Blue based */
 [data-theme="dark"] {
-  --bg-primary: #1A1D21;
-  --bg-secondary: #212529;
-  --bg-tertiary: #2C3034;
-  --bg-hover: #343A40;
+  --bg-primary: #02033B;
+  --bg-secondary: #0A0B4A;
+  --bg-tertiary: #151659;
+  --bg-hover: #1E1F68;
 
-  --text-primary: #F8F9FA;
-  --text-secondary: #ADB5BD;
-  --text-muted: #6C757D;
+  --text-primary: #FFFCF2;
+  --text-secondary: #C5C3BD;
+  --text-muted: #8A897F;
 
-  --border-color: #495057;
-  --border-light: #343A40;
+  --border-color: #2A2B6A;
+  --border-light: #1E1F68;
 
-  --shadow-sm: 0 1px 2px rgba(0,0,0,0.2);
-  --shadow-md: 0 4px 6px rgba(0,0,0,0.3);
-  --shadow-lg: 0 10px 15px rgba(0,0,0,0.4);
+  --shadow-sm: 0 1px 2px rgba(0,0,0,0.3);
+  --shadow-md: 0 4px 6px rgba(0,0,0,0.4);
+  --shadow-lg: 0 10px 15px rgba(0,0,0,0.5);
 }
 
 /* Reset & Base */
@@ -83,7 +94,13 @@ body {
   flex-direction: column;
 }
 
-/* Typography */
+/* Typography - Cobra Brand: Montserrat for headings, Karla for body */
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-heading);
+  letter-spacing: var(--heading-letter-spacing);
+  color: var(--text-primary);
+}
+
 h1 {
   font-size: 24px;
   font-weight: 700;
@@ -125,16 +142,18 @@ h4 {
 }
 
 .logo {
+  font-family: var(--font-heading);
   font-size: 20px;
   font-weight: 700;
-  color: var(--accent-primary);
-  letter-spacing: -0.5px;
+  color: var(--cobra-orange);
+  letter-spacing: var(--heading-letter-spacing);
+  text-transform: lowercase;
 }
 
 .mode-toggle {
   display: flex;
   background: var(--bg-tertiary);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-pill);
   padding: 2px;
 }
 
@@ -144,14 +163,15 @@ h4 {
   background: transparent;
   color: var(--text-secondary);
   cursor: pointer;
-  border-radius: var(--radius-sm);
-  font-weight: 500;
+  border-radius: var(--radius-pill);
+  font-family: var(--font-heading);
+  font-weight: 600;
   transition: all 0.2s;
 }
 
 .mode-btn.active {
-  background: var(--bg-primary);
-  color: var(--accent-primary);
+  background: var(--cobra-oxford-blue);
+  color: var(--cobra-white);
   box-shadow: var(--shadow-sm);
 }
 
@@ -224,7 +244,9 @@ h4 {
   color: var(--text-secondary);
   text-align: left;
   transition: all 0.2s;
+  font-family: var(--font-heading);
   font-size: 14px;
+  font-weight: 500;
 }
 
 .nav-item:hover {
@@ -233,8 +255,8 @@ h4 {
 }
 
 .nav-item.active {
-  background: var(--accent-primary);
-  color: white;
+  background: var(--cobra-oxford-blue);
+  color: var(--cobra-white);
 }
 
 .nav-icon {
@@ -426,13 +448,14 @@ h4 {
   color: var(--accent-info);
 }
 
-/* Buttons */
+/* Buttons - Cobra Brand Style */
 .btn {
   padding: var(--spacing-sm) var(--spacing-md);
   border: 1px solid var(--border-color);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-pill);
   cursor: pointer;
-  font-weight: 500;
+  font-family: var(--font-heading);
+  font-weight: 600;
   font-size: 14px;
   transition: all 0.2s;
   display: inline-flex;
@@ -441,22 +464,35 @@ h4 {
 }
 
 .btn-primary {
-  background: var(--accent-primary);
-  color: white;
-  border-color: var(--accent-primary);
+  background: var(--cobra-orange);
+  color: var(--cobra-white);
+  border-color: var(--cobra-orange);
 }
 
 .btn-primary:hover {
-  background: #0b5ed7;
+  background: #D54D1A;
+  border-color: #D54D1A;
 }
 
 .btn-secondary {
   background: var(--bg-primary);
   color: var(--text-primary);
+  border-color: var(--border-color);
 }
 
 .btn-secondary:hover {
   background: var(--bg-hover);
+}
+
+.btn-accent {
+  background: var(--cobra-jungle-green);
+  color: var(--cobra-white);
+  border-color: var(--cobra-jungle-green);
+}
+
+.btn-accent:hover {
+  background: #037A72;
+  border-color: #037A72;
 }
 
 .btn-small {
@@ -467,9 +503,10 @@ h4 {
 .btn-back {
   background: transparent;
   border: none;
-  color: var(--accent-primary);
+  color: var(--cobra-orange);
   cursor: pointer;
-  font-weight: 500;
+  font-family: var(--font-heading);
+  font-weight: 600;
   padding: 0;
 }
 
@@ -480,13 +517,16 @@ h4 {
 .link-btn {
   background: transparent;
   border: none;
-  color: var(--accent-primary);
+  color: var(--cobra-jungle-green);
   cursor: pointer;
+  font-family: var(--font-heading);
+  font-weight: 500;
   font-size: 13px;
 }
 
 .link-btn:hover {
   text-decoration: underline;
+  color: var(--cobra-orange);
 }
 
 .button-group {
@@ -513,6 +553,7 @@ h4 {
 }
 
 .data-table th {
+  font-family: var(--font-heading);
   font-weight: 600;
   color: var(--text-secondary);
   font-size: 12px;
@@ -550,31 +591,32 @@ h4 {
   padding: var(--spacing-xs) var(--spacing-sm);
 }
 
-/* Status Badges */
+/* Status Badges - Cobra Brand Colors */
 .status-badge {
   display: inline-block;
   padding: 2px 8px;
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-pill);
+  font-family: var(--font-heading);
   font-size: 12px;
   font-weight: 500;
 }
 
 .status-badge.success {
-  background: rgba(25, 135, 84, 0.1);
-  color: var(--accent-success);
+  background: rgba(4, 138, 129, 0.1);
+  color: var(--cobra-jungle-green);
 }
 
 .status-badge.warning {
-  background: rgba(255, 193, 7, 0.15);
-  color: #997404;
+  background: rgba(235, 94, 40, 0.1);
+  color: var(--cobra-orange);
 }
 
 [data-theme="dark"] .status-badge.warning {
-  color: var(--accent-warning);
+  color: var(--cobra-orange);
 }
 
 .status-badge.error {
-  background: rgba(220, 53, 69, 0.1);
+  background: rgba(214, 69, 69, 0.1);
   color: var(--accent-danger);
 }
 
@@ -584,8 +626,8 @@ h4 {
 }
 
 .status-badge.info {
-  background: rgba(13, 202, 240, 0.1);
-  color: var(--accent-info);
+  background: rgba(4, 138, 129, 0.1);
+  color: var(--cobra-jungle-green);
 }
 
 /* Activity List */
@@ -700,12 +742,12 @@ h4 {
 
 /* Position Row */
 .position-row.highlight {
-  background: rgba(25, 135, 84, 0.05);
+  background: rgba(4, 138, 129, 0.05);
 }
 
 /* Alerts Panel */
 .alerts-panel {
-  border-left: 3px solid var(--accent-warning);
+  border-left: 3px solid var(--cobra-orange);
 }
 
 .alert-list {
@@ -955,12 +997,12 @@ h4 {
 }
 
 .symbol-card:hover {
-  border-color: var(--accent-primary);
+  border-color: var(--cobra-orange);
   box-shadow: var(--shadow-md);
 }
 
 .symbol-card.recommended {
-  border-color: var(--accent-success);
+  border-color: var(--cobra-jungle-green);
   border-width: 2px;
 }
 
@@ -982,12 +1024,13 @@ h4 {
 }
 
 .symbol-card-score {
+  font-family: var(--font-heading);
   font-weight: 600;
-  color: var(--accent-primary);
+  color: var(--cobra-orange);
 }
 
 .symbol-card-score.recommended {
-  color: var(--accent-success);
+  color: var(--cobra-jungle-green);
 }
 
 .symbol-card-metrics {
@@ -1036,12 +1079,13 @@ h4 {
 
 /* Symbol Detail View */
 .recommended-badge {
-  background: var(--accent-success);
-  color: white;
+  background: var(--cobra-jungle-green);
+  color: var(--cobra-white);
   padding: var(--spacing-xs) var(--spacing-sm);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-pill);
+  font-family: var(--font-heading);
   font-size: 12px;
-  font-weight: 500;
+  font-weight: 600;
 }
 
 .quick-facts {
@@ -1060,7 +1104,7 @@ h4 {
 }
 
 .positive {
-  color: var(--accent-success);
+  color: var(--cobra-jungle-green);
 }
 
 .negative {
@@ -1107,24 +1151,26 @@ h4 {
   border-radius: 3px;
 }
 
-/* Badge */
+/* Badge - Cobra Brand */
 .badge {
   display: inline-block;
   padding: 2px 6px;
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-pill);
+  font-family: var(--font-heading);
   font-size: 11px;
+  font-weight: 500;
   background: var(--bg-tertiary);
   color: var(--text-secondary);
 }
 
 .badge.info {
-  background: rgba(13, 202, 240, 0.1);
-  color: var(--accent-info);
+  background: rgba(4, 138, 129, 0.1);
+  color: var(--cobra-jungle-green);
 }
 
 .badge.success {
-  background: rgba(25, 135, 84, 0.1);
-  color: var(--accent-success);
+  background: rgba(4, 138, 129, 0.1);
+  color: var(--cobra-jungle-green);
 }
 
 /* Chart Placeholder */
@@ -1140,14 +1186,14 @@ h4 {
   height: 100%;
 }
 
-/* Score */
+/* Score - Cobra Brand */
 .score {
+  font-family: var(--font-heading);
   font-weight: 600;
-  font-family: var(--font-mono);
 }
 
 .score.recommended {
-  color: var(--accent-success);
+  color: var(--cobra-jungle-green);
 }
 
 /* Strategy Row */
@@ -1207,10 +1253,11 @@ h4 {
 
 /* Trade Builder */
 .score-badge {
-  background: var(--accent-success);
-  color: white;
+  background: var(--cobra-jungle-green);
+  color: var(--cobra-white);
   padding: var(--spacing-xs) var(--spacing-sm);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-pill);
+  font-family: var(--font-heading);
   font-weight: 600;
 }
 
@@ -1273,11 +1320,11 @@ h4 {
 }
 
 .scenario-item.highlight {
-  background: rgba(13, 110, 253, 0.1);
-  border: 1px solid var(--accent-primary);
+  background: rgba(235, 94, 40, 0.1);
+  border: 1px solid var(--cobra-orange);
 }
 
-/* Journal Tabs */
+/* Journal Tabs - Cobra Brand */
 .tabs {
   display: flex;
   gap: var(--spacing-xs);
@@ -1292,7 +1339,8 @@ h4 {
   border-bottom: 2px solid transparent;
   cursor: pointer;
   color: var(--text-secondary);
-  font-weight: 500;
+  font-family: var(--font-heading);
+  font-weight: 600;
   transition: all 0.2s;
 }
 
@@ -1301,8 +1349,8 @@ h4 {
 }
 
 .tab.active {
-  color: var(--accent-primary);
-  border-bottom-color: var(--accent-primary);
+  color: var(--cobra-orange);
+  border-bottom-color: var(--cobra-orange);
 }
 
 .tab-content {
@@ -1315,7 +1363,7 @@ h4 {
 
 /* Journal Row */
 .journal-row.selected {
-  background: rgba(13, 110, 253, 0.05);
+  background: rgba(235, 94, 40, 0.05);
 }
 
 /* Trade Detail */
