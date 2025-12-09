@@ -121,3 +121,24 @@ export interface ManagementData {
   total_strategies: number;
   needs_attention: number;
 }
+
+export interface ScannerSymbol {
+  symbol: string;
+  spot: number | null;
+  iv: number | null;
+  iv_rank: number | null;
+  hv30: number | null;
+  iv_hv_ratio: number | null;
+  days_to_earnings: number | null;
+  score: number | null;
+  score_label: string | null;
+  recommended_strategies: string[];
+  last_updated: string | null;
+}
+
+export interface ScannerData {
+  symbols: ScannerSymbol[];
+  total_symbols: number;
+  scan_time: string | null;
+  filters_applied: Record<string, unknown>;
+}

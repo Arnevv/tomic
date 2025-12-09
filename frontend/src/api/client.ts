@@ -24,6 +24,24 @@ export const api = {
   getPortfolio: () => fetchApi<import('../types').PortfolioSummary>('/portfolio'),
   getJournal: () => fetchApi<import('../types').JournalData>('/journal'),
   getManagement: () => fetchApi<import('../types').ManagementData>('/management'),
+  getScanner: (params?: {
+    min_iv_rank?: number;
+    max_iv_rank?: number;
+    min_score?: number;
+    strategy?: string;
+    sort_by?: string;
+    limit?: number;
+  }) => {
+    const searchParams = new URLSearchParams();
+    if (params?.min_iv_rank !== undefined) searchParams.set('min_iv_rank', String(params.min_iv_rank));
+    if (params?.max_iv_rank !== undefined) searchParams.set('max_iv_rank', String(params.max_iv_rank));
+    if (params?.min_score !== undefined) searchParams.set('min_score', String(params.min_score));
+    if (params?.strategy) searchParams.set('strategy', params.strategy);
+    if (params?.sort_by) searchParams.set('sort_by', params.sort_by);
+    if (params?.limit !== undefined) searchParams.set('limit', String(params.limit));
+    const query = searchParams.toString();
+    return fetchApi<import('../types').ScannerData>(`/scanner${query ? `?${query}` : ''}`);
+  },
   getSymbols: () => fetchApi<{ symbols: string[] }>('/symbols'),
   refreshPortfolio: () => fetchApi<{ status: string }>('/portfolio/refresh', { method: 'POST' }),
 };

@@ -25,6 +25,8 @@ from .models import (
     Position,
     PositionLeg,
     RecentActivity,
+    ScannerResponse,
+    ScannerSymbol,
     StrategyManagement,
     SystemHealth,
 )
@@ -512,6 +514,147 @@ async def get_management():
             strategies=strategies,
             total_strategies=len(strategies),
             needs_attention=needs_attention,
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+def _load_symbols() -> list[str]:
+    """Load configured symbols from symbols.yaml."""
+    import yaml
+
+    symbols_file = get_project_root() / "config" / "symbols.yaml"
+    if symbols_file.exists():
+        with open(symbols_file) as f:
+            symbols = yaml.safe_load(f)
+        return symbols if isinstance(symbols, list) else []
+    return []
+
+
+def _generate_scanner_data(symbols: list[str]) -> list[ScannerSymbol]:
+    """Generate scanner data for symbols.
+
+    In production, this would fetch real market data.
+    For now, generates deterministic sample data based on symbol hash.
+    """
+    import hashlib
+
+    price_meta = load_json_file("price_meta.json") or {}
+    results = []
+
+    for symbol in symbols:
+        # Generate deterministic "random" values based on symbol
+        seed = int(hashlib.md5(symbol.encode()).hexdigest()[:8], 16)
+
+        # Generate plausible values
+        spot = 50 + (seed % 400)  # $50-$450
+        iv = 0.15 + (seed % 50) / 100  # 15%-65%
+        hv30 = iv * (0.7 + (seed % 30) / 100)  # HV usually lower than IV
+        iv_rank = (seed % 100) / 100  # 0-100%
+        iv_hv_ratio = iv / hv30 if hv30 > 0 else None
+
+        # Days to earnings (None for some, 5-60 for others)
+        days_to_earnings = None if seed % 4 == 0 else 5 + (seed % 55)
+
+        # Score based on IV rank and other factors
+        score = min(1.0, max(0.0, iv_rank * 0.4 + (1 - abs(iv_hv_ratio - 1.2) / 2) * 0.3 + 0.3)) if iv_hv_ratio else None
+
+        # Score label
+        score_label = None
+        if score is not None:
+            if score >= 0.85:
+                score_label = "A+"
+            elif score >= 0.75:
+                score_label = "A"
+            elif score >= 0.65:
+                score_label = "B+"
+            elif score >= 0.55:
+                score_label = "B"
+            elif score >= 0.45:
+                score_label = "C"
+            else:
+                score_label = "D"
+
+        # Recommended strategies based on IV level
+        strategies = []
+        if iv_rank and iv_rank > 0.6:
+            strategies.extend(["Iron Condor", "Credit Spread"])
+        if iv_rank and iv_rank < 0.3:
+            strategies.append("Calendar Spread")
+        if iv_hv_ratio and iv_hv_ratio > 1.3:
+            strategies.append("Straddle Sell")
+
+        # Get last updated from price_meta
+        meta = price_meta.get(symbol, {})
+        last_updated = meta.get("fetched_at")
+
+        results.append(ScannerSymbol(
+            symbol=symbol,
+            spot=round(spot, 2),
+            iv=round(iv, 3),
+            iv_rank=round(iv_rank, 2),
+            hv30=round(hv30, 3),
+            iv_hv_ratio=round(iv_hv_ratio, 2) if iv_hv_ratio else None,
+            days_to_earnings=days_to_earnings,
+            score=round(score, 2) if score else None,
+            score_label=score_label,
+            recommended_strategies=strategies[:3],  # Max 3
+            last_updated=last_updated,
+        ))
+
+    return results
+
+
+@app.get("/api/scanner", response_model=ScannerResponse)
+async def get_scanner(
+    min_iv_rank: float | None = None,
+    max_iv_rank: float | None = None,
+    min_score: float | None = None,
+    strategy: str | None = None,
+    sort_by: str = "score",
+    limit: int = 50,
+):
+    """Get scanner results with symbol opportunities."""
+    try:
+        symbols = _load_symbols()
+        scanner_data = _generate_scanner_data(symbols)
+
+        # Apply filters
+        filtered = scanner_data
+        filters_applied = {}
+
+        if min_iv_rank is not None:
+            filtered = [s for s in filtered if s.iv_rank and s.iv_rank >= min_iv_rank]
+            filters_applied["min_iv_rank"] = min_iv_rank
+
+        if max_iv_rank is not None:
+            filtered = [s for s in filtered if s.iv_rank and s.iv_rank <= max_iv_rank]
+            filters_applied["max_iv_rank"] = max_iv_rank
+
+        if min_score is not None:
+            filtered = [s for s in filtered if s.score and s.score >= min_score]
+            filters_applied["min_score"] = min_score
+
+        if strategy:
+            filtered = [s for s in filtered if strategy.lower() in [st.lower() for st in s.recommended_strategies]]
+            filters_applied["strategy"] = strategy
+
+        # Sort
+        if sort_by == "score":
+            filtered.sort(key=lambda x: x.score or 0, reverse=True)
+        elif sort_by == "iv_rank":
+            filtered.sort(key=lambda x: x.iv_rank or 0, reverse=True)
+        elif sort_by == "symbol":
+            filtered.sort(key=lambda x: x.symbol)
+
+        # Limit
+        filtered = filtered[:limit]
+
+        return ScannerResponse(
+            symbols=filtered,
+            total_symbols=len(filtered),
+            scan_time=datetime.now(),
+            filters_applied=filters_applied,
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

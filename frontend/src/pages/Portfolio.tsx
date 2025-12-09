@@ -87,7 +87,7 @@ export function Portfolio() {
             <div>
               <div style={{ color: 'var(--text-muted)', fontSize: '12px' }}>Theta</div>
               <div className="mono" style={{ fontSize: '18px' }}>
-                {data.greeks?.theta !== null ? `$${data.greeks.theta.toFixed(0)}/day` : '-'}
+                {data.greeks?.theta != null ? `$${data.greeks.theta.toFixed(0)}/day` : '-'}
               </div>
             </div>
             <div>
