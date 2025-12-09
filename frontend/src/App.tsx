@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Dashboard } from './pages/Dashboard';
 import { Portfolio } from './pages/Portfolio';
 import { Management } from './pages/Management';
+import { Scanner } from './pages/Scanner';
 import { StatusBar } from './components/StatusBar';
 import { api } from './api/client';
 import { useApi } from './hooks/useApi';
@@ -24,8 +25,6 @@ function App() {
     setTheme(newTheme);
     document.documentElement.setAttribute('data-theme', newTheme);
   };
-
-  const currentView = mode === 'monitor' ? monitorView : decideView;
 
   return (
     <div className="app-layout">
@@ -136,14 +135,7 @@ function App() {
               </p>
             </div>
           )}
-          {mode === 'decide' && decideView === 'scanner' && (
-            <div className="card">
-              <h2>Scanner</h2>
-              <p style={{ color: 'var(--text-muted)', marginTop: 'var(--space-md)' }}>
-                Coming soon in Phase 2...
-              </p>
-            </div>
-          )}
+          {mode === 'decide' && decideView === 'scanner' && <Scanner />}
           {mode === 'decide' && decideView === 'journal' && (
             <div className="card">
               <h2>Trade Journal</h2>

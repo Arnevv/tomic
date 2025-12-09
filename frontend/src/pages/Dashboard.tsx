@@ -24,15 +24,6 @@ export function Dashboard() {
 
   const { health, portfolio_summary, batch_jobs, alerts } = data;
 
-  const getHealthIcon = (status: string) => {
-    switch (status) {
-      case 'healthy': return '✓';
-      case 'warning': return '⚠';
-      case 'error': return '✗';
-      default: return '?';
-    }
-  };
-
   return (
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--space-lg)' }}>

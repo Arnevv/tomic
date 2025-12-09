@@ -156,3 +156,28 @@ class ManagementResponse(BaseModel):
     strategies: list[StrategyManagement] = []
     total_strategies: int = 0
     needs_attention: int = 0
+
+
+class ScannerSymbol(BaseModel):
+    """Symbol data for scanner view."""
+
+    symbol: str
+    spot: float | None = None
+    iv: float | None = None
+    iv_rank: float | None = None
+    hv30: float | None = None
+    iv_hv_ratio: float | None = None
+    days_to_earnings: int | None = None
+    score: float | None = None
+    score_label: str | None = None
+    recommended_strategies: list[str] = []
+    last_updated: str | None = None
+
+
+class ScannerResponse(BaseModel):
+    """Scanner results response."""
+
+    symbols: list[ScannerSymbol] = []
+    total_symbols: int = 0
+    scan_time: datetime | None = None
+    filters_applied: dict[str, Any] = {}
