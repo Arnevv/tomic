@@ -41,6 +41,7 @@ export interface Position {
   days_to_expiry: number | null;
   status: 'normal' | 'monitor' | 'tp_ready' | 'exit';
   alerts: string[];
+  greeks: PortfolioGreeks | null;
 }
 
 export interface PortfolioSummary {

@@ -58,6 +58,7 @@ class Position(BaseModel):
     days_to_expiry: int | None = None
     status: str = "normal"  # "normal", "monitor", "tp_ready", "exit"
     alerts: list[str] = []
+    greeks: PortfolioGreeks | None = None  # Position-level Greeks
 
 
 class PortfolioSummary(BaseModel):
