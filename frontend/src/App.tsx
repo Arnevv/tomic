@@ -3,6 +3,8 @@ import { Dashboard } from './pages/Dashboard';
 import { Portfolio } from './pages/Portfolio';
 import { Management } from './pages/Management';
 import { Scanner } from './pages/Scanner';
+import { System } from './pages/System';
+import { Logs } from './pages/Logs';
 import { StatusBar } from './components/StatusBar';
 import { api } from './api/client';
 import { useApi } from './hooks/useApi';
@@ -112,22 +114,8 @@ function App() {
           {mode === 'monitor' && monitorView === 'dashboard' && <Dashboard />}
           {mode === 'monitor' && monitorView === 'portfolio' && <Portfolio />}
           {mode === 'monitor' && monitorView === 'manage' && <Management />}
-          {mode === 'monitor' && monitorView === 'system' && (
-            <div className="card">
-              <h2>System View</h2>
-              <p style={{ color: 'var(--text-muted)', marginTop: 'var(--space-md)' }}>
-                Coming soon...
-              </p>
-            </div>
-          )}
-          {mode === 'monitor' && monitorView === 'logs' && (
-            <div className="card">
-              <h2>Activity Logs</h2>
-              <p style={{ color: 'var(--text-muted)', marginTop: 'var(--space-md)' }}>
-                Coming soon...
-              </p>
-            </div>
-          )}
+          {mode === 'monitor' && monitorView === 'system' && <System />}
+          {mode === 'monitor' && monitorView === 'logs' && <Logs />}
           {mode === 'decide' && decideView === 'scanner' && <Scanner />}
           {mode === 'decide' && decideView === 'journal' && (
             <div className="card">

@@ -181,3 +181,49 @@ class ScannerResponse(BaseModel):
     total_symbols: int = 0
     scan_time: datetime | None = None
     filters_applied: dict[str, Any] = {}
+
+
+class ServiceStatus(BaseModel):
+    """Individual service status."""
+
+    name: str
+    status: str  # "online", "offline", "warning"
+    message: str | None = None
+    last_check: datetime | None = None
+    details: dict[str, Any] = {}
+
+
+class ConfigItem(BaseModel):
+    """Configuration item for display."""
+
+    key: str
+    value: str
+    category: str
+
+
+class SystemResponse(BaseModel):
+    """System status and configuration response."""
+
+    services: list[ServiceStatus] = []
+    batch_jobs: list[BatchJob] = []
+    config: list[ConfigItem] = []
+    system_info: dict[str, Any] = {}
+
+
+class LogEntry(BaseModel):
+    """Log entry for activity logs."""
+
+    timestamp: datetime
+    level: str  # "info", "warning", "error"
+    message: str
+    category: str | None = None
+    details: dict[str, Any] = {}
+
+
+class LogsResponse(BaseModel):
+    """Activity logs response."""
+
+    entries: list[LogEntry] = []
+    total_entries: int = 0
+    error_count: int = 0
+    warning_count: int = 0

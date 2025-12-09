@@ -142,3 +142,39 @@ export interface ScannerData {
   scan_time: string | null;
   filters_applied: Record<string, unknown>;
 }
+
+export interface ServiceStatus {
+  name: string;
+  status: 'online' | 'offline' | 'warning';
+  message: string | null;
+  last_check: string | null;
+  details: Record<string, unknown>;
+}
+
+export interface ConfigItem {
+  key: string;
+  value: string;
+  category: string;
+}
+
+export interface SystemData {
+  services: ServiceStatus[];
+  batch_jobs: BatchJob[];
+  config: ConfigItem[];
+  system_info: Record<string, string>;
+}
+
+export interface LogEntry {
+  timestamp: string;
+  level: 'info' | 'warning' | 'error';
+  message: string;
+  category: string | null;
+  details: Record<string, unknown>;
+}
+
+export interface LogsData {
+  entries: LogEntry[];
+  total_entries: number;
+  error_count: number;
+  warning_count: number;
+}

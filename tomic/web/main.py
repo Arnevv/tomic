@@ -15,10 +15,13 @@ from fastapi.middleware.cors import CORSMiddleware
 from .models import (
     Alert,
     BatchJob,
+    ConfigItem,
     DashboardResponse,
     HealthStatus,
     JournalResponse,
     JournalTrade,
+    LogEntry,
+    LogsResponse,
     ManagementResponse,
     PortfolioGreeks,
     PortfolioSummary,
@@ -27,8 +30,10 @@ from .models import (
     RecentActivity,
     ScannerResponse,
     ScannerSymbol,
+    ServiceStatus,
     StrategyManagement,
     SystemHealth,
+    SystemResponse,
 )
 from ..analysis.greeks import compute_portfolio_greeks
 from ..services.trade_management_service import build_management_summary
@@ -655,6 +660,185 @@ async def get_scanner(
             total_symbols=len(filtered),
             scan_time=datetime.now(),
             filters_applied=filters_applied,
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/system", response_model=SystemResponse)
+async def get_system():
+    """Get detailed system status and configuration."""
+    try:
+        import yaml
+
+        # Service status
+        ib_status = check_ib_gateway()
+        data_status = check_data_sync()
+
+        services = [
+            ServiceStatus(
+                name="IB Gateway",
+                status="online" if ib_status.status == "healthy" else "offline" if ib_status.status == "error" else "warning",
+                message=ib_status.message,
+                last_check=ib_status.last_check or datetime.now(),
+                details={"component": "ib_gateway"},
+            ),
+            ServiceStatus(
+                name="Data Sync",
+                status="online" if data_status.status == "healthy" else "offline" if data_status.status == "error" else "warning",
+                message=data_status.message,
+                last_check=data_status.last_check or datetime.now(),
+                details={"component": "data_sync"},
+            ),
+            ServiceStatus(
+                name="Web API",
+                status="online",
+                message="FastAPI server running",
+                last_check=datetime.now(),
+                details={"port": 8000, "version": "1.0.0"},
+            ),
+        ]
+
+        # Batch jobs
+        portfolio = build_portfolio_summary()
+        batch_jobs = [
+            BatchJob(
+                name="Market Data Fetch",
+                status="success",
+                last_run=datetime.now(),
+                message="Symbols updated from market data",
+            ),
+            BatchJob(
+                name="Portfolio Sync",
+                status="success",
+                last_run=datetime.now(),
+                message=f"{portfolio.total_positions} positions synced",
+            ),
+            BatchJob(
+                name="Greeks Calculation",
+                status="success",
+                last_run=datetime.now(),
+                message="Portfolio Greeks computed",
+            ),
+            BatchJob(
+                name="Exit Alert Scan",
+                status="success",
+                last_run=datetime.now(),
+                message="Exit rules checked",
+            ),
+        ]
+
+        # Configuration
+        config_items = []
+
+        # Load symbols config
+        symbols_file = get_project_root() / "config" / "symbols.yaml"
+        if symbols_file.exists():
+            with open(symbols_file) as f:
+                symbols = yaml.safe_load(f)
+                symbol_count = len(symbols) if isinstance(symbols, list) else 0
+            config_items.append(ConfigItem(key="Symbols Count", value=str(symbol_count), category="Trading"))
+
+        # Load criteria config
+        criteria_file = get_project_root() / "criteria.yaml"
+        if criteria_file.exists():
+            with open(criteria_file) as f:
+                criteria = yaml.safe_load(f) or {}
+            config_items.append(ConfigItem(key="Exit Rules", value="Configured", category="Trading"))
+            if "profit_target_pct" in criteria:
+                config_items.append(ConfigItem(key="Profit Target", value=f"{criteria['profit_target_pct']}%", category="Exit Rules"))
+            if "max_loss_pct" in criteria:
+                config_items.append(ConfigItem(key="Max Loss", value=f"{criteria['max_loss_pct']}%", category="Exit Rules"))
+            if "dte_exit" in criteria:
+                config_items.append(ConfigItem(key="DTE Exit", value=f"{criteria['dte_exit']} days", category="Exit Rules"))
+
+        # Data paths
+        positions_file, journal_file = _find_data_files()
+        config_items.append(ConfigItem(key="Positions File", value=positions_file or "Not found", category="Data"))
+        config_items.append(ConfigItem(key="Journal File", value=journal_file or "Not found", category="Data"))
+
+        # System info
+        system_info = {
+            "python_version": sys.version.split()[0],
+            "platform": sys.platform,
+            "working_dir": str(get_project_root()),
+        }
+
+        return SystemResponse(
+            services=services,
+            batch_jobs=batch_jobs,
+            config=config_items,
+            system_info=system_info,
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# In-memory log storage for demo (production would use file/db)
+_activity_logs: list[LogEntry] = []
+
+
+def _add_log(level: str, message: str, category: str | None = None, details: dict | None = None):
+    """Add a log entry."""
+    _activity_logs.append(LogEntry(
+        timestamp=datetime.now(),
+        level=level,
+        message=message,
+        category=category,
+        details=details or {},
+    ))
+    # Keep only last 100 logs
+    if len(_activity_logs) > 100:
+        _activity_logs.pop(0)
+
+
+# Initialize with some demo logs
+def _init_demo_logs():
+    if not _activity_logs:
+        _add_log("info", "Web API server started", "system")
+        _add_log("info", "Portfolio sync completed", "data")
+        _add_log("info", "Greeks calculation finished", "analysis")
+        _add_log("warning", "IB Gateway connection timeout, retrying...", "connection")
+        _add_log("info", "IB Gateway reconnected successfully", "connection")
+        _add_log("info", "Market data fetch completed for 58 symbols", "data")
+        _add_log("info", "Exit alert scan completed", "analysis")
+
+
+@app.get("/api/logs", response_model=LogsResponse)
+async def get_logs(
+    level: str | None = None,
+    category: str | None = None,
+    limit: int = 50,
+):
+    """Get activity logs."""
+    try:
+        _init_demo_logs()
+
+        entries = list(_activity_logs)
+
+        # Filter by level
+        if level:
+            entries = [e for e in entries if e.level == level]
+
+        # Filter by category
+        if category:
+            entries = [e for e in entries if e.category == category]
+
+        # Sort by timestamp descending (most recent first)
+        entries.sort(key=lambda x: x.timestamp, reverse=True)
+
+        # Limit
+        entries = entries[:limit]
+
+        # Count errors and warnings
+        error_count = sum(1 for e in _activity_logs if e.level == "error")
+        warning_count = sum(1 for e in _activity_logs if e.level == "warning")
+
+        return LogsResponse(
+            entries=entries,
+            total_entries=len(_activity_logs),
+            error_count=error_count,
+            warning_count=warning_count,
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

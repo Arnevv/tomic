@@ -44,4 +44,13 @@ export const api = {
   },
   getSymbols: () => fetchApi<{ symbols: string[] }>('/symbols'),
   refreshPortfolio: () => fetchApi<{ status: string }>('/portfolio/refresh', { method: 'POST' }),
+  getSystem: () => fetchApi<import('../types').SystemData>('/system'),
+  getLogs: (params?: { level?: string; category?: string; limit?: number }) => {
+    const searchParams = new URLSearchParams();
+    if (params?.level) searchParams.set('level', params.level);
+    if (params?.category) searchParams.set('category', params.category);
+    if (params?.limit !== undefined) searchParams.set('limit', String(params.limit));
+    const query = searchParams.toString();
+    return fetchApi<import('../types').LogsData>(`/logs${query ? `?${query}` : ''}`);
+  },
 };
