@@ -1,9 +1,12 @@
+import { useState } from 'react';
 import { api } from '../api/client';
 import { useApi } from '../hooks/useApi';
+import { PositionDetail } from '../components/PositionDetail';
 import type { PortfolioSummary, Position } from '../types';
 
 export function Portfolio() {
   const { data, loading, error, refetch } = useApi<PortfolioSummary>(() => api.getPortfolio());
+  const [selectedPosition, setSelectedPosition] = useState<Position | null>(null);
 
   if (loading) {
     return <div className="loading">Loading portfolio...</div>;
@@ -140,7 +143,7 @@ export function Portfolio() {
           </thead>
           <tbody>
             {data.positions.map((pos, i) => (
-              <tr key={i} style={{ cursor: 'pointer' }}>
+              <tr key={i} style={{ cursor: 'pointer' }} onClick={() => setSelectedPosition(pos)}>
                 <td style={{ fontWeight: '600' }}>{pos.symbol}</td>
                 <td>{pos.strategy || '-'}</td>
                 <td className="mono">
@@ -200,6 +203,14 @@ export function Portfolio() {
               </div>
             ))}
         </div>
+      )}
+
+      {/* Position Detail Modal */}
+      {selectedPosition && (
+        <PositionDetail
+          position={selectedPosition}
+          onClose={() => setSelectedPosition(null)}
+        />
       )}
     </div>
   );
