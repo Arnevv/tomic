@@ -1,20 +1,30 @@
-/* TOMIC Design System - Based on UX Design Document */
+/* TOMIC Design System - Cobra Consultancy Brand Guidelines Applied */
 
 :root {
-  /* Light Mode Colors */
-  --bg-primary: #FFFFFF;
-  --bg-secondary: #F8F9FA;
-  --bg-tertiary: #E9ECEF;
+  /* Cobra Brand Colors - Primary */
+  --cobra-oxford-blue: #02033B;
+  --cobra-orange: #EB5E28;
 
-  --text-primary: #212529;
-  --text-secondary: #6C757D;
-  --text-muted: #ADB5BD;
+  /* Cobra Brand Colors - Secondary */
+  --cobra-white: #FFFCF2;
+  --cobra-grey: #E5E2DC;
+  --cobra-jungle-green: #048A81;
 
-  --accent-primary: #0D6EFD;
+  /* Light Mode Colors - Mapped to Cobra Palette */
+  --bg-primary: var(--cobra-white);
+  --bg-secondary: #F5F3EF;
+  --bg-tertiary: var(--cobra-grey);
+
+  --text-primary: var(--cobra-oxford-blue);
+  --text-secondary: #3D3E5C;
+  --text-muted: #6C6D8A;
+
+  --accent-primary: var(--cobra-orange);
   --accent-success: #198754;
   --accent-warning: #FFC107;
   --accent-danger: #DC3545;
-  --accent-info: #0DCAF0;
+  --accent-info: var(--cobra-jungle-green);
+  --accent-cta: var(--cobra-jungle-green);
 
   --status-healthy: #198754;
   --status-warning: #FFC107;
@@ -28,25 +38,26 @@
   --space-lg: 24px;
   --space-xl: 32px;
 
-  /* Border radius */
+  /* Border radius - Cobra uses rounded elements */
   --radius-sm: 4px;
   --radius-md: 8px;
   --radius-lg: 12px;
+  --radius-pill: 2rem;
 
   /* Shadows */
-  --shadow-sm: 0 1px 2px rgba(0,0,0,0.05);
-  --shadow-md: 0 4px 6px rgba(0,0,0,0.1);
+  --shadow-sm: 0 1px 2px rgba(2,3,59,0.05);
+  --shadow-md: 0 4px 6px rgba(2,3,59,0.1);
 }
 
-/* Dark mode */
+/* Dark mode - Cobra palette adapted */
 [data-theme="dark"] {
-  --bg-primary: #1A1D21;
-  --bg-secondary: #212529;
-  --bg-tertiary: #2C3034;
+  --bg-primary: #1A1B2E;
+  --bg-secondary: #212235;
+  --bg-tertiary: #2C2D45;
 
-  --text-primary: #F8F9FA;
-  --text-secondary: #ADB5BD;
-  --text-muted: #6C757D;
+  --text-primary: var(--cobra-white);
+  --text-secondary: #B8B9CC;
+  --text-muted: #7C7D96;
 }
 
 * {
@@ -56,15 +67,28 @@
 }
 
 body {
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-family: 'Karla', -apple-system, BlinkMacSystemFont, sans-serif;
   font-size: 14px;
   line-height: 1.5;
   color: var(--text-primary);
   background-color: var(--bg-secondary);
 }
 
+/* Typography - Cobra Guidelines */
+h1, h2, h3, h4, h5, h6 {
+  font-family: 'Montserrat', sans-serif;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--text-primary);
+}
+
+h1 { font-size: 24px; }
+h2 { font-size: 20px; }
+h3 { font-size: 16px; }
+
 .mono {
-  font-family: 'JetBrains Mono', Consolas, monospace;
+  font-family: 'Montserrat', monospace;
+  font-weight: 500;
 }
 
 /* Layout */
@@ -89,6 +113,16 @@ body {
 .app-header h1 {
   font-size: 20px;
   font-weight: 700;
+  color: var(--cobra-oxford-blue);
+  letter-spacing: -0.02em;
+}
+
+/* Cobra Logo Styling - for potential logo component */
+.cobra-logo {
+  font-family: 'Montserrat', sans-serif;
+  font-weight: 700;
+  color: var(--cobra-orange);
+  text-transform: lowercase;
 }
 
 .app-content {
@@ -113,6 +147,8 @@ body {
   text-decoration: none;
   cursor: pointer;
   transition: all 0.15s ease;
+  font-family: 'Karla', sans-serif;
+  font-weight: 500;
 }
 
 .nav-item:hover {
@@ -121,8 +157,8 @@ body {
 }
 
 .nav-item.active {
-  background: var(--accent-primary);
-  color: white;
+  background: var(--cobra-orange);
+  color: var(--cobra-white);
 }
 
 .main-content {
@@ -149,7 +185,8 @@ body {
 }
 
 .card-title {
-  font-size: 14px;
+  font-family: 'Montserrat', sans-serif;
+  font-size: 12px;
   font-weight: 600;
   color: var(--text-secondary);
   text-transform: uppercase;
@@ -183,55 +220,74 @@ body {
 }
 
 .table th {
+  font-family: 'Montserrat', sans-serif;
   font-weight: 600;
   color: var(--text-secondary);
-  font-size: 12px;
+  font-size: 11px;
   text-transform: uppercase;
+  letter-spacing: 0.5px;
 }
 
 .table tr:hover {
   background: var(--bg-secondary);
 }
 
-/* Buttons */
+/* Buttons - Cobra Brand Guidelines */
 .btn {
   display: inline-flex;
   align-items: center;
   gap: var(--space-xs);
   padding: var(--space-sm) var(--space-md);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-pill);
+  font-family: 'Montserrat', sans-serif;
   font-size: 14px;
-  font-weight: 500;
+  font-weight: 600;
   cursor: pointer;
   transition: all 0.15s ease;
   border: none;
 }
 
 .btn-primary {
-  background: var(--accent-primary);
-  color: white;
+  background: var(--cobra-orange);
+  color: var(--cobra-white);
 }
 
 .btn-primary:hover {
-  background: #0b5ed7;
+  background: #D54E1F;
+  transform: translateY(-1px);
+}
+
+/* CTA button using Jungle Green */
+.btn-cta,
+.btn-accent {
+  background: var(--cobra-jungle-green);
+  color: var(--cobra-white);
+}
+
+.btn-cta:hover,
+.btn-accent:hover {
+  background: #037369;
+  transform: translateY(-1px);
 }
 
 .btn-secondary {
   background: transparent;
-  border: 1px solid var(--bg-tertiary);
+  border: 2px solid var(--bg-tertiary);
   color: var(--text-secondary);
 }
 
 .btn-secondary:hover {
   background: var(--bg-secondary);
+  border-color: var(--cobra-oxford-blue);
+  color: var(--text-primary);
 }
 
-/* Mode toggle */
+/* Mode toggle - Cobra styled */
 .mode-toggle {
   display: flex;
   background: var(--bg-secondary);
-  border-radius: var(--radius-sm);
-  padding: 2px;
+  border-radius: var(--radius-pill);
+  padding: 3px;
 }
 
 .mode-toggle button {
@@ -240,13 +296,16 @@ body {
   background: transparent;
   color: var(--text-secondary);
   cursor: pointer;
-  border-radius: var(--radius-sm);
-  font-weight: 500;
+  border-radius: var(--radius-pill);
+  font-family: 'Montserrat', sans-serif;
+  font-weight: 600;
+  font-size: 13px;
+  transition: all 0.15s ease;
 }
 
 .mode-toggle button.active {
-  background: var(--bg-primary);
-  color: var(--text-primary);
+  background: var(--cobra-oxford-blue);
+  color: var(--cobra-white);
   box-shadow: var(--shadow-sm);
 }
 
@@ -263,16 +322,17 @@ body {
   gap: var(--space-md);
 }
 
-/* Status bar */
+/* Status bar - Cobra styled */
 .status-bar {
   display: flex;
   align-items: center;
   gap: var(--space-lg);
   padding: var(--space-sm) var(--space-lg);
-  background: var(--bg-primary);
+  background: var(--cobra-oxford-blue);
   border-top: 1px solid var(--bg-tertiary);
+  font-family: 'Karla', sans-serif;
   font-size: 12px;
-  color: var(--text-secondary);
+  color: var(--cobra-white);
 }
 
 .status-bar-item {
@@ -281,7 +341,7 @@ body {
   gap: var(--space-xs);
 }
 
-/* Alerts badge */
+/* Alerts badge - Cobra styled */
 .badge {
   display: inline-flex;
   align-items: center;
@@ -289,18 +349,24 @@ body {
   min-width: 20px;
   height: 20px;
   padding: 0 6px;
-  border-radius: 10px;
+  border-radius: var(--radius-pill);
+  font-family: 'Montserrat', sans-serif;
   font-size: 11px;
   font-weight: 600;
 }
 
 .badge-warning {
   background: var(--accent-warning);
-  color: var(--text-primary);
+  color: var(--cobra-oxford-blue);
 }
 
 .badge-error {
   background: var(--accent-danger);
+  color: white;
+}
+
+.badge-info {
+  background: var(--cobra-jungle-green);
   color: white;
 }
 
@@ -311,11 +377,64 @@ body {
   justify-content: center;
   padding: var(--space-xl);
   color: var(--text-muted);
+  font-family: 'Karla', sans-serif;
 }
 
 /* P&L colors */
 .pnl-positive { color: var(--status-healthy); }
 .pnl-negative { color: var(--status-error); }
+
+/* Cobra accent elements */
+.cobra-accent-border {
+  border-left: 4px solid var(--cobra-orange);
+}
+
+.cobra-accent-bg {
+  background: linear-gradient(135deg, var(--cobra-orange) 0%, #D54E1F 100%);
+  color: var(--cobra-white);
+}
+
+/* Tagline styling for "implementing happiness" */
+.tagline {
+  font-family: 'Montserrat', sans-serif;
+  font-weight: 500;
+  color: var(--text-muted);
+  font-size: 12px;
+  letter-spacing: 0.02em;
+}
+
+/* Focus states - accessibility with Cobra colors */
+.btn:focus,
+.nav-item:focus,
+button:focus {
+  outline: 2px solid var(--cobra-jungle-green);
+  outline-offset: 2px;
+}
+
+/* Selection color */
+::selection {
+  background: var(--cobra-orange);
+  color: var(--cobra-white);
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--bg-secondary);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--cobra-grey);
+  border-radius: var(--radius-sm);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--text-muted);
+}
 
 /* Responsive */
 @media (max-width: 1200px) {
