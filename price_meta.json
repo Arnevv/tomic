@@ -372,7 +372,7 @@
     "baseline_as_of": null
   },
   "NFLX": {
-    "fetched_at": "2025-12-08T19:02:22.934524",
+    "fetched_at": "2025-12-08T21:01:59.798943",
     "source": null,
     "baseline_active": false,
     "baseline_as_of": null
@@ -474,7 +474,7 @@
     "baseline_as_of": null
   },
   "SCHW": {
-    "fetched_at": "2025-12-08T19:02:36.893209",
+    "fetched_at": "2025-12-08T21:02:14.150482",
     "source": null,
     "baseline_active": false,
     "baseline_as_of": null
@@ -774,7 +774,7 @@
     "baseline_as_of": null
   },
   "CRWD": {
-    "fetched_at": "2025-12-08T19:00:35.744697",
+    "fetched_at": "2025-12-08T21:00:37.439836",
     "source": null,
     "baseline_active": false,
     "baseline_as_of": null
@@ -798,7 +798,7 @@
     "baseline_as_of": null
   },
   "DDOG": {
-    "fetched_at": "2025-12-08T19:00:54.418129",
+    "fetched_at": "2025-12-08T21:00:55.842186",
     "source": null,
     "baseline_active": false,
     "baseline_as_of": null
@@ -906,7 +906,7 @@
     "baseline_as_of": null
   },
   "MRVL": {
-    "fetched_at": "2025-12-08T19:01:35.370554",
+    "fetched_at": "2025-12-08T21:01:12.838015",
     "source": null,
     "baseline_active": false,
     "baseline_as_of": null
@@ -1129,38 +1129,62 @@
   },
   "NIO": {
     "fetched_at": "2025-12-08T13:51:02.171593-05:00",
-    "source": "polygon-history"
+    "source": "polygon-history",
+    "baseline_active": false,
+    "baseline_as_of": null
   },
   "ET": {
     "fetched_at": "2025-12-08T13:51:03.712845-05:00",
-    "source": "polygon-history"
+    "source": "polygon-history",
+    "baseline_active": false,
+    "baseline_as_of": null
   },
   "MARA": {
     "fetched_at": "2025-12-08T13:51:09.862202-05:00",
-    "source": "polygon-history"
+    "source": "polygon-history",
+    "baseline_active": false,
+    "baseline_as_of": null
   },
   "F": {
     "fetched_at": "2025-12-08T13:51:12.940561-05:00",
-    "source": "polygon-history"
+    "source": "polygon-history",
+    "baseline_active": false,
+    "baseline_as_of": null
   },
   "QS": {
     "fetched_at": "2025-12-08T13:51:14.465792-05:00",
-    "source": "polygon-history"
+    "source": "polygon-history",
+    "baseline_active": false,
+    "baseline_as_of": null
   },
   "CIFR": {
     "fetched_at": "2025-12-08T13:51:15.974378-05:00",
-    "source": "polygon-history"
+    "source": "polygon-history",
+    "baseline_active": false,
+    "baseline_as_of": null
   },
   "JD": {
     "fetched_at": "2025-12-08T13:51:19.036032-05:00",
-    "source": "polygon-history"
+    "source": "polygon-history",
+    "baseline_active": false,
+    "baseline_as_of": null
   },
   "IREN": {
     "fetched_at": "2025-12-08T13:51:20.516108-05:00",
-    "source": "polygon-history"
+    "source": "polygon-history",
+    "baseline_active": false,
+    "baseline_as_of": null
   },
   "RIG": {
     "fetched_at": "2025-12-08T13:51:23.571658-05:00",
-    "source": "polygon-history"
+    "source": "polygon-history",
+    "baseline_active": false,
+    "baseline_as_of": null
+  },
+  "SOFI, HOOD, MARA, IREN, CIFR, OXY, ET, RIG, HAL, CVX, NIO, JD, QS, PDD, LCID": {
+    "fetched_at": null,
+    "source": null,
+    "baseline_active": false,
+    "baseline_as_of": null
   }
 }
