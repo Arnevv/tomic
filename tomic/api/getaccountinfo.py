@@ -448,49 +448,55 @@ def main(client_id: int | None = None) -> None:
     port = int(cfg_get("IB_PORT", 4002))
     client = client_id if client_id is not None else int(cfg_get("IB_CLIENT_ID", 100))
 
-    retrieve_positions_and_orders(app, host, port, client)
-    fetch_historical_metrics(app)
-    enrich_with_iv_rank(app)
+    try:
+        retrieve_positions_and_orders(app, host, port, client)
+        fetch_historical_metrics(app)
+        enrich_with_iv_rank(app)
 
-    time.sleep(10)
-    waited = 10
-    while app.count_incomplete() > 0 and waited < 60:
-        time.sleep(5)
-        waited += 5
-    if app.count_incomplete() > 0:
-        logger.warning("⚠️ Some legs remain incomplete. Retrying...")
-        retry_incomplete_positions(app)
+        time.sleep(10)
+        waited = 10
+        while app.count_incomplete() > 0 and waited < 60:
+            time.sleep(5)
+            waited += 5
+        if app.count_incomplete() > 0:
+            logger.warning("⚠️ Some legs remain incomplete. Retrying...")
+            retry_incomplete_positions(app)
 
-    portfolio = compute_portfolio_greeks(app.positions_data)
+        portfolio = compute_portfolio_greeks(app.positions_data)
 
-    for pos in app.positions_data:
-        sym = pos["symbol"]
-        pos["HV30"] = app.hv_data.get(sym)
-        pos["ATR14"] = app.atr_data.get(sym)
-        pos["IV_Rank"] = app.iv_rank_data.get(sym)
-        pos["IV_Percentile"] = app.iv_rank_data.get(f"{sym}_pct")
+        for pos in app.positions_data:
+            sym = pos["symbol"]
+            pos["HV30"] = app.hv_data.get(sym)
+            pos["ATR14"] = app.atr_data.get(sym)
+            pos["IV_Rank"] = app.iv_rank_data.get(sym)
+            pos["IV_Percentile"] = app.iv_rank_data.get(f"{sym}_pct")
 
-    dump_json(app.positions_data, cfg_get("POSITIONS_FILE", "positions.json"))
-    logging.info(
-        "💾 Posities opgeslagen in {}",
-        cfg_get("POSITIONS_FILE", "positions.json"),
-    )
+        dump_json(app.positions_data, cfg_get("POSITIONS_FILE", "positions.json"))
+        logging.info(
+            "💾 Posities opgeslagen in {}",
+            cfg_get("POSITIONS_FILE", "positions.json"),
+        )
 
-    base_currency_vals = {
-        k: v for k, v in app.account_values.items() if isinstance(k, str)
-    }
-    dump_json(base_currency_vals, cfg_get("ACCOUNT_INFO_FILE", "account_info.json"))
+        base_currency_vals = {
+            k: v for k, v in app.account_values.items() if isinstance(k, str)
+        }
+        dump_json(base_currency_vals, cfg_get("ACCOUNT_INFO_FILE", "account_info.json"))
 
-    logger.info(
-        f"💾 Accountinfo opgeslagen in {cfg_get('ACCOUNT_INFO_FILE', 'account_info.json')}"
-    )
+        logger.info(
+            f"💾 Accountinfo opgeslagen in {cfg_get('ACCOUNT_INFO_FILE', 'account_info.json')}"
+        )
 
-    logger.opt(raw=True, colors=False).info("\n📐 Portfolio Greeks:\n")
-    for k, v in portfolio.items():
-        logger.opt(raw=True, colors=False).info(f"{k}: {round(v, 4):.4f}\n")
+        logger.opt(raw=True, colors=False).info("\n📐 Portfolio Greeks:\n")
+        for k, v in portfolio.items():
+            logger.opt(raw=True, colors=False).info(f"{k}: {round(v, 4):.4f}\n")
 
-    app.disconnect()
-    logger.success("✅ Accountinformatie verwerkt")
+        logger.success("✅ Accountinformatie verwerkt")
+    finally:
+        try:
+            app.disconnect()
+            logger.debug("IB connectie afgesloten")
+        except Exception:
+            logger.debug("Kon IB connectie niet netjes afsluiten")
 
 
 if __name__ == "__main__":

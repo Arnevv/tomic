@@ -67,31 +67,35 @@ def calculate_trade_margin(
     app.connect(host, port, cid)
     thread = threading.Thread(target=app.run)
     thread.start()
-    app.reqIds(1)
-    if not app.event.wait(timeout=5):
-        app.disconnect()
-        return None
+    try:
+        app.reqIds(1)
+        if not app.event.wait(timeout=5):
+            return None
 
-    total = 0.0
-    for leg in legs:
-        contract = _create_option_contract(symbol, expiry, leg["strike"], leg["type"])
-        order = Order()
-        order.action = leg["action"]
-        order.totalQuantity = leg["qty"]
-        order.orderType = "MKT"
-        # Explicitly disable deprecated TWS attributes to avoid order rejection
-        # when submitting what-if orders for margin calculations.
-        # See https://ibkrcampus.com/campus/ibkr-api-page/twsapi-doc for details.
-        order.eTradeOnly = False
-        order.firmQuoteOnly = False  # disable firm quote check for what-if orders
-        order.whatIf = True
-        app.margin = None
-        app.event.clear()
-        app.placeOrder(app.order_id, contract, order)
-        app.event.wait(timeout=5)
-        if app.margin is not None:
-            total += app.margin
-        app.order_id += 1
+        total = 0.0
+        for leg in legs:
+            contract = _create_option_contract(symbol, expiry, leg["strike"], leg["type"])
+            order = Order()
+            order.action = leg["action"]
+            order.totalQuantity = leg["qty"]
+            order.orderType = "MKT"
+            # Explicitly disable deprecated TWS attributes to avoid order rejection
+            # when submitting what-if orders for margin calculations.
+            # See https://ibkrcampus.com/campus/ibkr-api-page/twsapi-doc for details.
+            order.eTradeOnly = False
+            order.firmQuoteOnly = False  # disable firm quote check for what-if orders
+            order.whatIf = True
+            app.margin = None
+            app.event.clear()
+            app.placeOrder(app.order_id, contract, order)
+            app.event.wait(timeout=5)
+            if app.margin is not None:
+                total += app.margin
+            app.order_id += 1
 
-    app.disconnect()
-    return round(total, 2) if total else None
+        return round(total, 2) if total else None
+    finally:
+        try:
+            app.disconnect()
+        except Exception:
+            pass
