@@ -1,13 +1,14 @@
 import { useState } from 'react';
 import { Dashboard } from './pages/Dashboard';
 import { Portfolio } from './pages/Portfolio';
+import { Management } from './pages/Management';
 import { StatusBar } from './components/StatusBar';
 import { api } from './api/client';
 import { useApi } from './hooks/useApi';
 import type { SystemHealth } from './types';
 
 type Mode = 'monitor' | 'decide';
-type MonitorView = 'dashboard' | 'portfolio' | 'system' | 'logs';
+type MonitorView = 'dashboard' | 'portfolio' | 'manage' | 'system' | 'logs';
 type DecideView = 'scanner' | 'journal';
 
 function App() {
@@ -71,6 +72,12 @@ function App() {
                 <span>💼</span> Portfolio
               </div>
               <div
+                className={`nav-item ${monitorView === 'manage' ? 'active' : ''}`}
+                onClick={() => setMonitorView('manage')}
+              >
+                <span>🎯</span> Manage
+              </div>
+              <div
                 className={`nav-item ${monitorView === 'system' ? 'active' : ''}`}
                 onClick={() => setMonitorView('system')}
               >
@@ -105,6 +112,7 @@ function App() {
         <main className="main-content">
           {mode === 'monitor' && monitorView === 'dashboard' && <Dashboard />}
           {mode === 'monitor' && monitorView === 'portfolio' && <Portfolio />}
+          {mode === 'monitor' && monitorView === 'manage' && <Management />}
           {mode === 'monitor' && monitorView === 'system' && (
             <div className="card">
               <h2>System View</h2>
