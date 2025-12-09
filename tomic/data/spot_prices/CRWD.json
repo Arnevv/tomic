@@ -8970,5 +8970,15 @@
     "close": 512.03,
     "volume": 2629227.0,
     "atr": null
+  },
+  {
+    "symbol": "CRWD",
+    "date": "2025-12-08",
+    "open": 513,
+    "high": 520.3,
+    "low": 508.9,
+    "close": 515.19,
+    "volume": 1661163.0,
+    "atr": null
   }
 ]

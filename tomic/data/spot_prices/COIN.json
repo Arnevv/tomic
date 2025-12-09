@@ -8193,5 +8193,15 @@
     "close": 269.73,
     "volume": 7323197.0,
     "atr": null
+  },
+  {
+    "symbol": "COIN",
+    "date": "2025-12-08",
+    "open": 272.805,
+    "high": 276.63,
+    "low": 269.5201,
+    "close": 274.2,
+    "volume": 5936911.0,
+    "atr": null
   }
 ]

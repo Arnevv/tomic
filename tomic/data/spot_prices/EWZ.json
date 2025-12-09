@@ -8970,5 +8970,15 @@
     "close": 32.53,
     "volume": 135365364.0,
     "atr": null
+  },
+  {
+    "symbol": "EWZ",
+    "date": "2025-12-08",
+    "open": 33.14,
+    "high": 33.215,
+    "low": 32.48,
+    "close": 32.75,
+    "volume": 44046714.0,
+    "atr": null
   }
 ]

@@ -9047,5 +9047,15 @@
     "close": 75.63,
     "volume": 7768189.0,
     "atr": null
+  },
+  {
+    "symbol": "CVS",
+    "date": "2025-12-08",
+    "open": 75.945,
+    "high": 76.945,
+    "low": 75,
+    "close": 76.53,
+    "volume": 8549527.0,
+    "atr": null
   }
 ]
