@@ -23,6 +23,7 @@ export const api = {
   getHealth: () => fetchApi<import('../types').SystemHealth>('/health'),
   getPortfolio: () => fetchApi<import('../types').PortfolioSummary>('/portfolio'),
   getJournal: () => fetchApi<import('../types').JournalData>('/journal'),
+  getManagement: () => fetchApi<import('../types').ManagementData>('/management'),
   getSymbols: () => fetchApi<{ symbols: string[] }>('/symbols'),
   refreshPortfolio: () => fetchApi<{ status: string }>('/portfolio/refresh', { method: 'POST' }),
 };

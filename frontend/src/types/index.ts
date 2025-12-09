@@ -103,3 +103,20 @@ export interface JournalData {
   open_trades: number;
   closed_trades: number;
 }
+
+export interface StrategyManagement {
+  symbol: string | null;
+  expiry: string | null;
+  strategy: string | null;
+  spot: number | null;
+  unrealized_pnl: number | null;
+  days_to_expiry: number | null;
+  exit_trigger: string;
+  status: string;
+}
+
+export interface ManagementData {
+  strategies: StrategyManagement[];
+  total_strategies: number;
+  needs_attention: number;
+}
