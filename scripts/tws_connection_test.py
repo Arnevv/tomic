@@ -2,20 +2,43 @@
 Simple TWS/IB Gateway Availability Test Script
 
 Checks if IB Gateway is running and accepting connections on the configured port.
-Uses a simple TCP socket check to avoid client ID conflicts with other running
-applications (like the web backend).
+Uses a proper IB API connection with handshake to avoid leaving the gateway in a
+bad state that could cause subsequent connections to fail.
 """
 
-import socket
 import sys
+import os
+
+# Add the project root to the path so we can import tomic modules
+script_dir = os.path.dirname(os.path.abspath(__file__))
+project_root = os.path.dirname(script_dir)
+if project_root not in sys.path:
+    sys.path.insert(0, project_root)
 
 
-def check_port_open(host: str, port: int, timeout: float = 3.0) -> bool:
-    """Check if a TCP port is open and accepting connections."""
+def check_ib_connection(host: str = "127.0.0.1", port: int = 4002, timeout: float = 5.0) -> bool:
+    """Check if IB Gateway is accepting API connections with proper handshake."""
     try:
-        with socket.create_connection((host, port), timeout=timeout):
-            return True
-    except (ConnectionRefusedError, TimeoutError, OSError):
+        from tomic.api.ib_connection import connect_ib
+
+        # Use a unique client ID to avoid conflicts
+        # Connect with a short timeout to fail fast if gateway is not ready
+        app = connect_ib(
+            client_id=999,  # Use a dedicated test client ID
+            host=host,
+            port=port,
+            timeout=int(timeout),
+            connect_timeout=timeout,
+        )
+        # If we get here, connection succeeded - clean up properly
+        try:
+            app.disconnect()
+        except Exception:
+            pass
+        return True
+    except Exception as e:
+        # Connection failed - could be timeout, refused, or handshake failure
+        print(f"Connection check failed: {e}")
         return False
 
 
@@ -30,16 +53,15 @@ def main():
     print(f"Port: {port}")
     print()
 
-    print("Checking if IB Gateway is accepting connections...")
+    print("Checking if IB Gateway is accepting API connections...")
 
-    if check_port_open(host, port):
+    if check_ib_connection(host, port):
         print()
-        print("SUCCESS: IB Gateway is reachable on port 4002!")
-        print("(Using TCP check to avoid client ID conflicts with web backend)")
+        print("SUCCESS: IB Gateway is reachable and accepting API connections!")
         return 0
     else:
         print()
-        print("ERROR: IB Gateway not reachable on port 4002.")
+        print("ERROR: IB Gateway not reachable or not accepting API connections.")
         print("Make sure IB Gateway is running and API connections are enabled.")
         return 1
 
