@@ -24,3 +24,7 @@ python-dotenv>=1.0.0,<2.0.0
 
 # Date utilities
 holidays>=0.25,<1.0
+
+# Web API
+fastapi>=0.104.0,<1.0.0
+uvicorn>=0.24.0,<1.0.0
