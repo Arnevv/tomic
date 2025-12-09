@@ -19,14 +19,17 @@ from .models import (
     HealthStatus,
     JournalResponse,
     JournalTrade,
+    ManagementResponse,
     PortfolioGreeks,
     PortfolioSummary,
     Position,
     PositionLeg,
     RecentActivity,
+    StrategyManagement,
     SystemHealth,
 )
 from ..analysis.greeks import compute_portfolio_greeks
+from ..services.trade_management_service import build_management_summary
 
 # Initialize FastAPI app
 app = FastAPI(
@@ -414,6 +417,67 @@ async def refresh_portfolio():
     """Trigger portfolio refresh."""
     # This would trigger the actual IB sync
     return {"status": "initiated", "message": "Portfolio refresh started"}
+
+
+def _find_data_files() -> tuple[str | None, str | None]:
+    """Find positions and journal files."""
+    root = get_project_root()
+
+    positions_file = None
+    for path in [root / "positions.json", root / "exports" / "positions.json"]:
+        if path.exists():
+            positions_file = str(path)
+            break
+
+    journal_file = None
+    for path in [root / "journal.json", root / "exports" / "journal.json"]:
+        if path.exists():
+            journal_file = str(path)
+            break
+
+    return positions_file, journal_file
+
+
+@app.get("/api/management", response_model=ManagementResponse)
+async def get_management():
+    """Get trade management status with exit alerts."""
+    try:
+        positions_file, journal_file = _find_data_files()
+
+        if not positions_file or not journal_file:
+            return ManagementResponse(
+                strategies=[],
+                total_strategies=0,
+                needs_attention=0,
+            )
+
+        summaries = build_management_summary(
+            positions_file=positions_file,
+            journal_file=journal_file,
+        )
+
+        strategies = []
+        for s in summaries:
+            strategies.append(StrategyManagement(
+                symbol=s.symbol,
+                expiry=s.expiry,
+                strategy=s.strategy,
+                spot=float(s.spot) if s.spot is not None else None,
+                unrealized_pnl=float(s.unrealized_pnl) if s.unrealized_pnl is not None else None,
+                days_to_expiry=int(s.days_to_expiry) if s.days_to_expiry is not None else None,
+                exit_trigger=s.exit_trigger,
+                status=s.status,
+            ))
+
+        needs_attention = sum(1 for s in strategies if "Beheer" in s.status)
+
+        return ManagementResponse(
+            strategies=strategies,
+            total_strategies=len(strategies),
+            needs_attention=needs_attention,
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 if __name__ == "__main__":

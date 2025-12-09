@@ -134,3 +134,24 @@ class JournalResponse(BaseModel):
     total_trades: int = 0
     open_trades: int = 0
     closed_trades: int = 0
+
+
+class StrategyManagement(BaseModel):
+    """Exit management status for a strategy."""
+
+    symbol: str | None = None
+    expiry: str | None = None
+    strategy: str | None = None
+    spot: float | None = None
+    unrealized_pnl: float | None = None
+    days_to_expiry: int | None = None
+    exit_trigger: str = "geen trigger"
+    status: str = "✅ Houden"  # "✅ Houden" or "⚠️ Beheer nodig"
+
+
+class ManagementResponse(BaseModel):
+    """Trade management overview response."""
+
+    strategies: list[StrategyManagement] = []
+    total_strategies: int = 0
+    needs_attention: int = 0
