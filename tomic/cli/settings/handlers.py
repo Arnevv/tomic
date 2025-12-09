@@ -157,12 +157,18 @@ def check_ib_connection(
 ) -> None:
     """Test whether the IB API is reachable."""
 
+    app = None
     try:
         app = connect_ib()
-        app.disconnect()
         print("✅ Verbinding met TWS beschikbaar")
     except Exception:
         print("❌ Geen verbinding met TWS")
+    finally:
+        if app is not None:
+            try:
+                app.disconnect()
+            except Exception:
+                pass
 
 
 def print_api_version(

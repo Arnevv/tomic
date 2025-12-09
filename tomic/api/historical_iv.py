@@ -97,77 +97,78 @@ def fetch_historical_option_data(
 
     app.error = MethodType(hist_error, app)
 
-    # IB API expects a space between date and time, not a dash
-    query_time = datetime.now().strftime("%Y%m%d %H:%M:%S")
-    duration = cfg_get("HIST_DURATION", "1 D")
-    bar_size = cfg_get("HIST_BARSIZE", "1 day")
-    close_what = cfg_get("HIST_WHAT", what)
-    next_id = 1
-    for rid, contract in contracts.items():
-        contract.includeExpired = True
-        iv_id = next_id
-        next_id += 1
-        close_id = next_id
-        next_id += 1
-        req_map[iv_id] = (rid, "iv", contract)
-        req_map[close_id] = (rid, "close", contract)
-        pending.add(iv_id)
-        pending.add(close_id)
-        logger.debug(
-            f"reqHistoricalData sent: reqId={iv_id}, contract={_contract_repr(contract)}, query_time={query_time}, duration={duration}, barSize={bar_size}, what=OPTION_IMPLIED_VOLATILITY"
-        )
-        logger.debug(
-            f"\ud83d\udce4 reqHistoricalData raw params: useRTH=0, includeExpired={getattr(contract, 'includeExpired', None)}, whatToShow=OPTION_IMPLIED_VOLATILITY, conId={getattr(contract, 'conId', None)}, primaryExchange={getattr(contract, 'primaryExchange', None)}"
-        )
-        logger.debug(contract.__dict__)
-        app.reqHistoricalData(
-            iv_id,
-            contract,
-            query_time,
-            duration,
-            bar_size,
-            "OPTION_IMPLIED_VOLATILITY",
-            0,
-            1,
-            False,
-            [],
-        )
-        logger.debug(
-            f"reqHistoricalData sent: reqId={close_id}, contract={_contract_repr(contract)}, query_time={query_time}, duration={duration}, barSize={bar_size}, what={close_what}"
-        )
-        logger.debug(
-            f"\ud83d\udce4 reqHistoricalData raw params: useRTH=0, includeExpired={getattr(contract, 'includeExpired', None)}, whatToShow={close_what}, conId={getattr(contract, 'conId', None)}, primaryExchange={getattr(contract, 'primaryExchange', None)}"
-        )
-        logger.debug(contract.__dict__)
-        app.reqHistoricalData(
-            close_id,
-            contract,
-            query_time,
-            duration,
-            bar_size,
-            close_what,
-            0,
-            1,
-            False,
-            [],
-        )
+    try:
+        # IB API expects a space between date and time, not a dash
+        query_time = datetime.now().strftime("%Y%m%d %H:%M:%S")
+        duration = cfg_get("HIST_DURATION", "1 D")
+        bar_size = cfg_get("HIST_BARSIZE", "1 day")
+        close_what = cfg_get("HIST_WHAT", what)
+        next_id = 1
+        for rid, contract in contracts.items():
+            contract.includeExpired = True
+            iv_id = next_id
+            next_id += 1
+            close_id = next_id
+            next_id += 1
+            req_map[iv_id] = (rid, "iv", contract)
+            req_map[close_id] = (rid, "close", contract)
+            pending.add(iv_id)
+            pending.add(close_id)
+            logger.debug(
+                f"reqHistoricalData sent: reqId={iv_id}, contract={_contract_repr(contract)}, query_time={query_time}, duration={duration}, barSize={bar_size}, what=OPTION_IMPLIED_VOLATILITY"
+            )
+            logger.debug(
+                f"\ud83d\udce4 reqHistoricalData raw params: useRTH=0, includeExpired={getattr(contract, 'includeExpired', None)}, whatToShow=OPTION_IMPLIED_VOLATILITY, conId={getattr(contract, 'conId', None)}, primaryExchange={getattr(contract, 'primaryExchange', None)}"
+            )
+            logger.debug(contract.__dict__)
+            app.reqHistoricalData(
+                iv_id,
+                contract,
+                query_time,
+                duration,
+                bar_size,
+                "OPTION_IMPLIED_VOLATILITY",
+                0,
+                1,
+                False,
+                [],
+            )
+            logger.debug(
+                f"reqHistoricalData sent: reqId={close_id}, contract={_contract_repr(contract)}, query_time={query_time}, duration={duration}, barSize={bar_size}, what={close_what}"
+            )
+            logger.debug(
+                f"\ud83d\udce4 reqHistoricalData raw params: useRTH=0, includeExpired={getattr(contract, 'includeExpired', None)}, whatToShow={close_what}, conId={getattr(contract, 'conId', None)}, primaryExchange={getattr(contract, 'primaryExchange', None)}"
+            )
+            logger.debug(contract.__dict__)
+            app.reqHistoricalData(
+                close_id,
+                contract,
+                query_time,
+                duration,
+                bar_size,
+                close_what,
+                0,
+                1,
+                False,
+                [],
+            )
 
-    done.wait(60)
+        done.wait(60)
 
-    if own_client:
-        try:
-            app.disconnect()
-        except Exception:
-            pass
-    else:
-        if orig_hist is not None:
-            app.historicalData = orig_hist
-        if orig_end is not None:
-            app.historicalDataEnd = orig_end
-        if orig_error is not None:
-            app.error = orig_error
-
-    return results
+        return results
+    finally:
+        if own_client:
+            try:
+                app.disconnect()
+            except Exception:
+                pass
+        else:
+            if orig_hist is not None:
+                app.historicalData = orig_hist
+            if orig_end is not None:
+                app.historicalDataEnd = orig_end
+            if orig_error is not None:
+                app.error = orig_error
 
 
 def fetch_historical_iv(contract: Contract) -> float | None:

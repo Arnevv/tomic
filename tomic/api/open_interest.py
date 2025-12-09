@@ -117,27 +117,31 @@ def fetch_open_interest(
         return None
 
     start_app(app)
-    app.reqIds(1)
+    try:
+        app.reqIds(1)
 
-    logger.debug(f"Waiting up to {WAIT_TIMEOUT} seconds for open interest data")
-    start = time.time()
-    while not app.open_interest_event.is_set():
-        if time.time() - start > WAIT_TIMEOUT:
-            logger.error("❌ Geen open interest ontvangen.")
-            logger.debug(
-                f"Ontvangen tick types tijdens wachten: {', '.join(app.received_ticks)}"
-            )
+        logger.debug(f"Waiting up to {WAIT_TIMEOUT} seconds for open interest data")
+        start = time.time()
+        while not app.open_interest_event.is_set():
+            if time.time() - start > WAIT_TIMEOUT:
+                logger.error("❌ Geen open interest ontvangen.")
+                logger.debug(
+                    f"Ontvangen tick types tijdens wachten: {', '.join(app.received_ticks)}"
+                )
+                return None
+            time.sleep(0.1)
+
+        oi = app.open_interest
+        logger.info(f"Open interest ontvangen via: {app.open_interest_source}")
+        logger.info(
+            f"Open interest voor {symbol.upper()} {expiry} {strike}{right.upper()}: {oi}"
+        )
+        return oi
+    finally:
+        try:
             app.disconnect()
-            return None
-        time.sleep(0.1)
-
-    oi = app.open_interest
-    app.disconnect()
-    logger.info(f"Open interest ontvangen via: {app.open_interest_source}")
-    logger.info(
-        f"Open interest voor {symbol.upper()} {expiry} {strike}{right.upper()}: {oi}"
-    )
-    return oi
+        except Exception:
+            pass
 
 
 __all__ = ["fetch_open_interest"]
