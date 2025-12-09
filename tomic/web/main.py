@@ -26,6 +26,7 @@ from .models import (
     RecentActivity,
     SystemHealth,
 )
+from ..analysis.greeks import compute_portfolio_greeks
 
 # Initialize FastAPI app
 app = FastAPI(
@@ -204,9 +205,9 @@ def build_portfolio_summary() -> PortfolioSummary:
         # Determine status based on alerts
         alerts = trade.get("alerts", [])
         status = "normal"
-        if any("TP" in str(a) or "take profit" in str(a).lower() for a in alerts):
+        if any("TP" in str(a) or "take profit" in str(a).lower() or "profit target" in str(a).lower() for a in alerts):
             status = "tp_ready"
-        elif any("exit" in str(a).lower() or "beheer" in str(a).lower() for a in alerts):
+        elif any("exit" in str(a).lower() or "beheer" in str(a).lower() or "monitor" in str(a).lower() for a in alerts):
             status = "monitor"
 
         positions.append(Position(
@@ -226,12 +227,41 @@ def build_portfolio_summary() -> PortfolioSummary:
     # Calculate totals
     total_pnl = sum(p.unrealized_pnl or 0 for p in positions)
 
+    # Calculate portfolio Greeks from raw positions
+    greeks_data = compute_portfolio_greeks(raw_positions)
+    portfolio_greeks = PortfolioGreeks(
+        delta=greeks_data.get("Delta") if greeks_data.get("Delta") else None,
+        gamma=greeks_data.get("Gamma") if greeks_data.get("Gamma") else None,
+        theta=greeks_data.get("Theta") if greeks_data.get("Theta") else None,
+        vega=greeks_data.get("Vega") if greeks_data.get("Vega") else None,
+    )
+
+    # Try to load last sync time from positions metadata or file mtime
+    last_sync = None
+    positions_path = get_project_root() / "positions.json"
+    if not positions_path.exists():
+        positions_path = get_project_root() / "exports" / "positions.json"
+    if positions_path.exists():
+        last_sync = datetime.fromtimestamp(positions_path.stat().st_mtime)
+    else:
+        last_sync = datetime.now()
+
+    # Try to calculate margin used percentage from account info
+    margin_used_pct = None
+    account_info = load_json_file("account_info.json")
+    if account_info:
+        margin_req = account_info.get("InitMarginReq") or account_info.get("FullInitMarginReq")
+        net_liq = account_info.get("NetLiquidation")
+        if margin_req and net_liq and float(net_liq) > 0:
+            margin_used_pct = (float(margin_req) / float(net_liq)) * 100
+
     return PortfolioSummary(
         positions=positions,
         total_positions=len(positions),
-        greeks=PortfolioGreeks(),  # Would need live data
+        greeks=portfolio_greeks,
+        margin_used_pct=margin_used_pct,
         total_unrealized_pnl=total_pnl if total_pnl else None,
-        last_sync=datetime.now(),
+        last_sync=last_sync,
     )
 
 
