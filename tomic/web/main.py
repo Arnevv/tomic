@@ -19,7 +19,9 @@ from .models import (
     BatchJob,
     BatchJobsResponse,
     DashboardResponse,
+    GitHubWorkflowRun,
     HealthStatus,
+    JobRunResponse,
     JournalResponse,
     JournalTrade,
     ManagementResponse,
@@ -800,6 +802,146 @@ async def get_batch_jobs():
         return BatchJobsResponse(jobs=jobs, total_jobs=len(jobs))
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+# Track running jobs to prevent duplicate runs
+_running_jobs: set[str] = set()
+
+
+@app.post("/api/batch-jobs/{job_name}/run", response_model=JobRunResponse)
+async def run_batch_job(job_name: str):
+    """Trigger a batch job to run."""
+    from fastapi import BackgroundTasks
+    import threading
+
+    valid_jobs = {
+        "exit_check": {
+            "module": "tomic.cli.exit_flow",
+            "display": "Exit Check",
+        },
+        "entry_flow": {
+            "module": "tomic.cli.entry_flow_runner",
+            "args": ["--timeout", "300"],
+            "display": "Entry Flow",
+        },
+        "portfolio_sync": {
+            "module": "tomic.cli.portfolio_utils",
+            "args": ["sync"],
+            "display": "Portfolio Sync",
+        },
+    }
+
+    if job_name not in valid_jobs:
+        raise HTTPException(status_code=404, detail=f"Unknown job: {job_name}")
+
+    if job_name in _running_jobs:
+        return JobRunResponse(
+            job_name=valid_jobs[job_name]["display"],
+            status="running",
+            message="Job is already running",
+        )
+
+    job_config = valid_jobs[job_name]
+
+    def run_job():
+        try:
+            _running_jobs.add(job_name)
+            cmd = [sys.executable, "-m", job_config["module"]]
+            if "args" in job_config:
+                cmd.extend(job_config["args"])
+
+            # Set environment for random client ID to avoid conflicts
+            env = os.environ.copy()
+            env["IB_USE_RANDOM_CLIENT_ID"] = "1"
+
+            subprocess.run(
+                cmd,
+                cwd=str(get_project_root()),
+                env=env,
+                timeout=600,  # 10 minute timeout
+            )
+        except Exception:
+            pass
+        finally:
+            _running_jobs.discard(job_name)
+
+    # Run in background thread
+    thread = threading.Thread(target=run_job, daemon=True)
+    thread.start()
+
+    return JobRunResponse(
+        job_name=job_config["display"],
+        status="started",
+        message="Job started in background",
+    )
+
+
+@app.get("/api/github/workflow-status", response_model=GitHubWorkflowRun)
+async def get_github_workflow_status():
+    """Get the latest GitHub Actions workflow run status for fetch-prices."""
+    import urllib.request
+    import json
+
+    # GitHub API endpoint for workflow runs
+    owner = "Arnevv"
+    repo = "tomic"
+    workflow_file = "fetch_prices.yml"
+
+    url = f"https://api.github.com/repos/{owner}/{repo}/actions/workflows/{workflow_file}/runs?per_page=1"
+
+    try:
+        req = urllib.request.Request(
+            url,
+            headers={
+                "Accept": "application/vnd.github.v3+json",
+                "User-Agent": "TOMIC-Web-API",
+            },
+        )
+        with urllib.request.urlopen(req, timeout=10) as response:
+            data = json.loads(response.read().decode())
+
+        if not data.get("workflow_runs"):
+            return GitHubWorkflowRun(
+                workflow_name="Update price history",
+                status="unknown",
+                conclusion=None,
+            )
+
+        run = data["workflow_runs"][0]
+
+        # Map GitHub status to our status
+        status = run.get("status", "unknown")
+        if status == "completed":
+            conclusion = run.get("conclusion", "unknown")
+            status = "success" if conclusion == "success" else "failure"
+        elif status == "in_progress":
+            status = "running"
+        elif status == "queued":
+            status = "queued"
+
+        started_at = None
+        if run.get("run_started_at"):
+            started_at = datetime.fromisoformat(run["run_started_at"].replace("Z", "+00:00"))
+
+        completed_at = None
+        if run.get("updated_at") and run.get("status") == "completed":
+            completed_at = datetime.fromisoformat(run["updated_at"].replace("Z", "+00:00"))
+
+        return GitHubWorkflowRun(
+            workflow_name="Update price history",
+            status=status,
+            conclusion=run.get("conclusion"),
+            started_at=started_at,
+            completed_at=completed_at,
+            html_url=run.get("html_url"),
+        )
+
+    except Exception as e:
+        return GitHubWorkflowRun(
+            workflow_name="Update price history",
+            status="unknown",
+            conclusion=None,
+        )
 
 
 @app.get("/api/system/config", response_model=SystemConfigResponse)

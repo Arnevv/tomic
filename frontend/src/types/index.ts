@@ -193,3 +193,18 @@ export interface ActivityLogsData {
   total_entries: number;
   categories: string[];
 }
+
+export interface JobRunResponse {
+  job_name: string;
+  status: 'started' | 'running' | 'error';
+  message: string;
+}
+
+export interface GitHubWorkflowRun {
+  workflow_name: string;
+  status: 'success' | 'failure' | 'running' | 'queued' | 'unknown';
+  conclusion: string | null;
+  started_at: string | null;
+  completed_at: string | null;
+  html_url: string | null;
+}
