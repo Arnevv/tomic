@@ -208,3 +208,147 @@ export interface GitHubWorkflowRun {
   completed_at: string | null;
   html_url: string | null;
 }
+
+// === Backtest Types ===
+
+export interface BacktestEntryRules {
+  iv_percentile_min: number | null;
+  iv_percentile_max: number | null;
+  iv_rank_min: number | null;
+  iv_rank_max: number | null;
+  dte_min: number | null;
+  dte_max: number | null;
+  min_days_until_earnings: number | null;
+}
+
+export interface BacktestExitRules {
+  profit_target_pct: number;
+  stop_loss_pct: number;
+  min_dte: number;
+  max_days_in_trade: number;
+  iv_collapse_threshold: number | null;
+  delta_breach_threshold: number | null;
+}
+
+export interface BacktestPositionSizing {
+  max_risk_per_trade: number;
+  max_positions_per_symbol: number;
+  max_total_positions: number;
+}
+
+export interface BacktestCosts {
+  commission_per_contract: number;
+  slippage_pct: number;
+}
+
+export interface BacktestConfig {
+  strategy_type: 'iron_condor' | 'calendar';
+  symbols: string[];
+  start_date: string;
+  end_date: string;
+  target_dte: number;
+  entry_rules: BacktestEntryRules;
+  exit_rules: BacktestExitRules;
+  position_sizing: BacktestPositionSizing;
+  costs: BacktestCosts;
+  iron_condor_wing_width: number;
+  iron_condor_short_delta: number;
+  calendar_near_dte: number;
+  calendar_far_dte: number;
+}
+
+export interface BacktestConfigRequest {
+  strategy_type?: 'iron_condor' | 'calendar';
+  symbols?: string[];
+  start_date?: string;
+  end_date?: string;
+  target_dte?: number;
+  entry_rules?: Partial<BacktestEntryRules>;
+  exit_rules?: Partial<BacktestExitRules>;
+  position_sizing?: Partial<BacktestPositionSizing>;
+  costs?: Partial<BacktestCosts>;
+  iron_condor_wing_width?: number;
+  iron_condor_short_delta?: number;
+  calendar_near_dte?: number;
+  calendar_far_dte?: number;
+}
+
+export interface BacktestMetrics {
+  total_trades: number;
+  winning_trades: number;
+  losing_trades: number;
+  win_rate: number;
+  total_pnl: number;
+  average_pnl: number;
+  average_winner: number;
+  average_loser: number;
+  profit_factor: number;
+  expectancy: number;
+  total_return_pct: number;
+  sharpe_ratio: number;
+  sortino_ratio: number;
+  max_drawdown: number;
+  max_drawdown_pct: number;
+  calmar_ratio: number | null;
+  sqn: number;
+  avg_days_in_trade: number;
+  exits_by_reason: Record<string, number>;
+}
+
+export interface BacktestTrade {
+  entry_date: string;
+  exit_date: string | null;
+  symbol: string;
+  strategy_type: string;
+  iv_at_entry: number;
+  iv_at_exit: number | null;
+  spot_at_entry: number | null;
+  spot_at_exit: number | null;
+  max_risk: number;
+  estimated_credit: number;
+  final_pnl: number;
+  exit_reason: string | null;
+  days_in_trade: number;
+}
+
+export interface EquityCurvePoint {
+  date: string;
+  equity: number;
+  cumulative_pnl: number;
+  trade_pnl: number | null;
+  symbol: string | null;
+}
+
+export interface BacktestJobStatus {
+  job_id: string;
+  status: 'pending' | 'running' | 'completed' | 'failed';
+  progress: number;
+  progress_message: string | null;
+  created_at: string;
+  started_at: string | null;
+  completed_at: string | null;
+  error_message: string | null;
+}
+
+export interface BacktestResult {
+  job_id: string;
+  status: string;
+  config_summary: Record<string, unknown>;
+  start_date: string | null;
+  end_date: string | null;
+  in_sample_metrics: BacktestMetrics | null;
+  out_sample_metrics: BacktestMetrics | null;
+  combined_metrics: BacktestMetrics | null;
+  equity_curve: EquityCurvePoint[];
+  trades: BacktestTrade[];
+  degradation_score: number | null;
+  is_valid: boolean;
+  validation_messages: string[];
+}
+
+export interface WhatIfComparison {
+  live_job_id: string;
+  whatif_job_id: string;
+  live_status: string;
+  whatif_status: string;
+}
