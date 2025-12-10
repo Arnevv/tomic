@@ -5,6 +5,7 @@ import { Management } from './pages/Management';
 import { Scanner } from './pages/Scanner';
 import { System } from './pages/System';
 import { ActivityLogs } from './pages/ActivityLogs';
+import { WhatIf } from './pages/WhatIf';
 import { StatusBar } from './components/StatusBar';
 import { api } from './api/client';
 import { useApi } from './hooks/useApi';
@@ -12,7 +13,7 @@ import type { SystemHealth } from './types';
 
 type Mode = 'monitor' | 'decide';
 type MonitorView = 'dashboard' | 'portfolio' | 'manage' | 'system' | 'logs';
-type DecideView = 'scanner' | 'journal';
+type DecideView = 'scanner' | 'journal' | 'whatif';
 
 function App() {
   const [mode, setMode] = useState<Mode>('monitor');
@@ -107,6 +108,12 @@ function App() {
                 Scanner
               </div>
               <div
+                className={`nav-item ${decideView === 'whatif' ? 'active' : ''}`}
+                onClick={() => setDecideView('whatif')}
+              >
+                What-If
+              </div>
+              <div
                 className={`nav-item ${decideView === 'journal' ? 'active' : ''}`}
                 onClick={() => setDecideView('journal')}
               >
@@ -124,6 +131,7 @@ function App() {
           {mode === 'monitor' && monitorView === 'system' && <System />}
           {mode === 'monitor' && monitorView === 'logs' && <ActivityLogs />}
           {mode === 'decide' && decideView === 'scanner' && <Scanner />}
+          {mode === 'decide' && decideView === 'whatif' && <WhatIf />}
           {mode === 'decide' && decideView === 'journal' && (
             <div className="card">
               <h2>Trade Journal</h2>

@@ -66,4 +66,32 @@ export const api = {
     fetchApi<import('../types').JobRunResponse>(`/batch-jobs/${jobName}/run`, { method: 'POST' }),
   getGitHubWorkflowStatus: () =>
     fetchApi<import('../types').GitHubWorkflowRun>('/github/workflow-status'),
+
+  // Backtest API
+  getBacktestLiveConfig: (strategyType: 'iron_condor' | 'calendar' = 'iron_condor') =>
+    fetchApi<import('../types').BacktestConfig>(`/backtest/live-config/${strategyType}`),
+
+  startBacktest: (config: import('../types').BacktestConfigRequest) =>
+    fetchApi<import('../types').BacktestJobStatus>('/backtest/run', {
+      method: 'POST',
+      body: JSON.stringify(config),
+    }),
+
+  getBacktestStatus: (jobId: string) =>
+    fetchApi<import('../types').BacktestJobStatus>(`/backtest/status/${jobId}`),
+
+  getBacktestResult: (jobId: string) =>
+    fetchApi<import('../types').BacktestResult>(`/backtest/result/${jobId}`),
+
+  startWhatIfComparison: (whatifConfig: import('../types').BacktestConfigRequest) =>
+    fetchApi<import('../types').WhatIfComparison>('/backtest/whatif', {
+      method: 'POST',
+      body: JSON.stringify(whatifConfig),
+    }),
+
+  listBacktestJobs: () =>
+    fetchApi<import('../types').BacktestJobStatus[]>('/backtest/jobs'),
+
+  deleteBacktestJob: (jobId: string) =>
+    fetchApi<{ status: string }>(`/backtest/jobs/${jobId}`, { method: 'DELETE' }),
 };

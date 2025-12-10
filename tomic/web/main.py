@@ -36,6 +36,7 @@ from .models import (
     SystemConfigResponse,
     SystemHealth,
 )
+from .backtest_api import router as backtest_router
 from ..analysis.greeks import compute_portfolio_greeks
 from ..services.trade_management_service import build_management_summary
 
@@ -54,6 +55,9 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Include backtest API router
+app.include_router(backtest_router)
 
 
 def get_project_root() -> Path:
