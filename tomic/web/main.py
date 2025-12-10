@@ -55,6 +55,12 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Track running jobs to prevent duplicate runs
+_running_jobs: set[str] = set()
+
+# Track job errors (job_name -> error message)
+_job_errors: dict[str, str] = {}
+
 
 def get_project_root() -> Path:
     """Get the TOMIC project root directory."""
@@ -718,27 +724,57 @@ def _parse_log_file(file_path: Path, category: str) -> list[ActivityLogEntry]:
     return entries
 
 
-def _get_batch_job_status(log_dir: Path, job_name: str, category: str) -> BatchJob:
+def _get_batch_job_status(log_dir: Path, job_name: str, job_key: str) -> BatchJob:
     """Get batch job status from log files."""
+    # Check if this job is currently running or has an error
+    is_running = job_key in _running_jobs
+    has_error = job_key in _job_errors
+
     if not log_dir.exists():
-        return BatchJob(
-            name=job_name,
-            status="warning",
-            message="Log directory not found",
-        )
+        if is_running:
+            return BatchJob(name=job_name, status="running", message="Running...")
+        if has_error:
+            return BatchJob(
+                name=job_name,
+                status="error",
+                message=f"Last run failed: {_job_errors[job_key][:100]}",
+            )
+        return BatchJob(name=job_name, status="warning", message="Log directory not found")
 
     # Find most recent log file
     log_files = sorted(log_dir.glob("*.log"), key=lambda f: f.stat().st_mtime, reverse=True)
 
     if not log_files:
-        return BatchJob(
-            name=job_name,
-            status="warning",
-            message="No log files found",
-        )
+        if is_running:
+            return BatchJob(name=job_name, status="running", message="Running...")
+        if has_error:
+            return BatchJob(
+                name=job_name,
+                status="error",
+                message=f"Last run failed: {_job_errors[job_key][:100]}",
+            )
+        return BatchJob(name=job_name, status="warning", message="No log files found")
 
     latest_log = log_files[0]
     last_run = datetime.fromtimestamp(latest_log.stat().st_mtime)
+
+    # If job is currently running, return running status with previous last_run
+    if is_running:
+        return BatchJob(
+            name=job_name,
+            status="running",
+            last_run=last_run,
+            message="Running...",
+        )
+
+    # If job has error from recent run, show that
+    if has_error:
+        return BatchJob(
+            name=job_name,
+            status="error",
+            last_run=last_run,
+            message=f"Last run failed: {_job_errors[job_key][:100]}",
+        )
 
     # Check content for errors
     try:
@@ -784,7 +820,44 @@ async def get_batch_jobs():
         if not positions_path.exists():
             positions_path = root / "exports" / "positions.json"
 
-        if positions_path.exists():
+        # Check if portfolio_sync is currently running
+        is_running = "portfolio_sync" in _running_jobs
+        has_error = "portfolio_sync" in _job_errors
+
+        if is_running:
+            # Job is running - show running status but keep last_run from file
+            if positions_path.exists():
+                last_sync = datetime.fromtimestamp(positions_path.stat().st_mtime)
+                jobs.append(BatchJob(
+                    name="Portfolio Sync",
+                    status="running",
+                    last_run=last_sync,
+                    message="Sync in progress...",
+                ))
+            else:
+                jobs.append(BatchJob(
+                    name="Portfolio Sync",
+                    status="running",
+                    message="Sync in progress...",
+                ))
+        elif has_error:
+            # Show error from last failed run
+            error_msg = _job_errors["portfolio_sync"]
+            if positions_path.exists():
+                last_sync = datetime.fromtimestamp(positions_path.stat().st_mtime)
+                jobs.append(BatchJob(
+                    name="Portfolio Sync",
+                    status="error",
+                    last_run=last_sync,
+                    message=f"Last run failed: {error_msg[:100]}",
+                ))
+            else:
+                jobs.append(BatchJob(
+                    name="Portfolio Sync",
+                    status="error",
+                    message=f"Last run failed: {error_msg[:100]}",
+                ))
+        elif positions_path.exists():
             last_sync = datetime.fromtimestamp(positions_path.stat().st_mtime)
             jobs.append(BatchJob(
                 name="Portfolio Sync",
@@ -802,10 +875,6 @@ async def get_batch_jobs():
         return BatchJobsResponse(jobs=jobs, total_jobs=len(jobs))
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
-
-
-# Track running jobs to prevent duplicate runs
-_running_jobs: set[str] = set()
 
 
 @app.post("/api/batch-jobs/{job_name}/run", response_model=JobRunResponse)
@@ -843,7 +912,13 @@ async def run_batch_job(job_name: str):
 
     job_config = valid_jobs[job_name]
 
+    # Clear any previous error for this job
+    _job_errors.pop(job_name, None)
+
     def run_job():
+        import logging
+        logger = logging.getLogger(__name__)
+
         try:
             _running_jobs.add(job_name)
             cmd = [sys.executable, "-m", job_config["module"]]
@@ -854,14 +929,30 @@ async def run_batch_job(job_name: str):
             env = os.environ.copy()
             env["IB_USE_RANDOM_CLIENT_ID"] = "1"
 
-            subprocess.run(
+            result = subprocess.run(
                 cmd,
                 cwd=str(get_project_root()),
                 env=env,
                 timeout=600,  # 10 minute timeout
+                capture_output=True,
+                text=True,
             )
-        except Exception:
-            pass
+
+            if result.returncode != 0:
+                error_msg = result.stderr or result.stdout or f"Exit code: {result.returncode}"
+                _job_errors[job_name] = error_msg[:500]  # Limit error message length
+                logger.error(f"Job {job_name} failed: {error_msg}")
+            else:
+                # Clear error on success
+                _job_errors.pop(job_name, None)
+                logger.info(f"Job {job_name} completed successfully")
+
+        except subprocess.TimeoutExpired:
+            _job_errors[job_name] = "Job timed out after 10 minutes"
+            logger.error(f"Job {job_name} timed out")
+        except Exception as e:
+            _job_errors[job_name] = str(e)[:500]
+            logger.error(f"Job {job_name} failed with exception: {e}")
         finally:
             _running_jobs.discard(job_name)
 
