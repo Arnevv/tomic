@@ -13,8 +13,11 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 
 from .models import (
+    ActivityLogEntry,
+    ActivityLogsResponse,
     Alert,
     BatchJob,
+    BatchJobsResponse,
     DashboardResponse,
     HealthStatus,
     JournalResponse,
@@ -28,6 +31,7 @@ from .models import (
     ScannerResponse,
     ScannerSymbol,
     StrategyManagement,
+    SystemConfigResponse,
     SystemHealth,
 )
 from ..analysis.greeks import compute_portfolio_greeks
@@ -655,6 +659,244 @@ async def get_scanner(
             total_symbols=len(filtered),
             scan_time=datetime.now(),
             filters_applied=filters_applied,
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+def _parse_log_file(file_path: Path, category: str) -> list[ActivityLogEntry]:
+    """Parse a log file and extract log entries."""
+    import re
+
+    entries = []
+    try:
+        content = file_path.read_text(encoding="utf-8", errors="ignore")
+
+        # Extract timestamp from filename (format: exit_auto_YYYY-MM-DD_HH-MM-SS.log)
+        filename = file_path.name
+        timestamp_match = re.search(r"(\d{4}-\d{2}-\d{2})_(\d{2}-\d{2}-\d{2})", filename)
+        file_timestamp = None
+        if timestamp_match:
+            date_str = timestamp_match.group(1)
+            time_str = timestamp_match.group(2).replace("-", ":")
+            try:
+                file_timestamp = datetime.strptime(f"{date_str} {time_str}", "%Y-%m-%d %H:%M:%S")
+            except ValueError:
+                file_timestamp = datetime.fromtimestamp(file_path.stat().st_mtime)
+        else:
+            file_timestamp = datetime.fromtimestamp(file_path.stat().st_mtime)
+
+        # Parse log lines
+        for line in content.splitlines():
+            line = line.strip()
+            if not line:
+                continue
+
+            # Determine log level
+            level = "info"
+            line_lower = line.lower()
+            if "error" in line_lower or "fout" in line_lower or "failed" in line_lower:
+                level = "error"
+            elif "warning" in line_lower or "waarschuwing" in line_lower:
+                level = "warning"
+            elif "success" in line_lower or "succesvol" in line_lower or "completed" in line_lower:
+                level = "success"
+
+            entries.append(ActivityLogEntry(
+                timestamp=file_timestamp,
+                level=level,
+                message=line[:500],  # Truncate long lines
+                category=category,
+                source_file=filename,
+            ))
+
+    except Exception:
+        pass
+
+    return entries
+
+
+def _get_batch_job_status(log_dir: Path, job_name: str, category: str) -> BatchJob:
+    """Get batch job status from log files."""
+    if not log_dir.exists():
+        return BatchJob(
+            name=job_name,
+            status="warning",
+            message="Log directory not found",
+        )
+
+    # Find most recent log file
+    log_files = sorted(log_dir.glob("*.log"), key=lambda f: f.stat().st_mtime, reverse=True)
+
+    if not log_files:
+        return BatchJob(
+            name=job_name,
+            status="warning",
+            message="No log files found",
+        )
+
+    latest_log = log_files[0]
+    last_run = datetime.fromtimestamp(latest_log.stat().st_mtime)
+
+    # Check content for errors
+    try:
+        content = latest_log.read_text(encoding="utf-8", errors="ignore").lower()
+        if "error" in content or "fout" in content or "failed" in content:
+            status = "error"
+            message = "Last run had errors"
+        elif "success" in content or "succesvol" in content:
+            status = "success"
+            message = "Last run completed successfully"
+        else:
+            status = "success"
+            message = f"Last log: {latest_log.name}"
+    except Exception:
+        status = "warning"
+        message = "Could not read log file"
+
+    return BatchJob(
+        name=job_name,
+        status=status,
+        last_run=last_run,
+        message=message,
+    )
+
+
+@app.get("/api/batch-jobs", response_model=BatchJobsResponse)
+async def get_batch_jobs():
+    """Get batch job status from log files."""
+    try:
+        root = get_project_root()
+        jobs = []
+
+        # Exit Flow job
+        exit_log_dir = root / "exports" / "exit_logs"
+        jobs.append(_get_batch_job_status(exit_log_dir, "Exit Check", "exit_flow"))
+
+        # Entry Flow job
+        entry_log_dir = root / "exports" / "entry_logs"
+        jobs.append(_get_batch_job_status(entry_log_dir, "Entry Flow", "entry_flow"))
+
+        # Portfolio Sync - check positions.json modification time
+        positions_path = root / "positions.json"
+        if not positions_path.exists():
+            positions_path = root / "exports" / "positions.json"
+
+        if positions_path.exists():
+            last_sync = datetime.fromtimestamp(positions_path.stat().st_mtime)
+            jobs.append(BatchJob(
+                name="Portfolio Sync",
+                status="success",
+                last_run=last_sync,
+                message="Positions data available",
+            ))
+        else:
+            jobs.append(BatchJob(
+                name="Portfolio Sync",
+                status="warning",
+                message="No positions file found",
+            ))
+
+        return BatchJobsResponse(jobs=jobs, total_jobs=len(jobs))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/system/config", response_model=SystemConfigResponse)
+async def get_system_config():
+    """Get system configuration (read-only)."""
+    try:
+        from ..config import CONFIG
+
+        # IB Settings
+        ib_settings = {
+            "host": CONFIG.IB_HOST,
+            "port": CONFIG.IB_PORT,
+            "live_port": CONFIG.IB_LIVE_PORT,
+            "paper_mode": CONFIG.IB_PAPER_MODE,
+            "fetch_only": CONFIG.IB_FETCH_ONLY,
+            "client_id": CONFIG.IB_CLIENT_ID,
+            "marketdata_client_id": CONFIG.IB_MARKETDATA_CLIENT_ID,
+        }
+
+        # Data Settings
+        data_settings = {
+            "positions_file": CONFIG.POSITIONS_FILE,
+            "journal_file": CONFIG.JOURNAL_FILE,
+            "export_dir": CONFIG.EXPORT_DIR,
+            "data_provider": CONFIG.DATA_PROVIDER,
+            "log_level": CONFIG.LOG_LEVEL,
+        }
+
+        # Trading Settings
+        trading_settings = {
+            "default_order_type": CONFIG.DEFAULT_ORDER_TYPE,
+            "default_time_in_force": CONFIG.DEFAULT_TIME_IN_FORCE,
+            "strike_range": CONFIG.STRIKE_RANGE,
+            "amount_regulars": CONFIG.AMOUNT_REGULARS,
+            "amount_weeklies": CONFIG.AMOUNT_WEEKLIES,
+            "first_expiry_min_dte": CONFIG.FIRST_EXPIRY_MIN_DTE,
+            "entry_flow_max_open_trades": CONFIG.ENTRY_FLOW_MAX_OPEN_TRADES,
+            "entry_flow_dry_run": CONFIG.ENTRY_FLOW_DRY_RUN,
+        }
+
+        return SystemConfigResponse(
+            ib_settings=ib_settings,
+            data_settings=data_settings,
+            symbols=CONFIG.DEFAULT_SYMBOLS,
+            trading_settings=trading_settings,
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/activity-logs", response_model=ActivityLogsResponse)
+async def get_activity_logs(
+    category: str | None = None,
+    level: str | None = None,
+    limit: int = 100,
+):
+    """Get activity logs from batch job log files."""
+    try:
+        root = get_project_root()
+        all_entries: list[ActivityLogEntry] = []
+
+        # Collect logs from different sources
+        log_sources = [
+            (root / "exports" / "exit_logs", "exit_flow"),
+            (root / "exports" / "entry_logs", "entry_flow"),
+        ]
+
+        for log_dir, cat in log_sources:
+            if category and cat != category:
+                continue
+            if not log_dir.exists():
+                continue
+
+            # Get recent log files (last 10)
+            log_files = sorted(log_dir.glob("*.log"), key=lambda f: f.stat().st_mtime, reverse=True)[:10]
+
+            for log_file in log_files:
+                entries = _parse_log_file(log_file, cat)
+                all_entries.extend(entries)
+
+        # Filter by level
+        if level:
+            all_entries = [e for e in all_entries if e.level == level]
+
+        # Sort by timestamp descending
+        all_entries.sort(key=lambda e: e.timestamp, reverse=True)
+
+        # Limit
+        all_entries = all_entries[:limit]
+
+        # Get unique categories
+        categories = list(set(e.category for e in all_entries))
+
+        return ActivityLogsResponse(
+            entries=all_entries,
+            total_entries=len(all_entries),
+            categories=categories,
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

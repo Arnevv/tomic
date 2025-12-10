@@ -142,3 +142,54 @@ export interface ScannerData {
   scan_time: string | null;
   filters_applied: Record<string, unknown>;
 }
+
+// Phase 2C - System & Monitoring Types
+
+export interface BatchJobsData {
+  jobs: BatchJob[];
+  total_jobs: number;
+}
+
+export interface SystemConfigData {
+  ib_settings: {
+    host: string;
+    port: number;
+    live_port: number;
+    paper_mode: boolean;
+    fetch_only: boolean;
+    client_id: number;
+    marketdata_client_id: number;
+  };
+  data_settings: {
+    positions_file: string;
+    journal_file: string;
+    export_dir: string;
+    data_provider: string;
+    log_level: string;
+  };
+  symbols: string[];
+  trading_settings: {
+    default_order_type: string;
+    default_time_in_force: string;
+    strike_range: number;
+    amount_regulars: number;
+    amount_weeklies: number;
+    first_expiry_min_dte: number;
+    entry_flow_max_open_trades: number;
+    entry_flow_dry_run: boolean;
+  };
+}
+
+export interface ActivityLogEntry {
+  timestamp: string;
+  level: 'info' | 'warning' | 'error' | 'success';
+  message: string;
+  category: string;
+  source_file: string | null;
+}
+
+export interface ActivityLogsData {
+  entries: ActivityLogEntry[];
+  total_entries: number;
+  categories: string[];
+}
