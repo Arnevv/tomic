@@ -1,0 +1,2116 @@
+<!DOCTYPE html>
+<html lang="nl" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TOMIC Backtesting Module - Design Mockup</title>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@500;600;700&family=Karla:wght@400;500;600&display=swap" rel="stylesheet">
+    <style>
+        /* === COBRA DESIGN SYSTEM === */
+        :root {
+            /* Brand Colors */
+            --cobra-oxford-blue: #02033B;
+            --cobra-orange: #EB5E28;
+            --cobra-jungle-green: #048A81;
+            --cobra-white: #FFFCF2;
+            --cobra-grey: #E5E2DC;
+
+            /* Light Mode */
+            --bg-primary: #FFFCF2;
+            --bg-secondary: #F5F3EF;
+            --bg-tertiary: #EDEAE4;
+            --text-primary: #02033B;
+            --text-secondary: #3D3E5C;
+            --text-muted: #6B6B7B;
+            --border-color: #E5E2DC;
+
+            /* Status Colors */
+            --status-healthy: #198754;
+            --status-warning: #FFC107;
+            --status-error: #DC3545;
+            --accent-info: #048A81;
+
+            /* Spacing */
+            --space-xs: 4px;
+            --space-sm: 8px;
+            --space-md: 16px;
+            --space-lg: 24px;
+            --space-xl: 32px;
+
+            /* Typography */
+            --font-heading: 'Montserrat', sans-serif;
+            --font-body: 'Karla', sans-serif;
+
+            /* Borders */
+            --radius-sm: 4px;
+            --radius-md: 8px;
+            --radius-lg: 12px;
+            --radius-pill: 2rem;
+        }
+
+        [data-theme="dark"] {
+            --bg-primary: #1A1B2E;
+            --bg-secondary: #212235;
+            --bg-tertiary: #2A2B42;
+            --text-primary: #FFFCF2;
+            --text-secondary: #B8B8C8;
+            --text-muted: #8888A0;
+            --border-color: #3A3B52;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: var(--font-body);
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            line-height: 1.5;
+        }
+
+        /* === LAYOUT === */
+        .app-container {
+            display: flex;
+            min-height: 100vh;
+        }
+
+        .nav-rail {
+            width: 220px;
+            background: var(--bg-secondary);
+            border-right: 1px solid var(--border-color);
+            padding: var(--space-md);
+            display: flex;
+            flex-direction: column;
+        }
+
+        .nav-logo {
+            font-family: var(--font-heading);
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: var(--cobra-oxford-blue);
+            margin-bottom: var(--space-lg);
+            padding: var(--space-sm);
+        }
+
+        [data-theme="dark"] .nav-logo {
+            color: var(--cobra-white);
+        }
+
+        .nav-section {
+            margin-bottom: var(--space-lg);
+        }
+
+        .nav-section-title {
+            font-family: var(--font-heading);
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            color: var(--text-muted);
+            margin-bottom: var(--space-sm);
+            padding: 0 var(--space-sm);
+        }
+
+        .nav-item {
+            display: flex;
+            align-items: center;
+            gap: var(--space-sm);
+            padding: var(--space-sm) var(--space-md);
+            border-radius: var(--radius-md);
+            cursor: pointer;
+            transition: all 0.2s;
+            font-weight: 500;
+            color: var(--text-secondary);
+        }
+
+        .nav-item:hover {
+            background: var(--bg-tertiary);
+        }
+
+        .nav-item.active {
+            background: var(--cobra-orange);
+            color: white;
+        }
+
+        .nav-item .icon {
+            width: 20px;
+            text-align: center;
+        }
+
+        .main-content {
+            flex: 1;
+            padding: var(--space-lg);
+            overflow-y: auto;
+        }
+
+        /* === HEADER === */
+        .page-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: var(--space-lg);
+        }
+
+        .page-title {
+            font-family: var(--font-heading);
+            font-size: 1.5rem;
+            font-weight: 700;
+        }
+
+        .header-actions {
+            display: flex;
+            gap: var(--space-sm);
+        }
+
+        /* === BUTTONS === */
+        .btn {
+            font-family: var(--font-body);
+            font-weight: 600;
+            padding: var(--space-sm) var(--space-md);
+            border-radius: var(--radius-md);
+            border: none;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: inline-flex;
+            align-items: center;
+            gap: var(--space-xs);
+        }
+
+        .btn-primary {
+            background: var(--cobra-orange);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #d54d1a;
+        }
+
+        .btn-secondary {
+            background: var(--bg-tertiary);
+            color: var(--text-primary);
+            border: 1px solid var(--border-color);
+        }
+
+        .btn-secondary:hover {
+            background: var(--border-color);
+        }
+
+        .btn-ghost {
+            background: transparent;
+            color: var(--text-secondary);
+        }
+
+        .btn-ghost:hover {
+            background: var(--bg-tertiary);
+        }
+
+        .btn-success {
+            background: var(--status-healthy);
+            color: white;
+        }
+
+        .btn-lg {
+            padding: var(--space-md) var(--space-lg);
+            font-size: 1rem;
+        }
+
+        /* === CARDS === */
+        .card {
+            background: var(--bg-secondary);
+            border-radius: var(--radius-lg);
+            border: 1px solid var(--border-color);
+            overflow: hidden;
+        }
+
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: var(--space-md);
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .card-title {
+            font-family: var(--font-heading);
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            font-weight: 600;
+            color: var(--text-secondary);
+        }
+
+        .card-body {
+            padding: var(--space-md);
+        }
+
+        .card-footer {
+            padding: var(--space-md);
+            border-top: 1px solid var(--border-color);
+            background: var(--bg-tertiary);
+        }
+
+        /* === TABS === */
+        .tabs {
+            display: flex;
+            gap: var(--space-xs);
+            background: var(--bg-tertiary);
+            padding: var(--space-xs);
+            border-radius: var(--radius-md);
+            margin-bottom: var(--space-lg);
+        }
+
+        .tab {
+            padding: var(--space-sm) var(--space-md);
+            border-radius: var(--radius-sm);
+            cursor: pointer;
+            font-weight: 500;
+            color: var(--text-secondary);
+            transition: all 0.2s;
+            border: none;
+            background: transparent;
+        }
+
+        .tab:hover {
+            color: var(--text-primary);
+        }
+
+        .tab.active {
+            background: var(--bg-primary);
+            color: var(--cobra-orange);
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+
+        /* === GRIDS === */
+        .grid-2 {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: var(--space-md);
+        }
+
+        .grid-3 {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: var(--space-md);
+        }
+
+        .grid-4 {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: var(--space-md);
+        }
+
+        /* === FORMS === */
+        .form-group {
+            margin-bottom: var(--space-md);
+        }
+
+        .form-label {
+            display: block;
+            font-weight: 600;
+            margin-bottom: var(--space-xs);
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+        }
+
+        .form-input, .form-select {
+            width: 100%;
+            padding: var(--space-sm) var(--space-md);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-md);
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            font-family: var(--font-body);
+            font-size: 0.875rem;
+        }
+
+        .form-input:focus, .form-select:focus {
+            outline: none;
+            border-color: var(--cobra-jungle-green);
+            box-shadow: 0 0 0 3px rgba(4, 138, 129, 0.1);
+        }
+
+        .form-hint {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            margin-top: var(--space-xs);
+        }
+
+        .form-row {
+            display: flex;
+            gap: var(--space-md);
+        }
+
+        .form-row .form-group {
+            flex: 1;
+        }
+
+        /* === BADGES === */
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            padding: 2px 8px;
+            border-radius: var(--radius-pill);
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+
+        .badge-success {
+            background: rgba(25, 135, 84, 0.15);
+            color: var(--status-healthy);
+        }
+
+        .badge-warning {
+            background: rgba(255, 193, 7, 0.15);
+            color: #997404;
+        }
+
+        .badge-error {
+            background: rgba(220, 53, 69, 0.15);
+            color: var(--status-error);
+        }
+
+        .badge-info {
+            background: rgba(4, 138, 129, 0.15);
+            color: var(--cobra-jungle-green);
+        }
+
+        .badge-neutral {
+            background: var(--bg-tertiary);
+            color: var(--text-secondary);
+        }
+
+        /* === TABLES === */
+        .table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .table th {
+            text-align: left;
+            padding: var(--space-sm) var(--space-md);
+            font-family: var(--font-heading);
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--text-muted);
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .table td {
+            padding: var(--space-sm) var(--space-md);
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .table tr:hover {
+            background: var(--bg-tertiary);
+        }
+
+        .table .mono {
+            font-family: 'Montserrat', monospace;
+            font-weight: 500;
+        }
+
+        /* === STAT CARDS === */
+        .stat-card {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-lg);
+            padding: var(--space-md);
+        }
+
+        .stat-label {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: var(--space-xs);
+        }
+
+        .stat-value {
+            font-family: var(--font-heading);
+            font-size: 1.5rem;
+            font-weight: 700;
+        }
+
+        .stat-change {
+            font-size: 0.875rem;
+            margin-top: var(--space-xs);
+        }
+
+        .positive { color: var(--status-healthy); }
+        .negative { color: var(--status-error); }
+        .neutral { color: var(--text-muted); }
+
+        /* === PROGRESS === */
+        .progress-bar {
+            height: 8px;
+            background: var(--bg-tertiary);
+            border-radius: var(--radius-pill);
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: var(--cobra-jungle-green);
+            border-radius: var(--radius-pill);
+            transition: width 0.3s;
+        }
+
+        .progress-fill.success { background: var(--status-healthy); }
+        .progress-fill.warning { background: var(--status-warning); }
+        .progress-fill.error { background: var(--status-error); }
+
+        /* === ALERTS === */
+        .alert {
+            padding: var(--space-md);
+            border-radius: var(--radius-md);
+            margin-bottom: var(--space-md);
+            display: flex;
+            gap: var(--space-sm);
+            align-items: flex-start;
+        }
+
+        .alert-success {
+            background: rgba(25, 135, 84, 0.1);
+            border: 1px solid rgba(25, 135, 84, 0.3);
+            color: var(--status-healthy);
+        }
+
+        .alert-warning {
+            background: rgba(255, 193, 7, 0.1);
+            border: 1px solid rgba(255, 193, 7, 0.3);
+            color: #997404;
+        }
+
+        .alert-error {
+            background: rgba(220, 53, 69, 0.1);
+            border: 1px solid rgba(220, 53, 69, 0.3);
+            color: var(--status-error);
+        }
+
+        .alert-info {
+            background: rgba(4, 138, 129, 0.1);
+            border: 1px solid rgba(4, 138, 129, 0.3);
+            color: var(--cobra-jungle-green);
+        }
+
+        /* === STATUS INDICATOR === */
+        .status-indicator {
+            display: flex;
+            align-items: center;
+            gap: var(--space-xs);
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+        }
+
+        .status-dot.healthy { background: var(--status-healthy); }
+        .status-dot.warning { background: var(--status-warning); }
+        .status-dot.error { background: var(--status-error); }
+
+        /* === PARAMETER SLIDERS === */
+        .param-slider {
+            margin-bottom: var(--space-md);
+        }
+
+        .param-header {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: var(--space-xs);
+        }
+
+        .param-name {
+            font-weight: 600;
+            font-size: 0.875rem;
+        }
+
+        .param-value {
+            font-family: 'Montserrat', monospace;
+            color: var(--cobra-orange);
+            font-weight: 600;
+        }
+
+        .slider {
+            width: 100%;
+            height: 6px;
+            -webkit-appearance: none;
+            background: var(--bg-tertiary);
+            border-radius: var(--radius-pill);
+            outline: none;
+        }
+
+        .slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 18px;
+            height: 18px;
+            background: var(--cobra-orange);
+            border-radius: 50%;
+            cursor: pointer;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+
+        /* === SCENARIO COMPARISON === */
+        .scenario-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: var(--space-md);
+        }
+
+        .scenario-card {
+            background: var(--bg-secondary);
+            border: 2px solid var(--border-color);
+            border-radius: var(--radius-lg);
+            padding: var(--space-md);
+            transition: all 0.2s;
+        }
+
+        .scenario-card:hover {
+            border-color: var(--cobra-jungle-green);
+        }
+
+        .scenario-card.best {
+            border-color: var(--status-healthy);
+            background: rgba(25, 135, 84, 0.05);
+        }
+
+        .scenario-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: var(--space-md);
+        }
+
+        .scenario-name {
+            font-family: var(--font-heading);
+            font-weight: 600;
+        }
+
+        .scenario-metrics {
+            display: grid;
+            gap: var(--space-sm);
+        }
+
+        .scenario-metric {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.875rem;
+        }
+
+        /* === CHART PLACEHOLDER === */
+        .chart-container {
+            background: var(--bg-tertiary);
+            border-radius: var(--radius-md);
+            height: 250px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--text-muted);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .chart-placeholder {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: var(--space-sm);
+        }
+
+        /* Fake chart lines */
+        .chart-line {
+            position: absolute;
+            bottom: 30px;
+            left: 40px;
+            right: 20px;
+            height: 150px;
+        }
+
+        .chart-line svg {
+            width: 100%;
+            height: 100%;
+        }
+
+        /* === HEATMAP === */
+        .heatmap {
+            display: grid;
+            gap: 2px;
+        }
+
+        .heatmap-cell {
+            aspect-ratio: 1;
+            border-radius: var(--radius-sm);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.7rem;
+            font-weight: 600;
+            color: white;
+        }
+
+        .heat-1 { background: #22c55e; }
+        .heat-2 { background: #86efac; color: #166534; }
+        .heat-3 { background: #fef08a; color: #854d0e; }
+        .heat-4 { background: #fca5a5; color: #991b1b; }
+        .heat-5 { background: #ef4444; }
+
+        /* === TIMELINE === */
+        .timeline {
+            position: relative;
+            padding-left: var(--space-lg);
+        }
+
+        .timeline::before {
+            content: '';
+            position: absolute;
+            left: 8px;
+            top: 0;
+            bottom: 0;
+            width: 2px;
+            background: var(--border-color);
+        }
+
+        .timeline-item {
+            position: relative;
+            padding-bottom: var(--space-md);
+        }
+
+        .timeline-dot {
+            position: absolute;
+            left: calc(-1 * var(--space-lg) + 4px);
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: var(--cobra-jungle-green);
+            border: 2px solid var(--bg-primary);
+        }
+
+        .timeline-content {
+            background: var(--bg-tertiary);
+            padding: var(--space-sm) var(--space-md);
+            border-radius: var(--radius-md);
+        }
+
+        .timeline-time {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+        }
+
+        /* === MODAL === */
+        .modal-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+
+        .modal {
+            background: var(--bg-primary);
+            border-radius: var(--radius-lg);
+            width: 90%;
+            max-width: 600px;
+            max-height: 90vh;
+            overflow: hidden;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        }
+
+        .modal-header {
+            padding: var(--space-md);
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .modal-title {
+            font-family: var(--font-heading);
+            font-weight: 700;
+        }
+
+        .modal-body {
+            padding: var(--space-lg);
+            overflow-y: auto;
+        }
+
+        .modal-footer {
+            padding: var(--space-md);
+            border-top: 1px solid var(--border-color);
+            display: flex;
+            justify-content: flex-end;
+            gap: var(--space-sm);
+        }
+
+        /* === TOGGLE === */
+        .toggle {
+            position: relative;
+            width: 48px;
+            height: 26px;
+            background: var(--bg-tertiary);
+            border-radius: var(--radius-pill);
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .toggle.active {
+            background: var(--cobra-jungle-green);
+        }
+
+        .toggle-knob {
+            position: absolute;
+            top: 3px;
+            left: 3px;
+            width: 20px;
+            height: 20px;
+            background: white;
+            border-radius: 50%;
+            transition: all 0.2s;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+
+        .toggle.active .toggle-knob {
+            left: 25px;
+        }
+
+        /* === SPECIFIC SCREENS === */
+        .view-container {
+            display: none;
+        }
+
+        .view-container.active {
+            display: block;
+        }
+
+        /* === THEME TOGGLE === */
+        .theme-toggle {
+            position: fixed;
+            bottom: var(--space-lg);
+            right: var(--space-lg);
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            padding: var(--space-sm) var(--space-md);
+            border-radius: var(--radius-pill);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: var(--space-sm);
+            font-weight: 500;
+            z-index: 100;
+        }
+
+        /* === SPLIT PANEL === */
+        .split-panel {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: var(--space-lg);
+        }
+
+        /* === CHECKLIST === */
+        .checklist-item {
+            display: flex;
+            align-items: center;
+            gap: var(--space-sm);
+            padding: var(--space-sm) 0;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .checklist-icon {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.875rem;
+        }
+
+        .checklist-icon.success {
+            background: rgba(25, 135, 84, 0.15);
+            color: var(--status-healthy);
+        }
+
+        .checklist-icon.error {
+            background: rgba(220, 53, 69, 0.15);
+            color: var(--status-error);
+        }
+
+        .checklist-icon.pending {
+            background: var(--bg-tertiary);
+            color: var(--text-muted);
+        }
+
+        /* === EXPORT OPTIONS === */
+        .export-option {
+            display: flex;
+            align-items: center;
+            gap: var(--space-md);
+            padding: var(--space-md);
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-md);
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .export-option:hover {
+            border-color: var(--cobra-jungle-green);
+            background: var(--bg-tertiary);
+        }
+
+        .export-icon {
+            width: 48px;
+            height: 48px;
+            background: var(--bg-tertiary);
+            border-radius: var(--radius-md);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+        }
+
+        .export-info h4 {
+            font-family: var(--font-heading);
+            margin-bottom: var(--space-xs);
+        }
+
+        .export-info p {
+            font-size: 0.875rem;
+            color: var(--text-muted);
+        }
+
+        /* === RANGE INPUT GROUP === */
+        .range-group {
+            display: flex;
+            align-items: center;
+            gap: var(--space-sm);
+        }
+
+        .range-group .form-input {
+            width: 80px;
+            text-align: center;
+        }
+
+        .range-separator {
+            color: var(--text-muted);
+        }
+
+        /* === EXPERIMENT BUILDER === */
+        .experiment-step {
+            display: flex;
+            gap: var(--space-md);
+            margin-bottom: var(--space-lg);
+        }
+
+        .step-number {
+            width: 32px;
+            height: 32px;
+            background: var(--cobra-orange);
+            color: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: var(--font-heading);
+            font-weight: 700;
+            flex-shrink: 0;
+        }
+
+        .step-content {
+            flex: 1;
+        }
+
+        .step-title {
+            font-family: var(--font-heading);
+            font-weight: 600;
+            margin-bottom: var(--space-sm);
+        }
+
+        /* === QUICK ACTIONS === */
+        .quick-actions {
+            display: flex;
+            gap: var(--space-sm);
+            flex-wrap: wrap;
+        }
+
+        .quick-action {
+            padding: var(--space-sm) var(--space-md);
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-pill);
+            cursor: pointer;
+            font-size: 0.875rem;
+            transition: all 0.2s;
+        }
+
+        .quick-action:hover {
+            background: var(--cobra-orange);
+            color: white;
+            border-color: var(--cobra-orange);
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <!-- Navigation Rail -->
+        <nav class="nav-rail">
+            <div class="nav-logo">TOMIC</div>
+
+            <div class="nav-section">
+                <div class="nav-section-title">Decide Mode</div>
+                <div class="nav-item">
+                    <span class="icon">🔍</span>
+                    <span>Scanner</span>
+                </div>
+                <div class="nav-item">
+                    <span class="icon">📔</span>
+                    <span>Journal</span>
+                </div>
+                <div class="nav-item active">
+                    <span class="icon">🧪</span>
+                    <span>Backtesting</span>
+                </div>
+            </div>
+
+            <div class="nav-section">
+                <div class="nav-section-title">Backtest Menu</div>
+                <div class="nav-item" onclick="showView('validate')">
+                    <span class="icon">✓</span>
+                    <span>Config Validatie</span>
+                </div>
+                <div class="nav-item" onclick="showView('whatif')">
+                    <span class="icon">🔮</span>
+                    <span>What-If Analyse</span>
+                </div>
+                <div class="nav-item" onclick="showView('sweep')">
+                    <span class="icon">📊</span>
+                    <span>Parameter Sweep</span>
+                </div>
+                <div class="nav-item" onclick="showView('experiment')">
+                    <span class="icon">⚗️</span>
+                    <span>Custom Experiment</span>
+                </div>
+                <div class="nav-item" onclick="showView('results')">
+                    <span class="icon">📈</span>
+                    <span>Resultaten</span>
+                </div>
+                <div class="nav-item" onclick="showView('config')">
+                    <span class="icon">⚙️</span>
+                    <span>Test Configuratie</span>
+                </div>
+                <div class="nav-item" onclick="showView('export')">
+                    <span class="icon">📤</span>
+                    <span>Export</span>
+                </div>
+            </div>
+        </nav>
+
+        <!-- Main Content Area -->
+        <main class="main-content">
+
+            <!-- VIEW 1: Live Config Validatie -->
+            <div id="view-validate" class="view-container active">
+                <div class="page-header">
+                    <h1 class="page-title">Live Config Validatie</h1>
+                    <div class="header-actions">
+                        <button class="btn btn-secondary">Config Herladen</button>
+                        <button class="btn btn-primary">▶ Validatie Starten</button>
+                    </div>
+                </div>
+
+                <div class="alert alert-info">
+                    <span>ℹ️</span>
+                    <div>Valideer je huidige live configuratie tegen historische data om te controleren of de instellingen robuust zijn.</div>
+                </div>
+
+                <div class="grid-2" style="margin-bottom: var(--space-lg);">
+                    <div class="card">
+                        <div class="card-header">
+                            <span class="card-title">Huidige Configuratie</span>
+                            <span class="badge badge-success">Live</span>
+                        </div>
+                        <div class="card-body">
+                            <div style="display: grid; gap: var(--space-sm);">
+                                <div style="display: flex; justify-content: space-between; padding: var(--space-xs) 0; border-bottom: 1px solid var(--border-color);">
+                                    <span class="text-muted">IV Rank Threshold</span>
+                                    <span class="mono" style="font-weight: 600;">0.30</span>
+                                </div>
+                                <div style="display: flex; justify-content: space-between; padding: var(--space-xs) 0; border-bottom: 1px solid var(--border-color);">
+                                    <span class="text-muted">Min DTE</span>
+                                    <span class="mono" style="font-weight: 600;">30</span>
+                                </div>
+                                <div style="display: flex; justify-content: space-between; padding: var(--space-xs) 0; border-bottom: 1px solid var(--border-color);">
+                                    <span class="text-muted">Max DTE</span>
+                                    <span class="mono" style="font-weight: 600;">60</span>
+                                </div>
+                                <div style="display: flex; justify-content: space-between; padding: var(--space-xs) 0; border-bottom: 1px solid var(--border-color);">
+                                    <span class="text-muted">Take Profit %</span>
+                                    <span class="mono" style="font-weight: 600;">50%</span>
+                                </div>
+                                <div style="display: flex; justify-content: space-between; padding: var(--space-xs) 0;">
+                                    <span class="text-muted">Stop Loss %</span>
+                                    <span class="mono" style="font-weight: 600;">200%</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card">
+                        <div class="card-header">
+                            <span class="card-title">Validatie Checklist</span>
+                        </div>
+                        <div class="card-body">
+                            <div class="checklist-item">
+                                <div class="checklist-icon success">✓</div>
+                                <div>
+                                    <div style="font-weight: 500;">Parameters binnen range</div>
+                                    <div style="font-size: 0.75rem; color: var(--text-muted);">Alle waarden zijn valide</div>
+                                </div>
+                            </div>
+                            <div class="checklist-item">
+                                <div class="checklist-icon success">✓</div>
+                                <div>
+                                    <div style="font-weight: 500;">Historische data beschikbaar</div>
+                                    <div style="font-size: 0.75rem; color: var(--text-muted);">2 jaar data geladen</div>
+                                </div>
+                            </div>
+                            <div class="checklist-item">
+                                <div class="checklist-icon error">✗</div>
+                                <div>
+                                    <div style="font-weight: 500;">Backtest nog niet uitgevoerd</div>
+                                    <div style="font-size: 0.75rem; color: var(--text-muted);">Klik 'Validatie Starten'</div>
+                                </div>
+                            </div>
+                            <div class="checklist-item">
+                                <div class="checklist-icon pending">○</div>
+                                <div>
+                                    <div style="font-weight: 500;">Resultaten vergelijken</div>
+                                    <div style="font-size: 0.75rem; color: var(--text-muted);">Wacht op backtest</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Validation Results Preview -->
+                <div class="card">
+                    <div class="card-header">
+                        <span class="card-title">Validatie Resultaten</span>
+                        <span class="badge badge-neutral">Wacht op test</span>
+                    </div>
+                    <div class="card-body">
+                        <div class="grid-4" style="margin-bottom: var(--space-lg);">
+                            <div class="stat-card">
+                                <div class="stat-label">Win Rate</div>
+                                <div class="stat-value">--</div>
+                            </div>
+                            <div class="stat-card">
+                                <div class="stat-label">Totaal Rendement</div>
+                                <div class="stat-value">--</div>
+                            </div>
+                            <div class="stat-card">
+                                <div class="stat-label">Max Drawdown</div>
+                                <div class="stat-value">--</div>
+                            </div>
+                            <div class="stat-card">
+                                <div class="stat-label">Sharpe Ratio</div>
+                                <div class="stat-value">--</div>
+                            </div>
+                        </div>
+                        <div class="chart-container">
+                            <div class="chart-placeholder">
+                                <span style="font-size: 2rem;">📊</span>
+                                <span>Equity curve verschijnt hier na validatie</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- VIEW 2: What-If Analyse -->
+            <div id="view-whatif" class="view-container">
+                <div class="page-header">
+                    <h1 class="page-title">What-If Analyse</h1>
+                    <div class="header-actions">
+                        <button class="btn btn-secondary">Reset naar Live</button>
+                        <button class="btn btn-primary">▶ Simulatie Starten</button>
+                    </div>
+                </div>
+
+                <div class="alert alert-info">
+                    <span>💡</span>
+                    <div>Pas parameters aan en zie direct het effect op historische performance. Vergelijk scenario's side-by-side.</div>
+                </div>
+
+                <div class="split-panel">
+                    <!-- Left: Parameter Controls -->
+                    <div class="card">
+                        <div class="card-header">
+                            <span class="card-title">Parameters Aanpassen</span>
+                        </div>
+                        <div class="card-body">
+                            <div class="param-slider">
+                                <div class="param-header">
+                                    <span class="param-name">IV Rank Threshold</span>
+                                    <span class="param-value">0.35</span>
+                                </div>
+                                <input type="range" class="slider" min="0" max="100" value="35">
+                                <div class="form-hint">Huidig: 0.30 | Suggestie: 0.25-0.40</div>
+                            </div>
+
+                            <div class="param-slider">
+                                <div class="param-header">
+                                    <span class="param-name">Take Profit %</span>
+                                    <span class="param-value">60%</span>
+                                </div>
+                                <input type="range" class="slider" min="20" max="80" value="60">
+                                <div class="form-hint">Huidig: 50% | Range: 20%-80%</div>
+                            </div>
+
+                            <div class="param-slider">
+                                <div class="param-header">
+                                    <span class="param-name">Stop Loss %</span>
+                                    <span class="param-value">150%</span>
+                                </div>
+                                <input type="range" class="slider" min="100" max="300" value="150">
+                                <div class="form-hint">Huidig: 200% | Range: 100%-300%</div>
+                            </div>
+
+                            <div class="param-slider">
+                                <div class="param-header">
+                                    <span class="param-name">Min DTE</span>
+                                    <span class="param-value">35</span>
+                                </div>
+                                <input type="range" class="slider" min="14" max="60" value="35">
+                                <div class="form-hint">Huidig: 30 | Range: 14-60</div>
+                            </div>
+
+                            <div style="margin-top: var(--space-lg);">
+                                <div class="form-label">Quick Presets</div>
+                                <div class="quick-actions">
+                                    <span class="quick-action">Conservatief</span>
+                                    <span class="quick-action">Balanced</span>
+                                    <span class="quick-action">Agressief</span>
+                                    <span class="quick-action">High Win%</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Right: Live Comparison -->
+                    <div class="card">
+                        <div class="card-header">
+                            <span class="card-title">Vergelijking</span>
+                        </div>
+                        <div class="card-body">
+                            <table class="table">
+                                <thead>
+                                    <tr>
+                                        <th>Metric</th>
+                                        <th>Live Config</th>
+                                        <th>What-If</th>
+                                        <th>Δ</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td>Win Rate</td>
+                                        <td class="mono">68%</td>
+                                        <td class="mono">72%</td>
+                                        <td class="positive mono">+4%</td>
+                                    </tr>
+                                    <tr>
+                                        <td>Totaal Return</td>
+                                        <td class="mono">+24.5%</td>
+                                        <td class="mono">+28.2%</td>
+                                        <td class="positive mono">+3.7%</td>
+                                    </tr>
+                                    <tr>
+                                        <td>Max Drawdown</td>
+                                        <td class="mono">-12.3%</td>
+                                        <td class="mono">-14.8%</td>
+                                        <td class="negative mono">-2.5%</td>
+                                    </tr>
+                                    <tr>
+                                        <td>Sharpe Ratio</td>
+                                        <td class="mono">1.45</td>
+                                        <td class="mono">1.52</td>
+                                        <td class="positive mono">+0.07</td>
+                                    </tr>
+                                    <tr>
+                                        <td># Trades</td>
+                                        <td class="mono">156</td>
+                                        <td class="mono">142</td>
+                                        <td class="neutral mono">-14</td>
+                                    </tr>
+                                    <tr>
+                                        <td>Avg Trade P&L</td>
+                                        <td class="mono">$156</td>
+                                        <td class="mono">$198</td>
+                                        <td class="positive mono">+$42</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+
+                            <div style="margin-top: var(--space-lg);">
+                                <div class="chart-container" style="height: 180px;">
+                                    <div class="chart-line">
+                                        <svg viewBox="0 0 400 120">
+                                            <!-- Live config line (blue) -->
+                                            <path d="M 0 100 Q 50 90 100 70 T 200 50 T 300 35 T 400 20" fill="none" stroke="#02033B" stroke-width="2"/>
+                                            <!-- What-if line (orange) -->
+                                            <path d="M 0 100 Q 50 85 100 60 T 200 40 T 300 25 T 400 10" fill="none" stroke="#EB5E28" stroke-width="2"/>
+                                        </svg>
+                                    </div>
+                                    <div style="position: absolute; bottom: 10px; right: 20px; display: flex; gap: var(--space-md); font-size: 0.75rem;">
+                                        <span><span style="color: #02033B;">━</span> Live</span>
+                                        <span><span style="color: #EB5E28;">━</span> What-If</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- VIEW 3: Parameter Sweep -->
+            <div id="view-sweep" class="view-container">
+                <div class="page-header">
+                    <h1 class="page-title">Parameter Sweep</h1>
+                    <div class="header-actions">
+                        <button class="btn btn-secondary">Sweep Stoppen</button>
+                        <button class="btn btn-primary">▶ Sweep Starten</button>
+                    </div>
+                </div>
+
+                <div class="alert alert-warning">
+                    <span>⚠️</span>
+                    <div>Parameter sweeps kunnen lang duren. Geschatte tijd: <strong>~15 minuten</strong> voor 125 combinaties.</div>
+                </div>
+
+                <div class="grid-2" style="margin-bottom: var(--space-lg);">
+                    <div class="card">
+                        <div class="card-header">
+                            <span class="card-title">Sweep Configuratie</span>
+                        </div>
+                        <div class="card-body">
+                            <div class="form-group">
+                                <label class="form-label">Parameter 1: IV Rank</label>
+                                <div class="range-group">
+                                    <input type="number" class="form-input" value="0.20" step="0.05">
+                                    <span class="range-separator">tot</span>
+                                    <input type="number" class="form-input" value="0.50" step="0.05">
+                                    <span class="range-separator">stap</span>
+                                    <input type="number" class="form-input" value="0.05" step="0.05">
+                                </div>
+                                <div class="form-hint">7 waarden: 0.20, 0.25, 0.30, 0.35, 0.40, 0.45, 0.50</div>
+                            </div>
+
+                            <div class="form-group">
+                                <label class="form-label">Parameter 2: Take Profit %</label>
+                                <div class="range-group">
+                                    <input type="number" class="form-input" value="40">
+                                    <span class="range-separator">tot</span>
+                                    <input type="number" class="form-input" value="70">
+                                    <span class="range-separator">stap</span>
+                                    <input type="number" class="form-input" value="10">
+                                </div>
+                                <div class="form-hint">4 waarden: 40%, 50%, 60%, 70%</div>
+                            </div>
+
+                            <div class="form-group">
+                                <label class="form-label">Optimaliseer voor</label>
+                                <select class="form-select">
+                                    <option>Sharpe Ratio</option>
+                                    <option>Totaal Rendement</option>
+                                    <option>Win Rate</option>
+                                    <option>Risk-Adjusted Return</option>
+                                </select>
+                            </div>
+
+                            <div style="background: var(--bg-tertiary); padding: var(--space-md); border-radius: var(--radius-md); margin-top: var(--space-md);">
+                                <div style="display: flex; justify-content: space-between; margin-bottom: var(--space-sm);">
+                                    <span>Totaal combinaties:</span>
+                                    <span class="mono" style="font-weight: 600;">28</span>
+                                </div>
+                                <div style="display: flex; justify-content: space-between;">
+                                    <span>Geschatte tijd:</span>
+                                    <span class="mono" style="font-weight: 600;">~3 min</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card">
+                        <div class="card-header">
+                            <span class="card-title">Sweep Voortgang</span>
+                            <span class="badge badge-info">Running</span>
+                        </div>
+                        <div class="card-body">
+                            <div style="margin-bottom: var(--space-md);">
+                                <div style="display: flex; justify-content: space-between; margin-bottom: var(--space-xs);">
+                                    <span>Voortgang</span>
+                                    <span class="mono">18 / 28</span>
+                                </div>
+                                <div class="progress-bar">
+                                    <div class="progress-fill" style="width: 64%;"></div>
+                                </div>
+                            </div>
+
+                            <div class="timeline">
+                                <div class="timeline-item">
+                                    <div class="timeline-dot"></div>
+                                    <div class="timeline-content">
+                                        <div style="font-weight: 500;">IV=0.35, TP=60%</div>
+                                        <div class="timeline-time">Nu bezig...</div>
+                                    </div>
+                                </div>
+                                <div class="timeline-item">
+                                    <div class="timeline-dot" style="background: var(--status-healthy);"></div>
+                                    <div class="timeline-content">
+                                        <div style="font-weight: 500;">IV=0.35, TP=50%</div>
+                                        <div class="timeline-time">Sharpe: 1.62 ⭐ Best tot nu</div>
+                                    </div>
+                                </div>
+                                <div class="timeline-item">
+                                    <div class="timeline-dot" style="background: var(--text-muted);"></div>
+                                    <div class="timeline-content">
+                                        <div style="font-weight: 500;">IV=0.35, TP=40%</div>
+                                        <div class="timeline-time">Sharpe: 1.41</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Heatmap Results -->
+                <div class="card">
+                    <div class="card-header">
+                        <span class="card-title">Resultaten Heatmap - Sharpe Ratio</span>
+                        <div>
+                            <button class="btn btn-ghost btn-sm">Sharpe</button>
+                            <button class="btn btn-ghost btn-sm">Return</button>
+                            <button class="btn btn-ghost btn-sm">Win%</button>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <div style="display: flex; gap: var(--space-lg);">
+                            <div style="flex: 1;">
+                                <div style="display: flex; margin-bottom: var(--space-sm);">
+                                    <div style="width: 60px;"></div>
+                                    <div style="flex: 1; display: grid; grid-template-columns: repeat(4, 1fr); gap: 2px; text-align: center; font-size: 0.75rem; color: var(--text-muted);">
+                                        <span>TP 40%</span>
+                                        <span>TP 50%</span>
+                                        <span>TP 60%</span>
+                                        <span>TP 70%</span>
+                                    </div>
+                                </div>
+                                <div style="display: flex; gap: var(--space-sm);">
+                                    <div style="width: 60px; display: flex; flex-direction: column; gap: 2px; justify-content: space-around; font-size: 0.75rem; color: var(--text-muted); text-align: right; padding-right: var(--space-sm);">
+                                        <span>IV 0.50</span>
+                                        <span>IV 0.45</span>
+                                        <span>IV 0.40</span>
+                                        <span>IV 0.35</span>
+                                        <span>IV 0.30</span>
+                                        <span>IV 0.25</span>
+                                        <span>IV 0.20</span>
+                                    </div>
+                                    <div class="heatmap" style="flex: 1; grid-template-columns: repeat(4, 1fr);">
+                                        <div class="heatmap-cell heat-3">1.21</div>
+                                        <div class="heatmap-cell heat-3">1.28</div>
+                                        <div class="heatmap-cell heat-2">1.35</div>
+                                        <div class="heatmap-cell heat-3">1.22</div>
+
+                                        <div class="heatmap-cell heat-3">1.29</div>
+                                        <div class="heatmap-cell heat-2">1.42</div>
+                                        <div class="heatmap-cell heat-2">1.48</div>
+                                        <div class="heatmap-cell heat-2">1.38</div>
+
+                                        <div class="heatmap-cell heat-2">1.38</div>
+                                        <div class="heatmap-cell heat-2">1.51</div>
+                                        <div class="heatmap-cell heat-1">1.58</div>
+                                        <div class="heatmap-cell heat-2">1.45</div>
+
+                                        <div class="heatmap-cell heat-2">1.41</div>
+                                        <div class="heatmap-cell heat-1">1.62</div>
+                                        <div class="heatmap-cell heat-1">--</div>
+                                        <div class="heatmap-cell heat-3">--</div>
+
+                                        <div class="heatmap-cell heat-3">--</div>
+                                        <div class="heatmap-cell heat-3">--</div>
+                                        <div class="heatmap-cell heat-3">--</div>
+                                        <div class="heatmap-cell heat-4">--</div>
+
+                                        <div class="heatmap-cell heat-4">--</div>
+                                        <div class="heatmap-cell heat-4">--</div>
+                                        <div class="heatmap-cell heat-4">--</div>
+                                        <div class="heatmap-cell heat-5">--</div>
+
+                                        <div class="heatmap-cell heat-5">--</div>
+                                        <div class="heatmap-cell heat-5">--</div>
+                                        <div class="heatmap-cell heat-5">--</div>
+                                        <div class="heatmap-cell heat-5">--</div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div style="width: 200px;">
+                                <div class="card-title" style="margin-bottom: var(--space-sm);">Beste Resultaat</div>
+                                <div class="stat-card" style="background: rgba(25, 135, 84, 0.1); border-color: var(--status-healthy);">
+                                    <div style="font-size: 0.875rem; margin-bottom: var(--space-sm);">
+                                        <strong>IV Rank:</strong> 0.35<br>
+                                        <strong>Take Profit:</strong> 50%
+                                    </div>
+                                    <div class="stat-value positive">1.62</div>
+                                    <div class="stat-label">Sharpe Ratio</div>
+                                </div>
+                                <button class="btn btn-success btn-lg" style="width: 100%; margin-top: var(--space-md);">
+                                    Toepassen op Live
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- VIEW 4: Custom Experiment -->
+            <div id="view-experiment" class="view-container">
+                <div class="page-header">
+                    <h1 class="page-title">Custom Experiment</h1>
+                    <div class="header-actions">
+                        <button class="btn btn-secondary">Experiment Opslaan</button>
+                        <button class="btn btn-primary">▶ Experiment Uitvoeren</button>
+                    </div>
+                </div>
+
+                <div class="card" style="margin-bottom: var(--space-lg);">
+                    <div class="card-header">
+                        <span class="card-title">Experiment Builder</span>
+                    </div>
+                    <div class="card-body">
+                        <div class="experiment-step">
+                            <div class="step-number">1</div>
+                            <div class="step-content">
+                                <div class="step-title">Experiment Naam & Beschrijving</div>
+                                <div class="form-row">
+                                    <div class="form-group">
+                                        <input type="text" class="form-input" placeholder="Bijv: High IV Conservative Exit">
+                                    </div>
+                                </div>
+                                <div class="form-group">
+                                    <textarea class="form-input" rows="2" placeholder="Beschrijf wat je wilt testen..."></textarea>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="experiment-step">
+                            <div class="step-number">2</div>
+                            <div class="step-content">
+                                <div class="step-title">Selecteer Strategie</div>
+                                <div class="grid-3">
+                                    <label class="export-option" style="cursor: pointer;">
+                                        <input type="radio" name="strategy" checked style="display: none;">
+                                        <div class="export-icon">🦅</div>
+                                        <div class="export-info">
+                                            <h4>Iron Condor</h4>
+                                            <p>Neutrale strategie</p>
+                                        </div>
+                                    </label>
+                                    <label class="export-option" style="cursor: pointer;">
+                                        <input type="radio" name="strategy" style="display: none;">
+                                        <div class="export-icon">📉</div>
+                                        <div class="export-info">
+                                            <h4>Credit Spread</h4>
+                                            <p>Directionele bias</p>
+                                        </div>
+                                    </label>
+                                    <label class="export-option" style="cursor: pointer;">
+                                        <input type="radio" name="strategy" style="display: none;">
+                                        <div class="export-icon">🎯</div>
+                                        <div class="export-info">
+                                            <h4>Strangle</h4>
+                                            <p>Hoge premium capture</p>
+                                        </div>
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="experiment-step">
+                            <div class="step-number">3</div>
+                            <div class="step-content">
+                                <div class="step-title">Entry Criteria</div>
+                                <div class="grid-2">
+                                    <div class="form-group">
+                                        <label class="form-label">IV Rank Minimum</label>
+                                        <input type="number" class="form-input" value="0.30" step="0.05">
+                                    </div>
+                                    <div class="form-group">
+                                        <label class="form-label">IV Rank Maximum</label>
+                                        <input type="number" class="form-input" value="0.80" step="0.05">
+                                    </div>
+                                    <div class="form-group">
+                                        <label class="form-label">Min DTE</label>
+                                        <input type="number" class="form-input" value="30">
+                                    </div>
+                                    <div class="form-group">
+                                        <label class="form-label">Max DTE</label>
+                                        <input type="number" class="form-input" value="60">
+                                    </div>
+                                    <div class="form-group">
+                                        <label class="form-label">Delta Short Strike</label>
+                                        <input type="number" class="form-input" value="0.16" step="0.01">
+                                    </div>
+                                    <div class="form-group">
+                                        <label class="form-label">Min Premium ($)</label>
+                                        <input type="number" class="form-input" value="1.00" step="0.25">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="experiment-step">
+                            <div class="step-number">4</div>
+                            <div class="step-content">
+                                <div class="step-title">Exit Criteria</div>
+                                <div class="grid-2">
+                                    <div class="form-group">
+                                        <label class="form-label">Take Profit %</label>
+                                        <input type="number" class="form-input" value="50">
+                                        <div class="form-hint">Sluit bij 50% winst van premium</div>
+                                    </div>
+                                    <div class="form-group">
+                                        <label class="form-label">Stop Loss %</label>
+                                        <input type="number" class="form-input" value="200">
+                                        <div class="form-hint">Sluit bij 200% verlies van premium</div>
+                                    </div>
+                                    <div class="form-group">
+                                        <label class="form-label">Days Before Expiry Exit</label>
+                                        <input type="number" class="form-input" value="7">
+                                        <div class="form-hint">Forceer exit X dagen voor expiratie</div>
+                                    </div>
+                                    <div class="form-group">
+                                        <label class="form-label">Gamma Risk Exit</label>
+                                        <div style="display: flex; align-items: center; gap: var(--space-sm); margin-top: var(--space-xs);">
+                                            <div class="toggle active" onclick="this.classList.toggle('active')">
+                                                <div class="toggle-knob"></div>
+                                            </div>
+                                            <span style="font-size: 0.875rem;">Ingeschakeld</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="experiment-step">
+                            <div class="step-number">5</div>
+                            <div class="step-content">
+                                <div class="step-title">Test Periode</div>
+                                <div class="grid-2">
+                                    <div class="form-group">
+                                        <label class="form-label">Start Datum</label>
+                                        <input type="date" class="form-input" value="2022-01-01">
+                                    </div>
+                                    <div class="form-group">
+                                        <label class="form-label">Eind Datum</label>
+                                        <input type="date" class="form-input" value="2024-12-01">
+                                    </div>
+                                </div>
+                                <div class="form-group">
+                                    <label class="form-label">Symbolen</label>
+                                    <select class="form-select" multiple size="4">
+                                        <option selected>SPY</option>
+                                        <option selected>QQQ</option>
+                                        <option selected>IWM</option>
+                                        <option>TLT</option>
+                                        <option>GLD</option>
+                                        <option>EEM</option>
+                                    </select>
+                                    <div class="form-hint">Ctrl+klik om meerdere te selecteren</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- VIEW 5: Resultaten Bekijken -->
+            <div id="view-results" class="view-container">
+                <div class="page-header">
+                    <h1 class="page-title">Resultaten Bekijken</h1>
+                    <div class="header-actions">
+                        <button class="btn btn-secondary">Filter</button>
+                        <button class="btn btn-secondary">Vergelijken</button>
+                    </div>
+                </div>
+
+                <div class="tabs">
+                    <button class="tab active">Alle Resultaten</button>
+                    <button class="tab">Validaties</button>
+                    <button class="tab">What-If</button>
+                    <button class="tab">Sweeps</button>
+                    <button class="tab">Experiments</button>
+                </div>
+
+                <!-- Summary Stats -->
+                <div class="grid-4" style="margin-bottom: var(--space-lg);">
+                    <div class="stat-card">
+                        <div class="stat-label">Totaal Tests</div>
+                        <div class="stat-value">47</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">Beste Sharpe</div>
+                        <div class="stat-value positive">1.82</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">Beste Return</div>
+                        <div class="stat-value positive">+34.2%</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">Beste Win%</div>
+                        <div class="stat-value positive">78%</div>
+                    </div>
+                </div>
+
+                <!-- Results Table -->
+                <div class="card">
+                    <div class="card-header">
+                        <span class="card-title">Test Resultaten</span>
+                        <input type="text" class="form-input" placeholder="Zoeken..." style="width: 200px;">
+                    </div>
+                    <div class="card-body" style="padding: 0;">
+                        <table class="table">
+                            <thead>
+                                <tr>
+                                    <th>Naam</th>
+                                    <th>Type</th>
+                                    <th>Datum</th>
+                                    <th>Return</th>
+                                    <th>Sharpe</th>
+                                    <th>Win%</th>
+                                    <th>Trades</th>
+                                    <th>Acties</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td><strong>High IV Conservative</strong></td>
+                                    <td><span class="badge badge-info">Experiment</span></td>
+                                    <td class="mono">2024-12-09</td>
+                                    <td class="mono positive">+34.2%</td>
+                                    <td class="mono">1.82</td>
+                                    <td class="mono">74%</td>
+                                    <td class="mono">142</td>
+                                    <td>
+                                        <button class="btn btn-ghost btn-sm">👁</button>
+                                        <button class="btn btn-ghost btn-sm">📤</button>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td><strong>IV Sweep Dec 2024</strong></td>
+                                    <td><span class="badge badge-warning">Sweep</span></td>
+                                    <td class="mono">2024-12-08</td>
+                                    <td class="mono positive">+28.5%</td>
+                                    <td class="mono">1.62</td>
+                                    <td class="mono">71%</td>
+                                    <td class="mono">156</td>
+                                    <td>
+                                        <button class="btn btn-ghost btn-sm">👁</button>
+                                        <button class="btn btn-ghost btn-sm">📤</button>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Live Config Validatie</strong></td>
+                                    <td><span class="badge badge-success">Validatie</span></td>
+                                    <td class="mono">2024-12-07</td>
+                                    <td class="mono positive">+24.5%</td>
+                                    <td class="mono">1.45</td>
+                                    <td class="mono">68%</td>
+                                    <td class="mono">168</td>
+                                    <td>
+                                        <button class="btn btn-ghost btn-sm">👁</button>
+                                        <button class="btn btn-ghost btn-sm">📤</button>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Aggressive TP Test</strong></td>
+                                    <td><span class="badge badge-neutral">What-If</span></td>
+                                    <td class="mono">2024-12-05</td>
+                                    <td class="mono positive">+31.8%</td>
+                                    <td class="mono">1.38</td>
+                                    <td class="mono">62%</td>
+                                    <td class="mono">198</td>
+                                    <td>
+                                        <button class="btn btn-ghost btn-sm">👁</button>
+                                        <button class="btn btn-ghost btn-sm">📤</button>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Strangle Experiment</strong></td>
+                                    <td><span class="badge badge-info">Experiment</span></td>
+                                    <td class="mono">2024-12-03</td>
+                                    <td class="mono negative">-8.2%</td>
+                                    <td class="mono">0.42</td>
+                                    <td class="mono">51%</td>
+                                    <td class="mono">87</td>
+                                    <td>
+                                        <button class="btn btn-ghost btn-sm">👁</button>
+                                        <button class="btn btn-ghost btn-sm">📤</button>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="card-footer" style="display: flex; justify-content: space-between; align-items: center;">
+                        <span style="font-size: 0.875rem; color: var(--text-muted);">Toont 5 van 47 resultaten</span>
+                        <div style="display: flex; gap: var(--space-xs);">
+                            <button class="btn btn-ghost btn-sm">← Vorige</button>
+                            <button class="btn btn-ghost btn-sm">Volgende →</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- VIEW 6: Test Configuratie -->
+            <div id="view-config" class="view-container">
+                <div class="page-header">
+                    <h1 class="page-title">Test Configuratie</h1>
+                    <div class="header-actions">
+                        <button class="btn btn-secondary">Reset naar Default</button>
+                        <button class="btn btn-primary">Opslaan</button>
+                    </div>
+                </div>
+
+                <div class="grid-2">
+                    <div class="card">
+                        <div class="card-header">
+                            <span class="card-title">Data Instellingen</span>
+                        </div>
+                        <div class="card-body">
+                            <div class="form-group">
+                                <label class="form-label">Historische Data Bron</label>
+                                <select class="form-select">
+                                    <option>IBKR Historical Data</option>
+                                    <option>Yahoo Finance</option>
+                                    <option>Local CSV Files</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Data Resolutie</label>
+                                <select class="form-select">
+                                    <option>End of Day</option>
+                                    <option>Hourly</option>
+                                    <option>15 Minutes</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Beschikbare Data Range</label>
+                                <div style="background: var(--bg-tertiary); padding: var(--space-md); border-radius: var(--radius-md);">
+                                    <div style="display: flex; justify-content: space-between; margin-bottom: var(--space-xs);">
+                                        <span>Start:</span>
+                                        <span class="mono">2020-01-02</span>
+                                    </div>
+                                    <div style="display: flex; justify-content: space-between;">
+                                        <span>Eind:</span>
+                                        <span class="mono">2024-12-09</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Symbolen in Database</label>
+                                <div class="quick-actions">
+                                    <span class="badge badge-success">SPY ✓</span>
+                                    <span class="badge badge-success">QQQ ✓</span>
+                                    <span class="badge badge-success">IWM ✓</span>
+                                    <span class="badge badge-success">TLT ✓</span>
+                                    <span class="badge badge-warning">GLD ⚠</span>
+                                    <span class="badge badge-error">EEM ✗</span>
+                                </div>
+                                <div class="form-hint">GLD: beperkte data | EEM: niet beschikbaar</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card">
+                        <div class="card-header">
+                            <span class="card-title">Simulatie Instellingen</span>
+                        </div>
+                        <div class="card-body">
+                            <div class="form-group">
+                                <label class="form-label">Startkapitaal ($)</label>
+                                <input type="number" class="form-input" value="100000">
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Max Posities Tegelijk</label>
+                                <input type="number" class="form-input" value="5">
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Positie Sizing</label>
+                                <select class="form-select">
+                                    <option>Fixed Dollar ($2000/trade)</option>
+                                    <option>% van Portfolio (2%)</option>
+                                    <option>Kelly Criterion</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Commissie Model</label>
+                                <select class="form-select">
+                                    <option>IBKR Tiered ($0.65/contract)</option>
+                                    <option>IBKR Fixed ($0.85/contract)</option>
+                                    <option>Geen commissie</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Slippage</label>
+                                <div style="display: flex; align-items: center; gap: var(--space-sm);">
+                                    <input type="number" class="form-input" value="0.05" step="0.01" style="width: 100px;">
+                                    <span>per leg ($)</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card">
+                        <div class="card-header">
+                            <span class="card-title">Performance Instellingen</span>
+                        </div>
+                        <div class="card-body">
+                            <div class="form-group">
+                                <label class="form-label">Max Parallelle Tests</label>
+                                <input type="number" class="form-input" value="4">
+                                <div class="form-hint">Meer = sneller, maar hogere CPU load</div>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Cache Strategie</label>
+                                <select class="form-select">
+                                    <option>Agressief (meer RAM)</option>
+                                    <option>Balanced</option>
+                                    <option>Minimaal (minder RAM)</option>
+                                </select>
+                            </div>
+                            <div class="form-group" style="display: flex; justify-content: space-between; align-items: center;">
+                                <div>
+                                    <div class="form-label" style="margin-bottom: 0;">Auto-save Resultaten</div>
+                                    <div class="form-hint">Sla tussenresultaten automatisch op</div>
+                                </div>
+                                <div class="toggle active" onclick="this.classList.toggle('active')">
+                                    <div class="toggle-knob"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card">
+                        <div class="card-header">
+                            <span class="card-title">Risk Metrics</span>
+                        </div>
+                        <div class="card-body">
+                            <div class="form-group">
+                                <label class="form-label">Risk-Free Rate (%)</label>
+                                <input type="number" class="form-input" value="4.5" step="0.1">
+                                <div class="form-hint">Voor Sharpe Ratio berekening</div>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Benchmark</label>
+                                <select class="form-select">
+                                    <option>SPY (S&P 500)</option>
+                                    <option>QQQ (Nasdaq 100)</option>
+                                    <option>Geen</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Bereken Extra Metrics</label>
+                                <div style="display: grid; gap: var(--space-sm); margin-top: var(--space-sm);">
+                                    <label style="display: flex; align-items: center; gap: var(--space-sm);">
+                                        <input type="checkbox" checked> Sortino Ratio
+                                    </label>
+                                    <label style="display: flex; align-items: center; gap: var(--space-sm);">
+                                        <input type="checkbox" checked> Calmar Ratio
+                                    </label>
+                                    <label style="display: flex; align-items: center; gap: var(--space-sm);">
+                                        <input type="checkbox" checked> Max Drawdown Duration
+                                    </label>
+                                    <label style="display: flex; align-items: center; gap: var(--space-sm);">
+                                        <input type="checkbox"> Monte Carlo Simulation
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- VIEW 7: Export -->
+            <div id="view-export" class="view-container">
+                <div class="page-header">
+                    <h1 class="page-title">Export voor Externe Validatie</h1>
+                </div>
+
+                <div class="alert alert-info" style="margin-bottom: var(--space-lg);">
+                    <span>📤</span>
+                    <div>Exporteer backtest resultaten en data voor analyse in externe tools zoals Python, R, of spreadsheets.</div>
+                </div>
+
+                <div class="grid-2" style="margin-bottom: var(--space-lg);">
+                    <div class="card">
+                        <div class="card-header">
+                            <span class="card-title">Selecteer Data om te Exporteren</span>
+                        </div>
+                        <div class="card-body">
+                            <div class="form-group">
+                                <label class="form-label">Test Resultaat</label>
+                                <select class="form-select">
+                                    <option>High IV Conservative (2024-12-09)</option>
+                                    <option>IV Sweep Dec 2024 (2024-12-08)</option>
+                                    <option>Live Config Validatie (2024-12-07)</option>
+                                    <option>Alle resultaten</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Inclusief Data</label>
+                                <div style="display: grid; gap: var(--space-sm); margin-top: var(--space-sm);">
+                                    <label style="display: flex; align-items: center; gap: var(--space-sm);">
+                                        <input type="checkbox" checked> Trade Log (alle trades)
+                                    </label>
+                                    <label style="display: flex; align-items: center; gap: var(--space-sm);">
+                                        <input type="checkbox" checked> Daily Equity Curve
+                                    </label>
+                                    <label style="display: flex; align-items: center; gap: var(--space-sm);">
+                                        <input type="checkbox" checked> Performance Metrics
+                                    </label>
+                                    <label style="display: flex; align-items: center; gap: var(--space-sm);">
+                                        <input type="checkbox"> Configuratie Parameters
+                                    </label>
+                                    <label style="display: flex; align-items: center; gap: var(--space-sm);">
+                                        <input type="checkbox"> Ruwe Prijsdata
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card">
+                        <div class="card-header">
+                            <span class="card-title">Export Preview</span>
+                        </div>
+                        <div class="card-body">
+                            <div style="background: var(--bg-tertiary); padding: var(--space-md); border-radius: var(--radius-md); font-family: monospace; font-size: 0.8rem; max-height: 200px; overflow: auto;">
+                                <div style="color: var(--text-muted);">// trades.csv preview</div>
+                                <div>date,symbol,strategy,entry_price,exit_price,pnl,pnl_pct</div>
+                                <div>2024-01-15,SPY,IC,2.45,1.22,123,50.2</div>
+                                <div>2024-01-18,QQQ,IC,3.10,1.55,155,50.0</div>
+                                <div>2024-01-22,IWM,IC,1.85,2.78,-93,-50.3</div>
+                                <div>...</div>
+                                <div style="color: var(--text-muted); margin-top: var(--space-sm);">// 142 rows total</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card-title" style="margin-bottom: var(--space-md);">Export Formaat</div>
+                <div class="grid-3" style="margin-bottom: var(--space-lg);">
+                    <div class="export-option">
+                        <div class="export-icon">📊</div>
+                        <div class="export-info">
+                            <h4>CSV / Excel</h4>
+                            <p>Compatibel met spreadsheets en data tools</p>
+                        </div>
+                    </div>
+                    <div class="export-option">
+                        <div class="export-icon">🐍</div>
+                        <div class="export-info">
+                            <h4>Python Package</h4>
+                            <p>Pandas DataFrame + metadata als .pkl</p>
+                        </div>
+                    </div>
+                    <div class="export-option">
+                        <div class="export-icon">{}</div>
+                        <div class="export-info">
+                            <h4>JSON</h4>
+                            <p>Structured data voor API integratie</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <span class="card-title">API Endpoint (Geavanceerd)</span>
+                    </div>
+                    <div class="card-body">
+                        <div class="form-group">
+                            <label class="form-label">REST API Endpoint</label>
+                            <div style="display: flex; gap: var(--space-sm);">
+                                <input type="text" class="form-input" value="http://localhost:8000/api/backtest/export/high-iv-conservative" readonly style="flex: 1; font-family: monospace; font-size: 0.875rem;">
+                                <button class="btn btn-secondary">Kopieer</button>
+                            </div>
+                            <div class="form-hint">Gebruik dit endpoint om data programmatisch op te halen</div>
+                        </div>
+                        <div style="background: var(--bg-tertiary); padding: var(--space-md); border-radius: var(--radius-md); font-family: monospace; font-size: 0.8rem;">
+                            <div style="color: var(--text-muted);"># Python voorbeeld</div>
+                            <div style="color: var(--cobra-orange);">import</div> requests<br>
+                            <div style="color: var(--cobra-orange);">import</div> pandas <div style="color: var(--cobra-orange);">as</div> pd<br><br>
+                            response = requests.get(<span style="color: var(--status-healthy);">"http://localhost:8000/api/backtest/export/..."</span>)<br>
+                            df = pd.DataFrame(response.json()[<span style="color: var(--status-healthy);">"trades"</span>])
+                        </div>
+                    </div>
+                    <div class="card-footer">
+                        <button class="btn btn-primary btn-lg">
+                            📥 Download Export
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+        </main>
+    </div>
+
+    <!-- Theme Toggle -->
+    <button class="theme-toggle" onclick="toggleTheme()">
+        <span id="theme-icon">🌙</span>
+        <span id="theme-text">Dark Mode</span>
+    </button>
+
+    <script>
+        // View Navigation
+        function showView(viewId) {
+            // Hide all views
+            document.querySelectorAll('.view-container').forEach(view => {
+                view.classList.remove('active');
+            });
+
+            // Show selected view
+            document.getElementById('view-' + viewId).classList.add('active');
+
+            // Update nav items
+            document.querySelectorAll('.nav-section:nth-child(3) .nav-item').forEach((item, index) => {
+                item.classList.remove('active');
+            });
+        }
+
+        // Theme Toggle
+        function toggleTheme() {
+            const html = document.documentElement;
+            const icon = document.getElementById('theme-icon');
+            const text = document.getElementById('theme-text');
+
+            if (html.getAttribute('data-theme') === 'dark') {
+                html.setAttribute('data-theme', 'light');
+                icon.textContent = '🌙';
+                text.textContent = 'Dark Mode';
+            } else {
+                html.setAttribute('data-theme', 'dark');
+                icon.textContent = '☀️';
+                text.textContent = 'Light Mode';
+            }
+        }
+
+        // Initialize first view
+        showView('validate');
+    </script>
+</body>
+</html>
