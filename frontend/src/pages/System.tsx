@@ -34,22 +34,46 @@ export function System() {
     setRunningJobs(prev => new Set(prev).add(jobName));
 
     try {
-      await api.runBatchJob(jobKey);
-      // Refresh after a short delay to show updated status
-      setTimeout(() => {
-        refetchJobs();
+      const response = await api.runBatchJob(jobKey);
+
+      // If already running, just start polling
+      if (response.status === 'running' || response.status === 'started') {
+        // Poll until job completes (max 10 minutes with 3 second intervals)
+        const maxAttempts = 200; // 10 minutes / 3 seconds
+        let attempts = 0;
+
+        const pollInterval = setInterval(async () => {
+          attempts++;
+          const jobs = await api.getBatchJobs();
+          const job = jobs.jobs.find(j => j.name === jobName);
+
+          // Stop polling if job is no longer running or max attempts reached
+          if (!job || job.status !== 'running' || attempts >= maxAttempts) {
+            clearInterval(pollInterval);
+            setRunningJobs(prev => {
+              const next = new Set(prev);
+              next.delete(jobName);
+              return next;
+            });
+            refetchJobs();
+          }
+        }, 3000); // Poll every 3 seconds
+      } else {
+        // Job failed to start
         setRunningJobs(prev => {
           const next = new Set(prev);
           next.delete(jobName);
           return next;
         });
-      }, 2000);
+        refetchJobs();
+      }
     } catch (error) {
       setRunningJobs(prev => {
         const next = new Set(prev);
         next.delete(jobName);
         return next;
       });
+      refetchJobs();
     }
   };
 
