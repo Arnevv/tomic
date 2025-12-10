@@ -7,7 +7,10 @@ interface UseApiResult<T> {
   refetch: () => void;
 }
 
-export function useApi<T>(fetcher: () => Promise<T>): UseApiResult<T> {
+export function useApi<T>(
+  fetcher: () => Promise<T>,
+  deps: unknown[] = []
+): UseApiResult<T> {
   const [data, setData] = useState<T | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
@@ -31,7 +34,8 @@ export function useApi<T>(fetcher: () => Promise<T>): UseApiResult<T> {
 
   useEffect(() => {
     fetchData();
-  }, [fetchData]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fetchData, ...deps]);
 
   return { data, loading, error, refetch: fetchData };
 }

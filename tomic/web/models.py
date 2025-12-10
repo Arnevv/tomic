@@ -181,3 +181,45 @@ class ScannerResponse(BaseModel):
     total_symbols: int = 0
     scan_time: datetime | None = None
     filters_applied: dict[str, Any] = {}
+
+
+class BatchJobsResponse(BaseModel):
+    """Batch jobs overview response."""
+
+    jobs: list[BatchJob] = []
+    total_jobs: int = 0
+
+
+class ConfigValue(BaseModel):
+    """Single configuration value."""
+
+    key: str
+    value: Any
+    category: str = "general"
+
+
+class SystemConfigResponse(BaseModel):
+    """System configuration response (read-only)."""
+
+    ib_settings: dict[str, Any] = {}
+    data_settings: dict[str, Any] = {}
+    symbols: list[str] = []
+    trading_settings: dict[str, Any] = {}
+
+
+class ActivityLogEntry(BaseModel):
+    """Single activity log entry."""
+
+    timestamp: datetime
+    level: str = "info"  # "info", "warning", "error", "success"
+    message: str
+    category: str  # "exit_flow", "entry_flow", "portfolio", "system"
+    source_file: str | None = None
+
+
+class ActivityLogsResponse(BaseModel):
+    """Activity logs response."""
+
+    entries: list[ActivityLogEntry] = []
+    total_entries: int = 0
+    categories: list[str] = []

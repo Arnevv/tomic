@@ -44,4 +44,20 @@ export const api = {
   },
   getSymbols: () => fetchApi<{ symbols: string[] }>('/symbols'),
   refreshPortfolio: () => fetchApi<{ status: string }>('/portfolio/refresh', { method: 'POST' }),
+
+  // Phase 2C - System & Monitoring
+  getBatchJobs: () => fetchApi<import('../types').BatchJobsData>('/batch-jobs'),
+  getSystemConfig: () => fetchApi<import('../types').SystemConfigData>('/system/config'),
+  getActivityLogs: (params?: {
+    category?: string;
+    level?: string;
+    limit?: number;
+  }) => {
+    const searchParams = new URLSearchParams();
+    if (params?.category) searchParams.set('category', params.category);
+    if (params?.level) searchParams.set('level', params.level);
+    if (params?.limit !== undefined) searchParams.set('limit', String(params.limit));
+    const query = searchParams.toString();
+    return fetchApi<import('../types').ActivityLogsData>(`/activity-logs${query ? `?${query}` : ''}`);
+  },
 };
