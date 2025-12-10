@@ -72,3 +72,28 @@ def print_account_summary(values: dict, portfolio: dict) -> None:
         parts.append(f"📦 Used: {used_pct:.0f}%")
     print("=== ACCOUNT ===")
     print(" | ".join(parts))
+
+
+def main() -> None:
+    """CLI entry point for portfolio utilities."""
+    import sys
+
+    if len(sys.argv) < 2:
+        print("Usage: python -m tomic.cli.portfolio_utils <command>")
+        print("Commands:")
+        print("  sync    Refresh portfolio data from IB API")
+        sys.exit(1)
+
+    command = sys.argv[1]
+
+    if command == "sync":
+        logger.info("Starting portfolio sync...")
+        refresh_portfolio_data()
+        logger.info("Portfolio sync completed")
+    else:
+        print(f"Unknown command: {command}")
+        sys.exit(1)
+
+
+if __name__ == "__main__":
+    main()
