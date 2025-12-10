@@ -60,4 +60,10 @@ export const api = {
     const query = searchParams.toString();
     return fetchApi<import('../types').ActivityLogsData>(`/activity-logs${query ? `?${query}` : ''}`);
   },
+
+  // Batch job controls
+  runBatchJob: (jobName: string) =>
+    fetchApi<import('../types').JobRunResponse>(`/batch-jobs/${jobName}/run`, { method: 'POST' }),
+  getGitHubWorkflowStatus: () =>
+    fetchApi<import('../types').GitHubWorkflowRun>('/github/workflow-status'),
 };
