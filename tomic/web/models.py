@@ -223,3 +223,22 @@ class ActivityLogsResponse(BaseModel):
     entries: list[ActivityLogEntry] = []
     total_entries: int = 0
     categories: list[str] = []
+
+
+class JobRunResponse(BaseModel):
+    """Response for job run request."""
+
+    job_name: str
+    status: str  # "started", "error"
+    message: str
+
+
+class GitHubWorkflowRun(BaseModel):
+    """GitHub Actions workflow run status."""
+
+    workflow_name: str
+    status: str  # "success", "failure", "in_progress", "queued", "unknown"
+    conclusion: str | None = None
+    started_at: datetime | None = None
+    completed_at: datetime | None = None
+    html_url: str | None = None

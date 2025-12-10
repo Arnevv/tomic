@@ -1,22 +1,96 @@
+import { useState } from 'react';
 import { api } from '../api/client';
 import { useApi } from '../hooks/useApi';
-import type { SystemHealth, BatchJobsData, SystemConfigData } from '../types';
+import type { SystemHealth, BatchJobsData, SystemConfigData, GitHubWorkflowRun } from '../types';
+
+type JobKey = 'exit_check' | 'entry_flow' | 'portfolio_sync';
+
+const JOB_KEYS: Record<string, JobKey> = {
+  'Exit Check': 'exit_check',
+  'Entry Flow': 'entry_flow',
+  'Portfolio Sync': 'portfolio_sync',
+};
 
 export function System() {
   const { data: health, loading: healthLoading, refetch: refetchHealth } = useApi<SystemHealth>(() => api.getHealth());
   const { data: batchJobs, loading: jobsLoading, refetch: refetchJobs } = useApi<BatchJobsData>(() => api.getBatchJobs());
   const { data: config, loading: configLoading } = useApi<SystemConfigData>(() => api.getSystemConfig());
+  const { data: githubWorkflow, refetch: refetchGithub } = useApi<GitHubWorkflowRun>(() => api.getGitHubWorkflowStatus());
+
+  const [runningJobs, setRunningJobs] = useState<Set<string>>(new Set());
 
   const loading = healthLoading || jobsLoading || configLoading;
 
   const handleRefreshAll = () => {
     refetchHealth();
     refetchJobs();
+    refetchGithub();
+  };
+
+  const handleRunJob = async (jobName: string) => {
+    const jobKey = JOB_KEYS[jobName];
+    if (!jobKey) return;
+
+    setRunningJobs(prev => new Set(prev).add(jobName));
+
+    try {
+      await api.runBatchJob(jobKey);
+      // Refresh after a short delay to show updated status
+      setTimeout(() => {
+        refetchJobs();
+        setRunningJobs(prev => {
+          const next = new Set(prev);
+          next.delete(jobName);
+          return next;
+        });
+      }, 2000);
+    } catch (error) {
+      setRunningJobs(prev => {
+        const next = new Set(prev);
+        next.delete(jobName);
+        return next;
+      });
+    }
   };
 
   if (loading) {
     return <div className="loading">Loading system status...</div>;
   }
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'success':
+      case 'healthy':
+        return 'var(--status-healthy)';
+      case 'warning':
+      case 'queued':
+        return 'var(--status-warning)';
+      case 'error':
+      case 'failure':
+        return 'var(--status-error)';
+      case 'running':
+        return 'var(--accent-info)';
+      default:
+        return 'var(--text-secondary)';
+    }
+  };
+
+  const getStatusBg = (status: string) => {
+    switch (status) {
+      case 'success':
+        return 'rgba(25, 135, 84, 0.1)';
+      case 'warning':
+      case 'queued':
+        return 'rgba(255, 193, 7, 0.1)';
+      case 'error':
+      case 'failure':
+        return 'rgba(220, 53, 69, 0.1)';
+      case 'running':
+        return 'rgba(13, 110, 253, 0.1)';
+      default:
+        return 'rgba(108, 117, 125, 0.1)';
+    }
+  };
 
   return (
     <div>
@@ -135,12 +209,68 @@ export function System() {
               <th>Status</th>
               <th>Last Run</th>
               <th>Message</th>
+              <th style={{ width: '100px' }}>Actions</th>
             </tr>
           </thead>
           <tbody>
-            {batchJobs?.jobs.map((job, i) => (
-              <tr key={i}>
-                <td style={{ fontWeight: '500' }}>{job.name}</td>
+            {batchJobs?.jobs.map((job, i) => {
+              const isRunning = runningJobs.has(job.name);
+              const canRun = JOB_KEYS[job.name] !== undefined;
+
+              return (
+                <tr key={i}>
+                  <td style={{ fontWeight: '500' }}>{job.name}</td>
+                  <td>
+                    <span style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: 'var(--space-xs)',
+                      padding: '2px 8px',
+                      borderRadius: 'var(--radius-sm)',
+                      fontSize: '12px',
+                      background: isRunning ? getStatusBg('running') : getStatusBg(job.status),
+                      color: isRunning ? getStatusColor('running') : getStatusColor(job.status),
+                    }}>
+                      <span className={`status-dot ${isRunning ? 'running' : (job.status === 'success' ? 'healthy' : job.status)}`} />
+                      {isRunning ? 'running' : job.status}
+                    </span>
+                  </td>
+                  <td className="mono" style={{ fontSize: '12px' }}>
+                    {job.last_run ? new Date(job.last_run).toLocaleString() : '-'}
+                  </td>
+                  <td style={{ color: 'var(--text-secondary)' }}>{job.message || '-'}</td>
+                  <td>
+                    {canRun && (
+                      <button
+                        className="btn btn-secondary"
+                        style={{ padding: '4px 12px', fontSize: '12px' }}
+                        onClick={() => handleRunJob(job.name)}
+                        disabled={isRunning}
+                      >
+                        {isRunning ? 'Running...' : 'Run'}
+                      </button>
+                    )}
+                  </td>
+                </tr>
+              );
+            })}
+
+            {/* GitHub Actions Row */}
+            {githubWorkflow && (
+              <tr>
+                <td style={{ fontWeight: '500' }}>
+                  {githubWorkflow.workflow_name}
+                  <span style={{
+                    marginLeft: 'var(--space-sm)',
+                    padding: '2px 6px',
+                    borderRadius: 'var(--radius-sm)',
+                    fontSize: '10px',
+                    background: 'var(--bg-secondary)',
+                    color: 'var(--text-muted)',
+                  }}>
+                    GitHub Actions
+                  </span>
+                </td>
                 <td>
                   <span style={{
                     display: 'inline-flex',
@@ -149,26 +279,42 @@ export function System() {
                     padding: '2px 8px',
                     borderRadius: 'var(--radius-sm)',
                     fontSize: '12px',
-                    background: job.status === 'success' ? 'rgba(25, 135, 84, 0.1)' :
-                      job.status === 'warning' ? 'rgba(255, 193, 7, 0.1)' :
-                        job.status === 'error' ? 'rgba(220, 53, 69, 0.1)' : 'rgba(108, 117, 125, 0.1)',
-                    color: job.status === 'success' ? 'var(--status-healthy)' :
-                      job.status === 'warning' ? 'var(--status-warning)' :
-                        job.status === 'error' ? 'var(--status-error)' : 'var(--text-secondary)',
+                    background: getStatusBg(githubWorkflow.status),
+                    color: getStatusColor(githubWorkflow.status),
                   }}>
-                    <span className={`status-dot ${job.status === 'success' ? 'healthy' : job.status}`} />
-                    {job.status}
+                    <span className={`status-dot ${githubWorkflow.status === 'success' ? 'healthy' : githubWorkflow.status === 'failure' ? 'error' : 'warning'}`} />
+                    {githubWorkflow.status}
                   </span>
                 </td>
                 <td className="mono" style={{ fontSize: '12px' }}>
-                  {job.last_run ? new Date(job.last_run).toLocaleString() : '-'}
+                  {githubWorkflow.completed_at
+                    ? new Date(githubWorkflow.completed_at).toLocaleString()
+                    : githubWorkflow.started_at
+                      ? new Date(githubWorkflow.started_at).toLocaleString()
+                      : '-'}
                 </td>
-                <td style={{ color: 'var(--text-secondary)' }}>{job.message || '-'}</td>
+                <td style={{ color: 'var(--text-secondary)' }}>
+                  {githubWorkflow.conclusion || 'Scheduled: 4:00, 6:00, 8:00 UTC'}
+                </td>
+                <td>
+                  {githubWorkflow.html_url && (
+                    <a
+                      href={githubWorkflow.html_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="btn btn-secondary"
+                      style={{ padding: '4px 12px', fontSize: '12px', textDecoration: 'none' }}
+                    >
+                      View
+                    </a>
+                  )}
+                </td>
               </tr>
-            ))}
-            {(!batchJobs || batchJobs.jobs.length === 0) && (
+            )}
+
+            {(!batchJobs || batchJobs.jobs.length === 0) && !githubWorkflow && (
               <tr>
-                <td colSpan={4} style={{ textAlign: 'center', color: 'var(--text-muted)' }}>
+                <td colSpan={5} style={{ textAlign: 'center', color: 'var(--text-muted)' }}>
                   No batch jobs found
                 </td>
               </tr>
