@@ -8980,5 +8980,15 @@
     "close": 158.13,
     "volume": 7341930.0,
     "atr": null
+  },
+  {
+    "symbol": "BABA",
+    "date": "2025-12-09",
+    "open": 154.44,
+    "high": 156.6,
+    "low": 154.3,
+    "close": 155.96,
+    "volume": 6457745.0,
+    "atr": null
   }
 ]

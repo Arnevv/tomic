@@ -8980,5 +8980,15 @@
     "close": 1.14,
     "volume": 63584513.0,
     "atr": null
+  },
+  {
+    "symbol": "BYND",
+    "date": "2025-12-09",
+    "open": 1.1,
+    "high": 1.3,
+    "low": 1.0975,
+    "close": 1.26,
+    "volume": 70044518.0,
+    "atr": null
   }
 ]

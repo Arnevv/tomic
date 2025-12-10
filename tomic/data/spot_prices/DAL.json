@@ -8980,5 +8980,15 @@
     "close": 67.22,
     "volume": 9235074.0,
     "atr": null
+  },
+  {
+    "symbol": "DAL",
+    "date": "2025-12-09",
+    "open": 66.71,
+    "high": 68.275,
+    "low": 66.3,
+    "close": 67.41,
+    "volume": 7339851.0,
+    "atr": null
   }
 ]

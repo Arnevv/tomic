@@ -8840,5 +8840,15 @@
     "close": 8.03,
     "volume": 33666635.0,
     "atr": null
+  },
+  {
+    "symbol": "SNAP",
+    "date": "2025-12-09",
+    "open": 7.97,
+    "high": 7.99,
+    "low": 7.85,
+    "close": 7.92,
+    "volume": 22749022.0,
+    "atr": null
   }
 ]

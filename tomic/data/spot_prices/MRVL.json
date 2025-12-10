@@ -8980,5 +8980,15 @@
     "close": 92,
     "volume": 40735621.0,
     "atr": null
+  },
+  {
+    "symbol": "MRVL",
+    "date": "2025-12-09",
+    "open": 91.59,
+    "high": 91.69,
+    "low": 88.04,
+    "close": 88.9,
+    "volume": 23156719.0,
+    "atr": null
   }
 ]
