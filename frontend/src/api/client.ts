@@ -1,21 +1,137 @@
 // API client for TOMIC backend
+import { logger } from '../utils/logger';
 
 const API_BASE = '/api';
+const apiLogger = logger.withContext('API');
 
-async function fetchApi<T>(endpoint: string, options?: RequestInit): Promise<T> {
-  const response = await fetch(`${API_BASE}${endpoint}`, {
-    headers: {
-      'Content-Type': 'application/json',
-      ...options?.headers,
-    },
-    ...options,
-  });
+// Custom error class with detailed information
+export class ApiError extends Error {
+  public readonly status: number;
+  public readonly statusText: string;
+  public readonly endpoint: string;
+  public readonly method: string;
+  public readonly responseBody?: unknown;
+  public readonly timestamp: string;
+  public readonly requestId?: string;
 
-  if (!response.ok) {
-    throw new Error(`API error: ${response.status} ${response.statusText}`);
+  constructor(params: {
+    message: string;
+    status: number;
+    statusText: string;
+    endpoint: string;
+    method: string;
+    responseBody?: unknown;
+    requestId?: string;
+  }) {
+    super(params.message);
+    this.name = 'ApiError';
+    this.status = params.status;
+    this.statusText = params.statusText;
+    this.endpoint = params.endpoint;
+    this.method = params.method;
+    this.responseBody = params.responseBody;
+    this.timestamp = new Date().toISOString();
+    this.requestId = params.requestId;
   }
 
-  return response.json();
+  toJSON() {
+    return {
+      name: this.name,
+      message: this.message,
+      status: this.status,
+      statusText: this.statusText,
+      endpoint: this.endpoint,
+      method: this.method,
+      responseBody: this.responseBody,
+      timestamp: this.timestamp,
+      requestId: this.requestId,
+    };
+  }
+}
+
+// Network error class for connection issues
+export class NetworkError extends Error {
+  public readonly endpoint: string;
+  public readonly method: string;
+  public readonly originalError: unknown;
+  public readonly timestamp: string;
+
+  constructor(params: {
+    message: string;
+    endpoint: string;
+    method: string;
+    originalError: unknown;
+  }) {
+    super(params.message);
+    this.name = 'NetworkError';
+    this.endpoint = params.endpoint;
+    this.method = params.method;
+    this.originalError = params.originalError;
+    this.timestamp = new Date().toISOString();
+  }
+}
+
+async function fetchApi<T>(endpoint: string, options?: RequestInit): Promise<T> {
+  const method = options?.method || 'GET';
+  const startTime = performance.now();
+
+  apiLogger.debug(`Request: ${method} ${endpoint}`, options?.body ? { body: options.body } : undefined);
+
+  let response: Response;
+  try {
+    response = await fetch(`${API_BASE}${endpoint}`, {
+      headers: {
+        'Content-Type': 'application/json',
+        ...options?.headers,
+      },
+      ...options,
+    });
+  } catch (err) {
+    const networkError = new NetworkError({
+      message: `Network error: Unable to connect to ${endpoint}`,
+      endpoint,
+      method,
+      originalError: err,
+    });
+    apiLogger.error(`Network error: ${method} ${endpoint}`, networkError);
+    throw networkError;
+  }
+
+  const duration = Math.round(performance.now() - startTime);
+
+  if (!response.ok) {
+    let responseBody: unknown;
+    try {
+      responseBody = await response.json();
+    } catch {
+      try {
+        responseBody = await response.text();
+      } catch {
+        responseBody = undefined;
+      }
+    }
+
+    const apiError = new ApiError({
+      message: `API error: ${response.status} ${response.statusText} - ${endpoint}`,
+      status: response.status,
+      statusText: response.statusText,
+      endpoint,
+      method,
+      responseBody,
+      requestId: response.headers.get('x-request-id') || undefined,
+    });
+
+    apiLogger.error(`Response error: ${method} ${endpoint} [${response.status}] (${duration}ms)`, apiError, {
+      responseBody,
+    });
+
+    throw apiError;
+  }
+
+  const data = await response.json();
+  apiLogger.debug(`Response: ${method} ${endpoint} [${response.status}] (${duration}ms)`);
+
+  return data;
 }
 
 export const api = {
