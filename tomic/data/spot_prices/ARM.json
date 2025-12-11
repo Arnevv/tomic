@@ -3950,5 +3950,15 @@
     "close": 141.93,
     "volume": 2303391.0,
     "atr": null
+  },
+  {
+    "symbol": "ARM",
+    "date": "2025-12-10",
+    "open": 141.74,
+    "high": 142.8,
+    "low": 140,
+    "close": 141.52,
+    "volume": 1765066.0,
+    "atr": null
   }
 ]

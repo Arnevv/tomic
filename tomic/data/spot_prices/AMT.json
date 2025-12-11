@@ -9067,5 +9067,15 @@
     "close": 179.55,
     "volume": 3161356.0,
     "atr": null
+  },
+  {
+    "symbol": "AMT",
+    "date": "2025-12-10",
+    "open": 179.81,
+    "high": 182.63,
+    "low": 179.55,
+    "close": 180.26,
+    "volume": 2501035.0,
+    "atr": null
   }
 ]

@@ -9067,5 +9067,15 @@
     "close": 277.18,
     "volume": 32150922.0,
     "atr": null
+  },
+  {
+    "symbol": "AAPL",
+    "date": "2025-12-10",
+    "open": 277.75,
+    "high": 279.75,
+    "low": 276.44,
+    "close": 278.78,
+    "volume": 33032015.0,
+    "atr": null
   }
 ]

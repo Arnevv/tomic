@@ -9067,5 +9067,15 @@
     "close": 96.71,
     "volume": 51726425.0,
     "atr": null
+  },
+  {
+    "symbol": "NFLX",
+    "date": "2025-12-10",
+    "open": 96.735,
+    "high": 96.97,
+    "low": 92.35,
+    "close": 92.71,
+    "volume": 74041744.0,
+    "atr": null
   }
 ]

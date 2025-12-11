@@ -8990,5 +8990,15 @@
     "close": 33.73,
     "volume": 12821418.0,
     "atr": null
+  },
+  {
+    "symbol": "CMG",
+    "date": "2025-12-10",
+    "open": 33.72,
+    "high": 34.19,
+    "low": 33.58,
+    "close": 33.94,
+    "volume": 13415186.0,
+    "atr": null
   }
 ]

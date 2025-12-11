@@ -8248,5 +8248,15 @@
     "close": 72.84,
     "volume": 11158979.0,
     "atr": null
+  },
+  {
+    "symbol": "ASTS",
+    "date": "2025-12-10",
+    "open": 72.75,
+    "high": 80.29,
+    "low": 70.9,
+    "close": 79.05,
+    "volume": 14563176.0,
+    "atr": null
   }
 ]

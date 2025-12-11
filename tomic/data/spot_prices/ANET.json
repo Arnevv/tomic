@@ -8990,5 +8990,15 @@
     "close": 130.04,
     "volume": 5227589.0,
     "atr": null
+  },
+  {
+    "symbol": "ANET",
+    "date": "2025-12-10",
+    "open": 131.05,
+    "high": 134.4399,
+    "low": 130.25,
+    "close": 132.36,
+    "volume": 5920113.0,
+    "atr": null
   }
 ]

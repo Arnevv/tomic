@@ -8990,5 +8990,15 @@
     "close": 344.32,
     "volume": 4267712.0,
     "atr": null
+  },
+  {
+    "symbol": "ADBE",
+    "date": "2025-12-10",
+    "open": 342.125,
+    "high": 347.92,
+    "low": 340.565,
+    "close": 343.13,
+    "volume": 6789135.0,
+    "atr": null
   }
 ]
