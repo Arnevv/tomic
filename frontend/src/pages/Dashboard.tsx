@@ -1,23 +1,17 @@
 import { api } from '../api/client';
 import { useApi } from '../hooks/useApi';
+import { ErrorDisplay } from '../components/ErrorDisplay';
 import type { DashboardData } from '../types';
 
 export function Dashboard() {
-  const { data, loading, error, refetch } = useApi<DashboardData>(() => api.getDashboard());
+  const { data, loading, error, retry, refetch } = useApi<DashboardData>(() => api.getDashboard());
 
   if (loading) {
     return <div className="loading">Loading dashboard...</div>;
   }
 
   if (error) {
-    return (
-      <div className="card">
-        <p style={{ color: 'var(--status-error)' }}>Error loading dashboard: {error.message}</p>
-        <button className="btn btn-primary" onClick={refetch} style={{ marginTop: 'var(--space-md)' }}>
-          Retry
-        </button>
-      </div>
-    );
+    return <ErrorDisplay error={error} onRetry={retry} context="Dashboard" />;
   }
 
   if (!data) return null;

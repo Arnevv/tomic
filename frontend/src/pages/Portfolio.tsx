@@ -2,10 +2,11 @@ import { useState } from 'react';
 import { api } from '../api/client';
 import { useApi } from '../hooks/useApi';
 import { PositionDetail } from '../components/PositionDetail';
+import { ErrorDisplay } from '../components/ErrorDisplay';
 import type { PortfolioSummary, Position } from '../types';
 
 export function Portfolio() {
-  const { data, loading, error, refetch } = useApi<PortfolioSummary>(() => api.getPortfolio());
+  const { data, loading, error, refetch, retry } = useApi<PortfolioSummary>(() => api.getPortfolio());
   const [selectedPosition, setSelectedPosition] = useState<Position | null>(null);
 
   if (loading) {
@@ -13,14 +14,7 @@ export function Portfolio() {
   }
 
   if (error) {
-    return (
-      <div className="card">
-        <p style={{ color: 'var(--status-error)' }}>Error loading portfolio: {error.message}</p>
-        <button className="btn btn-primary" onClick={refetch} style={{ marginTop: 'var(--space-md)' }}>
-          Retry
-        </button>
-      </div>
-    );
+    return <ErrorDisplay error={error} onRetry={retry} context="Portfolio" />;
   }
 
   if (!data) return null;

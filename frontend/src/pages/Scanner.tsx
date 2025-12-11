@@ -1,6 +1,7 @@
 import { useState, useCallback } from 'react';
 import { api } from '../api/client';
 import { useApi } from '../hooks/useApi';
+import { ErrorDisplay } from '../components/ErrorDisplay';
 import type { ScannerData, ScannerSymbol } from '../types';
 
 interface FilterState {
@@ -32,7 +33,7 @@ export function Scanner() {
     });
   }, [filters]);
 
-  const { data, loading, error, refetch } = useApi<ScannerData>(fetchScanner);
+  const { data, loading, error, refetch, retry } = useApi<ScannerData>(fetchScanner);
 
   const handleFilterChange = (key: keyof FilterState, value: string) => {
     setFilters(prev => ({ ...prev, [key]: value }));
@@ -73,14 +74,7 @@ export function Scanner() {
   }
 
   if (error) {
-    return (
-      <div className="card">
-        <p style={{ color: 'var(--status-error)' }}>Error loading scanner: {error.message}</p>
-        <button className="btn btn-primary" onClick={refetch} style={{ marginTop: 'var(--space-md)' }}>
-          Retry
-        </button>
-      </div>
-    );
+    return <ErrorDisplay error={error} onRetry={retry} context="Scanner" />;
   }
 
   if (!data) return null;
