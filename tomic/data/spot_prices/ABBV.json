@@ -9077,5 +9077,15 @@
     "close": 225.18,
     "volume": 8744047.0,
     "atr": null
+  },
+  {
+    "symbol": "ABBV",
+    "date": "2025-12-11",
+    "open": 225.54,
+    "high": 225.96,
+    "low": 222.24,
+    "close": 223.98,
+    "volume": 4190918.0,
+    "atr": null
   }
 ]
