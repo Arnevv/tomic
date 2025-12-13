@@ -1,7 +1,8 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { api } from '../api/client';
 import { useApi } from '../hooks/useApi';
 import { LogViewer } from '../components/LogViewer';
+import { logger } from '../utils/logger';
 import type { SystemHealth, BatchJobsData, SystemConfigData, GitHubWorkflowRun, CacheStatusData, CacheFileInfo } from '../types';
 
 type JobKey = 'exit_check' | 'entry_flow' | 'portfolio_sync';
@@ -12,6 +13,8 @@ const JOB_KEYS: Record<string, JobKey> = {
   'Portfolio Sync': 'portfolio_sync',
 };
 
+const systemLogger = logger.withContext('System');
+
 export function System() {
   const { data: health, loading: healthLoading, refetch: refetchHealth } = useApi<SystemHealth>(() => api.getHealth());
   const { data: batchJobs, loading: jobsLoading, refetch: refetchJobs } = useApi<BatchJobsData>(() => api.getBatchJobs());
@@ -21,6 +24,19 @@ export function System() {
 
   const [runningJobs, setRunningJobs] = useState<Set<string>>(new Set());
   const [clearingCache, setClearingCache] = useState(false);
+
+  // Track polling intervals to clean up on unmount
+  const pollingIntervalsRef = useRef<Map<string, ReturnType<typeof setInterval>>>(new Map());
+
+  // Cleanup all polling intervals on unmount
+  useEffect(() => {
+    return () => {
+      pollingIntervalsRef.current.forEach((intervalId) => {
+        clearInterval(intervalId);
+      });
+      pollingIntervalsRef.current.clear();
+    };
+  }, []);
 
   const loading = healthLoading || jobsLoading || configLoading;
 
@@ -52,9 +68,25 @@ export function System() {
     }
   };
 
+  const stopJobPolling = (jobName: string) => {
+    const intervalId = pollingIntervalsRef.current.get(jobName);
+    if (intervalId) {
+      clearInterval(intervalId);
+      pollingIntervalsRef.current.delete(jobName);
+    }
+    setRunningJobs(prev => {
+      const next = new Set(prev);
+      next.delete(jobName);
+      return next;
+    });
+  };
+
   const handleRunJob = async (jobName: string) => {
     const jobKey = JOB_KEYS[jobName];
     if (!jobKey) return;
+
+    // Clear any existing polling for this job
+    stopJobPolling(jobName);
 
     setRunningJobs(prev => new Set(prev).add(jobName));
 
@@ -69,35 +101,34 @@ export function System() {
 
         const pollInterval = setInterval(async () => {
           attempts++;
-          const jobs = await api.getBatchJobs();
-          const job = jobs.jobs.find(j => j.name === jobName);
+          try {
+            const jobs = await api.getBatchJobs();
+            const job = jobs.jobs.find(j => j.name === jobName);
 
-          // Stop polling if job is no longer running or max attempts reached
-          if (!job || job.status !== 'running' || attempts >= maxAttempts) {
-            clearInterval(pollInterval);
-            setRunningJobs(prev => {
-              const next = new Set(prev);
-              next.delete(jobName);
-              return next;
-            });
-            refetchJobs();
+            // Stop polling if job is no longer running or max attempts reached
+            if (!job || job.status !== 'running' || attempts >= maxAttempts) {
+              stopJobPolling(jobName);
+              refetchJobs();
+              if (attempts >= maxAttempts) {
+                systemLogger.warn(`Job polling timed out after ${maxAttempts} attempts`, { jobName });
+              }
+            }
+          } catch (pollError) {
+            systemLogger.error('Polling error', pollError, { jobName, attempts });
+            // Continue polling on error, don't stop
           }
         }, 3000); // Poll every 3 seconds
+
+        // Store the interval ID for cleanup
+        pollingIntervalsRef.current.set(jobName, pollInterval);
       } else {
         // Job failed to start
-        setRunningJobs(prev => {
-          const next = new Set(prev);
-          next.delete(jobName);
-          return next;
-        });
+        stopJobPolling(jobName);
         refetchJobs();
       }
     } catch (error) {
-      setRunningJobs(prev => {
-        const next = new Set(prev);
-        next.delete(jobName);
-        return next;
-      });
+      systemLogger.error('Failed to run batch job', error, { jobName, jobKey });
+      stopJobPolling(jobName);
       refetchJobs();
     }
   };
@@ -262,12 +293,12 @@ export function System() {
             </tr>
           </thead>
           <tbody>
-            {batchJobs?.jobs.map((job, i) => {
+            {batchJobs?.jobs.map((job) => {
               const isRunning = runningJobs.has(job.name);
               const canRun = JOB_KEYS[job.name] !== undefined;
 
               return (
-                <tr key={i}>
+                <tr key={job.name}>
                   <td style={{ fontWeight: '500' }}>{job.name}</td>
                   <td>
                     <span style={{

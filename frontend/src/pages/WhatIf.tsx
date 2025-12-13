@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { api } from '../api/client';
+import { logger } from '../utils/logger';
 import type {
   BacktestConfig,
   BacktestConfigRequest,
@@ -7,6 +8,8 @@ import type {
   BacktestResult,
   BacktestMetrics,
 } from '../types';
+
+const whatifLogger = logger.withContext('WhatIf');
 
 type StrategyType = 'iron_condor' | 'calendar';
 
@@ -160,7 +163,7 @@ export function WhatIf() {
           clearJobState();
         }
       } catch (err) {
-        console.error('Polling error:', err);
+        whatifLogger.error('Polling error', err);
       }
     };
 

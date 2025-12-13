@@ -239,9 +239,9 @@ export function Scanner() {
             </tr>
           </thead>
           <tbody>
-            {data.symbols.map((symbol, i) => (
+            {data.symbols.map((symbol) => (
               <tr
-                key={i}
+                key={symbol.symbol}
                 style={{ cursor: 'pointer' }}
                 onClick={() => setSelectedSymbol(symbol)}
               >
@@ -264,9 +264,9 @@ export function Scanner() {
                 </td>
                 <td>
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
-                    {symbol.recommended_strategies.slice(0, 2).map((strat, j) => (
+                    {symbol.recommended_strategies.slice(0, 2).map((strat) => (
                       <span
-                        key={j}
+                        key={strat}
                         style={{
                           background: 'var(--bg-secondary)',
                           padding: '2px 8px',
@@ -383,9 +383,9 @@ export function Scanner() {
             <div>
               <h4 style={{ marginBottom: 'var(--space-sm)' }}>Recommended Strategies</h4>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--space-sm)' }}>
-                {selectedSymbol.recommended_strategies.map((strat, i) => (
+                {selectedSymbol.recommended_strategies.map((strat) => (
                   <span
-                    key={i}
+                    key={strat}
                     style={{
                       background: 'var(--accent-info)',
                       color: 'white',
