@@ -8870,5 +8870,15 @@
     "close": 123.02,
     "volume": 7000375.0,
     "atr": null
+  },
+  {
+    "symbol": "XBI",
+    "date": "2025-12-12",
+    "open": 123.01,
+    "high": 123.61,
+    "low": 121.9,
+    "close": 123.13,
+    "volume": 7778716.0,
+    "atr": null
   }
 ]

@@ -9087,5 +9087,15 @@
     "close": 67.74,
     "volume": 16118243.0,
     "atr": null
+  },
+  {
+    "symbol": "NKE",
+    "date": "2025-12-12",
+    "open": 68.17,
+    "high": 69.1364,
+    "low": 67.12,
+    "close": 67.47,
+    "volume": 14824200.0,
+    "atr": null
   }
 ]

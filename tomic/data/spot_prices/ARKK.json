@@ -9010,5 +9010,15 @@
     "close": 82.06,
     "volume": 8968504.0,
     "atr": null
+  },
+  {
+    "symbol": "ARKK",
+    "date": "2025-12-12",
+    "open": 82.03,
+    "high": 82.585,
+    "low": 79.415,
+    "close": 80.39,
+    "volume": 11338452.0,
+    "atr": null
   }
 ]

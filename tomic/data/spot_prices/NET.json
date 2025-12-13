@@ -8870,5 +8870,15 @@
     "close": 207.95,
     "volume": 2319322.0,
     "atr": null
+  },
+  {
+    "symbol": "NET",
+    "date": "2025-12-12",
+    "open": 207.28,
+    "high": 207.7,
+    "low": 199.71,
+    "close": 202.44,
+    "volume": 2109036.0,
+    "atr": null
   }
 ]

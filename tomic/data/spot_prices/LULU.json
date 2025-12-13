@@ -9087,5 +9087,15 @@
     "close": 187.01,
     "volume": 9925699.0,
     "atr": null
+  },
+  {
+    "symbol": "LULU",
+    "date": "2025-12-12",
+    "open": 204.575,
+    "high": 213.22,
+    "low": 202.11,
+    "close": 204.97,
+    "volume": 20269196.0,
+    "atr": null
   }
 ]

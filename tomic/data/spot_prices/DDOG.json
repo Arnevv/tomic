@@ -9010,5 +9010,15 @@
     "close": 149.9,
     "volume": 2695941.0,
     "atr": null
+  },
+  {
+    "symbol": "DDOG",
+    "date": "2025-12-12",
+    "open": 150,
+    "high": 150.1763,
+    "low": 144.97,
+    "close": 146,
+    "volume": 3741934.0,
+    "atr": null
   }
 ]
