@@ -5,6 +5,7 @@ from __future__ import annotations
 import os
 import subprocess
 import sys
+import threading
 from datetime import datetime
 from pathlib import Path
 from typing import Any
@@ -42,6 +43,10 @@ from .models import (
 from .backtest_api import router as backtest_router
 from ..analysis.greeks import compute_portfolio_greeks
 from ..services.trade_management_service import build_management_summary
+
+# Track running batch jobs and their errors
+_running_jobs: set[str] = set()
+_job_errors: dict[str, str] = {}
 
 # Initialize FastAPI app
 app = FastAPI(
