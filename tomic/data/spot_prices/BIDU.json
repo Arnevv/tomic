@@ -9000,5 +9000,25 @@
     "close": 126.07,
     "volume": 1870706.0,
     "atr": null
+  },
+  {
+    "symbol": "BIDU",
+    "date": "2025-12-11",
+    "open": 126.88,
+    "high": 128.9199,
+    "low": 126.22,
+    "close": 128.31,
+    "volume": 2244477.0,
+    "atr": null
+  },
+  {
+    "symbol": "BIDU",
+    "date": "2025-12-12",
+    "open": 129.01,
+    "high": 129.14,
+    "low": 124.6284,
+    "close": 125.01,
+    "volume": 3145041.0,
+    "atr": null
   }
 ]

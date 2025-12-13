@@ -200,6 +200,28 @@ export interface JobRunResponse {
   message: string;
 }
 
+export interface CacheFileInfo {
+  name: string;
+  path: string;
+  size_bytes: number;
+  size_human: string;
+  exists: boolean;
+  last_modified: string | null;
+}
+
+export interface CacheStatusData {
+  files: CacheFileInfo[];
+  total_size_bytes: number;
+  total_size_human: string;
+}
+
+export interface ClearCacheData {
+  success: boolean;
+  message: string;
+  cleared_files: string[];
+  errors: string[];
+}
+
 export interface GitHubWorkflowRun {
   workflow_name: string;
   status: 'success' | 'failure' | 'running' | 'queued' | 'unknown';

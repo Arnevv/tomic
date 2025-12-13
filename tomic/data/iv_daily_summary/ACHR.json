@@ -9028,5 +9028,23 @@
     "term_m1_m2": null,
     "term_m1_m3": null,
     "skew": -6.39
+  },
+  {
+    "date": "2025-12-11",
+    "atm_iv": 0.7517907412239521,
+    "iv_rank (IV)": 75.02276552135602,
+    "iv_percentile (IV)": 53.88257575757576,
+    "term_m1_m2": null,
+    "term_m1_m3": null,
+    "skew": -4.0
+  },
+  {
+    "date": "2025-12-12",
+    "atm_iv": 0.7442965607068558,
+    "iv_rank (IV)": 74.26481093026884,
+    "iv_percentile (IV)": 51.844843897824035,
+    "term_m1_m2": null,
+    "term_m1_m3": null,
+    "skew": -7.58
   }
 ]

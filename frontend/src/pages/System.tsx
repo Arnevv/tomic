@@ -17,8 +17,10 @@ export function System() {
   const { data: batchJobs, loading: jobsLoading, refetch: refetchJobs } = useApi<BatchJobsData>(() => api.getBatchJobs());
   const { data: config, loading: configLoading } = useApi<SystemConfigData>(() => api.getSystemConfig());
   const { data: githubWorkflow, refetch: refetchGithub } = useApi<GitHubWorkflowRun>(() => api.getGitHubWorkflowStatus());
+  const { data: cacheStatus, loading: cacheLoading, refetch: refetchCache } = useApi<CacheStatusData>(() => api.getCacheStatus());
 
   const [runningJobs, setRunningJobs] = useState<Set<string>>(new Set());
+  const [clearingCache, setClearingCache] = useState(false);
 
   const loading = healthLoading || jobsLoading || configLoading;
 
@@ -26,6 +28,28 @@ export function System() {
     refetchHealth();
     refetchJobs();
     refetchGithub();
+    refetchCache();
+  };
+
+  const handleClearCache = async () => {
+    if (!confirm('Are you sure you want to clear all cache files? This will delete liquidity_cache.json, sector_mapping.json, and symbol_metadata.json. They will be rebuilt on next use.')) {
+      return;
+    }
+
+    setClearingCache(true);
+    try {
+      const response = await api.clearCache();
+      if (response.success) {
+        alert(`Success: ${response.message}\n\nCleared files:\n${response.cleared_files.join('\n')}`);
+      } else {
+        alert(`Warning: ${response.message}\n\nErrors:\n${response.errors.join('\n')}`);
+      }
+      refetchCache();
+    } catch (error) {
+      alert(`Error clearing cache: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    } finally {
+      setClearingCache(false);
+    }
   };
 
   const handleRunJob = async (jobName: string) => {
@@ -346,6 +370,95 @@ export function System() {
             )}
           </tbody>
         </table>
+      </div>
+
+      {/* Cache Management Section */}
+      <div className="card" style={{ marginBottom: 'var(--space-lg)' }}>
+        <div className="card-header">
+          <span className="card-title">Cache Management</span>
+          <div style={{ display: 'flex', gap: 'var(--space-sm)' }}>
+            <button className="btn btn-secondary" onClick={refetchCache} disabled={cacheLoading}>
+              {cacheLoading ? 'Loading...' : 'Refresh'}
+            </button>
+            <button
+              className="btn btn-danger"
+              onClick={handleClearCache}
+              disabled={clearingCache}
+            >
+              {clearingCache ? 'Clearing...' : 'Clear Cache'}
+            </button>
+          </div>
+        </div>
+        {cacheStatus && (
+          <div>
+            <div style={{
+              padding: 'var(--space-md)',
+              background: 'var(--bg-secondary)',
+              borderRadius: 'var(--radius-sm)',
+              marginBottom: 'var(--space-md)',
+            }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ fontWeight: '500' }}>Total Cache Size</span>
+                <span style={{
+                  fontSize: '18px',
+                  fontWeight: '600',
+                  color: 'var(--accent-info)',
+                  fontFamily: 'var(--font-mono)',
+                }}>
+                  {cacheStatus.total_size_human}
+                </span>
+              </div>
+            </div>
+            <table className="table">
+              <thead>
+                <tr>
+                  <th>Cache File</th>
+                  <th>Size</th>
+                  <th>Last Modified</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {cacheStatus.files.map((file) => (
+                  <tr key={file.name}>
+                    <td style={{ fontFamily: 'var(--font-mono)', fontSize: '13px' }}>{file.name}</td>
+                    <td style={{ fontFamily: 'var(--font-mono)', fontSize: '13px' }}>{file.size_human}</td>
+                    <td className="mono" style={{ fontSize: '12px' }}>
+                      {file.last_modified
+                        ? new Date(file.last_modified).toLocaleString()
+                        : '-'}
+                    </td>
+                    <td>
+                      <span style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: 'var(--space-xs)',
+                        padding: '2px 8px',
+                        borderRadius: 'var(--radius-sm)',
+                        fontSize: '12px',
+                        background: file.exists ? 'rgba(25, 135, 84, 0.1)' : 'rgba(108, 117, 125, 0.1)',
+                        color: file.exists ? 'var(--status-healthy)' : 'var(--text-secondary)',
+                      }}>
+                        <span className={`status-dot ${file.exists ? 'healthy' : 'warning'}`} />
+                        {file.exists ? 'exists' : 'not found'}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            <div style={{
+              marginTop: 'var(--space-md)',
+              padding: 'var(--space-sm)',
+              background: 'rgba(13, 110, 253, 0.1)',
+              borderRadius: 'var(--radius-sm)',
+              fontSize: '13px',
+              color: 'var(--text-secondary)',
+            }}>
+              <strong>Note:</strong> Clearing cache will delete these files. They will be automatically regenerated when needed, which may take a few minutes during the next data sync.
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Configuration Section */}
