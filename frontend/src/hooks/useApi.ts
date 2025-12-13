@@ -71,6 +71,8 @@ export function useApi<T>(
 
   useEffect(() => {
     fetchData();
+    // Intentionally spreading deps array to allow caller to specify additional dependencies.
+    // This is a deliberate pattern to make the hook flexible while keeping fetchData stable.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [fetchData, retryCount, ...deps]);
 

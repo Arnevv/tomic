@@ -136,8 +136,8 @@ export function Portfolio() {
             </tr>
           </thead>
           <tbody>
-            {data.positions.map((pos, i) => (
-              <tr key={i} style={{ cursor: 'pointer' }} onClick={() => setSelectedPosition(pos)}>
+            {data.positions.map((pos) => (
+              <tr key={`${pos.symbol}-${pos.entry_date || 'open'}`} style={{ cursor: 'pointer' }} onClick={() => setSelectedPosition(pos)}>
                 <td style={{ fontWeight: '600' }}>{pos.symbol}</td>
                 <td>{pos.strategy || '-'}</td>
                 <td className="mono">
@@ -174,11 +174,11 @@ export function Portfolio() {
           </div>
           {data.positions
             .filter(p => p.alerts.length > 0)
-            .map((pos, i) => (
-              <div key={i} style={{ marginBottom: 'var(--space-sm)' }}>
-                {pos.alerts.map((alert, j) => (
+            .map((pos) => (
+              <div key={`${pos.symbol}-alerts`} style={{ marginBottom: 'var(--space-sm)' }}>
+                {pos.alerts.map((alert, alertIndex) => (
                   <div
-                    key={j}
+                    key={`${pos.symbol}-alert-${alertIndex}`}
                     style={{
                       display: 'flex',
                       alignItems: 'center',
