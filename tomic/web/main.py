@@ -18,6 +18,9 @@ from .models import (
     Alert,
     BatchJob,
     BatchJobsResponse,
+    CacheFileInfo,
+    CacheStatusResponse,
+    ClearCacheResponse,
     DashboardResponse,
     GitHubWorkflowRun,
     HealthStatus,
@@ -1076,6 +1079,124 @@ async def get_system_config():
             data_settings=data_settings,
             symbols=CONFIG.DEFAULT_SYMBOLS,
             trading_settings=trading_settings,
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/system/cache-status", response_model=CacheStatusResponse)
+async def get_cache_status():
+    """Get cache file status and sizes."""
+    try:
+        from ..config import CONFIG
+
+        data_dir = get_project_root() / "tomic" / "data"
+
+        # Cache files to check
+        cache_files = [
+            "liquidity_cache.json",
+            "sector_mapping.json",
+            "symbol_metadata.json",
+        ]
+
+        files_info = []
+        total_size = 0
+
+        for filename in cache_files:
+            file_path = data_dir / filename
+            exists = file_path.exists()
+
+            if exists:
+                stat = file_path.stat()
+                size_bytes = stat.st_size
+                total_size += size_bytes
+                last_modified = datetime.fromtimestamp(stat.st_mtime)
+
+                # Human readable size
+                if size_bytes < 1024:
+                    size_human = f"{size_bytes} B"
+                elif size_bytes < 1024 * 1024:
+                    size_human = f"{size_bytes / 1024:.1f} KB"
+                else:
+                    size_human = f"{size_bytes / (1024 * 1024):.1f} MB"
+            else:
+                size_bytes = 0
+                size_human = "0 B"
+                last_modified = None
+
+            files_info.append(CacheFileInfo(
+                name=filename,
+                path=str(file_path),
+                size_bytes=size_bytes,
+                size_human=size_human,
+                exists=exists,
+                last_modified=last_modified,
+            ))
+
+        # Total size human readable
+        if total_size < 1024:
+            total_human = f"{total_size} B"
+        elif total_size < 1024 * 1024:
+            total_human = f"{total_size / 1024:.1f} KB"
+        else:
+            total_human = f"{total_size / (1024 * 1024):.1f} MB"
+
+        return CacheStatusResponse(
+            files=files_info,
+            total_size_bytes=total_size,
+            total_size_human=total_human,
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/system/clear-cache", response_model=ClearCacheResponse)
+async def clear_cache():
+    """Clear all cache files."""
+    try:
+        from ..config import CONFIG
+        from ..services.qualification_service import QualificationService
+        from ..services.correlation_service import CorrelationService
+
+        data_dir = get_project_root() / "tomic" / "data"
+
+        # Cache files to clear
+        cache_files = [
+            "liquidity_cache.json",
+            "sector_mapping.json",
+            "symbol_metadata.json",
+        ]
+
+        cleared_files = []
+        errors = []
+
+        # Clear file-based caches
+        for filename in cache_files:
+            file_path = data_dir / filename
+            try:
+                if file_path.exists():
+                    file_path.unlink()
+                    cleared_files.append(filename)
+            except Exception as e:
+                errors.append(f"Failed to delete {filename}: {str(e)}")
+
+        # Clear in-memory caches
+        try:
+            # Note: We can't easily access service instances here, but the file-based
+            # caches are the most important ones. In-memory caches will be rebuilt
+            # on next access.
+            pass
+        except Exception as e:
+            errors.append(f"Failed to clear in-memory caches: {str(e)}")
+
+        success = len(errors) == 0
+        message = f"Cleared {len(cleared_files)} cache file(s)" if success else "Some caches could not be cleared"
+
+        return ClearCacheResponse(
+            success=success,
+            message=message,
+            cleared_files=cleared_files,
+            errors=errors,
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

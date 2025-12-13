@@ -164,6 +164,8 @@ export const api = {
   // Phase 2C - System & Monitoring
   getBatchJobs: () => fetchApi<import('../types').BatchJobsData>('/batch-jobs'),
   getSystemConfig: () => fetchApi<import('../types').SystemConfigData>('/system/config'),
+  getCacheStatus: () => fetchApi<import('../types').CacheStatusData>('/system/cache-status'),
+  clearCache: () => fetchApi<import('../types').ClearCacheData>('/system/clear-cache', { method: 'POST' }),
   getActivityLogs: (params?: {
     category?: string;
     level?: string;
