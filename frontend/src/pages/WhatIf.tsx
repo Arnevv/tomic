@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { api } from '../api/client';
 import type {
   BacktestConfig,
@@ -22,6 +22,40 @@ interface ParameterChange {
   category: 'entry' | 'exit' | 'position' | 'costs';
 }
 
+// Storage key for persisting job state
+const STORAGE_KEY = 'whatif_jobs';
+
+interface StoredJobState {
+  liveJobId: string;
+  whatifJobId: string;
+  strategyType: StrategyType;
+  timestamp: number;
+}
+
+function saveJobState(state: StoredJobState) {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+}
+
+function loadJobState(): StoredJobState | null {
+  try {
+    const stored = localStorage.getItem(STORAGE_KEY);
+    if (!stored) return null;
+    const state = JSON.parse(stored) as StoredJobState;
+    // Expire after 5 minutes
+    if (Date.now() - state.timestamp > 5 * 60 * 1000) {
+      localStorage.removeItem(STORAGE_KEY);
+      return null;
+    }
+    return state;
+  } catch {
+    return null;
+  }
+}
+
+function clearJobState() {
+  localStorage.removeItem(STORAGE_KEY);
+}
+
 export function WhatIf() {
   const [strategyType, setStrategyType] = useState<StrategyType>('iron_condor');
   const [liveConfig, setLiveConfig] = useState<BacktestConfig | null>(null);
@@ -39,6 +73,23 @@ export function WhatIf() {
   const [liveResult, setLiveResult] = useState<BacktestResult | null>(null);
   const [whatifResult, setWhatifResult] = useState<BacktestResult | null>(null);
   const [isRunning, setIsRunning] = useState(false);
+
+  // Track if we've restored from storage
+  const hasRestoredRef = useRef(false);
+
+  // Restore job state on mount
+  useEffect(() => {
+    if (hasRestoredRef.current) return;
+    hasRestoredRef.current = true;
+
+    const stored = loadJobState();
+    if (stored) {
+      setLiveJobId(stored.liveJobId);
+      setWhatifJobId(stored.whatifJobId);
+      setStrategyType(stored.strategyType);
+      setIsRunning(true);
+    }
+  }, []);
 
   // Load live config
   useEffect(() => {
@@ -60,37 +111,70 @@ export function WhatIf() {
   useEffect(() => {
     if (!liveJobId && !whatifJobId) return;
 
-    const interval = setInterval(async () => {
+    let isCancelled = false;
+
+    const poll = async () => {
+      if (isCancelled) return;
+
       try {
+        let liveIsDone = false;
+        let whatifIsDone = false;
+
         if (liveJobId) {
           const status = await api.getBacktestStatus(liveJobId);
+          if (isCancelled) return;
           setLiveStatus(status);
+
           if (status.status === 'completed' || status.status === 'failed') {
-            const result = await api.getBacktestResult(liveJobId);
-            setLiveResult(result);
+            liveIsDone = true;
+            if (status.status === 'completed') {
+              const result = await api.getBacktestResult(liveJobId);
+              if (isCancelled) return;
+              setLiveResult(result);
+            }
           }
+        } else {
+          liveIsDone = true;
         }
+
         if (whatifJobId) {
           const status = await api.getBacktestStatus(whatifJobId);
+          if (isCancelled) return;
           setWhatifStatus(status);
+
           if (status.status === 'completed' || status.status === 'failed') {
-            const result = await api.getBacktestResult(whatifJobId);
-            setWhatifResult(result);
+            whatifIsDone = true;
+            if (status.status === 'completed') {
+              const result = await api.getBacktestResult(whatifJobId);
+              if (isCancelled) return;
+              setWhatifResult(result);
+            }
           }
+        } else {
+          whatifIsDone = true;
         }
 
-        // Check if both are done
-        if (liveStatus?.status !== 'pending' && liveStatus?.status !== 'running' &&
-            whatifStatus?.status !== 'pending' && whatifStatus?.status !== 'running') {
+        // Only mark as not running when BOTH are done
+        if (liveIsDone && whatifIsDone) {
           setIsRunning(false);
+          clearJobState();
         }
-      } catch {
-        // Ignore polling errors
+      } catch (err) {
+        console.error('Polling error:', err);
       }
-    }, 1000);
+    };
 
-    return () => clearInterval(interval);
-  }, [liveJobId, whatifJobId, liveStatus?.status, whatifStatus?.status]);
+    // Initial poll
+    poll();
+
+    // Continue polling while running
+    const interval = setInterval(poll, 1000);
+
+    return () => {
+      isCancelled = true;
+      clearInterval(interval);
+    };
+  }, [liveJobId, whatifJobId]);
 
   // Build parameter list based on live config
   const getParameters = useCallback((): ParameterChange[] => {
@@ -257,6 +341,11 @@ export function WhatIf() {
   // Reset to live config
   const resetToLive = () => {
     setWhatifParams({ strategy_type: strategyType });
+    setLiveResult(null);
+    setWhatifResult(null);
+    setLiveStatus(null);
+    setWhatifStatus(null);
+    clearJobState();
   };
 
   // Start simulation
@@ -268,6 +357,7 @@ export function WhatIf() {
     setWhatifResult(null);
     setLiveStatus(null);
     setWhatifStatus(null);
+    setError(null);
 
     try {
       // Start both backtests
@@ -278,6 +368,14 @@ export function WhatIf() {
 
       setLiveJobId(comparison.live_job_id);
       setWhatifJobId(comparison.whatif_job_id);
+
+      // Persist job state for navigation recovery
+      saveJobState({
+        liveJobId: comparison.live_job_id,
+        whatifJobId: comparison.whatif_job_id,
+        strategyType,
+        timestamp: Date.now(),
+      });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to start simulation');
       setIsRunning(false);
@@ -304,6 +402,25 @@ export function WhatIf() {
       case 'number':
       default:
         return value.toFixed(0);
+    }
+  };
+
+  // Get status badge color and text
+  const getStatusBadge = (status: BacktestJobStatus | null, label: string) => {
+    if (!status) {
+      return { color: 'var(--text-muted)', text: `${label}: Wachten...`, icon: '○' };
+    }
+    switch (status.status) {
+      case 'pending':
+        return { color: 'var(--text-muted)', text: `${label}: In wachtrij`, icon: '○' };
+      case 'running':
+        return { color: 'var(--cobra-jungle-green)', text: `${label}: Bezig (${status.progress?.toFixed(0) ?? 0}%)`, icon: '◐' };
+      case 'completed':
+        return { color: 'var(--status-success)', text: `${label}: Voltooid`, icon: '●' };
+      case 'failed':
+        return { color: 'var(--status-error)', text: `${label}: Mislukt`, icon: '✕' };
+      default:
+        return { color: 'var(--text-muted)', text: `${label}: Onbekend`, icon: '?' };
     }
   };
 
@@ -368,7 +485,7 @@ export function WhatIf() {
     return <div className="loading">Loading configuration...</div>;
   }
 
-  if (error) {
+  if (error && !isRunning) {
     return (
       <div className="card">
         <h2>Error</h2>
@@ -382,6 +499,9 @@ export function WhatIf() {
 
   const parameters = getParameters();
   const hasChanges = Object.keys(whatifParams).length > 1; // More than just strategy_type
+  const hasResults = liveResult || whatifResult;
+  const liveBadge = getStatusBadge(liveStatus, 'Live');
+  const whatifBadge = getStatusBadge(whatifStatus, 'What-If');
 
   return (
     <div>
@@ -500,58 +620,94 @@ export function WhatIf() {
         <div className="card">
           <div className="card-header">
             <span className="card-title">Vergelijking</span>
-            {isRunning && (
-              <span style={{ fontSize: '0.75rem', color: 'var(--cobra-jungle-green)' }}>
-                {liveStatus?.progress_message || whatifStatus?.progress_message || 'Starting...'}
-              </span>
-            )}
           </div>
           <div style={{ padding: 'var(--space-md)' }}>
-            {/* Progress bars during run */}
-            {isRunning && (
-              <div style={{ marginBottom: 'var(--space-lg)' }}>
-                <div style={{ marginBottom: 'var(--space-md)' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 'var(--space-xs)', fontSize: '0.875rem' }}>
-                    <span>Live Config</span>
-                    <span className="mono">{(liveStatus?.progress ?? 0).toFixed(0)}%</span>
+            {/* Status indicators - always show when running or have job IDs */}
+            {(isRunning || liveJobId || whatifJobId) && (
+              <div style={{
+                marginBottom: 'var(--space-lg)',
+                padding: 'var(--space-md)',
+                background: 'var(--bg-tertiary)',
+                borderRadius: 'var(--radius-md)'
+              }}>
+                {/* Status badges */}
+                <div style={{ display: 'flex', gap: 'var(--space-lg)', marginBottom: 'var(--space-md)' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-xs)' }}>
+                    <span style={{ color: liveBadge.color }}>{liveBadge.icon}</span>
+                    <span style={{ fontSize: '0.875rem', color: liveBadge.color }}>{liveBadge.text}</span>
                   </div>
-                  <div style={{ height: '8px', background: 'var(--bg-tertiary)', borderRadius: 'var(--radius-pill)', overflow: 'hidden' }}>
-                    <div
-                      style={{
-                        height: '100%',
-                        width: `${liveStatus?.progress ?? 0}%`,
-                        background: 'var(--cobra-oxford-blue)',
-                        borderRadius: 'var(--radius-pill)',
-                        transition: 'width 0.3s',
-                      }}
-                    />
-                  </div>
-                </div>
-                <div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 'var(--space-xs)', fontSize: '0.875rem' }}>
-                    <span>What-If</span>
-                    <span className="mono">{(whatifStatus?.progress ?? 0).toFixed(0)}%</span>
-                  </div>
-                  <div style={{ height: '8px', background: 'var(--bg-tertiary)', borderRadius: 'var(--radius-pill)', overflow: 'hidden' }}>
-                    <div
-                      style={{
-                        height: '100%',
-                        width: `${whatifStatus?.progress ?? 0}%`,
-                        background: 'var(--cobra-orange)',
-                        borderRadius: 'var(--radius-pill)',
-                        transition: 'width 0.3s',
-                      }}
-                    />
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-xs)' }}>
+                    <span style={{ color: whatifBadge.color }}>{whatifBadge.icon}</span>
+                    <span style={{ fontSize: '0.875rem', color: whatifBadge.color }}>{whatifBadge.text}</span>
                   </div>
                 </div>
+
+                {/* Progress bars */}
+                {isRunning && (
+                  <>
+                    <div style={{ marginBottom: 'var(--space-sm)' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px', fontSize: '0.75rem' }}>
+                        <span>Live Config</span>
+                        <span className="mono">{(liveStatus?.progress ?? 0).toFixed(0)}%</span>
+                      </div>
+                      <div style={{ height: '6px', background: 'var(--bg-secondary)', borderRadius: 'var(--radius-pill)', overflow: 'hidden' }}>
+                        <div
+                          style={{
+                            height: '100%',
+                            width: `${liveStatus?.progress ?? 0}%`,
+                            background: 'var(--cobra-oxford-blue)',
+                            borderRadius: 'var(--radius-pill)',
+                            transition: 'width 0.3s',
+                          }}
+                        />
+                      </div>
+                    </div>
+                    <div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px', fontSize: '0.75rem' }}>
+                        <span>What-If</span>
+                        <span className="mono">{(whatifStatus?.progress ?? 0).toFixed(0)}%</span>
+                      </div>
+                      <div style={{ height: '6px', background: 'var(--bg-secondary)', borderRadius: 'var(--radius-pill)', overflow: 'hidden' }}>
+                        <div
+                          style={{
+                            height: '100%',
+                            width: `${whatifStatus?.progress ?? 0}%`,
+                            background: 'var(--cobra-orange)',
+                            borderRadius: 'var(--radius-pill)',
+                            transition: 'width 0.3s',
+                          }}
+                        />
+                      </div>
+                    </div>
+
+                    {/* Progress message */}
+                    {(liveStatus?.progress_message || whatifStatus?.progress_message) && (
+                      <div style={{ marginTop: 'var(--space-sm)', fontSize: '0.75rem', color: 'var(--text-muted)', fontStyle: 'italic' }}>
+                        {liveStatus?.progress_message || whatifStatus?.progress_message}
+                      </div>
+                    )}
+                  </>
+                )}
+
+                {/* Error messages */}
+                {liveStatus?.status === 'failed' && (
+                  <div style={{ marginTop: 'var(--space-sm)', padding: 'var(--space-sm)', background: 'rgba(220, 53, 69, 0.1)', borderRadius: 'var(--radius-sm)', color: 'var(--status-error)', fontSize: '0.875rem' }}>
+                    Live backtest mislukt: {liveStatus.error_message || 'Onbekende fout'}
+                  </div>
+                )}
+                {whatifStatus?.status === 'failed' && (
+                  <div style={{ marginTop: 'var(--space-sm)', padding: 'var(--space-sm)', background: 'rgba(220, 53, 69, 0.1)', borderRadius: 'var(--radius-sm)', color: 'var(--status-error)', fontSize: '0.875rem' }}>
+                    What-if backtest mislukt: {whatifStatus.error_message || 'Onbekende fout'}
+                  </div>
+                )}
               </div>
             )}
 
             {/* Results table */}
-            {(liveResult || whatifResult) && renderMetricsComparison()}
+            {hasResults && renderMetricsComparison()}
 
             {/* Empty state */}
-            {!isRunning && !liveResult && !whatifResult && (
+            {!isRunning && !hasResults && !liveJobId && !whatifJobId && (
               <div style={{ textAlign: 'center', padding: 'var(--space-xl)', color: 'var(--text-muted)' }}>
                 <p>Pas parameters aan en klik "Simulatie Starten" om de impact te zien.</p>
               </div>

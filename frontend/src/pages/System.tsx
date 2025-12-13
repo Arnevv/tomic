@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { api } from '../api/client';
 import { useApi } from '../hooks/useApi';
 import { LogViewer } from '../components/LogViewer';
-import type { SystemHealth, BatchJobsData, SystemConfigData, GitHubWorkflowRun } from '../types';
+import type { SystemHealth, BatchJobsData, SystemConfigData, GitHubWorkflowRun, CacheStatusData, CacheFileInfo } from '../types';
 
 type JobKey = 'exit_check' | 'entry_flow' | 'portfolio_sync';
 
@@ -419,7 +419,7 @@ export function System() {
                 </tr>
               </thead>
               <tbody>
-                {cacheStatus.files.map((file) => (
+                {cacheStatus.files.map((file: CacheFileInfo) => (
                   <tr key={file.name}>
                     <td style={{ fontFamily: 'var(--font-mono)', fontSize: '13px' }}>{file.name}</td>
                     <td style={{ fontFamily: 'var(--font-mono)', fontSize: '13px' }}>{file.size_human}</td>
