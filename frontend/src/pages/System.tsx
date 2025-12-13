@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { api } from '../api/client';
 import { useApi } from '../hooks/useApi';
+import { LogViewer } from '../components/LogViewer';
 import type { SystemHealth, BatchJobsData, SystemConfigData, GitHubWorkflowRun } from '../types';
 
 type JobKey = 'exit_check' | 'entry_flow' | 'portfolio_sync';
@@ -416,6 +417,11 @@ export function System() {
           </div>
         </div>
       )}
+
+      {/* Frontend Logs */}
+      <div style={{ marginTop: 'var(--space-lg)' }}>
+        <LogViewer />
+      </div>
     </div>
   );
 }
