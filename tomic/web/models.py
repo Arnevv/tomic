@@ -413,3 +413,31 @@ class WhatIfComparisonResponse(BaseModel):
     whatif_job_id: str
     live_status: str
     whatif_status: str
+
+
+class CacheFileInfo(BaseModel):
+    """Information about a single cache file."""
+
+    name: str
+    path: str
+    size_bytes: int
+    size_human: str
+    exists: bool
+    last_modified: datetime | None = None
+
+
+class CacheStatusResponse(BaseModel):
+    """Cache status information."""
+
+    files: list[CacheFileInfo]
+    total_size_bytes: int
+    total_size_human: str
+
+
+class ClearCacheResponse(BaseModel):
+    """Response after clearing cache."""
+
+    success: bool
+    message: str
+    cleared_files: list[str]
+    errors: list[str] = []
